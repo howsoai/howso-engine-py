@@ -1,0 +1,136 @@
+name: Reusable WF - Build
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+jobs:
+
+  pepify:
+    uses: "./.github/workflows/pepify.yml"
+    with:
+      version: ${{ inputs.version }}
+
+  build:
+    needs: ["pepify"]
+    runs-on: ubuntu-latest
+    outputs:
+      engine-version: ${{ steps.get-engine-version.outputs.engine-version }}
+    steps:
+
+    - uses: actions/checkout@v3
+
+    - name: Get howso-engine dependency version
+      id: get-engine-version
+      shell: bash
+      run: |
+        ENGINE_VERSION=$(jq -r '.dependencies."howso-engine"' ./version.json)
+        echo "engine-version=$(echo $ENGINE_VERSION)" >> $GITHUB_OUTPUT
+        echo "ENGINE_VERSION=$(echo $ENGINE_VERSION)" >> $GITHUB_ENV
+
+    - name: Download howso-engine
+      uses: robinraju/release-downloader@v1.8
+      with:
+        repository: "howsoai/howso-engine"
+        tag: ${{ env.ENGINE_VERSION }}
+        fileName: "howso-engine-*"
+        extract: true
+        out-file-path: "howso/howso-engine/tmp"
+
+    - name: Clean up dir
+      run: |
+        cd howso/howso-engine
+        mkdir -p migrations
+        mkdir -p trainee
+        mv tmp/howso.caml howso.caml
+        mv tmp/trainee_template.caml trainee_template.caml
+        mv tmp/migrations/migrations.caml migrations/migrations.caml
+        mv tmp/version.json version.json
+        rm -rf tmp
+
+    - name: Compare Amalagam versions
+      run: |
+        cd howso/howso-engine
+        engine_amlg_version=$(jq -r ".dependencies.amalgam" ./version.json)
+        # Go back to root dir
+        cd ../../..
+        git clone https://github.com/howsoai/amalgam-lang-py.git
+        cd amalgam-lang-py
+        # Checkout the latest tag
+        git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
+        amlg_lang_amlg_version=$(jq -r ".dependencies.amalgam" ./version.json)
+        # Check major versions only
+        if [[ "${engine_amlg_version:0:1}" != "${amlg_lang_amlg_version:0:1}" ]]; then
+          echo "Critical failure: embedded howso-engine specifies Amalgam v${engine_amlg_version}, but latest amalgam-lang-py specifies Amalgam v${amlg_lang_amlg_version}"
+          exit 1
+        fi
+        echo "Embedded howso-engine Amalgam version: ${engine_amlg_version}"
+        echo "Latest amalgam-lang-py release Amalgam version: ${amlg_lang_amlg_version}"
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install pypa/build
+      run: >-
+        python3 -m
+        pip install
+        build
+        --user
+
+    - name: Build a binary wheel and a source tarball
+      run: >-
+        python3 -m
+        build
+        --sdist
+        --wheel
+        --outdir dist/
+        .
+      env:
+        SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.pepify.outputs.pepified-version }}
+
+    - name: Upload Tarball Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz
+        path: dist/howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz
+        if-no-files-found: error
+
+    - name: Upload Wheel Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+        path: dist/howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+        if-no-files-found: error
+
+  test-3-8:
+    needs: ["build"]
+    uses: "./.github/workflows/pytest.yml"
+    secrets: inherit
+    with:
+      python-version: "3.8"
+
+  test-3-9:
+    needs: ["build"]
+    uses: "./.github/workflows/pytest.yml"
+    secrets: inherit
+    with:
+      python-version: "3.9"
+
+  test-3-10:
+    needs: ["build"]
+    uses: "./.github/workflows/pytest.yml"
+    secrets: inherit
+    with:
+      python-version: "3.10"
+
+  test-3-11:
+    needs: ["build"]
+    uses: "./.github/workflows/pytest.yml"
+    secrets: inherit
+    with:
+      python-version: "3.11"

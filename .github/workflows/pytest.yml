@@ -1,0 +1,50 @@
+name: Reusable WF - Pytests
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        required: true
+        type: string
+
+jobs:
+
+  test:
+    name: Pytest (${{ inputs.python-version }})
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: Get howso-engine dependency version
+        id: get-engine-version
+        shell: bash
+        run: |
+          ENGINE_VERSION=$(jq -r '.dependencies."howso-engine"' ./version.json)
+          echo "ENGINE_VERSION=$(echo $ENGINE_VERSION)" >> $GITHUB_ENV
+
+      - name: Download howso-engine
+        uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "howsoai/howso-engine"
+          tag: ${{ env.ENGINE_VERSION }}
+          fileName: "howso-engine-*"
+          extract: true
+          out-file-path: "howso/howso-engine"
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Run unit tests
+        run: |
+          python --version
+          pip install -e ".[dev]"
+          loglevel=${1:-INFO}
+          source_root_dir="howso"
+          pytest -s --log-cli-level=${loglevel} -o junit_family=xunit2 --cov-report term --cov=${source_root_dir} --junitxml=junit/test-results.xml --cov-report=xml
+
+      - name: Run flake8 linter
+        run: |
+          flake8 --exit-zero --format='##vso[task.logissue linenumber=%(row)d;columnnumber=%(col)d;code=%(code)s;sourcepath=%(path)s;type=warning;]%(text)s' ${source_root_dir}

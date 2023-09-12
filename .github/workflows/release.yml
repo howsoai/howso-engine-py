@@ -1,0 +1,65 @@
+name: Reusable WF - Release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  build-test-package:
+    uses: "./.github/workflows/build-test-package.yml"
+    secrets: inherit
+    with:
+      version: ${{ inputs.version }}
+
+  create-release:
+    needs: ['build-test-package']
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/howso-engine
+
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ./tmp
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ inputs.version }}
+          commit: ${{ github.sha }}
+          name: "howso-engine-py ${{ inputs.version }}"
+          artifactErrorsFailBuild: true
+          generateReleaseNotes: true
+          makeLatest: legacy
+          artifacts: "./tmp/howso-engine-*/howso-engine-*.tar.gz,./tmp/howso_engine-*/howso_engine-*.whl"
+          artifactContentType: application/gzip
+
+      - name: Clean up dir
+        run: |
+          mkdir -p dist
+          find ./tmp -type f -name '*.whl' -exec cp -t ./dist {} +
+          find ./tmp -type f -name '*.tar.gz' -exec cp -t ./dist {} +
+          ls ./dist
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.OFFICIAL_PYPI_API_TOKEN }}

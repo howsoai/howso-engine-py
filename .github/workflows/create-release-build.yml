@@ -1,0 +1,116 @@
+name: Create Release Build
+run-name: "Release Build"
+
+on:
+  workflow_dispatch:
+    inputs:
+      optional-release-tag:
+        description: "Optional release tag (if empty, will search previous commit titles for MAJOR/MINOR and autoincrement latest tag accordingly)"
+        required: false
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  construct-release-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      release-tag: ${{ steps.construct-release-tag.outputs.release-tag }}
+    steps:
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get previous git tag
+        id: previous-tag
+        uses: WyriHaximus/github-action-get-previous-tag@v1
+        with:
+          fallback: 0.0.0
+
+      - name: Get next semver from previous tag
+        id: next-semvers
+        uses: WyriHaximus/github-action-next-semvers@v1
+        with:
+          version: ${{ steps.previous-tag.outputs.tag }}
+
+      - name: Construct release tag
+        id: construct-release-tag
+        run: |
+          RELEASE_TAG=""
+
+          # Check for null tag:
+          if [[ "${{ inputs.optional-release-tag }}" = "0.0.0" || (-z "${{ inputs.optional-release-tag }}" && "${{ steps.previous-tag.outputs.tag }}" = "0.0.0") ]]; then
+            echo "❌ - Null tag (0.0.0) is invalid for a release (hint: repo could contain no tags)"
+            exit 1
+          fi
+
+          # If tag not given by user, deduce from commit titles since last tag:
+          if test -z "${{ inputs.optional-release-tag }}"; then
+            echo "Autoincrementing version based on previous commit titles since last tag"
+
+            # Search previous commits for MAJOR/MINOR text tokens:
+            IS_MAJOR_BUMP=false
+            IS_MINOR_BUMP=false
+            echo "Checking commit titles since last tag: '${{ steps.previous-tag.outputs.tag }}'..."
+            COMMITS=$(git log --pretty=format:%s ${{ steps.previous-tag.outputs.tag }}..@)
+            while read commit
+            do
+              if [[ $commit == *"MAJOR"* ]]; then
+                echo -e "\tMajor: title='$commit'"
+                IS_MAJOR_BUMP=true
+              elif [[ $commit == *"MINOR"* ]]; then
+                echo -e "\tMinor: title='$commit'"
+                IS_MINOR_BUMP=true
+              else
+                echo -e "\tPatch: title='$commit'"
+              fi
+            done <<< "$COMMITS"
+
+            # Set version according to what was found in commit titles:
+            if [ "$IS_MAJOR_BUMP" = true ]; then
+              echo "Bumping major version"
+              RELEASE_TAG=${{ steps.next-semvers.outputs.major }}
+            elif [ "$IS_MINOR_BUMP" = true ]; then
+              echo "Bumping minor version"
+              RELEASE_TAG=${{ steps.next-semvers.outputs.minor }}
+            else
+              # If no major/minor found, treat as patch:
+              echo "Bumping patch version"
+              RELEASE_TAG=${{ steps.next-semvers.outputs.patch }}
+            fi
+          else
+            echo "Using user provided release tag"
+            RELEASE_TAG=${{ inputs.optional-release-tag }}
+          fi
+
+          # Check if valid semver:
+          regex='^([0-9]+\.){2}(\*|[0-9]+)(-.*)?$'
+          if [[ ! "$RELEASE_TAG" =~ $regex ]]; then
+            echo "❌ - Release tag is not a valid semver: $RELEASE_TAG"
+            exit 1
+          fi
+          echo "✔ - Release tag is a valid semver"
+
+          # Check if tag already exists:
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "❌ - Release tag already exists: $RELEASE_TAG"
+            exit 1
+          fi
+          echo "✔ - Release tag does not exist"
+
+          echo "Release tag: $RELEASE_TAG"
+          echo "release-tag=$(echo $RELEASE_TAG)" >> $GITHUB_OUTPUT
+
+  release:
+    needs: ['construct-release-tag']
+    uses: "./.github/workflows/release.yml"
+    secrets: inherit
+    with:
+      version: ${{ needs.construct-release-tag.outputs.release-tag }}

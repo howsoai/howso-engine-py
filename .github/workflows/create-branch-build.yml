@@ -1,0 +1,59 @@
+name: Create Branch Build
+run-name: "Branch Build (${{ github.run_attempt }}.${{ github.run_number }}) - ${{ github.ref_name }}"
+
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  set-branch-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-branch-version.outputs.version }}
+    steps:
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get previous git tag
+        id: previous-tag
+        uses: WyriHaximus/github-action-get-previous-tag@v1
+        with:
+          fallback: 0.0.0
+
+      - name: Get next semver from previous tag
+        id: next-semvers
+        uses: WyriHaximus/github-action-next-semvers@v1
+        with:
+          version: ${{ steps.previous-tag.outputs.tag }}
+
+      - name: Set Branch version
+        id: set-branch-version
+        run: |
+          BRANCH_ITERATION=${{ github.run_attempt }}.${{ github.run_number }}
+          echo "version=$(echo ${{ steps.next-semvers.outputs.patch }}-alpha+BR.${{ github.ref_name }}.${BRANCH_ITERATION})" >> $GITHUB_OUTPUT
+
+  build-test-package:
+    needs: ['set-branch-version']
+    uses: "./.github/workflows/build-test-package.yml"
+    secrets: inherit
+    with:
+      version: ${{ needs.set-branch-version.outputs.version }}
+
+  # This job is here to have only one final step to add for "Status Checks"
+  # in GitHub, instead of adding every leaf test from 'build-test-package'
+  final-check:
+    needs: ['build-test-package']
+    if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1

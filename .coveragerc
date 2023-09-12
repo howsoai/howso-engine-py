@@ -1,0 +1,9 @@
+[run]
+source = howso
+branch = True
+omit =
+    */tests/*
+
+[report]
+exclude_lines =
+    pragma: no cover

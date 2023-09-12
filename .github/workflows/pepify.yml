@@ -1,0 +1,35 @@
+name: Reusable WF - PEPify Version
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+    outputs:
+      pepified-version:
+        value: ${{ jobs.pepify.outputs.pepified-version }}
+
+jobs:
+
+  pepify:
+    runs-on: ubuntu-latest
+    outputs:
+      pepified-version: ${{ steps.pepify.outputs.pepified-version }}
+    steps:
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Make Version PEP-Compliant
+        id: pepify
+        shell: bash
+        run: |
+          semver=${{ inputs.version }}
+          # Per PEP 440, the full scope of traditional semantic versioning is not valid in Python.
+          int_only_br=$(echo ".dev" | echo "${{ github.ref_name }}" | sed 's/[^0-9]*//g')
+          metadata=".dev$int_only_br"
+          pepified_version=$(echo "$semver" | sed -r -e 's/-alpha/a0/g' -e 's/-beta/b0/g' -e 's/\+PR./\.dev/g' -e "s|\+BR.${{ github.ref_name }}.|$metadata|g" -e 's/([0-9]+\.[0-9]+\.[0-9]+)([a-b0-9]+)?([\.dev]+)?(([0-9]+)\.([0-9]+)(\.([0-9]+))?)?/\1\2\3\5\6\8/g')
+          echo "Tagged version converted to PEP 440 standard: $pepified_version"
+          echo "pepified-version=$pepified_version" >> $GITHUB_OUTPUT

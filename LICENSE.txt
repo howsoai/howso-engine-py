@@ -1,0 +1,196 @@
+Diveplane Corporation
+
+Free Software License Terms
+
+PLEASE READ THIS LICENSE AGREEMENT (“Agreement”) CAREFULLY. This Agreement is a
+legally binding agreement between you (sometimes referred to as “You” or
+“Your”) and Diveplane Corporation (referred to as “Diveplane”, “Us”, “Our”, or
+“We”). You and Diveplane are collectively referred to herein as the “Parties”.
+By accessing and using the Diveplane Software, You agree to be bound by these
+terms and conditions.
+
+
+1. Diveplane Software
+
+    a. Provided as Is. You acknowledge and agree that the Diveplane Reactor
+       Community Edition (“Diveplane Software”) is provided “as is” with no
+       warranty express or implied under this Agreement, and for use by You. No
+       other services, upgrades, or support are being provided to You, but
+       Diveplane may, at its sole discretion provide upgrades during the Term.
+
+    b. Grant of License for Your Use Only. Subject to the terms and conditions
+       of this Agreement, Diveplane hereby grants to You a limited, non-
+       exclusive, non-transferable, non-sublicensable right to install, access,
+       and use the Diveplane Software and its output (“Diveplane Output”) for
+       commercial or non-commercial purposes as limited by this Agreement.
+
+    c. Prohibitions. You may not and shall not permit anyone to (a) copy the
+       Diveplane Software; (b) sublicense, rent, lease, sell, loan, transfer,
+       distribute, translate, reverse engineer, decompile, or disassemble or
+       otherwise obtain or attempt to create, derive, or obtain the source or
+       object code of the Diveplane Software; (c) modify, add content to,
+       enhance, prepare derivative works from or otherwise change the Diveplane
+       Software; (d) bypass or breach any security device or other protection
+       used by the Diveplane Software; (e) damage, destroy, disable, interfere
+       with or otherwise impede or harm the Diveplane Software, Diveplane
+       systems or Diveplane’s provision of services to or from any third party,
+       in whole or in part; (f) access or use the Diveplane Software or other
+       services for purposes of competitive analysis of or creation of
+       competitive software to the Diveplane Software.
+
+    d. Remote Network Interaction. Notwithstanding any other provision of this
+       Agreement, this agreement does not permit You to offer services that use
+       the Diveplane Software over a network (“Network Services”) that allows
+       users interacting with programs that use the Diveplane Software remotely
+       through a computer network.
+
+    e. Distribution. Notwithstanding any other provision of this Agreement,
+       this Agreement does not permit distribution or conveying the Diveplane
+       Software, including embedded in other software or hardware products, to
+       anyone else, nor can you provide the Diveplane Software for download, or
+       place it on a computer or server so that it may be downloaded by another
+       (“Redistributed Copies”). Redistributed Copies are not licensed under
+       this Agreement.
+
+    f. Suspension. Diveplane may, and You shall assist Diveplane to, suspend,
+       terminate or otherwise deny Your and/or any User’s, or any other
+       person’s access to or use of all or any part of the Diveplane Software
+       without incurring any resulting obligation or liability, if: (i)
+       required by a judicial or other governmental demand; or (ii) Diveplane
+       believes, in its reasonable discretion, that You or any User has failed
+       to comply with any material term of this Agreement; or (iii) this
+       Agreement expires or is terminated. Diveplane may terminate this
+       Agreement upon the occurrence of (i) or (ii) in this Section.
+
+    g. Ownership. As between Diveplane and You, Diveplane owns and shall own
+       all right, title, and interest in and to the Diveplane Software and all
+       products or services developed by Diveplane in relation thereto, during
+       and after the Term.
+
+    h. Your Data and Usage Data. You have sole ownership and/or rights to all
+       Your data supplied by You to the Diveplane Software (“Your Data”). You
+       acknowledge, consent and agree to Diveplane’s collection, use,
+       processing and storage of usage related content from the computer or
+       other devices used to access the Diveplane Software. This may include,
+       but is not necessarily limited to, version number, IP addresses and
+       other information like internet service, location, the type of browser
+       and modules that are used and/or accessed (“Usage Data”). For avoidance
+       of doubt, Usage Data is not Your Data.
+
+    i. Term and Effect of Termination or Expiration. The term of this Agreement
+       runs from the date You first download, access, or use the Diveplane
+       Software and runs until December 31, 2023 (“Term”) unless earlier
+       terminated. You may terminate this Agreement at will. Upon any
+       termination of this Agreement, all rights, licenses, consents and
+       authorizations granted by either party to the other hereunder will
+       immediately terminate and You shall immediately deactivate the
+       applicable access credentials, including those of Users, and delete,
+       uninstall, and / or remove all copies of the Diveplane Software and any
+       derivate works.
+
+    j. Survival. Those provisions of this Agreement that by their nature are
+       intended to survive termination or expiration of this Agreement shall
+       so survive.
+
+
+2. Disclaimers and No Warranties
+
+   a. General. The Diveplane Software is provided “as is” and no warranties,
+      express or implied, are provided for the software. You acknowledge that:
+      (i) the Diveplane Software may contain errors, design flaws or other
+      problems; (ii) access to and/or use of the Diveplane Software may result
+      in unexpected results, loss of Your Data, project delays or other
+      unpredictable damage or loss, and that You should backup all relevant
+      systems and maintain copies of all Your Data used in the Diveplane
+      Software under this Agreement; and (iii) by entering into this Agreement,
+      Diveplane is under no obligation to enter into any subsequent agreement
+      with You related to the Diveplane Software. For the avoidance of doubt,
+      You agree and acknowledge that loss of data and records is a risk in
+      connection with this Agreement and, therefore, agree to configure and
+      backup Your computer system environment and data to prevent the
+      activities contemplated hereunder from causing business interruption,
+      damage to systems, loss of Your Data, or other loss or damage. EXCEPT AS
+      SET FORTH HEREIN, YOU AGREE THAT DIVEPLANE HAS NO OBLIGATION OR LIABILITY
+      FOR ANY LOSS, ALTERATION, DESTRUCTION, DAMAGE, CORRUPTION OR RECOVERY OF
+      YOUR DATA OR SYSTEMS. You represent, warrant, and covenant to Diveplane
+      that You own or otherwise have and will have the necessary rights and
+      consents in and relating to the Your Data so that, as received by the
+      Diveplane Software and processed in accordance with this Agreement, they
+      do not and will not infringe, misappropriate or otherwise violate any
+      intellectual property rights, privacy or other rights of any third party
+      or violate any applicable law.
+
+   b. DIVEPLANE MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED,
+      REGARDING USE OF OR RELIANCE ON THE DIVEPLANE SOFTWARE, AND THE DIVEPLANE
+      SOFTWARE IS PROVIDED “AS IS.”  YOU HEREBY WAIVE, RELEASE AND DISCLAIM ALL
+      OTHER WARRANTIES, OBLIGATIONS AND LIABILITIES OF DIVEPLANE AND ALL OTHER
+      REMEDIES, RIGHTS AND CLAIMS OF YOURS EXPRESS OR IMPLIED, ARISING BY LAW
+      OR OTHERWISE, WITH RESPECT TO ANY DEFECT, DEFICIENCY, DATA ACCURACY, OR
+      NONCONFORMITY IN THE SOFTWARE OR ANYTHING ELSE FURNISHED UNDER THIS
+      AGREEMENT, INCLUDING BUT NOT LIMITED TO ANY: (A) IMPLIED WARRANTY OF
+      MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE; (B) IMPLIED WARRANTY
+      ARISING FROM COURSE OF PERFORMANCE, COURSE OF DEALING, OR USAGE OF TRADE;
+      (C) ANY OBLIGATION, LIABILITY, RIGHT, REMEDY OR CLAIM IN TORT,
+      NOTWITHSTANDING ANY FAULT, NEGLIGENCE, STRICT LIABILITY OR PRODUCT
+      LIABILITY OF DIVEPLANE (WHETHER ACTIVE, PASSIVE OR IMPUTED); AND (D)
+      CLAIM OF INFRINGEMENT. DIVEPLANE DOES NOT WARRANT THAT OPERATION OF OR
+      USE OF THE DIVEPLANE SOFTWARE WILL BE UNINTERRUPTED, ERROR-FREE, OR
+      ENTIRELY SECURE. YOU WILL BEAR ALL RISK ASSOCIATED WITH ANY USE OF THE
+      INTERNET OR OTHER MEANS OF COMMUNICATION OR DATA TRANSMISSION BY OR ON
+      BEHALF OF YOU UNDER THIS AGREEMENT, AND DIVEPLANE DISCLAIMS ALL LIABILITY
+      AND RESPONSIBILITY IN CONNECTION WITH SUCH USE. Further, You agree to
+      indemnify and hold Diveplane harmless from and against any third party
+      damages, claims or other liabilities directly or indirectly caused or
+      arising out of any of the following: (i) Your use or non-use of the
+      Diveplane Software; (ii) any content, results or output from any
+      Diveplane Software; (iii) any recommendations based on the content,
+      results or output from any Diveplane Software; (iv) Your failure to
+      identify and correct any inaccuracies and/or errors in the content,
+      results or output of any Diveplane Software; and/or (v) unauthorized or
+      illegal use of Your Data in the Diveplane Software.
+
+   c. IN NO EVENT SHALL DIVEPLANE BE LIABLE FOR ANY INDIRECT, SPECIAL,
+      INCIDENTAL, CONSEQUENTIAL OR PUNITIVE DAMAGES, LOSS OF USE OR DATA,
+      INTERRUPTION OF BUSINESS, OR ANY OTHER DAMAGES, WHETHER SUCH ALLEGED
+      DAMAGES ARE LABELED IN TORT, CONTRACT OR INDEMNITY, INCLUDING, BUT NOT
+      LIMITED TO, LOSS OF REVENUE AND LOSS OF PROFITS, EVEN IF ADVISED OF THE
+      POSSIBILITY OF SUCH DAMAGES.
+
+
+3. Other Provisions
+
+   a. Publicity. If You use the Diveplane Software or its output (“Diveplane
+      Software Output”) commercially or in or as a basis of a publication (such
+      as a book, paper, blog post, direct publishing of the Diveplane Software
+      Output, etc.) in any medium, You shall and agree to conspicuously publish
+      an appropriate notice that indicates Your use of the Diveplane Software
+      and / or the Diveplane Software Output.
+
+   b. Independent Parties. The parties agree that this Agreement governs the
+      relationship between Diveplane and You for the license of Reactor
+      Community Edition. Nothing contained in this Agreement shall be construed
+      as creating a joint venture, partnership, agent, or employment
+      relationship between Diveplane and You or any User.
+
+   c. Severability. If any term or provision of this Agreement should be
+      declared invalid by a court of competent jurisdiction or by operation of
+      law, the remaining terms and provisions of this Agreement shall be
+      unimpaired, and the invalid term or provision shall be replaced by such
+      valid term or provision as comes closest to its underlying intention.
+
+   d. No Assignment. You cannot assign, delegate, or otherwise transfer in any
+      way either this Agreement or any of your rights, duties or
+      obligations hereunder.
+
+   e. Applicable Law. This Agreement will be interpreted, construed, and
+      enforced in all respects in accordance with the laws of the State of
+      Delaware, including its statutes of limitation, but without reference to
+      its choice of law principles. Each party hereby consents to the
+      jurisdiction and venue of the state and federal courts located in North
+      Carolina, with regard to any suit or claim arising under or by reason of
+      this Agreement.
+
+   f. Compliance with Laws. You shall comply with all applicable laws,
+      regulations, rules, orders, and other requirements, now or hereafter in
+      effect, of any applicable governmental authority, in its performance of
+      activities hereunder.

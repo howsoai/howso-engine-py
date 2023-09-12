@@ -1,0 +1,62 @@
+name: Create PR Build
+run-name: "PR Build: #${{ github.event.pull_request.number }} (${{ github.run_attempt }}.${{ github.run_number }}) - ${{ github.event.pull_request.title }}"
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  set-pr-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-pr-version.outputs.version }}
+    steps:
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get previous git tag
+        id: previous-tag
+        uses: WyriHaximus/github-action-get-previous-tag@v1
+        with:
+          fallback: 0.0.0
+
+      - name: Get next semver from previous tag
+        id: next-semvers
+        uses: WyriHaximus/github-action-next-semvers@v1
+        with:
+          version: ${{ steps.previous-tag.outputs.tag }}
+
+      - name: Set PR version
+        id: set-pr-version
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          PR_ITERATION=${{ github.run_attempt }}.${{ github.run_number }}
+          echo "version=$(echo ${{ steps.next-semvers.outputs.patch }}-alpha+PR.${PR_NUMBER}.${PR_ITERATION})" >> $GITHUB_OUTPUT
+
+  build-test-package:
+    needs: ['set-pr-version']
+    uses: "./.github/workflows/build-test-package.yml"
+    secrets: inherit
+    with:
+      version: ${{ needs.set-pr-version.outputs.version }}
+
+  # This job is here to have only one final step to add for "Status Checks"
+  # in GitHub, instead of adding every leaf test from 'build-test-package'
+  final-check:
+    needs: ['build-test-package']
+    if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1
