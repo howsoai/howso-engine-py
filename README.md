@@ -1,9 +1,9 @@
 
 <div align="left">
-  <img src="HowsoLogo.svg">
+  <img src="https://howso.com/assets/images/Howso_Readme.svg">
 </div>
 
-The Howso Engine&trade; is a natively and fully explainable ML engine, serving as an alternative to black box AI neural networks. It’s core features give users data exploration and machine learning capabilities through the creation and use of Trainees that help users store, explore, and analyze the relationships in their data. Howso&trade; leverages an instance-based learning approach with strong ties to the [k-nearest neighbors algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) and [information theory](https://en.wikipedia.org/wiki/Information_theory) to scale for real world applications.
+The Howso Engine&trade; is a natively and fully explainable ML engine, serving as an alternative to black box AI neural networks. Its core features give users data exploration and machine learning capabilities through the creation and use of Trainees that help users store, explore, and analyze the relationships in their data. Howso&trade; leverages an instance-based learning approach with strong ties to the [k-nearest neighbors algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) and [information theory](https://en.wikipedia.org/wiki/Information_theory) to scale for real world applications.
 
 At the core of Howso is the concept of a Trainee, a collection of cases that comprise knowledge. In traditional ML, this is typically referred to as a model, but a Trainee may additionally include metadata, parameters, details of feature attributes, with data lineage and provenance. Unlike traditional ML, Trainees are designed to be versatile, a single model that after training a dataset can do the following without the need to retrain:
 - Perform **classification** on any target feature using any set of input features
@@ -83,8 +83,7 @@ Please see the [User Guide](https://docs.howso.com/user_guide/index.html) for ba
 - Trainee editing
 - ID-based privacy
 
-There is also a set of basic [Python examples](https://docs.howso.com/examples/index.html) that provide a complete set of Python scripts and [Jupyter notebooks](https://jupyter.org/) to run.
-
+There is also a set of basic [Jupyter notebooks](https://jupyter.org/) to run that provides a complete example of how to use Howso Engine.
 
 ## License
 
