@@ -1187,3 +1187,28 @@ def date_format_is_iso(f):
                                  ).startswith(f) and f not in excluded_formats):
                     return True
     return False
+
+
+def deep_update(base, updates):
+    """
+    Update dict `base` with updates from dict `updates` in a "deep" fashion.
+
+    NOTE: This is a recursive function. Care should be taken to ensure that
+    neither of the input dictionaries are self-referencing.
+
+    Parameters
+    ----------
+    base : dict
+        A dictionary
+    updates : dict
+        A dictionary of updates
+
+    Returns
+    -------
+    dict : The updated dictionary.
+    """
+    if all((isinstance(d, dict) for d in (base, updates))):
+        for k, v in updates.items():
+            base[k] = deep_update(base.get(k), v)
+        return base
+    return updates

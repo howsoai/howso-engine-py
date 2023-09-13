@@ -8,11 +8,11 @@
 **/*.trace
 dumps
 traces
-howso/direct/resources
 howso/docs/build
 howso/docs/source/_build
 howso/docs/source/auto_examples
 howso/howso-engine
+howso/resources
 local/
 
 # Do not ignore the thumbnails used by sphinx-gallery

@@ -14,6 +14,7 @@ from .utilities import (  # noqa: F401
     check_feature_names,
     date_format_is_iso,
     date_to_epoch,
+    deep_update,
     determine_iso_format,
     dprint,
     epoch_to_date,
