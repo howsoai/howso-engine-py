@@ -1,16 +1,16 @@
 """Primary Howso Client Class."""
 from importlib import import_module
-import itertools
 from os import environ
 from os.path import expandvars
 from pathlib import Path
-from typing import Optional, Sequence, Tuple, Union
+from typing import Generator, Optional, Sequence, Tuple, Union
 import warnings
 
 from howso.client.base import AbstractHowsoClient
 from howso.client.exceptions import HowsoConfigurationError
-from howso.utilities import UserFriendlyExit
+from howso.utilities import deep_update, UserFriendlyExit
 import yaml
+
 
 DEFAULT_CONFIG_FILE = 'howso.yml'
 DEFAULT_CONFIG_FILE_ALT = 'howso.yaml'
@@ -22,54 +22,6 @@ CONFIG_FILE_ENV_VAR = 'HOWSO_CONFIG'
 HOME_DIR_CONFIG_PATH = '.howso'
 XDG_DIR_CONFIG_PATH = 'howso'
 XDG_CONFIG_ENV_VAR = 'XDG_CONFIG_HOME'
-
-
-def _get_howso_local_resources_path(file_name: str) -> Union[Path, None]:
-    """
-    Return the Path of a file in `howso.engine.enterprise.resources`.
-
-    Parameters
-    ----------
-    file_name: str
-        The name of a file in the howso.engine.enterprise.resources package.
-
-    Returns
-    -------
-    Path or None
-        The path to the given file name in Howso Local resources. None is
-        returned if the module isn't available in the current environment or
-        the file does not exist there.
-    """
-    try:
-        from howso.engine import enterprise as howso_local
-    except ImportError:
-        return None
-    else:
-        return Path(howso_local.__file__).parent.joinpath("resources", file_name)
-
-
-def _get_howso_engine_resources_path(file_name: str) -> Union[Path, None]:
-    """
-    Return the Path of a file in `howso.engine.resources`.
-
-    Parameters
-    ----------
-    file_name: str
-        The name of a file in the howso.engine.resources package.
-
-    Returns
-    -------
-    Path or None
-        The path to the given file name in Howso Engine resources. None is
-        returned if the module isn't available in the current environment or
-        the file does not exist there.
-    """
-    try:
-        from howso import community as howso_engine
-    except ImportError:
-        return None
-    else:
-        return Path(howso_engine.__file__).parent.joinpath('resources', file_name)
 
 
 def _check_isfile(file_paths: Sequence[Union[Path, str]]) -> Union[Path, None]:
@@ -134,21 +86,6 @@ def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # no
                 environ.get(XDG_CONFIG_ENV_VAR)
             ))
 
-        # Calculate if howso-local is installed
-        howso_local_config = _get_howso_local_resources_path(DEFAULT_CONFIG_FILE)
-        # Boolean to check if howso-local is installed
-        howso_local_installed = False
-        if isinstance(howso_local_config, Path) and howso_local_config.is_file():
-            howso_local_installed = True
-
-        # Calculate if howso-engine is installed
-        howso_engine_config = _get_howso_engine_resources_path(DEFAULT_CONFIG_FILE)
-        # Boolean to check if howso-engine is installed
-        howso_engine_installed = (
-            isinstance(howso_engine_config, Path)
-            and howso_engine_config.is_file()
-        )
-
         # Check if HOWSO_CONFIG env variable is set
         if environ.get(CONFIG_FILE_ENV_VAR) is not None:
             config_path = environ[CONFIG_FILE_ENV_VAR]
@@ -203,21 +140,6 @@ def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # no
                 f'Use of deprecated configuration file name at "{config_path}". '
                 f'Please rename to "{DEFAULT_CONFIG_FILE}".')
 
-        # If local is installed, use that config only if no other config was found
-        if howso_local_installed:
-            if config_path is None:
-                config_path = howso_local_config
-            else:  # may be deliberate, but we should warn the user
-                warnings.warn('Howso local is installed, but a configuration file at '
-                              f'{config_path} was found that will take precedence.')
-        elif howso_engine_installed:
-            # only use engine if local is not installed
-            if config_path is None:
-                config_path = howso_engine_config
-            else:
-                warnings.warn('Howso Engine is installed, but a configuration file at '
-                              f'{config_path} was found that will take precedence.')
-
     # Verify file in config_path parameter exists
     elif config_path and not Path(config_path).is_file():
         raise HowsoConfigurationError(
@@ -234,30 +156,64 @@ def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # no
     return config_path
 
 
-def get_extras_path(directory: Union[str, Path]):
+def _gen_files_in_dir(directory: Path) -> Generator[Path, None, None]:
     """
-    Look for a file `extras.yml` or similar in the given path.
-
-    If found, return the path to the file, else, None.
+    Recursively yield file (not directory) paths from the given `directory`.
 
     Parameters
     ----------
     directory : str or Path
-        The directory to look within. This is given as the directory containing
-        the `howso.yml` et al file.
+        The directory to look within.
+
+    Yields
+    ------
+    Path
+        Paths to files within the given `directory` at any depth.
+    """
+    for node in directory.iterdir():
+        if node.is_dir():
+            yield from _gen_files_in_dir(node)
+        else:
+            yield node
+
+
+def get_extras_configs(directory: Union[Path, str, None] = None) -> dict:
+    """
+    Accumulate and return any "extra" config found in resources or other path.
+
+    Parameters
+    ----------
+    directory : str or Path, default None
+        Optional. The directory to look within. This is given as the directory
+        containing the `howso.yml` et al file. If not provided will default to
+        a 'resources' directory, if found, in the howso namespace.
 
     Returns
     -------
-    Path or None
-        The file path to the extras.yml file, or None, if none found.
+    dict
+        A dictionary containing a merged set of extras configurations found in
+        the given `directory` or the default, which is <howso>/resources/.
     """
+    if not directory:
+        directory = Path(__file__).parent.parent.joinpath('resources')
+    if not isinstance(directory, Path):
+        directory = Path(directory)
+
+    extras_config = {}
+
     extras_stems = ['extras', 'Extras', 'EXTRAS']
-    extras_exts = ['yml', 'yaml', 'YML', 'YAML']
-    for stem, ext in itertools.product(extras_stems, extras_exts):
-        extras_path = Path(directory, f"{stem}.{ext}")
-        if extras_path.exists():
-            return extras_path
-    return None
+    extras_exts = ['.yml', '.yaml', '.YML', '.YAML']
+    for node in _gen_files_in_dir(directory):
+        if node.suffix in extras_exts and node.stem in extras_stems:
+            try:
+                with open(node, 'r') as config:
+                    config_data = yaml.safe_load(config)
+            except Exception:  # noqa: Deliberately broad
+                raise
+            else:
+                extras_config = deep_update(extras_config, config_data)
+
+    return extras_config
 
 
 def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
@@ -317,7 +273,7 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
     # provides an opportunity for customer-specific functionality and/or
     # authentication schemes, etc.
     try:
-        custom_client = config_data['Howso']['client']
+        custom_client = config_data['howso']['client']
         # Split the dotted-path into "module" and the specific "class". For
         # example. `my_package.my_module.MyClass' would become
         # `custom_module_path` of `my_package.my_module` and
@@ -341,7 +297,7 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
     except (AttributeError, ImportError, ModuleNotFoundError, ValueError) as exception:
         # User attempted to override the default client class, but there was
         # an error.
-        kind_exit('The configuration at Howso -> client, if provided, '
+        kind_exit('The configuration at howso -> client, if provided, '
                   'should contain a valid dotted-path to a '
                   'subclass of AbstractHowsoClient.', exception=exception)
     except HowsoConfigurationError as exception:
@@ -359,7 +315,7 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
 
     # customer-specific functionality and/or authentication schemes, etc.
     try:
-        client_extra_params = config_data['Howso']['client_extra_params']
+        client_extra_params = config_data['howso']['client_extra_params']
     except KeyError:
         # No extra params set - that is ok - let's move on
         client_extra_params = dict()
@@ -367,21 +323,18 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
     if client_extra_params is None:
         client_extra_params = dict()
     elif not isinstance(client_extra_params, dict):
-        kind_exit('The configuration at Howso -> client_extra_params '
+        kind_exit('The configuration at howso -> client_extra_params '
                   'should be defined as a dictionary.')
 
-    # Add extras
-    if config_path:
-        if not isinstance(config_path, Path):
-            config_path = Path(config_path)
-        extras_path = get_extras_path(config_path.parent)
-        if extras_path:
-            try:
-                with open(extras_path, 'r') as extra_config:
-                    extra_data = yaml.safe_load(extra_config)
-                    client_extra_params.update(extra_data['Howso'])
-            except Exception:  # noqa: deliberately broad
-                pass
+    # Add any "Extras"
+    try:
+        extras_config = get_extras_configs()
+        client_extra_params = deep_update(
+            client_extra_params,
+            extras_config['howso']['client_extra_params']
+        )
+    except Exception:  # noqa: Deliberately broad
+        pass
 
     if verbose:
         print("Instantiating %r" % client_class)
