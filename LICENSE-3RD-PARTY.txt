@@ -720,7 +720,7 @@ Requires: python-dateutil
 Required-by: howso-engine
 ---
 Name: howso-engine
-Version: 7.4.1.dev1+gf121060.d20230913
+Version: 7.4.1.dev2+g03ffb57.d20230913
 Summary: Howso Engine and Scikit Estimator for the interpretable Machine Learning and Artificial Intelligence API.
 Home-page: 
 Author: Howso Incorporated
@@ -1387,11 +1387,12 @@ if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNU AGPL, see
 <http://www.gnu.org/licenses/>.
 
+Editable project location: /home/abassett/github/howso-engine-py
 Requires: amalgam-lang, certifi, cryptography, deprecation, Faker, howso-openapi-client, humanize, mmh3, numpy, pandas, pyjwt, pyyaml, rich, scikit-learn, semantic-version, typing-extensions, urllib3
 Required-by: 
 ---
 Name: howso-openapi-client
-Version: 24.0.16
+Version: 25.0.0
 Summary: Howso OpenAPI
 Home-page: 
 Author: Howso Incorporated
@@ -1531,7 +1532,7 @@ Requires: numpy, python-dateutil, pytz, tzdata
 Required-by: howso-engine
 ---
 Name: pip
-Version: 22.3.1
+Version: 23.2.1
 Summary: The PyPA recommended tool for installing Python packages.
 Home-page: https://pip.pypa.io/
 Author: The pip developers
