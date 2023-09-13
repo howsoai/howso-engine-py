@@ -116,7 +116,9 @@ basic workflows as well as additional information about:
 - ID-based privacy
 
 There is also a set of basic [Jupyter notebooks](https://jupyter.org/) to run
-that provides a complete example of how to use Howso Engine.
+that provides a
+[complete set of examples](https://docs.howso.com/examples/index.html) of how
+to use Howso Engine.
 
 ## License
 
