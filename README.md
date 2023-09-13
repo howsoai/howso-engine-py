@@ -3,9 +3,9 @@
   <img src="https://howso.com/assets/images/Howso_Readme.svg">
 </div>
 
-The Howso Engine&trade; is a natively and fully explainable ML engine, serving
-as an alternative to black box AI neural networks. Its core features give users
-data exploration and machine learning capabilities through the creation and use
+The Howso Engine&trade; is a natively and fully explainable ML engine and toolbox, 
+serving as an alternative to black box AI. Its core features give users data 
+exploration and machine learning capabilities through the creation and use
 of Trainees that help users store, explore, and analyze the relationships in
 their data. Howso&trade; leverages an instance-based learning approach with
 strong ties to the [k-nearest neighbors
