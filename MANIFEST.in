@@ -1,6 +1,7 @@
 include README.md
 global-include requirements-*.txt
 global-include requirements.in
+global-included HowsoLogo.svg
 include LICENSE.txt
 include LICENSE-3RD-PARTY.txt
 include version.json
