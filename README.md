@@ -1,6 +1,6 @@
 
 <div align="left">
-  <img src="MarkdownLogo.svg">
+  <img src="HowsoLogo.svg">
 </div>
 
 The Howso Engine&trade; is a natively and fully explainable ML engine, serving as an alternative to black box AI neural networks. It’s core features give users data exploration and machine learning capabilities through the creation and use of Trainees that help users store, explore, and analyze the relationships in their data. Howso&trade; leverages an instance-based learning approach with strong ties to the [k-nearest neighbors algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) and [information theory](https://en.wikipedia.org/wiki/Information_theory) to scale for real world applications.
@@ -23,7 +23,7 @@ Furthermore, Trainees are auditable, debuggable, and editable.
 - [Howso Playground](https://playground.howso.com)
 
 ## General Overview
-This Repo provides the Python interface with [Howso Engine](https://github.com/howsoai/howso-engine) that exposes the Howso Engine functionality. The Client objects directly interface with the engine API endpoints while the Trainee objects provides the python functionality for general users. Client functions may be called by the user but for most workflows the Trainee functionality is sufficient. Each Trainee represents an individual Machine Learning object or model that can perform functions like training and predicting, while a client may manage the API interface for multiple Trainees. 
+This Repo provides the Python interface with [Howso Engine](https://github.com/howsoai/howso-engine) that exposes the Howso Engine functionality. The Client objects directly interface with the engine API endpoints while the Trainee objects provides the python functionality for general users. Client functions may be called by the user but for most workflows the Trainee functionality is sufficient. Each Trainee represents an individual Machine Learning object or model that can perform functions like training and predicting, while a client may manage the API interface for multiple Trainees.
 
 
 ## Supported Platforms
@@ -65,7 +65,7 @@ Below is a very high-level set of steps recommended for using the Howso Engine:
 4. Call Analyze on the Trainee to find optimal hyperparameters
 5. Explore your data!
 
-Once the Trainee has been given feature attributes, trained, and analyzed, then the Trainee is ready 
+Once the Trainee has been given feature attributes, trained, and analyzed, then the Trainee is ready
 to be used for all supported machine learning tasks. At this point one could start making predictions
 on unseen data, investigate the most noisy features, find the most anomalous training cases, and much more.
 
