@@ -24,7 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/howso-engine
+    permissions:
+      contents: write
+      id-token: write
 
     steps:
 
@@ -61,5 +63,3 @@ jobs:
 
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.TEMP_OFFICIAL_PYPI_API_TOKEN }}
