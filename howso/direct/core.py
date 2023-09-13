@@ -2477,21 +2477,51 @@ class HowsoCore:
             "seed": seed,
         })
 
-    def get_internal_parameters(self, trainee_id: str) -> Dict:
+    def get_internal_parameters(
+        self,
+        trainee_id: str,
+        action_feature: Optional[str] = None,
+        context_features: Optional[Iterable[str]] = None,
+        mode: Optional[Literal["robust", "full"]] = None,
+        weight_feature: Optional[str] = None,
+    ) -> Dict:
         """
-        Get parameters used by the Trainee.
+        Get the parameters used by the Trainee. If 'action_feature',
+        'context_features', 'mode', or 'weight_feature' are specified, then
+        the best hyperparameters analyzed in the Trainee are returned given
+        those parameters.
 
         Parameters
         ----------
         trainee_id : str
             The identifier of the Trainee.
+        action_feature : str, optional
+            If specified will return the best analyzed hyperparameters to
+            target this feature.
+        context_features : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            to use with these context features.
+        mode : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            that were computed in this mode.
+        weight_feature : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            that were analyzed using this weight feaure.
 
         Returns
         -------
         dict
-           A dictionary containing the internal parameters.
+            A dict including the either all of the Trainee's internal
+            parameters or only the best hyperparameters selected using the
+            passed parameters.
         """
-        return self._execute("get_internal_parameters", {"trainee": trainee_id})
+        return self._execute("get_internal_parameters", {
+            "trainee": trainee_id,
+            "feature": action_feature,
+            "context_features": context_features,
+            "mode": mode,
+            "weight_feature": weight_feature,
+        })
 
     def move_cases(
         self,

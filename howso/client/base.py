@@ -449,7 +449,8 @@ class AbstractHowsoClient(ABC):
         """Compute distances matrix for specified cases."""
 
     @abstractmethod
-    def get_params(self, trainee_id):
+    def get_params(self, trainee_id, *, action_feature=None,
+                   context_features=None, mode=None, weight_feature=None):
         """Get parameters used by the system."""
 
     @abstractmethod

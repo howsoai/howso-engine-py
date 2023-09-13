@@ -4460,27 +4460,56 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_persist_trainee(trainee_id)
         return result.get('count', 0)
 
-    def get_params(self, trainee_id: str) -> Dict:
+    def get_params(
+        self,
+        trainee_id: str,
+        *,
+        action_feature: Optional[str] = None,
+        context_features: Optional[Iterable[str]] = None,
+        mode: Optional[Literal["robust", "full"]] = None,
+        weight_feature: Optional[str] = None,
+    ) -> Dict:
         """
-        Get parameters used by the system.
+        Get the parameters used by the Trainee. If 'action_feature',
+        'context_features', 'mode', or 'weight_feature' are specified, then
+        the best hyperparameters analyzed in the Trainee are returned given
+        those parameters.
 
         Parameters
         ----------
         trainee_id : str
             The ID of the Trainee get parameters from.
+        action_feature : str, optional
+            If specified will return the best analyzed hyperparameters to
+            target this feature.
+        context_features : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            to use with these context features.
+        mode : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            that were computed in this mode.
+        weight_feature : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            that were analyzed using this weight feaure.
 
         Returns
         -------
         dict
-           A nested dict of the trainee's hyperparameter_map, including
-           analyze_threshold, analyze_growth_factor and
-           auto_analyze_limit_size.
+            A dict including the either all of the Trainee's internal
+            parameters or only the best hyperparameters selected using the
+            passed parameters.
         """
         self._auto_resolve_trainee(trainee_id)
         if self.verbose:
             print(f'Getting model attributes from trainee with id: '
                   f'{trainee_id}')
-        return self.howso.get_internal_parameters(trainee_id)
+        return self.howso.get_internal_parameters(
+            trainee_id,
+            action_feature=action_feature,
+            context_features=context_features,
+            mode=mode,
+            weight_feature=weight_feature,
+        )
 
     def get_trainee_session_indices(self, trainee_id: str, session: str
                                     ) -> List[int]:
