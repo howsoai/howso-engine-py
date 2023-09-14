@@ -2480,6 +2480,7 @@ class HowsoCore:
     def get_internal_parameters(
         self,
         trainee_id: str,
+        *,
         action_feature: Optional[str] = None,
         context_features: Optional[Iterable[str]] = None,
         mode: Optional[Literal["robust", "full"]] = None,
@@ -2488,8 +2489,10 @@ class HowsoCore:
         """
         Get the parameters used by the Trainee. If 'action_feature',
         'context_features', 'mode', or 'weight_feature' are specified, then
-        the best hyperparameters analyzed in the Trainee are returned given
-        those parameters.
+        the best hyperparameters analyzed in the Trainee are the value of the
+        'hyperparameter_map' key, otherwise this value will be the dictionary
+        containing all the hyperparameter sets in the Trainee.
+
 
         Parameters
         ----------
