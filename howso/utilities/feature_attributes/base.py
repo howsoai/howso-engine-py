@@ -18,6 +18,7 @@ from howso.utilities.features import FeatureType
 from howso.utilities.internals import serialize_openapi_models
 import numpy as np
 import pandas as pd
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -948,6 +949,68 @@ class InferFeatureAttributesBase(ABC):
             return False
 
         # No issues; it's valid
+        return True
+
+    def _is_json_feature(self, feature: str) -> bool:
+        """
+        Return whether the given feature contains valid JSON.
+
+        Parameters
+        ----------
+        feature: string
+            The feature to check the values of.
+
+        Returns
+        -------
+        True if the column values can be parsed into JSON.
+        """
+        first_non_none = self._get_first_non_null(feature)
+        if first_non_none is None:
+            return False
+
+        # Sample 100 random values
+        for _ in range(100):
+            rand_val = self._get_random_value(feature, no_nulls=True)
+
+            # Try to parse rand_val as JSON
+            try:
+                json.loads(rand_val)
+            except (TypeError, json.JSONDecodeError):
+                return False
+
+        # No exception: valid JSON
+        return True
+
+    def _is_yaml_feature(self, feature: str) -> bool:
+        """
+        Return whether the given feature contains valid YAML.
+
+        Parameters
+        ----------
+        feature: string
+            The feature to check the values of.
+
+        Returns
+        -------
+        True if the column values can be parsed into YAML.
+        """
+        first_non_none = self._get_first_non_null(feature)
+        if first_non_none is None:
+            return False
+
+        # Sample 100 random values
+        for _ in range(100):
+            rand_val = self._get_random_value(feature, no_nulls=True)
+
+            # Try to parse rand_val as YAML
+            try:
+                yaml.safe_load(rand_val)
+                if len(rand_val.split(':')) <= 1 or '\n' not in rand_val:
+                    return False
+            except (yaml.YAMLError):
+                return False
+
+        # No exception: valid YAML
         return True
 
     @staticmethod
