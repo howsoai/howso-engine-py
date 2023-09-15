@@ -2520,7 +2520,7 @@ class HowsoCore:
         """
         return self._execute("get_internal_parameters", {
             "trainee": trainee_id,
-            "feature": action_feature,
+            "action_feature": action_feature,
             "context_features": context_features,
             "mode": mode,
             "weight_feature": weight_feature,
