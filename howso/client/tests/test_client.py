@@ -1025,13 +1025,14 @@ class TestBaseClient:
         assert (f'Getting model attributes from trainee with '
                 f'id: {trainee.id}') in out
 
-    @pytest.mark.skip(reason='Test to be replaced.')
     @pytest.mark.parametrize('params', (
         {"hyperparameter_map": {
-            ".targetless": {
-                "robust": {
-                    ".none": {
-                        "dt": -1, "p": .1, "k": 8
+            "f1.f2.f3.": {
+                ".targetless": {
+                    "robust": {
+                        ".none": {
+                            "dt": -1, "p": .1, "k": 8
+                        }
                     }
                 }
             }
@@ -1043,6 +1044,104 @@ class TestBaseClient:
         out, _ = capsys.readouterr()
         assert (f'Setting model attributes for trainee with '
                 f'id: {trainee.id}') in out
+
+    def test_set_and_get_params(self, trainee, trainee_builder):
+        param_map = {"hyperparameter_map": {
+            "petal_length": {
+                "sepal_length.sepal_width.": {
+                    "robust": {
+                        ".none": {
+                            "dt": -1, "p": .1, "k": 2
+                        }
+                    }
+                }
+            }
+        }}
+        new_cases = [[1, 2, 3, 4, 5],
+                     [4, 5, 6, 7, 8],
+                     [7, 8, 9, 10, 11],
+                     [1, 2, 3, 4, 5]]
+        features = ['sepal_length', 'sepal_width', 'petal_length',
+                    'petal_width', 'class']
+
+        self.client.train(trainee.id, new_cases, features=features)
+        self.client.set_params(trainee.id, param_map)
+
+        # get a prediction with the set parameters
+        first_pred = self.client.react(
+            trainee.id,
+            contexts=[2, 2],
+            context_features=['sepal_length', 'sepal_width'],
+            action_features=['petal_length'],
+        )['action'][0]['petal_length']
+
+        # create another trainee
+        other_trainee = Trainee(
+            features={"sepal_length": {'type': 'continuous'},
+                      "sepal_width": {'type': 'continuous'},
+                      "petal_length": {'type': 'continuous'},
+                      "petal_width": {'type': 'continuous'},
+                      "class": {'type': 'nominal'}},
+            default_action_features=features[-1:],
+            default_context_features=features[:-1]
+        )
+        trainee_builder.create(other_trainee, overwrite_trainee=True)
+        other_trainee = self.client.update_trainee(other_trainee)
+        self.client.train(other_trainee.id, new_cases, features=features)
+
+        # make a prediction on the same case, prediction should be different
+        second_pred = self.client.react(
+            other_trainee.id,
+            contexts=[2, 2],
+            context_features=['sepal_length', 'sepal_width'],
+            action_features=['petal_length'],
+        )['action'][0]['petal_length']
+        assert first_pred != second_pred
+
+        # align parameters, make another prediction that should be the same
+        self.client.set_params(other_trainee.id, param_map)
+        third_pred = self.client.react(
+            other_trainee.id,
+            contexts=[2, 2],
+            context_features=['sepal_length', 'sepal_width'],
+            action_features=['petal_length'],
+        )['action'][0]['petal_length']
+        assert first_pred == third_pred
+
+        # verify that both trainees have the same hyperparameter_map now
+        first_params = self.client.get_params(trainee.id)
+        second_params = self.client.get_params(other_trainee.id)
+        assert first_params['hyperparameter_map'] == second_params['hyperparameter_map']
+
+    def test_get_specific_hyperparameters(self, trainee):
+        param_map = {"hyperparameter_map": {
+            "petal_length": {
+                "sepal_length.sepal_width.": {
+                    "robust": {
+                        ".none": {
+                            "dt": -1, "p": .1, "k": 2
+                        }
+                    }
+                }
+            },
+            ".targetless": {
+                "sepal_length.sepal_width.": {
+                    "robust": {
+                        ".none": {
+                            "dt": -1, "p": .5, "k": 3
+                        }
+                    }
+                }
+            }
+        }}
+
+        self.client.set_params(trainee.id, param_map)
+
+        params = self.client.get_params(trainee.id, action_feature='.targetless')
+        assert params['hyperparameter_map'] == {"dt": -1, "p": .5, "k": 3}
+
+        params = self.client.get_params(trainee.id, action_feature='petal_length')
+        assert params['hyperparameter_map'] == {"dt": -1, "p": .1, "k": 2}
 
     def test_get_configuration_path_exceptions(self):
         """
