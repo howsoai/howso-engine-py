@@ -1046,6 +1046,7 @@ class TestBaseClient:
                 f'id: {trainee.id}') in out
 
     def test_set_and_get_params(self, trainee, trainee_builder):
+        """Test for set_params and get_params functionality."""
         param_map = {"hyperparameter_map": {
             "petal_length": {
                 "sepal_length.sepal_width.": {
@@ -1114,7 +1115,7 @@ class TestBaseClient:
         assert first_params['hyperparameter_map'] == second_params['hyperparameter_map']
 
     def test_get_specific_hyperparameters(self, trainee):
-        """Test to verify parameters of get_params are functional"""
+        """Test to verify parameters of get_params are functional."""
         param_map = {"hyperparameter_map": {
             "petal_length": {
                 "sepal_length.sepal_width.": {
