@@ -382,7 +382,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return output
 
     def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
-        attributes = {"type": "continuous"}
+        attributes: Dict[str, Any] = {"type": "continuous"}
 
         n_cases = self.data[feature_name].shape[0]
 
@@ -434,11 +434,21 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             # specify decimal place. Proceed with training but issue a warning.
             if pd.api.types.is_float_dtype(col.dtype):
-                if decimals < 15:
-                    attributes['decimal_places'] = decimals
-                else:
-                    warnings.warn(f'Feature {feature_name} contains float values that exceed the '
-                                  'maximum supported precision of 15 decimal digits.')
+                try:
+                    if getattr(col.dtype, 'itemsize') <= 8:
+                        attributes['decimal_places'] = decimals
+                    else:
+                        warnings.warn(
+                            f'Feature {feature_name} contains floating point '
+                            'values that exceed the maximum supported precision '
+                            'of 64 bits.'
+                        )
+                except AttributeError:
+                    warnings.warn(
+                        f'Feature {feature_name} may contain floating point '
+                        'values that exceed the maximum supported precision '
+                        'of 64 bits.'
+                    )
 
         return attributes
 
