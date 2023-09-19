@@ -193,8 +193,10 @@ class FeatureAttributesBase(dict):
                 pass
         elif expected_dtype == 'datetime64':
             try:
-                series = pd.to_datetime(coerced_df[feature],
-                                        format=self[feature]['date_time_format'])
+                format = self[feature]['date_time_format']
+                if ".%f" in format:
+                    format = "ISO8601"
+                series = pd.to_datetime(coerced_df[feature], format=format)
                 if coerce:
                     if localize_datetimes and not isinstance(series, pd.DatetimeTZDtype):
                         series = series.dt.tz_localize('UTC', ambiguous='infer',
