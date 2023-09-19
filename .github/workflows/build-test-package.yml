@@ -6,6 +6,9 @@ on:
       version:
         required: true
         type: string
+      payload:
+        required: false
+        type: string
 
 jobs:
 
@@ -14,31 +17,28 @@ jobs:
     with:
       version: ${{ inputs.version }}
 
+  get-howso-engine-details:
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-engine"
+      payload: "${{ inputs.payload }}"
+
   build:
-    needs: ["pepify"]
+    needs: ["pepify", "get-howso-engine-details"]
     runs-on: ubuntu-latest
-    outputs:
-      engine-version: ${{ steps.get-engine-version.outputs.engine-version }}
     steps:
 
     - uses: actions/checkout@v3
 
-    - name: Get howso-engine dependency version
-      id: get-engine-version
-      shell: bash
-      run: |
-        ENGINE_VERSION=$(jq -r '.dependencies."howso-engine"' ./version.json)
-        echo "engine-version=$(echo $ENGINE_VERSION)" >> $GITHUB_OUTPUT
-        echo "ENGINE_VERSION=$(echo $ENGINE_VERSION)" >> $GITHUB_ENV
-
     - name: Download howso-engine
-      uses: robinraju/release-downloader@v1.8
-      with:
-        repository: "howsoai/howso-engine"
-        tag: ${{ env.ENGINE_VERSION }}
-        fileName: "howso-engine-*"
-        extract: true
-        out-file-path: "howso/howso-engine/tmp"
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh ${{ needs.get-howso-engine-details.outputs.run-type }} download -D howso/howso-engine/tmp -R "howsoai/howso-engine" -p "howso-engine-*" "${{ needs.get-howso-engine-details.outputs.run-id }}"
+        # Needed because release/non-release downloads are different structure
+        cd howso/howso-engine/tmp && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
 
     - name: Clean up dir
       run: |
@@ -52,6 +52,7 @@ jobs:
         rm -rf tmp
 
     - name: Compare Amalagam versions
+      if: inputs.payload == ''
       run: |
         cd howso/howso-engine
         engine_amlg_version=$(jq -r ".dependencies.amalgam" ./version.json)
@@ -113,6 +114,7 @@ jobs:
     secrets: inherit
     with:
       python-version: "3.8"
+      payload: "${{ inputs.payload }}"
 
   test-3-9:
     needs: ["build"]
@@ -120,6 +122,7 @@ jobs:
     secrets: inherit
     with:
       python-version: "3.9"
+      payload: "${{ inputs.payload }}"
 
   test-3-10:
     needs: ["build"]
@@ -127,6 +130,7 @@ jobs:
     secrets: inherit
     with:
       python-version: "3.10"
+      payload: "${{ inputs.payload }}"
 
   test-3-11:
     needs: ["build"]
@@ -134,3 +138,4 @@ jobs:
     secrets: inherit
     with:
       python-version: "3.11"
+      payload: "${{ inputs.payload }}"
