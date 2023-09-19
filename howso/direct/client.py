@@ -114,6 +114,14 @@ class HowsoDirectClient(AbstractHowsoClient):
     #: The characters which are disallowed from being a part of a Trainee name or ID.
     BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':'}
 
+    #: The supported values of precision for methods that accept it
+    SUPPORTED_PRECISION_VALUES = ["exact", "similar"]
+    INCORRECT_PRECISION_VALUE_WARNING = (
+        "Supported values for 'precision' are \"exact\" and \"similar\". The "
+        "operation will be completed as if the value of 'precision' is "
+        "\"exact\"."
+    )
+
     def __init__(
         self,
         howso_core: Optional[HowsoCore] = None,
@@ -1412,6 +1420,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.verbose:
             print(f'Removing case(s) in trainee with id: {trainee_id}')
 
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
+
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
@@ -1497,6 +1509,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         self._auto_resolve_trainee(trainee_id)
         cached_trainee = self.trainee_cache.get(trainee_id)
+
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
 
         # Validate case_indices if provided
         if case_indices is not None:
@@ -3319,6 +3335,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         if case_indices is not None:
             validate_case_indices(case_indices)
 
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
+
         self._auto_resolve_trainee(trainee_id)
         validate_list_shape(features, 1, "features", "str")
         if session is None and case_indices is None:
@@ -3981,6 +4001,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         self._auto_resolve_trainee(trainee_id)
 
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
+
         if self.verbose:
             print('Getting feature prediction stats for trainee with '
                   f'id: {trainee_id}')
@@ -4061,6 +4085,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             A map of feature names to map of stat type to stat values.
         """
         self._auto_resolve_trainee(trainee_id)
+
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
 
         if self.verbose:
             print('Getting feature marginal stats for trainee with '
@@ -4464,6 +4492,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_resolve_trainee(target_trainee_id)
         if num_cases < 1:
             raise ValueError('num_cases must be a value greater than 0')
+
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
 
         if self.verbose:
             print(f'Moving case from trainee with id: {trainee_id} to trainee '
