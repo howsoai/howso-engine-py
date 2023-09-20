@@ -189,11 +189,8 @@ jobs:
         echo "Installing Howso Engine..."
         pip install howso_engine-*-py3-none-any.whl
 
-        set PYTHONIOENCODING=utf-8
-        set PYTHONLEGACYWINDOWSSTDIO=utf-8
-
         echo "Running Howso verification..."
-        verify_howso_install
+        PYTHONUTF8=1 verify_howso_install
 
   verification-test-macos-amd64:
     needs: ['pepify', 'build']
