@@ -97,14 +97,14 @@ jobs:
     - name: Upload Tarball Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz
+        name: howso-engine-${{ needs.pepify.outputs.pepified-version }}
         path: dist/howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz
         if-no-files-found: error
 
     - name: Upload Wheel Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
         path: dist/howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
         if-no-files-found: error
 
