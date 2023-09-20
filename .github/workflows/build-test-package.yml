@@ -184,6 +184,7 @@ jobs:
       with:
         base_image: raspios_lite_arm64:latest
         cpu: cortex-a8
+        image_additional_mb: 200
         commands: |
           set -e
           PATH=$PATH:/usr/aarch64-linux-gnu
