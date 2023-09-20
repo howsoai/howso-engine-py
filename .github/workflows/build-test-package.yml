@@ -215,11 +215,11 @@ jobs:
         # Set local config to use mt-noavx because GitHub hosted runners don't have AVX:
         echo "
         howso:
-          client: howso.client.DirectHowsoClient
+          client: howso.direct.HowsoDirectClient
           client_extra_params:
             amalgam:
               library_postfix: -mt-noavx
         " > howso.yml
 
         echo "Running Howso verification..."
-        HOWSO_CONFIG=./howso.yml python -m howso.utilities.installation_verification
+        HOWSO_CONFIG=./ python -m howso.utilities.installation_verification
