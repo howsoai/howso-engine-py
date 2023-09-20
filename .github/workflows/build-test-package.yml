@@ -189,6 +189,9 @@ jobs:
         echo "Installing Howso Engine..."
         pip install howso_engine-*-py3-none-any.whl
 
+        set PYTHONIOENCODING=utf-8
+        set PYTHONLEGACYWINDOWSSTDIO=utf-8
+
         echo "Running Howso verification..."
         verify_howso_install
 
@@ -222,4 +225,4 @@ jobs:
         " > howso.yml
 
         echo "Running Howso verification..."
-        python -m howso.utilities.installation_verification
+        verify_howso_install
