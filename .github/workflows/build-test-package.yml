@@ -97,15 +97,15 @@ jobs:
     - name: Upload Tarball Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: howso-engine-${{ needs.pepify.outputs.pepified-version }}
-        path: dist/howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz
+        name: "howso-engine-${{ needs.pepify.outputs.pepified-version }}"
+        path: "dist/howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz"
         if-no-files-found: error
 
     - name: Upload Wheel Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
-        path: dist/howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+        name: "howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any"
+        path: "dist/howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl"
         if-no-files-found: error
 
   unit-test-3-8:
@@ -148,7 +148,7 @@ jobs:
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: howso_engine-*py3-none-any
+        name: "howso_engine-*-py3-none-any"
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -157,5 +157,5 @@ jobs:
 
     - name: Verify Howso install
       run: |
-        pip install howso_engine-*py3-none-any.whl
+        pip install howso_engine-*-py3-none-any.whl
         verify_howso_install
