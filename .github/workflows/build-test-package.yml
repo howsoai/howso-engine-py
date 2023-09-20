@@ -222,12 +222,14 @@ jobs:
           echo "Installing Howso Engine..."
           pip install howso_engine-*-py3-none-any.whl
 
-          # Set local config to use st because arm64_8a doesn't support multi-threading:
+          # Set local config to use single threaded because arm64_8a doesn't support multi-threading and set
+          # arm64_8a arch since that is not auto selected by the package currently:
           echo "
           howso:
             client: howso.direct.HowsoDirectClient
             client_extra_params:
               amalgam:
+                arch: arm64_8a
                 library_postfix: -st
           " > howso.yml
 
