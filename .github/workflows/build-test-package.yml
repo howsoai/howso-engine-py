@@ -222,4 +222,4 @@ jobs:
         " > howso.yml
 
         echo "Running Howso verification..."
-        HOWSO_CONFIG=./ python -m howso.utilities.installation_verification
+        HOWSO_CONFIG=./howso.yml python -m howso.utilities.installation_verification
