@@ -10,6 +10,10 @@ on:
         required: false
         type: string
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
 
   pepify:
@@ -99,15 +103,15 @@ jobs:
     - name: Upload Tarball Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: "howso-engine-${{ needs.pepify.outputs.pepified-version }}"
-        path: "dist/howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz"
+        name: howso-engine-${{ needs.pepify.outputs.pepified-version }}
+        path: dist/howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz
         if-no-files-found: error
 
     - name: Upload Wheel Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: "howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any"
-        path: "dist/howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl"
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+        path: dist/howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
         if-no-files-found: error
 
   unit-test-3-8:
@@ -150,7 +154,7 @@ jobs:
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: "howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any"
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -173,7 +177,7 @@ jobs:
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: "howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any"
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -196,7 +200,7 @@ jobs:
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: "howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any"
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -207,6 +211,15 @@ jobs:
       run: |
         echo "Installing Howso Engine..."
         pip install howso_engine-*-py3-none-any.whl
+
+        # Set local config to use mt-noavx because GitHub hosted runners don't have AVX:
+        echo "
+        howso:
+          client: howso.client.HowsoDirectClient
+          client_extra_params:
+            amalgam:
+              library_postfix: -mt-noavx
+        " > howso.yml
 
         echo "Running Howso verification..."
         verify_howso_install
