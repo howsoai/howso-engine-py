@@ -143,14 +143,14 @@ jobs:
       payload: "${{ inputs.payload }}"
 
   verification-test-linux-amd64:
-    needs: ['build']
+    needs: ['pepify', 'build']
     runs-on: ubuntu-latest
     steps:
 
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: "howso_engine-*-py3-none-any"
+        name: "howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any"
 
     - name: Set up Python
       uses: actions/setup-python@v4
