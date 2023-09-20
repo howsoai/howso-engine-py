@@ -148,7 +148,7 @@ jobs:
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: howso_engine-*py3-none-any.whl
+        name: howso_engine-*py3-none-any
 
     - name: Set up Python
       uses: actions/setup-python@v4
