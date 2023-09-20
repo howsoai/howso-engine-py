@@ -108,7 +108,7 @@ jobs:
         path: dist/howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
         if-no-files-found: error
 
-  test-3-8:
+  unit-test-3-8:
     needs: ["build"]
     uses: "./.github/workflows/pytest.yml"
     secrets: inherit
@@ -116,7 +116,7 @@ jobs:
       python-version: "3.8"
       payload: "${{ inputs.payload }}"
 
-  test-3-9:
+  unit-test-3-9:
     needs: ["build"]
     uses: "./.github/workflows/pytest.yml"
     secrets: inherit
@@ -124,7 +124,7 @@ jobs:
       python-version: "3.9"
       payload: "${{ inputs.payload }}"
 
-  test-3-10:
+  unit-test-3-10:
     needs: ["build"]
     uses: "./.github/workflows/pytest.yml"
     secrets: inherit
@@ -132,10 +132,30 @@ jobs:
       python-version: "3.10"
       payload: "${{ inputs.payload }}"
 
-  test-3-11:
+  unit-test-3-11:
     needs: ["build"]
     uses: "./.github/workflows/pytest.yml"
     secrets: inherit
     with:
       python-version: "3.11"
       payload: "${{ inputs.payload }}"
+
+  verification-test-linux-amd64:
+    needs: ['build']
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-*py3-none-any.whl
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Verify Howso install
+      run: |
+        pip install howso_engine-*py3-none-any.whl
+        verify_howso_install
