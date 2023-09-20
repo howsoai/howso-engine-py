@@ -159,5 +159,54 @@ jobs:
 
     - name: Verify Howso install
       run: |
+        echo "Installing Howso Engine..."
         pip install howso_engine-*-py3-none-any.whl
+
+        echo "Running Howso verification..."
+        verify_howso_install
+
+  verification-test-windows-amd64:
+    needs: ['pepify', 'build']
+    runs-on: windows-latest
+    steps:
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: "howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any"
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Verify Howso install
+      run: |
+        echo "Installing Howso Engine..."
+        pip install howso_engine-*-py3-none-any.whl
+
+        echo "Running Howso verification..."
+        verify_howso_install
+
+  verification-test-macos-amd64:
+    needs: ['pepify', 'build']
+    runs-on: macos-latest
+    steps:
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: "howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any"
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Verify Howso install
+      run: |
+        echo "Installing Howso Engine..."
+        pip install howso_engine-*-py3-none-any.whl
+
+        echo "Running Howso verification..."
         verify_howso_install
