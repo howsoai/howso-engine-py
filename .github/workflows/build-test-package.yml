@@ -146,7 +146,7 @@ jobs:
       python-version: "3.11"
       payload: "${{ inputs.payload }}"
 
-  verification-test-linux-amd64:
+  install-verification-linux-amd64:
     needs: ['pepify', 'build']
     runs-on: ubuntu-latest
     steps:
@@ -169,10 +169,12 @@ jobs:
         echo "Running Howso verification..."
         verify_howso_install
 
-  verification-test-windows-amd64:
+  install-verification-windows-amd64:
     needs: ['pepify', 'build']
     runs-on: windows-latest
     steps:
+
+    - uses: actions/checkout@v3
 
     - name: Download Artifact
       uses: actions/download-artifact@v3
@@ -184,6 +186,11 @@ jobs:
       with:
         python-version: "3.11"
 
+    - name: Download tz data
+      shell: pwsh
+      run: |
+        ./build/powershell/Download-Tzdata.ps1
+
     - name: Verify Howso install
       run: |
         echo "Installing Howso Engine..."
@@ -192,7 +199,7 @@ jobs:
         echo "Running Howso verification..."
         PYTHONUTF8=1 verify_howso_install
 
-  verification-test-macos-amd64:
+  install-verification-macos-amd64:
     needs: ['pepify', 'build']
     runs-on: macos-latest
     steps:
