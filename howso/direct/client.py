@@ -114,6 +114,14 @@ class HowsoDirectClient(AbstractHowsoClient):
     #: The characters which are disallowed from being a part of a Trainee name or ID.
     BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':'}
 
+    #: The supported values of precision for methods that accept it
+    SUPPORTED_PRECISION_VALUES = ["exact", "similar"]
+    INCORRECT_PRECISION_VALUE_WARNING = (
+        "Supported values for 'precision' are \"exact\" and \"similar\". The "
+        "operation will be completed as if the value of 'precision' is "
+        "\"exact\"."
+    )
+
     def __init__(
         self,
         howso_core: Optional[HowsoCore] = None,
@@ -1412,6 +1420,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.verbose:
             print(f'Removing case(s) in trainee with id: {trainee_id}')
 
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
+
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
@@ -1497,6 +1509,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         self._auto_resolve_trainee(trainee_id)
         cached_trainee = self.trainee_cache.get(trainee_id)
+
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
 
         # Validate case_indices if provided
         if case_indices is not None:
@@ -3311,6 +3327,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         if case_indices is not None:
             validate_case_indices(case_indices)
 
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
+
         self._auto_resolve_trainee(trainee_id)
         validate_list_shape(features, 1, "features", "str")
         if session is None and case_indices is None:
@@ -3864,7 +3884,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         condition: Optional[Dict[str, Any]] = None,
         num_cases: Optional[int] = None,
         num_robust_influence_samples_per_case=None,
-        precision: Optional[str] = None,
+        precision: Optional[Literal["exact", "similar"]] = None,
         robust: Optional[bool] = None,
         robust_hyperparameters: Optional[bool] = None,
         stats: Optional[Iterable[str]] = None,
@@ -3973,6 +3993,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         self._auto_resolve_trainee(trainee_id)
 
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
+
         if self.verbose:
             print('Getting feature prediction stats for trainee with '
                   f'id: {trainee_id}')
@@ -4008,6 +4032,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         *,
+        condition: Optional[Dict[str, Any]] = None,
+        num_cases: Optional[int] = None,
+        precision: Optional[Literal["exact", "similar"]] = None,
         weight_feature: Optional[str] = None
     ) -> Dict[str, Dict[str, float]]:
         """
@@ -4017,6 +4044,29 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         trainee_id : str
             The ID of the Trainee to retrieve marginal stats for.
+        condition : dict or None, optional
+            A condition map to select which cases to compute marginal stats
+            for.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        num_cases : int, default None
+            The maximum amount of cases to use to calculate marginal stats.
+            If not specified, the limit will be k cases if precision is
+            "similar". Only used if `condition` is not None.
+        precision : str, default None
+            The precision to use when selecting cases with the condition.
+            Options are 'exact' or 'similar'. If not specified "exact" will be
+            used. Only used if `condition` is not None.
         weight_feature : str, optional
             When specified, will attempt to return stats that were computed
             using this weight_feature.
@@ -4028,12 +4078,19 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         self._auto_resolve_trainee(trainee_id)
 
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
+
         if self.verbose:
             print('Getting feature marginal stats for trainee with '
                   f'id: {trainee_id}')
 
         stats = self.howso.get_marginal_stats(
             trainee_id,
+            condition=condition,
+            num_cases=num_cases,
+            precision=precision,
             weight_feature=weight_feature)
         return stats
 
@@ -4427,6 +4484,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_resolve_trainee(target_trainee_id)
         if num_cases < 1:
             raise ValueError('num_cases must be a value greater than 0')
+
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
 
         if self.verbose:
             print(f'Moving case from trainee with id: {trainee_id} to trainee '

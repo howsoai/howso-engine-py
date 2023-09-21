@@ -1042,6 +1042,7 @@ class TestBaseClient:
                 f'id: {trainee.id}') in out
 
     def test_set_and_get_params(self, trainee, trainee_builder):
+        """Test for set_params and get_params functionality."""
         param_map = {"hyperparameter_map": {
             "petal_length": {
                 "sepal_length.sepal_width.": {
@@ -1110,6 +1111,7 @@ class TestBaseClient:
         assert first_params['hyperparameter_map'] == second_params['hyperparameter_map']
 
     def test_get_specific_hyperparameters(self, trainee):
+        """Test to verify parameters of get_params are functional."""
         param_map = {"hyperparameter_map": {
             "petal_length": {
                 "sepal_length.sepal_width.": {
@@ -1349,6 +1351,28 @@ class TestBaseClient:
             "Improper shape of `new_cases` values passed. "
             "`new_cases` must be a 3d list of object."
         ) in str(exc.value)
+
+    def test_marginal_stats(self, trainee):
+        """Test for get_marginal_stats and its parameters."""
+        new_cases = [[1, 2, 3, 4, 0],
+                     [4, 6, 6, 7, 1],
+                     [6, 8, 9, 9, 1],
+                     [1, 2, 3, 4, 2]]
+        features = ['sepal_length', 'sepal_width', 'petal_length',
+                    'petal_width', 'class']
+        self.client.train(trainee.id, new_cases, features=features)
+
+        marginal_stats = self.client.get_marginal_stats(trainee.id)
+        assert marginal_stats['sepal_length']['mean'] == 3.0
+        assert marginal_stats['sepal_width']['mean'] == 4.5
+        assert marginal_stats['sepal_width']['count'] == 4
+
+        conditional_marginal_stats = self.client.get_marginal_stats(
+            trainee.id,
+            condition={"class": '1'},
+        )
+        assert conditional_marginal_stats['class']['count'] == 2
+        assert conditional_marginal_stats['petal_width']['mean'] == 8
 
     def test_remove_feature_verbose(self, trainee, capsys):
         """Test for expected verbose output when remove_feature is called."""
