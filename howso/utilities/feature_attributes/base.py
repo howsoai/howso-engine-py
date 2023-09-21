@@ -629,6 +629,12 @@ class InferFeatureAttributesBase(ABC):
                 # Don't infer bounds for manually-specified nominal features
                 if features and features.get(feature_name, {}).get('type') == 'nominal':
                     continue
+                # Likewise, don't infer bounds for JSON/YAML features
+                elif any([
+                    feature_attributes[feature_name].get('data_type') in ['json', 'yaml'],
+                    features and features.get(feature_name, {}).get('data_type') in ['json', 'yaml']
+                ]):
+                    continue
                 bounds = self._infer_feature_bounds(
                     feature_attributes, feature_name,
                     tight_bounds=tight_bounds,
@@ -968,12 +974,19 @@ class InferFeatureAttributesBase(ABC):
         if first_non_none is None:
             return False
 
-        # Sample 100 random values
-        for _ in range(100):
+        # Sample 30 random values
+        for _ in range(30):
             rand_val = self._get_random_value(feature, no_nulls=True)
+            if rand_val is None:
+                return False
 
             # Try to parse rand_val as JSON
             try:
+                if all([
+                    '{' not in rand_val and '}' not in rand_val,
+                    '[' not in rand_val and ']' not in rand_val,
+                ]):
+                    return False
                 json.loads(rand_val)
             except (TypeError, json.JSONDecodeError):
                 return False
@@ -998,9 +1011,11 @@ class InferFeatureAttributesBase(ABC):
         if first_non_none is None:
             return False
 
-        # Sample 100 random values
-        for _ in range(100):
+        # Sample 30 random values
+        for _ in range(30):
             rand_val = self._get_random_value(feature, no_nulls=True)
+            if rand_val is None:
+                return False
 
             # Try to parse rand_val as YAML
             try:

@@ -716,22 +716,12 @@ def test_unsupported_data(datetime_min_max, float_min_max, int_min_max):
 
 @pytest.mark.parametrize("value, is_json, is_yaml", [
     ('{"key": "value", "_key": "_value"}', True, False),
-    ('{"key":\n    {"key2": "[1, 2, 3, 4]"}"\n}', True, False),
+    ('{"key":\n    {"key2": [1, 2, 3, 4]}\n}', True, False),
     ('[]', True, False),
     ('{}', True, False),
     ('a: 1\nb:\nc: 3\n\nd: 4', False, True),
-    (
-        """
-        ---
-        name: The Howso Engine.
-        description: >
-            The Howso Engine™ is a natively and fully explainable ML engine and toolbox.
-        ---
-        name: THE HOWSO ENGINE!
-        description: >
-            THE HOWSO ENGINE™ IS A NATIVELY AND FULLY EXPLAINABLE ML ENGINE AND TOOLBOX!
-        """, False, True
-    ),
+    ("---\nname: The Howso Engine.\ndescription: >\n  The Howso Engine™ is a "
+     "natively and fully explainable ML engine and toolbox.", False, True),
     ('not:valid:\nyaml\norjson', False, False),
     (12345, False, False),
     ('abcdefg', False, False),
