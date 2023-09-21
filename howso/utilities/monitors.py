@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Union
 
 __all__ = [
     "ProgressTimer",
@@ -53,7 +53,7 @@ class Timer:
         return self.end_time is not None
 
     @property
-    def duration(self) -> Optional[timedelta]:
+    def duration(self) -> Union[timedelta, None]:
         """
         The total computed duration of the timer.
 
@@ -69,6 +69,13 @@ class Timer:
         if self.end_time is None:
             return datetime.now() - self.start_time
         return self.end_time - self.start_time
+
+    @property
+    def seconds(self) -> Union[float, None]:
+        """The total seconds representing the duration of timer instance."""
+        if duration := self.duration:
+            return duration.total_seconds()
+        return None
 
     def __enter__(self):
         """Context entrance."""
@@ -122,7 +129,7 @@ class ProgressTimer(Timer):
                  max(self.current_tick, 1)) - elapsed_time)
 
     @property
-    def tick_duration(self) -> Optional[timedelta]:
+    def tick_duration(self) -> Union[timedelta, None]:
         """
         The duration since the last tick.
 
