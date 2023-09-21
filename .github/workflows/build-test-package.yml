@@ -187,13 +187,19 @@ jobs:
         image_additional_mb: 1000
         commands: |
           set -e
-          PATH=$PATH:/usr/aarch64-linux-gnu
+
+          # Install python:
           sudo apt-get install --no-install-recommends -y python3 python3-pip python-is-python3
           python --version
 
-          sudo echo "" > /etc/pip.conf # Overwrite conf so pypi is used, not piwheels
+          # Overwrite pip.conf so pypi is used, not piwheels
+          sudo echo "" > /etc/pip.conf
+
           echo "Installing Howso Engine..."
           pip install howso_engine-*-py3-none-any.whl
+
+          # amalgam binaries need this under QEMU
+          PATH=$PATH:/usr/aarch64-linux-gnu
 
           echo "Running Howso verification..."
           verify_howso_install
@@ -216,13 +222,16 @@ jobs:
         image_additional_mb: 1000
         commands: |
           set -e
-          PATH=$PATH:/usr/aarch64-linux-gnu
+
+          # Install python:
           sudo apt-get install --no-install-recommends -y python3 python3-pip python-is-python3
           python --version
 
-          sudo echo "" > /etc/pip.conf # Overwrite conf so pypi is used, no piwheels
+          # Overwrite pip.conf so pypi is used, not piwheels
+          sudo echo "" > /etc/pip.conf
+
           echo "Installing Howso Engine..."
-          pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl --trusted-host piwheels.org
+          pip install howso_engine-*-py3-none-any.whl
 
           # Set local config to use single threaded because arm64_8a doesn't support multi-threading and set
           # arm64_8a arch since that is not auto selected by the package currently:
@@ -232,8 +241,11 @@ jobs:
             client_extra_params:
               amalgam:
                 arch: arm64_8a
-                library_postfix: -st
+                library_postfix: -sts
           " > howso.yml
+
+          # amalgam binaries need this under QEMU
+          PATH=$PATH:/usr/aarch64-linux-gnu
 
           echo "Running Howso verification..."
           verify_howso_install
