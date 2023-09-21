@@ -390,15 +390,15 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
         Parameters
         ----------
         data : Any
-            The data to validate (single table only)
+            The data to validate (single table only).
         coerce : bool (default False)
             Whether to attempt to coerce DataFrame columns into correct data types.
         raise_errors : bool (default False)
-            If True, raises a ValueError if nonconforming columns are found; else issue a warning
+            If True, raises a ValueError if nonconforming columns are found; else, issue a warning.
         validate_bounds : bool (default True)
-            Whether to validate the data against the attributes' inferred bounds
+            Whether to validate the data against the attributes' inferred bounds.
         allow_missing_features : bool (default False)
-            Allows features that are missing from the DataFrame to be ignored
+            Allows features that are missing from the DataFrame to be ignored.
         localize_datetimes : bool (default True)
             Whether to localize datetime features to UTC.
 
@@ -418,6 +418,19 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
                                  localize_datetimes=localize_datetimes)
 
     def has_unsupported_data(self, feature_name: str) -> bool:
+        """
+        Returns whether the given feature has data that is unsupported by Howso Engine.
+
+        Parameters
+        ----------
+        feature_name: str
+            The feature to check.
+
+        Returns
+        -------
+        bool
+            Whether feature_name was determined to have unsupported data.
+        """
         return feature_name in self.unsupported
 
 
