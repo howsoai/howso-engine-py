@@ -545,6 +545,16 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 "type": "continuous",
                 "date_time_format": fmt
             }
+        elif self._is_json_feature(feature_name):
+            return {
+                "type": "continuous",
+                "data_type": "json"
+            }
+        elif self._is_yaml_feature(feature_name):
+            return {
+                "type": "continuous",
+                "data_type": "yaml"
+            }
         else:
             return self._infer_unknown_attributes(feature_name)
 
