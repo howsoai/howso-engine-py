@@ -161,6 +161,10 @@ class HowsoCore:
         elif architecture in ['aarch64_be', 'aarch64', 'armv8b', 'armv8l']:
             # see: https://stackoverflow.com/questions/45125516/possible-values-for-uname-m
             architecture = 'arm64'
+        elif architecture == 'arm64_8a':
+            # TODO 17132: 8a arm arch is a special case and not currently auto selected by this routine. So if the
+            # user specifies it, use it as is. Future work will auto select this based on env.
+            pass
 
         # If download set, try and download the specified version using
         # howso-build-artifacts

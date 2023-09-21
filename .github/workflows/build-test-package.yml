@@ -230,13 +230,13 @@ jobs:
             client_extra_params:
               amalgam:
                 arch: arm64_8a
-                library_postfix: -sts
+                library_postfix: -st
           " > howso.yml
 
           echo "Running Howso verification..."
           verify_howso_install
 
-  install-verification-windows-amd64:
+  install-verification-windows-bash-amd64:
     needs: ['pepify', 'build']
     runs-on: windows-latest
     steps:
@@ -265,6 +265,70 @@ jobs:
 
         echo "Running Howso verification..."
         PYTHONUTF8=1 verify_howso_install
+
+  install-verification-windows-cmd-amd64:
+    needs: ['pepify', 'build']
+    runs-on: windows-latest
+    steps:
+
+    - uses: actions/checkout@v3
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Download tz data
+      shell: pwsh
+      run: |
+        ./build/powershell/Download-Tzdata.ps1
+
+    - name: Verify Howso install
+      shell: cmd
+      run: |
+        @echo off
+        echo Installing Howso Engine...
+        REM Globs don't work in cmd with pip
+        pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+        echo Running Howso verification...
+        verify_howso_install
+
+  install-verification-windows-pwsh-amd64:
+    needs: ['pepify', 'build']
+    runs-on: windows-latest
+    steps:
+
+    - uses: actions/checkout@v3
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Download tz data
+      shell: pwsh
+      run: |
+        ./build/powershell/Download-Tzdata.ps1
+
+    - name: Verify Howso install
+      shell: pwsh
+      run: |
+        echo "Installing Howso Engine...""
+        pip install howso_engine-*-py3-none-any
+
+        echo "Running Howso verification..."
+        verify_howso_install
 
   install-verification-macos-amd64:
     needs: ['pepify', 'build']
