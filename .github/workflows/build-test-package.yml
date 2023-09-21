@@ -167,7 +167,7 @@ jobs:
         pip install howso_engine-*-py3-none-any.whl
 
         echo "Running Howso verification..."
-        verify_howso_install
+        ./verify_howso_install
 
   install-verification-linux-arm64:
     needs: ['pepify', 'build']
@@ -195,7 +195,7 @@ jobs:
           pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl
 
           echo "Running Howso verification..."
-          verify_howso_install
+          ./verify_howso_install
 
   install-verification-linux-arm64_8a:
     needs: ['pepify', 'build']
@@ -234,7 +234,7 @@ jobs:
           " > howso.yml
 
           echo "Running Howso verification..."
-          verify_howso_install
+          ./verify_howso_install
 
   install-verification-windows-bash-amd64:
     needs: ['pepify', 'build']
@@ -264,7 +264,7 @@ jobs:
         pip install howso_engine-*-py3-none-any.whl
 
         echo "Running Howso verification..."
-        PYTHONUTF8=1 verify_howso_install
+        PYTHONUTF8=1 ./verify_howso_install
 
   install-verification-windows-cmd-amd64:
     needs: ['pepify', 'build']
@@ -297,7 +297,8 @@ jobs:
         pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
 
         echo Running Howso verification...
-        PYTHONUTF8=1 verify_howso_install
+        set PYTHONUTF8=1
+        .\verify_howso_install
 
   install-verification-windows-pwsh-amd64:
     needs: ['pepify', 'build']
@@ -325,11 +326,12 @@ jobs:
       shell: pwsh
       run: |
         Write-Host "Installing Howso Engine..."
-        REM Globs don't work in pwsh with pip
+        # Globs don't work in pwsh with pip
         pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
 
         Write-Host "Running Howso verification..."
-        PYTHONUTF8=1 verify_howso_install
+        set PYTHONUTF8=1
+        .\verify_howso_install
 
   install-verification-macos-amd64:
     needs: ['pepify', 'build']
@@ -361,4 +363,4 @@ jobs:
         " > howso.yml
 
         echo "Running Howso verification..."
-        verify_howso_install
+        ./verify_howso_install
