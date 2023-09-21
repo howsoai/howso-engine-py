@@ -191,7 +191,7 @@ jobs:
           sudo apt-get install --no-install-recommends -y python3 python3-pip python-is-python3
           python --version
 
-          sudo > /etc/pip.conf # Overwrite conf so pypi is used, noy pywheels (which is very slow)
+          sudo echo "" > /etc/pip.conf # Overwrite conf so pypi is used, not piwheels
           echo "Installing Howso Engine..."
           pip install howso_engine-*-py3-none-any.whl
 
@@ -220,7 +220,7 @@ jobs:
           sudo apt-get install --no-install-recommends -y python3 python3-pip python-is-python3
           python --version
 
-          sudo > /etc/pip.conf # Overwrite conf so pypi is used, noy pywheels (which is very slow)
+          sudo echo "" > /etc/pip.conf # Overwrite conf so pypi is used, no piwheels
           echo "Installing Howso Engine..."
           pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl --trusted-host piwheels.org
 
@@ -332,7 +332,7 @@ jobs:
         pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
 
         Write-Host "Running Howso verification..."
-        set PYTHONUTF8=1
+        $env:PYTHONUTF8=1
         verify_howso_install
 
   install-verification-macos-amd64:
