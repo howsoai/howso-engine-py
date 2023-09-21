@@ -576,10 +576,6 @@ class TestClient:
                 ['similarity_conviction', ]
             ),
             (
-                {'prediction_residual_conviction': True, },
-                ['prediction_residual_conviction', ]
-            ),
-            (
                 {'robust_computation': True, 'feature_residuals': True, },
                 ['feature_residuals', ]
             ),

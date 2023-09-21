@@ -2569,14 +2569,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 distance contribution divided by reacted case distance
                 contribution.
 
-            - prediction_residual_conviction: bool, optional
-                If True outputs residual conviction for the reacted case's
-                action features by computing the prediction residual for the
-                action features in the local model area. Uses both context and
-                action features to determine that area. This is defined as the
-                expected (global) model residual divided by computed local
-                residual.
-
             - outlying_feature_values: bool, optional
                 If True outputs the reacted case's context feature values that
                 are outside the min or max of the corresponding feature values
