@@ -10,6 +10,10 @@ on:
         required: false
         type: string
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
 
   pepify:
@@ -28,6 +32,8 @@ jobs:
   build:
     needs: ["pepify", "get-howso-engine-details"]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
 
     - uses: actions/checkout@v3
@@ -97,18 +103,18 @@ jobs:
     - name: Upload Tarball Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz
+        name: howso-engine-${{ needs.pepify.outputs.pepified-version }}
         path: dist/howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz
         if-no-files-found: error
 
     - name: Upload Wheel Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
         path: dist/howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
         if-no-files-found: error
 
-  test-3-8:
+  unit-test-3-8:
     needs: ["build"]
     uses: "./.github/workflows/pytest.yml"
     secrets: inherit
@@ -116,7 +122,7 @@ jobs:
       python-version: "3.8"
       payload: "${{ inputs.payload }}"
 
-  test-3-9:
+  unit-test-3-9:
     needs: ["build"]
     uses: "./.github/workflows/pytest.yml"
     secrets: inherit
@@ -124,7 +130,7 @@ jobs:
       python-version: "3.9"
       payload: "${{ inputs.payload }}"
 
-  test-3-10:
+  unit-test-3-10:
     needs: ["build"]
     uses: "./.github/workflows/pytest.yml"
     secrets: inherit
@@ -132,10 +138,246 @@ jobs:
       python-version: "3.10"
       payload: "${{ inputs.payload }}"
 
-  test-3-11:
+  unit-test-3-11:
     needs: ["build"]
     uses: "./.github/workflows/pytest.yml"
     secrets: inherit
     with:
       python-version: "3.11"
       payload: "${{ inputs.payload }}"
+
+  install-verification-linux-amd64:
+    needs: ['pepify', 'build']
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Verify Howso install
+      run: |
+        echo "Installing Howso Engine..."
+        pip install howso_engine-*-py3-none-any.whl
+
+        echo "Running Howso verification..."
+        verify_howso_install
+
+  install-verification-linux-arm64:
+    needs: ['pepify', 'build']
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Verify Howso install
+      uses: pguyot/arm-runner-action@v2
+      with:
+        base_image: raspios_lite_arm64:latest
+        cpu: cortex-a8
+        image_additional_mb: 1000
+        commands: |
+          set -e
+
+          # Install python:
+          sudo apt-get install --no-install-recommends -y python3 python3-pip python-is-python3
+          python --version
+
+          # Overwrite pip.conf so pypi is used, not piwheels
+          sudo echo "" > /etc/pip.conf
+
+          echo "Installing Howso Engine..."
+          pip install howso_engine-*-py3-none-any.whl
+
+          # amalgam binaries need this under QEMU
+          PATH=$PATH:/usr/aarch64-linux-gnu
+
+          echo "Running Howso verification..."
+          verify_howso_install
+
+  # TODO 17599: Currently blocked because config does not honor 'arch' setting. When that is fixed,
+  #             remove "if: false" and it work.
+  install-verification-linux-arm64_8a:
+    if: false
+    needs: ['pepify', 'build']
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Verify Howso install
+      uses: pguyot/arm-runner-action@v2
+      with:
+        base_image: raspios_lite_arm64:latest
+        cpu: cortex-a7
+        image_additional_mb: 1000
+        commands: |
+          set -e
+
+          # Install python:
+          sudo apt-get install --no-install-recommends -y python3 python3-pip python-is-python3
+          python --version
+
+          # Overwrite pip.conf so pypi is used, not piwheels
+          sudo echo "" > /etc/pip.conf
+
+          echo "Installing Howso Engine..."
+          pip install howso_engine-*-py3-none-any.whl
+
+          # Set local config to use single threaded because arm64_8a doesn't support multi-threading and set
+          # arm64_8a arch since that is not auto selected by the package currently:
+          echo "
+          howso:
+            client: howso.direct.HowsoDirectClient
+            client_extra_params:
+              amalgam:
+                arch: arm64_8a
+                library_postfix: -st
+          " > howso.yml
+
+          # amalgam binaries need this under QEMU
+          PATH=$PATH:/usr/aarch64-linux-gnu
+
+          echo "Running Howso verification..."
+          verify_howso_install
+
+  install-verification-windows-bash-amd64:
+    needs: ['pepify', 'build']
+    runs-on: windows-latest
+    steps:
+
+    - uses: actions/checkout@v3
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Download tz data
+      shell: pwsh
+      run: |
+        ./build/powershell/Download-Tzdata.ps1
+
+    - name: Verify Howso install
+      run: |
+        echo "Installing Howso Engine..."
+        pip install howso_engine-*-py3-none-any.whl
+
+        echo "Running Howso verification..."
+        PYTHONUTF8=1 verify_howso_install
+
+  install-verification-windows-cmd-amd64:
+    needs: ['pepify', 'build']
+    runs-on: windows-latest
+    steps:
+
+    - uses: actions/checkout@v3
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Download tz data
+      shell: pwsh
+      run: |
+        ./build/powershell/Download-Tzdata.ps1
+
+    - name: Verify Howso install
+      shell: cmd
+      run: |
+        @echo off
+        echo Installing Howso Engine...
+        REM Globs don't work in cmd with pip
+        pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+
+        echo Running Howso verification...
+        set PYTHONUTF8=1
+        verify_howso_install
+
+  install-verification-windows-pwsh-amd64:
+    needs: ['pepify', 'build']
+    runs-on: windows-latest
+    steps:
+
+    - uses: actions/checkout@v3
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Download tz data
+      shell: pwsh
+      run: |
+        ./build/powershell/Download-Tzdata.ps1
+
+    - name: Verify Howso install
+      shell: pwsh
+      run: |
+        Write-Host "Installing Howso Engine..."
+        # Globs don't work in pwsh with pip
+        pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+
+        Write-Host "Running Howso verification..."
+        $env:PYTHONUTF8=1
+        verify_howso_install
+
+  install-verification-macos-amd64:
+    needs: ['pepify', 'build']
+    runs-on: macos-latest
+    steps:
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Verify Howso install
+      run: |
+        echo "Installing Howso Engine..."
+        pip install howso_engine-*-py3-none-any.whl
+
+        # Set local config to use mt-noavx because GitHub hosted runners don't have AVX:
+        echo "
+        howso:
+          client: howso.direct.HowsoDirectClient
+          client_extra_params:
+            amalgam:
+              library_postfix: -mt-noavx
+        " > howso.yml
+
+        echo "Running Howso verification..."
+        verify_howso_install
