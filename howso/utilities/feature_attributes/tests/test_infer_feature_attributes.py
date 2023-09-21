@@ -712,3 +712,35 @@ def test_unsupported_data(datetime_min_max, float_min_max, int_min_max):
             assert features.has_unsupported_data(feature)
         else:
             assert not features.has_unsupported_data(feature)
+
+
+@pytest.mark.parametrize("value, is_json, is_yaml", [
+    ('{"key": "value", "_key": "_value"}', True, False),
+    ('{"key":\n    {"key2": [1, 2, 3, 4]}\n}', True, False),
+    ('[]', True, False),
+    ('{}', True, False),
+    ('a: 1\nb:\nc: 3\n\nd: 4', False, True),
+    ("---\nname: The Howso Engine.\ndescription: >\n  The Howso Engine™ is a "
+     "natively and fully explainable ML engine and toolbox.", False, True),
+    ('not:valid:\nyaml\norjson', False, False),
+    (12345, False, False),
+    ('abcdefg', False, False),
+    ('abcd\nefg', False, False),
+    (None, False, False),
+])
+def test_json_yaml_features(value, is_json, is_yaml):
+    """Test that infer_feature_attributes correctly identifies JSON and YAML features."""
+    df = pd.read_csv(iris_path)
+    df['sepal_width'] = value
+
+    features = infer_feature_attributes(df)
+
+    if is_json:
+        assert features['sepal_width']['type'] == 'continuous'
+        assert features['sepal_width']['data_type'] == 'json'
+    elif is_yaml:
+        assert features['sepal_width']['type'] == 'continuous'
+        assert features['sepal_width']['data_type'] == 'yaml'
+    else:
+        assert features['sepal_width'].get('data_type') != 'json'
+        assert features['sepal_width'].get('data_type') != 'yaml'
