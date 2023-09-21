@@ -250,6 +250,8 @@ jobs:
           echo "Running Howso verification..."
           verify_howso_install
 
+          cat howso_stacktrace.txt
+
   install-verification-windows-bash-amd64:
     needs: ['pepify', 'build']
     runs-on: windows-latest
