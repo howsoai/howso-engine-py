@@ -241,15 +241,17 @@ jobs:
             client_extra_params:
               amalgam:
                 arch: arm64_8a
-                library_postfix: -sts
+                library_postfix: -st
           " > howso.yml
 
           # amalgam binaries need this under QEMU
           PATH=$PATH:/usr/aarch64-linux-gnu
 
           echo "Running Howso verification..."
-          verify_howso_install
+          verify_howso_install 2>&1 > out.txt
 
+          cat out.txt
+          echo "====="
           cat howso_stacktrace.txt
 
   install-verification-windows-bash-amd64:
