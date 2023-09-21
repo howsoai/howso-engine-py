@@ -153,8 +153,7 @@ class HowsoCore:
         library_postfix = amlg_params.get('library_postfix', '-mt')
 
         # Infer the architecture unless set, and normalize
-        architecture = amlg_params.setdefault(
-            'arch', platform.machine().lower())
+        architecture = amlg_params.get('arch', platform.machine().lower())
         if architecture in ['x86_64', 'amd64']:
             architecture = 'amd64'
         elif architecture in ['aarch64_be', 'aarch64', 'armv8b', 'armv8l']:
