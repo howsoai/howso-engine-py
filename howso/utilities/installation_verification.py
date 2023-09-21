@@ -5,12 +5,13 @@ from functools import cached_property, partial
 import inspect
 from io import StringIO
 import logging
+import math
 import multiprocessing
 from pathlib import Path
 import random
 import sys
 import traceback
-from typing import Callable, Iterable, List, Optional, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
@@ -24,14 +25,14 @@ from howso.client import (
 from howso.client.exceptions import HowsoConfigurationError
 from howso.openapi.models import Trainee
 try:
-    from howso.validator import Validator  # noqa: might not be available
+    from howso.validator import Validator  # noqa: might not be available # type: ignore
 except OSError as e:
     Validator = e
 except ImportError:
     Validator = None
 from howso.utilities import infer_feature_attributes
 try:
-    from howso.synthesizer import Synthesizer  # noqa: might not be available
+    from howso.synthesizer import Synthesizer  # noqa: might not be available # type: ignore
 except ImportError:
     Synthesizer = None
 from howso.utilities import StopExecution, Timer
@@ -76,7 +77,7 @@ class Check:
 
     name: str
     fn: Callable
-    client_required: str = None
+    client_required: Optional[str] = None
     other_requirements: Optional[Requirements] = None
 
 
@@ -107,7 +108,7 @@ class InstallationCheckRegistry:
 
     def add_check(self, name: str,
                   fn: Callable,
-                  client_required: str = None,
+                  client_required: Optional[str] = None,
                   other_requirements: Optional[Requirements] = None
                   ):
         """
@@ -252,9 +253,18 @@ class InstallationCheckRegistry:
 
         return (Status.OK, "")
 
-    def run_checks(self):  # noqa: C901
-        """Run each of the registered checks and output their status."""
-        issues = 0
+    def run_checks(self) -> int:  # noqa: C901
+        """
+        Run each of the registered checks and output their status.
+
+        Returns
+        -------
+        int
+            The appropriate exit code to use at program end.
+        """
+        all_issues = 0
+        critical_issues = 0
+
         progress = Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(), TaskProgressColumn(), TimeElapsedColumn())
@@ -292,12 +302,17 @@ class InstallationCheckRegistry:
                     elif status == Status.NOTICE:
                         emoji = ":interrobang:"
                         color = "medium_turquoise"
-                    elif status == Status.OK:
+                    else:  # status == Status.OK:
                         emoji = ":heavy_check_mark:"
                         color = "green"
 
                     if status < Status.NOTICE:
-                        issues += 1
+                        # This includes warnings
+                        all_issues += 1
+
+                    if status in [Status.CRITICAL, Status.ERROR]:
+                        # This does not include warnings.
+                        critical_issues += 1
 
                     if msg:
                         progress.console.print(
@@ -319,7 +334,7 @@ class InstallationCheckRegistry:
                 end_time = datetime.now()
                 log_file = Path(".", LOG_FILE)
                 if len(logs):
-                    issues += 1
+                    all_issues += 1
                     with open(log_file, mode="w+") as log:
                         print(f"Installation verification run: "
                               f"{start_time.isoformat()}\n" + "=" * 80 + "\n",
@@ -329,7 +344,7 @@ class InstallationCheckRegistry:
                               f"(elapsed time: {end_time - start_time})\n",
                               file=log)
 
-        if not issues:
+        if not all_issues:
             print("[bold green]You are ready to use Howso™!")
         else:
             print("[bold yellow]There were one or more issues. Please review "
@@ -339,6 +354,12 @@ class InstallationCheckRegistry:
                   "Howso™: representative.")
             print(f'[bold yellow]Any CRITICAL issues are logged in the file '
                   f'"{LOG_FILE}" in the current directory.')
+
+        # This is largely for automated systems.
+        if critical_issues:
+            return 255
+        else:
+            return 0
 
 
 def get_nonce(length=8) -> str:
@@ -361,7 +382,7 @@ def get_nonce(length=8) -> str:
 def generate_dataframe(*, client: AbstractHowsoClient,
                        num_samples: int = 150,
                        timeout: Optional[int] = None
-                       ) -> pd.DataFrame:
+                       ) -> Tuple[pd.DataFrame, Union[float, int]]:
     """
     Use HowsoClient to create a dataframe of random data.
 
@@ -412,7 +433,7 @@ def generate_dataframe(*, client: AbstractHowsoClient,
         default_action_features=action_features,
         persistence="never"
     )
-    trainee = client.create_trainee(trainee_obj)
+    trainee: Trainee = client.create_trainee(trainee_obj)
     client.set_feature_attributes(trainee.id, features)
     client.acquire_trainee_resources(trainee.id, max_wait_time=0)
     if timeout:
@@ -420,19 +441,21 @@ def generate_dataframe(*, client: AbstractHowsoClient,
         end_time = datetime.now() + timedelta(seconds=timeout)
         cases = {"action": []}
         while datetime.now() < end_time:
-            case = client.react(
+            if case := client.react(
                 trainee.id, action_features=feature_names,
                 num_cases_to_generate=1, desired_conviction=1.0,
-                generate_new_cases="no", suppress_warning=True)
-            cases["action"].append(case["action"][0])
+                generate_new_cases="no", suppress_warning=True
+            ):
+                cases["action"].append(case["action"][0])
         elapsed_time = timeout
     else:
         with Timer() as timer:
             cases = client.react(
                 trainee.id, action_features=feature_names,
                 num_cases_to_generate=num_samples, desired_conviction=1.0,
-                generate_new_cases="no", suppress_warning=True)
-        elapsed_time = timer.duration.total_seconds()
+                generate_new_cases="no", suppress_warning=True
+            ) or {"action": []}
+        elapsed_time = timer.seconds or math.nan
     client.delete_trainee(trainee.id)
     df = pd.DataFrame(cases["action"], columns=feature_names)
     return df, elapsed_time
@@ -478,7 +501,7 @@ def check_not_emulated(*, registry: InstallationCheckRegistry):
 
 
 def check_generate_dataframe(*, registry: InstallationCheckRegistry,
-                             threshold: float = None):
+                             threshold: Optional[float] = None):
     """
     Rate the speed in which a dataframe was able to be generated.
 
@@ -486,7 +509,7 @@ def check_generate_dataframe(*, registry: InstallationCheckRegistry,
     ----------
     registry : The InstallationCheckRegistry
         The registry used to run this check.
-    threshold : float or None
+    threshold : float or None, default None
         Optional. If provided determines how long the process can run before
         considering it to return a status of WARNING.
 
@@ -543,6 +566,8 @@ def check_basic_synthesis(*, registry: InstallationCheckRegistry,
             source_df, _ = generate_dataframe(client=registry.client)
 
         features = infer_feature_attributes(source_df)
+        if not Synthesizer:
+            raise AssertionError("Howso Synthesizer™ is not installed.")
         with Synthesizer(client=registry.client, privacy_override=True) as s:
             s.train(source_df, features)
             source_df = s.synthesize_cases(n_samples=100)
@@ -590,7 +615,7 @@ def check_locales_available(*, registry: InstallationCheckRegistry):
 
 
 def check_save(*, registry: InstallationCheckRegistry,
-               source_df: pd.DataFrame = None):
+               source_df: Optional[pd.DataFrame] = None):
     """
     Ensure that a model can can be saved.
 
@@ -609,6 +634,7 @@ def check_save(*, registry: InstallationCheckRegistry,
         str
             A message to display about the WARNING, ERROR or CRITICAL result.
     """
+    client = trainee = None
     try:
         client = registry.client
         if source_df is None:
@@ -619,9 +645,11 @@ def check_save(*, registry: InstallationCheckRegistry,
             f"installation_verification check save ({get_nonce()})",
             features=features
         )
-        trainee = client.create_trainee(trainee_obj)
-        client.train(trainee.id, source_df, features=feature_names)
-        client.persist_trainee(trainee.id)
+        if trainee := client.create_trainee(trainee_obj):
+            client.train(trainee.id, source_df, features=feature_names)
+            client.persist_trainee(trainee.id)
+        else:
+            raise Exception("Could not create a trainee.")
     except Exception:  # noqa: Deliberately broad
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
@@ -630,13 +658,14 @@ def check_save(*, registry: InstallationCheckRegistry,
         return (Status.OK, "")
     finally:
         try:
-            client.delete_trainee(trainee.id)
+            if client and trainee:
+                client.delete_trainee(trainee.id)
         except Exception as e:  # noqa: Deliberately broad
             pass
 
 
 def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
-                                    source_df: pd.DataFrame = None):
+                                    source_df: Optional[pd.DataFrame] = None):
     """
     Ensure that a model can can be created and deleted.
 
@@ -654,11 +683,14 @@ def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
             The status of the check as OK, WARNING, ERROR or CRITICAL.
         str
     """
+    s = None
     try:
         if source_df is None:
             source_df, _ = generate_dataframe(client=registry.client)
 
         features = infer_feature_attributes(source_df)
+        if not Synthesizer:
+            raise AssertionError('Howso Synthesizer™ is not installed.')
         s = Synthesizer(client=registry.client, privacy_override=True)
 
         s.train(source_df[:50], features)
@@ -680,13 +712,14 @@ def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
         return (Status.OK, "")
     finally:
         try:
-            s.cl.delete_trainee(s.trainee.id)
+            if s:
+                s.cl.delete_trainee(s.trainee.id)
         except Exception:  # noqa: Deliberately broad
             pass
 
 
 def check_latency(*, registry: InstallationCheckRegistry,
-                  source_df: pd.DataFrame = None,
+                  source_df: Optional[pd.DataFrame] = None,
                   notice_threshold: int = 10, warning_threshold: int = 20,
                   timeout: int = 10):
     """
@@ -809,7 +842,7 @@ def check_performance(*, registry: InstallationCheckRegistry,
 def check_engine_operation(
     *,
     registry: InstallationCheckRegistry,
-    source_df: pd.DataFrame = None
+    source_df: Optional[pd.DataFrame] = None
 ):
     """
     Ensure that Howso Engine operates as it should.
@@ -829,6 +862,7 @@ def check_engine_operation(
         str
             A message to display about the WARNING, ERROR or CRITICAL result.
     """
+    trainee = None
     try:
         if source_df is None:
             source_df, _ = generate_dataframe(client=registry.client,
@@ -841,6 +875,8 @@ def check_engine_operation(
         X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.2)
         action_features = ["class"]
         context_features = X.columns.tolist()
+        if not engine:
+            raise AssertionError("Howso Engine™ is not installed.")
         trainee = engine.Trainee(
             name=(f"installation_verification "
                   f"check engine operations ({get_nonce()})"),
@@ -863,14 +899,15 @@ def check_engine_operation(
         return (Status.OK, "")
     finally:
         try:
-            engine.delete_trainee(trainee.id)
+            if engine and trainee:
+                engine.delete_trainee(trainee.id)
         except Exception:  # noqa: Deliberately broad
             pass
 
 
 def check_validator_enterprise_desirability(
     *, registry: InstallationCheckRegistry,
-    source_df: pd.DataFrame = None,
+    source_df: Optional[pd.DataFrame] = None,
     desirability_threshold: float = 2.0
 ):
     """
@@ -900,6 +937,7 @@ def check_validator_enterprise_desirability(
         return (Status.CRITICAL,
                 "Howso Data Quality Tool was not installed correctly. "
                 "Please check installation.")
+    validator = None
     try:
         if source_df is None:
             source_df, _ = generate_dataframe(client=registry.client, num_samples=150)
@@ -907,7 +945,8 @@ def check_validator_enterprise_desirability(
         orig_df = source_df.sample(frac=0.5)
         gen_df = source_df[~source_df.index.isin(orig_df.index)]
         features = infer_feature_attributes(orig_df)
-
+        if not Validator:
+            raise AssertionError('Howso Validator™ is not installed.')
         validator = Validator(orig_df, gen_df, features=features, verbose=-1)
         desirability = validator.run_metric("DescriptiveStatistics").desirability
         if desirability < desirability_threshold:
@@ -919,13 +958,14 @@ def check_validator_enterprise_desirability(
     else:
         return (Status.OK, "")
     finally:
-        for dataset in [validator.orig, validator.gen]:
-            if isinstance(dataset, Trainee):
-                if id := getattr(dataset, "id", None):
-                    try:
-                        registry.client.release_trainee_resources(id)
-                    except Exception:  # noqa: Deliberately broad
-                        pass
+        if validator:
+            for dataset in [validator.orig, validator.gen]:
+                if isinstance(dataset, Trainee):
+                    if id := getattr(dataset, "id", None):
+                        try:
+                            registry.client.release_trainee_resources(id)
+                        except Exception:  # noqa: Deliberately broad
+                            pass
 
 
 def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
@@ -1091,7 +1131,7 @@ def main():
     with warnings.catch_warnings():
         configure(registry)
         warnings.simplefilter("ignore")
-        registry.run_checks()
+        sys.exit(registry.run_checks())
 
 
 if __name__ == "__main__":
