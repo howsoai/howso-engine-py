@@ -18,6 +18,7 @@ from howso.utilities.features import FeatureType
 from howso.utilities.internals import serialize_openapi_models
 import numpy as np
 import pandas as pd
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -193,8 +194,10 @@ class FeatureAttributesBase(dict):
                 pass
         elif expected_dtype == 'datetime64':
             try:
-                series = pd.to_datetime(coerced_df[feature],
-                                        format=self[feature]['date_time_format'])
+                format = self[feature]['date_time_format']
+                if ".%f" in format:
+                    format = "ISO8601"
+                series = pd.to_datetime(coerced_df[feature], format=format)
                 if coerce:
                     if localize_datetimes and not isinstance(series, pd.DatetimeTZDtype):
                         series = series.dt.tz_localize('UTC', ambiguous='infer',
@@ -387,15 +390,15 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
         Parameters
         ----------
         data : Any
-            The data to validate (single table only)
+            The data to validate (single table only).
         coerce : bool (default False)
             Whether to attempt to coerce DataFrame columns into correct data types.
         raise_errors : bool (default False)
-            If True, raises a ValueError if nonconforming columns are found; else issue a warning
+            If True, raises a ValueError if nonconforming columns are found; else, issue a warning.
         validate_bounds : bool (default True)
-            Whether to validate the data against the attributes' inferred bounds
+            Whether to validate the data against the attributes' inferred bounds.
         allow_missing_features : bool (default False)
-            Allows features that are missing from the DataFrame to be ignored
+            Allows features that are missing from the DataFrame to be ignored.
         localize_datetimes : bool (default True)
             Whether to localize datetime features to UTC.
 
@@ -415,6 +418,19 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
                                  localize_datetimes=localize_datetimes)
 
     def has_unsupported_data(self, feature_name: str) -> bool:
+        """
+        Returns whether the given feature has data that is unsupported by Howso Engine.
+
+        Parameters
+        ----------
+        feature_name: str
+            The feature to check.
+
+        Returns
+        -------
+        bool
+            Whether feature_name was determined to have unsupported data.
+        """
         return feature_name in self.unsupported
 
 
@@ -625,6 +641,12 @@ class InferFeatureAttributesBase(ABC):
             for feature_name in feature_attributes:
                 # Don't infer bounds for manually-specified nominal features
                 if features and features.get(feature_name, {}).get('type') == 'nominal':
+                    continue
+                # Likewise, don't infer bounds for JSON/YAML features
+                elif any([
+                    feature_attributes[feature_name].get('data_type') in ['json', 'yaml'],
+                    features and features.get(feature_name, {}).get('data_type') in ['json', 'yaml']
+                ]):
                     continue
                 bounds = self._infer_feature_bounds(
                     feature_attributes, feature_name,
@@ -946,6 +968,77 @@ class InferFeatureAttributesBase(ABC):
             return False
 
         # No issues; it's valid
+        return True
+
+    def _is_json_feature(self, feature: str) -> bool:
+        """
+        Return whether the given feature contains valid JSON.
+
+        Parameters
+        ----------
+        feature: string
+            The feature to check the values of.
+
+        Returns
+        -------
+        True if the column values can be parsed into JSON.
+        """
+        first_non_none = self._get_first_non_null(feature)
+        if first_non_none is None:
+            return False
+
+        # Sample 30 random values
+        for _ in range(30):
+            rand_val = self._get_random_value(feature, no_nulls=True)
+            if rand_val is None:
+                return False
+
+            # Try to parse rand_val as JSON
+            try:
+                if all([
+                    '{' not in rand_val and '}' not in rand_val,
+                    '[' not in rand_val and ']' not in rand_val,
+                ]):
+                    return False
+                json.loads(rand_val)
+            except (TypeError, json.JSONDecodeError):
+                return False
+
+        # No exception: valid JSON
+        return True
+
+    def _is_yaml_feature(self, feature: str) -> bool:
+        """
+        Return whether the given feature contains valid YAML.
+
+        Parameters
+        ----------
+        feature: string
+            The feature to check the values of.
+
+        Returns
+        -------
+        True if the column values can be parsed into YAML.
+        """
+        first_non_none = self._get_first_non_null(feature)
+        if first_non_none is None:
+            return False
+
+        # Sample 30 random values
+        for _ in range(30):
+            rand_val = self._get_random_value(feature, no_nulls=True)
+            if rand_val is None:
+                return False
+
+            # Try to parse rand_val as YAML
+            try:
+                yaml.safe_load(rand_val)
+                if len(rand_val.split(':')) <= 1 or '\n' not in rand_val:
+                    return False
+            except (yaml.YAMLError):
+                return False
+
+        # No exception: valid YAML
         return True
 
     @staticmethod

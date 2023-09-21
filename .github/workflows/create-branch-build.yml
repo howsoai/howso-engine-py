@@ -3,6 +3,22 @@ run-name: "Branch Build (${{ github.run_attempt }}.${{ github.run_number }}) - $
 
 on:
   workflow_dispatch:
+    inputs:
+      payload:
+        description: |
+          JSON payload containing extra info used by workflow.
+
+          For builds that have dependencies, key values of 'repo' => 'build-id' may
+          be used to define version. If blank or not supplied, latest tagged release
+          build will be used. Build ID may also be a release tag version.
+
+          Example:
+          {
+            "amalgam": "6191984493",
+            "howso-engine": "68.1.0"
+          }
+        required: false
+        type: string
 
 defaults:
   run:
@@ -48,6 +64,7 @@ jobs:
     secrets: inherit
     with:
       version: ${{ needs.set-branch-version.outputs.version }}
+      payload: ${{ inputs.payload }}
 
   # This job is here to have only one final step to add for "Status Checks"
   # in GitHub, instead of adding every leaf test from 'build-test-package'

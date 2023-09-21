@@ -3,7 +3,7 @@ import decimal
 import logging
 from math import isnan
 from typing import (
-    Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union
+    Any, Dict, Iterable, List, Mapping, Optional, Tuple
 )
 import warnings
 
@@ -90,20 +90,20 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             dtype = feature.dtype
             if is_float_dtype(dtype):
                 typing_info = {}
-                if getattr(dtype, 'itemsize', None):
-                    if dtype.itemsize > 8:
+                if itemsize := getattr(dtype, 'itemsize', None):
+                    if itemsize > 8:
                         raise HowsoError(
                             f'Unsupported data type "{dtype}" found for '
                             f'feature "{feature_name}", Howso does not '
                             'currently support numbers larger than 64-bit.')
-                    typing_info['size'] = dtype.itemsize
+                    typing_info['size'] = itemsize
 
                 return FeatureType.NUMERIC, typing_info
 
             elif is_integer_dtype(dtype):
                 typing_info = {}
-                if hasattr(dtype, 'itemsize'):
-                    typing_info['size'] = dtype.itemsize
+                if itemsize := getattr(dtype, 'itemsize', None):
+                    typing_info['size'] = itemsize
                 if is_unsigned_integer_dtype(dtype):
                     typing_info['unsigned'] = True
 
@@ -339,8 +339,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     tight_bounds is None
                     or feature_name not in tight_bounds
                 ):
-                    min_f, max_f = self.infer_loose_feature_bounds(actual_min_f,
-                                                                   actual_max_f)
+                    min_f, max_f = self.infer_loose_feature_bounds(
+                        actual_min_f, actual_max_f
+                    )
                     # Check for mode bounds
                     if (
                         mode_bound_features is None or
@@ -382,7 +383,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return output
 
     def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
-        attributes = {"type": "continuous"}
+        attributes: Dict[str, Any] = {"type": "continuous"}
 
         n_cases = self.data[feature_name].shape[0]
 
@@ -434,11 +435,21 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             # specify decimal place. Proceed with training but issue a warning.
             if pd.api.types.is_float_dtype(col.dtype):
-                if decimals < 15:
-                    attributes['decimal_places'] = decimals
-                else:
-                    warnings.warn(f'Feature {feature_name} contains float values that exceed the '
-                                  'maximum supported precision of 15 decimal digits.')
+                try:
+                    if getattr(col.dtype, 'itemsize') <= 8:
+                        attributes['decimal_places'] = decimals
+                    else:
+                        warnings.warn(
+                            f'Feature {feature_name} contains floating point '
+                            'values that exceed the maximum supported precision '
+                            'of 64 bits.'
+                        )
+                except AttributeError:
+                    warnings.warn(
+                        f'Feature {feature_name} may contain floating point '
+                        'values that exceed the maximum supported precision '
+                        'of 64 bits.'
+                    )
 
         return attributes
 
@@ -529,11 +540,27 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # are ISO8601 datetimes.
         if self._is_iso8601_datetime_column(feature_name):
             # if datetime, determine the iso8601 format it's using
-            first_non_null = self._get_first_non_null(feature_name)
-            fmt = determine_iso_format(first_non_null, feature_name)
+            if first_non_null := self._get_first_non_null(feature_name):
+                fmt = determine_iso_format(first_non_null, feature_name)
+                return {
+                    "type": "continuous",
+                    "date_time_format": fmt
+                }
+            else:
+                # It isn't clear how this method would be called on a feature
+                # if it has no data, but just in case...
+                return {
+                    "type": "continuous",
+                }
+        elif self._is_json_feature(feature_name):
             return {
                 "type": "continuous",
-                "date_time_format": fmt
+                "data_type": "json"
+            }
+        elif self._is_yaml_feature(feature_name):
+            return {
+                "type": "continuous",
+                "data_type": "yaml"
             }
         else:
             return self._infer_unknown_attributes(feature_name)

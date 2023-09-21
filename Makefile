@@ -32,7 +32,7 @@ lint:
 
 # Run tests (with coverage)
 test:
-	coverage run -m pytest -W 'ignore::FutureWarning' && coverage report -m
+	coverage run -m pytest && coverage report -m
 
 licenses: production
 	pip list --format=freeze | cut -d= -f1 | xargs pip show | sed '/^Location/d' > LICENSE-3RD-PARTY.txt

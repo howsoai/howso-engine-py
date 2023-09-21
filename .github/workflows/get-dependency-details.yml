@@ -1,0 +1,85 @@
+name: Reusable WF - Get Dependency Details
+
+on:
+  workflow_call:
+    inputs:
+      owner:
+        required: false
+        type: string
+        default: "howsoai"
+      repo:
+        required: true
+        type: string
+      payload:
+        required: false
+        type: string
+      skip-version-json-check:
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      run-type:
+        description: "Run type to be used in GitHub CLI command for dependency query"
+        value: ${{ jobs.get-dependency-details.outputs.run-type }}
+      run-id:
+        description: "Run id to be used in GitHub CLI command for dependency query"
+        value: ${{ jobs.get-dependency-details.outputs.run-id }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  get-dependency-details:
+    runs-on: ubuntu-latest
+    outputs:
+      run-type: ${{ steps.dependency.outputs.run-type }}
+      run-id: ${{ steps.dependency.outputs.run-id }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get dependency details
+        id: dependency
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Parsing JSON payload: '${{ inputs.payload }}'..."
+          ID=""
+          if ! [[ -n "${{ inputs.payload }}" && $(echo '${{ inputs.payload }}' | jq 'has("${{ inputs.repo }}")') == true ]]; then
+              if [ "${{ inputs.skip-version-json-check }}" = true ]; then
+                echo "No JSON payload given, and skip-version-json-check flag is set. Exiting."
+                exit 0
+              fi
+              echo "No JSON payload given, using version.json"
+              ID=$(jq -r '.dependencies."${{ inputs.repo }}"' version.json)
+
+              echo "Searching for ${{ inputs.repo }} build id '$ID'..."
+              if gh release view --repo ${{ inputs.owner }}/${{ inputs.repo }} "$ID" > /dev/null 2>&1; then
+                  echo "Found release build"
+                  echo "run-type=$(echo "release")" >> $GITHUB_OUTPUT
+              elif gh run view --repo ${{ inputs.owner }}/${{ inputs.repo }} "$ID" > /dev/null 2>&1; then
+                  echo "Found non-release build"
+                  echo "run-type=$(echo "run")" >> $GITHUB_OUTPUT
+              else
+                  echo "Build not found"
+                  exit 1
+              fi
+          else
+              ID=$(echo '${{ inputs.payload }}' | jq -r '."${{ inputs.repo }}"')
+              echo "${{ inputs.repo }} build id given: '$ID'"
+
+              echo "Searching for ${{ inputs.repo }} build id '$ID'..."
+              if gh release view --repo ${{ inputs.owner }}/${{ inputs.repo }} "$ID" > /dev/null 2>&1; then
+                  echo "Found release build"
+                  echo "run-type=$(echo "release")" >> $GITHUB_OUTPUT
+              elif gh run view --repo ${{ inputs.owner }}/${{ inputs.repo }} "$ID" > /dev/null 2>&1; then
+                  echo "Found non-release build"
+                  echo "run-type=$(echo "run")" >> $GITHUB_OUTPUT
+              else
+                  echo "Build not found"
+                  exit 1
+              fi
+          fi
+
+          echo "run-id=$(echo "$ID")" >> $GITHUB_OUTPUT
