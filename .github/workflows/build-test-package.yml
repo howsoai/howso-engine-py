@@ -192,7 +192,7 @@ jobs:
           python --version
 
           echo "Installing Howso Engine..."
-          pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl
+          pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl --trusted-host piwheels.org
 
           echo "Running Howso verification..."
           ./verify_howso_install
@@ -220,7 +220,7 @@ jobs:
           python --version
 
           echo "Installing Howso Engine..."
-          pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl
+          pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl --trusted-host piwheels.org
 
           # Set local config to use single threaded because arm64_8a doesn't support multi-threading and set
           # arm64_8a arch since that is not auto selected by the package currently:
