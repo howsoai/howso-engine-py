@@ -325,9 +325,11 @@ jobs:
       shell: pwsh
       run: |
         Write-Host "Installing Howso Engine..."
-        pip install howso_engine-*-py3-none-any.whl
+        pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
 
         Write-Host "Running Howso verification..."
+        # The 'verify_howso_install' helper script does not work in powershell so we call with python directly:
+        #python -m howso.utilities.installation_verification
         verify_howso_install
 
   install-verification-macos-amd64:
