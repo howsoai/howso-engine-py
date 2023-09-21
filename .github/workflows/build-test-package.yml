@@ -230,7 +230,7 @@ jobs:
             client_extra_params:
               amalgam:
                 arch: arm64_8a
-                library_postfix: -st
+                library_postfix: -sts
           " > howso.yml
 
           echo "Running Howso verification..."
