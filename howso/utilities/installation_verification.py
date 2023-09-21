@@ -253,9 +253,18 @@ class InstallationCheckRegistry:
 
         return (Status.OK, "")
 
-    def run_checks(self):  # noqa: C901
-        """Run each of the registered checks and output their status."""
-        issues = 0
+    def run_checks(self) -> int:  # noqa: C901
+        """
+        Run each of the registered checks and output their status.
+
+        Returns
+        -------
+        int
+            The appropriate exit code to use at program end.
+        """
+        all_issues = 0
+        critical_issues = 0
+
         progress = Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(), TaskProgressColumn(), TimeElapsedColumn())
@@ -298,7 +307,12 @@ class InstallationCheckRegistry:
                         color = "green"
 
                     if status < Status.NOTICE:
-                        issues += 1
+                        # This includes warnings
+                        all_issues += 1
+
+                    if status in [Status.CRITICAL, Status.ERROR]:
+                        # This does not include warnings.
+                        critical_issues += 1
 
                     if msg:
                         progress.console.print(
@@ -320,7 +334,7 @@ class InstallationCheckRegistry:
                 end_time = datetime.now()
                 log_file = Path(".", LOG_FILE)
                 if len(logs):
-                    issues += 1
+                    all_issues += 1
                     with open(log_file, mode="w+") as log:
                         print(f"Installation verification run: "
                               f"{start_time.isoformat()}\n" + "=" * 80 + "\n",
@@ -330,16 +344,22 @@ class InstallationCheckRegistry:
                               f"(elapsed time: {end_time - start_time})\n",
                               file=log)
 
-        if not issues:
+        if not all_issues:
             print("[bold green]You are ready to use Howso™!")
         else:
             print("[bold yellow]There were one or more issues. Please review "
                   "the messages emitted during the installation verification "
                   "process to identify next steps. If you cannot resolve "
                   "these issues please do not hesitate to contact your "
-                  "Howso™: representative.")
+                  "Howso™ representative.")
             print(f'[bold yellow]Any CRITICAL issues are logged in the file '
                   f'"{LOG_FILE}" in the current directory.')
+
+        # This is largely for automated systems.
+        if critical_issues:
+            return 255
+        else:
+            return 0
 
 
 def get_nonce(length=8) -> str:
@@ -1111,7 +1131,7 @@ def main():
     with warnings.catch_warnings():
         configure(registry)
         warnings.simplefilter("ignore")
-        registry.run_checks()
+        sys.exit(registry.run_checks())
 
 
 if __name__ == "__main__":

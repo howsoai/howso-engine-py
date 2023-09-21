@@ -204,10 +204,7 @@ jobs:
           echo "Running Howso verification..."
           verify_howso_install
 
-  # TODO 17599: Currently blocked because config does not honor 'arch' setting. When that is fixed,
-  #             remove "if: false" and it work.
   install-verification-linux-arm64_8a:
-    if: false
     needs: ['pepify', 'build']
     runs-on: ubuntu-latest
     steps:
