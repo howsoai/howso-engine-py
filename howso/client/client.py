@@ -264,6 +264,11 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
         kind_exit(f'Error reading the configuration file located at '
                   f'"{config_path}". Check the file permissions and try '
                   f'again.', exception=exception)
+    else:
+        # Lowercase top-level `howso` key.
+        if 'Howso' in config_data and 'howso' not in config_data:
+            config_data['howso'] = config_data['Howso']
+            del config_data['Howso']
 
     client_class = None
 
