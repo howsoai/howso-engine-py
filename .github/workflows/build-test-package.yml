@@ -294,7 +294,7 @@ jobs:
         @echo off
         echo Installing Howso Engine...
         REM Globs don't work in cmd with pip
-        pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+        pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
 
         echo Running Howso verification...
         verify_howso_install
@@ -324,10 +324,10 @@ jobs:
     - name: Verify Howso install
       shell: pwsh
       run: |
-        echo "Installing Howso Engine...""
-        pip install howso_engine-*-py3-none-any
+        Write-Host "Installing Howso Engine..."
+        pip install howso_engine-*-py3-none-any.whl
 
-        echo "Running Howso verification..."
+        Write-Host "Running Howso verification..."
         verify_howso_install
 
   install-verification-macos-amd64:
