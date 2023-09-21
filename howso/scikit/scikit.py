@@ -708,13 +708,6 @@ class HowsoEstimator(BaseEstimator):
                 are outside the min or max of the corresponding feature values
                 of all the cases in the local model area. Uses only the context
                 features of the reacted case to determine that area.
-            - prediction_residual_conviction: bool, optional
-                If True, outputs residual conviction for the reacted case's
-                action features by computing the prediction residual for the
-                action features in the local model area. Uses both context and
-                action features to determine that area. This is defined as the
-                expected (global) model residual divided by computed local
-                residual.
             - similarity_conviction : bool, optional
                 If True, outputs similarity conviction for the reacted case.
                 Uses both context and action feature values as the case values
