@@ -151,7 +151,6 @@ class HowsoCore:
 
         # Assemble the library file name - use multithreaded library by default
         library_postfix = amlg_params.get('library_postfix', '-mt')
-        library_filename = f'amalgam{library_postfix}.{library_file_extension}'
 
         # Infer the architecture unless set, and normalize
         architecture = amlg_params.setdefault(
@@ -207,7 +206,7 @@ class HowsoCore:
             if k in [
                 'library_path', 'gc_interval', 'sbf_datastore_enabled',
                 'max_num_threads', 'debug', 'trace', 'execution_trace_file',
-                'execution_trace_dir', 'library_postfix'
+                'execution_trace_dir', 'library_postfix', 'arch'
             ]
         }
         self.amlg = Amalgam(**amlg_params)
