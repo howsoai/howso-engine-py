@@ -167,7 +167,7 @@ jobs:
         pip install howso_engine-*-py3-none-any.whl
 
         echo "Running Howso verification..."
-        ./verify_howso_install
+        verify_howso_install
 
   install-verification-linux-arm64:
     needs: ['pepify', 'build']
@@ -191,11 +191,12 @@ jobs:
           sudo apt-get install --no-install-recommends -y python3 python3-pip python-is-python3
           python --version
 
+          sudo > /etc/pip.conf # Overwrite conf so pypi is used, noy pywheels (which is very slow)
           echo "Installing Howso Engine..."
-          pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl --trusted-host piwheels.org
+          pip install howso_engine-*-py3-none-any.whl
 
           echo "Running Howso verification..."
-          ./verify_howso_install
+          verify_howso_install
 
   install-verification-linux-arm64_8a:
     needs: ['pepify', 'build']
@@ -219,6 +220,7 @@ jobs:
           sudo apt-get install --no-install-recommends -y python3 python3-pip python-is-python3
           python --version
 
+          sudo > /etc/pip.conf # Overwrite conf so pypi is used, noy pywheels (which is very slow)
           echo "Installing Howso Engine..."
           pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl --trusted-host piwheels.org
 
@@ -234,7 +236,7 @@ jobs:
           " > howso.yml
 
           echo "Running Howso verification..."
-          ./verify_howso_install
+          verify_howso_install
 
   install-verification-windows-bash-amd64:
     needs: ['pepify', 'build']
@@ -264,7 +266,7 @@ jobs:
         pip install howso_engine-*-py3-none-any.whl
 
         echo "Running Howso verification..."
-        PYTHONUTF8=1 ./verify_howso_install
+        PYTHONUTF8=1 verify_howso_install
 
   install-verification-windows-cmd-amd64:
     needs: ['pepify', 'build']
@@ -298,7 +300,7 @@ jobs:
 
         echo Running Howso verification...
         set PYTHONUTF8=1
-        .\verify_howso_install
+        verify_howso_install
 
   install-verification-windows-pwsh-amd64:
     needs: ['pepify', 'build']
@@ -331,7 +333,7 @@ jobs:
 
         Write-Host "Running Howso verification..."
         set PYTHONUTF8=1
-        .\verify_howso_install
+        verify_howso_install
 
   install-verification-macos-amd64:
     needs: ['pepify', 'build']
@@ -363,4 +365,4 @@ jobs:
         " > howso.yml
 
         echo "Running Howso verification..."
-        ./verify_howso_install
+        verify_howso_install
