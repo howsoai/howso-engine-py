@@ -192,7 +192,7 @@ jobs:
           python --version
 
           echo "Installing Howso Engine..."
-          pip install howso_engine-*-py3-none-any.whl
+          pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl
 
           echo "Running Howso verification..."
           verify_howso_install
@@ -220,7 +220,7 @@ jobs:
           python --version
 
           echo "Installing Howso Engine..."
-          pip install howso_engine-*-py3-none-any.whl
+          pip --default-timeout=1000 install howso_engine-*-py3-none-any.whl
 
           # Set local config to use single threaded because arm64_8a doesn't support multi-threading and set
           # arm64_8a arch since that is not auto selected by the package currently:
@@ -297,7 +297,7 @@ jobs:
         pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
 
         echo Running Howso verification...
-        verify_howso_install
+        PYTHONUTF8=1 verify_howso_install
 
   install-verification-windows-pwsh-amd64:
     needs: ['pepify', 'build']
@@ -325,12 +325,11 @@ jobs:
       shell: pwsh
       run: |
         Write-Host "Installing Howso Engine..."
+        REM Globs don't work in pwsh with pip
         pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
 
         Write-Host "Running Howso verification..."
-        # The 'verify_howso_install' helper script does not work in powershell so we call with python directly:
-        #python -m howso.utilities.installation_verification
-        verify_howso_install
+        PYTHONUTF8=1 verify_howso_install
 
   install-verification-macos-amd64:
     needs: ['pepify', 'build']
