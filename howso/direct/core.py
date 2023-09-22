@@ -1652,7 +1652,7 @@ class HowsoCore:
             either one for all series, or exactly one per series.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
-            starting new series. If ``initial_values`` provide series IDs, it
+            starting new series. If `initial_values` provide series IDs, it
             will continue those explicitly specified IDs, otherwise it will
             randomly select series to continue.
             .. note::
