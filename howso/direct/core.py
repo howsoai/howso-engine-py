@@ -1633,7 +1633,7 @@ class HowsoCore:
             only. Must provide either one for all series, or exactly one per
             series.
         initial_features : iterable of str, optional
-            list of features to condition just the first case in a
+            List of features to condition just the first case in a
             series, overwrites context_features and derived_context_features
             for that first case. All specified initial features must be in one
             of: context_features, action_features, derived_context_features or
@@ -1651,24 +1651,25 @@ class HowsoCore:
             3 * model_size, a 0 or less is no limit. Must provide
             either one for all series, or exactly one per series.
         continue_series : bool, default False
-            When true will attempt to continue existing series instead of
-            starting new series. If initial_values provide series IDs, it
+            When True will attempt to continue existing series instead of
+            starting new series. If `initial_values` provide series IDs, it
             will continue those explicitly specified IDs, otherwise it will
             randomly select series to continue.
             .. note::
 
                 Terminated series with terminators cannot be continued and
                 will result in null output.
+
         derived_context_features : iterable of str, optional
-            list of context features whose values should be computed
+            List of context features whose values should be computed
             from the entire series in the specified order. Must be
             different than context_features.
         derived_action_features : iterable of str, optional
-            list of action features whose values should be computed
+            List of action features whose values should be computed
             from the resulting last row in series, in the specified order.
             Must be a subset of action_features.
         series_context_features : iterable of str, optional
-            list of context features corresponding to
+            List of context features corresponding to
             series_context_values, if specified must not overlap with any
             initial_features or context_features.
         series_context_values : list of list of list of object or list, optional
