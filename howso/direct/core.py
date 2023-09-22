@@ -19,7 +19,6 @@ from amalgam.api import Amalgam
 from howso.client.exceptions import HowsoError, HowsoWarning
 from howso.utilities.internals import sanitize_for_json
 import howso.utilities.json_wrapper as json
-from pkg_resources import resource_filename
 import six
 
 _logger = logging.getLogger('howso.direct')
@@ -122,22 +121,16 @@ class HowsoCore:
             'execution_trace_file': self.handle + "_execution.trace",
         }
 
-        try:
+        if amalgam_opts := kwargs.get("amalgam", {}):
             # merge parameters from config.yml - favoring the configured params
-            amlg_params_intersection = amlg_params.keys(
-            ) & kwargs['amalgam'].keys()
-            # Warn that there are conflicts
-            if amlg_params_intersection:
+            if amlg_params_intersection := amlg_params.keys() & amalgam_opts.keys():
+                # Warn that there are conflicts
                 _logger.warning(
                     "The following parameters from configuration file will "
                     "override the Amalgam parameters set in the code: " +
                     str(amlg_params_intersection)
                 )
-            amlg_params = {**amlg_params, **kwargs['amalgam']}
-
-        except KeyError:
-            # No issue, if there is no amalgam key
-            pass
+        amlg_params = {**amlg_params, **(amalgam_opts or {})}
 
         # Infer the os/arch from the running platform, unless set in config
         operating_system = amlg_params.setdefault(
@@ -160,8 +153,9 @@ class HowsoCore:
             # see: https://stackoverflow.com/questions/45125516/possible-values-for-uname-m
             architecture = 'arm64'
         elif architecture == 'arm64_8a':
-            # TODO 17132: 8a arm arch is a special case and not currently auto selected by this routine. So if the
-            # user specifies it, use it as is. Future work will auto select this based on env.
+            # TODO 17132: 8a arm arch is a special case and not currently auto
+            # selected by this routine. So if the user specifies it, use it as
+            # is. Future work will auto select this based on env.
             pass
 
         # If download set, try and download the specified version using
@@ -178,10 +172,10 @@ class HowsoCore:
                 f'{amlg_params["library_path"]}')
 
         # If version is set, but download not, use the default download location
-        elif amlg_params.get('version'):
+        elif amlg_version := amlg_params.get('version'):
             versioned_amlg_location = Path(
                 Path.home(), amlg_lib_dirname, operating_system,
-                architecture, amlg_params.get('version'), 'lib',
+                architecture, amlg_version, 'lib',
                 f"amalgam{library_postfix}.{library_file_extension}"
             )
             if versioned_amlg_location.exists():
@@ -210,7 +204,7 @@ class HowsoCore:
         }
         self.amlg = Amalgam(**amlg_params)
 
-        core_params = kwargs.get('core', {})
+        core_params = kwargs.get('core') or {}
 
         # If download, then retrieve using howso-build-artifacts
         if core_params.get('download', False):
@@ -220,10 +214,9 @@ class HowsoCore:
             self.default_save_path = Path(self.howso_path, 'trainee')
 
         # If version is set, but download not, use the default download location
-        elif core_params.get('version'):
+        elif version := core_params.get('version'):
             # Set paths, ensuring tailing slash
-            self.howso_path = Path(Path.home(), core_lib_dirname,
-                                   core_params.get('version'))
+            self.howso_path = Path(Path.home(), core_lib_dirname, version)
             self.trainee_template_path = self.howso_path
             self.default_save_path = Path(self.howso_path, "trainee")
 
@@ -236,9 +229,8 @@ class HowsoCore:
             self.default_save_path = Path(self.howso_path, "trainee")
 
         # Allow for trainee save directory to be overridden
-        if core_params.get('persisted_trainees_dir'):
-            self.default_save_path = Path(
-                core_params.get("persisted_trainees_dir")).expanduser()
+        if persisted_trainees_dir := core_params.get('persisted_trainees_dir'):
+            self.default_save_path = Path(persisted_trainees_dir).expanduser()
             _logger.debug(
                 'Trainee save directory has been overridden to '
                 f'{self.default_save_path}')
@@ -2518,11 +2510,13 @@ class HowsoCore:
         weight_feature: Optional[str] = None,
     ) -> Dict:
         """
-        Get the parameters used by the Trainee. If 'action_feature',
-        'context_features', 'mode', or 'weight_feature' are specified, then
-        the best hyperparameters analyzed in the Trainee are the value of the
-        'hyperparameter_map' key, otherwise this value will be the dictionary
-        containing all the hyperparameter sets in the Trainee.
+        Get the parameters used by the Trainee.
+
+        If 'action_feature', 'context_features', 'mode', or 'weight_feature'
+        are specified, then the best hyperparameters analyzed in the Trainee
+        are the value of the 'hyperparameter_map' key, otherwise this value
+        will be the dictionary containing all the hyperparameter sets in
+        the Trainee.
 
 
         Parameters
@@ -2560,7 +2554,7 @@ class HowsoCore:
     def move_cases(
         self,
         trainee_id: str,
-        target_trainee_id: str,
+        target_trainee_id: Union[str, None],
         num_cases: int = 1,
         *,
         case_indices: Optional[Iterable[Tuple[str, int]]] = None,
@@ -3110,7 +3104,7 @@ class HowsoCore:
         """
         # Since direct client may be distributed without build downloads ..
         try:
-            from howso.build.artifacts.repo import HowsoArtifactService  # noqa
+            from howso.build.artifacts.repo import HowsoArtifactService  # noqa # type: ignore
         except ImportError as err:
             raise ImportError(
                 "Amalgam Download functionality only available "
@@ -3161,7 +3155,7 @@ class HowsoCore:
         """
         # Since direct client may be distributed without build downloads ..
         try:
-            from howso.build.artifacts.repo import HowsoArtifactService  # noqa
+            from howso.build.artifacts.repo import HowsoArtifactService  # noqa # type: ignore
         except ImportError as err:
             raise ImportError(
                 "Amalgam Download functionality only available "

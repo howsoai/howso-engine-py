@@ -433,7 +433,9 @@ def generate_dataframe(*, client: AbstractHowsoClient,
         default_action_features=action_features,
         persistence="never"
     )
-    trainee: Trainee = client.create_trainee(trainee_obj)
+    trainee = client.create_trainee(trainee_obj)
+    if not isinstance(trainee, Trainee):
+        raise Exception('Unable to create trainee.')
     client.set_feature_attributes(trainee.id, features)
     client.acquire_trainee_resources(trainee.id, max_wait_time=0)
     if timeout:
