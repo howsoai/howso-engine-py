@@ -50,7 +50,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any.whl" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+          gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
           # Needed because release/non-release downloads are different structure
           cd tmp && if [ ! -f *.whl ]; then mv *.whl ./tmp && mv ./tmp/*.whl ./; fi
 
