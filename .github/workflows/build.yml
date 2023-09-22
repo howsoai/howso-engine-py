@@ -9,6 +9,9 @@ on:
       payload:
         required: false
         type: string
+      build-type:
+        required: false
+        type: string
 
 defaults:
   run:
@@ -147,6 +150,7 @@ jobs:
       payload: "${{ inputs.payload }}"
 
   install-verification-linux-amd64:
+    if: inputs.build-type != 'PR'
     needs: ['pepify', 'build']
     runs-on: ubuntu-latest
     steps:
@@ -170,6 +174,7 @@ jobs:
         verify_howso_install
 
   install-verification-linux-arm64:
+    if: inputs.build-type != 'PR'
     needs: ['pepify', 'build']
     runs-on: ubuntu-latest
     steps:
@@ -205,6 +210,7 @@ jobs:
           verify_howso_install
 
   install-verification-linux-arm64_8a:
+    if: inputs.build-type != 'PR'
     needs: ['pepify', 'build']
     runs-on: ubuntu-latest
     steps:
@@ -251,6 +257,7 @@ jobs:
           verify_howso_install
 
   install-verification-windows-bash-amd64:
+    if: inputs.build-type != 'PR'
     needs: ['pepify', 'build']
     runs-on: windows-latest
     steps:
@@ -281,6 +288,7 @@ jobs:
         PYTHONUTF8=1 verify_howso_install
 
   install-verification-windows-cmd-amd64:
+    if: inputs.build-type != 'PR'
     needs: ['pepify', 'build']
     runs-on: windows-latest
     steps:
@@ -315,6 +323,7 @@ jobs:
         verify_howso_install
 
   install-verification-windows-pwsh-amd64:
+    if: inputs.build-type != 'PR'
     needs: ['pepify', 'build']
     runs-on: windows-latest
     steps:
@@ -348,6 +357,7 @@ jobs:
         verify_howso_install
 
   install-verification-macos-amd64:
+    if: inputs.build-type != 'PR'
     needs: ['pepify', 'build']
     runs-on: macos-latest
     steps:
@@ -378,3 +388,52 @@ jobs:
 
         echo "Running Howso verification..."
         verify_howso_install
+
+  release:
+    if: inputs.build-type == 'release'
+    needs:
+      - unit-test-3-8
+      - unit-test-3-9
+      - unit-test-3-10
+      - unit-test-3-11
+      - install-verification-linux-amd64
+      - install-verification-linux-arm64
+      - install-verification-linux-arm64_8a
+      - install-verification-macos-amd64
+      - install-verification-windows-bash-amd64
+      - install-verification-windows-cmd-amd64
+      - install-verification-windows-pwsh-amd64
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Download Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: ./tmp
+
+    - name: Create Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ inputs.version }}
+        commit: ${{ github.sha }}
+        name: "howso-engine-py ${{ inputs.version }}"
+        artifactErrorsFailBuild: true
+        generateReleaseNotes: true
+        makeLatest: legacy
+        artifacts: "./tmp/howso-engine-*/howso-engine-*.tar.gz,./tmp/howso_engine-*/howso_engine-*.whl"
+        artifactContentType: application/gzip
+
+    - name: Clean up dir
+      run: |
+          mkdir -p dist
+          find ./tmp -type f -name '*.whl' -exec cp -t ./dist {} +
+          find ./tmp -type f -name '*.tar.gz' -exec cp -t ./dist {} +
+          ls ./dist
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Publish distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
