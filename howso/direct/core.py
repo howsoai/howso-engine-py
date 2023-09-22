@@ -1586,6 +1586,7 @@ class HowsoCore:
         case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
         context_values: Optional[List[List[object]]] = None,
         context_features: Optional[Iterable[str]] = None,
+        continue_series: Optional[bool] = False,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
@@ -1649,6 +1650,15 @@ class HowsoCore:
             maximum size a series is allowed to be.  Default is
             3 * model_size, a 0 or less is no limit. Must provide
             either one for all series, or exactly one per series.
+        continue_series : bool, default False
+            When true will attempt to continue existing series instead of
+            starting new series. If initial_values provide series IDs, it
+            will continue those explicitly specified IDs, otherwise it will
+            randomly select series to continue.
+            .. note::
+
+                Terminated series with terminators cannot be continued and
+                will result in null output.
         derived_context_features : iterable of str, optional
             list of context features whose values should be computed
             from the entire series in the specified order. Must be
@@ -1727,6 +1737,7 @@ class HowsoCore:
             "initial_values": initial_values,
             "series_stop_maps": series_stop_maps,
             "max_series_lengths": max_series_lengths,
+            "continue_series": continue_series,
             "derived_context_features": derived_context_features,
             "derived_action_features": derived_action_features,
             "series_context_features": series_context_features,

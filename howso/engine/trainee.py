@@ -1511,6 +1511,7 @@ class Trainee(BaseTrainee):
         actions: Optional[Union[List[List[object]], "DataFrame"]] = None,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
+        continue_series: Optional[bool] = False,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
@@ -1564,6 +1565,8 @@ class Trainee(BaseTrainee):
             See parameter ``case_indices`` in :func:`react`.
         context_features : list of str, optional
             See parameter ``context_features`` in :func:`react`.
+        continue_series : bool, default False
+            See parameter ``continue_series`` in :func:`react_series`.
         derived_action_features : list of str, optional
             See parameter ``derived_action_features`` in :func:`react`.
         derived_context_features : list of str, optional
@@ -1676,6 +1679,7 @@ class Trainee(BaseTrainee):
             case_indices=case_indices,
             contexts=contexts,
             context_features=context_features,
+            continue_series=continue_series,
             derived_action_features=derived_action_features,
             derived_context_features=derived_context_features,
             desired_conviction=desired_conviction,

@@ -218,6 +218,7 @@ class AbstractHowsoClient(ABC):
         case_indices=None,
         contexts=None,
         context_features=None,
+        continue_series=False,
         derived_action_features=None,
         derived_context_features=None,
         desired_conviction=None,
