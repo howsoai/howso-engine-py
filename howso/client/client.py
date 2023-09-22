@@ -132,10 +132,10 @@ def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # no
         elif Path(user_dir, HOME_DIR_CONFIG_PATH, DEFAULT_CONFIG_FILE_ALT).is_file():  # noqa
             config_path = Path(user_dir, HOME_DIR_CONFIG_PATH, DEFAULT_CONFIG_FILE_ALT)
         # falling back to legacy filenames
-        elif config_path := _check_isfile((
+        elif config_path := _check_isfile([
             Path(user_dir, HOME_DIR_CONFIG_PATH, file)
             for file in DEFAULT_LEGACY_CONFIG_FILENAMES
-        )):
+        ]):
             warnings.warn(
                 f'Use of deprecated configuration file name at "{config_path}". '
                 f'Please rename to "{DEFAULT_CONFIG_FILE}".')
@@ -247,28 +247,32 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
     verbose = kwargs.get('verbose', False)
 
     kind_exit = UserFriendlyExit(verbose=verbose)
+    config_data = None
 
     # Attempt to load and parse config.yaml.
-    config_path = get_configuration_path(config_path, verbose)
-    try:
-        with open(config_path, 'r') as config:
-            config_data = yaml.safe_load(config)
-    except TypeError:
-        # There is no config_path (None), which is OK.
-        config_data = dict()
-    except yaml.YAMLError as yaml_exception:
-        kind_exit(f'Unable to parse the configuration file located at '
-                  f'"{config_path}". Please verify the YAML syntax of this '
-                  f'file and try again.', exception=yaml_exception)
-    except (IOError, OSError) as exception:
-        kind_exit(f'Error reading the configuration file located at '
-                  f'"{config_path}". Check the file permissions and try '
-                  f'again.', exception=exception)
+    config_path = get_configuration_path(config_path, verbose) or ""
+    if config_path:
+        try:
+            with open(config_path, 'r') as config:
+                config_data = yaml.safe_load(config)
+        except TypeError:
+            # There is no config_path (None), which is OK.
+            config_data = dict()
+        except yaml.YAMLError as yaml_exception:
+            kind_exit(f'Unable to parse the configuration file located at '
+                      f'"{config_path}". Please verify the YAML syntax of '
+                      f'this file and try again.', exception=yaml_exception)
+        except (IOError, OSError) as exception:
+            kind_exit(f'Error reading the configuration file located at '
+                      f'"{config_path}". Check the file permissions and try '
+                      f'again.', exception=exception)
+        else:
+            # Lowercase top-level `howso` key.
+            if 'Howso' in config_data and 'howso' not in config_data:
+                config_data['howso'] = config_data['Howso']
+                del config_data['Howso']
     else:
-        # Lowercase top-level `howso` key.
-        if 'Howso' in config_data and 'howso' not in config_data:
-            config_data['howso'] = config_data['Howso']
-            del config_data['Howso']
+        config_data = {}
 
     client_class = None
 
@@ -278,7 +282,7 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
     # provides an opportunity for customer-specific functionality and/or
     # authentication schemes, etc.
     try:
-        custom_client = config_data['howso']['client']
+        custom_client = config_data['howso']['client']  # type: ignore
         # Split the dotted-path into "module" and the specific "class". For
         # example. `my_package.my_module.MyClass' would become
         # `custom_module_path` of `my_package.my_module` and
@@ -320,7 +324,7 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
 
     # customer-specific functionality and/or authentication schemes, etc.
     try:
-        client_extra_params = config_data['howso']['client_extra_params']
+        client_extra_params = config_data['howso']['client_extra_params']  # type: ignore
     except KeyError:
         # No extra params set - that is ok - let's move on
         client_extra_params = dict()
