@@ -3508,15 +3508,18 @@ def delete_trainee(
     """
     Delete an existing trainee.
 
+    Loaded trainees exist in memory while also potentially existing on disk. This is a convenience function that
+    allows the deletion of trainees from both memory and disk.
+
     Parameters
     ----------
-    name_or_id : str
-        The name or id of the trainee. If filename is diferent than the name or id of the trainee
-        then the `file_path` with the filename must be provided.
-    file_path : Path or str
-        The path of the file to load the Trainee from. This path can contain
-        an absolute path, a relative path or simply a file name. A `.caml` file name
-        must be always be provided.
+    name_or_id : str, optional
+        The name or id of the trainee. Only used for deleting trainees from memory.
+    file_path : Path or str, optional
+        The path of the file to load the Trainee from. Only used for deleting trainees from disk.
+
+        The file path must end with a filename, but file path can be either an absolute path, a
+        relative path or just the file name.
 
         If `file_path` is a relative path the absolute path will be computed
         appending the `file_path` to the CWD.
@@ -3535,13 +3538,24 @@ def delete_trainee(
     """
     client = client or get_client()
     if name_or_id is None and file_path is None:
-        raise HowsoError(
+        raise ValueError(
             'Either the `name_or_id` or the `file_path` must be provided.'
         )
-    if isinstance(client, HowsoDirectClient):
+
+    # Check if file exists
+    if file_path:
+        if not isinstance(client, HowsoDirectClient):
+            raise HowsoError(
+                "Deleting trainees from using a file path is only"
+                "supported with a HowsoDirectClient.")
+
+        file_path = Path(file_path)
+        file_path = file_path.expanduser().resolve()
+        if not file_path.exists():
+            raise ValueError(f"File '{file_path}' does not exist.")
         client.delete_trainee(trainee_id=str(name_or_id), file_path=file_path)
     else:
-        client.delete_trainee(str(name_or_id))
+        client.delete_trainee(trainee_id=str(name_or_id))
 
 
 def load_trainee(

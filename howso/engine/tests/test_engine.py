@@ -204,7 +204,7 @@ class TestEngine:
         ):
             load_trainee(file_path=file_path)
 
-    def test_standalone_delete_good(self, trainee):
+    def test_delete_method_standalone_good(self, trainee):
         """Test the standalone trainee deletion method for both strings and Path"""
 
         # Non-default directory
@@ -228,20 +228,20 @@ class TestEngine:
         # Cleanup
         directory_path.rmdir()
 
-    def test_standalone_delete_bad(self, trainee):
+    def test_delete_method_standalone_bad(self, trainee):
 
 
-    # def test_save_load_bad_load(self):
-    #     """Test bad disk load methods."""
+    def test_save_load_bad_load(self):
+        """Test bad disk load methods."""
 
-    #     cwd = Path.cwd()
-    #     current_directory = f"{cwd}/"
-    #     file_path = current_directory
+        cwd = Path.cwd()
+        current_directory = f"{cwd}/"
+        file_path = current_directory
 
-    #     # Load
-    #     with pytest.raises(
-    #         HowsoError,
-    #         match='A `.caml` file must be provided.'
-    #     ):
-    #         load_trainee(file_path=file_path)
+        # Load
+        with pytest.raises(
+            HowsoError,
+            match='Either the `name_or_id` or the `file_path` must be provided.'
+        ):
+            load_trainee(file_path=file_path)
 
