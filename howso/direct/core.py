@@ -2572,7 +2572,7 @@ class HowsoCore:
         ----------
         trainee_id : str
             The identifier of the source Trainee.
-        target_trainee_id : str
+        target_trainee_id : str or None
             The identifier of the target Trainee.
         num_cases : int
             The number of cases to move; minimum 1 case must be moved.
