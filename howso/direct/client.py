@@ -649,8 +649,12 @@ class HowsoDirectClient(AbstractHowsoClient):
                                                   id=trainee_name))
 
         return trainees
-
-    def delete_trainee(self, trainee_id: str):
+    #TODO: fix
+    def delete_trainee(
+        self,
+        trainee_id: str,
+        file_path: Optional[Union[Path, str]] = None
+    ):
         """
         Delete a Trainee.
 
@@ -660,10 +664,21 @@ class HowsoDirectClient(AbstractHowsoClient):
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee.
+            The ID of the Trainee. If full filepath with .caml is provided, trainee_id will be ignored.
+
+        file_path : Path or str, optional
+            The path of the file to save the Trainee to. This path can contain
+            an absolute path, a relative path, a directory, or simply a file name. If no filepath
+            is provided, the default filepath will be the CWD.
         """
+
         if not trainee_id:
             raise ValueError("`trainee_id` is required to delete a trainee.")
+
+        if file_path:
+            if not isinstance(file_path, Path):
+                file_path = Path(file_path)
+            file_path = file_path.expanduser().resolve()
 
         # Ensure the trainee_id is valid before deleting.
         for sub in self.BAD_TRAINEE_NAME_CHARS:
@@ -678,9 +693,23 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.verbose:
             print(f'Deleting trainee with id {trainee_id}')
 
-        # Remove file from storage
-        trainee_path = Path(self.howso.default_save_path, f'{trainee_id}{self.howso.ext}')
-        trainee_ver_path = Path(self.howso.default_save_path, f'{trainee_id}Version.txt')
+        if file_path:
+            # Either full filepath or filename
+            if file_path.suffix:
+                save_path = f"{file_path.parents[0]}/"
+                trainee_id = file_path.stem
+            # Just Directory
+            else:
+                save_path = file_path
+  
+            if not file_path.is_absolute():
+                file_path = self.client.howso.default_save_path.joinpath(file_path)
+
+        else:
+            save_path = self.howso.default_save_path
+
+        trainee_path = Path(save_path, f'{trainee_id}{self.howso.ext}')
+        trainee_ver_path = Path(save_path, f'{trainee_id}Version.txt')
 
         if trainee_path.exists():
             trainee_path.unlink()

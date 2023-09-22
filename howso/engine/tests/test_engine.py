@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from howso.client.exceptions import HowsoError
-from howso.engine import load_trainee, Trainee
+from howso.engine import delete_trainee, load_trainee, Trainee
 from pandas.testing import assert_frame_equal
 import pytest
 
@@ -203,3 +203,45 @@ class TestEngine:
             match='A `.caml` file must be provided.'
         ):
             load_trainee(file_path=file_path)
+
+    def test_standalone_delete_good(self, trainee):
+        """Test the standalone trainee deletion method for both strings and Path"""
+
+        # Non-default directory
+        directory_path = Path('test_directory')
+
+        # Path and string file path
+        Path_file_path = directory_path.joinpath('Path_save_load_trainee.caml')
+        string_file_path = str(directory_path.joinpath('string_save_load_trainee.caml'))
+
+        # Save two trainees to test deletion
+        trainee.save(file_path=Path_file_path)
+        trainee.save(file_path=string_file_path)
+
+        # Delete both trainee's using Path and string file paths
+        delete_trainee(file_path=Path_file_path)
+        delete_trainee(file_path=string_file_path)
+
+        # Checks to make sure directory is empty
+        assert not any(Path_file_path.parents[0].iterdir())
+
+        # Cleanup
+        directory_path.rmdir()
+
+    def test_standalone_delete_bad(self, trainee):
+
+
+    # def test_save_load_bad_load(self):
+    #     """Test bad disk load methods."""
+
+    #     cwd = Path.cwd()
+    #     current_directory = f"{cwd}/"
+    #     file_path = current_directory
+
+    #     # Load
+    #     with pytest.raises(
+    #         HowsoError,
+    #         match='A `.caml` file must be provided.'
+    #     ):
+    #         load_trainee(file_path=file_path)
+
