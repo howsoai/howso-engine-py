@@ -52,7 +52,7 @@ jobs:
         run: |
           gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
           # Needed because release/non-release downloads are different structure
-          cd tmp && if [ ! -f *.whl ]; then mv *.whl ./tmp && mv ./tmp/*.whl ./; fi
+          cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
       - name: Set up Python
         uses: actions/setup-python@v4
