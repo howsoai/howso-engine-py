@@ -567,7 +567,9 @@ class Trainee(BaseTrainee):
 
     def delete(self) -> None:
         """
-        Delete the trainee.
+        Delete the trainee from the last loaded or saved location.
+
+        If trying to delete a trainee from another location, see :func:`delete_trainee`.
 
         Returns
         -------
@@ -579,7 +581,7 @@ class Trainee(BaseTrainee):
         else:
             if not self.id:
                 return
-            self.client.delete_trainee(self.id)
+            self.client.delete_trainee(trainee_id=self.id)
 
         self._created = False
         self._id = None
@@ -3502,24 +3504,27 @@ class Trainee(BaseTrainee):
 def delete_trainee(
     name_or_id: Optional[str] = None,
     file_path: Optional[Union[Path, str]] = None,
-    *,
     client: Optional[AbstractHowsoClient] = None
 ) -> None:
     """
-    Delete an existing trainee.
+    Delete an existing Trainee.
 
     Loaded trainees exist in memory while also potentially existing on disk. This is a convenience function that
-    allows the deletion of trainees from both memory and disk.
+    allows the deletion of Trainees from both memory and disk.
 
     Parameters
     ----------
     name_or_id : str, optional
-        The name or id of the trainee. Only used for deleting trainees from memory.
+        The name or id of the trainee. Deletes the Trainees from memory and attempts to delete a Trainee saved under
+        the same filename from the default save location if no `file_path` is provided.
     file_path : Path or str, optional
-        The path of the file to load the Trainee from. Only used for deleting trainees from disk.
+        The path of the file to load the Trainee from. Used for deleting trainees from disk.
 
         The file path must end with a filename, but file path can be either an absolute path, a
         relative path or just the file name.
+
+        If `name_or_id` is not provided, in addition to deleting from disk, will attempt to
+        delete a Trainee from memory assuming the Trainee has the same name as the filename.
 
         If `file_path` is a relative path the absolute path will be computed
         appending the `file_path` to the CWD.
@@ -3553,6 +3558,7 @@ def delete_trainee(
         file_path = file_path.expanduser().resolve()
         if not file_path.exists():
             raise ValueError(f"File '{file_path}' does not exist.")
+
         client.delete_trainee(trainee_id=str(name_or_id), file_path=file_path)
     else:
         client.delete_trainee(trainee_id=str(name_or_id))
