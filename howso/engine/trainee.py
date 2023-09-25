@@ -134,6 +134,7 @@ class Trainee(BaseTrainee):
         self._features = features
         self._metadata = metadata
         self._id = id
+        self._custom_save_path = None
 
         self.name = name
         self.persistence = persistence
@@ -159,22 +160,6 @@ class Trainee(BaseTrainee):
             resources=resources,
         )
 
-        # self._default_save_path = Path(self.client.howso.default_save_path, f'{self.name}{self.client.howso.ext}')
-        self._custom_save_path = None
-
-        # trainee_ver_path = Path(self.client.howso.default_save_path, f'{trainee_id}Version.txt')
-    @property
-    def save_load(self) -> str:
-        """
-        The current storage location of the trainee.
-
-        Returns
-        -------
-        str
-            The trainee's ID.
-        """
-        return self._id
-    
     @property
     def id(self) -> str:
         """
@@ -224,6 +209,23 @@ class Trainee(BaseTrainee):
                 project, client=self.client)
 
         return self._project_instance
+
+    @property
+    def save_location(self) -> str:
+        """
+        The current storage location of the trainee.
+
+        Returns
+        -------
+        Path
+            The current storage location of the trainee based on the last saved location or the location
+            from which the trainee was loaded from. If not saved or loaded from a custom location, then
+            the default save location will be returned.
+        """
+        if self._custom_save_path:
+            return self._custom_save_path
+        else:
+            return self.client.howso.default_save_path
 
     @property
     def name(self) -> Optional[str]:
@@ -3639,7 +3641,7 @@ def load_trainee(
 
     trainee = Trainee.from_openapi(trainee, client=client)
     trainee._custom_save_path = file_path
-    
+
     return trainee
 
 
