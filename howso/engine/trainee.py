@@ -134,6 +134,8 @@ class Trainee(BaseTrainee):
         self._features = features
         self._metadata = metadata
         self._id = id
+        self._custom_save_path = None
+
         self.name = name
         self.persistence = persistence
         self.set_default_features(
@@ -207,6 +209,23 @@ class Trainee(BaseTrainee):
                 project, client=self.client)
 
         return self._project_instance
+
+    @property
+    def save_location(self) -> str:
+        """
+        The current storage location of the trainee.
+
+        Returns
+        -------
+        Path
+            The current storage location of the trainee based on the last saved location or the location
+            from which the trainee was loaded from. If not saved or loaded from a custom location, then
+            the default save location will be returned.
+        """
+        if self._custom_save_path:
+            return self._custom_save_path
+        else:
+            return self.client.howso.default_save_path
 
     @property
     def name(self) -> Optional[str]:
@@ -406,6 +425,7 @@ class Trainee(BaseTrainee):
             if not file_path.parents[0].exists():
                 file_path.parents[0].mkdir(parents=True, exist_ok=True)
 
+            self._custom_save_path = file_path
             file_name = file_path.stem
             file_path = f"{file_path.parents[0]}/"
         else:
@@ -549,15 +569,22 @@ class Trainee(BaseTrainee):
 
     def delete(self) -> None:
         """
-        Delete the trainee.
+        Delete the trainee from the last loaded or saved location.
+
+        If trying to delete a trainee from another location, see :func:`delete_trainee`.
 
         Returns
         -------
         None
         """
-        if not self.id:
-            return
-        self.client.delete_trainee(self.id)
+
+        if isinstance(self.client, HowsoDirectClient) and self._custom_save_path is not None:
+            self.client.delete_trainee(trainee_id=self.id, file_path=self._custom_save_path)
+        else:
+            if not self.id:
+                return
+            self.client.delete_trainee(trainee_id=self.id)
+
         self._created = False
         self._id = None
 
@@ -3500,15 +3527,38 @@ class Trainee(BaseTrainee):
 
 
 def delete_trainee(
-    name_or_id: str, *, client: Optional[AbstractHowsoClient] = None
+    name_or_id: Optional[str] = None,
+    file_path: Optional[Union[Path, str]] = None,
+    client: Optional[AbstractHowsoClient] = None
 ) -> None:
     """
-    Delete an existing trainee.
+    Delete an existing Trainee.
+
+    Loaded trainees exist in memory while also potentially existing on disk. This is a convenience function that
+    allows the deletion of Trainees from both memory and disk.
 
     Parameters
     ----------
-    name_or_id : str
-        The name or id of the trainee.
+    name_or_id : str, optional
+        The name or id of the trainee. Deletes the Trainees from memory and attempts to delete a Trainee saved under
+        the same filename from the default save location if no `file_path` is provided.
+    file_path : Path or str, optional
+        The path of the file to load the Trainee from. Used for deleting trainees from disk.
+
+        The file path must end with a filename, but file path can be either an absolute path, a
+        relative path or just the file name.
+
+        If `name_or_id` is not provided, in addition to deleting from disk, will attempt to
+        delete a Trainee from memory assuming the Trainee has the same name as the filename.
+
+        If `file_path` is a relative path the absolute path will be computed
+        appending the `file_path` to the CWD.
+
+        If `file_path` is an absolute path, this is the absolute path that
+        will be used.
+
+        If `file_path` is just a filename, then the absolute path will be computed
+        appending the filename to the CWD.
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
 
@@ -3517,7 +3567,26 @@ def delete_trainee(
     None
     """
     client = client or get_client()
-    client.delete_trainee(str(name_or_id))
+    if name_or_id is None and file_path is None:
+        raise ValueError(
+            'Either the `name_or_id` or the `file_path` must be provided.'
+        )
+
+    # Check if file exists
+    if file_path:
+        if not isinstance(client, HowsoDirectClient):
+            raise HowsoError(
+                "Deleting trainees from using a file path is only"
+                "supported with a HowsoDirectClient.")
+
+        file_path = Path(file_path)
+        file_path = file_path.expanduser().resolve()
+        if not file_path.exists():
+            raise ValueError(f"File '{file_path}' does not exist.")
+
+        client.delete_trainee(trainee_id=str(name_or_id), file_path=file_path)
+    else:
+        client.delete_trainee(trainee_id=str(name_or_id))
 
 
 def load_trainee(
@@ -3593,7 +3662,10 @@ def load_trainee(
     trainee = client._get_trainee_from_core(trainee_id)
     client.trainee_cache.set(trainee, entity_id=client.howso.handle)
 
-    return Trainee.from_openapi(trainee, client=client)
+    trainee = Trainee.from_openapi(trainee, client=client)
+    trainee._custom_save_path = file_path
+
+    return trainee
 
 
 def get_trainee(
