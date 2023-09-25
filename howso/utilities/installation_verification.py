@@ -22,7 +22,7 @@ except ImportError:
 from howso.client import (
     AbstractHowsoClient, HowsoClient
 )
-from howso.client.exceptions import HowsoConfigurationError
+from howso.client.exceptions import HowsoConfigurationError, HowsoError
 from howso.openapi.models import Trainee
 try:
     from howso.validator import Validator  # noqa: might not be available # type: ignore
@@ -351,7 +351,7 @@ class InstallationCheckRegistry:
                   "the messages emitted during the installation verification "
                   "process to identify next steps. If you cannot resolve "
                   "these issues please do not hesitate to contact your "
-                  "Howso™: representative.")
+                  "Howso™ representative.")
             print(f'[bold yellow]Any CRITICAL issues are logged in the file '
                   f'"{LOG_FILE}" in the current directory.')
 
@@ -433,7 +433,9 @@ def generate_dataframe(*, client: AbstractHowsoClient,
         default_action_features=action_features,
         persistence="never"
     )
-    trainee: Trainee = client.create_trainee(trainee_obj)
+    trainee = client.create_trainee(trainee_obj)
+    if not isinstance(trainee, Trainee):
+        raise HowsoError('Unable to create trainee.')
     client.set_feature_attributes(trainee.id, features)
     client.acquire_trainee_resources(trainee.id, max_wait_time=0)
     if timeout:
@@ -649,7 +651,7 @@ def check_save(*, registry: InstallationCheckRegistry,
             client.train(trainee.id, source_df, features=feature_names)
             client.persist_trainee(trainee.id)
         else:
-            raise Exception("Could not create a trainee.")
+            raise HowsoError("Could not create a trainee.")
     except Exception:  # noqa: Deliberately broad
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,

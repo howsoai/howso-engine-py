@@ -1402,13 +1402,6 @@ class Trainee(BaseTrainee):
                 are outside the min or max of the corresponding feature values
                 of all the cases in the local model area. Uses only the context
                 features of the reacted case to determine that area.
-            - prediction_residual_conviction: bool, optional
-                If True, outputs residual conviction for the reacted case's
-                action features by computing the prediction residual for the
-                action features in the local model area. Uses both context and
-                action features to determine that area. This is defined as the
-                expected (global) model residual divided by computed local
-                residual.
             - similarity_conviction : bool, optional
                 If True, outputs similarity conviction for the reacted case.
                 Uses both context and action feature values as the case values
@@ -2744,13 +2737,40 @@ class Trainee(BaseTrainee):
         )
 
     def get_marginal_stats(
-        self, *, weight_feature: Optional[str] = None,
+        self, *,
+        condition: Optional[Dict[str, Any]] = None,
+        num_cases: Optional[int] = None,
+        precision: Optional[Literal["exact", "similar"]] = None,
+        weight_feature: Optional[str] = None,
     ) -> "DataFrame":
         """
         Get marginal stats for all features.
 
         Parameters
         ----------
+        condition : dict or None, optional
+            A condition map to select which cases to compute marginal stats
+            for.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        num_cases : int, default None
+            The maximum amount of cases to use to calculate marginal stats.
+            If not specified, the limit will be k cases if precision is
+            "similar". Only used if `condition` is not None.
+        precision : str, default None
+            The precision to use when selecting cases with the condition.
+            Options are 'exact' or 'similar'. If not specified "exact" will be
+            used. Only used if `condition` is not None.
         weight_feature : str, optional
             When specified, will attempt to return stats that were computed
             using this weight_feature.
@@ -2763,6 +2783,9 @@ class Trainee(BaseTrainee):
         """
         return self.client.get_marginal_stats(
             trainee_id=self.id,
+            condition=condition,
+            num_cases=num_cases,
+            precision=precision,
             weight_feature=weight_feature
         )
 

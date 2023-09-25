@@ -100,7 +100,7 @@ class HowsoConfiguration:
                                        default=sentinel)
             if env_value != sentinel:
                 try:
-                    max_wait_time = float(env_value)
+                    max_wait_time = float(env_value)  # type: ignore
                 except (TypeError, ValueError):
                     # Any value that cannot be converted to a Float will be
                     # interpreted as `None`, which means to wait indefinitely.
@@ -109,11 +109,11 @@ class HowsoConfiguration:
 
                 # 3: config.yaml option
                 config_value = self.get_user_config_option(
-                    'Howso', 'options', 'create_max_wait_time',
+                    'howso', 'options', 'create_max_wait_time',
                     default=sentinel)
                 if config_value != sentinel:
                     try:
-                        max_wait_time = float(config_value)
+                        max_wait_time = float(config_value)  # type: ignore
                     except (TypeError, ValueError):
                         # Any value that cannot be converted to a Float will
                         # be interpreted as `None`, which means to

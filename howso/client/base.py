@@ -201,7 +201,13 @@ class AbstractHowsoClient(ABC):
         """Get cached feature prediction stats."""
 
     @abstractmethod
-    def get_marginal_stats(self, trainee_id, *, weight_feature=None):
+    def get_marginal_stats(
+        self, trainee_id, *,
+        condition=None,
+        num_cases=None,
+        precision=None,
+        weight_feature=None,
+    ):
         """Get marginal stats for all features."""
 
     @abstractmethod
