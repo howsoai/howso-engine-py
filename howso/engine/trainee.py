@@ -1593,7 +1593,15 @@ class Trainee(BaseTrainee):
         context_features : list of str, optional
             See parameter ``context_features`` in :func:`react`.
         continue_series : bool, default False
-            See parameter ``continue_series`` in :func:`react_series`.
+            When True will attempt to continue existing series instead of
+            starting new series. If `initial_values` provide series IDs, it
+            will continue those explicitly specified IDs, otherwise it will
+            randomly select series to continue.
+            .. note::
+
+                Terminated series with terminators cannot be continued and
+                will result in null output.
+
         derived_action_features : list of str, optional
             See parameter ``derived_action_features`` in :func:`react`.
         derived_context_features : list of str, optional
