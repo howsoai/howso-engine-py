@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from howso.client.exceptions import HowsoError
-from howso.engine import load_trainee, Trainee
+from howso.engine import delete_trainee, load_trainee, Trainee
 from pandas.testing import assert_frame_equal
 import pytest
 
@@ -203,3 +203,93 @@ class TestEngine:
             match='A `.caml` file must be provided.'
         ):
             load_trainee(file_path=file_path)
+
+    def test_delete_method_standalone_good(self, trainee):
+        """Test the standalone trainee deletion method for both strings and Path"""
+
+        # Non-default directory
+        directory_path = Path('test_directory')
+
+        # Path and string file path
+        Path_file_path = directory_path.joinpath('Path_save_load_trainee.caml')
+        string_file_path = str(directory_path.joinpath('string_save_load_trainee.caml'))
+
+        # Save two trainees to test deletion
+        trainee.save(file_path=Path_file_path)
+        trainee.save(file_path=string_file_path)
+
+        # Delete both trainee's using Path and string file paths
+        delete_trainee(file_path=Path_file_path)
+        delete_trainee(file_path=string_file_path)
+
+        # Checks to make sure directory is empty
+        assert not any(Path_file_path.parents[0].iterdir())
+
+        # Cleanup
+        directory_path.rmdir()
+
+    def test_delete_method_trainee_good_save(self, trainee):
+        """Test the Trainee deletion function method for saved trainee, should
+        delete from last saved location."""
+
+        # Non-default directory
+        directory_path = Path('test_directory')
+
+        trainee_name = 'delete_trainee'
+        delete_example_trainee = trainee.copy(name=trainee_name)
+
+        # Path and string file path
+        file_path = directory_path.joinpath(f'Path_{trainee_name}.caml')
+
+        # Save trainee to test deletion
+        delete_example_trainee.save(file_path=file_path)
+
+        # Make sure delete works on saved trainee
+        delete_example_trainee.delete()
+
+        # Checks to make sure directory is empty
+        assert not any(file_path.parents[0].iterdir())
+
+        # Cleanup
+        directory_path.rmdir()
+
+    def test_delete_method_trainee_load_good(self, trainee):
+        """Test the Trainee deletion function method for loaded trainee, should
+        delete from loaded location."""
+
+        # Non-default directory
+        directory_path = Path('test_directory')
+
+        trainee_name = 'delete_trainee'
+        delete_example_trainee = trainee.copy(name=trainee_name)
+
+        # Path and string file path
+        file_path = directory_path.joinpath(f'Path_{trainee_name}.caml')
+
+        delete_example_trainee.save(file_path=file_path)
+
+        # Make sure delete works on loaded trainee
+        delete_trainee = load_trainee(file_path)
+        delete_trainee.delete()
+
+        # Checks to make sure directory is empty
+        assert not any(file_path.parents[0].iterdir())
+
+        # remove from memory
+        delete_example_trainee.delete()
+
+        # Cleanup
+        directory_path.rmdir()
+
+    def test_delete_method_standalone_bad(self):
+        """Test attempting to delete non-existant trainee."""
+
+        directory_path = Path('test_directory')
+        file_path = directory_path.joinpath('Path_non_existant.caml')
+
+        # Delete
+        with pytest.raises(
+            ValueError,
+            match='does not exist.'
+        ):
+            delete_trainee(file_path=file_path)

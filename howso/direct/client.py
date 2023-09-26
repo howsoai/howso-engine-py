@@ -658,26 +658,52 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         return trainees
 
-    def delete_trainee(self, trainee_id: str):
+    def delete_trainee(
+        self,
+        trainee_id: Optional[str] = None,
+        file_path: Optional[Union[Path, str]] = None
+    ):
         """
-        Delete a Trainee.
-
         This deletes the Trainee, which includes all cases, model metadata,
         session data, persisted files, etc.
 
         Parameters
         ----------
-        trainee_id : str
-            The ID of the Trainee.
-        """
-        if not trainee_id:
-            raise ValueError("`trainee_id` is required to delete a trainee.")
+        trainee_id : str, optional
+            The ID of the Trainee. If full filepath with is provided, `trainee_id` will only be used
+            to delete from core.
 
-        # Ensure the trainee_id is valid before deleting.
-        for sub in self.BAD_TRAINEE_NAME_CHARS:
-            if sub in trainee_id:
-                raise ValueError(
-                    f'"{sub}" is not permitted in trainee names for deletion.')
+        file_path : Path or str, optional
+            The path of the file to load the Trainee from. Used for deleting trainees from disk.
+
+            The file path must end with a filename, but file path can be either an absolute path, a
+            relative path or just the file name.
+
+            If `trainee_id` is not provided, in addition to deleting from disk, will attempt to
+            delete a Trainee from memory assuming the Trainee has the same name as the filename.
+
+            If `file_path` is a relative path the absolute path will be computed
+            appending the `file_path` to the CWD.
+
+            If `file_path` is an absolute path, this is the absolute path that
+            will be used.
+
+            If `file_path` is just a filename, then the absolute path will be computed
+            appending the filename to the CWD.
+        """
+
+        if file_path:
+            if not isinstance(file_path, Path):
+                file_path = Path(file_path)
+            file_path = file_path.expanduser().resolve()
+
+        if trainee_id:
+            for sub in self.BAD_TRAINEE_NAME_CHARS:
+                if sub in trainee_id:
+                    raise ValueError(
+                        f'"{sub}" is not permitted in trainee names for deletion.')
+        else:
+            trainee_id = file_path.stem
 
         # Unload the trainee from core
         self.howso.delete(trainee_id)
@@ -686,10 +712,24 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.verbose:
             print(f'Deleting trainee with id {trainee_id}')
 
-        # Remove file from storage
-        trainee_path = Path(self.howso.default_save_path, f'{trainee_id}{self.howso.ext}')
-        trainee_ver_path = Path(self.howso.default_save_path, f'{trainee_id}Version.txt')
+        if file_path:
+            # Either full filepath or filename
+            if file_path.suffix:
+                save_path = f"{file_path.parents[0]}/"
+                trainee_id = file_path.stem
+            # Just Directory
+            else:
+                raise ValueError("Filepath must end with a '.caml' filename.")
+            if not file_path.is_absolute():
+                file_path = self.client.howso.default_save_path.joinpath(file_path)
 
+        else:
+            save_path = self.howso.default_save_path
+
+        trainee_path = Path(save_path, f'{trainee_id}{self.howso.ext}')
+        trainee_ver_path = Path(save_path, f'{trainee_id}Version.txt')
+
+        # Delete Trainee
         if trainee_path.exists():
             trainee_path.unlink()
 
