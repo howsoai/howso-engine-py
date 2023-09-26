@@ -1538,6 +1538,7 @@ class Trainee(BaseTrainee):
         actions: Optional[Union[List[List[object]], "DataFrame"]] = None,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
+        continue_series: Optional[bool] = False,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
@@ -1591,6 +1592,16 @@ class Trainee(BaseTrainee):
             See parameter ``case_indices`` in :func:`react`.
         context_features : list of str, optional
             See parameter ``context_features`` in :func:`react`.
+        continue_series : bool, default False
+            When True will attempt to continue existing series instead of
+            starting new series. If `initial_values` provide series IDs, it
+            will continue those explicitly specified IDs, otherwise it will
+            randomly select series to continue.
+            .. note::
+
+                Terminated series with terminators cannot be continued and
+                will result in null output.
+
         derived_action_features : list of str, optional
             See parameter ``derived_action_features`` in :func:`react`.
         derived_context_features : list of str, optional
@@ -1703,6 +1714,7 @@ class Trainee(BaseTrainee):
             case_indices=case_indices,
             contexts=contexts,
             context_features=context_features,
+            continue_series=continue_series,
             derived_action_features=derived_action_features,
             derived_context_features=derived_context_features,
             desired_conviction=desired_conviction,
