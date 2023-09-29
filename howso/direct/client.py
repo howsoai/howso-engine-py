@@ -4841,11 +4841,11 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'have an effect.', UserWarning)
 
         self.howso.auto_analyze_params(
-            trainee_id,
-            auto_analyze_enabled,
-            analyze_threshold,
-            analyze_growth_factor,
-            auto_analyze_limit_size,
+            trainee_id=trainee_id,
+			auto_analyze_enabled=auto_analyze_enabled,
+            analyze_threshold=analyze_threshold,
+			auto_analyze_limit_size=auto_analyze_limit_size,
+			analyze_growth_factor=analyze_growth_factor,
             **parameters,
             **kwargs
         )
