@@ -217,7 +217,7 @@ def test_to_pandas_datetime_format(mocker, pandas_ver, format_str, is_iso):
         assert fmt == format_str
 
 
-def test_suppress_future_warnings():
+def test_ignore_future_warnings():
     """Test that future warnings are ignored."""
     def raise_future_warning(a, b):
         """Simple function that raises a FutureWarning."""
