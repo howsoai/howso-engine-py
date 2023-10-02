@@ -774,7 +774,8 @@ def show_core_warnings(core_warnings):
 
     if isinstance(core_warnings, Iterable):
         for w in core_warnings:
-            warnings.warn(w.get('detail'), category=HowsoWarning)
+            if warning := w.get("detail"):
+                warnings.warn(warning, category=HowsoWarning)
 
 
 def to_pandas_datetime_format(f):
