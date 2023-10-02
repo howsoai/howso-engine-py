@@ -14,7 +14,11 @@ from pandas.core.dtypes.common import (
 )
 import pytz
 
-from .internals import deserialize_to_dataframe, IgnoreFutureWarnings, to_pandas_datetime_format
+from .internals import (
+    deserialize_to_dataframe,
+    IgnoreFutureWarnings,
+    to_pandas_datetime_format
+)
 from .utilities import (
     DATETIME_TIMEZONE_PATTERN,
     LocaleOverride,
