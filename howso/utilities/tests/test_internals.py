@@ -59,7 +59,7 @@ from semantic_version import Version
     ),
 ))
 def test_preprocess_feature_attributes(features, result):
-    """Test preprocess_feature_attributes returns expected result"""
+    """Test preprocess_feature_attributes returns expected result."""
     output = internals.preprocess_feature_attributes(features)
     assert output == result
 
@@ -137,7 +137,7 @@ def test_preprocess_feature_attributes(features, result):
     ),
 ))
 def test_postprocess_feature_attributes(features, result):
-    """Test postprocess_feature_attributes returns expected result"""
+    """Test postprocess_feature_attributes returns expected result."""
     output = internals.postprocess_feature_attributes(features)
     assert output == result
 
@@ -215,3 +215,18 @@ def test_to_pandas_datetime_format(mocker, pandas_ver, format_str, is_iso):
             assert fmt == format_str
     else:
         assert fmt == format_str
+
+
+def test_suppress_future_warnings():
+    """Test that future warnings are ignored."""
+    def raise_future_warning(a, b):
+        """Simple function that raises a FutureWarning."""
+        warnings.warn("Future Warning", FutureWarning)
+        return a + b
+
+    with pytest.warns(None) as warnings_list:
+        with internals.IgnoreFutureWarnings():
+            c = raise_future_warning(1, 2)
+
+    assert len(warnings_list) == 0
+    assert c == 3

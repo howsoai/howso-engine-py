@@ -14,7 +14,7 @@ from pandas.core.dtypes.common import (
 )
 import pytz
 
-from .internals import deserialize_to_dataframe, to_pandas_datetime_format
+from .internals import deserialize_to_dataframe, IgnoreFutureWarnings, to_pandas_datetime_format
 from .utilities import (
     DATETIME_TIMEZONE_PATTERN,
     LocaleOverride,
@@ -117,8 +117,11 @@ class FeatureSerializer:
                         "names. All column names must be unique.")
                 dtype = col_data.dtype
                 if is_datetime64_any_dtype(dtype):
-                    # Make sure datetimes are returned as python datetimes
-                    data_columns.append(np.array(col_data.dt.to_pydatetime()))
+                    # `to_pydatetime` emits a FutureWarning even when the issue
+                    # is fixed.
+                    with IgnoreFutureWarnings():
+                        # Make sure datetimes are returned as python datetimes
+                        data_columns.append(np.array(col_data.dt.to_pydatetime()))
                 elif is_timedelta64_dtype(dtype):
                     # Make sure timedeltas are returned as python timedeltas
                     data_columns.append(col_data.dt.to_pytimedelta())

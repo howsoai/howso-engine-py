@@ -806,3 +806,23 @@ def to_pandas_datetime_format(f):
             # Failed to check pandas version
             pass
     return f
+
+
+class IgnoreFutureWarnings:
+    """Simple context manager to ignore Future Warnings."""
+
+    def __init__(self):
+        """Initialize a new `catch_warnings` instance."""
+        self._catch_warnings = warnings.catch_warnings()
+
+    def __enter__(self):
+        """Context entrance."""
+        # Enters the  `catch_warnings` instance.
+        self._catch_warnings.__enter__()
+        warnings.filterwarnings("ignore", category=FutureWarning)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Context exit."""
+        self._catch_warnings.__exit__(exc_type, exc_value, traceback)
+        return False
