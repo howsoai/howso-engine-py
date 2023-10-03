@@ -5,6 +5,7 @@ Notice: These are internal utilities and are not intended to be
         referenced directly.
 """
 from collections import OrderedDict
+from collections.abc import Iterable
 from copy import deepcopy
 import datetime
 import decimal
@@ -814,17 +815,29 @@ class IgnoreWarnings:
 
     Parameters
     ----------
-    warning_type : Warning
+    warning_type : Warning or Iterable of Warnings
         The warning class to ignore.
     """
 
-    def __init__(self, warning_type):
+    def __init__(
+        self,
+        warning_type: Union[Warning, Iterable[Warning]]
+    ):
         """Initialize a new `catch_warnings` instance."""
         self._catch_warnings = warnings.catch_warnings()
         self._warning_type = warning_type
-        if not issubclass(self._warning_type, Warning):
+
+        if not isinstance(self._warning_type, Iterable):
+            self._warning_type = [self._warning_type]
+        for warning_type in self._warning_type:
+            self._check_warning_class(warning_type)
+
+    @staticmethod
+    def _check_warning_class(warning_type):
+        """Check correct warning type."""
+        if not issubclass(warning_type, Warning):
             warnings.warn(
-                f"{self._warning_type} is not a valid subclass of `Warning`. "
+                f"{warning_type} is not a valid subclass of `Warning`. "
                 "Warnings will not be ignored."
             )
 
@@ -832,7 +845,8 @@ class IgnoreWarnings:
         """Context entrance."""
         # Enters the  `catch_warnings` instance.
         self._catch_warnings.__enter__()
-        warnings.filterwarnings("ignore", category=self._warning_type)
+        for warning_type in self._warning_type:
+            warnings.filterwarnings("ignore", category=warning_type)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
