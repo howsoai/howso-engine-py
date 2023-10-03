@@ -821,15 +821,15 @@ class IgnoreWarnings:
 
     def __init__(
         self,
-        warning_type: Union[Warning, Iterable[Warning]]
+        warning_types: Union[Warning, Iterable[Warning]]
     ):
         """Initialize a new `catch_warnings` instance."""
         self._catch_warnings = warnings.catch_warnings()
-        self._warning_type = warning_type
+        self._warning_types = warning_types
 
-        if not isinstance(self._warning_type, Iterable):
-            self._warning_type = [self._warning_type]
-        for warning_type in self._warning_type:
+        if not isinstance(self._warning_types, Iterable):
+            self._warning_types = [self._warning_types]
+        for warning_type in self._warning_types:
             self._check_warning_class(warning_type)
 
     @staticmethod
@@ -845,7 +845,7 @@ class IgnoreWarnings:
         """Context entrance."""
         # Enters the  `catch_warnings` instance.
         self._catch_warnings.__enter__()
-        for warning_type in self._warning_type:
+        for warning_type in self._warning_types:
             warnings.filterwarnings("ignore", category=warning_type)
         return self
 
