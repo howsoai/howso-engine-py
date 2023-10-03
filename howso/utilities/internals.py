@@ -5,6 +5,7 @@ Notice: These are internal utilities and are not intended to be
         referenced directly.
 """
 from collections import OrderedDict
+from collections.abc import Iterable
 from copy import deepcopy
 import datetime
 import decimal
@@ -806,3 +807,49 @@ def to_pandas_datetime_format(f):
             # Failed to check pandas version
             pass
     return f
+
+
+class IgnoreWarnings:
+    """
+    Simple context manager to ignore Warnings.
+
+    Parameters
+    ----------
+    warning_types : Warning or Iterable of Warnings
+        The warning classes to ignore.
+    """
+
+    def __init__(
+        self,
+        warning_types: Union[Warning, Iterable[Warning]]
+    ):
+        """Initialize a new `catch_warnings` instance."""
+        self._catch_warnings = warnings.catch_warnings()
+        self._warning_types = warning_types
+
+        if not isinstance(self._warning_types, Iterable):
+            self._warning_types = [self._warning_types]
+        for warning_type in self._warning_types:
+            self._check_warning_class(warning_type)
+
+    @staticmethod
+    def _check_warning_class(warning_type):
+        """Check correct warning type."""
+        if not issubclass(warning_type, Warning):
+            warnings.warn(
+                f"{warning_type} is not a valid subclass of `Warning`. "
+                "Warnings will not be ignored."
+            )
+
+    def __enter__(self):
+        """Context entrance."""
+        # Enters the  `catch_warnings` instance.
+        self._catch_warnings.__enter__()
+        for warning_type in self._warning_types:
+            warnings.filterwarnings("ignore", category=warning_type)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Context exit."""
+        self._catch_warnings.__exit__(exc_type, exc_value, traceback)
+        return False

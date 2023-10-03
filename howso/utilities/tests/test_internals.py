@@ -1,5 +1,5 @@
+from collections.abc import Iterable
 import warnings
-
 from howso.utilities import internals
 import pytest
 from semantic_version import Version
@@ -59,7 +59,7 @@ from semantic_version import Version
     ),
 ))
 def test_preprocess_feature_attributes(features, result):
-    """Test preprocess_feature_attributes returns expected result"""
+    """Test preprocess_feature_attributes returns expected result."""
     output = internals.preprocess_feature_attributes(features)
     assert output == result
 
@@ -137,7 +137,7 @@ def test_preprocess_feature_attributes(features, result):
     ),
 ))
 def test_postprocess_feature_attributes(features, result):
-    """Test postprocess_feature_attributes returns expected result"""
+    """Test postprocess_feature_attributes returns expected result."""
     output = internals.postprocess_feature_attributes(features)
     assert output == result
 
@@ -215,3 +215,39 @@ def test_to_pandas_datetime_format(mocker, pandas_ver, format_str, is_iso):
             assert fmt == format_str
     else:
         assert fmt == format_str
+
+
+@pytest.mark.parametrize(
+    'warning_type', (DeprecationWarning, FutureWarning, UserWarning)
+)
+def test_ignore_warnings_individual(warning_type):
+    """Test that individual warnings are ignored."""
+
+    def raise_future_warning(a, b):
+        """Simple function that raises a Warning."""
+        warnings.warn("Test Warning", warning_type)
+        return a + b
+
+    with pytest.warns(None) as warnings_list:
+        with internals.IgnoreWarnings(warning_type):
+            c = raise_future_warning(1, 2)
+
+    assert len(warnings_list) == 0
+    assert c == 3
+
+
+def test_ignore_warnings_iterable(warning_type=[FutureWarning, UserWarning]):
+    """Test that an iterable of warnings are ignored."""
+
+    def raise_future_warning(a, b):
+        """Simple function that raises a Warning."""
+        for warning in warning_type:
+            warnings.warn("Test Warning", warning)
+        return a + b
+
+    with pytest.warns(None) as warnings_list:
+        with internals.IgnoreWarnings(warning_type):
+            c = raise_future_warning(1, 2)
+
+    assert len(warnings_list) == 0
+    assert c == 3
