@@ -238,7 +238,7 @@ def test_ignore_warnings_individual(warning_type):
 
 def test_ignore_warnings_iterable(warning_type=[FutureWarning, UserWarning]):
     """Test that an iterable of warnings are ignored."""
-    
+
     def raise_future_warning(a, b):
         """Simple function that raises a Warning."""
         for warning in warning_type:
