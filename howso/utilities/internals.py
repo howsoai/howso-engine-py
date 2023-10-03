@@ -815,8 +815,8 @@ class IgnoreWarnings:
 
     Parameters
     ----------
-    warning_type : Warning or Iterable of Warnings
-        The warning class to ignore.
+    warning_types : Warning or Iterable of Warnings
+        The warning classes to ignore.
     """
 
     def __init__(
