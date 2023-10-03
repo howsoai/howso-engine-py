@@ -1,5 +1,4 @@
 import warnings
-
 from howso.utilities import internals
 import pytest
 from semantic_version import Version
@@ -217,15 +216,16 @@ def test_to_pandas_datetime_format(mocker, pandas_ver, format_str, is_iso):
         assert fmt == format_str
 
 
-def test_ignore_future_warnings():
-    """Test that future warnings are ignored."""
+@pytest.mark.parametrize('warning_type', (DeprecationWarning, FutureWarning, UserWarning))
+def test_ignore_warnings(warning_type):
+    """Test that warnings are ignored."""
     def raise_future_warning(a, b):
-        """Simple function that raises a FutureWarning."""
-        warnings.warn("Future Warning", FutureWarning)
+        """Simple function that raises a Warning."""
+        warnings.warn("Test Warning", warning_type)
         return a + b
 
     with pytest.warns(None) as warnings_list:
-        with internals.IgnoreFutureWarnings():
+        with internals.IgnoreWarnings(warning_type):
             c = raise_future_warning(1, 2)
 
     assert len(warnings_list) == 0

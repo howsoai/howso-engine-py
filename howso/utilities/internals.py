@@ -808,18 +808,31 @@ def to_pandas_datetime_format(f):
     return f
 
 
-class IgnoreFutureWarnings:
-    """Simple context manager to ignore Future Warnings."""
+class IgnoreWarnings:
+    """
+    Simple context manager to ignore Warnings.
 
-    def __init__(self):
+    Parameters
+    ----------
+    warning_type : Warning
+        The warning class to ignore.
+    """
+
+    def __init__(self, warning_type):
         """Initialize a new `catch_warnings` instance."""
         self._catch_warnings = warnings.catch_warnings()
+        self._warning_type = warning_type
+        if not issubclass(self._warning_type, Warning):
+            warnings.warn(
+                f"{self._warning_type} is not a valid subclass of `Warning`. "
+                "Warnings will not be ignored."
+            )
 
     def __enter__(self):
         """Context entrance."""
         # Enters the  `catch_warnings` instance.
         self._catch_warnings.__enter__()
-        warnings.filterwarnings("ignore", category=FutureWarning)
+        warnings.filterwarnings("ignore", category=self._warning_type)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
