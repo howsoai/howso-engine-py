@@ -1,47 +1,36 @@
 
 <div align="left">
-  <img src="https://howso.com/assets/images/Howso_Readme.svg">
+<picture>
+ <source media="(prefers-color-scheme: dark)" srcset="https://cdn.howso.com/img/howso/1/svg/logo-gradient-light.svg" width="33%">
+ <source media="(prefers-color-scheme: light)" srcset="https://cdn.howso.com/img/howso/1/svg/logo-gradient-dark.svg" width="33%">
+ <img alt="Howso" src="https://cdn.howso.com/img/howso/1/png/logo-gradient-light-bg.png" width="33%">
+</picture>
 </div>
 
-The Howso Engine&trade; is a natively and fully explainable ML engine and toolbox, 
-serving as an alternative to black box AI. Its core features give users data 
-exploration and machine learning capabilities through the creation and use
-of Trainees that help users store, explore, and analyze the relationships in
-their data. Howso&trade; leverages an instance-based learning approach with
-strong ties to the [k-nearest neighbors
-algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) and
-[information theory](https://en.wikipedia.org/wiki/Information_theory) to scale
-for real world applications.
+The Howso Engine&trade; is a natively and fully explainable ML engine, serving as an alternative to black box AI neural networks. Its core functionality gives users data exploration and machine learning capabilities through the creation and use of Trainees that help users store, explore, and analyze the relationships in their data, as well as make understandable, debuggable predictions. Howso leverages an instance-based learning approach with strong ties to the [k-nearest neighbors algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) and [information theory](https://en.wikipedia.org/wiki/Information_theory) to scale for real world applications.
 
-At the core of Howso is the concept of a Trainee, a collection of cases that
-comprise knowledge. In traditional ML, this is typically referred to as a model,
-but a Trainee may additionally include metadata, parameters, details of feature
-attributes, with data lineage and provenance. Unlike traditional ML, Trainees
-are designed to be versatile, a single model that after training a dataset can
-do the following without the need to retrain:
-- Perform **classification** on any target feature using any set of
-  input features
+At the core of Howso is the concept of a Trainee, a collection of data elements that comprise knowledge. In traditional ML, this is typically referred to as a model, but a Trainee is original training data coupled with metadata, parameters, details of feature attributes, with data lineage and provenance. Unlike traditional ML, Trainees are designed to be versatile, a single model that after training a dataset can do the following without the need to retrain:
+
+- Perform **classification** on any target feature using any set of input features
 - Perform **regression** on any target feature using any set of input features
 - Perform **anomaly detection** based on any set of features
 - Measure **feature importance** for predicting any target feature
-- **Synthesize** data that maintains the same feature relationships of the
-  original data while maintaining privacy
+- **Synthesize** data that maintains the same feature relationships of the original data while maintaining privacy
 
 Furthermore, Trainees are auditable, debuggable, and editable.
-- **Debuggable**: Every prediction of a Trainee can be drilled down to
-  investigate which cases from the training data were used to make
-  the prediction.
-- **Auditable**: Trainees manage metadata about themselves including: when data
-  is trained, when training data is edited, when data is removed, etc.
-- **Editable**: Specific cases of training data can be removed, edited, and
-  emphasized (through case weighting) without the need to retrain.
+
+- **Debuggable**: Every prediction of a Trainee can be drilled down to investigate which cases from the training data were used to make the prediction.
+- **Auditable**: Trainees manage metadata about themselves including: when data is trained, when training data is edited, when data is removed, etc.
+- **Editable**: Specific cases of training data can be removed, edited, and emphasized (through case weighting) without the need to retrain.
 
 ## Resources
+
 - [Documentation](https://docs.howso.com)
 - [Howso Engine Recipes (sample notebooks)](https://github.com/howsoai/howso-engine-recipes)
 - [Howso Playground](https://playground.howso.com)
 
 ## General Overview
+
 This Repo provides the Python interface with
 [Howso Engine](https://github.com/howsoai/howso-engine) that exposes the Howso
 Engine functionality. The Client objects directly interface with the engine API
@@ -56,14 +45,13 @@ predicting, while a client may manage the API interface for multiple Trainees.
 
 Compatible with Python versions: 3.8, 3.9, 3.10, and 3.11
 
-#### Operating Systems
+**Operating Systems**
 
 | OS      | x86_64 | arm64 |
 |---------|--------|-------|
 | Windows | Yes    | No    |
 | Linux   | Yes    | Yes   |
 | MacOS   | Yes    | Yes   |
-
 
 ## Install
 
@@ -82,6 +70,7 @@ verify_howso_install
 See the Howso Engine
 [Install Guide](https://docs.howso.com/getting_started/installing.html) for
 additional help and troubleshooting information.
+
 ## Usage
 
 The Howso Engine is designed to support users in the pursuit of many different
@@ -102,6 +91,7 @@ most noisy features, find the most anomalous training cases, and much more.
 
 Please see the [User Guide](https://docs.howso.com/user_guide/index.html) for
 basic workflows as well as additional information about:
+
 - Anomaly detection
 - Classification
 - Regression
