@@ -205,8 +205,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                         f"Version {latest_version} of Howso Engine™ is "
                         f"available. You are using version {local_version}. "
                         f"This is a pre-release version.")
-            else:
-                logger.warning("You're using the latest version of Howso Engine™!")
 
     @property
     def active_session(self) -> Session:
