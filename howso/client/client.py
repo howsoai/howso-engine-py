@@ -12,16 +12,17 @@ from howso.utilities import deep_update, UserFriendlyExit
 import yaml
 
 
-DEFAULT_CONFIG_FILE = 'howso.yml'
-DEFAULT_CONFIG_FILE_ALT = 'howso.yaml'
-DEFAULT_LEGACY_CONFIG_FILENAMES = [
-    'diveplane.yml', 'diveplane.yaml',
-    'config.yml', 'config.yaml',
+DEFAULT_CONFIG_FILE = "howso.yml"
+DEFAULT_CONFIG_FILE_ALT = "howso.yaml"
+CONFIG_FILE_ENV_VAR = "HOWSO_CONFIG"
+HOME_DIR_CONFIG_PATH = ".howso"
+HOWSO_CONFIG_DOCS = "https://docs.howso.com/getting_started/client_configuration.html"  # noqa
+LEGACY_CONFIG_FILENAMES = [
+    "diveplane.yml", "diveplane.yaml",
+    "config.yml", "config.yaml",
 ]
-CONFIG_FILE_ENV_VAR = 'HOWSO_CONFIG'
-HOME_DIR_CONFIG_PATH = '.howso'
-XDG_DIR_CONFIG_PATH = 'howso'
-XDG_CONFIG_ENV_VAR = 'XDG_CONFIG_HOME'
+XDG_DIR_CONFIG_PATH = "howso"
+XDG_CONFIG_ENV_VAR = "XDG_CONFIG_HOME"
 
 
 def _check_isfile(file_paths: Sequence[Union[Path, str]]) -> Union[Path, None]:
@@ -77,7 +78,6 @@ def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # no
         file or the file is un-parsable as a YAML file.
     """
     if config_path is None:
-        # Check HOWSO_CONFIG env variable
         user_dir = Path().home()
         xdg_config_home_not_abs_msg = (
             'The path set in the XDG_CONFIG_HOME environment variable'
@@ -99,11 +99,11 @@ def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # no
         # Check current working directory for howso.yml file
         elif Path(DEFAULT_CONFIG_FILE).is_file():
             config_path = DEFAULT_CONFIG_FILE
-        # falling back to howso.yaml file
+        # Falling back to howso.yaml file
         elif Path(DEFAULT_CONFIG_FILE_ALT).is_file():
             config_path = DEFAULT_CONFIG_FILE_ALT
-        # falling back to config.yml file
-        elif config_path := _check_isfile(DEFAULT_LEGACY_CONFIG_FILENAMES):
+        # Falling back to config.yml file or other legacy names
+        elif config_path := _check_isfile(LEGACY_CONFIG_FILENAMES):
             warnings.warn(
                 f'Deprecated use of "{config_path}" file. '
                 f'Please rename to "{DEFAULT_CONFIG_FILE}".')
@@ -134,7 +134,7 @@ def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # no
         # falling back to legacy filenames
         elif config_path := _check_isfile([
             Path(user_dir, HOME_DIR_CONFIG_PATH, file)
-            for file in DEFAULT_LEGACY_CONFIG_FILENAMES
+            for file in LEGACY_CONFIG_FILENAMES
         ]):
             warnings.warn(
                 f'Use of deprecated configuration file name at "{config_path}". '
@@ -347,6 +347,17 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
 
     if verbose:
         print("Instantiating %r" % client_class)
+
+    if not config_path:
+        # Warn when running with out a configuration.
+        no_config_msg = client_extra_params.pop(
+            "no_config_msg",
+            "No configuration file was found; operating with the "
+            "HowsDirectClient and default parameters. To more about "
+            "'howso.yml' configuration files, see documentation at: "
+            f"{HOWSO_CONFIG_DOCS}."
+        )
+        print(no_config_msg)
 
     return client_class, client_extra_params
 
