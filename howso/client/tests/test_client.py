@@ -9,7 +9,7 @@ import howso
 from howso.client import HowsoClient
 from howso.client.client import (
     _check_isfile,
-    DEFAULT_LEGACY_CONFIG_FILENAMES,
+    LEGACY_CONFIG_FILENAMES,
     get_configuration_path,
     get_howso_client_class,
 )
@@ -103,7 +103,7 @@ def test_check_isfile(mocker, existing_files, result):
     """Test that `_check_isfile` works as expected."""
 
     def _is_file(filepath):
-        if str(filepath) in DEFAULT_LEGACY_CONFIG_FILENAMES:
+        if str(filepath) in LEGACY_CONFIG_FILENAMES:
             return True
         return False
 

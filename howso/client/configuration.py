@@ -78,7 +78,7 @@ class HowsoConfiguration:
         1. An explicitly set `max_wait_time` parameter value;
         2. An environment variable `HOWSO_CLIENT_CREATE_MAX_WAIT_TIME;
         3. A setting in the config.yaml file:
-           Howso > options > create_max_wait_time; or
+           howso > options > create_max_wait_time; or
         4. the final default of 30 seconds.
 
         Parameters
