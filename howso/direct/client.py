@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
 from http import HTTPStatus
+import importlib.metadata
 import json
 import logging
 import multiprocessing
@@ -28,7 +29,7 @@ import warnings
 
 import certifi
 from howso import utilities as util
-from howso.client import __version__ as local_version, AbstractHowsoClient
+from howso.client import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.exceptions import HowsoError
 import howso.openapi.models as client_models
@@ -46,8 +47,8 @@ from howso.utilities import (
     validate_list_shape,
 )
 from howso.utilities.feature_attributes.base import (
-    SingleTableFeatureAttributes,
     MultiTableFeatureAttributes,
+    SingleTableFeatureAttributes,
 )
 import numpy as np
 from packaging.version import parse as parse_version
@@ -58,6 +59,9 @@ from urllib3.util import Retry, Timeout
 
 from ._utilities import model_from_dict
 from .core import HowsoCore
+
+# Client version
+CLIENT_VERSION = importlib.metadata.version('howso-engine')
 
 # Configure howso base logger
 logger = logging.getLogger('howso.direct')
@@ -180,7 +184,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                                    retries=Retry(total=1),
                                    timeout=Timeout(total=3),
                                    maxsize=10)
-        url = f"{VERSION_CHECK_HOST}/v1/howso-engine?version={local_version}"
+        url = f"{VERSION_CHECK_HOST}/v1/howso-engine?version={CLIENT_VERSION}"
         with squelch_logs(logging.WARNING + 1):
             response = http.request(method="GET", url=url)
         if HTTPStatus.OK <= response.status < HTTPStatus.MULTIPLE_CHOICES:
@@ -195,15 +199,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         except Exception:
             pass
         else:
-            if latest_version and latest_version != local_version:
-                if parse_version(latest_version) > parse_version(local_version):
+            if latest_version and latest_version != CLIENT_VERSION:
+                if parse_version(latest_version) > parse_version(CLIENT_VERSION):
                     logger.warning(
                         f"Version {latest_version} of Howso Engine™ is "
-                        f"available. You are using version {local_version}.")
-                elif parse_version(latest_version) < parse_version(local_version):
+                        f"available. You are using version {CLIENT_VERSION}.")
+                elif parse_version(latest_version) < parse_version(CLIENT_VERSION):
                     logger.debug(
                         f"Version {latest_version} of Howso Engine™ is "
-                        f"available. You are using version {local_version}. "
+                        f"available. You are using version {CLIENT_VERSION}. "
                         f"This is a pre-release version.")
 
     @property
@@ -269,11 +273,10 @@ class HowsoDirectClient(AbstractHowsoClient):
            A version response that contains the version data for the current
            instance of Howso.
         """
-        from howso.client import __version__ as client_version
         from howso.openapi import __api_version__ as api_version
 
         return client_models.ApiVersion(api=api_version,
-                                        client=client_version)
+                                        client=CLIENT_VERSION)
 
     def _output_version_in_trace(self, trainee: str):
         """
@@ -286,10 +289,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee : str
             The ID of the Trainee that should retrieve the Howso version.
         """
-        from howso.client import __version__
         amlg_version = self.howso.amlg.get_version_string()
         self.howso.version()
-        trace_version = f"client: {__version__}  amalgam: {amlg_version}"
+        trace_version = f"client: {CLIENT_VERSION}  amalgam: {amlg_version}"
 
         # don't need to return the output, make the call to core in order for
         # the stack version to show up in the trace file.
@@ -664,8 +666,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         file_path: Optional[Union[Path, str]] = None
     ):
         """
-        This deletes the Trainee, which includes all cases, model metadata,
-        session data, persisted files, etc.
+        This deletes the Trainee.
+
+        Includes all cases, model metadata, session data, persisted files, etc.
 
         Parameters
         ----------
@@ -691,7 +694,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             If `file_path` is just a filename, then the absolute path will be computed
             appending the filename to the CWD.
         """
-
         if file_path:
             if not isinstance(file_path, Path):
                 file_path = Path(file_path)
@@ -4576,7 +4578,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         weight_feature: Optional[str] = None,
     ) -> Dict:
         """
-        Get the parameters used by the Trainee. If 'action_feature',
+        Get the parameters used by the Trainee.
+
+        If 'action_feature',
         'context_features', 'mode', or 'weight_feature' are specified, then
         the best hyperparameters analyzed in the Trainee are the value of the
         'hyperparameter_map' key, otherwise this value will be the dictionary
