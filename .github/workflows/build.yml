@@ -201,7 +201,9 @@ jobs:
           sudo echo "" > /etc/pip.conf
 
           echo "Installing Howso Engine..."
-          pip install howso_engine-*-py3-none-any.whl
+          # This environment is considered "externally managed," so use --break-system-packages to bypass
+          # (safe in this use case)
+          pip install howso_engine-*-py3-none-any.whl --break-system-packages
 
           # amalgam binaries need this under QEMU
           PATH=$PATH:/usr/aarch64-linux-gnu
@@ -237,7 +239,9 @@ jobs:
           sudo echo "" > /etc/pip.conf
 
           echo "Installing Howso Engine..."
-          pip install howso_engine-*-py3-none-any.whl
+          # This environment is considered "externally managed," so use --break-system-packages to bypass
+          # (safe in this use case)
+          pip install howso_engine-*-py3-none-any.whl --break-system-packages
 
           # Set local config to use single threaded because arm64_8a doesn't support multi-threading and set
           # arm64_8a arch since that is not auto selected by the package currently:

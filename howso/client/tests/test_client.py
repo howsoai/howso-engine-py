@@ -1,3 +1,4 @@
+import importlib.metadata
 import json
 import os
 from pathlib import Path
@@ -590,7 +591,7 @@ class TestClient:
         """Test get_version()."""
         version = self.client.get_version()
         assert version.api is not None
-        assert version.client == howso.client.__version__
+        assert version.client == importlib.metadata.version('howso-engine')
 
     def test_doublemax_to_infinity_translation(self):
         """Test the translation from Double.MAX_VALUE to Infinity."""

@@ -30,7 +30,6 @@ from .pandas.client import (  # noqa: F401
 )
 
 __all__ = [
-    "__version__",
     "AbstractHowsoClient",
     "CONFIG_FILE_ENV_VAR",
     "DEFAULT_CONFIG_FILE_ALT",
@@ -40,10 +39,3 @@ __all__ = [
     "HowsoClient",
     "HowsoPandasClient",
 ]
-
-
-# The version number is automatically incremented by the pipeline
-# It should not be manually changed.
-# To change the major/minor number change the number in azure-pipelines.yml
-
-__version__ = "7.1.0"

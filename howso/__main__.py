@@ -1,9 +1,9 @@
 import argparse
 from argparse import RawTextHelpFormatter
 from datetime import date
+import importlib.metadata
 import sys
 
-from howso.client import __version__ as version_string
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None,
@@ -21,6 +21,6 @@ if __name__ == '__main__':
         args = parser.parse_args()
         if args.version:
             print(f"""
-Howso (tm) client version: {version_string}
+Howso (tm) client version: {importlib.metadata.version('howso-engine')}
 Copyright (c) 2018-{date.today().year}, Howso Incorporated. All rights reserved.
 """)
