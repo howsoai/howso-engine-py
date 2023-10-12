@@ -352,8 +352,8 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
         # Warn when running with out a configuration.
         no_config_msg = client_extra_params.pop(
             "no_config_msg",
-            "No configuration file was found; operating with the "
-            "HowsDirectClient and default parameters. To more about "
+            "No configuration file was found. Operating with the "
+            "HowsDirectClient and default parameters. To learn more about "
             "'howso.yml' configuration files, see documentation at: "
             f"{HOWSO_CONFIG_DOCS}."
         )
