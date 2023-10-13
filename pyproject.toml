@@ -48,7 +48,7 @@ dependencies = [
    "typing-extensions>=4.1.0,<5.0",
    "urllib3>=1.26.2,<=2",
    "howso-openapi-client>=25.0.10,<26.0.0",
-   "amalgam-lang==3.1.0",
+   "amalgam-lang==4.0.0",
 ]
 
 [project.optional-dependencies]
