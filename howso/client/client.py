@@ -350,13 +350,17 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
 
     if not config_path:
         # Warn when running with out a configuration.
-        no_config_msg = client_extra_params.pop(
-            "no_config_msg",
-            f"No configuration file was found. Operating with HowsDirectClient "
-            f"and default parameters. To learn more about 'howso.yml' "
-            f"configuration files, see documentation at: {HOWSO_CONFIG_DOCS}."
-        )
-        print(no_config_msg)
+        no_config_msg_verbose_only = client_extra_params.pop(
+            "no_config_msg_verbose_only", True)
+        if verbose or not no_config_msg_verbose_only:
+            no_config_msg = client_extra_params.pop(
+                "no_config_msg",
+                f"No configuration file was found. Operating with "
+                f"HowsoDirectClient and default parameters. To learn more "
+                f"about 'howso.yml' configuration files, see documentation "
+                f"at: {HOWSO_CONFIG_DOCS}.\n"
+            )
+            print(no_config_msg)
 
     return client_class, client_extra_params
 
