@@ -3151,6 +3151,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             See :meth:`HowsoDirectClient.react()`.
         trainee_id : str
             See :meth:`HowsoDirectClient.react()`.
+        continue_series : bool
+            See :meth:`HowsoDirectClient.react_series()`.
 
         Returns
         -------
