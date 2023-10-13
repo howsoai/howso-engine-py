@@ -2088,7 +2088,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 contexts=contexts,
                 desired_conviction=desired_conviction,
                 preserve_feature_values=preserve_feature_values,
-                trainee_id=trainee_id
+                trainee_id=trainee_id,
+                continue_series=continue_series,
             )
         )
 
@@ -2137,7 +2138,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                         )
                 total_size = len(contexts)
             else:
-                total_size = len(case_indices)
+                if case_indices is not None:
+                    total_size = len(case_indices)
+                elif initial_values is not None:
+                    total_size = len(initial_values)
 
             react_params = {
                 "action_features": action_features,
@@ -3120,7 +3124,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         contexts: List[object],
         desired_conviction: float,
         preserve_feature_values: Iterable[str],
-        trainee_id: str
+        trainee_id: str,
+        continue_series: bool = False,
     ) -> Tuple[List[str], List[object], List[str], List[object]]:
         """
         Preprocess parameters for `react_` methods.
@@ -3146,6 +3151,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             See :meth:`HowsoDirectClient.react()`.
         trainee_id : str
             See :meth:`HowsoDirectClient.react()`.
+        continue_series : bool
+            See :meth:`HowsoDirectClient.react_series()`.
 
         Returns
         -------
@@ -3199,7 +3206,11 @@ class HowsoDirectClient(AbstractHowsoClient):
                 context_features = trainee.default_context_features
 
             if contexts is None:
-                if case_indices is None or preserve_feature_values is None:
+                # case_indices/preserve_feature_values are not necessary
+                # when using continue_series, as initial_feature/values may be used
+                if not continue_series and (
+                    case_indices is None or preserve_feature_values is None
+                ):
                     raise ValueError(
                         "If `contexts` are not specified, both `case_indices`"
                         " and `preserve_feature_values` must be specified."
