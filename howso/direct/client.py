@@ -2672,20 +2672,25 @@ class HowsoDirectClient(AbstractHowsoClient):
                 standard or robust computation.
 
             - feature_contributions: bool, optional
-                If True outputs each context feature's differences between the
-                predicted action feature value and the predicted action feature
-                value if each context were not in the model for all context
-                features in the local model area. Relies on 'robust_computation'
-                parameter to determine whether to do standard or robust
-                computation.
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context were not in the
+                model for all context features in the local model area. Relies
+                on 'robust_computation' parameter to determine whether to do
+                standard or robust computation. Directional feature
+                feature contributions are returned under the key
+                'directional_feature_contributions'.
 
             - case_feature_contributions: bool, optional
-                If True outputs each context feature's differences between the
-                predicted action feature value and the predicted action feature
-                value if each context feature were not in the model for all
-                context features in this case, using only the values from this
-                specific case. Relies on 'robust_computation' parameter to
-                determine whether to do standard or robust computation.
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context feature were not
+                in the model for all context features in this case, using only
+                the values from this specific case. Relies on
+                'robust_computation' parameter to determine whether to do
+                standard or robust computation. Directional case feature
+                contributions are returned under the
+                'case_directional_feature_contributions' key.
 
             - case_mda: bool, optional
                 If True outputs each influential case's mean decrease in
