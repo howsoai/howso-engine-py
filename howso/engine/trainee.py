@@ -1317,7 +1317,7 @@ class Trainee(BaseTrainee):
                 model for all context features in the local model area. Relies
                 on 'robust_computation' parameter to determine whether to do
                 standard or robust computation. Directional feature
-                feature contributions are returned under the key
+                contributions are returned under the key
                 'directional_feature_contributions'.
             - case_feature_contributions: bool, optional
                 If True outputs each context feature's absolute and directional
