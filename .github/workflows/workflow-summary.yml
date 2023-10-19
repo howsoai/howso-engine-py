@@ -1,0 +1,125 @@
+name: Reusable WF - Output Workflow Summary
+
+on:
+  workflow_call:
+    inputs:
+      payload:
+        type: string
+        required: true
+      build-type:
+        type: string
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  get-amalgam-lang-py-details:
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "amalgam-lang-py"
+      payload: "${{ inputs.payload }}"
+      skip-version-json-check: true
+
+  output-summary:
+    needs: ["get-amalgam-lang-py-details"]
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ./tmp
+
+      - name: Clean up dir
+        run: |
+          mkdir -p dist
+          mkdir -p hse
+          find ./tmp -type f -name '*.whl' -exec mv -t ./hse {} +
+
+      - name: Download amalgam-lang-py
+        if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+        run: |
+          gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D amlg -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+          # Needed because release/non-release downloads are different structure
+          cd amlg && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+
+      - name: Generate workflow summary
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+        run: |
+          pip install -e . --user
+          pip uninstall howso-engine -y
+          pip install hse/*-py3-none-any.whl --user
+          if [ -d "amlg" ]; then
+            echo "Found custom amalgam-lang version; installing..."
+            pip uninstall amalgam-lang -y
+            pip install amlg/*.whl --user
+          fi
+
+          site_packages=$(python -m site --user-site)
+
+          # Get amalgam version from version.json
+          if [[ $(cat $site_packages/amalgam/lib/version.json | jq '.version | has("amalgam_build_date")') == true ]]; then
+            # Get amalgam build title and date
+            build_date=$(jq -r '.version."amalgam_build_date"' $site_packages/amalgam/lib/version.json)
+            build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
+            amlg_version=$(jq -r '.version."amalgam_display_title"' $site_packages/amalgam/lib/version.json)
+            amlg_version=$(echo "$amlg_version ($build_date)")
+            amlg_notes=$(echo "Prerelease version")
+          else
+            # Get amalgam release version
+            amlg_version=$(jq -r '.version.amalgam' $site_packages/amalgam/lib/version.json)
+            amlg_notes=$(echo "Release version specified in \`version.json\`")
+          fi
+          sed -i "s|{amalgam-version}|$amlg_version|g" ./.github/templates/version_summary.md
+          sed -i "s|{amalgam-notes}|$amlg_notes|g" ./.github/templates/version_summary.md
+
+          # Get howso-engine version from version.json
+          if [[ $(cat $site_packages/howso/howso-engine/version.json | jq 'has("build_date")') == true ]]; then
+            # Get howso-engine build title and date
+            build_date=$(jq -r '."build_date"' $site_packages/howso/howso-engine/version.json)
+            build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
+            hse_version=$(jq -r '."display_title"' $site_packages/howso/howso-engine/version.json)
+            hse_version=$(echo "$hse_version ($build_date)")
+            hse_notes=$(echo "Prerelease version")
+          else
+            # Get howso-engine release version
+            hse_version=$(jq -r '.version' $site_packages/howso/howso-engine/version.json)
+            hse_notes=$(echo "Release version specified in \`version.json\`")
+          fi
+          sed -i "s|{howso-engine-version}|$hse_version|g" ./.github/templates/version_summary.md
+          sed -i "s|{howso-engine-notes}|$hse_notes|g" ./.github/templates/version_summary.md
+
+          # Get amalgam-lang-py version from workflow run or release install
+          pkg_version=$(python -c "import importlib.metadata; print(importlib.metadata.version('amalgam-lang'))")
+          if [[ "${{ needs.get-amalgam-lang-py-details.outputs.run-type }}" == "run" ]]; then
+            run_id=${{ needs.get-amalgam-lang-py-details.outputs.run-id }}
+            build_date=$(gh run view --repo howsoai/amalgam-lang-py $run_id --json createdAt | jq '.createdAt')
+            build_date=$(python -c "from datetime import datetime; print(datetime.strptime($build_date, '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
+            branch=$(gh run view --repo howsoai/amalgam-lang-py $run_id --json headBranch | jq '.headBranch')
+            pkg_notes=$(echo "Branch build of \`$branch\`")
+            pkg_version=$(echo "$pkg_version ($build_date)")
+          else
+            pkg_notes=$(echo "Release version specified in Python requirements")
+          fi
+          sed -i "s|{amalgam-lang-py-version}|$pkg_version|g" ./.github/templates/version_summary.md
+          sed -i "s|{amalgam-lang-py-notes}|$pkg_notes|g" ./.github/templates/version_summary.md
+
+          # Remove unecessary quotations from variable substitutions
+          sed -i "s|\"||g" ./.github/templates/version_summary.md
+          # Output filled template file to workflow summary
+          cat ./.github/templates/version_summary.md >> $GITHUB_STEP_SUMMARY
