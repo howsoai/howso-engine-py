@@ -322,6 +322,15 @@ class FeatureAttributesBase(dict):
                     # Check type (int)
                     errors.extend(self._validate_dtype(data, feature, 'int64',
                                                        coerced_df, coerce=coerce))
+                elif 'data_type' not in attributes:
+                    # If feature is continuous with no data type, it should be numeric
+                    # if it cannot be casted to a float, then add an error
+                    if len(self._validate_dtype(data, feature, 'float64',
+                                                coerced_df, coerce=True)):
+                        errors.extend([f"Feature '{feature}' should be numeric"
+                                       " when 'type' is 'continuous' and "
+                                       "'data_type' is undefined."])
+
             # Check feature bounds
             if validate_bounds:
                 errors.extend(self._validate_bounds(data, feature, attributes))
