@@ -24,6 +24,12 @@ on:
       run-id:
         description: "Run id to be used in GitHub CLI command for dependency query"
         value: ${{ jobs.get-dependency-details.outputs.run-id }}
+      build-date:
+        description: "The datetime of the run (non-release)"
+        value: ${{ jobs.get-dependency-details.outputs.build-date }}
+      build-title:
+        description: "The display title of the run (non-release)"
+        value: ${{ jobs.get-dependency-details.outputs.build-title }}
 
 defaults:
   run:
@@ -36,6 +42,8 @@ jobs:
     outputs:
       run-type: ${{ steps.dependency.outputs.run-type }}
       run-id: ${{ steps.dependency.outputs.run-id }}
+      build-date: ${{ steps.dependency.outputs.build-date }}
+      build-title: ${{ steps.dependency.outputs.build-title }}
     steps:
       - uses: actions/checkout@v3
 
@@ -76,6 +84,11 @@ jobs:
               elif gh run view --repo ${{ inputs.owner }}/${{ inputs.repo }} "$ID" > /dev/null 2>&1; then
                   echo "Found non-release build"
                   echo "run-type=$(echo "run")" >> $GITHUB_OUTPUT
+                  # Get the version and build date
+                  build_date=$(gh run view --repo ${{ inputs.owner }}/${{ inputs.repo }} $ID --json createdAt | jq '.createdAt')
+                  build_title=$(gh run view --repo ${{ inputs.owner }}/${{ inputs.repo }} $ID --json displayTitle | jq '.displayTitle')
+                  echo "build-date=$(echo "$build_date")" >> $GITHUB_OUTPUT
+                  echo "build-title=$(echo "$build_title")" >> $GITHUB_OUTPUT
               else
                   echo "Build not found"
                   exit 1

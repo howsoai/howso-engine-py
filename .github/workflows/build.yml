@@ -60,6 +60,14 @@ jobs:
         mv tmp/version.json version.json
         rm -rf tmp
 
+    - name: Set workflow run info
+      if: needs.get-howso-engine-details.outputs.build-date != ''
+      run: |
+        cd howso/howso-engine
+        jq '. |= . + {"display_title": ${{ needs.get-howso-engine-details.outputs.build-title }}}' version.json > temp.json && mv temp.json version.json
+        jq '. |= . + {"build_date": ${{ needs.get-howso-engine-details.outputs.build-date }}}' version.json > temp.json && mv temp.json version.json
+        cat version.json
+
     - name: Compare Amalagam versions
       if: inputs.payload == ''
       run: |
@@ -116,6 +124,14 @@ jobs:
         name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
         path: dist/howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
         if-no-files-found: error
+
+  workflow-summary:
+    needs: ["build"]
+    uses: "./.github/workflows/workflow-summary.yml"
+    secrets: inherit
+    with:
+      payload: "${{ inputs.payload }}"
+      build-type: "${{ inputs.build-type }}"
 
   unit-test-3-8:
     needs: ["build"]
