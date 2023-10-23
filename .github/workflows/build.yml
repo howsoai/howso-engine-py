@@ -61,11 +61,16 @@ jobs:
         rm -rf tmp
 
     - name: Set workflow run info
-      if: needs.get-howso-engine-details.outputs.build-date != ''
       run: |
         cd howso/howso-engine
-        jq '. |= . + {"display_title": ${{ needs.get-howso-engine-details.outputs.build-title }}}' version.json > temp.json && mv temp.json version.json
-        jq '. |= . + {"build_date": ${{ needs.get-howso-engine-details.outputs.build-date }}}' version.json > temp.json && mv temp.json version.json
+
+        # Set the display title and build date info in version.json
+        if [[ -n '${{ needs.get-howso-engine-details.outputs.build-title }}' ]]; then
+          jq '. |= . + {"display_title": ${{ needs.get-howso-engine-details.outputs.build-title }}}' version.json > temp.json && mv temp.json version.json
+          jq '. |= . + {"build_date": ${{ needs.get-howso-engine-details.outputs.build-date }}}' version.json > temp.json && mv temp.json version.json
+        fi
+        jq '. |= . + {"sha": ${{ needs.get-howso-engine-details.outputs.head-sha }}}' version.json > temp.json && mv temp.json version.json
+        jq '. |= . + {"url": ${{ needs.get-howso-engine-details.outputs.url }}}' version.json > temp.json && mv temp.json version.json
         cat version.json
 
     - name: Compare Amalagam versions
