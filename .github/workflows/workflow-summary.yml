@@ -61,6 +61,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
+          # Install requirements
           pip install -e . --user
           pip uninstall howso-engine -y
           pip install hse/*-py3-none-any.whl --user
@@ -70,54 +71,69 @@ jobs:
             pip install amlg/*.whl --user
           fi
 
+          # Determine site-packages location (to retrieve version.json)
           site_packages=$(python -m site --user-site)
 
-          # Get amalgam version from version.json
+          # Get amalgam metadata from version.json
+          amlg_version=$(jq -r '.version.amalgam' $site_packages/amalgam/lib/version.json)
+          amlg_sha=$(jq -r '.version."amalgam_sha"' $site_packages/amalgam/lib/version.json)
+          amlg_url=$(jq -r '.version."amalgam_url"' $site_packages/amalgam/lib/version.json)
           if [[ $(cat $site_packages/amalgam/lib/version.json | jq '.version | has("amalgam_build_date")') == true ]]; then
-            # Get amalgam build title and date
+            # Version is a prerelease (workflow run)
             build_date=$(jq -r '.version."amalgam_build_date"' $site_packages/amalgam/lib/version.json)
             build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
-            amlg_version=$(jq -r '.version."amalgam_display_title"' $site_packages/amalgam/lib/version.json)
+            amlg_notes=$(jq -r '.version."amalgam_display_title"' $site_packages/amalgam/lib/version.json)
             amlg_version=$(echo "$amlg_version ($build_date)")
-            amlg_notes=$(echo "Prerelease version")
           else
-            # Get amalgam release version
-            amlg_version=$(jq -r '.version.amalgam' $site_packages/amalgam/lib/version.json)
-            amlg_notes=$(echo "Release version specified in \`version.json\`")
+            # Version is a release
+            amlg_notes=$(echo "Release version embedded in the installed \`amalgam-lang-py\`")
           fi
+          # Substitute info into version_summary.md
           sed -i "s|{amalgam-version}|$amlg_version|g" ./.github/templates/version_summary.md
           sed -i "s|{amalgam-notes}|$amlg_notes|g" ./.github/templates/version_summary.md
+          sed -i "s|{amalgam-sha}|$amlg_sha|g" ./.github/templates/version_summary.md
+          sed -i "s|{amalgam-url}|$amlg_url|g" ./.github/templates/version_summary.md
 
-          # Get howso-engine version from version.json
-          if [[ $(cat $site_packages/howso/howso-engine/version.json | jq 'has("build_date")') == true ]]; then
-            # Get howso-engine build title and date
+          # Get howso-engine metadata from version.json
+          hse_version=$(jq -r '."version"' $site_packages/howso/howso-engine/version.json)
+          hse_sha=$(jq -r '."sha"' $site_packages/howso/howso-engine/version.json)
+          hse_url=$(jq -r '."url"' $site_packages/howso/howso-engine/version.json)
+          if [[ $(cat $site_packages/howso/howso-engine/version.json | jq '. | has("build_date")') == true ]]; then
+            # Version is a prerelease (workflow run)
             build_date=$(jq -r '."build_date"' $site_packages/howso/howso-engine/version.json)
             build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
-            hse_version=$(jq -r '."display_title"' $site_packages/howso/howso-engine/version.json)
+            hse_notes=$(jq -r '."display_title"' $site_packages/howso/howso-engine/version.json)
             hse_version=$(echo "$hse_version ($build_date)")
-            hse_notes=$(echo "Prerelease version")
           else
-            # Get howso-engine release version
-            hse_version=$(jq -r '.version' $site_packages/howso/howso-engine/version.json)
+            # Version is a release
             hse_notes=$(echo "Release version specified in \`version.json\`")
           fi
+          # Substitute info into version_summary.md
           sed -i "s|{howso-engine-version}|$hse_version|g" ./.github/templates/version_summary.md
           sed -i "s|{howso-engine-notes}|$hse_notes|g" ./.github/templates/version_summary.md
+          sed -i "s|{howso-engine-sha}|$hse_sha|g" ./.github/templates/version_summary.md
+          sed -i "s|{howso-engine-url}|$hse_url|g" ./.github/templates/version_summary.md
 
-          # Get amalgam-lang-py version from workflow run or release install
+          # Get amalgam-lang-py metadata from workflow run or release install
           pkg_version=$(python -c "import importlib.metadata; print(importlib.metadata.version('amalgam-lang'))")
+          run_id=${{ needs.get-amalgam-lang-py-details.outputs.run-id }}
           if [[ "${{ needs.get-amalgam-lang-py-details.outputs.run-type }}" == "run" ]]; then
-            run_id=${{ needs.get-amalgam-lang-py-details.outputs.run-id }}
             build_date=$(gh run view --repo howsoai/amalgam-lang-py $run_id --json createdAt | jq '.createdAt')
             build_date=$(python -c "from datetime import datetime; print(datetime.strptime($build_date, '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
             branch=$(gh run view --repo howsoai/amalgam-lang-py $run_id --json headBranch | jq '.headBranch')
             pkg_notes=$(echo "Branch build of \`$branch\`")
             pkg_version=$(echo "$pkg_version ($build_date)")
+            pkg_sha=$(gh run view --repo howsoai/amalgam-lang-py $run_id --json headSha | jq '.headSha')
+            pkg_url=$(gh run view --repo howsoai/amalgam-lang-py $run_id --json url | jq '.url')
           else
             pkg_notes=$(echo "Release version specified in Python requirements")
+            pkg_sha=$(gh release view --repo howsoai/amalgam-lang-py $run_id --json targetCommitish | jq '.targetCommitish')
+            pkg_url=$(gh release view --repo howsoai/amalgam-lang-py $run_id --json url | jq '.url')
           fi
           sed -i "s|{amalgam-lang-py-version}|$pkg_version|g" ./.github/templates/version_summary.md
           sed -i "s|{amalgam-lang-py-notes}|$pkg_notes|g" ./.github/templates/version_summary.md
+          sed -i "s|{amalgam-lang-py-sha}|$pkg_sha|g" ./.github/templates/version_summary.md
+          sed -i "s|{amalgam-lang-py-url}|$pkg_url|g" ./.github/templates/version_summary.md
 
           # Remove unecessary quotations from variable substitutions
           sed -i "s|\"||g" ./.github/templates/version_summary.md
