@@ -53,7 +53,7 @@ jobs:
       head-sha: ${{ steps.dependency.outputs.head-sha }}
       url: ${{ steps.dependency.outputs.url }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Get dependency details
         id: dependency
