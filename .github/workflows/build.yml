@@ -39,7 +39,7 @@ jobs:
       contents: write
     steps:
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Download howso-engine
       env:
@@ -287,7 +287,7 @@ jobs:
     runs-on: windows-latest
     steps:
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Download Artifact
       uses: actions/download-artifact@v3
@@ -318,7 +318,7 @@ jobs:
     runs-on: windows-latest
     steps:
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Download Artifact
       uses: actions/download-artifact@v3
@@ -353,7 +353,7 @@ jobs:
     runs-on: windows-latest
     steps:
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Download Artifact
       uses: actions/download-artifact@v3
