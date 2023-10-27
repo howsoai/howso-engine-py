@@ -2926,9 +2926,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 raise HowsoError("`num_cases_to_generate` must be an integer "
                                  "greater than 0.")
             total_size = num_cases_to_generate
-            if total_size > self._react_generative_batch_threshold:
-                # Do not send details for generative reacts over threshold
-                details = None
 
             context_features, contexts = \
                 self._preprocess_generate_parameters(
