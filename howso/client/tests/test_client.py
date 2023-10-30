@@ -577,7 +577,7 @@ class TestClient:
                 ['similarity_conviction', ]
             ),
             (
-                {'robust_computation': True, 'feature_residuals': True, },
+                {'robust_residuals': True, 'feature_residuals': True, },
                 ['feature_residuals', ]
             ),
         ]

@@ -1281,21 +1281,21 @@ class Trainee(BaseTrainee):
                 predicted action feature value and the predicted action feature
                 value if each individual case were not included. Uses only the
                 context features of the reacted case to determine that area.
-                Relies on 'robust_computation' parameter to determine whether
+                Relies on 'robust_influences' parameter to determine whether
                 to do standard or robust computation.
             - case_feature_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features for just the specified case. Uses leave-one-out for
                 each feature, while using the others to predict the left out
                 feature with their corresponding values from this case. Relies
-                on 'robust_computation' parameter to determine whether to do
+                on 'robust_residuals' parameter to determine whether to do
                 standard or robust computation.
             - case_mda : bool, optional
                 If True, outputs each influential case's mean decrease in
                 accuracy of predicting the action feature in the local model
                 area, as if each individual case were included versus not
                 included. Uses only the context features of the reacted case to
-                determine that area. Relies on 'robust_computation' parameter
+                determine that area. Relies on 'robust_influences' parameter
                 to determine whether to do standard or robust computation.
             - categorical_action_probabilities : bool, optional
                 If True, outputs probabilities for each class for the action.
@@ -1315,7 +1315,7 @@ class Trainee(BaseTrainee):
                 differences between the predicted action feature value and the
                 predicted action feature value if each context were not in the
                 model for all context features in the local model area. Relies
-                on 'robust_computation' parameter to determine whether to do
+                on 'robust_influences' parameter to determine whether to do
                 standard or robust computation. Directional feature
                 contributions are returned under the key
                 'directional_feature_contributions'.
@@ -1325,7 +1325,7 @@ class Trainee(BaseTrainee):
                 predicted action feature value if each context feature were not
                 in the model for all context features in this case, using only
                 the values from this specific case. Relies on
-                'robust_computation' parameter to determine whether to do
+                'robust_influences' parameter to determine whether to do
                 standard or robust computation. Directional case feature
                 contributions are returned under the
                 'case_directional_feature_contributions' key.
@@ -1333,7 +1333,7 @@ class Trainee(BaseTrainee):
                 If True, outputs each context feature's mean decrease in
                 accuracy of predicting the action feature given the context.
                 Uses only the context features of the reacted case to determine
-                that area. Relies on 'robust_computation' parameter to
+                that area. Relies on 'robust_influences' parameter to
                 determine whether to do standard or robust computation.
             - feature_mda_ex_post : bool, optional
                 If True, outputs each context feature's mean decrease in
@@ -1341,19 +1341,19 @@ class Trainee(BaseTrainee):
                 given that the specified prediction was already made as
                 specified by the action value. Uses both context and action
                 features of the reacted case to determine that area. Relies on
-                'robust_computation' parameter to determine whether to do
+                'robust_influences' parameter to determine whether to do
                 standard or robust computation.
             - feature_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Relies on
-                'robust_computation' parameter to determine whether to do
+                'robust_residuals' parameter to determine whether to do
                 standard or robust computation.
             - global_case_feature_residual_convictions : bool, optional
                 If True, outputs this case's feature residual convictions for
                 the global model. Computed as: global model feature residual
                 divided by case feature residual. Relies on
-                'robust_computation' parameter to determine whether to do
+                'robust_residuals' parameter to determine whether to do
                 standard or robust computation.
             - hypothetical_values : dict, optional
                 A dictionary of feature name to feature value. If specified,
@@ -1379,7 +1379,7 @@ class Trainee(BaseTrainee):
                 the region around the prediction. Uses only the context
                 features of the reacted case to determine that region.
                 Computed as: region feature residual divided by case feature
-                residual. Relies on 'robust_computation' parameter to determine
+                residual. Relies on 'robust_residuals' parameter to determine
                 whether to do standard or robust computation.
             - most_similar_cases : bool, optional
                 If True, outputs an automatically determined (when
@@ -1413,10 +1413,18 @@ class Trainee(BaseTrainee):
                 for all computations. This is defined as expected (local)
                 distance contribution divided by reacted case distance
                 contribution.
-            - robust_computation : bool, optional
-                Default is False, uses leave-one-out for features (or cases,
-                as needed) for all relevant computations. If True, uses
-                uniform sampling from the power set of all combinations of
+            - robust_computation: bool, optional
+                Deprecated. If specified, will overwrite the value of both
+                'robust_residuals' and 'robust_influences'.
+            - robust_residuals: bool, optional
+                Default is false, uses leave-one-out for features (or cases, as
+                needed) for all residual computations. When true, uses uniform
+                sampling from the power set of all combinations of features (or
+                cases, as needed) instead.
+            - robust_influences: bool, optional
+                Default is true, uses leave-one-out for features (or cases, as
+                needed) for all MDA and contribution computations. When true,
+                uses uniform sampling from the power set of all combinations of
                 features (or cases, as needed) instead.
 
         feature_bounds_map : dict of {str: dict of {str: object}}, optional
