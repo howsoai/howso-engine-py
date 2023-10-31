@@ -2903,7 +2903,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             warnings.warn(
                 'The detail "robust_computation" is deprecated and will be '
                 'removed in a future release. Please use "robust_residuals" '
-                'or "robust_influences" instead.', DeprecationWarning)
+                'and/or "robust_influences" instead.', DeprecationWarning)
 
         if desired_conviction is None:
             if contexts is not None:
