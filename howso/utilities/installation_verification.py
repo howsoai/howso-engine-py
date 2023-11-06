@@ -907,13 +907,12 @@ def check_engine_operation(
             pass
 
 
-def check_validator_enterprise_desirability(
+def check_validator_operation(
     *, registry: InstallationCheckRegistry,
     source_df: Optional[pd.DataFrame] = None,
-    desirability_threshold: float = 2.0
 ):
     """
-    Ensure that Validator-Enterprise operates as it should, returning relatively high desirability.
+    Ensure that Validator-Enterprise operates as it should.
 
     Parameters
     ----------
@@ -921,10 +920,6 @@ def check_validator_enterprise_desirability(
         The registry used to run this check.
     source_df : pd.DataFrame or None, default None
         Optional. If not provided a new dataframe will be synthesized.
-    desirability_threshold : float, default 3.0
-        The desirability threshold. If the run of Validator Enterprise
-        returns a desirability less than this value, the returned
-        Status will be WARNING.
 
     Returns
     -------
@@ -952,10 +947,11 @@ def check_validator_enterprise_desirability(
 
         with Validator(orig_df, gen_df, features=features, verbose=-1) as v:
             v = Validator(orig_df, gen_df, features=features, verbose=-1)
-            desirability = v.run_metric("DescriptiveStatistics").desirability
+            result = v.run_metric("DescriptiveStatistics")
 
-        if desirability < desirability_threshold:
-            return (Status.WARNING, f"Desirability did not exceed the threshold of {desirability_threshold:,.1f}.")
+        if result.desirability == 0 or len(result.errors):
+            return (Status.CRITICAL, "Validator encountered one or more errors.")
+
     except Exception:
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
@@ -1123,7 +1119,7 @@ def configure(registry: InstallationCheckRegistry):
 
     registry.add_check(
         name="Howso Validator Enterprise: Desirability",
-        fn=partial(check_validator_enterprise_desirability, desirability_threshold=2.0),
+        fn=check_validator_operation,
         client_required="AbstractHowsoClient",
         other_requirements=[Synthesizer, Validator],
     )
