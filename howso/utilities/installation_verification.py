@@ -945,9 +945,8 @@ def check_validator_operation(
         if not Validator:
             raise AssertionError('Howso Validator™ is not installed.')
 
-        with Validator(orig_df, gen_df, features=features, verbose=-1) as v:
-            v = Validator(orig_df, gen_df, features=features, verbose=-1)
-            result = v.run_metric("DescriptiveStatistics")
+        validator = Validator(orig_df, gen_df, features=features, verbose=-1)
+        result = validator.run_metric("DescriptiveStatistics")
 
         if result.desirability == 0 or len(result.errors):
             return (Status.CRITICAL, "Validator encountered one or more errors.")
@@ -1118,10 +1117,10 @@ def configure(registry: InstallationCheckRegistry):
     )
 
     registry.add_check(
-        name="Howso Validator Enterprise: Desirability",
+        name="Howso Validator: Basic operations",
         fn=check_validator_operation,
         client_required="AbstractHowsoClient",
-        other_requirements=[Synthesizer, Validator],
+        other_requirements=[Validator],
     )
 
 
