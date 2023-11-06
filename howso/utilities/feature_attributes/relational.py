@@ -6,7 +6,7 @@ import logging
 from math import ceil, isnan, log
 import re
 from typing import (
-    Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union
+    Any, Dict, Iterable, List, Mapping, Optional, Tuple
 )
 import warnings
 
@@ -24,6 +24,7 @@ from ..features import FeatureType
 from ..utilities import (
     date_to_epoch,
     determine_iso_format,
+    epoch_to_date,
     ISO_8601_DATE_FORMAT,
     ISO_8601_FORMAT,
     time_to_seconds,
@@ -811,6 +812,15 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                             f'bounds.')
                         return None
 
+                # Capture the timezone information, so it can be included
+                # in the conversion back from epoch.
+                min_date_tz = None
+                max_date_tz = None
+                if isinstance(min_date_obj, (datetime.datetime, datetime.time)):
+                    min_date_tz = min_date_obj.tzinfo
+                if isinstance(max_date_obj, (datetime.datetime, datetime.time)):
+                    max_date_tz = max_date_obj.tzinfo
+
                 # Convert the found date bounds to float seconds since Epoch
                 min_value = date_to_epoch(min_date_obj, format_dt)
                 max_value = date_to_epoch(max_date_obj, format_dt)
@@ -859,7 +869,10 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                                 min_value = actual_min_value
                             if actual_max_value == mode_f:
                                 max_value = actual_max_value
-
+                # If this is a datetime feature, convert back from epoch time
+                if format_dt is not None:
+                    min_value = epoch_to_date(min_value, format_dt, min_date_tz)
+                    max_value = epoch_to_date(max_value, format_dt, max_date_tz)
                 output = {'min': min_value, 'max': max_value}
                 if not allow_null:
                     output['allow_null'] = False
