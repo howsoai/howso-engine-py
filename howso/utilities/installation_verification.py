@@ -949,8 +949,11 @@ def check_validator_enterprise_desirability(
         features = infer_feature_attributes(orig_df)
         if not Validator:
             raise AssertionError('Howso Validator™ is not installed.')
-        validator = Validator(orig_df, gen_df, features=features, verbose=-1)
-        desirability = validator.run_metric("DescriptiveStatistics").desirability
+
+        with Validator(orig_df, gen_df, features=features, verbose=-1) as v:
+            v = Validator(orig_df, gen_df, features=features, verbose=-1)
+            desirability = v.run_metric("DescriptiveStatistics").desirability
+
         if desirability < desirability_threshold:
             return (Status.WARNING, f"Desirability did not exceed the threshold of {desirability_threshold:,.1f}.")
     except Exception:
