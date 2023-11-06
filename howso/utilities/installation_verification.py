@@ -907,13 +907,12 @@ def check_engine_operation(
             pass
 
 
-def check_validator_enterprise_desirability(
+def check_validator_operation(
     *, registry: InstallationCheckRegistry,
     source_df: Optional[pd.DataFrame] = None,
-    desirability_threshold: float = 2.0
 ):
     """
-    Ensure that Validator-Enterprise operates as it should, returning relatively high desirability.
+    Ensure that Validator-Enterprise operates as it should.
 
     Parameters
     ----------
@@ -921,10 +920,6 @@ def check_validator_enterprise_desirability(
         The registry used to run this check.
     source_df : pd.DataFrame or None, default None
         Optional. If not provided a new dataframe will be synthesized.
-    desirability_threshold : float, default 3.0
-        The desirability threshold. If the run of Validator Enterprise
-        returns a desirability less than this value, the returned
-        Status will be WARNING.
 
     Returns
     -------
@@ -949,10 +944,13 @@ def check_validator_enterprise_desirability(
         features = infer_feature_attributes(orig_df)
         if not Validator:
             raise AssertionError('Howso Validator™ is not installed.')
+
         validator = Validator(orig_df, gen_df, features=features, verbose=-1)
-        desirability = validator.run_metric("DescriptiveStatistics").desirability
-        if desirability < desirability_threshold:
-            return (Status.WARNING, f"Desirability did not exceed the threshold of {desirability_threshold:,.1f}.")
+        result = validator.run_metric("DescriptiveStatistics")
+
+        if result.desirability == 0 or len(result.errors):
+            return (Status.CRITICAL, "Validator encountered one or more errors.")
+
     except Exception:
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
@@ -1119,10 +1117,10 @@ def configure(registry: InstallationCheckRegistry):
     )
 
     registry.add_check(
-        name="Howso Validator Enterprise: Desirability",
-        fn=partial(check_validator_enterprise_desirability, desirability_threshold=2.0),
+        name="Howso Validator: Basic operations",
+        fn=check_validator_operation,
         client_required="AbstractHowsoClient",
-        other_requirements=[Synthesizer, Validator],
+        other_requirements=[Validator],
     )
 
 
