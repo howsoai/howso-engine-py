@@ -259,8 +259,8 @@ jobs:
           pip install howso_engine-*-py3-none-any.whl --break-system-packages
           if [ -d "tmp" ]; then
             echo "Found custom amalgam-lang version; installing..."
-            pip uninstall amalgam-lang -y
-            pip install tmp/*.whl
+            pip uninstall amalgam-lang -y --break-system-packages
+            pip install tmp/*.whl --break-system-packages
           fi
 
           # amalgam binaries need this under QEMU
@@ -311,8 +311,8 @@ jobs:
           pip install howso_engine-*-py3-none-any.whl --break-system-packages
           if [ -d "tmp" ]; then
             echo "Found custom amalgam-lang version; installing..."
-            pip uninstall amalgam-lang -y
-            pip install tmp/*.whl
+            pip uninstall amalgam-lang -y --break-system-packages
+            pip install tmp/*.whl --break-system-packages
           fi
 
           # Set local config to use single threaded because arm64_8a doesn't support multi-threading and set
@@ -413,14 +413,16 @@ jobs:
       shell: cmd
       run: |
         @echo off
+        setlocal enabledelayedexpansion
         echo Installing Howso Engine...
         REM Globs don't work in cmd with pip
         pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
-        if [ -d "tmp" ]; then
-          echo "Found custom amalgam-lang version; installing..."
+        if exist "tmp" (
+          echo Found custom amalgam-lang version, installing...
           pip uninstall amalgam-lang -y
-          pip install tmp/*.whl
-        fi
+          for %%i in (tmp\amalgam*.whl) do (set whlFile=%%~nxi)
+          pip install tmp/!whlFile!
+        )
 
         echo Running Howso verification...
         set PYTHONUTF8=1
@@ -464,11 +466,12 @@ jobs:
         Write-Host "Installing Howso Engine..."
         # Globs don't work in pwsh with pip
         pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
-        if [ -d "tmp" ]; then
-          echo "Found custom amalgam-lang version; installing..."
+        if (Test-Path -Path "tmp" -PathType Container) {
+          Write-Host "Found custom amalgam-lang version; installing.."
           pip uninstall amalgam-lang -y
-          pip install tmp/*.whl
-        fi
+          $whlFile = Get-ChildItem -Path ".\tmp\" -Filter *.whl
+          pip install $whlFile
+        }
 
         Write-Host "Running Howso verification..."
         $env:PYTHONUTF8=1
