@@ -61,18 +61,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
+          # Determine site-packages location
+          site_packages=$(python -m site --user-site)
+
           # Install requirements
           pip install -e . --user
           pip uninstall howso-engine -y
           pip install hse/*-py3-none-any.whl --user
+          pip uninstall amalgam-lang -y
+          # Be sure to install the none-any version
+          pip install amalgam-lang --platform none --no-deps --target $site_packages
           if [ -d "amlg" ]; then
             echo "Found custom amalgam-lang version; installing..."
             pip uninstall amalgam-lang -y
             pip install amlg/*.whl --user
           fi
-
-          # Determine site-packages location (to retrieve version.json)
-          site_packages=$(python -m site --user-site)
 
           # Get amalgam metadata from version.json
           amlg_version=$(jq -r '.version.amalgam' $site_packages/amalgam/lib/version.json)

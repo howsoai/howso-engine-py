@@ -32,6 +32,15 @@ jobs:
       repo: "howso-engine"
       payload: "${{ inputs.payload }}"
 
+  get-amalgam-lang-py-details:
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "amalgam-lang-py"
+      payload: "${{ inputs.payload }}"
+      skip-version-json-check: true
+
   build:
     needs: ["pepify", "get-howso-engine-details"]
     runs-on: ubuntu-latest
@@ -172,7 +181,7 @@ jobs:
 
   install-verification-linux-amd64:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'build']
+    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
     runs-on: ubuntu-latest
     steps:
 
@@ -180,6 +189,15 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Download amalgam-lang-py
+      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        # Needed because release/non-release downloads are different structure
+        cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -190,13 +208,18 @@ jobs:
       run: |
         echo "Installing Howso Engine..."
         pip install howso_engine-*-py3-none-any.whl
+        if [ -d "tmp" ]; then
+          echo "Found custom amalgam-lang version; installing..."
+          pip uninstall amalgam-lang -y
+          pip install tmp/*.whl
+        fi
 
         echo "Running Howso verification..."
         verify_howso_install
 
   install-verification-linux-arm64:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'build']
+    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
     runs-on: ubuntu-latest
     steps:
 
@@ -204,6 +227,15 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Download amalgam-lang-py
+      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        # Needed because release/non-release downloads are different structure
+        cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Verify Howso install
       uses: pguyot/arm-runner-action@v2
@@ -225,6 +257,11 @@ jobs:
           # This environment is considered "externally managed," so use --break-system-packages to bypass
           # (safe in this use case)
           pip install howso_engine-*-py3-none-any.whl --break-system-packages
+          if [ -d "tmp" ]; then
+            echo "Found custom amalgam-lang version; installing..."
+            pip uninstall amalgam-lang -y
+            pip install tmp/*.whl
+          fi
 
           # amalgam binaries need this under QEMU
           PATH=$PATH:/usr/aarch64-linux-gnu
@@ -234,7 +271,7 @@ jobs:
 
   install-verification-linux-arm64_8a:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'build']
+    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
     runs-on: ubuntu-latest
     steps:
 
@@ -242,6 +279,15 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Download amalgam-lang-py
+      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        # Needed because release/non-release downloads are different structure
+        cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Verify Howso install
       uses: pguyot/arm-runner-action@v2
@@ -263,6 +309,11 @@ jobs:
           # This environment is considered "externally managed," so use --break-system-packages to bypass
           # (safe in this use case)
           pip install howso_engine-*-py3-none-any.whl --break-system-packages
+          if [ -d "tmp" ]; then
+            echo "Found custom amalgam-lang version; installing..."
+            pip uninstall amalgam-lang -y
+            pip install tmp/*.whl
+          fi
 
           # Set local config to use single threaded because arm64_8a doesn't support multi-threading and set
           # arm64_8a arch since that is not auto selected by the package currently:
@@ -283,7 +334,7 @@ jobs:
 
   install-verification-windows-bash-amd64:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'build']
+    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
     runs-on: windows-latest
     steps:
 
@@ -293,6 +344,15 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Download amalgam-lang-py
+      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        # Needed because release/non-release downloads are different structure
+        cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -308,13 +368,18 @@ jobs:
       run: |
         echo "Installing Howso Engine..."
         pip install howso_engine-*-py3-none-any.whl
+        if [ -d "tmp" ]; then
+          echo "Found custom amalgam-lang version; installing..."
+          pip uninstall amalgam-lang -y
+          pip install tmp/*.whl
+        fi
 
         echo "Running Howso verification..."
         PYTHONUTF8=1 verify_howso_install
 
   install-verification-windows-cmd-amd64:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'build']
+    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
     runs-on: windows-latest
     steps:
 
@@ -324,6 +389,15 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Download amalgam-lang-py
+      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        # Needed because release/non-release downloads are different structure
+        cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -342,6 +416,11 @@ jobs:
         echo Installing Howso Engine...
         REM Globs don't work in cmd with pip
         pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+        if [ -d "tmp" ]; then
+          echo "Found custom amalgam-lang version; installing..."
+          pip uninstall amalgam-lang -y
+          pip install tmp/*.whl
+        fi
 
         echo Running Howso verification...
         set PYTHONUTF8=1
@@ -349,7 +428,7 @@ jobs:
 
   install-verification-windows-pwsh-amd64:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'build']
+    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
     runs-on: windows-latest
     steps:
 
@@ -359,6 +438,15 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Download amalgam-lang-py
+      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        # Needed because release/non-release downloads are different structure
+        cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -376,6 +464,11 @@ jobs:
         Write-Host "Installing Howso Engine..."
         # Globs don't work in pwsh with pip
         pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+        if [ -d "tmp" ]; then
+          echo "Found custom amalgam-lang version; installing..."
+          pip uninstall amalgam-lang -y
+          pip install tmp/*.whl
+        fi
 
         Write-Host "Running Howso verification..."
         $env:PYTHONUTF8=1
@@ -383,7 +476,7 @@ jobs:
 
   install-verification-macos-amd64:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'build']
+    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
     runs-on: macos-latest
     steps:
 
@@ -391,6 +484,15 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Download amalgam-lang-py
+      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        # Needed because release/non-release downloads are different structure
+        cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -401,6 +503,11 @@ jobs:
       run: |
         echo "Installing Howso Engine..."
         pip install howso_engine-*-py3-none-any.whl
+        if [ -d "tmp" ]; then
+          echo "Found custom amalgam-lang version; installing..."
+          pip uninstall amalgam-lang -y
+          pip install tmp/*.whl
+        fi
 
         # Set local config to use mt-noavx because GitHub hosted runners don't have AVX:
         echo "
