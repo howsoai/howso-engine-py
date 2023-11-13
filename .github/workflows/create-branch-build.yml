@@ -4,19 +4,19 @@ run-name: "Branch Build (${{ github.run_attempt }}.${{ github.run_number }}) - $
 on:
   workflow_dispatch:
     inputs:
-      payload:
+      howso-engine-build:
         description: |
-          JSON payload containing extra info used by workflow.
-
-          For builds that have dependencies, key values of 'repo' => 'build-id' may
-          be used to define version. If blank or not supplied, latest tagged release
-          build will be used. Build ID may also be a release tag version.
-
-          Example:
-          {
-            "amalgam": "6191984493",
-            "howso-engine": "68.1.0"
-          }
+          (Optional) howso-engine build or version number. Defaults to latest release.
+          
+          Examples:
+            '6807310618',
+            'https://github.com/howsoai/howso-engine/actions/runs/6807310618',
+            '4.0.1'
+        required: false
+        type: string
+      amalgam-lang-py-build:
+        description: |
+          (Optional) amalgam-lang-py build or version number. Defaults to latest release.
         required: false
         type: string
 
@@ -58,19 +58,45 @@ jobs:
           BRANCH_ITERATION=${{ github.run_attempt }}.${{ github.run_number }}
           echo "version=$(echo ${{ steps.next-semvers.outputs.patch }}-alpha+BR.${{ github.ref_name }}.${BRANCH_ITERATION})" >> $GITHUB_OUTPUT
 
-  build-test-package:
-    needs: ['set-branch-version']
+  construct-payload:
+    runs-on: ubuntu-latest
+    outputs:
+      payload: ${{ steps.construct-payload.outputs.payload }}
+    steps:
+
+      - name: Construct payload
+        id: construct-payload
+        run: |
+          payload="{}"
+          # Get howso-engine version or run ID
+          if [[ "${{ inputs.howso-engine-build }}" =~ runs/([0-9]+) ]]; then
+            payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" '. + {"howso-engine": $run_id}')
+          elif [[ -n "${{ inputs.howso-engine-build }}" ]]; then
+            payload=$(echo "$payload" | jq --arg run_id "${{ inputs.howso-engine-build }}" '. + {"howso-engine": $run_id}')
+          fi
+          # Get amalgam-lang-py version or run ID
+          if [[ "${{ inputs.amalgam-lang-py-build }}" =~ runs/([0-9]+) ]]; then
+            payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" '. + {"amalgam-lang-py": $run_id}')
+          elif [[ -n "${{ inputs.amalgam-lang-py-build }}" ]]; then
+            payload=$(echo "$payload" | jq --arg run_id "${{ inputs.amalgam-lang-py-build }}" '. + {"amalgam-lang-py": $run_id}')
+          fi
+          echo "$payload"
+          fmtd_payload=$(echo -n "$payload" | tr -d '\n')
+          echo "payload=$fmtd_payload" >> $GITHUB_OUTPUT
+
+  build:
+    needs: ['set-branch-version', 'construct-payload']
     uses: "./.github/workflows/build.yml"
     secrets: inherit
     with:
       version: ${{ needs.set-branch-version.outputs.version }}
-      payload: ${{ inputs.payload }}
+      payload: ${{ needs.construct-payload.outputs.payload }}
       build-type: "branch"
 
   # This job is here to have only one final step to add for "Status Checks"
   # in GitHub, instead of adding every leaf test from 'build-test-package'
   final-check:
-    needs: ['build-test-package']
+    needs: ['build']
     if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-latest
     steps:

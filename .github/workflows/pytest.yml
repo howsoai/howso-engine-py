@@ -69,6 +69,7 @@ jobs:
             pip uninstall amalgam-lang -y
             pip install tmp/*.whl
           fi
+          pip list
           loglevel=${1:-INFO}
           source_root_dir="howso"
           pytest -s --log-cli-level=${loglevel} -o junit_family=xunit2 --cov-report term --cov=${source_root_dir} --junitxml=junit/test-results.xml --cov-report=xml
