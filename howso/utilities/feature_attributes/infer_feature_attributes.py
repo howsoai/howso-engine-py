@@ -148,11 +148,6 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
         to 2 will synthesize the 3rd order derivative value, and then use
         that synthed value to derive the 2nd and 1st order.
 
-    dropna : bool, default False
-        (Optional) If True, all features will be populated with `'dropna':
-        True` parameter. That would mean, rows containing NaNs will be
-        automatically dropped when you train.
-
     lags : list or dict, default None
         (Optional) A list containing the specific indices of the desired lag
         features to derive for each feature (not including the series time
@@ -349,7 +344,7 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
             }
         # Or can call methods to do other stuff
         >> attrs.get_parameters()
-            {'dropna': True}
+            {'type': "continuous"}
 
         # Now 'data' is an object that implements SQLRelationalDatastoreProtocol
         >> attrs = infer_feature_attributes(data, tables)

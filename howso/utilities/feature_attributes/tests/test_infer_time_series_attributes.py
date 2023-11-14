@@ -21,7 +21,6 @@ features_1 = {
             'max': 5103.08,
             'min': 20.08
         },
-        'dropna': True,
         'type': 'continuous'
     },
     'f2': {
@@ -30,7 +29,6 @@ features_1 = {
             'max': 6103,
             'min': 0
         },
-        'dropna': True,
         'time_series': True,
         'type': 'continuous'
     },

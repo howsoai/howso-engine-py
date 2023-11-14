@@ -478,6 +478,11 @@ class InferFeatureAttributesBase(ABC):
             else:
                 tight_bounds = None
 
+        if dropna:
+            warnings.warn("The 'dropna' parameter is deprecated and will be removed in "
+                          "a future release. Please explicitly filter your data.",
+                          DeprecationWarning)
+
         if features and not isinstance(features, dict):
             raise ValueError(
                 f"The parameter `features` needs to be a `dict` and not of "
