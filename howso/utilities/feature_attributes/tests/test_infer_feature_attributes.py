@@ -430,9 +430,7 @@ def test_to_json(features: dict) -> None:
 def test_get_parameters(partial_features):
     """Test the get_parameters() method."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df, dropna=False, features=partial_features)
-
-    assert features.get_parameters()['dropna'] is False
+    features = infer_feature_attributes(df, features=partial_features)
 
     # Verify dependent_features
     assert 'features' in features.get_parameters()

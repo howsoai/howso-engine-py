@@ -297,7 +297,6 @@ class InferFeatureAttributesTimeSeries:
                 ...             'max': 5103.08,
                 ...             'min': 20.08
                 ...         },
-                ...         'dropna': True,
                 ...         'time_series':  { 'type': 'rate'},
                 ...         'type': 'continuous'
                 ...     },
@@ -307,7 +306,6 @@ class InferFeatureAttributesTimeSeries:
                 ...             'max': 6103,
                 ...             'min': 0
                 ...         },
-                ...         'dropna': True,
                 ...         'time_series':  { 'type': 'rate'},
                 ...         'type': 'continuous'
                 ...     },
@@ -321,19 +319,16 @@ class InferFeatureAttributesTimeSeries:
                 ... {
                 ...     'ID': {
                 ...         'bounds': {'allow_null': True},
-                ...         'dropna': True,
                 ...         'id_feature': True,
                 ...         'type': 'nominal'
                 ...     },
                 ...     'f1': {
                 ...         'bounds': {'allow_null': False, 'max': 5103.08, 'min': 20.08},
-                ...          'dropna': True,
                 ...          'time_series':  { 'type': 'rate'},
                 ...          'type': 'continuous'
                 ...     },
                 ...     'f2': {
                 ...         'bounds': {'allow_null': False, 'max': 6103, 'min': 0},
-                ...         'dropna': True,
                 ...         'time_series':  { 'type': 'rate'},
                 ...         'type': 'continuous'
                 ...     },
@@ -342,7 +337,6 @@ class InferFeatureAttributesTimeSeries:
                 ...             'allow_null': False,
                 ...             'max': 8103.083927575384,
                 ...             'min': 20.085536923187668},
-                ...             'dropna': True,
                 ...             'time_series':  { 'type': 'rate'},
                 ...             'type': 'continuous'
                 ...         },
@@ -353,7 +347,6 @@ class InferFeatureAttributesTimeSeries:
                 ...                 'min': '19850517'
                 ...         },
                 ...         'date_time_format': '%Y%m%d',
-                ...         'dropna': True,
                 ...         'tight_time_bounds': False,
                 ...         'time_feature': True,
                 ...         'time_series':  { 'type': 'delta'},
@@ -382,11 +375,6 @@ class InferFeatureAttributesTimeSeries:
                         }
                     }
                 }
-
-        dropna : bool, default False
-            (Optional) If True, all features will be populated with `'dropna':
-            True` parameter. That would mean, rows containing NaNs will be
-            automatically dropped when you train.
 
         id_feature_name : str or list of str default None
             (Optional) The name(s) of the ID feature(s).
