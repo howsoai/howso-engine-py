@@ -1,79 +1,146 @@
-Name: build
-Version: 1.0.3
-Summary: A simple, correct Python build frontend
-Home-page: 
-Author: 
-Author-email: Filipe Laíns <lains@riseup.net>, Bernát Gábor <gaborjbernat@gmail.com>, layday <layday@protonmail.com>, Henry Schreiner <henryschreineriii@gmail.com>
-License: 
-Requires: packaging, pyproject_hooks
-Required-by: pip-tools
----
-Name: click
-Version: 8.1.7
-Summary: Composable command line interface toolkit
-Home-page: https://palletsprojects.com/p/click/
-Author: 
-Author-email: 
-License: BSD-3-Clause
-Requires: 
-Required-by: pip-tools
----
-Name: packaging
-Version: 23.2
-Summary: Core utilities for Python packages
-Home-page: 
-Author: 
-Author-email: Donald Stufft <donald@stufft.io>
-License: 
-Requires: 
-Required-by: build
----
-Name: pip
-Version: 23.3.1
-Summary: The PyPA recommended tool for installing Python packages.
-Home-page: https://pip.pypa.io/
-Author: The pip developers
-Author-email: distutils-sig@python.org
-License: MIT
-Requires: 
-Required-by: pip-tools
----
-Name: pip-tools
-Version: 7.3.0
-Summary: pip-tools keeps your pinned dependencies fresh.
-Home-page: 
-Author: 
-Author-email: Vincent Driessen <me@nvie.com>
-License: BSD
-Requires: build, click, pip, setuptools, wheel
-Required-by: 
----
-Name: pyproject_hooks
-Version: 1.0.0
-Summary: Wrappers to call pyproject.toml-based build backend hooks.
-Home-page: 
-Author: 
-Author-email: Thomas Kluyver <thomas@kluyver.me.uk>
-License: 
-Requires: 
-Required-by: build
----
-Name: setuptools
-Version: 65.5.0
-Summary: Easily download, build, install, upgrade, and uninstall Python packages
-Home-page: https://github.com/pypa/setuptools
-Author: Python Packaging Authority
-Author-email: distutils-sig@python.org
-License: 
-Requires: 
-Required-by: pip-tools
----
-Name: wheel
-Version: 0.41.3
-Summary: A built-package format for Python
-Home-page: 
-Author: 
-Author-email: Daniel Holth <dholth@fastmail.fm>
-License: 
-Requires: 
-Required-by: pip-tools
+build
+1.0.3
+MIT License
+Filipe Laíns <lains@riseup.net>, Bernát Gábor <gaborjbernat@gmail.com>, layday <layday@protonmail.com>, Henry Schreiner <henryschreineriii@gmail.com>
+https://github.com/pypa/build
+A simple, correct Python build frontend
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/build-1.0.3.dist-info/LICENSE
+Copyright © 2019 Filipe Laíns <filipe.lains@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice (including the next
+paragraph) shall be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+
+click
+8.1.7
+BSD License
+UNKNOWN
+https://palletsprojects.com/p/click/
+Composable command line interface toolkit
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/click-8.1.7.dist-info/LICENSE.rst
+Copyright 2014 Pallets
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+1.  Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+
+2.  Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+
+3.  Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+packaging
+23.2
+Apache Software License; BSD License
+Donald Stufft <donald@stufft.io>
+https://github.com/pypa/packaging
+Core utilities for Python packages
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/packaging-23.2.dist-info/LICENSE
+This software is made available under the terms of *either* of the licenses
+found in LICENSE.APACHE or LICENSE.BSD. Contributions to this software is made
+under the terms of *both* these licenses.
+
+
+pip-tools
+7.3.0
+BSD License
+Vincent Driessen <me@nvie.com>
+https://github.com/jazzband/pip-tools/
+pip-tools keeps your pinned dependencies fresh.
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/pip_tools-7.3.0.dist-info/LICENSE
+BSD 3-Clause License
+
+Copyright (c). All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+    1. Redistributions of source code must retain the above copyright notice,
+       this list of conditions and the following disclaimer.
+
+    2. Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+
+    3. Neither the name of pip-tools nor the names of its contributors may be
+       used to endorse or promote products derived from this software without
+       specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+pyproject_hooks
+1.0.0
+MIT License
+Thomas Kluyver <thomas@kluyver.me.uk>
+https://github.com/pypa/pyproject-hooks
+Wrappers to call pyproject.toml-based build backend hooks.
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/pyproject_hooks-1.0.0.dist-info/LICENSE
+The MIT License (MIT)
+
+Copyright (c) 2017 Thomas Kluyver
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+
