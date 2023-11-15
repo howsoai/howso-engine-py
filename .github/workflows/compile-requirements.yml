@@ -93,6 +93,8 @@ jobs:
         if: matrix.python-version == '3.11'
         id: gen-licenses
         run: |
+          python -m pip install -U --force-reinstall pip
+          pip install -e ".[dev]"
           rm -f LICENSE-3RD-PARTY.txt
           pip install pip-licenses
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
