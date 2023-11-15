@@ -1,0 +1,117 @@
+# Run an external workflow and block until it reaches a terminal state
+name: Reusable WF - Compile Pip Requirements
+
+on:
+  workflow_call:
+    inputs:
+      dry-run:
+        type: string
+        required: false
+        default: 'false'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check-requirements:
+    runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.detect-changes.outputs.changes }}
+      dev_req_file: ${{ steps.detect-changes.outputs.dev-req-file }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Check for requirements changes
+        id: detect-changes
+        run: |
+          # Determine which type of requirements/setup file exists in this repo
+          if [ -e "pyproject.toml" ]; then
+            echo "Found pyproject.toml"
+            req_file="pyproject.toml"
+          elif [ -e "requirements.in" ]; then
+            echo "Found requirements.in"
+            req_file="requirements.in"
+            if [ -e "requirements-dev.in" ]; then
+              dev_req_file="requirements-dev.in"
+            fi
+          else
+            echo "Could not find a Python requirements file -- do you have a pyproject.toml or requirements.in?"
+            exit 1
+          fi
+
+          # Check for changes in myfile.txt on the current branch compared to main branch
+          git fetch
+          git status
+          changes=$(git diff "origin/main" --name-only -- "$req_file")
+
+          if [ -n "$changes" ]; then
+              echo "Changes found in $req_file on branch ${{ github.head_ref }}."
+              has_changes="true"
+          else
+              echo "No changes to $req_file detected on ${{ github.head_ref }}."
+              has_changes="false"
+          fi
+
+          echo "dev-req-file: $dev_req_file"
+          echo "changes: $has_changes"
+
+          echo "dev-req-file=$(echo $dev_req_file)" >> $GITHUB_OUTPUT
+          echo "changes=$(echo $has_changes)" >> $GITHUB_OUTPUT
+
+  compile-requirements:
+    needs: ['check-requirements']
+    if: needs.check-requirements.outputs.changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      max-parallel: 1
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+    steps:
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile requirements
+        id: compile-requirements
+        run: |
+          # Pull latest changes
+          git pull
+          # Install pip-tools and run pip-compile
+          pip install -U pip pip-tools
+          if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
+            pip-compile requirements.in requirements-dev.in -o requirements-${{ matrix.python-version }}.txt
+          else
+            pip-compile -o requirements-${{ matrix.python-version }}.txt
+          fi
+
+      - name: Generate third-party licenses
+        if: matrix.python-version == '3.11'
+        id: gen-licenses
+        run: |
+          rm -f LICENSE-3RD-PARTY.txt
+          pip list --format=freeze | cut -d= -f1 | xargs pip show | sed '/^Location/d' > LICENSE-3RD-PARTY.txt
+
+      - name: Commit changes
+        if: inputs.dry-run == 'false'
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changes to pip requirements or third-party licenses detected. Making a new commit..."
+            git config user.name "howso-automation"
+            git config user.email "support@howso.com"
+            git add .
+            git commit -m "Automated requirements/license generation [${{ matrix.python-version }}]"
+            git push
+          else
+            echo "No changes detected in the repository."
+          fi
