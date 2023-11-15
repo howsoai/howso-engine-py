@@ -107,7 +107,11 @@ jobs:
             git config user.name "howso-automation"
             git config user.email "support@howso.com"
             git add .
-            git commit -m "Automated requirements/license generation [${{ matrix.python-version }}]"
+            # https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks
+            git commit -m "Automated requirements/license generation [${{ matrix.python-version }}]
+
+
+            skip-checks: true"
             git push
           else
             echo "No changes detected in the repository."
