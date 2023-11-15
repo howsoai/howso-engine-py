@@ -5,6 +5,9 @@ on:
   pull_request:
     branches:
       - 'main'
+    paths-ignore:
+      - 'requirements-*.txt'
+      - 'LICENSE-3RD-PARTY.txt'
 
 defaults:
   run:

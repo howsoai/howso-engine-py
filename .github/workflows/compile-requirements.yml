@@ -17,7 +17,6 @@ jobs:
   check-requirements:
     runs-on: ubuntu-latest
     outputs:
-      changes: ${{ steps.detect-changes.outputs.changes }}
       dev_req_file: ${{ steps.detect-changes.outputs.dev-req-file }}
     steps:
       - uses: actions/checkout@v4
@@ -49,21 +48,16 @@ jobs:
 
           if [ -n "$changes" ]; then
               echo "Changes found in $req_file on branch ${{ github.head_ref }}."
-              has_changes="true"
           else
               echo "No changes to $req_file detected on ${{ github.head_ref }}."
-              has_changes="false"
           fi
 
           echo "dev-req-file: $dev_req_file"
-          echo "changes: $has_changes"
 
           echo "dev-req-file=$(echo $dev_req_file)" >> $GITHUB_OUTPUT
-          echo "changes=$(echo $has_changes)" >> $GITHUB_OUTPUT
 
   compile-requirements:
     needs: ['check-requirements']
-    if: needs.check-requirements.outputs.changes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -100,7 +94,8 @@ jobs:
         id: gen-licenses
         run: |
           rm -f LICENSE-3RD-PARTY.txt
-          pip list --format=freeze | cut -d= -f1 | xargs pip show | sed '/^Location/d' > LICENSE-3RD-PARTY.txt
+          pip install pip-licenses
+          pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
 
       - name: Commit changes
         if: inputs.dry-run == 'false'
