@@ -5,7 +5,10 @@ on:
   pull_request:
     branches:
       - 'main'
-  workflow_dispatch:
+  push:
+    paths:
+      - 'requirements-*.txt'
+      - 'LICENSE-3RD-PARTY.TXT'
 
 defaults:
   run:
