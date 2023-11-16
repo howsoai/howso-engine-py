@@ -61,6 +61,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      changes-pushed: ${{ steps.commit-changes.outputs.changes-pushed }}
     strategy:
       max-parallel: 1
       matrix:
@@ -101,6 +103,7 @@ jobs:
 
       - name: Commit changes
         if: inputs.dry-run == 'false'
+        id: commit-changes
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             echo "Changes to pip requirements or third-party licenses detected. Making a new commit..."
@@ -108,17 +111,16 @@ jobs:
             git config user.email "support@howso.com"
             git add .
             # https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks
-            git commit -m "Automated requirements/license generation [${{ matrix.python-version }}]
-
-
-            skip-checks: true"
+            git commit -m "Automated requirements/license generation [${{ matrix.python-version }}]"
             git push
+            echo "changes-pushed=$(echo 'true')" >> $GITHUB_OUTPUT
           else
             echo "No changes detected in the repository."
           fi
 
   restart-pr-build:
     needs: ['compile-requirements']
+    if: needs.compile-requirements.outputs.changes-pushed == 'true'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
