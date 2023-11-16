@@ -5,10 +5,6 @@ on:
   pull_request:
     branches:
       - 'main'
-  push:
-    paths:
-      - 'requirements-*.txt'
-      - 'LICENSE-3RD-PARTY.TXT'
 
 defaults:
   run:
