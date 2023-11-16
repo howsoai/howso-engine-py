@@ -2638,6 +2638,27 @@ class HowsoDirectClient(AbstractHowsoClient):
                 If True outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
 
+            - derivation_parameters : bool, optional
+                If True, outputs a dictionary of the parameters used in the
+                react call. These include k, p, dt, feature_weights,
+                feature_deviations, nominal_class_counts, use_irw, and
+                use_deviations.
+
+                    - k: the number of cases used for the local model.
+                    - p: the parameter for the Lebesgue space.
+                    - dt: the distance transform used as an exponent to convert
+                    distances to raw influence weights
+                    - feature_weights: the weight for each feature used in the
+                    distance metric.
+                    - feature_deviations: the deviation for each feature used in
+                    the distance metric.
+                    - nominal_class_counts: the number of unique values for each
+                    nominal feature. This is used in the distance metric.
+                    - use_irw: a flag indicating if feature weights were
+                    derived using inverse residual weighting
+                    - use_deviations: a flag indicating if feature deviations
+                    were used in the distance metric.
+
             - observational_errors: bool, optional
                 If True outputs observational errors for all features as
                 defined in feature attributes.
