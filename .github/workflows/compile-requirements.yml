@@ -134,4 +134,4 @@ jobs:
       - name: Restart PR build
         run: |
           gh pr close ${{ github.head_ref }}
-          gh pr_reopen ${{ github.head_ref }} -c "Do not be alarmed! This is an automated closure & reopening of your PR to reset the final-check requirement."
+          gh pr reopen ${{ github.head_ref }} -c "Do not be alarmed! This is an automated closure & reopening of your PR to reset the final-check requirement."
