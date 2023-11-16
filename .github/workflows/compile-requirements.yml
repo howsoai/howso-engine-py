@@ -110,7 +110,6 @@ jobs:
             git config user.name "howso-automation"
             git config user.email "support@howso.com"
             git add .
-            # https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks
             git commit -m "Automated requirements/license generation [${{ matrix.python-version }}]"
             git push
             echo "changes-pushed=$(echo 'true')" >> $GITHUB_OUTPUT
@@ -132,4 +131,4 @@ jobs:
 
       - name: Restart PR build
         run: |
-          gh workflow run create-pr-build.yml --ref ${{ github.head_ref }}
+          gh run rerun ${{ github.run_id }}
