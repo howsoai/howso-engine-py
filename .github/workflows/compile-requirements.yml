@@ -126,6 +126,10 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
 
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
       - name: Restart PR build
         run: |
           gh workflow run create-pr-build.yml --ref ${{ github.head_ref }}
