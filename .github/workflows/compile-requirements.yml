@@ -113,7 +113,17 @@ jobs:
 
             skip-checks: true"
             git push
-            gh workflow run create-pr-build.yml --ref ${{ github.head_ref }}
           else
             echo "No changes detected in the repository."
           fi
+
+  restart-pr-build:
+    needs: ['compile-requirements']
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+
+      - name: Restart PR build
+        run: |
+          gh workflow run create-pr-build.yml --ref ${{ github.head_ref }}
