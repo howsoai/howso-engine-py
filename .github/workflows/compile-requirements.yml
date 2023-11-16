@@ -113,6 +113,7 @@ jobs:
 
             skip-checks: true"
             git push
+            gh workflow run create-pr-build.yml --ref ${{ github.head_ref }}
           else
             echo "No changes detected in the repository."
           fi
