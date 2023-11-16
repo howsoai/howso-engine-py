@@ -3,6 +3,7 @@ run-name: "PR Build: #${{ github.event.pull_request.number }} (${{ github.run_at
 
 on:
   pull_request:
+    types: ['opened', 'reopened', 'labeled', 'synchronize']
     branches:
       - 'main'
 
