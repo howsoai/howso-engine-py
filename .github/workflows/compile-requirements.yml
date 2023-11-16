@@ -59,6 +59,8 @@ jobs:
   compile-requirements:
     needs: ['check-requirements']
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
     permissions:
       contents: write
     outputs:
@@ -119,18 +121,18 @@ jobs:
             echo "No changes detected in the repository."
           fi
 
-  restart-pr-build:
-    needs: ['compile-requirements']
-    if: needs.compile-requirements.outputs.changes-pushed == 'true'
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
-    steps:
+#restart-pr-build:
+#  needs: ['compile-requirements']
+#  if: needs.compile-requirements.outputs.changes-pushed == 'true'
+#  runs-on: ubuntu-latest
+#  env:
+#    GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+#  steps:
 
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
+#    - uses: actions/checkout@v4
+#      with:
+#        ref: ${{ github.head_ref }}
 
-      - name: Restart PR build
-        run: |
-          gh pr edit --add-label enhancement
+#    - name: Restart PR build
+#      run: |
+#        gh pr edit --add-label enhancement
