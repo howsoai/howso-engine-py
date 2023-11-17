@@ -66,7 +66,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        type: ['3.8', '3.9', '3.10', '3.11', 'license']
     steps:
 
       - uses: actions/checkout@v4
@@ -75,11 +75,19 @@ jobs:
           ref: ${{ github.head_ref }}
 
       - name: Set up Python
+        if: matrix.type != 'license'
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.type }}
+
+      - name: Set up Python (3.11 only)
+        if: matrix.type == 'license'
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
       - name: Compile requirements
+        if: matrix.type != 'license'
         id: compile-requirements
         run: |
           # Pull latest changes
@@ -87,13 +95,13 @@ jobs:
           # Install pip-tools and run pip-compile
           pip install -U pip pip-tools
           if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
-            pip-compile requirements.in requirements-dev.in -o requirements-${{ matrix.python-version }}.txt
+            pip-compile requirements.in requirements-dev.in -o requirements-${{ matrix.type }}.txt
           else
-            pip-compile -o requirements-${{ matrix.python-version }}.txt
+            pip-compile -o requirements-${{ matrix.type }}.txt
           fi
 
       - name: Generate third-party licenses
-        if: matrix.python-version == '3.11'
+        if: matrix.type == 'license'
         id: gen-licenses
         run: |
           python -m pip install -U --force-reinstall pip
@@ -119,19 +127,3 @@ jobs:
           else
             echo "No changes detected in the repository."
           fi
-
-#restart-pr-build:
-#  needs: ['compile-requirements']
-#  if: needs.compile-requirements.outputs.changes-pushed == 'true'
-#  runs-on: ubuntu-latest
-#  env:
-#    GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
-#  steps:
-
-#    - uses: actions/checkout@v4
-#      with:
-#        ref: ${{ github.head_ref }}
-
-#    - name: Restart PR build
-#      run: |
-#        gh pr edit --add-label enhancement
