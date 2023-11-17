@@ -90,6 +90,10 @@ jobs:
         if: matrix.type != 'licenses'
         id: compile-requirements
         run: |
+          # If the previous commit was to compile requirements for the current version, skip
+          if [[ "${{ github.event.head_commit.message }}" == "Automated requirements/license generation [${{ matrix.type }}]" ]]; then
+            exit 0
+          fi
           # Pull latest changes
           git pull
           # Install pip-tools and run pip-compile
