@@ -86,12 +86,12 @@ SOFTWARE.
 
 
 Pygments
-2.16.1
+2.17.0
 BSD License
 Georg Brandl <georg@python.org>
 https://pygments.org
 Pygments is a syntax highlighting package written in Python.
-/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/Pygments-2.16.1.dist-info/LICENSE
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/pygments-2.17.0.dist-info/licenses/LICENSE
 Copyright (c) 2006-2022 by the respective authors (see AUTHORS file).
 All rights reserved.
 
@@ -666,17 +666,16 @@ DEALINGS IN THE SOFTWARE.
 
 
 certifi
-2023.7.22
+2023.11.17
 Mozilla Public License 2.0 (MPL 2.0)
 Kenneth Reitz
 https://github.com/certifi/python-certifi
 Python package for providing Mozilla's CA Bundle.
-/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/certifi-2023.7.22.dist-info/LICENSE
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/certifi-2023.11.17.dist-info/LICENSE
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
 
-Certificate data from Mozilla as of: Thu Nov  3 19:04:19 2011#
 This is a bundle of X.509 certificates of public Certificate Authorities
 (CA). These were automatically extracted from Mozilla's root certificates
 file (certdata.txt).  This file can be found in the mozilla source tree:
