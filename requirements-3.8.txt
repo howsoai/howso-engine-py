@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file=requirements-3.8.txt
 #
-amalgam-lang==4.0.1
+amalgam-lang==5.0.0
     # via howso-engine (pyproject.toml)
 certifi==2023.7.22
     # via howso-engine (pyproject.toml)
