@@ -45,8 +45,12 @@ jobs:
           PR_ITERATION=${{ github.run_attempt }}.${{ github.run_number }}
           echo "version=$(echo ${{ steps.next-semvers.outputs.patch }}-alpha+PR.${PR_NUMBER}.${PR_ITERATION})" >> $GITHUB_OUTPUT
 
+  gen-requirements:
+    uses: "./.github/workflows/compile-requirements.yml"
+    secrets: inherit
+
   build-test-package:
-    needs: ['set-pr-version']
+    needs: ['set-pr-version', 'gen-requirements']
     uses: "./.github/workflows/build.yml"
     secrets: inherit
     with:
@@ -56,7 +60,7 @@ jobs:
   # This job is here to have only one final step to add for "Status Checks"
   # in GitHub, instead of adding every leaf test from 'build-test-package'
   final-check:
-    needs: ['build-test-package']
+    needs: ['build-test-package', 'gen-requirements']
     if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-latest
     steps:
