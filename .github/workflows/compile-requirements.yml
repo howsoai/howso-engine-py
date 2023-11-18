@@ -3,11 +3,6 @@ name: Reusable WF - Compile Pip Requirements
 
 on:
   workflow_call:
-    inputs:
-      dry-run:
-        type: string
-        required: false
-        default: 'false'
 
 defaults:
   run:
@@ -36,9 +31,6 @@ jobs:
             if [ -e "requirements-dev.in" ]; then
               dev_req_file="requirements-dev.in"
             fi
-          else
-            echo "Could not find a Python requirements file -- do you have a pyproject.toml or requirements.in?"
-            exit 1
           fi
 
           # Check for changes in myfile.txt on the current branch compared to main branch
@@ -117,7 +109,6 @@ jobs:
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
 
       - name: Commit changes
-        if: inputs.dry-run == 'false'
         id: commit-changes
         run: |
           if [ -n "$(git status --porcelain)" ]; then
