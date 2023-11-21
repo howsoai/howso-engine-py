@@ -86,12 +86,12 @@ SOFTWARE.
 
 
 Pygments
-2.17.1
+2.17.2
 BSD License
 Georg Brandl <georg@python.org>
 https://pygments.org
 Pygments is a syntax highlighting package written in Python.
-/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/pygments-2.17.1.dist-info/licenses/LICENSE
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/pygments-2.17.2.dist-info/licenses/LICENSE
 Copyright (c) 2006-2022 by the respective authors (see AUTHORS file).
 All rights reserved.
 
