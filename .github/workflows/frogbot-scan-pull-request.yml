@@ -19,28 +19,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Set up Poetry
-        run: |
-          pip install pipx
-          pipx install poetry
-          pipx ensurepath
-
-      - uses: jfrog/frogbot@v2
+      - uses: jfrog/setup-jfrog-cli@v3
         env:
-          # [Mandatory]
-          # JFrog platform URL
           JF_URL: ${{ secrets.JF_URL }}
-
-          # [Mandatory if JF_USER and JF_PASSWORD are not provided]
-          # JFrog access token with 'read' permissions on Xray service
           JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
-
-          # [Mandatory]
-          # The GitHub token is automatically generated for the job
-          JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-          # [Optional]
-          # Set the list of allowed licenses
-          # The full list of licenses can be found in:
-          # https://github.com/jfrog/frogbot/blob/master/docs/licenses.md
           JF_ALLOWED_LICENSES: "Apache-1.0, Apache-1.1, Apache-2.0, Artistic-1.0, Artistic-1.0-Perl, Artistic-2.0, BSD, BSD 2-Clause, BSD 3-Clause, BSD-2-Clause, BSD-3-Clause, MIT, MPL-2.0"
+
+      - name: Run xray scan
+        run: |
+          jf audit --pip --licenses --watches pipeline-distributed --requirements-file requirements-3.11.txt
