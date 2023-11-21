@@ -10,15 +10,20 @@ jobs:
 
   scan-pull-request:
     runs-on: ubuntu-latest
-    # A pull request needs to be approved before Frogbot scans it. Any GitHub user who is associated with the
-    # "frogbot" GitHub environment can approve the pull request to be scanned.
-    environment: frogbot
     steps:
+
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
+
+      - name: Hide pyproject.toml
+        run: |
+          # The reason for this is so that Frogbot does not try to use Poetry during the CSA scan
+          rm -f pyproject.toml
+          mv requirements-3.11.txt requirements.txt
 
       - uses: jfrog/frogbot@v2
         env:
@@ -39,6 +44,3 @@ jobs:
           # The full list of licenses can be found in:
           # https://github.com/jfrog/frogbot/blob/master/docs/licenses.md
           JF_ALLOWED_LICENSES: "Apache-1.0, Apache-1.1, Apache-2.0, Artistic-1.0, Artistic-1.0-Perl, Artistic-2.0, BSD, BSD 2-Clause, BSD 3-Clause, BSD-2-Clause, BSD-3-Clause, MIT, MPL-2.0"
-
-          # The command that installs the project dependencies (e.g "nuget restore")
-          JF_INSTALL_DEPS_CMD: "pip install pipx --user && pipx install poetry"
