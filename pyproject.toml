@@ -82,6 +82,10 @@ verify_howso_install = "howso.utilities.installation_verification:main"
 [tool.setuptools]
 packages = ["howso"]
 
+[tool.poetry]
+name=["howso-engine"]
+packages=["howso"]
+
 [tool.isort]
 profile = "google"
 known_first_party = ["howso"]
