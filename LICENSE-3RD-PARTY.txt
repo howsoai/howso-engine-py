@@ -1610,12 +1610,12 @@ SOFTWARE.
 
 
 humanize
-4.8.0
+4.9.0
 MIT License
 Jason Moiron <jmoiron@jmoiron.net>
 https://github.com/python-humanize/humanize
 Python humanize utilities
-/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/humanize-4.8.0.dist-info/licenses/LICENCE
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/humanize-4.9.0.dist-info/licenses/LICENCE
 Copyright (c) 2010-2020 Jason Moiron and Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
