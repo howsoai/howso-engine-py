@@ -91,9 +91,9 @@ jobs:
           # Install pip-tools and run pip-compile
           pip install -U pip pip-tools
           if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
-            pip-compile requirements.in requirements-dev.in -o requirements-${{ matrix.type }}.txt --resolver=backtracking
+            pip-compile requirements.in requirements-dev.in --resolver=backtracking --upgrade requirements.in --generate-hashes --no-emit-index-url --allow-unsafe --output-file requirements-${{ matrix.type }}.txt
           else
-            pip-compile -o requirements-${{ matrix.type }}.txt --resolver=backtracking
+            pip-compile --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe --output-file requirements-${{ matrix.type }}.txt
           fi
 
       - name: Generate third-party licenses
