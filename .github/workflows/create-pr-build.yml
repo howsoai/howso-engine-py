@@ -49,6 +49,11 @@ jobs:
     uses: "./.github/workflows/compile-requirements.yml"
     secrets: inherit
 
+  xray:
+    needs: ['gen-requirements']
+    uses: "./.github/workflows/frogbot-scan-pull-request.yml"
+    secrets: inherit
+
   build-test-package:
     needs: ['set-pr-version', 'gen-requirements']
     uses: "./.github/workflows/build.yml"
