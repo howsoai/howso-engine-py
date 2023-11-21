@@ -19,12 +19,16 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install requirements
+        run: |
+          pip install -r requirements-3.11.txt --no-cache-dir
+
       - uses: jfrog/setup-jfrog-cli@v3
         env:
           JF_URL: ${{ secrets.JF_URL }}
           JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
           JF_ALLOWED_LICENSES: "Apache-1.0, Apache-1.1, Apache-2.0, Artistic-1.0, Artistic-1.0-Perl, Artistic-2.0, BSD, BSD 2-Clause, BSD 3-Clause, BSD-2-Clause, BSD-3-Clause, MIT, MPL-2.0"
 
-      - name: Run xray scan
+      - name: 🐸 scan
         run: |
           jf audit --pip --licenses --watches pipeline-distributed --requirements-file requirements-3.11.txt
