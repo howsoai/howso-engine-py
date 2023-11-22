@@ -49,12 +49,7 @@ jobs:
     uses: "./.github/workflows/compile-requirements.yml"
     secrets: inherit
 
-  xray:
-    needs: ['gen-requirements']
-    uses: "./.github/workflows/frogbot-scan-pull-request.yml"
-    secrets: inherit
-
-  build-test-package:
+  build:
     needs: ['set-pr-version', 'gen-requirements']
     uses: "./.github/workflows/build.yml"
     secrets: inherit
@@ -62,10 +57,15 @@ jobs:
       version: ${{ needs.set-pr-version.outputs.version }}
       build-type: "PR"
 
+  xray:
+    needs: ['build']
+    uses: "./.github/workflows/frogbot-scan-pull-request.yml"
+    secrets: inherit
+
   # This job is here to have only one final step to add for "Status Checks"
   # in GitHub, instead of adding every leaf test from 'build-test-package'
   final-check:
-    needs: ['build-test-package', 'gen-requirements']
+    needs: ['build', 'gen-requirements', 'xray']
     if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-latest
     steps:

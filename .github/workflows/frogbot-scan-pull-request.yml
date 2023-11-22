@@ -19,9 +19,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install requirements
+      - name: Download Artifacts
         run: |
-          pip install -r requirements-3.11.txt --no-cache-dir
+          mkdir -p dist
+          pip download -r requirements-3.11.txt -d ./dist
+          # Remove amalgam_lang and howso_openapi_client since we don't want these to be scanned
+          rm -f ./dist/amalgam_lang*
+          rm -f ./dist/howso_openapi_client*
 
       - uses: jfrog/setup-jfrog-cli@v3
         env:
@@ -31,4 +35,4 @@ jobs:
 
       - name: 🐸 scan
         run: |
-          jf audit --pip --licenses --watches pipeline-distributed --requirements-file requirements-3.11.txt
+          jf s ./dist/ --licenses --watches pipeline-distributed
