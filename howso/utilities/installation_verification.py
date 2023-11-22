@@ -871,7 +871,7 @@ def check_engine_operation(
 
         features = infer_feature_attributes(source_df)
 
-        train_idx = source_df.index.sample(frac=0.8)
+        train_idx = source_df.sample(frac=0.8).index
         df_train = source_df[source_df.index.isin(train_idx)]
         df_test = source_df[~source_df.index.isin(train_idx)]
         X_train = df_train.drop("class", axis=1)
