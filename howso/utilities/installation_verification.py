@@ -51,7 +51,6 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from sklearn.model_selection import train_test_split
 
 logger = logging.getLogger(__name__)
 
@@ -871,12 +870,16 @@ def check_engine_operation(
                                               num_samples=150)
 
         features = infer_feature_attributes(source_df)
-        X = source_df.drop("class", axis=1)
-        y = source_df["class"]
 
-        X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.2)
+        train_idx = source_df.index.sample(frac=0.8)
+        df_train = source_df[source_df.index.isin(train_idx)]
+        df_test = source_df[~source_df.index.isin(train_idx)]
+        X_train = df_train.drop("class", axis=1)
+        y_train = df_train["class"]
+        X_test = df_test.drop("class", axis=1)
+
         action_features = ["class"]
-        context_features = X.columns.tolist()
+        context_features = X_train.columns.tolist()
         if not engine:
             raise AssertionError("Howso Engine™ is not installed.")
         trainee = engine.Trainee(
