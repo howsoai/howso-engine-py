@@ -63,7 +63,7 @@ jobs:
         run: |
           python --version
           pip install --upgrade pip
-          pip install -e ".[dev]" --no-cache-dir
+          pip install -e ".[dev, scikit]" --no-cache-dir
           if [ -d "tmp" ]; then
             echo "Found custom amalgam-lang version; installing..."
             pip uninstall amalgam-lang -y

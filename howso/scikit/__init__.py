@@ -1,5 +1,12 @@
 """The Python API for the Howso Scikit Client."""
 
+try:
+    import sklearn  # noqa
+except ImportError:
+    raise ImportError(
+        "scikit-learn must be installed to use the howso.scikit module. Please run `pip install howso-engine[scikit]`"
+    )
+
 from .scikit import (  # noqa: F401
     ACTION,
     CLASSIFICATION,
