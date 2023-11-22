@@ -86,12 +86,12 @@ SOFTWARE.
 
 
 Pygments
-2.17.1
+2.17.2
 BSD License
 Georg Brandl <georg@python.org>
 https://pygments.org
 Pygments is a syntax highlighting package written in Python.
-/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/pygments-2.17.1.dist-info/licenses/LICENSE
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/pygments-2.17.2.dist-info/licenses/LICENSE
 Copyright (c) 2006-2022 by the respective authors (see AUTHORS file).
 All rights reserved.
 
@@ -1610,12 +1610,12 @@ SOFTWARE.
 
 
 humanize
-4.8.0
+4.9.0
 MIT License
 Jason Moiron <jmoiron@jmoiron.net>
 https://github.com/python-humanize/humanize
 Python humanize utilities
-/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/humanize-4.8.0.dist-info/licenses/LICENCE
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/humanize-4.9.0.dist-info/licenses/LICENCE
 Copyright (c) 2010-2020 Jason Moiron and Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
