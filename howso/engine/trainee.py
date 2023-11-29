@@ -1211,7 +1211,7 @@ class Trainee(BaseTrainee):
         use_case_weights: Optional[bool] = False,
         use_regional_model_residuals: Optional[bool] = True,
         weight_feature: Optional[str] = None,
-    ) -> "ReactionSeries":
+    ) -> "Reaction":
         """
         React to the trainee.
 
@@ -1589,7 +1589,7 @@ class Trainee(BaseTrainee):
         use_case_weights: Optional[bool] = False,
         use_regional_model_residuals: Optional[bool] = True,
         weight_feature: Optional[str] = None,
-    ) -> "Reaction":
+    ) -> "ReactionSeries":
         """
         React to the trainee in a series until a stop condition is met.
 
