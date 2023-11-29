@@ -1,3 +1,9 @@
+import pytest
+try:
+    import sklearn  # noqa
+except ImportError:
+    pytest.skip(allow_module_level=True)
+
 import gc
 import pickle
 import uuid
@@ -14,7 +20,6 @@ from howso.scikit import (
 )
 from howso.utilities.testing import get_configurationless_test_client, get_test_options
 import numpy as np
-import pytest
 from sklearn.base import clone
 from sklearn.model_selection import cross_validate
 
