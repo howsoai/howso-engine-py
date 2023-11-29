@@ -47,6 +47,12 @@ if TYPE_CHECKING:
         action: DataFrame
         explanation: Dict[str, Any]
 
+    class ReactionSeries(TypedDict):
+        """React Series response format."""
+
+        series: DataFrame
+        explanation: Dict[str, Any]
+
     class Distances(TypedDict):
         """Distances response format."""
 
@@ -1205,7 +1211,7 @@ class Trainee(BaseTrainee):
         use_case_weights: Optional[bool] = False,
         use_regional_model_residuals: Optional[bool] = True,
         weight_feature: Optional[str] = None,
-    ) -> "Reaction":
+    ) -> "ReactionSeries":
         """
         React to the trainee.
 
