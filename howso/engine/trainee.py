@@ -1583,7 +1583,7 @@ class Trainee(BaseTrainee):
         use_case_weights: Optional[bool] = False,
         use_regional_model_residuals: Optional[bool] = True,
         weight_feature: Optional[str] = None,
-    ) -> "DataFrame":
+    ) -> "Reaction":
         """
         React to the trainee in a series until a stop condition is met.
 
@@ -1717,8 +1717,8 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        pandas.DataFrame
-            The series action values.
+         dict of {action: pandas.DataFrame, explanation: dict}
+            The action values and explanations.
         """
         return self.client.react_series(
             trainee_id=self.id,

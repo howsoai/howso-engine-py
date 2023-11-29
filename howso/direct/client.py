@@ -2245,7 +2245,12 @@ class HowsoDirectClient(AbstractHowsoClient):
             if isinstance(progress_callback, Callable):
                 progress_callback(progress, response)
 
-        # If the number of series generated is less then requested, raise
+        # put all explanations under the 'explanation' key
+        series = response['series']
+        del response['series']
+        response = {'series': series, 'explanation': response}
+
+		# If the number of series generated is less then requested, raise
         # warning, for generative reacts
         if desired_conviction is not None:
             len_action = len(response['series'])
@@ -2376,6 +2381,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         ret = dict()
 
         ret['action_features'] = batch_result.pop('action_features') or []
+        if 'influential_cases' in batch_result:
+            ret['influential_cases'] = batch_result.pop('influential_cases') or []
+        if 'categorical_action_probabilities' in batch_result:
+            ret['categorical_action_probabilities'] = batch_result.pop('categorical_action_probabilities') or []
+            ret['aggregated_categorical_action_probabilities'] = batch_result.pop('aggregated_categorical_action_probabilities') or []
         ret['series'] = replace_doublemax_with_infinity(
             batch_result.pop('series'))
 

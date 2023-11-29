@@ -1139,7 +1139,7 @@ def build_react_series_df(react_series_response, series_index=None):
         the react_series response. Optionally includes a series index feature.
     """
     # Columns are defined by action_features
-    columns = react_series_response['action_features']
+    columns = react_series_response['explanation']['action_features']
     # Series data from the response
     series = react_series_response['series']
 
