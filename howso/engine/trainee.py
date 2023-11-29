@@ -2911,10 +2911,10 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         action_feature : str, optional
-            Name of target feature whose hyperparameters to use
-            for computations.  Default is whatever the model was analyzed for,
-            or the mda_action_features for MDA, or ".targetless" if analyzed
-            for targetless.
+            Name of target feature for which to do computations. Default is
+            whatever the model was analyzed for, i.e., action feature for MDA
+            and contributions, or ".targetless" if analyzed for targetless.
+            This parameter is required for MDA or contributions computations.
         context_features : list of str, optional
             List of features names to use as contexts for
             computations. Default is all trained non-unique features if
