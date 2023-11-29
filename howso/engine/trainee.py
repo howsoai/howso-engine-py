@@ -1717,7 +1717,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-         dict of {action: pandas.DataFrame, explanation: dict}
+         dict of {series: pandas.DataFrame, explanation: dict}
             The action values and explanations.
         """
         return self.client.react_series(
