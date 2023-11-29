@@ -4214,7 +4214,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The ID of the Trainee to react to.
         action_feature : str, optional
             Name of target feature for which to do computations. Default is
-            whatever the model was analyzed for, i.e., action feature for MDA
+            whatever the model was analyzed for, e.g., action feature for MDA
             and contributions, or ".targetless" if analyzed for targetless.
             This parameter is required for MDA or contributions computations.
         context_features : iterable of str, optional
