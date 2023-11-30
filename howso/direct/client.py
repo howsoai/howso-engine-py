@@ -2243,8 +2243,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 progress_callback(progress, response)
 
         # put all explanations under the 'explanation' key
-        series = response['series']
-        del response['series']
+        series = response.pop('series')
         response = {'series': series, 'explanation': response}
 
 		# If the number of series generated is less then requested, raise
@@ -2378,13 +2377,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         ret = dict()
 
         ret['action_features'] = batch_result.pop('action_features') or []
-        if 'influential_cases' in batch_result:
-            ret['influential_cases'] = batch_result.pop('influential_cases') or []
-        if 'categorical_action_probabilities' in batch_result:
-            ret['categorical_action_probabilities'] = batch_result.pop('categorical_action_probabilities') or []
-            ret['aggregated_categorical_action_probabilities'] = batch_result.pop('aggregated_categorical_action_probabilities') or []
         ret['series'] = replace_doublemax_with_infinity(
             batch_result.pop('series'))
+
+        # ensure all the explanation items are output as well
+        for k, v in batch_result.items():
+            ret[k] = v or []
 
         return ret
 

@@ -200,8 +200,12 @@ class HowsoPandasClientMixin:
         return pd.DataFrame(response)
 
     def react_series(
-            self, trainee_id: str, *args, series_index: str = '.series',
-            **kwargs) -> Dict[str, Union[DataFrame, Dict]]:
+            self,
+            trainee_id: str,
+            *args,
+            series_index: str = '.series',
+            **kwargs
+    ) -> Dict[str, Union[DataFrame, Dict]]:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_series`.
 
