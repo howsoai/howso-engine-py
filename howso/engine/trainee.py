@@ -1552,6 +1552,10 @@ class Trainee(BaseTrainee):
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         continue_series: Optional[bool] = False,
+        continue_series_features: Optional[Iterable[str]] = None,
+        continue_series_values: Optional[
+            Union[List[List[List[object]]], List["DataFrame"]]
+        ] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
@@ -1614,7 +1618,14 @@ class Trainee(BaseTrainee):
 
                 Terminated series with terminators cannot be continued and
                 will result in null output.
-
+        continue_series_features : list of str, optional
+            The list of feature names corresponding to the values in each row of
+            `continue_series_values`. This value is ignored if `continue_series`
+            is False.
+        continue_series_values : list of list of list of object or list of pandas.DataFrame, default None
+            The set of series data to be forecasted with feature values in the
+            same order defined by `continue_series_values`. This value is
+            ignored if `continue_series` is False.
         derived_action_features : list of str, optional
             See parameter ``derived_action_features`` in :func:`react`.
         derived_context_features : list of str, optional
@@ -1728,6 +1739,8 @@ class Trainee(BaseTrainee):
             contexts=contexts,
             context_features=context_features,
             continue_series=continue_series,
+            continue_series_features=continue_series_features,
+            continue_series_values=continue_series_values,
             derived_action_features=derived_action_features,
             derived_context_features=derived_context_features,
             desired_conviction=desired_conviction,

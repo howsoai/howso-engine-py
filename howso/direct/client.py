@@ -1857,6 +1857,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         contexts: Optional[Union[List[List[object]], DataFrame]] = None,
         context_features: Optional[Iterable[str]] = None,
         continue_series: Optional[bool] = False,
+        continue_series_features: Optional[Iterable[str]] = None,
+        continue_series_values: Optional[Union[List[object], List[List[object]]]] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
@@ -1947,7 +1949,14 @@ class HowsoDirectClient(AbstractHowsoClient):
 
                 Terminated series with terminators cannot be continued and
                 will result in null output.
-
+        continue_series_features : list of str, optional
+            The list of feature names corresponding to the values in each row of
+            `continue_series_values`. This value is ignored if `continue_series`
+            is False.
+        continue_series_values : list of list of list of object or list of pandas.DataFrame, default None
+            The set of series data to be forecasted with feature values in the
+            same order defined by `continue_series_values`. This value is
+            ignored if `continue_series` is False.
         derived_context_features : iterable of str, optional
             List of context features whose values should be computed
             from the entire series in the specified order. Must be
@@ -2072,8 +2081,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                             "list of object")
         validate_list_shape(initial_features, 1, "max_series_lengths", "num")
         validate_list_shape(series_stop_maps, 1, "series_stop_maps", "dict")
+        validate_list_shape(continue_series_values, 3, 'continue_series_values', "feature values")
 
-        validate_list_shape(initial_features, 1, "series_context_features", "str")
+        validate_list_shape(series_context_features, 1, "series_context_features", "str")
         if series_context_values and num_list_dimensions(series_context_values) != 3:
             raise ValueError(
                 "Improper shape of `series_context_values` values passed. "
@@ -2142,6 +2152,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                     total_size = len(case_indices)
                 elif initial_values is not None:
                     total_size = len(initial_values)
+                elif continue_series and continue_series_values is not None:
+                    total_size = len(continue_series_values)
 
             react_params = {
                 "action_features": action_features,
@@ -2149,6 +2161,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "context_features": context_features,
                 "context_values": contexts,
                 "continue_series": continue_series,
+                "continue_series_features": continue_series_features,
+                "continue_series_values": continue_series_values,
                 "initial_features": initial_features,
                 "initial_values": initial_values,
                 "series_stop_maps": series_stop_maps,
@@ -2199,6 +2213,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "context_features": context_features,
                 "context_values": contexts,
                 "continue_series": continue_series,
+                "continue_series_features": continue_series_features,
+                "continue_series_values": continue_series_values,
                 "initial_features": initial_features,
                 "initial_values": initial_values,
                 "final_time_steps": final_time_steps,
@@ -2294,6 +2310,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         max_series_lengths = react_params.get('max_series_lengths')
         series_context_values = react_params.get('series_context_values')
         series_stop_maps = react_params.get('series_stop_maps')
+        continue_values = react_params.get('continue_series_values')
 
         with ProgressTimer(total_size) as progress:
             if self.howso.amlg.library_postfix[1:] == 'mt':
@@ -2337,6 +2354,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                 if series_stop_maps is not None and len(series_stop_maps) > 1:
                     react_params['series_stop_maps'] = (
                         series_stop_maps[batch_start:batch_end])
+                if continue_values is not None and len(continue_values) > 1:
+                    react_params['continue_series_values'] = (
+                        continue_values[batch_start:batch_end])
 
                 if react_params.get('desired_conviction') is not None:
                     react_params['num_series_to_generate'] = batch_size
