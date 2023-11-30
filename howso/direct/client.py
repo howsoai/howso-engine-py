@@ -2642,7 +2642,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 If True, outputs a dictionary of the parameters used in the
                 react call. These include k, p, distance_transform,
                 feature_weights, feature_deviations, nominal_class_counts,
-                use_irw, and use_deviations.
+                and use_irw.
 
                     - k: the number of cases used for the local model.
                     - p: the parameter for the Lebesgue space.
@@ -2656,8 +2656,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                     nominal feature. This is used in the distance metric.
                     - use_irw: a flag indicating if feature weights were
                     derived using inverse residual weighting.
-                    - use_deviations: a flag indicating if feature deviations
-                    were used in the distance metric.
 
             - observational_errors: bool, optional
                 If True outputs observational errors for all features as

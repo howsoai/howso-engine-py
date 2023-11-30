@@ -622,7 +622,7 @@ class HowsoEstimator(BaseEstimator):
                 If True, outputs a dictionary of the parameters used in the
                 react call. These include k, p, distance_transform,
                 feature_weights, feature_deviations, nominal_class_counts,
-                use_irw, and use_deviations.
+                and use_irw.
 
                     - k: the number of cases used for the local model.
                     - p: the parameter for the Lebesgue space.
@@ -636,8 +636,6 @@ class HowsoEstimator(BaseEstimator):
                     nominal feature. This is used in the distance metric.
                     - use_irw: a flag indicating if feature weights were
                     derived using inverse residual weighting.
-                    - use_deviations: a flag indicating if feature deviations
-                    were used in the distance metric.
             - distance_contribution : bool, optional
                 If True, outputs the distance contribution (expected total
                 surprisal contribution) for the reacted case. Uses both context
