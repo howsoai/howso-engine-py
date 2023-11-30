@@ -2122,6 +2122,19 @@ class HowsoDirectClient(AbstractHowsoClient):
                     serialize_cases(series, series_context_features,
                                     feature_attributes))
 
+        serialized_continue_series_values = None
+        if continue_series_values:
+            serialized_continue_series_values = []
+            for series in continue_series_values:
+                if continue_series_features is None:
+                    continue_series_features = internals.get_features_from_data(
+                        data=series,
+                        data_parameter="continue_series_values",
+                        features_parameter="continue_series_features")
+                serialized_continue_series_values.append(
+                    serialize_cases(series, continue_series_features,
+                                    feature_attributes))
+
         if new_case_threshold not in [None, "min", "max", "most_similar"]:
             raise ValueError(
                 f"The value '{new_case_threshold}' specified for the parameter "
@@ -2162,7 +2175,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "context_values": contexts,
                 "continue_series": continue_series,
                 "continue_series_features": continue_series_features,
-                "continue_series_values": continue_series_values,
+                "continue_series_values": serialized_continue_series_values,
                 "initial_features": initial_features,
                 "initial_values": initial_values,
                 "series_stop_maps": series_stop_maps,
