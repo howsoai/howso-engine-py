@@ -663,7 +663,7 @@ class HowsoEstimator(BaseEstimator):
                 standard or robust computation.
             - features: list of str, optional
                 A list of feature names that specifies for what features will
-                per-feature details be computed for (residuals, contributions,
+                per-feature details be computed (residuals, contributions,
                 mda, etc.).
             - feature_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
