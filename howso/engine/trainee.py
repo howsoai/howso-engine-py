@@ -1620,12 +1620,13 @@ class Trainee(BaseTrainee):
                 will result in null output.
         continue_series_features : list of str, optional
             The list of feature names corresponding to the values in each row of
-            `continue_series_values`. This value is ignored if `continue_series`
-            is False.
+            `continue_series_values`. This value is ignored if
+            `continue_series_values` is None.
         continue_series_values : list of list of list of object or list of pandas.DataFrame, default None
             The set of series data to be forecasted with feature values in the
-            same order defined by `continue_series_values`. This value is
-            ignored if `continue_series` is False.
+            same order defined by `continue_series_values`. The value of
+            `continue_series` will be ignored and treated as true if this value
+            is specified.
         derived_action_features : list of str, optional
             See parameter ``derived_action_features`` in :func:`react`.
         derived_context_features : list of str, optional
