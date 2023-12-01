@@ -935,7 +935,7 @@ def check_validator_operation(
     if isinstance(Validator, Exception):
         print(Validator, file=registry.logger)
         return (Status.CRITICAL,
-                "Howso Data Quality Tool was not installed correctly. "
+                "Howso Validator™ was not installed correctly. "
                 "Please check installation.")
     validator = None
     try:
