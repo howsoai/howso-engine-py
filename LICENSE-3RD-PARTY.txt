@@ -2963,12 +2963,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 platformdirs
-4.0.0
+4.1.0
 MIT License
 UNKNOWN
 https://github.com/platformdirs/platformdirs
 A small Python package for determining appropriate platform-specific dirs, e.g. a "user data dir".
-/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/platformdirs-4.0.0.dist-info/licenses/LICENSE
+/opt/hostedtoolcache/Python/3.11.6/x64/lib/python3.11/site-packages/platformdirs-4.1.0.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2010-202x The platformdirs developers
