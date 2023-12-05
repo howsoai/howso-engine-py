@@ -679,6 +679,13 @@ class HowsoEstimator(BaseEstimator):
                 features of the reacted case to determine that area. Relies on
                 'robust_influences' parameter to determine whether to do
                 standard or robust computation.
+            - features : list of str, optional
+                A list of feature names that specifies for what features will
+                per-feature details be computed (residuals, contributions,
+                mda, etc.). This should generally preserve compute, but will
+                not when computing details robustly. Details will be computed
+                for all context and action features if this value is not
+                specified.
             - feature_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
