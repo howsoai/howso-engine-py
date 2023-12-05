@@ -2090,6 +2090,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "Improper shape of `series_context_values` values passed. "
                 "`series_context_values` must be a 3d list of object.")
 
+        if continue_series_values is not None:
+            continue_series = True
+
         action_features, actions, context_features, contexts = (
             self._preprocess_react_parameters(
                 action_features=action_features,
