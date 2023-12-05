@@ -2575,20 +2575,20 @@ class HowsoDirectClient(AbstractHowsoClient):
             details. Omitted keys, values set to None, or False values for
             Booleans will not be included in the audit data returned.
 
-            - influential_cases: bool, optional
+            - influential_cases : bool, optional
                 If True outputs the most influential cases and their influence
                 weights based on the surprisal of each case relative to the
                 context being predicted among the cases. Uses only the context
                 features of the reacted case.
 
-            - influential_cases_familiarity_convictions:  bool, optional
+            - influential_cases_familiarity_convictions :  bool, optional
                 If True outputs familiarity conviction of addition for each of
                 the influential cases.
 
-            - influential_cases_raw_weights: bool, optional
+            - influential_cases_raw_weights : bool, optional
                 If True outputs the surprisal for each of the influential cases.
 
-            - hypothetical_values: dict, optional
+            - hypothetical_values : dict, optional
                 A dictionary of feature name to feature value. If specified,
                 shows how a prediction could change in a what-if scenario where
                 the influential cases' context feature values are replaced with
@@ -2597,13 +2597,13 @@ class HowsoDirectClient(AbstractHowsoClient):
                 hypothetical values. Outputs the predicted arithmetic over the
                 influential cases for each action feature.
 
-            - most_similar_cases: bool, optional
+            - most_similar_cases : bool, optional
                 If True outputs an automatically determined (when
                 'num_most_similar_cases' is not specified) relevant number of
                 similar cases, which will first include the influential cases.
                 Uses only the context features of the reacted case.
 
-            - num_most_similar_cases: int, optional
+            - num_most_similar_cases : int, optional
                 Outputs this manually specified number of most similar cases,
                 which will first include the influential cases.
 
@@ -2623,7 +2623,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 robust case feature contributions. Defaults to 2000. Higher
                 values will take longer but provide more stable results.
 
-            - boundary_cases: bool, optional
+            - boundary_cases : bool, optional
                 If True outputs an automatically determined (when
                 'num_boundary_cases' is not specified) relevant number of
                 boundary cases. Uses both context and action features of the
@@ -2633,66 +2633,66 @@ class HowsoDirectClient(AbstractHowsoClient):
                 If action features aren't specified, uses familiarity conviction
                 to determine the boundary instead.
 
-            - num_boundary_cases: int, optional
+            - num_boundary_cases : int, optional
                 Outputs this manually specified number of boundary cases.
 
                 NOTE: The maximum number of cases that can be queried is
                 '1000'.
 
-            - boundary_cases_familiarity_convictions: bool, optional
+            - boundary_cases_familiarity_convictions : bool, optional
                 If True outputs familiarity conviction of addition for each of
                 the boundary cases.
 
-            - distance_ratio: bool, optional
+            - distance_ratio : bool, optional
                 If True outputs the ratio of distance (relative surprisal)
                 between this reacted case and its nearest case to the minimum
                 distance (relative surprisal) in between the closest two cases
                 in the local area. All distances are computed using only the
                 specified context features.
 
-            - distance_contribution: bool, optional
+            - distance_contribution : bool, optional
                 If True outputs the distance contribution (expected total
                 surprisal contribution) for the reacted case. Uses both context
                 and action feature values.
 
-            - similarity_conviction: bool, optional
+            - similarity_conviction : bool, optional
                 If True outputs similarity conviction for the reacted case.
                 Uses both context and action feature values as the case values
                 for all computations. This is defined as expected (local)
                 distance contribution divided by reacted case distance
                 contribution.
 
-            - outlying_feature_values: bool, optional
+            - outlying_feature_values : bool, optional
                 If True outputs the reacted case's context feature values that
                 are outside the min or max of the corresponding feature values
                 of all the cases in the local model area. Uses only the context
                 features of the reacted case to determine that area.
 
-            - categorical_action_probabilities: bool, optional
+            - categorical_action_probabilities : bool, optional
                 If True outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
 
-            - observational_errors: bool, optional
+            - observational_errors : bool, optional
                 If True outputs observational errors for all features as
                 defined in feature attributes.
 
-            - robust_computation: bool, optional
+            - robust_computation : bool, optional
                 Deprecated. If specified, will overwrite the value of both
                 'robust_residuals' and 'robust_influences'.
 
-            - robust_residuals: bool, optional
+            - robust_residuals : bool, optional
                 Default is false, uses leave-one-out for features (or cases, as
                 needed) for all residual computations. When true, uses uniform
                 sampling from the power set of all combinations of features (or
                 cases, as needed) instead.
 
-            - robust_influences: bool, optional
+            - robust_influences : bool, optional
                 Default is true, uses leave-one-out for features (or cases, as
                 needed) for all MDA and contribution computations. When true,
                 uses uniform sampling from the power set of all combinations of
                 features (or cases, as needed) instead.
 
-            - features: list of str, optional
+            - features : list of str, optional
                 A list of feature names that specifies for what features will
                 per-feature details be computed (residuals, contributions,
                 mda, etc.). This should generally preserve compute, but will
@@ -2700,21 +2700,21 @@ class HowsoDirectClient(AbstractHowsoClient):
                 for all context and action features if this value is not
                 specified.
 
-            - feature_residuals: bool, optional
+            - feature_residuals : bool, optional
                 If True outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Relies on
                 'robust_residuals' parameter to determine whether to do
                 standard or robust computation.
 
-            - feature_mda: bool, optional
+            - feature_mda : bool, optional
                 If True outputs each context feature's mean decrease in
                 accuracy of predicting the action feature given the context.
                 Uses only the context features of the reacted case to determine
                 that area. Relies on 'robust_influences' parameter to
                 determine whether to do standard or robust computation.
 
-            - feature_mda_ex_post: bool, optional
+            - feature_mda_ex_post : bool, optional
                 If True outputs each context feature's mean decrease in
                 accuracy of predicting the action feature as an explanation
                 given that the specified prediction was already made as
@@ -2723,7 +2723,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'robust_influences' parameter to determine whether to do
                 standard or robust computation.
 
-            - feature_contributions: bool, optional
+            - feature_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context were not in the
@@ -2733,7 +2733,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 contributions are returned under the key
                 'directional_feature_contributions'.
 
-            - case_feature_contributions: bool, optional
+            - case_feature_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context feature were not
@@ -2744,7 +2744,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 contributions are returned under the
                 'case_directional_feature_contributions' key.
 
-            - case_mda: bool, optional
+            - case_mda : bool, optional
                 If True outputs each influential case's mean decrease in
                 accuracy of predicting the action feature in the local model
                 area, as if each individual case were included versus not
@@ -2752,7 +2752,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 determine that area. Relies on 'robust_influences' parameter
                 to determine whether to do standard or robust computation.
 
-            - case_contributions: bool, optional
+            - case_contributions : bool, optional
                 If True outputs each influential case's differences between the
                 predicted action feature value and the predicted action feature
                 value if each individual case were not included. Uses only the
@@ -2760,7 +2760,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 Relies on 'robust_influences' parameter to determine whether
                 to do standard or robust computation.
 
-            - case_feature_residuals: bool, optional
+            - case_feature_residuals : bool, optional
                 If True outputs feature residuals for all (context and action)
                 features for just the specified case. Uses leave-one-out for
                 each feature, while using the others to predict the left out
@@ -2768,7 +2768,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 on 'robust_residuals' parameter to determine whether to do
                 standard or robust computation.
 
-            - local_case_feature_residual_convictions: bool, optional
+            - local_case_feature_residual_convictions : bool, optional
                 If True outputs this case's feature residual convictions for
                 the region around the prediction. Uses only the context
                 features of the reacted case to determine that region.
@@ -2776,7 +2776,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 residual. Relies on 'robust_residuals' parameter to determine
                 whether to do standard or robust computation.
 
-            - global_case_feature_residual_convictions: bool, optional
+            - global_case_feature_residual_convictions : bool, optional
                 If True outputs this case's feature residual convictions for
                 the global model. Computed as: global model feature residual
                 divided by case feature residual. Relies on
