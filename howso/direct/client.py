@@ -2209,9 +2209,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 raise HowsoError("`num_series_to_generate` must be an integer "
                                  "greater than 0.")
             total_size = num_series_to_generate
-            if total_size > self._react_generative_batch_threshold:
-                # Do not send details for generative reacts over threshold
-                details = None
 
             context_features, contexts = \
                 self._preprocess_generate_parameters(
@@ -2278,7 +2275,11 @@ class HowsoDirectClient(AbstractHowsoClient):
             if isinstance(progress_callback, Callable):
                 progress_callback(progress, response)
 
-        # If the number of series generated is less then requested, raise
+        # put all explanations under the 'explanation' key
+        series = response.pop('series')
+        response = {'series': series, 'explanation': response}
+
+		# If the number of series generated is less then requested, raise
         # warning, for generative reacts
         if desired_conviction is not None:
             len_action = len(response['series'])
@@ -2411,10 +2412,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise ValueError('Invalid parameters passed to react_series.')
 
         ret = dict()
+        batch_result = replace_doublemax_with_infinity(batch_result)
 
         ret['action_features'] = batch_result.pop('action_features') or []
-        ret['series'] = replace_doublemax_with_infinity(
-            batch_result.pop('series'))
+        ret['series'] = batch_result.pop('series')
+
+        # ensure all the explanation items are output as well
+        for k, v in batch_result.items():
+            ret[k] = v or []
 
         return ret
 

@@ -47,6 +47,12 @@ if TYPE_CHECKING:
         action: DataFrame
         explanation: Dict[str, Any]
 
+    class ReactionSeries(TypedDict):
+        """React Series response format."""
+
+        series: DataFrame
+        explanation: Dict[str, Any]
+
     class Distances(TypedDict):
         """Distances response format."""
 
@@ -1612,7 +1618,7 @@ class Trainee(BaseTrainee):
         use_case_weights: Optional[bool] = False,
         use_regional_model_residuals: Optional[bool] = True,
         weight_feature: Optional[str] = None,
-    ) -> "DataFrame":
+    ) -> "ReactionSeries":
         """
         React to the trainee in a series until a stop condition is met.
 
@@ -1754,8 +1760,8 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        pandas.DataFrame
-            The series action values.
+         dict of {series: pandas.DataFrame, explanation: dict}
+            The action values and explanations.
         """
         return self.client.react_series(
             trainee_id=self.id,

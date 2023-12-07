@@ -200,7 +200,12 @@ class HowsoPandasClientMixin:
         return pd.DataFrame(response)
 
     def react_series(
-            self, trainee_id: str, *args, series_index: str = '.series', **kwargs) -> DataFrame:
+        self,
+        trainee_id: str,
+        *args,
+        series_index: str = '.series',
+        **kwargs
+    ) -> Dict[str, Union[DataFrame, Dict]]:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_series`.
 
@@ -215,8 +220,10 @@ class HowsoPandasClientMixin:
 
         Returns
         -------
-        DataFrame
-            A DataFrames of feature columns with series values as rows.
+        dict
+            A dictionary with keys `series` and `explanation`. Where `series`
+            is a DataFrame of feature columns with series values as rows,
+            and `explanation` is a dict with the requested audit data.
         """
         trainee_id = self._resolve_trainee_id(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
@@ -228,8 +235,9 @@ class HowsoPandasClientMixin:
 
         # Build response DataFrame
         df = build_react_series_df(response, series_index=series_index)
+        response['series'] = format_dataframe(df, feature_attributes)
 
-        return format_dataframe(df, feature_attributes)
+        return response
 
     def react(self, trainee_id, *args, **kwargs) -> Dict[str, Union[DataFrame, Dict]]:
         """
