@@ -618,6 +618,24 @@ class HowsoEstimator(BaseEstimator):
             - categorical_action_probabilities : bool, optional
                 If True, outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
+            - derivation_parameters : bool, optional
+                If True, outputs a dictionary of the parameters used in the
+                react call. These include k, p, distance_transform,
+                feature_weights, feature_deviations, nominal_class_counts,
+                and use_irw.
+
+                - k: the number of cases used for the local model.
+                - p: the parameter for the Lebesgue space.
+                - distance_transform: the distance transform used as an
+                  exponent to convert distances to raw influence weights.
+                - feature_weights: the weight for each feature used in the
+                  distance metric.
+                - feature_deviations: the deviation for each feature used in
+                  the distance metric.
+                - nominal_class_counts: the number of unique values for each
+                  nominal feature. This is used in the distance metric.
+                - use_irw: a flag indicating if feature weights were
+                  derived using inverse residual weighting.
             - distance_contribution : bool, optional
                 If True, outputs the distance contribution (expected total
                 surprisal contribution) for the reacted case. Uses both context
@@ -661,6 +679,13 @@ class HowsoEstimator(BaseEstimator):
                 features of the reacted case to determine that area. Relies on
                 'robust_influences' parameter to determine whether to do
                 standard or robust computation.
+            - features : list of str, optional
+                A list of feature names that specifies for what features will
+                per-feature details be computed (residuals, contributions,
+                mda, etc.). This should generally preserve compute, but will
+                not when computing details robustly. Details will be computed
+                for all context and action features if this value is not
+                specified.
             - feature_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context

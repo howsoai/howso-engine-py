@@ -1306,6 +1306,24 @@ class Trainee(BaseTrainee):
             - categorical_action_probabilities : bool, optional
                 If True, outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
+            - derivation_parameters : bool, optional
+                If True, outputs a dictionary of the parameters used in the
+                react call. These include k, p, distance_transform,
+                feature_weights, feature_deviations, nominal_class_counts,
+                and use_irw.
+
+                - k: the number of cases used for the local model.
+                - p: the parameter for the Lebesgue space.
+                - distance_transform: the distance transform used as an
+                  exponent to convert distances to raw influence weights.
+                - feature_weights: the weight for each feature used in the
+                  distance metric.
+                - feature_deviations: the deviation for each feature used in
+                  the distance metric.
+                - nominal_class_counts: the number of unique values for each
+                  nominal feature. This is used in the distance metric.
+                - use_irw: a flag indicating if feature weights were
+                  derived using inverse residual weighting.
             - distance_contribution : bool, optional
                 If True, outputs the distance contribution (expected total
                 surprisal contribution) for the reacted case. Uses both context
@@ -1349,6 +1367,13 @@ class Trainee(BaseTrainee):
                 features of the reacted case to determine that area. Relies on
                 'robust_influences' parameter to determine whether to do
                 standard or robust computation.
+            - features : list of str, optional
+                A list of feature names that specifies for what features will
+                per-feature details be computed (residuals, contributions,
+                mda, etc.). This should generally preserve compute, but will
+                not when computing details robustly. Details will be computed
+                for all context and action features if this value is not
+                specified.
             - feature_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
@@ -1558,6 +1583,10 @@ class Trainee(BaseTrainee):
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         continue_series: Optional[bool] = False,
+        continue_series_features: Optional[Iterable[str]] = None,
+        continue_series_values: Optional[
+            Union[List[List[List[object]]], List["DataFrame"]]
+        ] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
@@ -1620,7 +1649,15 @@ class Trainee(BaseTrainee):
 
                 Terminated series with terminators cannot be continued and
                 will result in null output.
-
+        continue_series_features : list of str, optional
+            The list of feature names corresponding to the values in each row of
+            `continue_series_values`. This value is ignored if
+            `continue_series_values` is None.
+        continue_series_values : list of list of list of object or list of pandas.DataFrame, default None
+            The set of series data to be forecasted with feature values in the
+            same order defined by `continue_series_values`. The value of
+            `continue_series` will be ignored and treated as true if this value
+            is specified.
         derived_action_features : list of str, optional
             See parameter ``derived_action_features`` in :func:`react`.
         derived_context_features : list of str, optional
@@ -1734,6 +1771,8 @@ class Trainee(BaseTrainee):
             contexts=contexts,
             context_features=context_features,
             continue_series=continue_series,
+            continue_series_features=continue_series_features,
+            continue_series_values=continue_series_values,
             derived_action_features=derived_action_features,
             derived_context_features=derived_context_features,
             desired_conviction=desired_conviction,
@@ -2917,10 +2956,10 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         action_feature : str, optional
-            Name of target feature whose hyperparameters to use
-            for computations.  Default is whatever the model was analyzed for,
-            or the mda_action_features for MDA, or ".targetless" if analyzed
-            for targetless.
+            Name of target feature for which to do computations. Default is
+            whatever the model was analyzed for, e.g., action feature for MDA
+            and contributions, or ".targetless" if analyzed for targetless.
+            This parameter is required for MDA or contributions computations.
         context_features : list of str, optional
             List of features names to use as contexts for
             computations. Default is all trained non-unique features if
