@@ -2375,10 +2375,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise ValueError('Invalid parameters passed to react_series.')
 
         ret = dict()
+        batch_result = replace_doublemax_with_infinity(batch_result)
 
         ret['action_features'] = batch_result.pop('action_features') or []
-        ret['series'] = replace_doublemax_with_infinity(
-            batch_result.pop('series'))
+        ret['series'] = batch_result.pop('series')
 
         # ensure all the explanation items are output as well
         for k, v in batch_result.items():
