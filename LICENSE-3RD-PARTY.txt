@@ -120,12 +120,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 astroid
-3.0.1
+3.0.2
 GNU Lesser General Public License v2 (LGPLv2)
 UNKNOWN
 https://github.com/pylint-dev/astroid/issues
 An abstract syntax tree for Python with inference support.
-/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/astroid-3.0.1.dist-info/LICENSE
+/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/astroid-3.0.2.dist-info/LICENSE
 
                   GNU LESSER GENERAL PUBLIC LICENSE
                        Version 2.1, February 1999
@@ -1707,12 +1707,12 @@ brain-dead simple config-ini parsing
 
 
 isort
-5.12.0
+5.13.1
 MIT License
 Timothy Crosley
 https://pycqa.github.io/isort/
 A Python utility / library to sort Python imports.
-/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/isort-5.12.0.dist-info/LICENSE
+/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/isort-5.13.1.dist-info/LICENSE
 The MIT License (MIT)
 
 Copyright (c) 2013 Timothy Edmund Crosley
@@ -3162,12 +3162,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 pylint
-3.0.2
+3.0.3
 GNU General Public License v2 (GPLv2)
 Python Code Quality Authority <code-quality@python.org>
 https://github.com/pylint-dev/pylint
 python code static checker
-/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/pylint-3.0.2.dist-info/LICENSE
+/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/pylint-3.0.3.dist-info/LICENSE
 		    GNU GENERAL PUBLIC LICENSE
 		       Version 2, June 1991
 
@@ -4058,12 +4058,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 typing_extensions
-4.8.0
+4.9.0
 Python Software Foundation License
 "Guido van Rossum, Jukka Lehtosalo, Łukasz Langa, Michael Lee" <levkivskyi@gmail.com>
 https://github.com/python/typing_extensions
 Backported and Experimental Type Hints for Python 3.8+
-/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/typing_extensions-4.8.0.dist-info/LICENSE
+/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/typing_extensions-4.9.0.dist-info/LICENSE
 A. HISTORY OF THE SOFTWARE
 ==========================
 
