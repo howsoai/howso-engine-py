@@ -2082,9 +2082,13 @@ class HowsoDirectClient(AbstractHowsoClient):
                             "list of object")
         validate_list_shape(initial_features, 1, "max_series_lengths", "num")
         validate_list_shape(series_stop_maps, 1, "series_stop_maps", "dict")
-        validate_list_shape(continue_series_values, 3, 'continue_series_values', "feature values")
 
         validate_list_shape(series_context_features, 1, "series_context_features", "str")
+
+        if continue_series_values and num_list_dimensions(continue_series_values) != 3:
+            raise ValueError(
+                "Improper shape of `continue_series_values` values passed. "
+                "`continue_series_values` must be a 3d list of object.")
         if series_context_values and num_list_dimensions(series_context_values) != 3:
             raise ValueError(
                 "Improper shape of `series_context_values` values passed. "
