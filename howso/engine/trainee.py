@@ -1101,7 +1101,7 @@ class Trainee(BaseTrainee):
         suppress_warning: Optional[bool] = False,
         use_case_weights: Optional[bool] = False,
         weight_feature: Optional[str] = None,
-    ) -> list:
+    ) -> pd.DataFrame:
         """
         Wrapper around :func:`react`.
 
