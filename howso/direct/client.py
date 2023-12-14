@@ -2504,6 +2504,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_case_threshold: Literal["max", "min", "most_similar"] = "min",
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
+        post_process_features: Optional[Iterable[str]] = None,
+        post_process_values: Optional[Union[List[List[object]], DataFrame]] = None,
         preserve_feature_values: Optional[Iterable[str]] = None,
         progress_callback: Optional[Callable] = None,
         substitute_output: bool = True,
@@ -2999,6 +3001,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "post_process_features": post_process_features,
+                "post_process_values": post_process_values,
                 "case_indices": case_indices,
                 "allow_nulls": allow_nulls,
                 "input_is_substituted": input_is_substituted,
@@ -3037,6 +3041,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "post_process_features": post_process_features,
+                "post_process_values": post_process_values,
                 "use_regional_model_residuals": use_regional_model_residuals,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
@@ -3121,6 +3127,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         actions = react_params.get('action_values')
         contexts = react_params.get('context_values')
         case_indices = react_params.get('case_indices')
+        post_process_values = react_params.get('post_process_values')
 
         with ProgressTimer(total_size) as progress:
             batch_scaler = self.batch_scaler_class(10, progress)
@@ -3142,6 +3149,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 if case_indices is not None and len(case_indices) > 1:
                     react_params['case_indices'] = (
                         case_indices[batch_start:batch_end])
+                if (post_process_values is not None and
+                        len(post_process_values) > 1):
+                    react_params['post_process_values'] = (
+                        post_process_values[batch_start:batch_end])
 
                 if react_params.get('desired_conviction') is not None:
                     react_params['num_cases_to_generate'] = batch_size
