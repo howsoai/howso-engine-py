@@ -2068,6 +2068,8 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             If `series_context_values` is not a 3d list of objects.
 
+            If `series_continue_values` is not a 3d list of objects.
+
             If `derived_action_features` is not a subset of `action_features`.
 
             If `new_case_threshold` is not one of {"max", "min", "most_similar"}.
@@ -2158,23 +2160,39 @@ class HowsoDirectClient(AbstractHowsoClient):
         initial_values = serialize_cases(initial_values, initial_features,
                                          feature_attributes)
 
+        # All of these params must be of length 1 or N
+        # where N is the length of the largest
+        one_or_more_params = [
+            contexts,
+            initial_values,
+            serialized_continue_series_values,
+            serialized_series_context_values,
+            case_indices,
+            actions,
+            max_series_lengths,
+            series_stop_maps,
+        ]
+        if any(one_or_more_params):
+            param_lengths = set([len(x) for x in one_or_more_params if x])
+            if len(param_lengths - {1}) > 1:
+                # Raise error if any of the params have different lengths
+                # greater than 1
+                raise ValueError(
+                    'When providing any of `contexts`, `actions`, '
+                    '`series_context_values`, `continue_series_values`, '
+                    '`case_indices`, `initial_values`, `max_series_lengths`'
+                    ', or `series_stop_maps`, each must be of length 1 or the same '
+                    'length as each other.')
+        else:
+            param_lengths = {1}
+
         if desired_conviction is None:
-            if contexts is not None:
-                for context in contexts:
-                    if context is not None and \
-                            (len(context) != len(context_features)):
-                        raise ValueError(
-                            "Number of provided context values in `context` "
-                            "does not match length of `context_features`."
-                        )
-                total_size = len(contexts)
+            if case_indices and not preserve_feature_values:
+                raise ValueError(
+                    "For discriminative reacts, `preserve_feature_values` "
+                    "is required when `case_indices` is specified.")
             else:
-                if case_indices is not None:
-                    total_size = len(case_indices)
-                elif initial_values is not None:
-                    total_size = len(initial_values)
-                elif continue_series and continue_series_values is not None:
-                    total_size = len(continue_series_values)
+                total_size = max(param_lengths)
 
             react_params = {
                 "action_features": action_features,
@@ -2212,6 +2230,11 @@ class HowsoDirectClient(AbstractHowsoClient):
             ):
                 raise HowsoError("`num_series_to_generate` must be an integer "
                                  "greater than 0.")
+            if max(param_lengths) not in [1, num_series_to_generate]:
+                raise ValueError(
+                    'For generative reacts, when specifying parameters with '
+                    'values for each series they must be of length 1 or the '
+                    'value specified by `num_series_to_generate`.')
             total_size = num_series_to_generate
 
             context_features, contexts = \
