@@ -1,8 +1,14 @@
 from abc import ABC, abstractmethod
+import typing as t
+
+if t.TYPE_CHECKING:
+    from .configuration import HowsoConfiguration
 
 
 class AbstractHowsoClient(ABC):
     """The base definition of the Howso client interface."""
+
+    configuration: "HowsoConfiguration"
 
     @property
     @abstractmethod

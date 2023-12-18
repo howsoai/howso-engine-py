@@ -29,8 +29,9 @@ import warnings
 
 import certifi
 from howso import utilities as util
-from howso.client import AbstractHowsoClient
+from howso.client import AbstractHowsoClient, get_configuration_path
 from howso.client.cache import TraineeCache
+from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
 import howso.openapi.models as client_models
 from howso.openapi.models import (
@@ -102,6 +103,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         A specified howso core direct interface object.
 
         If None, an interface will be generated using the provided handle.
+    config_path : str or Path or None, optional
+        A configuration file in yaml format that specifies Howso engine
+        settings.
+
+        If not set, the client will also check in order of precedence:
+            - HOWSO_CONFIG environment variable
+            - The current directory for howso.yml, howso.yaml, config.yml
+            - ~/.howso for howso.yml, howso.yaml, config.yml.
     debug : bool, default False
         Set debug output.
     handle : str, optional
@@ -110,6 +119,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         If None, :attr:`HowsoDirectClient.DEFAULT_HANDLE` will be used.
     verbose : bool, default False
         Set verbose output.
+    version_check : bool, default True
+        Check if the latest version of Howso engine is installed.
     """
 
     #: The default Howso core entity handle.
@@ -130,6 +141,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         howso_core: Optional[HowsoCore] = None,
         *,
+        config_path: Union[str, Path, None] = None,
         debug: bool = False,
         handle: Optional[str] = None,
         verbose: bool = False,
@@ -158,6 +170,11 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.verbose = verbose
         self.debug = debug
+
+        # Load configuration
+        config_path = get_configuration_path(config_path, self.verbose)
+        self.configuration = HowsoConfiguration(
+            config_path=config_path, verbose=verbose)
 
         if howso_core is None:
             if handle not in _core_cache:
