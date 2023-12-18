@@ -2899,6 +2899,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             The number of cases to generate.
         suppress_warning : bool, defaults to False
             If True, warnings will not be displayed.
+        post_process_features : iterable of str, optional
+            List of feature names that will be made available during the
+            execution of post_process feature attributes.
+        post_process_values : list of list of object or DataFrame, optional
+            A 2d list of values corresponding to post_process_features that
+            will be made available during the execution fo post_process feature
+            attributes.
         progress_callback : callable, optional
             A callback method that will be called before each
             batched call to react and at the end of reacting. The method is

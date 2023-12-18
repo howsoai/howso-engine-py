@@ -1505,6 +1505,7 @@ class HowsoCore:
             index is the original 0-based index of the case as it was trained
             into the session. If this case does not exist, discriminative react
             outputs null, generative react ignores it.
+        post_process_features :
         preserve_feature_values : iterable of str
             List of features that will preserve their values from
             the case specified by case_indices, appending and overwriting the
