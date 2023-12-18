@@ -16,6 +16,8 @@ class HowsoConfiguration:
         Set verbose output.
     """
 
+    feature_flags_class = FeatureFlags
+
     def __init__(self, *args, config_path=None, verbose=False, **kwargs):
         """Initialize the configuration object."""
         super().__init__(*args, **kwargs)
@@ -42,7 +44,7 @@ class HowsoConfiguration:
             self.user_config = {}
 
         # Initialize feature flags
-        self.feature_flags = FeatureFlags(
+        self.feature_flags = self.feature_flags_class(
             self.user_config.get('feature_flags'))
 
     def get_user_config_option(self, *args, default=None):

@@ -26,7 +26,7 @@ def test_feature_fags_warn():
 
     # Should warn
     with pytest.warns(UserWarning, match="The following Howso feature flags"):
-        TestFlags({"test_bad": False})
+        TestFlags({"TEST_BAD": False})
 
     # Should not warn
     with warnings.catch_warnings():

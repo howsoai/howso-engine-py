@@ -12,17 +12,18 @@ class FeatureFlags:
         A dictionary of flags and their enabled status.
     """
 
-    _obsolete_flags = {}
+    # Define obsolete flags here to raise a warning when defined
+    _obsolete_flags: t.Union[t.Set[str], None] = None
 
     def __init__(self, flags: t.Optional[t.Dict[str, t.Any]]):
         self._store = dict()
         if flags is not None:
             obsolete = set()
             for key, value in flags.items():
-                if key in self._obsolete_flags:
-                    obsolete.add(key)
-                    continue
                 flag = self.parse_flag(key)
+                if self._obsolete_flags and flag in self._obsolete_flags:
+                    obsolete.add(flag)
+                    continue
                 self._store[flag] = bool(value)
 
             if obsolete:
