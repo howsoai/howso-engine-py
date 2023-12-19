@@ -1271,7 +1271,6 @@ class HowsoCore:
         action_features: Optional[Iterable[str]] = None,
         action_values: Optional[List[List[object]]] = None,
         allow_nulls: bool = False,
-        case_access_count_label: Optional[str] = None,
         case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
         context_features: Optional[Iterable[str]] = None,
         context_values: Optional[List[List[object]]] = None,
@@ -1395,7 +1394,6 @@ class HowsoCore:
             "details": details,
             "derived_action_features": derived_action_features,
             "derived_context_features": derived_context_features,
-            "case_access_count_label": case_access_count_label,
             "extra_audit_features": extra_audit_features,
             "case_indices": case_indices,
             "allow_nulls": allow_nulls,
@@ -1421,7 +1419,6 @@ class HowsoCore:
         action_features: Optional[Iterable[str]] = None,
         action_values: Optional[List[List[object]]] = None,
         allow_nulls: bool = False,
-        case_access_count_label: Optional[str] = None,
         case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
         context_features: Optional[Iterable[str]] = None,
         context_values: Optional[List[List[object]]] = None,
@@ -1548,7 +1545,6 @@ class HowsoCore:
             "derived_context_features": derived_context_features,
             "derived_action_features": derived_action_features,
             "details": details,
-            "case_access_count_label": case_access_count_label,
             "extra_audit_features": extra_audit_features,
             "case_indices": case_indices,
             "allow_nulls": allow_nulls,
@@ -1574,7 +1570,6 @@ class HowsoCore:
         *,
         action_features: Optional[Iterable[str]] = None,
         action_values: Optional[List[List[object]]] = None,
-        case_access_count_label: Optional[str] = None,
         case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
         context_values: Optional[List[List[object]]] = None,
         context_features: Optional[Iterable[str]] = None,
@@ -1750,7 +1745,6 @@ class HowsoCore:
             "series_id_tracking": series_id_tracking,
             "output_new_series_ids": output_new_series_ids,
             "details": details,
-            "case_access_count_label": case_access_count_label,
             "extra_audit_features": extra_audit_features,
             "case_indices": case_indices,
             "input_is_substituted": input_is_substituted,
@@ -2110,55 +2104,6 @@ class HowsoCore:
             "familiarity_conviction_removal": familiarity_conviction_removal,
             "weight_feature": weight_feature,
             "use_case_weights": use_case_weights,
-        })
-
-    def simplify_model(
-        self,
-        trainee_id: str,
-        num_cases_to_remove: int,
-        distribute_weight_feature: str
-    ) -> None:
-        """Perform data reduction."""
-        return self._execute("simplify_model", {
-            "trainee": trainee_id,
-            "num_cases_to_remove": num_cases_to_remove,
-            "distribute_weight_feature": distribute_weight_feature,
-        })
-
-    def forget_irrelevant_data(
-        self,
-        trainee_id: str,
-        num_cases_to_remove: int,
-        case_access_count_label: str,
-        distribute_weight_feature: str
-    ) -> None:
-        """Perform data reduction."""
-        return self._execute("forget_irrelevant_data", {
-            "trainee": trainee_id,
-            "num_cases_to_remove": num_cases_to_remove,
-            "case_access_count_label": case_access_count_label,
-            "distribute_weight_feature": distribute_weight_feature,
-        })
-
-    def get_session_indices(self, trainee_id: str, session: str) -> List[int]:
-        """
-        Get list of all session indices for a specified session.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        session : str
-            The identifier of the session.
-
-        Returns
-        -------
-        list of int
-            A list of the session indices for the session.
-        """
-        return self._execute("get_session_indices", {
-            "trainee": trainee_id,
-            "session": session,
         })
 
     def get_session_training_indices(self, trainee_id: str, session: str

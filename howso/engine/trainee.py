@@ -9,7 +9,6 @@ from typing import (
     Literal,
     Optional,
     Tuple,
-    TYPE_CHECKING,
     Union,
 )
 import uuid
@@ -27,26 +26,22 @@ from howso.client.protocols import (
 )
 from howso.direct import HowsoDirectClient
 from howso.engine.client import get_client
-from howso.engine.project import Project
-from howso.engine.session import Session
 from howso.openapi.models import (
+    Cases,
+    Metrics,
     Project as BaseProject,
     Session as BaseSession,
     Trainee as BaseTrainee,
+    TraineeIdentity,
+    TraineeInformation,
+    TraineeResources,
 )
+from howso.engine.project import Project
+from howso.engine.session import Session
 from howso.utilities import CaseIndices
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
+from howso.utilities.types import Reaction, ReactionSeries
 from pandas import DataFrame, Index
-
-if TYPE_CHECKING:
-    from howso.openapi.models import (
-        Cases,
-        Metrics,
-        TraineeIdentity,
-        TraineeInformation,
-        TraineeResources,
-    )
-    from howso.utilities.types import Reaction, ReactionSeries
 
 __all__ = [
     "Trainee",
