@@ -24,17 +24,15 @@ from howso.direct import HowsoDirectClient
 from howso.engine.client import get_client
 from howso.openapi.models import (
     Metrics,
+    Project as BaseProject,
+    Session as BaseSession,
+    Trainee as BaseTrainee,
     TraineeIdentity,
     TraineeInformation,
     TraineeResources,
 )
 from howso.engine.project import Project
 from howso.engine.session import Session
-from howso.openapi.models import (
-    Project as BaseProject,
-    Session as BaseSession,
-    Trainee as BaseTrainee,
-)
 from howso.utilities import CaseIndices
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 from pandas import DataFrame, Index
