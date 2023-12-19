@@ -2,6 +2,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Optional,
     Union,
 )
 
@@ -89,7 +90,7 @@ class HowsoPandasClientMixin:
         trainee_id: str,
         num: int,
         sort_feature: str,
-        features: Iterable[str] = None
+        features: Optional[Iterable[str]] = None
     ) -> DataFrame:
         """
         Base: :func:`howso.client.AbstractHowsoClient.get_extreme_cases`.

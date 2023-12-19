@@ -1,5 +1,5 @@
 import inspect
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 import uuid
 
 from howso import engine
@@ -325,7 +325,7 @@ class HowsoEstimator(BaseEstimator):
                 print(f'The trainee name was successfully set '
                       f'to "{self.trainee.name}".')
 
-    def get_params(self, deep=True) -> Dict:
+    def get_params(self, deep=True) -> Dict[str, Any]:
         """
         Get parameters for this estimator.
 
