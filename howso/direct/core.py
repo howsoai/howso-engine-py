@@ -1508,7 +1508,7 @@ class HowsoCore:
         post_process_features : iterable of str, optional
             List of feature names that will be made available during the
             execution of post_process feature attributes.
-        post_process_values : list of list of object or DataFrame, optional
+        post_process_values : list of list of object, optional
             A 2d list of values corresponding to post_process_features that
             will be made available during the execution of post_process feature
             attributes.
