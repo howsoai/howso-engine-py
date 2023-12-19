@@ -1260,6 +1260,13 @@ class Trainee(BaseTrainee):
         derived_context_features : list of str, optional
             Features whose values should be computed from the provided
             context in the specified order.
+        post_process_features : iterable of str, optional
+            List of feature names that will be made available during the
+            execution of post_process feature attributes.
+        post_process_values : list of list of object or DataFrame, optional
+            A 2d list of values corresponding to post_process_features that
+            will be made available during the execution of post_process feature
+            attributes.
         desired_conviction : float, optional
             If specified will execute a generative react. If not
             specified will execute a discriminative react. Conviction is the

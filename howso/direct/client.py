@@ -2904,7 +2904,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             execution of post_process feature attributes.
         post_process_values : list of list of object or DataFrame, optional
             A 2d list of values corresponding to post_process_features that
-            will be made available during the execution fo post_process feature
+            will be made available during the execution of post_process feature
             attributes.
         progress_callback : callable, optional
             A callback method that will be called before each
