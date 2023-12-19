@@ -47,11 +47,16 @@ class Project(BaseProject):
         self.client = client or get_client()
 
         # Set the project properties
-        self.name = name
+        self._id = id
+        self._name = None
+        self._is_private = True
         self._is_default = False
         self._created_by = None
         self._created_date = None
-        self._id = id
+        self._modified_date = None
+        self._permissions = None
+
+        self.name = name
 
         # Create the project at the API
         self._create()
@@ -103,6 +108,18 @@ class Project(BaseProject):
         self._update()
 
     @property
+    def is_private(self) -> bool:
+        """
+        Designates if the project is not publicly visible.
+
+        Returns
+        -------
+        bool
+            True, when the project not public.
+        """
+        return self._is_private
+
+    @property
     def is_default(self) -> bool:
         """
         If this project is the current user's default project.
@@ -137,6 +154,30 @@ class Project(BaseProject):
             The creation timestamp.
         """
         return self._created_date
+
+    @property
+    def modified_date(self) -> Optional["datetime"]:
+        """
+        The timestamp of when the project was last modified.
+
+        Returns
+        -------
+        datetime
+            The modified timestamp.
+        """
+        return self._modified_date
+
+    @property
+    def permissions(self) -> Optional[List[str]]:
+        """
+        Permissions types the user has in this project.
+
+        Returns
+        -------
+        list of str
+            The list of permission types.
+        """
+        return self._permissions
 
     @property
     def client(self) -> ProjectClient:
