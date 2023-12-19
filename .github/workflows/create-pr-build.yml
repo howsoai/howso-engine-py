@@ -28,9 +28,10 @@ jobs:
 
       - name: Get previous git tag
         id: previous-tag
-        uses: WyriHaximus/github-action-get-previous-tag@v1
-        with:
-          fallback: 0.0.0
+        run: |
+          tag=$(git for-each-ref --sort=-creatordate --count 5 --format="%(refname:short)" "refs/tags/" | grep -E "^[0-9]+\.[0-9]+\.[0-9]+" | head -n 1)
+          echo "Found tag: $tag"
+          echo "tag=$(echo $tag)" >> $GITHUB_OUTPUT
 
       - name: Get next semver from previous tag
         id: next-semvers
