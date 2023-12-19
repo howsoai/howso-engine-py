@@ -22,42 +22,41 @@ from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import ProjectClient
 from howso.direct import HowsoDirectClient
 from howso.engine.client import get_client
-from howso.engine.project import Project
-from howso.engine.session import Session
 from howso.openapi.models import (
+    Metrics,
     Project as BaseProject,
     Session as BaseSession,
     Trainee as BaseTrainee,
+    TraineeIdentity,
+    TraineeInformation,
+    TraineeResources,
 )
+from howso.engine.project import Project
+from howso.engine.session import Session
 from howso.utilities import CaseIndices
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
+from pandas import DataFrame, Index
 
-if TYPE_CHECKING:
-    from howso.openapi.models import (
-        Metrics,
-        TraineeIdentity,
-        TraineeInformation,
-        TraineeResources,
-    )
-    from pandas import DataFrame, Index
 
-    class Reaction(TypedDict):
-        """React response format."""
+class Reaction(TypedDict):
+    """React response format."""
 
-        action: DataFrame
-        explanation: Dict[str, Any]
+    action: DataFrame
+    explanation: Dict[str, Any]
 
-    class ReactionSeries(TypedDict):
-        """React Series response format."""
 
-        series: DataFrame
-        explanation: Dict[str, Any]
+class ReactionSeries(TypedDict):
+    """React Series response format."""
 
-    class Distances(TypedDict):
-        """Distances response format."""
+    series: DataFrame
+    explanation: Dict[str, Any]
 
-        session_indices: List[Tuple[str, int]]
-        distances: DataFrame
+
+class Distances(TypedDict):
+    """Distances response format."""
+
+    session_indices: List[Tuple[str, int]]
+    distances: DataFrame
 
 __all__ = [
     "Trainee",
