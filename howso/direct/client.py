@@ -2975,6 +2975,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             If `num_cases_to_generate` is not an integer greater than 0.
         """
         self._auto_resolve_trainee(trainee_id)
+        trainee = self.trainee_cache.get(trainee_id)
         action_features, actions, context_features, contexts = (
             self._preprocess_react_parameters(
                 action_features=action_features,
@@ -2987,6 +2988,25 @@ class HowsoDirectClient(AbstractHowsoClient):
                 trainee_id=trainee_id
             )
         )
+
+        if post_process_values is not None and post_process_features is None:
+            post_process_features = internals.get_features_from_data(
+                post_process_values,
+                default_features=None,
+                data_parameter='post_process_values',
+                features_parameter='post_process_features')
+        post_process_values = serialize_cases(
+            post_process_values, post_process_features,
+            trainee.features)
+
+        if post_process_values is not None and contexts is not None:
+            if (len(contexts) > 1 and len(post_process_values) > 1 and
+                    len(contexts) != len(post_process_values)):
+                raise ValueError(
+                    "If more than one value is provided for 'contexts' "
+                    "and 'post_process_values', then they must be of the same "
+                    "length."
+                )
 
         if action_features is not None and derived_action_features is not None:
             if not set(derived_action_features).issubset(set(action_features)):
