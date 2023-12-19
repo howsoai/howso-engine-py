@@ -224,12 +224,6 @@ def postprocess_feature_attributes(features):
         if feat is None:
             continue
 
-        # Backwards compatibility for non-sensitive
-        # TODO 15469 - Remove shim
-        if 'non-sensitive' in feat:
-            feat['non_sensitive'] = feat['non-sensitive']
-            del feat['non-sensitive']
-
         # Replace any instances of 'date_time_format' with the original python
         # format if it is defined
         if 'date_time_format' in feat:
@@ -276,18 +270,6 @@ def preprocess_feature_attributes(features):
     for feat in features.values():
         if feat is None:
             continue
-
-        # Shim to convert old "non-sensitive" properties to "non_sensitive"
-        # TODO 15469 - Remove shim
-        if 'non-sensitive' in feat:
-            feat['non_sensitive'] = feat['non-sensitive']
-            del feat['non-sensitive']
-            warnings.warn(
-                "The feature attribute 'non-sensitive' has been renamed to "
-                "'non_sensitive', support for using the previous name will "
-                "be removed in a future version.",
-                DeprecationWarning
-            )
 
         # Set decimal places to 0 when %S is in datetime format but %f is not.
         # This prevents core from returning microseconds
