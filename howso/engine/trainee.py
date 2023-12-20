@@ -88,7 +88,7 @@ class Trainee(BaseTrainee):
     default_context_features : list of str, optional
         The default context feature names of the trainee.
     id : str, optional
-        The unique identifier of the trainee. The client automatically completes
+        The unique identifier of the Trainee. The client automatically completes
         this field and the user should NOT manually use this parameter. Please use
         the `name` parameter to manually specify a Trainee name.
     library_type : str, optional
