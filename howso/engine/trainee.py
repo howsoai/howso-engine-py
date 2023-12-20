@@ -87,6 +87,10 @@ class Trainee(BaseTrainee):
         The default action feature names of the trainee.
     default_context_features : list of str, optional
         The default context feature names of the trainee.
+    id : str, optional
+        The unique identifier of the trainee. The client automatically completes
+        this field and the user should NOT manually use this parameter. Please use
+        the `name` parameter to manually specify a Trainee name.
     library_type : str, optional
         The library type of the Trainee. Valid options include:
 
