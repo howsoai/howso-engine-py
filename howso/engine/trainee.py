@@ -20,9 +20,7 @@ from howso.client.exceptions import HowsoApiError, HowsoError
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import (
     ProjectClient,
-    LocalSavableClient,
-    BaseClientProtocol,
-    PlatformCapableClient
+    LocalSavableClient
 )
 from howso.engine.client import get_client
 from howso.openapi.models import (
@@ -152,7 +150,6 @@ class Trainee(BaseTrainee):
             resources=resources,
         )
 
-    # TODO: Investigate error when manually setting ID. Ticket #18732
     @property
     def id(self) -> Union[str, None]:
         """
@@ -456,12 +453,15 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.set_feature_attributes(
                 trainee_id=self.id, feature_attributes=feature_attributes
             )
             if self.id:
-                self._features = self.client.trainee_cache.get(self.id).features
+                if self.client.trainee_cache:
+                    self._features = self.client.trainee_cache.get(self.id).features
+                else:
+                    raise ValueError("Trainee cache is empty, Trainee features are not added.")
             else:
                 raise ValueError("Trainee ID is needed for setting feature attributes.")
         else:
@@ -563,7 +563,7 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, ProjectClient):
             params["project_id"] = project_id
 
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             copy = self.client.copy_trainee(**params)
         else:
             copy = None
@@ -582,8 +582,8 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, PlatformCapableClient):
-            self.client.persist_trainee(self.id)  # type: ignore
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.persist_trainee(self.id)
             self._was_saved = True
 
     def delete(self) -> None:
@@ -596,7 +596,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             if isinstance(self.client, LocalSavableClient) and self._custom_save_path is not None:
                 self.client.delete_trainee(trainee_id=self.id, file_path=self._custom_save_path)
             else:
@@ -642,7 +642,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, (PlatformCapableClient, BaseClientProtocol)):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.acquire_trainee_resources(
                 self.id, max_wait_time=max_wait_time)
         else:
@@ -658,7 +658,7 @@ class Trainee(BaseTrainee):
         """
         if not self.id:
             return
-        if isinstance(self.client, (BaseClientProtocol, PlatformCapableClient)):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.release_trainee_resources(self.id)
         else:
             raise ValueError("Client must have the 'release_trainee_resources' method.")
@@ -673,7 +673,7 @@ class Trainee(BaseTrainee):
             The trainee detail information. Including trainee version and
             configuration parameters.
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_trainee_information(self.id)
         else:
             raise ValueError("Client must have 'get_trainee_information' method")
@@ -687,7 +687,7 @@ class Trainee(BaseTrainee):
         Metrics
             The trainee metric information. Including cpu and memory.
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_trainee_metrics(self.id)
         else:
             raise ValueError("Client must have 'get_trainee_metrics' method")
@@ -796,7 +796,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.train(
                 trainee_id=self.id,
                 ablatement_params=ablatement_params,
@@ -954,7 +954,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.auto_analyze(self.id)
         else:
             raise ValueError("Client must have the 'auto_analyze' method.")
@@ -995,7 +995,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.set_auto_analyze_params(
                 trainee_id=self.id,
                 auto_analyze_enabled=auto_analyze_enabled,
@@ -1101,7 +1101,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.analyze(
                 trainee_id=self.id,
                 action_features=action_features,
@@ -1879,7 +1879,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.impute(
                 trainee_id=self.id,
                 batch_size=batch_size,
@@ -1970,7 +1970,7 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.remove_cases(
                 trainee_id=self.id,
                 num_cases=num_cases,
@@ -2048,7 +2048,7 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.edit_cases(
                 trainee_id=self.id,
                 case_indices=case_indices,
@@ -2072,7 +2072,7 @@ class Trainee(BaseTrainee):
             A list of dicts with keys "id" and "name" for each session
             in the model.
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_trainee_sessions(self.id)
         else:
             raise ValueError("Client must have the 'get_sessions' method.")
@@ -2094,7 +2094,7 @@ class Trainee(BaseTrainee):
             session_id = session.id
         else:
             session_id = session
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.delete_trainee_session(trainee_id=self.id, session=session_id)
         else:
             raise ValueError("Client must have the 'delete_trainee_session' method.")
@@ -2311,7 +2311,7 @@ class Trainee(BaseTrainee):
         int
             The number of trained cases.
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_num_training_cases(self.id)
         else:
             raise ValueError("Client must have the 'get_num_training_cases' method.")
@@ -2377,7 +2377,7 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             if self.id:
                 self.client.add_feature(
                     trainee_id=self.id,
@@ -2388,7 +2388,10 @@ class Trainee(BaseTrainee):
                     feature_attributes=feature_attributes,
                     overwrite=overwrite,
                 )
-                self._features = self.client.trainee_cache.get(self.id).features
+                if self.client.trainee_cache:
+                    self._features = self.client.trainee_cache.get(self.id).features
+                else:
+                    raise ValueError("Trainee Cache is empty, Trainee features are not set.")
             raise ValueError("Trainee ID is needed for 'add_feature'.")
         else:
             raise ValueError("Client must have the 'add_feature' method.")
@@ -2442,7 +2445,7 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             if self.id:
                 self.client.remove_feature(
                     trainee_id=self.id,
@@ -2450,7 +2453,10 @@ class Trainee(BaseTrainee):
                     condition_session=condition_session_id,
                     feature=feature,
                 )
-                self._features = self.client.trainee_cache.get(self.id).features
+                if self.client.trainee_cache:
+                    self._features = self.client.trainee_cache.get(self.id).features
+                else:
+                    raise ValueError("Trainee cache is empty, Trainee features are not removed.")
             raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
         else:
             raise ValueError("Client must have the 'remove_feature' method.")
@@ -2469,7 +2475,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.remove_series_store(trainee_id=self.id, series=series)
         else:
             raise ValueError("Client must have the 'remove_series_store' method.")
@@ -2499,7 +2505,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.append_to_series_store(
                 trainee_id=self.id,
                 series=series,
@@ -2530,7 +2536,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.set_substitute_feature_values(
                 trainee_id=self.id, substitution_value_map=substitution_value_map
             )
@@ -2560,7 +2566,7 @@ class Trainee(BaseTrainee):
             substitute feature value.
         """
 
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_substitute_feature_values(
                 trainee_id=self.id, clear_on_get=clear_on_get
             )
@@ -3002,7 +3008,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.react_into_features(
                 trainee_id=self.id,
                 distance_contribution=distance_contribution,
@@ -3130,7 +3136,7 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.react_into_trainee(
                 trainee_id=self.id,
                 action_feature=action_feature,
@@ -3289,7 +3295,7 @@ class Trainee(BaseTrainee):
             parameters or only the best hyperparameters selected using the
             passed parameters.
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_params(
                 self.id,
                 action_feature=action_feature,
@@ -3329,7 +3335,7 @@ class Trainee(BaseTrainee):
                     "auto_analyze_limit_size": 100000
                 }
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.set_params(self.id, params=params)
         else:
             raise ValueError("Client must have the 'set_params' method.")
@@ -3405,7 +3411,7 @@ class Trainee(BaseTrainee):
             try:
                 self._updating = True
                 trainee = BaseTrainee(**self.to_dict())
-                if isinstance(self.client, BaseClientProtocol):
+                if isinstance(self.client, AbstractHowsoClient):
                     updated_trainee = self.client.update_trainee(trainee)
                 else:
                     raise ValueError("Client must have the 'update_trainee' method.")
@@ -3479,7 +3485,7 @@ class Trainee(BaseTrainee):
             A list of computed pairwise distances between each corresponding
             pair of cases in `from_case_indices` and `to_case_indices`.
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_pairwise_distances(
                 self.id,
                 features=features,
@@ -3594,7 +3600,7 @@ class Trainee(BaseTrainee):
             'aggregated' is None if no aggregation_code is given, it otherwise
             holds the output of the custom 'aggregation_code'
         """
-        if isinstance(self.client, BaseClientProtocol):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.evaluate(
                 self.id,
                 features_to_code_map=features_to_code_map,
@@ -3629,7 +3635,7 @@ class Trainee(BaseTrainee):
         """
         if not self.id:
             trainee = BaseTrainee(**self.to_dict())
-            if isinstance(self.client, BaseClientProtocol):
+            if isinstance(self.client, AbstractHowsoClient):
                 new_trainee = self.client.create_trainee(
                     trainee=trainee,
                     library_type=library_type,

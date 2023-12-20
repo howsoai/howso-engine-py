@@ -25,6 +25,11 @@ class AbstractHowsoClient(ABC):
 
     @property
     @abstractmethod
+    def trainee_cache(self):
+        """Return the trainee cache."""
+
+    @property
+    @abstractmethod
     def active_session(self):
         """Return the active session."""
 
