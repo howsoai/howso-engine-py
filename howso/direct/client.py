@@ -2527,6 +2527,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_case_threshold: Literal["max", "min", "most_similar"] = "min",
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
+        post_process_features: Optional[Iterable[str]] = None,
+        post_process_values: Optional[Union[List[List[object]], DataFrame]] = None,
         preserve_feature_values: Optional[Iterable[str]] = None,
         progress_callback: Optional[Callable] = None,
         substitute_output: bool = True,
@@ -2920,6 +2922,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             The number of cases to generate.
         suppress_warning : bool, defaults to False
             If True, warnings will not be displayed.
+        post_process_features : iterable of str, optional
+            List of feature names that will be made available during the
+            execution of post_process feature attributes.
+        post_process_values : list of list of object or DataFrame, optional
+            A 2d list of values corresponding to post_process_features that
+            will be made available during the execution of post_process feature
+            attributes.
         progress_callback : callable, optional
             A callback method that will be called before each
             batched call to react and at the end of reacting. The method is
@@ -2966,6 +2975,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             If `num_cases_to_generate` is not an integer greater than 0.
         """
         self._auto_resolve_trainee(trainee_id)
+        trainee = self.trainee_cache.get(trainee_id)
         action_features, actions, context_features, contexts = (
             self._preprocess_react_parameters(
                 action_features=action_features,
@@ -2978,6 +2988,25 @@ class HowsoDirectClient(AbstractHowsoClient):
                 trainee_id=trainee_id
             )
         )
+
+        if post_process_values is not None and post_process_features is None:
+            post_process_features = internals.get_features_from_data(
+                post_process_values,
+                default_features=None,
+                data_parameter='post_process_values',
+                features_parameter='post_process_features')
+        post_process_values = serialize_cases(
+            post_process_values, post_process_features,
+            trainee.features)
+
+        if post_process_values is not None and contexts is not None:
+            if (len(contexts) > 1 and len(post_process_values) > 1 and
+                    len(contexts) != len(post_process_values)):
+                raise ValueError(
+                    "If more than one value is provided for 'contexts' "
+                    "and 'post_process_values', then they must be of the same "
+                    "length."
+                )
 
         if action_features is not None and derived_action_features is not None:
             if not set(derived_action_features).issubset(set(action_features)):
@@ -3022,6 +3051,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "post_process_features": post_process_features,
+                "post_process_values": post_process_values,
                 "case_indices": case_indices,
                 "allow_nulls": allow_nulls,
                 "input_is_substituted": input_is_substituted,
@@ -3060,6 +3091,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "post_process_features": post_process_features,
+                "post_process_values": post_process_values,
                 "use_regional_model_residuals": use_regional_model_residuals,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
@@ -3144,6 +3177,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         actions = react_params.get('action_values')
         contexts = react_params.get('context_values')
         case_indices = react_params.get('case_indices')
+        post_process_values = react_params.get('post_process_values')
 
         with ProgressTimer(total_size) as progress:
             batch_scaler = self.batch_scaler_class(10, progress)
@@ -3165,6 +3199,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 if case_indices is not None and len(case_indices) > 1:
                     react_params['case_indices'] = (
                         case_indices[batch_start:batch_end])
+                if (post_process_values is not None and
+                        len(post_process_values) > 1):
+                    react_params['post_process_values'] = (
+                        post_process_values[batch_start:batch_end])
 
                 if react_params.get('desired_conviction') is not None:
                     react_params['num_cases_to_generate'] = batch_size

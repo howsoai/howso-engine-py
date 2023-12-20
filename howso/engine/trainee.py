@@ -1193,6 +1193,8 @@ class Trainee(BaseTrainee):
         context_features: Optional[Iterable[str]] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
+        post_process_features: Optional[Iterable[str]] = None,
+        post_process_values: Optional[Union[List[List[object]], "DataFrame"]] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict[str, object]] = None,
         feature_bounds_map: Optional[Dict[str, Dict[str, object]]] = None,
@@ -1257,6 +1259,13 @@ class Trainee(BaseTrainee):
         derived_context_features : list of str, optional
             Features whose values should be computed from the provided
             context in the specified order.
+        post_process_features : iterable of str, optional
+            List of feature names that will be made available during the
+            execution of post_process feature attributes.
+        post_process_values : list of list of object or DataFrame, optional
+            A 2d list of values corresponding to post_process_features that
+            will be made available during the execution of post_process feature
+            attributes.
         desired_conviction : float, optional
             If specified will execute a generative react. If not
             specified will execute a discriminative react. Conviction is the
@@ -1564,6 +1573,8 @@ class Trainee(BaseTrainee):
             new_case_threshold=new_case_threshold,
             num_cases_to_generate=num_cases_to_generate,
             ordered_by_specified_features=ordered_by_specified_features,
+            post_process_features=post_process_features,
+            post_process_values=post_process_values,
             preserve_feature_values=preserve_feature_values,
             progress_callback=progress_callback,
             substitute_output=substitute_output,
