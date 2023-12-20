@@ -356,6 +356,8 @@ class AbstractHowsoClient(ABC):
         new_case_threshold="min",
         num_cases_to_generate=1,
         ordered_by_specified_features=False,
+        post_process_features=None,
+        post_process_values=None,
         preserve_feature_values=None,
         progress_callback=None,
         substitute_output=True,

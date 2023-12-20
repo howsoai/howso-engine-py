@@ -1286,6 +1286,8 @@ class HowsoCore:
         leave_case_out: bool = False,
         new_case_threshold: Literal["max", "min", "most_similar"] = "min",
         ordered_by_specified_features: bool = False,
+        post_process_features: Optional[Iterable[str]] = None,
+        post_process_values: Optional[List[object]] = None,
         preserve_feature_values: Optional[Iterable[str]] = None,
         substitute_output: bool = True,
         use_case_weights: bool = False,
@@ -1351,6 +1353,13 @@ class HowsoCore:
             index is the original 0-based index of the case as it was trained
             into the session. If this case does not exist, discriminative react
             outputs null, generative react ignores it.
+        post_process_features : iterable of str, optional
+            List of feature names that will be made available during the
+            execution of post_process feature attributes.
+        post_process_values : list of object, optional
+            A 2d list of values corresponding to post_process_features that
+            will be made available during the execution of post_process feature
+            attributes.
         preserve_feature_values : iterable of str
             List of features that will preserve their values from
             the case specified by case_indices, appending and overwriting the
@@ -1407,6 +1416,8 @@ class HowsoCore:
             "feature_bounds_map": feature_bounds_map,
             "generate_new_cases": generate_new_cases,
             "ordered_by_specified_features": ordered_by_specified_features,
+            "post_process_features": post_process_features,
+            "post_process_values": post_process_values,
             "preserve_feature_values": preserve_feature_values,
             "new_case_threshold": new_case_threshold,
             "into_series_store": into_series_store,
@@ -1435,6 +1446,8 @@ class HowsoCore:
         new_case_threshold: Literal["max", "min", "most_similar"] = "min",
         num_cases_to_generate: Optional[int] = None,
         ordered_by_specified_features: bool = False,
+        post_process_features: Optional[Iterable[str]] = None,
+        post_process_values: Optional[List[List[object]]] = None,
         preserve_feature_values: Optional[Iterable[str]] = None,
         substitute_output: bool = True,
         use_case_weights: bool = False,
@@ -1500,6 +1513,13 @@ class HowsoCore:
             index is the original 0-based index of the case as it was trained
             into the session. If this case does not exist, discriminative react
             outputs null, generative react ignores it.
+        post_process_features : iterable of str, optional
+            List of feature names that will be made available during the
+            execution of post_process feature attributes.
+        post_process_values : list of list of object, optional
+            A 2d list of values corresponding to post_process_features that
+            will be made available during the execution of post_process feature
+            attributes.
         preserve_feature_values : iterable of str
             List of features that will preserve their values from
             the case specified by case_indices, appending and overwriting the
@@ -1559,6 +1579,8 @@ class HowsoCore:
             "feature_bounds_map": feature_bounds_map,
             "generate_new_cases": generate_new_cases,
             "ordered_by_specified_features": ordered_by_specified_features,
+            "post_process_features": post_process_features,
+            "post_process_values": post_process_values,
             "preserve_feature_values": preserve_feature_values,
             "new_case_threshold": new_case_threshold,
             "into_series_store": into_series_store,
