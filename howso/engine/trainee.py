@@ -24,7 +24,6 @@ from howso.client.protocols import (
     BaseClientProtocol,
     PlatformCapableClient
 )
-from howso.direct import HowsoDirectClient
 from howso.engine.client import get_client
 from howso.openapi.models import (
     Cases,
@@ -220,8 +219,6 @@ class Trainee(BaseTrainee):
         if self._custom_save_path:
             return self._custom_save_path
         else:
-            # Jack
-            # return self.client.howso.default_save_path
             if isinstance(self.client, LocalSavableClient):
                 return self.client.howso.default_save_path
             else:
@@ -599,16 +596,15 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-
-        if isinstance(self.client, LocalSavableClient) and self._custom_save_path is not None:
-            self.client.delete_trainee(trainee_id=self.id, file_path=self._custom_save_path)
-        else:
-            if not self.id:
-                return
-            if isinstance(self.client, BaseClientProtocol):
-                self.client.delete_trainee(trainee_id=self.id)
+        if isinstance(self.client, BaseClientProtocol):
+            if isinstance(self.client, LocalSavableClient) and self._custom_save_path is not None:
+                self.client.delete_trainee(trainee_id=self.id, file_path=self._custom_save_path)
             else:
-                raise ValueError("Client must have the 'delete_trainee' method.")
+                if not self.id:
+                    raise ValueError("Trainee not deleted, id doesn't exist.")
+                self.client.delete_trainee(trainee_id=self.id)
+        else:
+            raise ValueError("Client must have the 'delete_trainee' method.")
 
         self._created = False
         self._id = None
@@ -3765,10 +3761,10 @@ def delete_trainee(
 
     # Check if file exists
     if file_path:
-        if not isinstance(client, HowsoDirectClient):
+        if not isinstance(client, LocalSavableClient):
             raise HowsoError(
                 "Deleting trainees from using a file path is only"
-                "supported with a HowsoDirectClient.")
+                "supported with a client that has disk access.")
 
         file_path = Path(file_path)
         file_path = file_path.expanduser().resolve()
@@ -3850,7 +3846,10 @@ def load_trainee(
     if ret is None:
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
 
-    trainee = client._get_trainee_from_core(trainee_id)
+    if isinstance(client, LocalSavableClient):
+        trainee = client._get_trainee_from_core(trainee_id)
+    else:
+        raise ValueError("Loading a Trainee from disk requires a client with disk access.")
     if isinstance(client.trainee_cache, TraineeCache):
         client.trainee_cache.set(trainee, entity_id=client.howso.handle)
     if trainee:

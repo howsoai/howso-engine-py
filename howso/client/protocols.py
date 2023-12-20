@@ -138,9 +138,6 @@ class LocalSavableClient(Protocol):
     def _get_trainee_from_core(self, *args, **kwargs):
         ...
 
-    def delete_trainee(self, *args, **kwargs):
-        ...
-
 
 @runtime_checkable
 class PlatformCapableClient(Protocol):
