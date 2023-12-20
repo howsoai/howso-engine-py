@@ -24,7 +24,7 @@ class LocalSavableClient(Protocol):
         """Howso Core API."""
         ...
 
-    def _get_trainee_from_core(self, trainee_id: str) -> Trainee:
+    def _get_trainee_from_core(self, trainee_id: str) -> "Trainee":
         """Retrieve the core representation of a Trainee object."""
         ...
 
