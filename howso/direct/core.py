@@ -1278,6 +1278,7 @@ class HowsoCore:
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
         extra_audit_features: Optional[Iterable[str]] = None,
         feature_bounds_map: Optional[Dict] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
@@ -1388,6 +1389,10 @@ class HowsoCore:
         new_case_threshold : {"min", "max", "most_similar"}, optional
             Distance to determine the privacy cutoff. If None,
             will default to "min".
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            If True, will exclude features which have a subtype defined in their feature
+            feature attributes from the uniqueness check that happens when ``generate_new_cases``
+            is True. Only applies to generative reacts.
 
         Returns
         -------

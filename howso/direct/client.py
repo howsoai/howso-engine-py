@@ -2519,6 +2519,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[Dict] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
         input_is_substituted: bool = False,
@@ -2944,6 +2945,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 - max: maximum distance in the original local space.
                 - most_similar: distance between the nearest neighbor to the
                   nearest neighbor in the original space.
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            If True, will exclude features which have a subtype defined in their feature
+            feature attributes from the uniqueness check that happens when ``generate_new_cases``
+            is True. Only applies to generative reacts.
 
         Returns
         -------
@@ -3044,6 +3049,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             else:
                 total_size = len(case_indices)
 
+            # discriminative react parameters
             react_params = {
                 "action_values": actions,
                 "context_features": context_features,
@@ -3084,6 +3090,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     case_indices=case_indices
                 )
 
+            # generative react parameters
             react_params = {
                 "num_cases_to_generate": num_cases_to_generate,
                 "context_features": context_features,
@@ -3108,6 +3115,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "case_indices": case_indices,
                 "leave_case_out": leave_case_out,
                 "details": details,
+                "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
             }
 
         if self._should_react_batch(react_params, total_size):
