@@ -1278,6 +1278,7 @@ class HowsoCore:
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
         extra_audit_features: Optional[Iterable[str]] = None,
         feature_bounds_map: Optional[Dict] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
@@ -1388,6 +1389,10 @@ class HowsoCore:
         new_case_threshold : {"min", "max", "most_similar"}, optional
             Distance to determine the privacy cutoff. If None,
             will default to "min".
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            If True, will exclude features which have a subtype defined in their feature
+            feature attributes from the uniqueness check that happens when ``generate_new_cases``
+            is True. Only applies to generative reacts.
 
         Returns
         -------
@@ -1437,6 +1442,7 @@ class HowsoCore:
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
         extra_audit_features: Optional[Iterable[str]] = None,
         feature_bounds_map: Optional[Dict] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
@@ -1487,6 +1493,10 @@ class HowsoCore:
             An iterable of feature names whose values should be computed
             after generation from the generated case prior to output, in the
             specified order. Must be a subset of action_features.
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            If True, will exclude features which have a subtype defined in their feature
+            feature attributes from the uniqueness check that happens when ``generate_new_cases``
+            is True. Only applies to generative reacts.
         input_is_substituted : bool, default False
             if True assumes provided categorical (nominal or
             ordinal) feature values have already been substituted.
@@ -1565,6 +1575,7 @@ class HowsoCore:
             "derived_context_features": derived_context_features,
             "derived_action_features": derived_action_features,
             "details": details,
+            "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
             "extra_audit_features": extra_audit_features,
             "case_indices": case_indices,
             "allow_nulls": allow_nulls,
@@ -1602,6 +1613,7 @@ class HowsoCore:
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
         extra_audit_features: Optional[Iterable[str]] = None,
         feature_bounds_map: Optional[Dict] = None,
         final_time_steps: Optional[Union[List[object], List[List[object]]]] = None,
@@ -1716,6 +1728,8 @@ class HowsoCore:
             See parameter ``details`` in :meth:`react`.
         desired_conviction: float
             See parameter ``desired_conviction`` in :meth:`react`.
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            See parameter ``exclude_novel_nominals_from_uniqueness_check`` in :meth:`react`.
         weight_feature : str
             See parameter ``weight_feature`` in :meth:`react`.
         use_case_weights : bool
@@ -1767,6 +1781,7 @@ class HowsoCore:
             "series_id_tracking": series_id_tracking,
             "output_new_series_ids": output_new_series_ids,
             "details": details,
+            "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
             "extra_audit_features": extra_audit_features,
             "case_indices": case_indices,
             "input_is_substituted": input_is_substituted,

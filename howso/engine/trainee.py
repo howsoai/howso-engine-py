@@ -1201,6 +1201,7 @@ class Trainee(BaseTrainee):
         post_process_values: Optional[Union[List[List[object]], "DataFrame"]] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict[str, object]] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[Dict[str, Dict[str, object]]] = None,
         generate_new_cases: Optional[str] = "no",
         input_is_substituted: Optional[bool] = False,
@@ -1470,6 +1471,10 @@ class Trainee(BaseTrainee):
                 uses uniform sampling from the power set of all combinations of
                 features (or cases, as needed) instead.
 
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            If True, will exclude features which have a subtype defined in their feature
+            feature attributes from the uniqueness check that happens when ``generate_new_cases``
+            is True. Only applies to generative reacts.
         feature_bounds_map : dict of {str: dict of {str: object}}, optional
             A mapping of feature names to the bounds for the feature values to
             be generated in. For continuous features this should be a numeric
@@ -1569,6 +1574,7 @@ class Trainee(BaseTrainee):
             derived_context_features=derived_context_features,
             desired_conviction=desired_conviction,
             details=details,
+            exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
             feature_bounds_map=feature_bounds_map,
             generate_new_cases=generate_new_cases,
             input_is_substituted=input_is_substituted,
