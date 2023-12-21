@@ -1857,7 +1857,8 @@ class Trainee(BaseTrainee):
                 use_regional_model_residuals=use_regional_model_residuals,
                 weight_feature=weight_feature,
             )
-        raise ValueError("Trainee ID is needed for setting feature attributes.")
+        else:
+            raise ValueError("Trainee ID is needed for setting feature attributes.")
 
     def impute(
         self,
@@ -2282,7 +2283,8 @@ class Trainee(BaseTrainee):
                 num_cases=num_cases,
                 precision=precision,
             )
-        raise ValueError("Trainee ID is needed for 'get_cases'.")
+        else:
+            raise ValueError("Trainee ID is needed for 'get_cases'.")
 
     def get_extreme_cases(
         self,
@@ -2315,7 +2317,8 @@ class Trainee(BaseTrainee):
                 num=num,
                 sort_feature=sort_feature
             )
-        raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
+        else:
+            raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
 
     def get_num_training_cases(self) -> int:
         """
@@ -2407,7 +2410,8 @@ class Trainee(BaseTrainee):
                     self._features = self.client.trainee_cache.get(self.id).features
                 else:
                     raise ValueError("Trainee Cache is empty, Trainee features are not set.")
-            raise ValueError("Trainee ID is needed for 'add_feature'.")
+            else:
+                raise ValueError("Trainee ID is needed for 'add_feature'.")
         else:
             raise ValueError("Client must have the 'add_feature' method.")
 
@@ -2472,7 +2476,8 @@ class Trainee(BaseTrainee):
                     self._features = self.client.trainee_cache.get(self.id).features
                 else:
                     raise ValueError("Trainee cache is empty, Trainee features are not removed.")
-            raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
+            else:
+                raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
         else:
             raise ValueError("Client must have the 'remove_feature' method.")
 
