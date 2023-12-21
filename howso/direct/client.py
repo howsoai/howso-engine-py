@@ -1880,6 +1880,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[Dict] = None,
         final_time_steps: Optional[Union[List[object], List[List[object]]]] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
@@ -1991,6 +1992,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "derived_feature_code" attribute references non-existing
                 feature indices, the derived value will be null.
 
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            If True, will exclude features which have a subtype defined in their feature
+            feature attributes from the uniqueness check that happens when ``generate_new_cases``
+            is True. Only applies to generative reacts.
         series_context_features : iterable of str, optional
             List of context features corresponding to
             series_context_values, if specified must not overlap with any
@@ -2236,6 +2241,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "use_case_weights": use_case_weights,
                 "leave_case_out": leave_case_out,
                 "details": details,
+                "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
                 "series_id_tracking": series_id_tracking,
                 "output_new_series_ids": output_new_series_ids,
             }
@@ -2281,6 +2287,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "max_series_lengths": max_series_lengths,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
                 "series_context_features": series_context_features,
                 "series_context_values": serialized_series_context_values,
                 "use_regional_model_residuals": use_regional_model_residuals,
