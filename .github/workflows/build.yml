@@ -180,7 +180,6 @@ jobs:
       payload: "${{ inputs.payload }}"
 
   install-verification-linux-amd64:
-    if: inputs.build-type != 'PR'
     needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
     runs-on: ubuntu-latest
     steps:
@@ -378,7 +377,6 @@ jobs:
         PYTHONUTF8=1 verify_howso_install
 
   install-verification-windows-cmd-amd64:
-    if: inputs.build-type != 'PR'
     needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
     runs-on: windows-latest
     steps:
