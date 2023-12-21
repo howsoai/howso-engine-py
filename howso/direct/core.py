@@ -1408,6 +1408,7 @@ class HowsoCore:
             "details": details,
             "derived_action_features": derived_action_features,
             "derived_context_features": derived_context_features,
+            "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
             "extra_audit_features": extra_audit_features,
             "case_indices": case_indices,
             "allow_nulls": allow_nulls,
