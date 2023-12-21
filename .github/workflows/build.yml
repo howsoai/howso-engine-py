@@ -477,7 +477,7 @@ jobs:
 
   install-verification-macos-amd64:
     needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
-    runs-on: macos-latest
+    runs-on: macos-latest-large
     steps:
 
     - name: Download Artifact

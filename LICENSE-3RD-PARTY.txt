@@ -1481,7 +1481,7 @@ Library.
 
 
 howso-openapi-client
-26.1.1
+27.0.0
 GNU Affero General Public License v3
 Howso Incorporated
 UNKNOWN

@@ -29,8 +29,9 @@ import warnings
 
 import certifi
 from howso import utilities as util
-from howso.client import AbstractHowsoClient
+from howso.client import AbstractHowsoClient, get_configuration_path
 from howso.client.cache import TraineeCache
+from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
 from howso.openapi.models import (
     ApiVersion,
@@ -110,6 +111,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         A specified howso core direct interface object.
 
         If None, an interface will be generated using the provided handle.
+    config_path : str or Path or None, optional
+        A configuration file in yaml format that specifies Howso engine
+        settings.
+
+        If not set, the client will also check in order of precedence:
+            - HOWSO_CONFIG environment variable
+            - The current directory for howso.yml, howso.yaml, config.yml
+            - ~/.howso for howso.yml, howso.yaml, config.yml.
     debug : bool, default False
         Set debug output.
     handle : str, optional
@@ -118,6 +127,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         If None, :attr:`HowsoDirectClient.DEFAULT_HANDLE` will be used.
     verbose : bool, default False
         Set verbose output.
+    version_check : bool, default True
+        Check if the latest version of Howso engine is installed.
     """
 
     #: The default Howso core entity handle.
@@ -138,6 +149,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         howso_core: Optional[HowsoCore] = None,
         *,
+        config_path: Union[str, Path, None] = None,
         debug: bool = False,
         handle: Optional[str] = None,
         verbose: bool = False,
@@ -166,6 +178,11 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.verbose = verbose
         self.debug = debug
+
+        # Load configuration
+        config_path = get_configuration_path(config_path, self.verbose)
+        self.configuration = HowsoConfiguration(
+            config_path=config_path, verbose=verbose)
 
         if howso_core is None:
             if handle not in _core_cache:
@@ -1879,6 +1896,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[Dict] = None,
         final_time_steps: Optional[Union[List[object], List[List[object]]]] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
@@ -1990,6 +2008,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "derived_feature_code" attribute references non-existing
                 feature indices, the derived value will be null.
 
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            If True, will exclude features which have a subtype defined in their feature
+            attributes from the uniqueness check that happens when ``generate_new_cases``
+            is True. Only applies to generative reacts.
         series_context_features : iterable of str, optional
             List of context features corresponding to
             series_context_values, if specified must not overlap with any
@@ -2235,6 +2257,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "use_case_weights": use_case_weights,
                 "leave_case_out": leave_case_out,
                 "details": details,
+                "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
                 "series_id_tracking": series_id_tracking,
                 "output_new_series_ids": output_new_series_ids,
             }
@@ -2280,6 +2303,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "max_series_lengths": max_series_lengths,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
                 "series_context_features": series_context_features,
                 "series_context_values": serialized_series_context_values,
                 "use_regional_model_residuals": use_regional_model_residuals,
@@ -2535,6 +2559,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[Dict] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
         input_is_substituted: bool = False,
@@ -2960,6 +2985,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 - max: maximum distance in the original local space.
                 - most_similar: distance between the nearest neighbor to the
                   nearest neighbor in the original space.
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            If True, will exclude features which have a subtype defined in their feature
+            attributes from the uniqueness check that happens when ``generate_new_cases``
+            is True. Only applies to generative reacts.
 
         Returns
         -------
@@ -3060,6 +3089,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             else:
                 total_size = len(case_indices)
 
+            # discriminative react parameters
             react_params = {
                 "action_values": actions,
                 "context_features": context_features,
@@ -3100,6 +3130,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     case_indices=case_indices
                 )
 
+            # generative react parameters
             react_params = {
                 "num_cases_to_generate": num_cases_to_generate,
                 "context_features": context_features,
@@ -3124,6 +3155,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "case_indices": case_indices,
                 "leave_case_out": leave_case_out,
                 "details": details,
+                "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
             }
 
         if self._should_react_batch(react_params, total_size):

@@ -8,11 +8,10 @@ from typing import (
     TYPE_CHECKING,
     Union,
 )
-
-from howso.utilities.types import Reaction, ReactionSeries
 from pandas import DataFrame, Index
 
 if TYPE_CHECKING:
+    from .configuration import HowsoConfiguration
     from howso.openapi.models import (
         Cases,
         Metrics,
@@ -22,6 +21,8 @@ if TYPE_CHECKING:
 
 class AbstractHowsoClient(ABC):
     """The base definition of the Howso client interface."""
+
+    configuration: "HowsoConfiguration"
 
     @property
     @abstractmethod
@@ -249,6 +250,7 @@ class AbstractHowsoClient(ABC):
         derived_context_features=None,
         desired_conviction=None,
         details=None,
+        exclude_novel_nominals_from_uniqueness_check=False,
         feature_bounds_map=None,
         final_time_steps=None,
         generate_new_cases="no",
@@ -348,6 +350,7 @@ class AbstractHowsoClient(ABC):
         derived_context_features=None,
         desired_conviction=None,
         details=None,
+        exclude_novel_nominals_from_uniqueness_check=False,
         feature_bounds_map=None,
         generate_new_cases="no",
         input_is_substituted=False,
