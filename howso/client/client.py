@@ -153,7 +153,9 @@ def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # no
         else:
             print('Using configuration-less defaults.')
 
-    return config_path
+    if config_path:
+        return Path(config_path)
+    return None
 
 
 def _gen_files_in_dir(directory: Path) -> Generator[Path, None, None]:
