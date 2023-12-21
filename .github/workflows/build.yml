@@ -478,7 +478,6 @@ jobs:
         verify_howso_install
 
   install-verification-macos-amd64:
-    if: inputs.build-type != 'PR'
     needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
     runs-on: macos-latest
     steps:
@@ -512,14 +511,42 @@ jobs:
           pip install tmp/*.whl
         fi
 
-        # Set local config to use mt-noavx because GitHub hosted runners don't have AVX:
-        echo "
-        howso:
-          client: howso.direct.HowsoDirectClient
-          client_extra_params:
-            amalgam:
-              library_postfix: -mt-noavx
-        " > howso.yml
+        echo "Running Howso verification..."
+        verify_howso_install
+
+  install-verification-macos-arm64:
+    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
+    runs-on: macos-latest-xlarge
+    steps:
+
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+
+    - name: Download amalgam-lang-py
+      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        # Needed because release/non-release downloads are different structure
+        cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Verify Howso install
+      run: |
+        echo "Installing Howso Engine..."
+        pip install howso_engine-*-py3-none-any.whl
+        if [ -d "tmp" ]; then
+          echo "Found custom amalgam-lang version; installing..."
+          pip uninstall amalgam-lang -y
+          pip install tmp/*.whl
+        fi
 
         echo "Running Howso verification..."
         verify_howso_install
@@ -539,10 +566,11 @@ jobs:
       - install-verification-linux-amd64
       - install-verification-linux-arm64
       - install-verification-linux-arm64_8a
-      - install-verification-macos-amd64
       - install-verification-windows-bash-amd64
       - install-verification-windows-cmd-amd64
       - install-verification-windows-pwsh-amd64
+      - install-verification-macos-amd64
+      - install-verification-macos-arm64
     runs-on: ubuntu-latest
     steps:
 
