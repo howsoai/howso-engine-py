@@ -2128,6 +2128,26 @@ class HowsoCore:
             "use_case_weights": use_case_weights,
         })
 
+    def get_session_indices(self, trainee_id: str, session: str) -> List[int]:
+        """
+        Get list of all session indices for a specified session.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee.
+        session : str
+            The identifier of the session.
+        Returns
+        -------
+        list of int
+            A list of the session indices for the session.
+        """
+        return self._execute("get_session_indices", {
+            "trainee": trainee_id,
+            "session": session,
+        })
+
     def get_session_training_indices(self, trainee_id: str, session: str
                                      ) -> List[int]:
         """
