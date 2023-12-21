@@ -1994,7 +1994,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
-            feature attributes from the uniqueness check that happens when ``generate_new_cases``
+            attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
         series_context_features : iterable of str, optional
             List of context features corresponding to
@@ -2971,7 +2971,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                   nearest neighbor in the original space.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
-            feature attributes from the uniqueness check that happens when ``generate_new_cases``
+            attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
 
         Returns
