@@ -1688,9 +1688,8 @@ class Trainee(BaseTrainee):
         details : dict of {str: object}
             See parameter ``details`` in :func:`react`.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
-            exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
-            feature attributes from the uniqueness check that happens when ``generate_new_cases``
+            attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
         feature_bounds_map : dict of {str: dict of {str: object}}, optional
             See parameter ``feature_bounds_map`` in :func:`react`.
