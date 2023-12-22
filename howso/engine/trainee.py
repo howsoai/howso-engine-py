@@ -9,20 +9,24 @@ from typing import (
     Literal,
     Optional,
     Tuple,
-    TYPE_CHECKING,
-    TypedDict,
     Union,
 )
 import uuid
 import warnings
 
 from howso.client import AbstractHowsoClient
+from howso.client.cache import TraineeCache
 from howso.client.exceptions import HowsoApiError, HowsoError
 from howso.client.pandas import HowsoPandasClientMixin
-from howso.client.protocols import ProjectClient
-from howso.direct import HowsoDirectClient
+from howso.client.protocols import (
+    ProjectClient,
+    LocalSaveableProtocol
+)
 from howso.engine.client import get_client
+from howso.engine.project import Project
+from howso.engine.session import Session
 from howso.openapi.models import (
+    Cases,
     Metrics,
     Project as BaseProject,
     Session as BaseSession,
@@ -31,32 +35,10 @@ from howso.openapi.models import (
     TraineeInformation,
     TraineeResources,
 )
-from howso.engine.project import Project
-from howso.engine.session import Session
 from howso.utilities import CaseIndices
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
+from howso.utilities.types import Reaction, ReactionSeries
 from pandas import DataFrame, Index
-
-
-class Reaction(TypedDict):
-    """React response format."""
-
-    action: DataFrame
-    explanation: Dict[str, Any]
-
-
-class ReactionSeries(TypedDict):
-    """React Series response format."""
-
-    series: DataFrame
-    explanation: Dict[str, Any]
-
-
-class Distances(TypedDict):
-    """Distances response format."""
-
-    session_indices: List[Tuple[str, int]]
-    distances: DataFrame
 
 __all__ = [
     "Trainee",
@@ -121,17 +103,17 @@ class Trainee(BaseTrainee):
         name: Optional[str] = None,
         features: Optional[Dict[str, Dict]] = None,
         *,
+        overwrite_existing: bool = False,
+        persistence: str = "allow",
         default_action_features: Optional[Iterable[str]] = None,
         default_context_features: Optional[Iterable[str]] = None,
         id: Optional[str] = None,
         library_type: Optional[str] = None,
         max_wait_time: Optional[Union[int, float]] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        persistence: Optional[str] = "allow",
         project: Optional[Union[str, BaseProject]] = None,
         resources: Optional[Union["TraineeResources", Dict[str, Any]]] = None,
         client: Optional[AbstractHowsoClient] = None,
-        overwrite_existing: Optional[bool] = False,
     ) -> None:
         """Implement the constructor."""
         self._created: bool = False
@@ -142,10 +124,10 @@ class Trainee(BaseTrainee):
         # Set the trainee properties
         self._features = features
         self._metadata = metadata
+        self.name = name
         self._id = id
         self._custom_save_path = None
 
-        self.name = name
         self.persistence = persistence
         self.set_default_features(
             action_features=default_action_features,
@@ -155,8 +137,11 @@ class Trainee(BaseTrainee):
         # Allow passing project id or the project instance
         if isinstance(project, BaseProject):
             self._project_id = project.id
-            self._project_instance = Project.from_openapi(
-                project, client=self.client)
+            if isinstance(self.client, ProjectClient):
+                self._project_instance = Project.from_openapi(
+                    project, client=self.client)  # type:ignore
+            else:
+                self._project_instance = None
         else:
             self._project_id = project
             self._project_instance = None  # lazy loaded
@@ -170,9 +155,10 @@ class Trainee(BaseTrainee):
         )
 
     @property
-    def id(self) -> str:
+    def id(self) -> Union[str, None]:
         """
-        The unique identifier of the trainee.
+        The unique identifier of the trainee. If a identifier is not provided and
+        a name is provided , the identifier will be the name.
 
         Returns
         -------
@@ -220,7 +206,7 @@ class Trainee(BaseTrainee):
         return self._project_instance
 
     @property
-    def save_location(self) -> str:
+    def save_location(self) -> Union[Path, str, None]:
         """
         The current storage location of the trainee.
 
@@ -234,7 +220,10 @@ class Trainee(BaseTrainee):
         if self._custom_save_path:
             return self._custom_save_path
         else:
-            return self.client.howso.default_save_path
+            if isinstance(self.client, LocalSaveableProtocol):
+                return self.client.howso.default_save_path
+            else:
+                return None
 
     @property
     def name(self) -> Optional[str]:
@@ -321,7 +310,10 @@ class Trainee(BaseTrainee):
         FeatureAttributesBase
             The feature attributes of the trainee.
         """
-        return SingleTableFeatureAttributes(deepcopy(self._features))
+        if self._features:
+            return SingleTableFeatureAttributes(deepcopy(self._features))
+        else:
+            return SingleTableFeatureAttributes({})
 
     @property
     def metadata(self) -> Optional[Dict[str, Any]]:
@@ -372,7 +364,7 @@ class Trainee(BaseTrainee):
         return deepcopy(self._default_context_features)
 
     @property
-    def active_session(self) -> Session:
+    def active_session(self) -> Union[Session, None]:
         """
         The active session.
 
@@ -381,7 +373,8 @@ class Trainee(BaseTrainee):
         Session
             The session instance.
         """
-        return Session.from_openapi(self.client.active_session, client=self.client)
+        if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
+            return Session.from_openapi(self.client.active_session, client=self.client)
 
     def save(self, file_path: Optional[Union[Path, str]] = None) -> None:
         """
@@ -404,8 +397,9 @@ class Trainee(BaseTrainee):
             If `file_path` does not contain a filename, then the natural
             trainee name will be used `<uuid>.caml`.
         """
-        if not isinstance(self.client, HowsoDirectClient):
-            raise HowsoError("To save, `client` must be HowsoDirectClient.")
+
+        if not isinstance(self.client, LocalSaveableProtocol):
+            raise HowsoError("To save, `client` type must have local disk access.")
 
         if file_path:
             if not isinstance(file_path, Path):
@@ -440,11 +434,14 @@ class Trainee(BaseTrainee):
         else:
             file_name = None
 
-        self.client.howso.persist(
-            trainee_id=self.id,
-            filename=file_name,
-            filepath=file_path
-        )
+        if self.id:
+            self.client.howso.persist(
+                trainee_id=self.id,
+                filename=file_name,
+                filepath=file_path
+            )
+        else:
+            raise ValueError("Trainee ID is needed for saving.")
 
     def set_feature_attributes(self, feature_attributes: Dict[str, Dict]) -> None:
         """
@@ -460,10 +457,19 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.set_feature_attributes(
-            trainee_id=self.id, feature_attributes=feature_attributes
-        )
-        self._features = self.client.trainee_cache.get(self.id).features
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.set_feature_attributes(
+                trainee_id=self.id, feature_attributes=feature_attributes
+            )
+            if self.id:
+                if self.client.trainee_cache:
+                    self._features = self.client.trainee_cache.get(self.id).features
+                else:
+                    raise ValueError("Trainee cache is empty, Trainee features are not added.")
+            else:
+                raise ValueError("Trainee ID is needed for setting feature attributes.")
+        else:
+            raise ValueError("Client must have the 'set_feature_attributes' method.")
 
     def set_default_features(
         self,
@@ -561,9 +567,16 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, ProjectClient):
             params["project_id"] = project_id
 
-        copy = self.client.copy_trainee(**params)
-
-        return Trainee.from_openapi(copy, client=self.client)
+        if isinstance(self.client, AbstractHowsoClient):
+            copy = self.client.copy_trainee(**params)
+        else:
+            copy = None
+        if copy:
+            if isinstance(self.client, AbstractHowsoClient):
+                return Trainee.from_openapi(copy, client=self.client)
+            raise ValueError("Client must be an instance of 'AbstractHowsoClient'")
+        else:
+            raise ValueError('Trainee not correctly copied')
 
     def persist(self) -> None:
         """
@@ -573,8 +586,9 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.persist_trainee(self.id)
-        self._was_saved = True
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.persist_trainee(self.id)
+            self._was_saved = True
 
     def delete(self) -> None:
         """
@@ -586,13 +600,15 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-
-        if isinstance(self.client, HowsoDirectClient) and self._custom_save_path is not None:
-            self.client.delete_trainee(trainee_id=self.id, file_path=self._custom_save_path)
+        if isinstance(self.client, AbstractHowsoClient):
+            if isinstance(self.client, LocalSaveableProtocol) and self._custom_save_path is not None:
+                self.client.delete_trainee(trainee_id=self.id, file_path=self._custom_save_path)
+            else:
+                if not self.id:
+                    raise ValueError("Trainee not deleted, id doesn't exist.")
+                self.client.delete_trainee(trainee_id=self.id)
         else:
-            if not self.id:
-                return
-            self.client.delete_trainee(trainee_id=self.id)
+            raise ValueError("Client must have the 'delete_trainee' method.")
 
         self._created = False
         self._id = None
@@ -630,8 +646,11 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.acquire_trainee_resources(
-            self.id, max_wait_time=max_wait_time)
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.acquire_trainee_resources(
+                self.id, max_wait_time=max_wait_time)
+        else:
+            raise ValueError("Client must have the 'acquire_trainee_resources' method.")
 
     def release_resources(self) -> None:
         """
@@ -643,7 +662,10 @@ class Trainee(BaseTrainee):
         """
         if not self.id:
             return
-        self.client.release_trainee_resources(self.id)
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.release_trainee_resources(self.id)
+        else:
+            raise ValueError("Client must have the 'release_trainee_resources' method.")
 
     def information(self) -> "TraineeInformation":
         """
@@ -655,7 +677,10 @@ class Trainee(BaseTrainee):
             The trainee detail information. Including trainee version and
             configuration parameters.
         """
-        return self.client.get_trainee_information(self.id)
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_trainee_information(self.id)
+        else:
+            raise ValueError("Client must have 'get_trainee_information' method")
 
     def metrics(self) -> "Metrics":
         """
@@ -666,7 +691,10 @@ class Trainee(BaseTrainee):
         Metrics
             The trainee metric information. Including cpu and memory.
         """
-        return self.client.get_trainee_metrics(self.id)
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_trainee_metrics(self.id)
+        else:
+            raise ValueError("Client must have 'get_trainee_metrics' method")
 
     def set_random_seed(self, seed: Union[int, float, str]) -> None:
         """
@@ -681,22 +709,23 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.set_random_seed(trainee_id=self.id, seed=seed)
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.set_random_seed(trainee_id=self.id, seed=seed)
 
     def train(
         self,
         cases: Union[List[List[object]], "DataFrame"],
         *,
+        input_is_substituted: bool = False,
+        train_weights_only: bool = False,
+        validate: bool = True,
         ablatement_params: Optional[Dict[str, List[object]]] = None,
         accumulate_weight_feature: Optional[str] = None,
         batch_size: Optional[int] = None,
         derived_features: Optional[Iterable[str]] = None,
         features: Optional[Iterable[str]] = None,
-        input_is_substituted: Optional[bool] = False,
         progress_callback: Optional[Callable] = None,
         series: Optional[str] = None,
-        train_weights_only: Optional[bool] = False,
-        validate: bool = True,
     ) -> None:
         """
         Train one or more cases into the trainee (model).
@@ -771,20 +800,23 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.train(
-            trainee_id=self.id,
-            ablatement_params=ablatement_params,
-            accumulate_weight_feature=accumulate_weight_feature,
-            batch_size=batch_size,
-            cases=cases,
-            derived_features=derived_features,
-            features=features,
-            input_is_substituted=input_is_substituted,
-            progress_callback=progress_callback,
-            series=series,
-            train_weights_only=train_weights_only,
-            validate=validate,
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.train(
+                trainee_id=self.id,
+                ablatement_params=ablatement_params,
+                accumulate_weight_feature=accumulate_weight_feature,
+                batch_size=batch_size,
+                cases=cases,
+                derived_features=derived_features,
+                features=features,
+                input_is_substituted=input_is_substituted,
+                progress_callback=progress_callback,
+                series=series,
+                train_weights_only=train_weights_only,
+                validate=validate,
+            )
+        else:
+            raise ValueError("Client must have the 'train' method.")
 
     def optimize(self, *args, **kwargs):
         """
@@ -926,7 +958,10 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.auto_analyze(self.id)
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.auto_analyze(self.id)
+        else:
+            raise ValueError("Client must have the 'auto_analyze' method.")
 
     def set_auto_analyze_params(
         self,
@@ -964,14 +999,17 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.set_auto_analyze_params(
-            trainee_id=self.id,
-            auto_analyze_enabled=auto_analyze_enabled,
-            auto_analyze_limit_size=auto_analyze_limit_size,
-            analyze_growth_factor=analyze_growth_factor,
-            analyze_threshold=analyze_threshold,
-            **kwargs,
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.set_auto_analyze_params(
+                trainee_id=self.id,
+                auto_analyze_enabled=auto_analyze_enabled,
+                auto_analyze_limit_size=auto_analyze_limit_size,
+                analyze_growth_factor=analyze_growth_factor,
+                analyze_threshold=analyze_threshold,
+                **kwargs,
+            )
+        else:
+            raise ValueError("Client must have the 'react_into_trainee' method.")
 
     def analyze(
         self,
@@ -1067,44 +1105,45 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.analyze(
-            trainee_id=self.id,
-            action_features=action_features,
-            context_features=context_features,
-            bypass_calculate_feature_residuals=bypass_calculate_feature_residuals,  # noqa: E501
-            bypass_calculate_feature_weights=bypass_calculate_feature_weights,
-            bypass_hyperparameter_analysis=bypass_hyperparameter_analysis,  # noqa: E501
-            dt_values=dt_values,
-            use_case_weights=use_case_weights,
-            inverse_residuals_as_weights=inverse_residuals_as_weights,
-            k_folds=k_folds,
-            k_values=k_values,
-            num_analysis_samples=num_analysis_samples,
-            num_samples=num_samples,
-            analysis_sub_model_size=analysis_sub_model_size,
-            analyze_level=analyze_level,
-            p_values=p_values,
-            targeted_model=targeted_model,
-            use_deviations=use_deviations,
-            weight_feature=weight_feature,
-            **kwargs
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.analyze(
+                trainee_id=self.id,
+                action_features=action_features,
+                context_features=context_features,
+                bypass_calculate_feature_residuals=bypass_calculate_feature_residuals,  # noqa: E501
+                bypass_calculate_feature_weights=bypass_calculate_feature_weights,
+                bypass_hyperparameter_analysis=bypass_hyperparameter_analysis,  # noqa: E501
+                dt_values=dt_values,
+                use_case_weights=use_case_weights,
+                inverse_residuals_as_weights=inverse_residuals_as_weights,
+                k_folds=k_folds,
+                k_values=k_values,
+                num_analysis_samples=num_analysis_samples,
+                num_samples=num_samples,
+                analysis_sub_model_size=analysis_sub_model_size,
+                analyze_level=analyze_level,
+                p_values=p_values,
+                targeted_model=targeted_model,
+                use_deviations=use_deviations,
+                weight_feature=weight_feature,
+                **kwargs
+            )
 
     def predict(
         self,
         contexts: Optional[Union[List[List[object]], "DataFrame"]] = None,
         *,
+        suppress_warning: bool = False,
+        use_case_weights: bool = False,
+        allow_nulls: bool = False,
         action_features: Optional[Iterable[str]] = None,
-        allow_nulls: Optional[bool] = False,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         leave_case_out: Optional[bool] = None,
-        suppress_warning: Optional[bool] = False,
-        use_case_weights: Optional[bool] = False,
         weight_feature: Optional[str] = None,
-    ) -> list:
+    ) -> DataFrame:
         """
         Wrapper around :func:`react`.
 
@@ -1192,7 +1231,7 @@ class Trainee(BaseTrainee):
         *,
         action_features: Optional[Iterable[str]] = None,
         actions: Optional[Union[List[List[object]], "DataFrame"]] = None,
-        allow_nulls: Optional[bool] = False,
+        allow_nulls: bool = False,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         derived_action_features: Optional[Iterable[str]] = None,
@@ -1203,21 +1242,21 @@ class Trainee(BaseTrainee):
         details: Optional[Dict[str, object]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[Dict[str, Dict[str, object]]] = None,
-        generate_new_cases: Optional[str] = "no",
-        input_is_substituted: Optional[bool] = False,
+        generate_new_cases: str = "no",
+        input_is_substituted: bool = False,
         into_series_store: Optional[str] = None,
         leave_case_out: Optional[bool] = None,
-        new_case_threshold: Optional[str] = "min",
-        num_cases_to_generate: Optional[int] = 1,
-        ordered_by_specified_features: Optional[bool] = False,
+        new_case_threshold: str = "min",
+        num_cases_to_generate: int = 1,
+        ordered_by_specified_features: bool = False,
         preserve_feature_values: Optional[Iterable[str]] = None,
         progress_callback: Optional[Callable] = None,
-        substitute_output: Optional[bool] = True,
-        suppress_warning: Optional[bool] = False,
-        use_case_weights: Optional[bool] = False,
-        use_regional_model_residuals: Optional[bool] = True,
+        substitute_output: bool = True,
+        suppress_warning: bool = False,
+        use_case_weights: bool = False,
+        use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> "Reaction":
+    ) -> Union["Reaction", Dict]:
         """
         React to the trainee.
 
@@ -1240,7 +1279,7 @@ class Trainee(BaseTrainee):
             If specified, will only return the specified explanation
             details for the given actions. (Discriminative reacts only)
         allow_nulls : bool, default False
-            (Optional) When true will allow return of null values if there
+            When true will allow return of null values if there
             are nulls in the local model for the action features, applicable
             only to discriminative reacts.
         case_indices : Iterable of Sequence[str, int], defaults to None
@@ -1518,7 +1557,7 @@ class Trainee(BaseTrainee):
             react will respectively ignore the corresponding case specified
             by `case_indices` by leaving it out.
         new_case_threshold : str, default None
-            (Optional) Distance to determine the privacy cutoff. If None,
+            Distance to determine the privacy cutoff. If None,
             will default to "min".
 
             Possible values:
@@ -1602,7 +1641,7 @@ class Trainee(BaseTrainee):
         actions: Optional[Union[List[List[object]], "DataFrame"]] = None,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
-        continue_series: Optional[bool] = False,
+        continue_series: bool = False,
         continue_series_features: Optional[Iterable[str]] = None,
         continue_series_values: Optional[
             Union[List[List[List[object]]], List["DataFrame"]]
@@ -1614,32 +1653,32 @@ class Trainee(BaseTrainee):
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[Dict[str, Dict[str, object]]] = None,
         final_time_steps: Optional[List[object]] = None,
-        generate_new_cases: Optional[str] = "no",
-        series_index: Optional[str] = ".series",
+        generate_new_cases: str = "no",
+        series_index: str = ".series",
         init_time_steps: Optional[List[object]] = None,
         initial_features: Optional[Iterable[str]] = None,
         initial_values: Optional[Union[List[List[object]], "DataFrame"]] = None,
-        input_is_substituted: Optional[bool] = False,
+        input_is_substituted: bool = False,
         leave_case_out: Optional[bool] = None,
         max_series_lengths: Optional[List[int]] = None,
-        new_case_threshold: Optional[str] = "min",
-        num_series_to_generate: Optional[int] = 1,
-        ordered_by_specified_features: Optional[bool] = False,
-        output_new_series_ids: Optional[bool] = True,
+        new_case_threshold: str = "min",
+        num_series_to_generate: int = 1,
+        ordered_by_specified_features: bool = False,
+        output_new_series_ids: bool = True,
         preserve_feature_values: Optional[Iterable[str]] = None,
         progress_callback: Optional[Callable] = None,
         series_context_features: Optional[Iterable[str]] = None,
         series_context_values: Optional[
             Union[List[List[List[object]]], List["DataFrame"]]
         ] = None,
-        series_id_tracking: Optional[Literal["fixed", "dynamic", "no"]] = "fixed",
+        series_id_tracking: Literal["fixed", "dynamic", "no"] = "fixed",
         series_stop_maps: Optional[List[Dict[str, Dict[str, object]]]] = None,
-        substitute_output: Optional[bool] = True,
-        suppress_warning: Optional[bool] = False,
-        use_case_weights: Optional[bool] = False,
-        use_regional_model_residuals: Optional[bool] = True,
+        substitute_output: bool = True,
+        suppress_warning: bool = False,
+        use_case_weights: bool = False,
+        use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> "ReactionSeries":
+    ) -> Union["ReactionSeries", Dict]:
         """
         React to the trainee in a series until a stop condition is met.
 
@@ -1727,7 +1766,7 @@ class Trainee(BaseTrainee):
             Must provide either exactly one to use for all series, or one per
             series. Default is ``3 * model_size``
         new_case_threshold : str or None, optional
-            (Optional) See parameter ``new_case_threshold`` in :func:`react`.
+            See parameter ``new_case_threshold`` in :func:`react`.
         num_series_to_generate : int, default 1
             The number of series to generate.
         ordered_by_specified_features : bool, default False
@@ -1788,52 +1827,55 @@ class Trainee(BaseTrainee):
          dict of {series: pandas.DataFrame, explanation: dict}
             The action values and explanations.
         """
-        return self.client.react_series(
-            trainee_id=self.id,
-            action_features=action_features,
-            actions=actions,
-            case_indices=case_indices,
-            contexts=contexts,
-            context_features=context_features,
-            continue_series=continue_series,
-            continue_series_features=continue_series_features,
-            continue_series_values=continue_series_values,
-            derived_action_features=derived_action_features,
-            derived_context_features=derived_context_features,
-            desired_conviction=desired_conviction,
-            details=details,
-            exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
-            feature_bounds_map=feature_bounds_map,
-            final_time_steps=final_time_steps,
-            generate_new_cases=generate_new_cases,
-            series_index=series_index,
-            init_time_steps=init_time_steps,
-            initial_features=initial_features,
-            initial_values=initial_values,
-            input_is_substituted=input_is_substituted,
-            leave_case_out=leave_case_out,
-            max_series_lengths=max_series_lengths,
-            new_case_threshold=new_case_threshold,
-            num_series_to_generate=num_series_to_generate,
-            ordered_by_specified_features=ordered_by_specified_features,
-            output_new_series_ids=output_new_series_ids,
-            preserve_feature_values=preserve_feature_values,
-            progress_callback=progress_callback,
-            series_context_features=series_context_features,
-            series_context_values=series_context_values,
-            series_id_tracking=series_id_tracking,
-            series_stop_maps=series_stop_maps,
-            substitute_output=substitute_output,
-            suppress_warning=suppress_warning,
-            use_case_weights=use_case_weights,
-            use_regional_model_residuals=use_regional_model_residuals,
-            weight_feature=weight_feature,
-        )
+        if self.id:
+            return self.client.react_series(
+                trainee_id=self.id,
+                action_features=action_features,
+                actions=actions,
+                case_indices=case_indices,
+                contexts=contexts,
+                context_features=context_features,
+                continue_series=continue_series,
+                continue_series_features=continue_series_features,
+                continue_series_values=continue_series_values,
+                derived_action_features=derived_action_features,
+                derived_context_features=derived_context_features,
+                desired_conviction=desired_conviction,
+                details=details,
+                exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
+                feature_bounds_map=feature_bounds_map,
+                final_time_steps=final_time_steps,
+                generate_new_cases=generate_new_cases,
+                series_index=series_index,
+                init_time_steps=init_time_steps,
+                initial_features=initial_features,
+                initial_values=initial_values,
+                input_is_substituted=input_is_substituted,
+                leave_case_out=leave_case_out,
+                max_series_lengths=max_series_lengths,
+                new_case_threshold=new_case_threshold,
+                num_series_to_generate=num_series_to_generate,
+                ordered_by_specified_features=ordered_by_specified_features,
+                output_new_series_ids=output_new_series_ids,
+                preserve_feature_values=preserve_feature_values,
+                progress_callback=progress_callback,
+                series_context_features=series_context_features,
+                series_context_values=series_context_values,
+                series_id_tracking=series_id_tracking,
+                series_stop_maps=series_stop_maps,
+                substitute_output=substitute_output,
+                suppress_warning=suppress_warning,
+                use_case_weights=use_case_weights,
+                use_regional_model_residuals=use_regional_model_residuals,
+                weight_feature=weight_feature,
+            )
+        else:
+            raise ValueError("Trainee ID is needed for setting feature attributes.")
 
     def impute(
         self,
         *,
-        batch_size: Optional[int] = 1,
+        batch_size: int = 1,
         features: Optional[Iterable[str]] = None,
         features_to_impute: Optional[Iterable[str]] = None,
     ) -> None:
@@ -1865,12 +1907,15 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.impute(
-            trainee_id=self.id,
-            batch_size=batch_size,
-            features=features,
-            features_to_impute=features_to_impute,
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.impute(
+                trainee_id=self.id,
+                batch_size=batch_size,
+                features=features,
+                features_to_impute=features_to_impute,
+            )
+        else:
+            raise ValueError("Client must have 'impute' method")
 
     def remove_cases(
         self,
@@ -1953,16 +1998,19 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        return self.client.remove_cases(
-            trainee_id=self.id,
-            num_cases=num_cases,
-            case_indices=case_indices,
-            condition=condition,
-            condition_session=condition_session_id,
-            distribute_weight_feature=distribute_weight_feature,
-            precision=precision,
-            preserve_session_data=preserve_session_data,
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.remove_cases(
+                trainee_id=self.id,
+                num_cases=num_cases,
+                case_indices=case_indices,
+                condition=condition,
+                condition_session=condition_session_id,
+                distribute_weight_feature=distribute_weight_feature,
+                precision=precision,
+                preserve_session_data=preserve_session_data,
+            )
+        else:
+            raise ValueError("Client must have 'remove_cases' method")
 
     def edit_cases(
         self,
@@ -2028,16 +2076,19 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        return self.client.edit_cases(
-            trainee_id=self.id,
-            case_indices=case_indices,
-            condition=condition,
-            condition_session=condition_session_id,
-            features=features,
-            feature_values=feature_values,
-            num_cases=num_cases,
-            precision=precision,
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.edit_cases(
+                trainee_id=self.id,
+                case_indices=case_indices,
+                condition=condition,
+                condition_session=condition_session_id,
+                features=features,
+                feature_values=feature_values,
+                num_cases=num_cases,
+                precision=precision,
+            )
+        else:
+            raise ValueError("Client must have the 'edit_cases' method.")
 
     def get_sessions(self) -> List[Dict[str, str]]:
         """
@@ -2049,7 +2100,10 @@ class Trainee(BaseTrainee):
             A list of dicts with keys "id" and "name" for each session
             in the model.
         """
-        return self.client.get_trainee_sessions(self.id)
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_trainee_sessions(self.id)
+        else:
+            raise ValueError("Client must have the 'get_sessions' method.")
 
     def delete_session(self, session: Union[str, BaseSession]) -> None:
         """
@@ -2068,9 +2122,12 @@ class Trainee(BaseTrainee):
             session_id = session.id
         else:
             session_id = session
-        self.client.delete_trainee_session(trainee_id=self.id, session=session_id)
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.delete_trainee_session(trainee_id=self.id, session=session_id)
+        else:
+            raise ValueError("Client must have the 'delete_trainee_session' method.")
 
-    def get_session_indices(self, session: Union[str, BaseSession]) -> "Index":
+    def get_session_indices(self, session: Union[str, BaseSession]) -> Union[Index, List[int]]:
         """
         Get all session indices for a specified session.
 
@@ -2094,7 +2151,7 @@ class Trainee(BaseTrainee):
             session=session_id,
         )
 
-    def get_session_training_indices(self, session: Union[str, BaseSession]) -> "Index":
+    def get_session_training_indices(self, session: Union[str, BaseSession]) -> Union[Index, List[int]]:
         """
         Get all session training indices for a specified session.
 
@@ -2121,14 +2178,14 @@ class Trainee(BaseTrainee):
     def get_cases(
         self,
         *,
+        indicate_imputed: bool = False,
         case_indices: Optional[CaseIndices] = None,
         features: Optional[Iterable[str]] = None,
-        indicate_imputed: Optional[bool] = False,
         session: Optional[Union[str, BaseSession]] = None,
         condition: Optional[Dict] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
-    ) -> "DataFrame":
+    ) -> Union["Cases", "DataFrame"]:
         """
         Get the trainee's cases.
 
@@ -2227,16 +2284,19 @@ class Trainee(BaseTrainee):
             session_id = session.id
         else:
             session_id = session
-        return self.client.get_cases(
-            trainee_id=self.id,
-            features=features,
-            case_indices=case_indices,
-            indicate_imputed=indicate_imputed,
-            session=session_id,
-            condition=condition,
-            num_cases=num_cases,
-            precision=precision,
-        )
+        if self.id:
+            return self.client.get_cases(
+                trainee_id=self.id,
+                features=features,
+                case_indices=case_indices,
+                indicate_imputed=indicate_imputed,
+                session=session_id,
+                condition=condition,
+                num_cases=num_cases,
+                precision=precision,
+            )
+        else:
+            raise ValueError("Trainee ID is needed for 'get_cases'.")
 
     def get_extreme_cases(
         self,
@@ -2244,7 +2304,7 @@ class Trainee(BaseTrainee):
         features: Optional[Iterable[str]] = None,
         num: int,
         sort_feature: str,
-    ) -> "DataFrame":
+    ) -> Union["Cases", "DataFrame"]:
         """
         Get the trainee's extreme cases.
 
@@ -2262,9 +2322,15 @@ class Trainee(BaseTrainee):
         pandas.DataFrame
             The trainee's extreme cases.
         """
-        return self.client.get_extreme_cases(
-            trainee_id=self.id, features=features, num=num, sort_feature=sort_feature
-        )
+        if self.id:
+            return self.client.get_extreme_cases(
+                trainee_id=self.id,
+                features=features,
+                num=num,
+                sort_feature=sort_feature
+            )
+        else:
+            raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
 
     def get_num_training_cases(self) -> int:
         """
@@ -2275,17 +2341,20 @@ class Trainee(BaseTrainee):
         int
             The number of trained cases.
         """
-        return self.client.get_num_training_cases(self.id)
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_num_training_cases(self.id)
+        else:
+            raise ValueError("Client must have the 'get_num_training_cases' method.")
 
     def add_feature(
         self,
         feature: str,
         feature_value: Optional[object] = None,
         *,
+        overwrite: bool = False,
         condition: Optional[Dict[str, object]] = None,
         condition_session: Optional[Union[str, BaseSession]] = None,
         feature_attributes: Optional[Dict] = None,
-        overwrite: Optional[bool] = False,
     ) -> None:
         """
         Add a feature to the model.
@@ -2338,16 +2407,25 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        self.client.add_feature(
-            trainee_id=self.id,
-            condition=condition,
-            condition_session=condition_session_id,
-            feature=feature,
-            feature_value=feature_value,
-            feature_attributes=feature_attributes,
-            overwrite=overwrite,
-        )
-        self._features = self.client.trainee_cache.get(self.id).features
+        if isinstance(self.client, AbstractHowsoClient):
+            if self.id:
+                self.client.add_feature(
+                    trainee_id=self.id,
+                    condition=condition,
+                    condition_session=condition_session_id,
+                    feature=feature,
+                    feature_value=feature_value,
+                    feature_attributes=feature_attributes,
+                    overwrite=overwrite,
+                )
+                if self.client.trainee_cache:
+                    self._features = self.client.trainee_cache.get(self.id).features
+                else:
+                    raise ValueError("Trainee Cache is empty, Trainee features are not set.")
+            else:
+                raise ValueError("Trainee ID is needed for 'add_feature'.")
+        else:
+            raise ValueError("Client must have the 'add_feature' method.")
 
     def remove_feature(
         self,
@@ -2398,13 +2476,22 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        self.client.remove_feature(
-            trainee_id=self.id,
-            condition=condition,
-            condition_session=condition_session_id,
-            feature=feature,
-        )
-        self._features = self.client.trainee_cache.get(self.id).features
+        if isinstance(self.client, AbstractHowsoClient):
+            if self.id:
+                self.client.remove_feature(
+                    trainee_id=self.id,
+                    condition=condition,
+                    condition_session=condition_session_id,
+                    feature=feature,
+                )
+                if self.client.trainee_cache:
+                    self._features = self.client.trainee_cache.get(self.id).features
+                else:
+                    raise ValueError("Trainee cache is empty, Trainee features are not removed.")
+            else:
+                raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
+        else:
+            raise ValueError("Client must have the 'remove_feature' method.")
 
     def remove_series_store(self, series: Optional[str] = None) -> None:
         """
@@ -2420,7 +2507,10 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.remove_series_store(trainee_id=self.id, series=series)
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.remove_series_store(trainee_id=self.id, series=series)
+        else:
+            raise ValueError("Client must have the 'remove_series_store' method.")
 
     def append_to_series_store(
         self,
@@ -2447,12 +2537,15 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.append_to_series_store(
-            trainee_id=self.id,
-            series=series,
-            contexts=contexts,
-            context_features=context_features,
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.append_to_series_store(
+                trainee_id=self.id,
+                series=series,
+                contexts=contexts,
+                context_features=context_features,
+            )
+        else:
+            raise ValueError("Client must have the 'append_to_series_store' method.")
 
     def set_substitute_feature_values(
         self, substitution_value_map: Dict[str, Dict[str, Any]]
@@ -2475,12 +2568,15 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.set_substitute_feature_values(
-            trainee_id=self.id, substitution_value_map=substitution_value_map
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.set_substitute_feature_values(
+                trainee_id=self.id, substitution_value_map=substitution_value_map
+            )
+        else:
+            raise ValueError("Client must have the 'set_substitute_feature_values' method.")
 
     def get_substitute_feature_values(
-        self, *, clear_on_get: Optional[bool] = True
+        self, *, clear_on_get: bool = True
     ) -> Dict[str, Dict[str, Any]]:
         """
         Get a substitution map for use in extended nominal generation.
@@ -2501,27 +2597,31 @@ class Trainee(BaseTrainee):
             A dictionary of feature name to a dictionary of feature value to
             substitute feature value.
         """
-        return self.client.get_substitute_feature_values(
-            trainee_id=self.id, clear_on_get=clear_on_get
-        )
+
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_substitute_feature_values(
+                trainee_id=self.id, clear_on_get=clear_on_get
+            )
+        else:
+            raise ValueError("Client must have the 'get_substitute_feature_values' method.")
 
     def react_group(
         self,
         *,
-        distance_contributions: Optional[bool] = False,
-        familiarity_conviction_addition: Optional[bool] = True,
-        familiarity_conviction_removal: Optional[bool] = False,
+        distance_contributions: bool = False,
+        familiarity_conviction_addition: bool = True,
+        familiarity_conviction_removal: bool = False,
+        kl_divergence_addition: bool = False,
+        kl_divergence_removal: bool = False,
+        p_value_of_addition: bool = False,
+        p_value_of_removal: bool = False,
+        use_case_weights: bool = False,
         features: Optional[Iterable[str]] = None,
         new_cases: Optional[
             Union[List["DataFrame"], List[List[List[object]]]]] = None,
-        kl_divergence_addition: Optional[bool] = False,
-        kl_divergence_removal: Optional[bool] = False,
-        p_value_of_addition: Optional[bool] = False,
-        p_value_of_removal: Optional[bool] = False,
         trainees_to_compare: Optional[Iterable[Union["Trainee", str]]] = None,
-        use_case_weights: Optional[bool] = False,
         weight_feature: Optional[str] = None,
-    ) -> "DataFrame":
+    ) -> Union["DataFrame", Dict]:
         """
         Computes specified data for a **set** of cases.
 
@@ -2531,21 +2631,21 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         distance_contributions : bool, default False
-            (Optional) Calculate and output distance contribution ratios in
+            Calculate and output distance contribution ratios in
             the output dict for each case.
         familiarity_conviction_addition : bool, default True
-            (Optional) Calculate and output familiarity conviction of adding the
+            Calculate and output familiarity conviction of adding the
             specified cases.
         familiarity_conviction_removal : bool, default False
-            (Optional) Calculate and output familiarity conviction of removing
+            Calculate and output familiarity conviction of removing
             the specified cases.
         features : list of str or None, optional
             A list of feature names to consider while calculating convictions.
         kl_divergence_addition : bool, default False
-            (Optional) Calculate and output KL divergence of adding the
+            Calculate and output KL divergence of adding the
             specified cases.
         kl_divergence_removal : bool, default False
-            (Optional) Calculate and output KL divergence of removing the
+            Calculate and output KL divergence of removing the
             specified cases.
         new_cases : list of list of list of object or list of pandas.DataFrame, optional
             Specify a **set** using a list of cases to compute the conviction
@@ -2559,9 +2659,9 @@ class Trainee(BaseTrainee):
                 ]
 
         p_value_of_addition : bool, default False
-            (Optional) If true will output p value of addition.
+            If true will output p value of addition.
         p_value_of_removal : bool, default False
-            (Optional) If true will output p value of removal.
+            If true will output p value of removal.
         trainees_to_compare : list of (str or Trainee), optional
             (Optional) If specified ignores the 'new_cases' parameter and uses
             cases from the specified trainee(s) instead. Values should be either
@@ -2605,13 +2705,13 @@ class Trainee(BaseTrainee):
     def get_feature_conviction(
         self,
         *,
+        familiarity_conviction_addition: Union[bool, str] = True,
+        familiarity_conviction_removal: Union[bool, str] = False,
+        use_case_weights: bool = False,
         action_features: Optional[Iterable[str]] = None,
-        familiarity_conviction_addition: Optional[bool] = True,
-        familiarity_conviction_removal: Optional[bool] = False,
         features: Optional[Iterable[str]] = None,
-        use_case_weights: Optional[bool] = False,
         weight_feature: Optional[str] = None,
-    ) -> "DataFrame":
+    ) -> Union[Dict, "DataFrame"]:
         """
         Get familiarity conviction for features in the model.
 
@@ -2663,7 +2763,7 @@ class Trainee(BaseTrainee):
         robust: Optional[bool] = None,
         robust_hyperparameters: Optional[bool] = None,
         weight_feature: Optional[str] = None,
-    ) -> "DataFrame":
+    ) -> Union["DataFrame", None]:
         """
         Get cached feature residuals.
 
@@ -2718,7 +2818,7 @@ class Trainee(BaseTrainee):
         robust_hyperparameters: Optional[bool] = None,
         stats: Optional[Iterable[str]] = None,
         weight_feature: Optional[str] = None,
-    ) -> "DataFrame":
+    ) -> Union["DataFrame", Dict]:
         """
         Get feature prediction stats.
 
@@ -2838,7 +2938,7 @@ class Trainee(BaseTrainee):
         num_cases: Optional[int] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
         weight_feature: Optional[str] = None,
-    ) -> "DataFrame":
+    ) -> Union["DataFrame", Dict]:
         """
         Get marginal stats for all features.
 
@@ -2888,14 +2988,14 @@ class Trainee(BaseTrainee):
     def react_into_features(
         self,
         *,
-        distance_contribution: Optional[Union[str, bool]] = False,
-        familiarity_conviction_addition: Optional[Union[str, bool]] = False,
-        familiarity_conviction_removal: Optional[Union[str, bool]] = False,
+        distance_contribution: Union[str, bool] = False,
+        familiarity_conviction_addition: Union[str, bool] = False,
+        familiarity_conviction_removal: Union[str, bool] = False,
+        p_value_of_addition: Union[str, bool] = False,
+        p_value_of_removal: Union[str, bool] = False,
+        similarity_conviction: Union[str, bool] = False,
+        use_case_weights: bool = False,
         features: Optional[Iterable[str]] = None,
-        p_value_of_addition: Optional[Union[str, bool]] = False,
-        p_value_of_removal: Optional[Union[str, bool]] = False,
-        similarity_conviction: Optional[Union[str, bool]] = False,
-        use_case_weights: Optional[bool] = False,
         weight_feature: Optional[str] = None,
     ) -> None:
         """
@@ -2908,25 +3008,25 @@ class Trainee(BaseTrainee):
             If set to True the values will be stored to the feature
             'distance_contribution'.
         familiarity_conviction_addition : bool or str, default False
-            (Optional) The name of the feature to store conviction of addition
+            The name of the feature to store conviction of addition
             values. If set to True the values will be stored to the feature
             'familiarity_conviction_addition'.
         familiarity_conviction_removal : bool or str, default False
-            (Optional) The name of the feature to store conviction of removal
+            The name of the feature to store conviction of removal
             values. If set to True the values will be stored to the feature
             'familiarity_conviction_removal'.
         features : list of str, optional
             A list of features to calculate convictions.
         p_value_of_addition : bool or str, default False
-            (Optional) The name of the feature to store p value of addition
+            The name of the feature to store p value of addition
             values. If set to True the values will be stored to the feature
             'p_value_of_addition'.
         p_value_of_removal : bool or str, default False
-            (Optional) The name of the feature to store p value of removal
+            The name of the feature to store p value of removal
             values. If set to True the values will be stored to the feature
             'p_value_of_removal'.
         similarity_conviction : bool or str, default False
-            (Optional) The name of the feature to store similarity conviction
+            The name of the feature to store similarity conviction
             values. If set to True the values will be stored to the feature
             'similarity_conviction'.
         use_case_weights : bool, default False
@@ -2940,22 +3040,26 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.react_into_features(
-            trainee_id=self.id,
-            distance_contribution=distance_contribution,
-            familiarity_conviction_addition=familiarity_conviction_addition,
-            familiarity_conviction_removal=familiarity_conviction_removal,
-            p_value_of_addition=p_value_of_addition,
-            p_value_of_removal=p_value_of_removal,
-            similarity_conviction=similarity_conviction,
-            features=features,
-            use_case_weights=use_case_weights,
-            weight_feature=weight_feature,
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.react_into_features(
+                trainee_id=self.id,
+                distance_contribution=distance_contribution,
+                familiarity_conviction_addition=familiarity_conviction_addition,
+                familiarity_conviction_removal=familiarity_conviction_removal,
+                p_value_of_addition=p_value_of_addition,
+                p_value_of_removal=p_value_of_removal,
+                similarity_conviction=similarity_conviction,
+                features=features,
+                use_case_weights=use_case_weights,
+                weight_feature=weight_feature,
+            )
+        else:
+            raise ValueError("Client must have the 'react_into_features' method.")
 
     def react_into_trainee(
         self,
         *,
+        use_case_weights: bool = False,
         action_feature: Optional[str] = None,
         context_features: Optional[Iterable[str]] = None,
         contributions: Optional[bool] = None,
@@ -2973,7 +3077,6 @@ class Trainee(BaseTrainee):
         residuals_robust: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
         sub_model_size: Optional[int] = None,
-        use_case_weights: Optional[bool] = False,
         weight_feature: Optional[str] = None,
     ) -> None:
         """
@@ -3065,28 +3168,31 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        self.client.react_into_trainee(
-            trainee_id=self.id,
-            action_feature=action_feature,
-            context_features=context_features,
-            contributions=contributions,
-            contributions_robust=contributions_robust,
-            hyperparameter_param_path=hyperparameter_param_path,
-            mda=mda,
-            mda_permutation=mda_permutation,
-            mda_robust=mda_robust,
-            mda_robust_permutation=mda_robust_permutation,
-            num_robust_influence_samples=num_robust_influence_samples,
-            num_robust_residual_samples=num_robust_residual_samples,
-            num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
-            num_samples=num_samples,
-            residuals=residuals,
-            residuals_robust=residuals_robust,
-            sample_model_fraction=sample_model_fraction,
-            sub_model_size=sub_model_size,
-            use_case_weights=use_case_weights,
-            weight_feature=weight_feature,
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.react_into_trainee(
+                trainee_id=self.id,
+                action_feature=action_feature,
+                context_features=context_features,
+                contributions=contributions,
+                contributions_robust=contributions_robust,
+                hyperparameter_param_path=hyperparameter_param_path,
+                mda=mda,
+                mda_permutation=mda_permutation,
+                mda_robust=mda_robust,
+                mda_robust_permutation=mda_robust_permutation,
+                num_robust_influence_samples=num_robust_influence_samples,
+                num_robust_residual_samples=num_robust_residual_samples,
+                num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
+                num_samples=num_samples,
+                residuals=residuals,
+                residuals_robust=residuals_robust,
+                sample_model_fraction=sample_model_fraction,
+                sub_model_size=sub_model_size,
+                use_case_weights=use_case_weights,
+                weight_feature=weight_feature,
+            )
+        else:
+            raise ValueError("Client must have the 'react_into_trainee' method.")
 
     def get_feature_mda(
         self,
@@ -3221,13 +3327,16 @@ class Trainee(BaseTrainee):
             parameters or only the best hyperparameters selected using the
             passed parameters.
         """
-        return self.client.get_params(
-            self.id,
-            action_feature=action_feature,
-            context_features=context_features,
-            mode=mode,
-            weight_feature=weight_feature,
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_params(
+                self.id,
+                action_feature=action_feature,
+                context_features=context_features,
+                mode=mode,
+                weight_feature=weight_feature,
+            )
+        else:
+            raise ValueError("Client must have the 'get_params' method.")
 
     def set_params(self, params: Dict[str, Any]) -> None:
         """
@@ -3258,7 +3367,10 @@ class Trainee(BaseTrainee):
                     "auto_analyze_limit_size": 100000
                 }
         """
-        self.client.set_params(self.id, params=params)
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.set_params(self.id, params=params)
+        else:
+            raise ValueError("Client must have the 'set_params' method.")
 
     @property
     def client(self) -> Union[AbstractHowsoClient, HowsoPandasClientMixin]:
@@ -3331,8 +3443,12 @@ class Trainee(BaseTrainee):
             try:
                 self._updating = True
                 trainee = BaseTrainee(**self.to_dict())
-                updated_trainee = self.client.update_trainee(trainee)
-                self._update_attributes(updated_trainee)
+                if isinstance(self.client, AbstractHowsoClient):
+                    updated_trainee = self.client.update_trainee(trainee)
+                else:
+                    raise ValueError("Client must have the 'update_trainee' method.")
+                if updated_trainee:
+                    self._update_attributes(updated_trainee)
             finally:
                 self._updating = False
 
@@ -3340,12 +3456,12 @@ class Trainee(BaseTrainee):
         self,
         features: Optional[Dict[str, Dict]] = None,
         *,
+        use_case_weights: bool = False,
         action_feature: Optional[str] = None,
         from_case_indices: Optional[CaseIndices] = None,
         from_values: Optional[Union[List[List[object]], "DataFrame"]] = None,
         to_case_indices: Optional[CaseIndices] = None,
         to_values: Optional[Union[List[List[object]], "DataFrame"]] = None,
-        use_case_weights: Optional[bool] = False,
         weight_feature: Optional[str] = None,
     ) -> List[float]:
         """
@@ -3401,28 +3517,31 @@ class Trainee(BaseTrainee):
             A list of computed pairwise distances between each corresponding
             pair of cases in `from_case_indices` and `to_case_indices`.
         """
-        return self.client.get_pairwise_distances(
-            self.id,
-            features=features,
-            action_feature=action_feature,
-            from_case_indices=from_case_indices,
-            from_values=from_values,
-            to_case_indices=to_case_indices,
-            to_values=to_values,
-            use_case_weights=use_case_weights,
-            weight_feature=weight_feature
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_pairwise_distances(
+                self.id,
+                features=features,
+                action_feature=action_feature,
+                from_case_indices=from_case_indices,
+                from_values=from_values,
+                to_case_indices=to_case_indices,
+                to_values=to_values,
+                use_case_weights=use_case_weights,
+                weight_feature=weight_feature
+            )
+        else:
+            raise ValueError("Client must have the 'get_pairwise_distances' method.")
 
     def get_distances(
         self,
         features: Optional[Dict[str, Dict]] = None,
         *,
+        use_case_weights: bool = False,
         action_feature: Optional[str] = None,
         case_indices: Optional[CaseIndices] = None,
         feature_values: Optional[Union[List[object], "DataFrame"]] = None,
-        use_case_weights: Optional[bool] = False,
         weight_feature: Optional[str] = None
-    ) -> "Distances":
+    ) -> Dict:
         """
         Computes distances matrix for specified cases.
 
@@ -3482,7 +3601,7 @@ class Trainee(BaseTrainee):
         features_to_code_map,
         *,
         aggregation_code=None,
-    ) -> dict:
+    ) -> Dict:
         r"""
         Evaluates custom code on feature values of all cases in the trainee.
 
@@ -3513,18 +3632,21 @@ class Trainee(BaseTrainee):
             'aggregated' is None if no aggregation_code is given, it otherwise
             holds the output of the custom 'aggregation_code'
         """
-        return self.client.evaluate(
-            self.id,
-            features_to_code_map=features_to_code_map,
-            aggregation_code=aggregation_code,
-        )
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.evaluate(
+                self.id,
+                features_to_code_map=features_to_code_map,
+                aggregation_code=aggregation_code,
+            )
+        else:
+            raise ValueError("Client must have the 'evaluate' method.")
 
     def _create(
         self, *,
         library_type: Optional[str] = None,
         max_wait_time: Optional[Union[int, float]] = None,
-        overwrite: Optional[bool] = False,
         resources: Optional[Union["TraineeResources", Dict[str, Any]]] = None,
+        overwrite: bool = False,
     ) -> None:
         """
         Create the trainee at the API.
@@ -3535,25 +3657,31 @@ class Trainee(BaseTrainee):
             The library type of the Trainee.
         max_wait_time : int or float, optional
             The maximum time to wait for the trainee to be created.
-        overwrite : bool, optional
-            If True, will overwrite an existing trainee with the same name.
         resources : TraineeResources or dict, optional
             The resources to provision for the trainee.
-
+        overwrite : bool, default False
+            If True, will overwrite an existing trainee with the same name.
         Returns
         -------
         None
         """
         if not self.id:
             trainee = BaseTrainee(**self.to_dict())
-            new_trainee = self.client.create_trainee(
-                trainee=trainee,
-                library_type=library_type,
-                max_wait_time=max_wait_time,
-                overwrite_trainee=overwrite,
-                resources=resources,
-            )
-            self._update_attributes(new_trainee)
+            if isinstance(self.client, AbstractHowsoClient):
+                new_trainee = self.client.create_trainee(
+                    trainee=trainee,
+                    library_type=library_type,
+                    max_wait_time=max_wait_time,
+                    overwrite_trainee=overwrite,
+                    resources=resources,
+                )
+            else:
+                new_trainee = None
+                pass
+            if new_trainee:
+                self._update_attributes(new_trainee)
+            else:
+                raise ValueError("Trainee is unable to be created")
         self._created = True
 
     @classmethod
@@ -3603,7 +3731,8 @@ class Trainee(BaseTrainee):
                     parameters["project"] = trainee_dict[key]
                 else:
                     parameters[key] = trainee_dict[key]
-        return cls(**parameters)
+
+        return cls(**parameters)  # type: ignore
 
     def __enter__(self) -> "Trainee":
         """Support context managers."""
@@ -3670,10 +3799,10 @@ def delete_trainee(
 
     # Check if file exists
     if file_path:
-        if not isinstance(client, HowsoDirectClient):
+        if not isinstance(client, LocalSaveableProtocol):
             raise HowsoError(
                 "Deleting trainees from using a file path is only"
-                "supported with a HowsoDirectClient.")
+                "supported with a client that has disk access.")
 
         file_path = Path(file_path)
         file_path = file_path.expanduser().resolve()
@@ -3687,7 +3816,7 @@ def delete_trainee(
 
 def load_trainee(
     file_path: Union[Path, str],
-    client: Optional[HowsoDirectClient] = None
+    client: Optional[AbstractHowsoClient] = None
 ) -> "Trainee":
     """
     Load an existing trainee from disk.
@@ -3708,8 +3837,8 @@ def load_trainee(
         If `file_path` is just a filename, then the absolute path will be computed
         appending the filename to the CWD.
 
-    client : HowsoDirectClient, optional
-        The Howso client instance to use.
+    client : AbstractHowsoClient, optional
+        The Howso client instance to use. Must have local disk access.
 
     Returns
     -------
@@ -3718,8 +3847,8 @@ def load_trainee(
     """
     client = client or get_client()
 
-    if not isinstance(client, HowsoDirectClient):
-        raise HowsoError("To save, `client` must be HowsoDirectClient.")
+    if not isinstance(client, LocalSaveableProtocol):
+        raise HowsoError("To save, `client` must have local disk access.")
 
     if not isinstance(file_path, Path):
         file_path = Path(file_path)
@@ -3755,10 +3884,16 @@ def load_trainee(
     if ret is None:
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
 
-    trainee = client._get_trainee_from_core(trainee_id)
-    client.trainee_cache.set(trainee, entity_id=client.howso.handle)
-
-    trainee = Trainee.from_openapi(trainee, client=client)
+    if isinstance(client, LocalSaveableProtocol):
+        trainee = client._get_trainee_from_core(trainee_id)
+    else:
+        raise ValueError("Loading a Trainee from disk requires a client with disk access.")
+    if isinstance(client.trainee_cache, TraineeCache):
+        client.trainee_cache.set(trainee, entity_id=client.howso.handle)
+    if trainee:
+        trainee = Trainee.from_openapi(trainee, client=client)
+    else:
+        raise ValueError("Trainee not loaded correctly.")
     trainee._custom_save_path = file_path
 
     return trainee
@@ -3768,7 +3903,7 @@ def get_trainee(
     name_or_id: str,
     *,
     client: Optional[AbstractHowsoClient] = None
-) -> "Trainee":
+) -> Union["Trainee", None]:
     """
     Get an existing trainee from Howso Services.
 
@@ -3786,7 +3921,8 @@ def get_trainee(
     """
     client = client or get_client()
     trainee = client.get_trainee(str(name_or_id))
-    return Trainee.from_openapi(trainee, client=client)
+    if trainee:
+        return Trainee.from_openapi(trainee, client=client)
 
 
 def list_trainees(
@@ -3827,4 +3963,5 @@ def list_trainees(
         else:
             params["project_id"] = project
 
+    # picks up base
     return client.get_trainees(**params)

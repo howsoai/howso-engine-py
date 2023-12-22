@@ -1,18 +1,40 @@
-import typing as t
+from typing import (
+    List,
+    Protocol,
+    Optional,
+    runtime_checkable,
+    TYPE_CHECKING
+)
 
-if t.TYPE_CHECKING:
+if TYPE_CHECKING:
+    from howso.direct.core import HowsoCore
+    from howso.openapi.models import Trainee
     from howso.openapi.models import Project
 
 __all__ = [
+    "LocalSaveableProtocol",
     "ProjectClient",
 ]
 
 
-@t.runtime_checkable
-class ProjectClient(t.Protocol):
+@runtime_checkable
+class LocalSaveableProtocol(Protocol):
+    """Protocol to define a Howso client that has direct disk read/write access."""
+    @property
+    def howso(self) -> "HowsoCore":
+        """Howso Core API."""
+        ...
+
+    def _get_trainee_from_core(self, trainee_id: str) -> "Trainee":
+        """Retrieve the core representation of a Trainee object."""
+        ...
+
+
+@runtime_checkable
+class ProjectClient(Protocol):
     """Protocol to define a Howso client that supports projects."""
 
-    active_project: t.Optional["Project"]
+    active_project: Optional["Project"]
 
     def switch_project(self, project_id: str) -> "Project":
         """Switch active project."""
@@ -34,6 +56,6 @@ class ProjectClient(t.Protocol):
         """Get existing project."""
         ...
 
-    def get_projects(self, search_terms: t.Optional[str]) -> t.List["Project"]:
+    def get_projects(self, search_terms: Optional[str]) -> List["Project"]:
         """Search and list projects."""
         ...

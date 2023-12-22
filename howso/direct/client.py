@@ -33,10 +33,18 @@ from howso.client import AbstractHowsoClient, get_configuration_path
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
-import howso.openapi.models as client_models
 from howso.openapi.models import (
+    ApiVersion,
+    AnalyzeRequest,
+    Cases,
     Session,
+    ReactGroupResponse,
+    SetAutoAnalyzeParamsRequest,
     Trainee,
+    TraineeIdentity,
+    TraineeInformation,
+    TraineeResources,
+    TraineeVersion
 )
 from howso.utilities import (
     internals,
@@ -280,7 +288,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return self.howso.get_entities()
 
-    def get_version(self) -> client_models.ApiVersion:
+    def get_version(self) -> ApiVersion:
         """
         Return the Howso version.
 
@@ -292,8 +300,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         from howso.openapi import __api_version__ as api_version
 
-        return client_models.ApiVersion(api=api_version,
-                                        client=CLIENT_VERSION)
+        return ApiVersion(
+            api=api_version,
+            client=CLIENT_VERSION
+        )
 
     def _output_version_in_trace(self, trainee: str):
         """
@@ -377,7 +387,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         library_type: Optional[Literal["st", "mt"]] = None,
         max_wait_time: Optional[Union[int, float]] = None,
         overwrite_trainee: bool = False,
-        resources: Optional[Union[client_models.TraineeResources, Dict]] = None,
+        resources: Optional[Union[TraineeResources, Dict]] = None,
     ) -> Trainee:
         """
         Create a Trainee on the Howso service.
@@ -470,7 +480,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.trainee_cache.set(new_trainee, entity_id=self.howso.handle)
         return new_trainee
 
-    def update_trainee(self, trainee: Trainee):
+    def update_trainee(self, trainee: Trainee) -> Trainee:
         """
         Update an existing Trainee in the Howso service.
 
@@ -582,7 +592,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         return self._get_trainee_from_core(trainee_id)
 
     def get_trainee_information(self, trainee_id: str
-                                ) -> client_models.TraineeInformation:
+                                ) -> TraineeInformation:
         """
         Get information about the trainee.
 
@@ -606,12 +616,16 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.howso.amlg.library_postfix:
             library_type = self.howso.amlg.library_postfix[1:]
 
-        version = client_models.TraineeVersion(core=core_version,
-                                               amalgam=amlg_version,
-                                               trainee=trainee_version)
+        version = TraineeVersion(
+            core=core_version,
+            amalgam=amlg_version,
+            trainee=trainee_version
+        )
 
-        return client_models.TraineeInformation(library_type=library_type,
-                                                version=version)
+        return TraineeInformation(
+            library_type=library_type,
+            version=version
+        )
 
     def get_trainee_metrics(self, trainee_id: str) -> Never:
         """
@@ -624,7 +638,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         raise NotImplementedError("`get_trainee_metrics` not implemented")
 
-    def get_trainees(self, search_terms: Optional[str] = None):
+    def get_trainees(self, search_terms: Optional[str] = None) -> List[TraineeIdentity]:
         """
         Return a list of all trainees.
 
@@ -656,7 +670,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         for _, instance in self.trainee_cache.trainees():
             if is_match(instance.name):
                 trainees.append(
-                    client_models.TraineeIdentity(
+                    TraineeIdentity(
                         name=instance.name, id=instance.id)
                 )
 
@@ -672,8 +686,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 is_match(trainee_name)
             ):
                 trainees.append(
-                    client_models.TraineeIdentity(name=trainee_name,
-                                                  id=trainee_name))
+                    TraineeIdentity(
+                        name=trainee_name,
+                        id=trainee_name
+                    ))
 
         return trainees
 
@@ -740,7 +756,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             else:
                 raise ValueError("Filepath must end with a '.caml' filename.")
             if not file_path.is_absolute():
-                file_path = self.client.howso.default_save_path.joinpath(file_path)
+                file_path = self.howso.default_save_path.joinpath(file_path)
 
         else:
             save_path = self.howso.default_save_path
@@ -763,7 +779,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_trainee_id: Optional[str] = None,
         *,
         library_type: Optional[Literal["st", "mt"]] = None,
-        resources: Optional[Union[client_models.TraineeResources, Dict]] = None,
+        resources: Optional[Union[TraineeResources, Dict]] = None,
     ) -> Trainee:
         """
         Copies a trainee to a new trainee id in the Howso service.
@@ -3486,7 +3502,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         condition: Optional[Dict] = None,
         num_cases: Optional[int] = None,
         precision: Optional[Literal["exact", "similar"]] = None
-    ) -> client_models.Cases:
+    ) -> Cases:
         """
         Retrieve cases from a model given a trainee id.
 
@@ -3603,7 +3619,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
         if result is None:
             result = dict()
-        return client_models.Cases(features=result.get('features'),
+        return Cases(features=result.get('features'),
                                    cases=result.get('cases'))
 
     def react_group(
@@ -3622,7 +3638,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         p_value_of_removal: bool = False,
         weight_feature: Optional[str] = None,
         use_case_weights: bool = False
-    ) -> client_models.ReactGroupResponse:
+    ) -> ReactGroupResponse:
         """
         Computes specified data for a **set** of cases.
 
@@ -4516,7 +4532,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         num: int,
         sort_feature: str,
         features: Optional[Iterable[str]] = None
-    ) -> client_models.Cases:
+    ) -> Cases:
         """
         Gets the extreme cases of a trainee for the given feature(s).
 
@@ -4546,7 +4562,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             num=num)
         if result is None:
             result = dict()
-        return client_models.Cases(features=result.get('features'),
+        return Cases(features=result.get('features'),
                                    cases=result.get('cases'))
 
     def _preprocess_generate_parameters(  # noqa: C901
@@ -4774,7 +4790,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         context_features: Optional[Iterable[str]] = None,
         mode: Optional[Literal["robust", "full"]] = None,
         weight_feature: Optional[str] = None,
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Get the parameters used by the Trainee.
 
@@ -5027,11 +5043,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Collect valid parameters
         parameters = {}
         for k in dict(kwargs).keys():
-            if k in client_models.SetAutoAnalyzeParamsRequest.attribute_map:
+            if k in SetAutoAnalyzeParamsRequest.attribute_map:
                 v = kwargs.pop(k)
                 if (
                     v is not None or
-                    k in client_models.SetAutoAnalyzeParamsRequest.nullable_attributes
+                    k in SetAutoAnalyzeParamsRequest.nullable_attributes
                 ):
                     parameters[k] = v
 
@@ -5284,7 +5300,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         to_values: Optional[Union[List[List[object]], DataFrame]] = None,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None
-    ) -> List:
+    ) -> List[float]:
         """
         Compute pairwise distances between specified cases.
 
@@ -5951,7 +5967,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         analyze_params = {
             k: v for k, v in analyze_params.items()
             if v is not None or
-            k in client_models.AnalyzeRequest.nullable_attributes
+            k in AnalyzeRequest.nullable_attributes
         }
         # Add experimental options
         analyze_params.update(kwargs)
