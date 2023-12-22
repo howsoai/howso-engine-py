@@ -20,7 +20,7 @@ from howso.client.exceptions import HowsoApiError, HowsoError
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import (
     ProjectClient,
-    LocalSavableClient
+    LocalSaveableProtocol
 )
 from howso.engine.client import get_client
 from howso.engine.project import Project
@@ -220,7 +220,7 @@ class Trainee(BaseTrainee):
         if self._custom_save_path:
             return self._custom_save_path
         else:
-            if isinstance(self.client, LocalSavableClient):
+            if isinstance(self.client, LocalSaveableProtocol):
                 return self.client.howso.default_save_path
             else:
                 return None
@@ -313,7 +313,7 @@ class Trainee(BaseTrainee):
         if self._features:
             return SingleTableFeatureAttributes(deepcopy(self._features))
         else:
-            raise ValueError("features attributes are empty.")
+            return SingleTableFeatureAttributes({})
 
     @property
     def metadata(self) -> Optional[Dict[str, Any]]:
@@ -398,7 +398,7 @@ class Trainee(BaseTrainee):
             trainee name will be used `<uuid>.caml`.
         """
 
-        if not isinstance(self.client, LocalSavableClient):
+        if not isinstance(self.client, LocalSaveableProtocol):
             raise HowsoError("To save, `client` type must have local disk access.")
 
         if file_path:
@@ -601,7 +601,7 @@ class Trainee(BaseTrainee):
         None
         """
         if isinstance(self.client, AbstractHowsoClient):
-            if isinstance(self.client, LocalSavableClient) and self._custom_save_path is not None:
+            if isinstance(self.client, LocalSaveableProtocol) and self._custom_save_path is not None:
                 self.client.delete_trainee(trainee_id=self.id, file_path=self._custom_save_path)
             else:
                 if not self.id:
@@ -3799,7 +3799,7 @@ def delete_trainee(
 
     # Check if file exists
     if file_path:
-        if not isinstance(client, LocalSavableClient):
+        if not isinstance(client, LocalSaveableProtocol):
             raise HowsoError(
                 "Deleting trainees from using a file path is only"
                 "supported with a client that has disk access.")
@@ -3847,7 +3847,7 @@ def load_trainee(
     """
     client = client or get_client()
 
-    if not isinstance(client, LocalSavableClient):
+    if not isinstance(client, LocalSaveableProtocol):
         raise HowsoError("To save, `client` must have local disk access.")
 
     if not isinstance(file_path, Path):
@@ -3884,7 +3884,7 @@ def load_trainee(
     if ret is None:
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
 
-    if isinstance(client, LocalSavableClient):
+    if isinstance(client, LocalSaveableProtocol):
         trainee = client._get_trainee_from_core(trainee_id)
     else:
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")

@@ -5,19 +5,20 @@ from typing import (
     runtime_checkable,
     TYPE_CHECKING
 )
-from howso.direct.core import HowsoCore
 
 if TYPE_CHECKING:
+    from howso.direct.core import HowsoCore
     from howso.openapi.models import Trainee
     from howso.openapi.models import Project
 
 __all__ = [
+    "LocalSaveableProtocol",
     "ProjectClient",
 ]
 
 
 @runtime_checkable
-class LocalSavableClient(Protocol):
+class LocalSaveableProtocol(Protocol):
     """Protocol to define a Howso client that has direct disk read/write access."""
     @property
     def howso(self) -> "HowsoCore":
