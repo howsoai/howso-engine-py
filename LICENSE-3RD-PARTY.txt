@@ -1,10 +1,10 @@
 Faker
-21.0.0
+22.0.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/Faker-21.0.0.dist-info/LICENSE.txt
+/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/Faker-22.0.0.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -796,12 +796,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 coverage
-7.3.4
+7.4.0
 Apache Software License
 Ned Batchelder and 222 others
 https://github.com/nedbat/coveragepy
 Code coverage measurement for Python
-/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/coverage-7.3.4.dist-info/LICENSE.txt
+/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/coverage-7.4.0.dist-info/LICENSE.txt
 
                                  Apache License
                            Version 2.0, January 2004
@@ -3541,12 +3541,12 @@ THE SOFTWARE.
 
 
 pytest
-7.4.3
+7.4.4
 MIT License
 Holger Krekel, Bruno Oliveira, Ronny Pfannschmidt, Floris Bruynooghe, Brianna Laugher, Florian Bruhin and others
 https://docs.pytest.org/en/latest/
 pytest: simple powerful testing with Python
-/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/pytest-7.4.3.dist-info/LICENSE
+/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/pytest-7.4.4.dist-info/LICENSE
 The MIT License (MIT)
 
 Copyright (c) 2004 Holger Krekel and others
@@ -4346,12 +4346,12 @@ PERFORMANCE OF THIS SOFTWARE.
 
 
 tzdata
-2023.3
+2023.4
 Apache Software License
 Python Software Foundation
 https://github.com/python/tzdata
 Provider of IANA time zone data
-/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/tzdata-2023.3.dist-info/LICENSE
+/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/tzdata-2023.4.dist-info/LICENSE
 Apache Software License 2.0
 
 Copyright (c) 2020, Paul Ganssle (Google)
