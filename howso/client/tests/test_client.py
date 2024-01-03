@@ -2,6 +2,7 @@ import importlib.metadata
 import json
 import os
 from pathlib import Path
+import platform
 from pprint import pprint
 import sys
 import uuid
@@ -46,7 +47,12 @@ np.random.default_rng(2018)
 
 def test_xdg_configuration_path(mocker):
     """Tests for expected behavior when XDG_CONFIG_HOME is set."""
-    fake_xdg_config_path = '/tmp/xdg/path'
+    fake_xdg_config_path_unix = '/tmp/xdg/path'
+    fake_xdg_config_path_win = 'C:\\Users\\runneradmin\\xdg\\path'
+    if platform.system().lower() == 'windows':
+        fake_xdg_config_path = fake_xdg_config_path_win
+    else:
+        fake_xdg_config_path = fake_xdg_config_path_unix
     fake_xdg_path = 'howso'
     target_path = Path(fake_xdg_config_path, fake_xdg_path, 'howso.yaml')
     names_to_remove = ('XDG_CONFIG_HOME', 'HOWSO_CONFIG')
