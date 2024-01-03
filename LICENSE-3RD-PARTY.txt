@@ -1887,12 +1887,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-1.26.2
+1.26.3
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/numpy-1.26.2.dist-info/LICENSE.txt
+/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/numpy-1.26.3.dist-info/LICENSE.txt
 Copyright (c) 2005-2023, NumPy Developers.
 All rights reserved.
 
