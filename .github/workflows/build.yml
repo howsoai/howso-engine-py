@@ -84,11 +84,11 @@ jobs:
         url=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."howso-engine".url')
         # Set the display title and build date info in version.json
         if [[ -n 'build_title' ]]; then
-          jq '. |= . + {"display_title": $build_title}' version.json > temp.json && mv temp.json version.json
-          jq '. |= . + {"build_date": $build_date}' version.json > temp.json && mv temp.json version.json
+          jq --arg build_title "$build_title" '. |= . + {"display_title": $build_title}' version.json > temp.json && mv temp.json version.json
+          jq --arg build_date "$build_date" '. |= . + {"build_date": $build_date}' version.json > temp.json && mv temp.json version.json
         fi
-        jq '. |= . + {"sha": $head_sha}' version.json > temp.json && mv temp.json version.json
-        jq '. |= . + {"url": $url}' version.json > temp.json && mv temp.json version.json
+        jq --arg head_sha "$head_sha" '. |= . + {"sha": $head_sha}' version.json > temp.json && mv temp.json version.json
+        jq --arg url "$url" '. |= . + {"url": $url}' version.json > temp.json && mv temp.json version.json
         cat version.json
 
     - name: Compare Amalagam versions
