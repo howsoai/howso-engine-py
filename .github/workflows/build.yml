@@ -165,6 +165,7 @@ jobs:
       python-version: '3.8'
       config-fp: './config/latest-st-debug-howso.yml'
       config-pretty: 'ST'
+      workers: 'auto'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
   pytest-linux-3-9-mt:
