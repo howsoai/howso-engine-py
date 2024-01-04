@@ -1,0 +1,6 @@
+Howso:
+  client: howso.direct.HowsoDirectClient
+  client_extra_params:
+     check_version: false
+     amalgam:
+        library_postfix: -mt
