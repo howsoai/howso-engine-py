@@ -1,4 +1,0 @@
-- params:
-    scan:
-      projects:
-        - pipRequirementsFile: requirements-3.11.txt

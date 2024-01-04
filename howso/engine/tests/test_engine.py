@@ -128,7 +128,6 @@ class TestEngine:
     )
     def test_save_load_good(self, trainee, file_path_type):
         """Test valid disk save and load methods."""
-
         trainee_name = 'save_load_trainee'
         save_example_trainee = trainee.copy(name=trainee_name)
 
@@ -192,7 +191,6 @@ class TestEngine:
 
     def test_save_load_bad_load(self):
         """Test bad disk load methods."""
-
         cwd = Path.cwd()
         current_directory = f"{cwd}/"
         file_path = current_directory
@@ -205,8 +203,7 @@ class TestEngine:
             load_trainee(file_path=file_path)
 
     def test_delete_method_standalone_good(self, trainee):
-        """Test the standalone trainee deletion method for both strings and Path"""
-
+        """Test the standalone trainee deletion method for both strings and Path."""
         # Non-default directory
         directory_path = Path('test_directory')
 
@@ -229,9 +226,7 @@ class TestEngine:
         directory_path.rmdir()
 
     def test_delete_method_trainee_good_save(self, trainee):
-        """Test the Trainee deletion function method for saved trainee, should
-        delete from last saved location."""
-
+        """Test the Trainee deletion function method for saved trainee, should delete from last saved location."""
         # Non-default directory
         directory_path = Path('test_directory')
 
@@ -254,9 +249,7 @@ class TestEngine:
         directory_path.rmdir()
 
     def test_delete_method_trainee_load_good(self, trainee):
-        """Test the Trainee deletion function method for loaded trainee, should
-        delete from loaded location."""
-
+        """Test the Trainee deletion function method for loaded trainee, should delete from loaded location."""
         # Non-default directory
         directory_path = Path('test_directory')
 
@@ -283,7 +276,6 @@ class TestEngine:
 
     def test_delete_method_standalone_bad(self):
         """Test attempting to delete non-existant trainee."""
-
         directory_path = Path('test_directory')
         file_path = directory_path.joinpath('Path_non_existant.caml')
 

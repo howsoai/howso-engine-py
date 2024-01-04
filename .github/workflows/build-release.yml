@@ -1,0 +1,26 @@
+name: Build Release
+run-name: "Release Build"
+
+on:
+  workflow_dispatch:
+    inputs:
+      optional-release-tag:
+        description: "Optional release tag (if empty, will search previous commit titles for MAJOR/MINOR and autoincrement latest tag accordingly)"
+        required: false
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  release:
+    uses: "./.github/workflows/build.yml"
+    secrets: inherit
+    with:
+      build-type: "release"
+      optional-release-tag: ${{ inputs.optional-release-tag }}

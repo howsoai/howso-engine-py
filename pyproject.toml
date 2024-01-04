@@ -63,6 +63,7 @@ dev = [
    "pylint",
    "pytest",
    "pytest-cov",
+   "pytest-xdist",
    "pytest-mock>=1.13.0,<1.14.0",
 ]
 no-telemetry = [

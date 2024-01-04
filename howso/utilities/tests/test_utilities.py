@@ -1,10 +1,10 @@
 from collections.abc import Iterable
 from datetime import datetime
-from dateutil import parser
 import locale
+import platform
 import warnings
 
-
+from dateutil import parser
 import howso.utilities as utils
 from howso.utilities import get_kwargs, LocaleOverride
 import pandas as pd
@@ -26,9 +26,7 @@ from . import has_locales
         'mar. 13 oct. 2020 17:02:27'),
 ))
 def test_locale_override(language_code, encoding, category, result):
-    """
-    Test that locale_override correctly switches context as desired.
-    """
+    """Test that locale_override correctly switches context as desired."""
     dt = parser.parse('2020-10-13 17:02:27.243860T-0500')
     # Unfortunately just using `%c` is inconsistent across operating systems.
     format_str = '%a %d %b %Y %H:%M:%S'
@@ -51,19 +49,19 @@ def test_locale_override(language_code, encoding, category, result):
 
     # Now, ensure it's now back in the original locale
     assert locale.getlocale(category=category) == orig_locale
-    assert locale.getlocale(category=category)[1].lower() == 'utf-8'
+    # Windows default locale is 1252
+    assert locale.getlocale(category=category)[1].lower() == '1252' if platform.system() == 'Windows' else 'utf-8'
     assert datetime.strftime(dt, format_str) == orig_dt_str
 
 
 def test_get_kwargs_simple_cases():
-    """
-    Test that providing a simple iterable with strings works as expected.
-    """
+    """Test that providing a simple iterable with strings works as expected."""
     kwargs = {'apple': 5, 'banana': 6, 'cherry': 7}
     assert get_kwargs(kwargs, ('apple', 'banana', 'cherry')) == (5, 6, 7)
 
 
 def test_get_kwargs_simple_extra_with_no_warnings():
+    """Test get_kwargs with no warnings."""
     kwargs = {'apple': 5, 'banana': 6, 'cherry': 7, 'durian': 8}
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -71,6 +69,7 @@ def test_get_kwargs_simple_extra_with_no_warnings():
 
 
 def test_get_kwargs_simple_extra_with_singular_warnings():
+    """Test get_kwargs with singular warnings."""
     kwargs = {'apple': 5, 'banana': 6, 'cherry': 7, 'durian': 8}
     with pytest.warns(UserWarning) as warn_record:
         assert get_kwargs(kwargs, ('apple', 'banana', 'cherry'),
@@ -79,6 +78,7 @@ def test_get_kwargs_simple_extra_with_singular_warnings():
 
 
 def test_get_kwargs_simple_extra_with_plural_warnings():
+    """Test get_kwargs with plural warnings."""
     kwargs = {'apple': 5, 'banana': 6, 'cherry': 7, 'durian': 8,
               'elderberry': 9}
     with pytest.warns(UserWarning) as warn_record:
@@ -89,6 +89,7 @@ def test_get_kwargs_simple_extra_with_plural_warnings():
 
 
 def test_get_kwargs_dict_descriptors_missing_item():
+    """Test get_kwargs with a missing item."""
     kwargs = {'apple': 5, 'banana': 6}
     assert get_kwargs(kwargs, (
         {'key': 'apple', 'default': 5},
@@ -98,6 +99,7 @@ def test_get_kwargs_dict_descriptors_missing_item():
 
 
 def test_get_kwargs_dict_descriptors_missing_item_with_exception():
+    """Test get_kwargs with a missing item and exception."""
     kwargs = {'apple': 5, 'banana': 6}
     with pytest.raises(ValueError) as excinfo:
         get_kwargs(kwargs, (
@@ -109,6 +111,7 @@ def test_get_kwargs_dict_descriptors_missing_item_with_exception():
 
 
 def test_get_kwargs_dict_descriptors_with_tests():
+    """Test get_kwargs descriptors."""
     kwargs = {'apple': [5, ], 'banana': 6, 'cherry': []}
 
     def is_non_empty_iterable(value):
@@ -143,9 +146,7 @@ def test_get_kwargs_dict_descriptors_with_tests():
 
 
 def test_check_feature_names():
-    """
-    Test the `check_feature_names` under different scenarios.
-    """
+    """Test the `check_feature_names` under different scenarios."""
     # 1. Pass in a valid list
     columns = ["a", "b", "c"]
     features = {"a": 1, "b": 2, "c": 3}
@@ -198,9 +199,7 @@ def test_check_feature_names():
 
 
 def test_validate_case_indices():
-    """
-    Tests that 'validate_case_indices' correctly detects invalid case_indices arguments.
-    """
+    """Tests that 'validate_case_indices' correctly detects invalid case_indices arguments."""
     msg = 'Argument case_indices must be type Iterable of (non-string) Sequence[str, int].'
     # Test a case_indices that is not an iterable
     with pytest.raises(ValueError) as exc:
@@ -245,11 +244,12 @@ def test_validate_case_indices():
 
 def test_build_react_series_df():
     """
-    Tests that build_react_series_df correctly builds the DataFrame and that it includes
-    the series index feature when specified.
+    Tests that build_react_series_df correctly builds the DataFrame.
+
+    Also tests that it includes the series index feature when specified.
     """
     test_react_series_response = {
-        'explanation': { 'action_features': ['id', 'x', 'y'] },
+        'explanation': {'action_features': ['id', 'x', 'y']},
         'series': [
             [["A", 1, 2], ["A", 2, 2]],
             [["B", 4, 4], ["B", 6, 7], ["B", 8, 9]]
@@ -289,6 +289,7 @@ def test_build_react_series_df():
     ("2020-01-01T20:10:10.123Z", "%Y-%m-%dT%H:%M:%S.%fZ"),
 ))
 def test_determine_iso_format(date_str, format_str):
+    """Tests utils.determine_iso_format."""
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         assert format_str == utils.determine_iso_format(date_str, "_")
