@@ -150,14 +150,12 @@ jobs:
 
   workflow-summary:
     needs: ['metadata', 'build']
-    if: inputs.build-type != 'release'
     uses: "howsoai/.github/.github/workflows/workflow-summary.yml@main"
     secrets: inherit
     with:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
   pytest-linux-3-8-st:
-    if: inputs.build-type != 'release'
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -171,7 +169,6 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
   pytest-linux-3-9-mt:
-    if: inputs.build-type != 'release'
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -185,7 +182,6 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
   pytest-linux-3-10-mt:
-    if: inputs.build-type != 'release'
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -199,7 +195,6 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
   pytest-linux-3-11-mt:
-    if: inputs.build-type != 'release'
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -227,7 +222,6 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
   pytest-macos-3-11-mt:
-    if: inputs.build-type != 'release'
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
