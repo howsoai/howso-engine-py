@@ -92,7 +92,6 @@ jobs:
         cat version.json
 
     - name: Compare Amalagam versions
-      if: inputs.build-type == 'PR'
       run: |
         cd howso/howso-engine
         engine_amlg_version=$(jq -r ".dependencies.amalgam" ./version.json)
