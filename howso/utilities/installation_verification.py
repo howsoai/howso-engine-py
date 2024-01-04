@@ -937,7 +937,6 @@ def check_validator_operation(
         return (Status.CRITICAL,
                 "Howso Validator™ was not installed correctly. "
                 "Please check installation.")
-    validator = None
     try:
         if source_df is None:
             source_df, _ = generate_dataframe(client=registry.client, num_samples=150)
@@ -948,8 +947,8 @@ def check_validator_operation(
         if not Validator:
             raise AssertionError('Howso Validator™ is not installed.')
 
-        validator = Validator(orig_df, gen_df, features=features, verbose=-1)
-        result = validator.run_metric("DescriptiveStatistics")
+        with Validator(orig_df, gen_df, features=features, verbose=-1) as v:
+            result = v.run_metric("DescriptiveStatistics")
 
         if result.desirability == 0 or len(result.errors):
             return (Status.CRITICAL, "Validator encountered one or more errors.")
@@ -960,15 +959,6 @@ def check_validator_operation(
                 "Could not complete operation. Check installation.")
     else:
         return (Status.OK, "")
-    finally:
-        if validator:
-            for dataset in [validator.orig, validator.gen]:
-                if isinstance(dataset, Trainee):
-                    if id := getattr(dataset, "id", None):
-                        try:
-                            registry.client.release_trainee_resources(id)
-                        except Exception:  # noqa: Deliberately broad
-                            pass
 
 
 def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
