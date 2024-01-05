@@ -21,6 +21,7 @@ jobs:
     secrets: inherit
     with:
       upstream-packages: 'amalgam-lang-py'
+      extras: 'dev scikit'
 
   build:
     needs: ['gen-requirements']
