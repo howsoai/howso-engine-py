@@ -272,8 +272,13 @@ jobs:
         echo "Running Howso verification..."
         verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
   install-verification-linux-arm64:
-    if: inputs.build-type != 'PR'
+    # if: inputs.build-type != 'PR'
     needs: ['metadata', 'build']
     runs-on: ubuntu-latest
     steps:
@@ -324,7 +329,11 @@ jobs:
           PATH=$PATH:/usr/aarch64-linux-gnu
 
           echo "Running Howso verification..."
-          verify_howso_install
+
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
 
   install-verification-linux-arm64_8a:
     if: inputs.build-type != 'PR'
@@ -391,6 +400,18 @@ jobs:
           echo "Running Howso verification..."
           verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
+    - name: Upload trace files
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: "install-verificatrion-stacktrace-linux-arm64_8a.txt"
+        path: ~/howso_stacktrace.txt
+
   install-verification-windows-bash-amd64:
     if: inputs.build-type != 'PR'
     needs: ['metadata', 'build']
@@ -437,6 +458,11 @@ jobs:
 
         echo "Running Howso verification..."
         PYTHONUTF8=1 verify_howso_install
+
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
 
   install-verification-windows-cmd-amd64:
     needs: ['metadata', 'build']
@@ -490,6 +516,11 @@ jobs:
         set PYTHONUTF8=1
         verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
   install-verification-windows-pwsh-amd64:
     if: inputs.build-type != 'PR'
     needs: ['metadata', 'build']
@@ -541,6 +572,11 @@ jobs:
         $env:PYTHONUTF8=1
         verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
   install-verification-macos-amd64:
     needs: ['metadata', 'build']
     runs-on: macos-latest-large
@@ -580,6 +616,11 @@ jobs:
         echo "Running Howso verification..."
         verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
   install-verification-macos-arm64:
     needs: ['metadata', 'build']
     runs-on: macos-latest-xlarge
@@ -618,6 +659,11 @@ jobs:
 
         echo "Running Howso verification..."
         verify_howso_install
+
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
 
   release:
     if: inputs.build-type == 'release'
