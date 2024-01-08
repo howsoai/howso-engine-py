@@ -4242,6 +4242,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 - mda_permutation : Mean decrease in accuracy that used
                   scrambling of feature values instead of dropping each
                   feature, applies to all features.
+                - missing_value_accuracy : The number of cases with missing
+                  values predicted to have missing values divided by the number
+                  of cases with missing values, applies to all features that
+                  contain missing values.
                 - precision : Precision (positive predictive) value for nominal
                   features only.
                 - r2 : The r-squared coefficient of determination, for
@@ -4273,8 +4277,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         validate_list_shape(stats, 1, "stats", "str")
         valid_stats = {
             "accuracy", "contribution", "confusion_matrix", "mae", "mda",
-            "mda_permutation", "precision", "r2", "recall", "rmse",
-            "spearman_coeff",
+            "mda_permutation", "missing_value_accuracy", "precision", "r2",
+            "recall", "rmse", "spearman_coeff",
         }
 
         if stats is not None and not set(stats).issubset(valid_stats):
