@@ -208,7 +208,6 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
   pytest-windows-3-11-mt:
-    if: inputs.build-type != 'release'
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
