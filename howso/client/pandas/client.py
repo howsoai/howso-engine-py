@@ -13,6 +13,7 @@ from howso.utilities import (
     format_dataframe,
 )
 from howso.utilities.internals import deserialize_to_dataframe
+from howso.utilities.types import CasesWithDetails
 import pandas as pd
 from pandas import DataFrame, Index
 
@@ -206,7 +207,7 @@ class HowsoPandasClientMixin:
         *args,
         series_index: str = '.series',
         **kwargs
-    ) -> Dict[str, Union[DataFrame, Dict]]:
+    ) -> 'CasesWithDetails':
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_series`.
 
@@ -238,9 +239,12 @@ class HowsoPandasClientMixin:
         df = build_react_series_df(response, series_index=series_index)
         response['series'] = format_dataframe(df, feature_attributes)
 
-        return response
+        results = CasesWithDetails()
+        results.add_reaction(response.get("series"), response.get("explanation"))
 
-    def react(self, trainee_id, *args, **kwargs) -> Dict[str, Union[DataFrame, Dict]]:
+        return results
+
+    def react(self, trainee_id, *args, **kwargs) -> CasesWithDetails:  # Dict[str, Union[DataFrame, Dict]]:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react`.
 
@@ -257,7 +261,11 @@ class HowsoPandasClientMixin:
         columns = response['explanation'].get('action_features')
         response['action'] = deserialize_cases(response['action'], columns,
                                                feature_attributes)
-        return response
+
+        results = CasesWithDetails()
+        results.add_reaction(response.get("action"), response.get("explanation"))
+
+        return results
 
     def get_distances(self, *args, **kwargs) -> Dict[str, Union[DataFrame, List]]:
         """

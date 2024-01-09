@@ -12,6 +12,7 @@ from pandas import DataFrame, Index
 
 if TYPE_CHECKING:
     from .configuration import HowsoConfiguration
+    from howso.utilities.types import CasesWithDetails
     from howso.openapi.models import (
         Cases,
         Metrics,
@@ -276,7 +277,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> Union["ReactionSeries", Dict]:
+    ) -> Union["CasesWithDetails", Dict]:
         """React in a series until a stop condition is met."""
 
     @abstractmethod
@@ -368,7 +369,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> Union["Reaction", Dict]:
+    ) -> Union['CasesWithDetails', Dict]:
         """Send a `react` to the Howso engine."""
 
     @abstractmethod
