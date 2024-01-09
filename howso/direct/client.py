@@ -59,6 +59,8 @@ from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
 )
+from howso.utilities.types import CasesWithDetails
+
 import numpy as np
 from packaging.version import parse as parse_version
 from pandas import DataFrame
