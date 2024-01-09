@@ -406,7 +406,7 @@ A library to handle automated deprecations
 
 
 howso-openapi-client
-27.0.0
+27.1.1
 GNU Affero General Public License v3
 Howso Incorporated
 UNKNOWN
@@ -649,12 +649,12 @@ IN THE SOFTWARE.
 
 
 mmh3
-4.0.1
+4.1.0
 MIT License
 Hajime Senuma <hajime.senuma@gmail.com>
 https://pypi.org/project/mmh3/
 Python extension for MurmurHash (MurmurHash3), a set of fast and robust hash functions.
-/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/mmh3-4.0.1.dist-info/LICENSE
+/opt/hostedtoolcache/Python/3.11.7/x64/lib/python3.11/site-packages/mmh3-4.1.0.dist-info/LICENSE
 MIT License
 
 Copyright (c) 2011-2023 Hajime Senuma
