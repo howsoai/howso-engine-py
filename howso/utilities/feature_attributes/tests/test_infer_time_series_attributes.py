@@ -199,3 +199,32 @@ def test_set_rate_delta_boundaries():
         assert 'rate_max' not in features['date']['time_series']
         assert 'delta_min' not in features['f3']['time_series']
         assert 'delta_max' not in features['f3']['time_series']
+
+
+@pytest.mark.parametrize(
+    ("universal_value", "expected"),
+    [
+        (True, True),
+        (False, False),
+        (None, None),
+    ]
+)
+def test_time_feature_is_universal(universal_value, expected):
+    """Validates that time_feature_is_universal is working as expected."""
+    df = pd.read_csv(data_path)
+
+    # Define time format
+    time_format = "%Y%m%d"
+    # Identify id-feature and time-feature
+    id_feature_name = "ID"
+    time_feature_name = "date"
+
+    features = infer_feature_attributes(
+        df,
+        time_feature_name=time_feature_name,
+        id_feature_name=id_feature_name,
+        datetime_feature_formats={time_feature_name: time_format},
+        time_feature_is_universal=universal_value,
+    )
+
+    assert features[time_feature_name]['time_series'].get("universal") == expected
