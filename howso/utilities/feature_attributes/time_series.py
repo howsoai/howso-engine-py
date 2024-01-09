@@ -259,6 +259,7 @@ class InferFeatureAttributesTimeSeries:
         attempt_infer_extended_nominals: bool = False,
         nominal_substitution_config: Optional[Dict[str, Dict]] = None,
         include_extended_nominal_probabilities: Optional[bool] = False,
+        time_feature_is_universal: bool = None,
         time_series_type_default: Optional[str] = 'rate',
         time_series_types_override: Optional[Dict] = None,
         orders_of_derivatives: Optional[Dict] = None,
@@ -422,6 +423,12 @@ class InferFeatureAttributesTimeSeries:
         include_extended_nominal_probabilities : bool, default False
             (Optional) If true, extended nominal probabilities will be appended
             as metadata into the feature object.
+
+        time_feature_is_universal : bool, optional
+            If True, the time feature will be treated as universal and future data
+            is excluded while making predictions. If False, the time feature will
+            not be treated as universal and only future data within the same series
+            is excluded while making predictions.
 
         time_series_type_default : str, default 'rate'
             (Optional) Type specifying how time series is generated.
@@ -616,6 +623,10 @@ class InferFeatureAttributesTimeSeries:
 
         if self.time_feature_name in features:
             features[self.time_feature_name]['time_series']['time_feature'] = True
+
+            # Assign universal value if specified
+            if time_feature_is_universal is not None:
+                features[self.time_feature_name]['time_series']['universal'] = time_feature_is_universal
             # Force time_feature to be `continuous`
             features[self.time_feature_name]['type'] = "continuous"
             # Set time_series as 'delta' so that lag and delta are computed
