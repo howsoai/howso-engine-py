@@ -2242,6 +2242,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "continue_series_values": serialized_continue_series_values,
                 "initial_features": initial_features,
                 "initial_values": initial_values,
+                "final_time_steps": final_time_steps,
+                "init_time_steps": init_time_steps,
                 "series_stop_maps": series_stop_maps,
                 "max_series_lengths": max_series_lengths,
                 "derived_context_features": derived_context_features,

@@ -655,7 +655,7 @@ jobs:
       with:
         tag: ${{ needs.metadata.outputs.version }}
         commit: ${{ github.sha }}
-        name: ${{ github.event.repository.name }} ${{ needs.metadata.outputs.version }}"
+        name: ${{ github.event.repository.name }} ${{ needs.metadata.outputs.version }}
         artifactErrorsFailBuild: true
         generateReleaseNotes: true
         makeLatest: legacy
