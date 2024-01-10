@@ -23,17 +23,17 @@ __all__ = [
 ]
 
 
-# class Reaction(TypedDict):
-#     """React response format."""
+class Reaction(TypedDict):
+    """React response format."""
 
-#     action: DataFrame
-#     details: Dict[str, Any]
+    action: DataFrame
+    details: Dict[str, Any]
 
 
 # class ReactionSeries(TypedDict):
 #     """React Series response format."""
 
-#     series: DataFrame
+#     action: DataFrame
 #     details: Dict[str, Any]
 
 
@@ -129,12 +129,19 @@ class CasesWithDetails(collections.abc.MutableMapping):
         """
         # These replacements are for convenience as we switch from "series" to
         # "action" and "explanations" to "details".
+        if key in ("series", "explanations"):
+            warnings.warn(
+                "The keys 'series' and 'explanations' are deprecated will be "
+                "removed in a future release. Please use 'action' and 'details'.",
+                DeprecationWarning
+            )
         if key == "series":
             key = "action"
         if key == "explanations":
             key = "details"
         if key not in ('action', 'details'):
-            raise KeyError("Keys can only be 'action' or 'details'.")
+            raise KeyError("Keys can onlybe 'action' or 'details'.")
+
         return key
 
     def __getitem__(self, key):
@@ -221,8 +228,6 @@ class CasesWithDetails(collections.abc.MutableMapping):
         """Add Dict[List, Dict] to CasesWithDetails."""
         action_df = pd.DataFrame.from_dict(action)
         return self.add_reaction(action_df, details)
-
-# take the warning lines,
 
     @add_reaction.register
     def _(self, reaction: dict):
