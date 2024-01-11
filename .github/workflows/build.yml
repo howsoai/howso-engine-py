@@ -278,7 +278,7 @@ jobs:
         cat howso_stacktrace.txt || true
 
   install-verification-linux-arm64:
-    # if: inputs.build-type != 'PR'
+    if: inputs.build-type != 'PR'
     needs: ['metadata', 'build']
     runs-on: ubuntu-latest
     steps:
