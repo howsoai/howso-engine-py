@@ -405,13 +405,6 @@ jobs:
       run: |
         cat howso_stacktrace.txt || true
 
-    - name: Upload trace files
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: "install-verificatrion-stacktrace-linux-arm64_8a.txt"
-        path: ~/howso_stacktrace.txt
-
   install-verification-windows-bash-amd64:
     if: inputs.build-type != 'PR'
     needs: ['metadata', 'build']
