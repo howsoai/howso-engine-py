@@ -6,4 +6,4 @@ Howso:
      amalgam:
         library_postfix: -st
         trace: true 
-        execution_trace_dir: ./traces/ 
+        execution_trace_dir: ./traces/

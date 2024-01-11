@@ -100,9 +100,9 @@ deprecation==2.1.0 \
     --hash=sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff \
     --hash=sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a
     # via howso-engine (pyproject.toml)
-faker==22.1.0 \
-    --hash=sha256:3cd0e04ed7da1bb8037afc40d1127d19e0ac4afac247a1fe1d8dde9b5c6d6e5b \
-    --hash=sha256:d1b8fe8e8fc96d816294a301741940c2229dcf1f5dd1231805666e4005cc6353
+faker==22.2.0 \
+    --hash=sha256:2c2b7a8e55368defd718226bd5b48ef31b2d082c2900ccb4200987e433be500e \
+    --hash=sha256:fab78f435d27fa7bd109b095eea3504477e4149051c903fd63f11ce252e3d9b7
     # via howso-engine (pyproject.toml)
 howso-openapi-client==27.1.1 \
     --hash=sha256:a276c2b824e14a6a8810c4e79d16925af51cd5096e2e4d306abab354b1bbb158

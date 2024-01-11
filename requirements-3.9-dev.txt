@@ -276,9 +276,9 @@ execnet==2.0.2 \
     --hash=sha256:88256416ae766bc9e8895c76a87928c0012183da3cc4fc18016e6f050e025f41 \
     --hash=sha256:cc59bc4423742fd71ad227122eb0dd44db51efb3dc4095b45ac9a08c770096af
     # via pytest-xdist
-faker==22.1.0 \
-    --hash=sha256:3cd0e04ed7da1bb8037afc40d1127d19e0ac4afac247a1fe1d8dde9b5c6d6e5b \
-    --hash=sha256:d1b8fe8e8fc96d816294a301741940c2229dcf1f5dd1231805666e4005cc6353
+faker==22.2.0 \
+    --hash=sha256:2c2b7a8e55368defd718226bd5b48ef31b2d082c2900ccb4200987e433be500e \
+    --hash=sha256:fab78f435d27fa7bd109b095eea3504477e4149051c903fd63f11ce252e3d9b7
     # via howso-engine (pyproject.toml)
 flake8==3.9.2 \
     --hash=sha256:07528381786f2a6237b061f6e96610a4167b226cb926e2aa2b6b1d78057c576b \
@@ -499,9 +499,9 @@ pip-tools==7.3.0 \
     --hash=sha256:8717693288720a8c6ebd07149c93ab0be1fced0b5191df9e9decd3263e20d85e \
     --hash=sha256:8e9c99127fe024c025b46a0b2d15c7bd47f18f33226cf7330d35493663fc1d1d
     # via howso-engine (pyproject.toml)
-pipdeptree==2.13.1 \
-    --hash=sha256:1e1acdb2ddc2abdca1718f27ca8dc21622c896a00b8980ec3d42c2208a841a10 \
-    --hash=sha256:760fa0d93f424637445a9e7ca797bf64f283e824cbeadc61f761e12b722bb004
+pipdeptree==2.13.2 \
+    --hash=sha256:0ce50f03a78f688a81265a107dc2fdb2a548d459aedc02824e792485ba884c1d \
+    --hash=sha256:1237791977ef61602dc967b287167c1a6b058501afbc145a04e835c622355e6f
     # via howso-engine (pyproject.toml)
 platformdirs==4.1.0 \
     --hash=sha256:11c8f37bcca40db96d8144522d925583bdb7a31f7b0e37e3ed4318400a8e2380 \

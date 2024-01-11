@@ -20,7 +20,7 @@ jobs:
     uses: "howsoai/.github/.github/workflows/compile-requirements.yml@main"
     secrets: inherit
     with:
-      upstream-packages: 'amalgam-lang-py'
+      upstream-packages: 'amalgam-lang-py howso-openapi-client'
       extras: 'dev scikit'
 
   build:
@@ -35,7 +35,7 @@ jobs:
     uses: "howsoai/.github/.github/workflows/scan-pull-request.yml@main"
     secrets: inherit
     with:
-      upstream-packages: 'amalgam-lang-py'
+      upstream-packages: 'amalgam-lang-py howso-openapi-client'
 
   # This job is here to have only one final step to add for "Status Checks"
   # in GitHub, instead of adding every leaf test from 'build-test-package'
