@@ -453,7 +453,6 @@ class InferFeatureAttributesBase(ABC):
     def _process(self,  # noqa: C901
                  features: Optional[Dict[str, Dict]] = None,
                  infer_bounds: bool = True,
-                 dropna: bool = False,
                  tight_bounds: Optional[Iterable[str]] = None,
                  mode_bound_features: Optional[Iterable[str]] = None,
                  id_feature_name: Optional[Union[str, Iterable[str]]] = None,
@@ -477,11 +476,6 @@ class InferFeatureAttributesBase(ABC):
                 tight_bounds = self._get_feature_names()
             else:
                 tight_bounds = None
-
-        if dropna:
-            warnings.warn("The 'dropna' parameter is deprecated and will be removed in "
-                          "a future release. Please explicitly filter your data.",
-                          DeprecationWarning)
 
         if features and not isinstance(features, dict):
             raise ValueError(
@@ -669,13 +663,6 @@ class InferFeatureAttributesBase(ABC):
                 )
                 if bounds:
                     feature_attributes[feature_name]['bounds'] = bounds  # noqa
-
-        if dropna:
-            for feature_name in feature_attributes:
-                if 'dropna' in feature_attributes[feature_name]:
-                    # Don't override user's preference
-                    continue
-                feature_attributes[feature_name]['dropna'] = True  # noqa
 
         # Do any features contain data unsupported by the core?
         self._check_unsupported_data(feature_attributes)
