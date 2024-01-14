@@ -250,7 +250,7 @@ class InferFeatureAttributesTimeSeries:
     def _process(  # noqa: C901
         self,
         features: Optional[Dict] = None,
-        infer_bounds: bool = True, dropna: bool = False,
+        infer_bounds: bool = True,
         id_feature_name: Optional[Union[str, Iterable[str]]] = None,
         time_invariant_features: Optional[Iterable[str]] = None,
         datetime_feature_formats: Optional[Dict] = None,
@@ -547,7 +547,6 @@ class InferFeatureAttributesTimeSeries:
         features = infer(
             features=features,
             infer_bounds=infer_bounds,
-            dropna=dropna,
             datetime_feature_formats=datetime_feature_formats,
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             nominal_substitution_config=nominal_substitution_config,
@@ -574,11 +573,10 @@ class InferFeatureAttributesTimeSeries:
         else:
             id_feature_names = []
 
-        # ID features are time-invariant and cannot be NaN.
+        # ID features are time-invariant.
         for id_feature in id_feature_names:
             if id_feature not in time_invariant_features:
                 time_invariant_features.append(id_feature)
-            features[id_feature]["dropna"] = True
 
         if self.time_feature_name in time_invariant_features:
             raise ValueError('time_feature_name cannot be in the '
@@ -636,8 +634,6 @@ class InferFeatureAttributesTimeSeries:
             # Time feature might have `sensitive` and `subtype` attribute
             # which is not applicable to time feature.
             features[self.time_feature_name].pop('subtype', None)
-            # The time feature cannot be NaN, so set dropna to True.
-            features[self.time_feature_name]["dropna"] = True
 
             # if the time feature has no datetime and is stored as a string,
             # convert to an int for comparison since it's continuous
