@@ -573,7 +573,7 @@ class InferFeatureAttributesTimeSeries:
         else:
             id_feature_names = []
 
-        # ID features are time-invariant and cannot be NaN.
+        # ID features are time-invariant.
         for id_feature in id_feature_names:
             if id_feature not in time_invariant_features:
                 time_invariant_features.append(id_feature)
