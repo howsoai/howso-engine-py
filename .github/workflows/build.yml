@@ -437,7 +437,7 @@ jobs:
     - name: Download tz data
       shell: pwsh
       run: |
-        ./build/powershell/Download-Tzdata.ps1
+        ./config/powershell/Download-Tzdata.ps1
 
     - name: Verify Howso install
       run: |
@@ -488,7 +488,7 @@ jobs:
     - name: Download tz data
       shell: pwsh
       run: |
-        ./build/powershell/Download-Tzdata.ps1
+        ./config/powershell/Download-Tzdata.ps1
 
     - name: Verify Howso install
       shell: cmd
@@ -546,7 +546,7 @@ jobs:
     - name: Download tz data
       shell: pwsh
       run: |
-        ./build/powershell/Download-Tzdata.ps1
+        ./config/powershell/Download-Tzdata.ps1
 
     - name: Verify Howso install
       shell: pwsh
