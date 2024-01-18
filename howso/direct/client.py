@@ -5074,6 +5074,78 @@ class HowsoDirectClient(AbstractHowsoClient):
             **kwargs
         )
         self._auto_persist_trainee(trainee_id)
+    
+    def set_auto_ablate_params(
+        self,
+        trainee_id: str,
+        auto_ablate_enabled: bool = False,
+        auto_ablate_weight_feature: str = ".case_weight",
+        minimum_model_size: int = 1_000,
+        influence_weight_entropy_threshold: float = 0.6,
+        exact_prediction_features: Optional[List[str]] = None,
+        residual_prediction_features: Optional[List[str]] = None,
+        tolerance_prediction_threshold_map: Optional[Dict[str, Tuple[float, float]]] = None,
+        relative_prediction_threshold_map: Optional[Dict[str, float]] = None,
+        conviction_lower_threshold: Optional[float] = None,
+        conviction_upper_threshold: Optional[float] = None,
+        **kwargs
+    ):
+        """
+        Set trainee parameters for auto ablation.
+
+        .. note::
+            Auto-ablation is experimental and the API may change without deprecation.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to set auto analysis parameters for.
+        auto_ablate_enabled : bool, default False
+            When True, the :meth:`train` method will ablate cases that meet the set criteria.
+        auto_ablate_weight_feature : str, default ".case_weight"
+            The weight feature that should be accumulated to when cases are ablated.
+        minimum_model_size : int, default 1,000
+            The threshold ofr the minimum number of cases at which the model should auto-ablate.
+        influence_weight_entropy_threshold : float, default 0.6
+            The influence weight entropy quantile that a case must be beneath in order to be trained.
+        exact_prediction_features : Optional[List[str]], optional
+            For each of the features specified, will ablate a case if the prediction matches exactly.
+        residual_prediction_features : Optional[List[str]], optional
+            For each of the features specified, will ablate a case if abs(prediction - case value) / prediction <= feature residual.
+        tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
+            For each of the features specified, will ablate a case if the prediction >= (case value - MIN) and the prediction
+            <= (case value + MAX).
+        relative_prediction_threshold_map : Optional[Dict[str, float]], optional
+            For each of the features specified, will ablate a case if abs(prediction - case value) / prediction <= relative threshold
+        conviction_lower_threshold : Optional[float], optional
+            The conviction value above which cases will be ablated.
+        conviction_upper_threshold : Optional[float], optional
+            The conviction value below which cases will be ablated.
+        """
+        params = dict(
+            auto_ablate_enabled=auto_ablate_enabled,
+            auto_ablate_weight_feature=auto_ablate_weight_feature,
+            minimum_model_size=minimum_model_size,
+            influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+            exact_prediction_features=exact_prediction_features,
+            residual_prediction_features=residual_prediction_features,
+            tolerance_prediction_threshold_map=tolerance_prediction_threshold_map,
+            relative_prediction_threshold_map=relative_prediction_threshold_map,
+            conviction_lower_threshold=conviction_lower_threshold,
+            conviction_upper_threshold=conviction_upper_threshold,
+        )
+        params.update(kwargs)
+        if kwargs:
+            warn_params = ", ".join(kwargs)
+            warnings.warn(
+                f'The following parameter(s) "{warn_params}" are '
+                'not officially supported by analyze and may or may not have an effect.',
+                UserWarning
+            )
+        self._auto_resolve_trainee(trainee_id)
+        self.howso.set_auto_ablate_params(
+            trainee_id, **params
+        )
 
     def optimize(self, *args, **kwargs):
         """
