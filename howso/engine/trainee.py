@@ -963,6 +963,15 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'auto_analyze' method.")
     
+    def get_auto_ablate_params(self):
+        """
+        Get parameters set by :meth:`set_auto_ablate_params`.
+        """
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.get_auto_ablate_params()
+        else:
+            raise ValueError("Client must have the 'get_auto_ablate_params' method.")
+    
     def set_auto_ablate_params(
         self,
         auto_ablate_enabled: bool = False,

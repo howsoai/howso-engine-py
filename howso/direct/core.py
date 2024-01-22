@@ -756,6 +756,14 @@ class HowsoCore:
             A dictionary containing the key "count".
         """
         return self._execute("get_num_training_cases", {"trainee": trainee_id})
+
+    def get_auto_ablate_params(self, trainee_id: str):
+        """
+        Get parameters set by :meth:`set_auto_ablate_params`.
+        """
+        return self._execute(
+            "set_auto_ablate_params", {"trainee": trainee_id}
+        )
     
     def set_auto_ablate_params(
         self,

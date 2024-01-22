@@ -5075,6 +5075,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
         self._auto_persist_trainee(trainee_id)
     
+    def get_auto_ablate_params(self, trainee_id: str):
+        """
+        Get parameters set by :meth:`set_auto_ablate_params`.
+        """
+        self._auto_resolve_trainee(trainee_id)
+        self.howso.get_auto_ablate_params(trainee_id)
+    
     def set_auto_ablate_params(
         self,
         trainee_id: str,
