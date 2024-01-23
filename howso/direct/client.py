@@ -5060,9 +5060,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         if kwargs:
             warn_params = ', '.join(kwargs)
             warnings.warn(
-                f'The following auto analyze parameter(s) "{warn_params}" '
-                'are not officially supported by analyze and may or may not '
-                'have an effect.', UserWarning)
+                f'The following auto ablate parameter(s) "{warn_params}" '
+                'are not officially supported or may not have an effect.', UserWarning)
 
         self.howso.auto_analyze_params(
             trainee_id=trainee_id,
