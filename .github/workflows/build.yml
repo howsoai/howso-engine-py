@@ -111,7 +111,7 @@ jobs:
         echo "Latest amalgam-lang-py release Amalgam version: ${amlg_lang_amlg_version}"
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -255,7 +255,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -430,7 +430,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -481,7 +481,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -539,7 +539,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -592,7 +592,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -636,7 +636,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -709,7 +709,7 @@ jobs:
           ls ./dist
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
