@@ -762,7 +762,7 @@ class HowsoCore:
         Get parameters set by :meth:`set_auto_ablate_params`.
         """
         return self._execute(
-            "set_auto_ablate_params", {"trainee": trainee_id}
+            "get_auto_ablate_params", {"trainee": trainee_id}
         )
     
     def set_auto_ablate_params(
