@@ -89,6 +89,7 @@ jobs:
   create-pr:
     needs: ['gen-branch-name', 'create-branch', 'gen-pr-title', 'gen-requirements']
     uses: "howsoai/.github/.github/workflows/create-pr.yml@main"
+    secrets: inherit
     with:
       branch: ${{ needs.gen-branch-name.outputs.branch }}
       title: ${{ needs.gen-pr-title.outputs.title }}
