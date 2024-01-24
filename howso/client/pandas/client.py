@@ -229,15 +229,9 @@ class HowsoPandasClientMixin:
         """
         trainee_id = self._resolve_trainee_id(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
-        response = super().react_series(trainee_id, *args, **kwargs)
+        response = super().react_series(trainee_id, series_index, *args, **kwargs)
 
-        # If series_index is not a string, the intention is likely for it to not be included
-        if not isinstance(series_index, str):
-            series_index = None
-
-        # Build response DataFrame
-        df = build_react_series_df(response, series_index=series_index)
-        response['series'] = format_dataframe(df, feature_attributes)
+        response['series'] = format_dataframe(response.get("series"), feature_attributes)
 
         return response
 

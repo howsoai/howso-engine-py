@@ -68,14 +68,16 @@ class CasesWithDetails(abc.MutableMapping):
                  details: t.Optional[t.MutableMapping[str, t.Any]] = None
                  ):
         """Initialize the dictionary with the allowed keys."""
-
         self._data = {
             'action': None,
             'details': {}
         }
 
-        if action:
-            self.add_reaction(action, details or {})
+        if details is None:
+            details = {}
+
+        if action is not None:
+            self.add_reaction(action, details)
         elif details:
             self._data['details'] = details
 

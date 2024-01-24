@@ -47,6 +47,7 @@ from howso.openapi.models import (
     TraineeVersion
 )
 from howso.utilities import (
+    build_react_series_df,
     internals,
     num_list_dimensions,
     ProgressTimer,
@@ -1917,6 +1918,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         series_context_features: Optional[Iterable[str]] = None,
         series_context_values: Optional[Union[List[object], List[List[object]]]] = None,
         series_id_tracking: Literal["dynamic", "fixed", "no"] = "fixed",
+        series_index: Optional[str] = None,
         series_stop_maps: Optional[List[Dict[str, Dict]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
@@ -2035,7 +2037,10 @@ class HowsoDirectClient(AbstractHowsoClient):
               allowed to change the series ID that it tracks based on its
               current context.
             - If "no", does not track any particular series ID.
-
+        series_index : str, Optional
+            When set to a string, will include the series index as a
+            column in the returned DataFrame using the column name given.
+            If set to None, no column will be added.
         progress_callback : callable, optional
             A callback method that will be called before each
             batched call to react series and at the end of reacting. The method
@@ -2359,7 +2364,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                 suppress_warning=suppress_warning
             )
 
-        response = CasesWithDetails(response.get('series'), response.get('explanation'))
+        series_df = build_react_series_df(response, series_index=series_index)
+
+        response = CasesWithDetails(series_df, response.get('explanation'))
 
         return response
 
