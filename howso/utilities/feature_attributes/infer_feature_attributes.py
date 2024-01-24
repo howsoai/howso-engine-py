@@ -213,6 +213,14 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
         This will cause the bounds for the start and end times set
         to the same bounds as observed in the original data.
 
+    time_feature_is_universal : bool, optional
+        If True, the time feature will be treated as universal and future data
+        is excluded while making predictions. If False, the time feature will
+        not be treated as universal and only future data within the same series
+        is excluded while making predictions. It is recommended to set this
+        value to True if there is any possibility of global relevancy of time,
+        which is the default behavior.
+
     time_series_type_default : str, default 'rate'
         (Optional) Type specifying how time series is generated.
         One of 'rate' or 'delta', default is 'rate'. If 'rate',

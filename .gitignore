@@ -8,6 +8,7 @@
 **/*.trace
 dumps
 traces
+howso-engine
 howso/docs/build
 howso/docs/source/_build
 howso/docs/source/auto_examples
@@ -27,6 +28,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+build/
 .Python
 develop-eggs/
 dist/

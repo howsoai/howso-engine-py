@@ -1,15 +1,30 @@
-name: Reusable WF - Build
+name: Build
+run-name: "Branch Build (${{ github.run_attempt }}.${{ github.run_number }}) - ${{ github.ref_name }}"
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
-      version:
-        required: true
-        type: string
-      payload:
+      howso-engine-build:
+        description: |
+          (Optional) howso-engine build or version number. Defaults to pinned release.
+
+          Examples:
+            '6807310618',
+            'https://github.com/howsoai/howso-engine/actions/runs/6807310618',
+            '57.0.1'
         required: false
         type: string
+      amalgam-lang-py-build:
+        description: |
+          (Optional) amalgam-lang-py build or version number. Defaults to pinned release.
+        required: false
+        type: string
+  workflow_call:
+    inputs:
       build-type:
+        required: false
+        type: string
+      optional-release-tag:
         required: false
         type: string
 
@@ -19,30 +34,17 @@ defaults:
 
 jobs:
 
-  pepify:
-    uses: "./.github/workflows/pepify.yml"
-    with:
-      version: ${{ inputs.version }}
-
-  get-howso-engine-details:
-    uses: "./.github/workflows/get-dependency-details.yml"
+  metadata:
+    uses: howsoai/.github/.github/workflows/set-metadata.yml@main
     secrets: inherit
     with:
-      owner: "howsoai"
-      repo: "howso-engine"
-      payload: "${{ inputs.payload }}"
-
-  get-amalgam-lang-py-details:
-    uses: "./.github/workflows/get-dependency-details.yml"
-    secrets: inherit
-    with:
-      owner: "howsoai"
-      repo: "amalgam-lang-py"
-      payload: "${{ inputs.payload }}"
-      skip-version-json-check: true
+      build-type: ${{ inputs.build-type }}
+      optional-release-tag: ${{ inputs.optional-release-tag }}
+      howso-engine-build: ${{ inputs.howso-engine-build }}
+      amalgam-lang-py-build: ${{ inputs.amalgam-lang-py-build }}
 
   build:
-    needs: ["pepify", "get-howso-engine-details"]
+    needs: ["metadata"]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -54,11 +56,13 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh ${{ needs.get-howso-engine-details.outputs.run-type }} download -D howso/howso-engine/tmp -R "howsoai/howso-engine" -p "howso-engine-*" "${{ needs.get-howso-engine-details.outputs.run-id }}"
+        run_id=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."howso-engine".run_id')
+        run_type=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."howso-engine".run_type')
+        gh $run_type download -D howso/howso-engine/tmp -R "howsoai/howso-engine" -p "howso-engine-*" "$run_id"
         # Needed because release/non-release downloads are different structure
         cd howso/howso-engine/tmp && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
 
-    - name: Clean up dir
+    - name: Configure files
       run: |
         cd howso/howso-engine
         mkdir -p migrations
@@ -72,18 +76,22 @@ jobs:
     - name: Set workflow run info
       run: |
         cd howso/howso-engine
-
+        run_id=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."howso-engine".run_id')
+        run_type=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."howso-engine".run_type')
+        build_title=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."howso-engine".build_title')
+        build_date=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."howso-engine".build_date')
+        head_sha=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."howso-engine".head_sha')
+        url=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."howso-engine".url')
         # Set the display title and build date info in version.json
-        if [[ -n '${{ needs.get-howso-engine-details.outputs.build-title }}' ]]; then
-          jq '. |= . + {"display_title": ${{ needs.get-howso-engine-details.outputs.build-title }}}' version.json > temp.json && mv temp.json version.json
-          jq '. |= . + {"build_date": ${{ needs.get-howso-engine-details.outputs.build-date }}}' version.json > temp.json && mv temp.json version.json
+        if [[ -n 'build_title' ]]; then
+          jq --arg build_title "$build_title" '. |= . + {"display_title": $build_title}' version.json > temp.json && mv temp.json version.json
+          jq --arg build_date "$build_date" '. |= . + {"build_date": $build_date}' version.json > temp.json && mv temp.json version.json
         fi
-        jq '. |= . + {"sha": ${{ needs.get-howso-engine-details.outputs.head-sha }}}' version.json > temp.json && mv temp.json version.json
-        jq '. |= . + {"url": ${{ needs.get-howso-engine-details.outputs.url }}}' version.json > temp.json && mv temp.json version.json
+        jq --arg head_sha "$head_sha" '. |= . + {"sha": $head_sha}' version.json > temp.json && mv temp.json version.json
+        jq --arg url "$url" '. |= . + {"url": $url}' version.json > temp.json && mv temp.json version.json
         cat version.json
 
     - name: Compare Amalagam versions
-      if: inputs.payload == ''
       run: |
         cd howso/howso-engine
         engine_amlg_version=$(jq -r ".dependencies.amalgam" ./version.json)
@@ -103,7 +111,7 @@ jobs:
         echo "Latest amalgam-lang-py release Amalgam version: ${amlg_lang_amlg_version}"
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -123,83 +131,131 @@ jobs:
         --outdir dist/
         .
       env:
-        SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.pepify.outputs.pepified-version }}
+        SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.metadata.outputs.version }}
 
     - name: Upload Tarball Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: howso-engine-${{ needs.pepify.outputs.pepified-version }}
-        path: dist/howso-engine-${{ needs.pepify.outputs.pepified-version }}.tar.gz
+        name: howso-engine-${{ needs.metadata.outputs.version }}
+        path: dist/howso-engine-${{ needs.metadata.outputs.version }}.tar.gz
         if-no-files-found: error
 
     - name: Upload Wheel Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
-        path: dist/howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+        name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
+        path: dist/howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any.whl
         if-no-files-found: error
 
   workflow-summary:
-    needs: ["build"]
-    uses: "./.github/workflows/workflow-summary.yml"
+    needs: ['metadata', 'build']
+    uses: "howsoai/.github/.github/workflows/workflow-summary.yml@main"
     secrets: inherit
     with:
-      payload: "${{ inputs.payload }}"
-      build-type: "${{ inputs.build-type }}"
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
-  unit-test-3-8:
-    needs: ["build"]
-    uses: "./.github/workflows/pytest.yml"
+  pytest-linux-3-8-st:
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
     with:
-      python-version: "3.8"
-      payload: "${{ inputs.payload }}"
+      platform: 'howso-ubuntu-runner-latest'
+      platform-pretty: 'Linux'
+      amalgam-plat-arch: 'linux-amd64'
+      python-version: '3.8'
+      config-fp: './config/latest-st-debug-howso.yml'
+      config-pretty: 'ST'
+      workers: 'auto'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
-  unit-test-3-9:
-    needs: ["build"]
-    uses: "./.github/workflows/pytest.yml"
+  pytest-linux-3-9-mt:
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
     with:
-      python-version: "3.9"
-      payload: "${{ inputs.payload }}"
+      platform: 'howso-ubuntu-runner-latest'
+      platform-pretty: 'Linux'
+      amalgam-plat-arch: 'linux-amd64'
+      python-version: '3.9'
+      config-fp: './config/latest-mt-debug-howso.yml'
+      config-pretty: 'MT'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
-  unit-test-3-10:
-    needs: ["build"]
-    uses: "./.github/workflows/pytest.yml"
+  pytest-linux-3-10-mt:
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
     with:
-      python-version: "3.10"
-      payload: "${{ inputs.payload }}"
+      platform: 'howso-ubuntu-runner-latest'
+      platform-pretty: 'Linux'
+      amalgam-plat-arch: 'linux-amd64'
+      python-version: '3.10'
+      config-fp: './config/latest-mt-debug-howso.yml'
+      config-pretty: 'MT'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
-  unit-test-3-11:
-    needs: ["build"]
-    uses: "./.github/workflows/pytest.yml"
+  pytest-linux-3-11-mt:
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
     with:
-      python-version: "3.11"
-      payload: "${{ inputs.payload }}"
+      platform: 'howso-ubuntu-runner-latest'
+      platform-pretty: 'Linux'
+      amalgam-plat-arch: 'linux-amd64'
+      python-version: '3.11'
+      config-fp: './config/latest-mt-debug-howso.yml'
+      config-pretty: 'MT'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
+
+  pytest-windows-3-11-mt:
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
+    secrets: inherit
+    with:
+      platform: 'howso-windows-runner-latest'
+      platform-pretty: 'Windows'
+      amalgam-plat-arch: 'windows-amd64'
+      python-version: '3.11'
+      config-fp: './config/latest-mt-debug-howso.yml'
+      config-pretty: 'MT'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
+
+  pytest-macos-3-11-mt:
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
+    secrets: inherit
+    with:
+      platform: 'macos-latest-xlarge'
+      platform-pretty: 'MacOS'
+      amalgam-plat-arch: 'darwin-arm64'
+      python-version: '3.11'
+      config-fp: './config/latest-mt-debug-howso.yml'
+      config-pretty: 'MT'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
   install-verification-linux-amd64:
-    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
+    needs: ['metadata', 'build']
     runs-on: ubuntu-latest
     steps:
 
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+        name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
     - name: Download amalgam-lang-py
-      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      if: inputs.amalgam-lang-py-build != ''
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        run_id=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_id')
+        run_type=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_type')
+        gh $run_type download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "$run_id"
         # Needed because release/non-release downloads are different structure
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -216,23 +272,30 @@ jobs:
         echo "Running Howso verification..."
         verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
   install-verification-linux-arm64:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
+    needs: ['metadata', 'build']
     runs-on: ubuntu-latest
     steps:
 
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+        name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
     - name: Download amalgam-lang-py
-      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      if: inputs.amalgam-lang-py-build != ''
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        run_id=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_id')
+        run_type=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_type')
+        gh $run_type download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "$run_id"
         # Needed because release/non-release downloads are different structure
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
@@ -266,25 +329,31 @@ jobs:
           PATH=$PATH:/usr/aarch64-linux-gnu
 
           echo "Running Howso verification..."
-          verify_howso_install
+
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
 
   install-verification-linux-arm64_8a:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
+    needs: ['metadata', 'build']
     runs-on: ubuntu-latest
     steps:
 
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+        name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
     - name: Download amalgam-lang-py
-      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      if: inputs.amalgam-lang-py-build != ''
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        run_id=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_id')
+        run_type=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_type')
+        gh $run_type download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "$run_id"
         # Needed because release/non-release downloads are different structure
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
@@ -331,9 +400,14 @@ jobs:
           echo "Running Howso verification..."
           verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
   install-verification-windows-bash-amd64:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
+    needs: ['metadata', 'build']
     runs-on: windows-latest
     steps:
 
@@ -342,26 +416,28 @@ jobs:
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+        name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
     - name: Download amalgam-lang-py
-      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      if: inputs.amalgam-lang-py-build != ''
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        run_id=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_id')
+        run_type=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_type')
+        gh $run_type download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "$run_id"
         # Needed because release/non-release downloads are different structure
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
     - name: Download tz data
       shell: pwsh
       run: |
-        ./build/powershell/Download-Tzdata.ps1
+        ./config/powershell/Download-Tzdata.ps1
 
     - name: Verify Howso install
       run: |
@@ -376,8 +452,13 @@ jobs:
         echo "Running Howso verification..."
         PYTHONUTF8=1 verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
   install-verification-windows-cmd-amd64:
-    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
+    needs: ['metadata', 'build']
     runs-on: windows-latest
     steps:
 
@@ -386,26 +467,28 @@ jobs:
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+        name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
     - name: Download amalgam-lang-py
-      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      if: inputs.amalgam-lang-py-build != ''
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        run_id=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_id')
+        run_type=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_type')
+        gh $run_type download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "$run_id"
         # Needed because release/non-release downloads are different structure
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
     - name: Download tz data
       shell: pwsh
       run: |
-        ./build/powershell/Download-Tzdata.ps1
+        ./config/powershell/Download-Tzdata.ps1
 
     - name: Verify Howso install
       shell: cmd
@@ -414,7 +497,7 @@ jobs:
         setlocal enabledelayedexpansion
         echo Installing Howso Engine...
         REM Globs don't work in cmd with pip
-        pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+        pip install howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any.whl
         if exist "tmp" (
           echo Found custom amalgam-lang version, installing...
           pip uninstall amalgam-lang -y
@@ -426,9 +509,14 @@ jobs:
         set PYTHONUTF8=1
         verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
   install-verification-windows-pwsh-amd64:
     if: inputs.build-type != 'PR'
-    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
+    needs: ['metadata', 'build']
     runs-on: windows-latest
     steps:
 
@@ -437,33 +525,35 @@ jobs:
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+        name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
     - name: Download amalgam-lang-py
-      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      if: inputs.amalgam-lang-py-build != ''
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        run_id=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_id')
+        run_type=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_type')
+        gh $run_type download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "$run_id"
         # Needed because release/non-release downloads are different structure
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
     - name: Download tz data
       shell: pwsh
       run: |
-        ./build/powershell/Download-Tzdata.ps1
+        ./config/powershell/Download-Tzdata.ps1
 
     - name: Verify Howso install
       shell: pwsh
       run: |
         Write-Host "Installing Howso Engine..."
         # Globs don't work in pwsh with pip
-        pip install howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any.whl
+        pip install howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any.whl
         if (Test-Path -Path "tmp" -PathType Container) {
           Write-Host "Found custom amalgam-lang version; installing.."
           pip uninstall amalgam-lang -y
@@ -475,27 +565,34 @@ jobs:
         $env:PYTHONUTF8=1
         verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
   install-verification-macos-amd64:
-    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
+    needs: ['metadata', 'build']
     runs-on: macos-latest-large
     steps:
 
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+        name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
     - name: Download amalgam-lang-py
-      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      if: inputs.amalgam-lang-py-build != ''
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        run_id=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_id')
+        run_type=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_type')
+        gh $run_type download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "$run_id"
         # Needed because release/non-release downloads are different structure
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -512,27 +609,34 @@ jobs:
         echo "Running Howso verification..."
         verify_howso_install
 
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
+
   install-verification-macos-arm64:
-    needs: ['pepify', 'get-amalgam-lang-py-details', 'build']
+    needs: ['metadata', 'build']
     runs-on: macos-latest-xlarge
     steps:
 
     - name: Download Artifact
       uses: actions/download-artifact@v3
       with:
-        name: howso_engine-${{ needs.pepify.outputs.pepified-version }}-py3-none-any
+        name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
     - name: Download amalgam-lang-py
-      if: needs.get-amalgam-lang-py-details.outputs.run-type != ''
+      if: inputs.amalgam-lang-py-build != ''
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh ${{ needs.get-amalgam-lang-py-details.outputs.run-type }} download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"
+        run_id=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_id')
+        run_type=$(printf "%s" '${{ needs.metadata.outputs.upstream-details }}' | jq -r '."amalgam-lang-py".run_type')
+        gh $run_type download -D tmp -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any" "$run_id"
         # Needed because release/non-release downloads are different structure
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -548,6 +652,11 @@ jobs:
 
         echo "Running Howso verification..."
         verify_howso_install
+
+    - name: Display stacktrace files
+      if: always()
+      run: |
+        cat howso_stacktrace.txt || true
 
   release:
     if: inputs.build-type == 'release'
@@ -557,10 +666,13 @@ jobs:
       contents: write
       id-token: write
     needs:
-      - unit-test-3-8
-      - unit-test-3-9
-      - unit-test-3-10
-      - unit-test-3-11
+      - metadata
+      - pytest-linux-3-8-st
+      - pytest-linux-3-9-mt
+      - pytest-linux-3-10-mt
+      - pytest-linux-3-11-mt
+      - pytest-windows-3-11-mt
+      - pytest-macos-3-11-mt
       - install-verification-linux-amd64
       - install-verification-linux-arm64
       - install-verification-linux-arm64_8a
@@ -580,9 +692,9 @@ jobs:
     - name: Create Release
       uses: ncipollo/release-action@v1
       with:
-        tag: ${{ inputs.version }}
+        tag: ${{ needs.metadata.outputs.version }}
         commit: ${{ github.sha }}
-        name: "howso-engine-py ${{ inputs.version }}"
+        name: ${{ github.event.repository.name }} ${{ needs.metadata.outputs.version }}
         artifactErrorsFailBuild: true
         generateReleaseNotes: true
         makeLatest: legacy
@@ -597,7 +709,7 @@ jobs:
           ls ./dist
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 

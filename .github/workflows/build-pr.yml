@@ -1,0 +1,44 @@
+name: Build PR
+run-name: "PR Build: #${{ github.event.pull_request.number }} (${{ github.run_attempt }}.${{ github.run_number }}) - ${{ github.event.pull_request.title }}"
+
+on:
+  pull_request:
+    branches:
+      - "main"
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  gen-requirements:
+    uses: "howsoai/.github/.github/workflows/compile-requirements.yml@main"
+    secrets: inherit
+    with:
+      extras: 'dev scikit'
+
+  build:
+    needs: ['gen-requirements']
+    uses: "./.github/workflows/build.yml"
+    secrets: inherit
+    with:
+      build-type: "PR"
+
+  xray:
+    needs: ['build']
+    uses: "howsoai/.github/.github/workflows/scan-pull-request.yml@main"
+    secrets: inherit
+
+  # This job is here to have only one final step to add for "Status Checks"
+  # in GitHub, instead of adding every leaf test from 'build-test-package'
+  final-check:
+    needs: ['build', 'gen-requirements', 'xray']
+    if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1

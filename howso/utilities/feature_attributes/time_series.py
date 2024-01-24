@@ -250,7 +250,7 @@ class InferFeatureAttributesTimeSeries:
     def _process(  # noqa: C901
         self,
         features: Optional[Dict] = None,
-        infer_bounds: bool = True, dropna: bool = False,
+        infer_bounds: bool = True,
         id_feature_name: Optional[Union[str, Iterable[str]]] = None,
         time_invariant_features: Optional[Iterable[str]] = None,
         datetime_feature_formats: Optional[Dict] = None,
@@ -259,6 +259,7 @@ class InferFeatureAttributesTimeSeries:
         attempt_infer_extended_nominals: bool = False,
         nominal_substitution_config: Optional[Dict[str, Dict]] = None,
         include_extended_nominal_probabilities: Optional[bool] = False,
+        time_feature_is_universal: bool = None,
         time_series_type_default: Optional[str] = 'rate',
         time_series_types_override: Optional[Dict] = None,
         orders_of_derivatives: Optional[Dict] = None,
@@ -423,6 +424,14 @@ class InferFeatureAttributesTimeSeries:
             (Optional) If true, extended nominal probabilities will be appended
             as metadata into the feature object.
 
+        time_feature_is_universal : bool, optional
+            If True, the time feature will be treated as universal and future data
+            is excluded while making predictions. If False, the time feature will
+            not be treated as universal and only future data within the same series
+            is excluded while making predictions. It is recommended to set this
+            value to True if there is any possibility of global relevancy of time,
+            which is the default behavior.
+
         time_series_type_default : str, default 'rate'
             (Optional) Type specifying how time series is generated.
             One of 'rate' or 'delta', default is 'rate'. If 'rate',
@@ -538,7 +547,6 @@ class InferFeatureAttributesTimeSeries:
         features = infer(
             features=features,
             infer_bounds=infer_bounds,
-            dropna=dropna,
             datetime_feature_formats=datetime_feature_formats,
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             nominal_substitution_config=nominal_substitution_config,
@@ -565,11 +573,10 @@ class InferFeatureAttributesTimeSeries:
         else:
             id_feature_names = []
 
-        # ID features are time-invariant and cannot be NaN.
+        # ID features are time-invariant.
         for id_feature in id_feature_names:
             if id_feature not in time_invariant_features:
                 time_invariant_features.append(id_feature)
-            features[id_feature]["dropna"] = True
 
         if self.time_feature_name in time_invariant_features:
             raise ValueError('time_feature_name cannot be in the '
@@ -616,6 +623,10 @@ class InferFeatureAttributesTimeSeries:
 
         if self.time_feature_name in features:
             features[self.time_feature_name]['time_series']['time_feature'] = True
+
+            # Assign universal value if specified
+            if time_feature_is_universal is not None:
+                features[self.time_feature_name]['time_series']['universal'] = time_feature_is_universal
             # Force time_feature to be `continuous`
             features[self.time_feature_name]['type'] = "continuous"
             # Set time_series as 'delta' so that lag and delta are computed
@@ -623,8 +634,6 @@ class InferFeatureAttributesTimeSeries:
             # Time feature might have `sensitive` and `subtype` attribute
             # which is not applicable to time feature.
             features[self.time_feature_name].pop('subtype', None)
-            # The time feature cannot be NaN, so set dropna to True.
-            features[self.time_feature_name]["dropna"] = True
 
             # if the time feature has no datetime and is stored as a string,
             # convert to an int for comparison since it's continuous

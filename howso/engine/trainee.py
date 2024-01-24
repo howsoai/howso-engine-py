@@ -2900,6 +2900,10 @@ class Trainee(BaseTrainee):
                 - mda_permutation : Mean decrease in accuracy that used
                   scrambling of feature values instead of dropping each
                   feature, applies to all features.
+                - missing_value_accuracy : The number of cases with missing
+                  values predicted to have missing values divided by the number
+                  of cases with missing values, applies to all features that
+                  contain missing values.
                 - precision : Precision (positive predictive) value for nominal
                   features only.
                 - r2 : The r-squared coefficient of determination, for
