@@ -312,12 +312,12 @@ class TestDatetimeSerialization:
                           features=df.columns.tolist())
         response = self.client.react(trainee.id,
                                      contexts=[["2020-10-12T10:10:10.333"]])
-        assert response['action'][0]['nom'] == "b"
+        assert response['action']['nom'].iloc[0] == "b"
 
         response = self.client.react(trainee.id, contexts=[["b"]],
                                      context_features=["nom"],
                                      action_features=["datetime"])
-        assert "2020-10-12T10:10:10.333000" in response['action'][0]['datetime']
+        assert "2020-10-12T10:10:10.333000" in response['action']['datetime'].iloc[0]
 
 
 class TestClient:
@@ -424,7 +424,7 @@ class TestClient:
         cases = [['1', '2'], ['3', '4']]
         self.client.train(trainee.id, cases, features=['penguin', 'play'])
         react_response = self.client.react(trainee.id, contexts=[['1']])
-        assert react_response['action'][0]['play'] == '2'
+        assert react_response['action']['play'].iloc[0] == '2'
         case_response = self.client.get_cases(
             trainee.id, session=self.client.active_session.id)
         for case in case_response.cases:
@@ -1077,7 +1077,7 @@ class TestBaseClient:
             contexts=[2, 2],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
-        )['action'][0]['petal_length']
+        )['action']['petal_length'].iloc[0]
 
         # create another trainee
         other_trainee = Trainee(
@@ -1099,7 +1099,7 @@ class TestBaseClient:
             contexts=[2, 2],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
-        )['action'][0]['petal_length']
+        )['action']['petal_length'].iloc[0]
         assert first_pred != second_pred
 
         # align parameters, make another prediction that should be the same
@@ -1109,7 +1109,7 @@ class TestBaseClient:
             contexts=[2, 2],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
-        )['action'][0]['petal_length']
+        )['action']['petal_length'].iloc[0]
         assert first_pred == third_pred
 
         # verify that both trainees have the same hyperparameter_map now

@@ -37,7 +37,7 @@ from howso.openapi.models import (
 )
 from howso.utilities import CaseIndices
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
-from howso.utilities.types import Reaction, ReactionSeries
+from howso.utilities.reaction import CasesWithDetails
 from pandas import DataFrame, Index
 
 __all__ = [
@@ -1256,7 +1256,7 @@ class Trainee(BaseTrainee):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> Union["Reaction", Dict]:
+    ) -> "CasesWithDetails":
         """
         React to the trainee.
 
@@ -1678,7 +1678,7 @@ class Trainee(BaseTrainee):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> Union["ReactionSeries", Dict]:
+    ) -> "CasesWithDetails":
         """
         React to the trainee in a series until a stop condition is met.
 

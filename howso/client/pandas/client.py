@@ -13,6 +13,7 @@ from howso.utilities import (
     format_dataframe,
 )
 from howso.utilities.internals import deserialize_to_dataframe
+from howso.utilities.reaction import CasesWithDetails
 import pandas as pd
 from pandas import DataFrame, Index
 
@@ -206,7 +207,7 @@ class HowsoPandasClientMixin:
         *args,
         series_index: str = '.series',
         **kwargs
-    ) -> Dict[str, Union[DataFrame, Dict]]:
+    ) -> "CasesWithDetails":
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_series`.
 
@@ -240,7 +241,7 @@ class HowsoPandasClientMixin:
 
         return response
 
-    def react(self, trainee_id, *args, **kwargs) -> Dict[str, Union[DataFrame, Dict]]:
+    def react(self, trainee_id, *args, **kwargs) -> "CasesWithDetails":
         """
         Base: :func:`howso.client.AbstractHowsoClient.react`.
 

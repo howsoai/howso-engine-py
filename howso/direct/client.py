@@ -59,6 +59,8 @@ from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
 )
+from howso.utilities.reaction import CasesWithDetails
+
 import numpy as np
 from packaging.version import parse as parse_version
 from pandas import DataFrame
@@ -1921,7 +1923,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
-    ) -> Dict:
+    ) -> "CasesWithDetails":
         """
         React in a series until a series_stop_map condition is met.
 
@@ -2348,7 +2350,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         series = response.pop('series')
         response = {'series': series, 'explanation': response}
 
-		# If the number of series generated is less then requested, raise
+        # If the number of series generated is less then requested, raise
         # warning, for generative reacts
         if desired_conviction is not None:
             len_action = len(response['series'])
@@ -2356,6 +2358,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 num_series_to_generate, len_action,
                 suppress_warning=suppress_warning
             )
+
+        response = CasesWithDetails(response.get('series'), response.get('explanation'))
 
         return response
 
@@ -2579,7 +2583,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> Dict:
+    ) -> "CasesWithDetails":
         r"""
         React to supplied values and cases contained within the Trainee.
 
@@ -3163,11 +3167,16 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self._should_react_batch(react_params, total_size):
             # Run in batch
             if self.verbose:
-                print('Batch reacting to context on trainee with id: '
-                      f'{trainee_id}')
-            response = self._batch_react(trainee_id, react_params,
-                                         total_size=total_size,
-                                         progress_callback=progress_callback)
+                print(
+                    'Batch reacting to context on trainee with id: '
+                    f'{trainee_id}'
+                )
+            response = self._batch_react(
+                trainee_id,
+                react_params,
+                total_size=total_size,
+                progress_callback=progress_callback
+            )
         else:
             # Run as a single react request
             if self.verbose:
@@ -3190,6 +3199,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 num_cases_to_generate, len(response['action']),
                 suppress_warning=suppress_warning
             )
+
+        response = CasesWithDetails(response.get('action'), response.get('explanation'))
 
         return response
 
