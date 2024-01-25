@@ -1256,7 +1256,7 @@ class Trainee(BaseTrainee):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> "Reaction":
+    ) -> Reaction:
         """
         React to the trainee.
 
@@ -1599,13 +1599,9 @@ class Trainee(BaseTrainee):
         Returns
         -------
         Reaction:
-            A MutableMapping (dict) with these keys -> values:
+            A MutableMapping (dict-like) with these keys -> values:
                 action -> pandas.DataFrame
-                    A data frame with columns specified in
-                    ``features_to_generate`` list (or list of lists).
-
-                    If ``features_to_generate`` is not specified all features
-                    will be generated.
+                    A data frame of action values.
 
                 details -> Dict or List
                     An aggregated list of any requested details.
@@ -1687,7 +1683,7 @@ class Trainee(BaseTrainee):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> "Reaction":
+    ) -> Reaction:
         """
         React to the trainee in a series until a stop condition is met.
 
@@ -1834,13 +1830,9 @@ class Trainee(BaseTrainee):
         Returns
         -------
         Reaction:
-            A MutableMapping (dict) with these keys -> values:
+            A MutableMapping (dict-like) with these keys -> values:
                 action -> pandas.DataFrame
-                    A data frame with columns specified in
-                    ``features_to_generate`` list (or list of lists).
-
-                    If ``features_to_generate`` is not specified all features
-                    will be generated.
+                    A data frame of action values.
 
                 details -> Dict or List
                     An aggregated list of any requested details.

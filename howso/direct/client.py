@@ -1925,7 +1925,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
-    ) -> "Reaction":
+    ) -> Reaction:
         """
         React in a series until a series_stop_map condition is met.
 
@@ -2088,13 +2088,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         Returns
         -------
         Reaction:
-            A MutableMapping (dict) with these keys -> values:
+            A MutableMapping (dict-like) with these keys -> values:
                 action -> pandas.DataFrame
-                    A data frame with columns specified in
-                    ``features_to_generate`` list (or list of lists).
-
-                    If ``features_to_generate`` is not specified all features
-                    will be generated.
+                    A data frame of action values.
 
                 details -> Dict or List
                     An aggregated list of any requested details.
@@ -2584,7 +2580,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> "Reaction":
+    ) -> Reaction:
         r"""
         React to supplied values and cases contained within the Trainee.
 
@@ -3000,13 +2996,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         Returns
         -------
         Reaction:
-            A MutableMapping (dict) with these keys -> values:
+            A MutableMapping (dict-like) with these keys -> values:
                 action -> pandas.DataFrame
-                    A data frame with columns specified in
-                    ``features_to_generate`` list (or list of lists).
-
-                    If ``features_to_generate`` is not specified all features
-                    will be generated.
+                    A data frame of action values.
 
                 details -> Dict or List
                     An aggregated list of any requested details.

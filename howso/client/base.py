@@ -9,6 +9,7 @@ from typing import (
     Union,
 )
 
+from howso.utilities.reaction import Reaction
 from pandas import DataFrame, Index
 
 if TYPE_CHECKING:
@@ -18,7 +19,6 @@ if TYPE_CHECKING:
         Metrics,
         TraineeInformation,
     )
-    from howso.utilities.reaction import Reaction
 
 
 class AbstractHowsoClient(ABC):
@@ -278,7 +278,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> "Reaction":
+    ) -> Reaction:
         """React in a series until a stop condition is met."""
 
     @abstractmethod
@@ -370,7 +370,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> "Reaction":
+    ) -> Reaction:
         """Send a `react` to the Howso engine."""
 
     @abstractmethod

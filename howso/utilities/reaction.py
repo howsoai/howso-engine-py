@@ -102,7 +102,7 @@ class Reaction(abc.MutableMapping):
         # "action" and "explanations" to "details".
         if key in ("series", "explanation"):
             warnings.warn(
-                "The keys 'series' and 'explanation' are deprecated will be "
+                "The keys 'series' and 'explanation' are deprecated and will be "
                 "removed in a future release. Please use 'action' and 'details'.",
                 DeprecationWarning
             )
@@ -111,7 +111,7 @@ class Reaction(abc.MutableMapping):
         if key == "explanation":
             key = "details"
         if key not in ('action', 'details'):
-            raise KeyError(f"Invalid Key: {key}. Keys can only be 'action' or 'details'.")
+            raise KeyError(f"Invalid Key: {key}. Valid keys are 'action' or 'details'.")
 
         return key
 
@@ -288,6 +288,7 @@ class Reaction(abc.MutableMapping):
         return per_case_details
 
 
+# Doesn't work if this is inside the `Reaction` class.
 @Reaction.add_reaction.register
 def _(self, reaction: "Reaction"):
     """Add another `Reaction` to Reaction."""

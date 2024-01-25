@@ -207,7 +207,7 @@ class HowsoPandasClientMixin:
         *args,
         series_index: str = '.series',
         **kwargs
-    ) -> "Reaction":
+    ) -> Reaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_series`.
 
@@ -223,13 +223,9 @@ class HowsoPandasClientMixin:
         Returns
         -------
         Reaction:
-            A MutableMapping (dict) with these keys -> values:
-                actions -> pandas.DataFrame
-                    A data frame with columns specified in
-                    ``features_to_generate`` list (or list of lists).
-
-                    If ``features_to_generate`` is not specified all features
-                    will be generated.
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
 
                 details -> Dict or List
                     An aggregated list of any requested details.
@@ -242,20 +238,16 @@ class HowsoPandasClientMixin:
 
         return response
 
-    def react(self, trainee_id, *args, **kwargs) -> "Reaction":
+    def react(self, trainee_id, *args, **kwargs) -> Reaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react`.
 
         Returns
         -------
         Reaction:
-            A MutableMapping (dict) with these keys -> values:
-                actions -> pandas.DataFrame
-                    A data frame with columns specified in
-                    ``features_to_generate`` list (or list of lists).
-
-                    If ``features_to_generate`` is not specified all features
-                    will be generated.
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
 
                 details -> Dict or List
                     An aggregated list of any requested details.
