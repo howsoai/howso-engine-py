@@ -306,16 +306,16 @@ def test_cases_with_details_add_reaction():
     ]).transpose(), columns=['nom', 'datetime'])
 
     react_response = {
-        'explanation': {'action_features': ['datetime']},
+        'details': {'action_features': ['datetime']},
         'action': df
     }
 
     cwd = Reaction()
-    cwd.add_reaction(react_response['action'], react_response['explanation'])
-    cwd.add_reaction(react_response['action'].to_dict(), react_response['explanation'])
+    cwd.add_reaction(react_response['action'], react_response['details'])
+    cwd.add_reaction(react_response['action'].to_dict(), react_response['details'])
     # List of dicts
-    cwd.add_reaction(react_response['action'].to_dict(orient='records'), react_response['explanation'])
-    cwd.add_reaction(Reaction(react_response['action'], react_response['explanation']))
+    cwd.add_reaction(react_response['action'].to_dict(orient='records'), react_response['details'])
+    cwd.add_reaction(Reaction(react_response['action'], react_response['details']))
 
     assert cwd['action'].shape[0] == 16
 
@@ -329,15 +329,15 @@ def test_cases_with_details_instantiate():
     ]).transpose(), columns=['nom', 'datetime'])
 
     react_response = {
-        'explanation': {'action_features': ['datetime']},
+        'details': {'action_features': ['datetime']},
         'action': df
     }
 
-    cwd = Reaction(react_response['action'], react_response['explanation'])
+    cwd = Reaction(react_response['action'], react_response['details'])
     assert cwd['action'].shape[0] == 4
 
-    cwd = Reaction(react_response['action'].to_dict(), react_response['explanation'])
+    cwd = Reaction(react_response['action'].to_dict(), react_response['details'])
     assert cwd['action'].shape[0] == 4
 
-    cwd = Reaction(react_response['action'].to_dict(orient='records'), react_response['explanation'])
+    cwd = Reaction(react_response['action'].to_dict(orient='records'), react_response['details'])
     assert cwd['action'].shape[0] == 4
