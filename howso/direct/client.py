@@ -1309,7 +1309,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 end = progress.current_tick + batch_size
                 response = self.howso.train(
                     trainee_id,
-                    ablatement_params=ablatement_params,
                     accumulate_weight_feature=accumulate_weight_feature,
                     derived_features=derived_features,
                     features=features,

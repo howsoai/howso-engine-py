@@ -1171,7 +1171,6 @@ class HowsoCore:
         return self._execute("train", {
             "trainee": trainee_id,
             "input_cases": input_cases,
-            "ablatement_params": ablatement_params,
             "accumulate_weight_feature": accumulate_weight_feature,
             "derived_features": derived_features,
             "features": features,

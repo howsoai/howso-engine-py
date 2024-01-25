@@ -790,7 +790,6 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             self.client.train(
                 trainee_id=self.id,
-                ablatement_params=ablatement_params,
                 accumulate_weight_feature=accumulate_weight_feature,
                 batch_size=batch_size,
                 cases=cases,
