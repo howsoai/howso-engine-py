@@ -407,6 +407,32 @@ class AbstractHowsoClient(ABC):
         """Auto-analyze the trainee model."""
 
     @abstractmethod
+    def set_auto_ablate_params(
+        self,
+        trainee_id,
+        auto_ablate_enabled=False,
+        *,
+        auto_ablate_weight_feature=".case_weight",
+        conviction_lower_threshold=None,
+        conviction_upper_threshold=None,
+        exact_prediction_features=None,
+        infleunce_weight_entropy_threshold=0.6,
+        minimum_model_size=1_000,
+        relative_prediction_threshold_map=None,
+        residual_prediction_features=None,
+        tolerance_prediction_threshold_map=None,
+        **kwargs
+    ):
+        """Set trainee parameters for auto ablation."""
+    
+    @abstractmethod
+    def get_auto_ablate_params(
+        self,
+        trainee_id
+    ):
+        """Get parameters set by :meth:`set_auto_ablate_params`."""
+
+    @abstractmethod
     def set_auto_analyze_params(
         self,
         trainee_id,

@@ -769,15 +769,16 @@ class HowsoCore:
         self,
         trainee_id: str,
         auto_ablate_enabled: bool = False,
+        *,
         auto_ablate_weight_feature: str = ".case_weight",
-        minimum_model_size: int = 1_000,
-        influence_weight_entropy_threshold: float = 0.6,
-        exact_prediction_features: Optional[List[str]] = None,
-        residual_prediction_features: Optional[List[str]] = None,
-        tolerance_prediction_threshold_map: Optional[Dict[str, Tuple[float, float]]] = None,
-        relative_prediction_threshold_map: Optional[Dict[str, float]] = None,
         conviction_lower_threshold: Optional[float] = None,
         conviction_upper_threshold: Optional[float] = None,
+        exact_prediction_features: Optional[List[str]] = None,
+        influence_weight_entropy_threshold: float = 0.6,
+        minimum_model_size: int = 1_000,
+        relative_prediction_threshold_map: Optional[Dict[str, float]] = None,
+        residual_prediction_features: Optional[List[str]] = None,
+        tolerance_prediction_threshold_map: Optional[Dict[str, Tuple[float, float]]] = None,
         **kwargs
     ):
         """
@@ -789,7 +790,7 @@ class HowsoCore:
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee to set auto analysis parameters for.
+            The ID of the Trainee to set auto ablation parameters for.
         auto_ablate_enabled : bool, default False
             When True, the :meth:`train` method will ablate cases that meet the set criteria.
         auto_ablate_weight_feature : str, default ".case_weight"

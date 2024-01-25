@@ -965,25 +965,26 @@ class Trainee(BaseTrainee):
     
     def get_auto_ablate_params(self):
         """
-        Get parameters set by :meth:`set_auto_ablate_params`.
+        Get auto ablation parameters set by :meth:`set_auto_ablate_params`.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.get_auto_ablate_params()
+            self.client.get_auto_ablate_params(self.id)
         else:
             raise ValueError("Client must have the 'get_auto_ablate_params' method.")
     
     def set_auto_ablate_params(
         self,
         auto_ablate_enabled: bool = False,
+        *,
         auto_ablate_weight_feature: str = ".case_weight",
-        minimum_model_size: int = 1_000,
-        influence_weight_entropy_threshold: float = 0.6,
-        exact_prediction_features: Optional[List[str]] = None,
-        residual_prediction_features: Optional[List[str]] = None,
-        tolerance_prediction_threshold_map: Optional[Dict[str, Tuple[float, float]]] = None,
-        relative_prediction_threshold_map: Optional[Dict[str, float]] = None,
         conviction_lower_threshold: Optional[float] = None,
         conviction_upper_threshold: Optional[float] = None,
+        exact_prediction_features: Optional[List[str]] = None,
+        influence_weight_entropy_threshold: float = 0.6,
+        minimum_model_size: int = 1_000,
+        relative_prediction_threshold_map: Optional[Dict[str, float]] = None,
+        residual_prediction_features: Optional[List[str]] = None,
+        tolerance_prediction_threshold_map: Optional[Dict[str, Tuple[float, float]]] = None,
         **kwargs
     ):
         """
@@ -1005,12 +1006,14 @@ class Trainee(BaseTrainee):
         exact_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
         residual_prediction_features : Optional[List[str]], optional
-            For each of the features specified, will ablate a case if abs(prediction - case value) / prediction <= feature residual.
+            For each of the features specified, will ablate a case if
+            abs(prediction - case value) / prediction <= feature residual.
         tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
-            For each of the features specified, will ablate a case if the prediction >= (case value - MIN) and the prediction
-            <= (case value + MAX).
+            For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
+            and the prediction <= (case value + MAX).
         relative_prediction_threshold_map : Optional[Dict[str, float]], optional
-            For each of the features specified, will ablate a case if abs(prediction - case value) / prediction <= relative threshold
+            For each of the features specified, will ablate a case if
+            abs(prediction - case value) / prediction <= relative threshold
         conviction_lower_threshold : Optional[float], optional
             The conviction value above which cases will be ablated.
         conviction_upper_threshold : Optional[float], optional
