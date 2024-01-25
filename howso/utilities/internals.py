@@ -301,7 +301,7 @@ def preprocess_feature_attributes(features):
 
 def format_react_response(response, single_action=False):
     """
-    Reformat the react response into a dict of action and explanation.
+    Reformat the react response into a dict of action and details.
 
     Parameters
     ----------
@@ -313,7 +313,7 @@ def format_react_response(response, single_action=False):
     Returns
     -------
     dict
-        A dict of two keys, action and explanation.
+        A dict of two keys, action and details.
     """
     # Import locally to prevent a circular import
     from howso.utilities import replace_doublemax_with_infinity
@@ -335,10 +335,10 @@ def format_react_response(response, single_action=False):
             action = [dict(zip(action_features, values)) for
                       values in action_values]
 
-    # remove action_values from explanation to prevent output of dupe data
+    # remove action_values from details to prevent output of dupe data
     del response['action_values']
 
-    return {'action': action, 'explanation': response}
+    return {'action': action, 'details': response}
 
 
 def accumulate_react_result(accumulated_result, result):

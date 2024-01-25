@@ -553,7 +553,7 @@ class TestClient:
         Test a-la-cart data.
 
         Systematically test a la cart options to ensure only the specified
-        options are returned in the explanation data.
+        options are returned in the details data.
 
         Parameters
         ----------
@@ -607,8 +607,8 @@ class TestClient:
         for audit_detail_set, keys_to_expect in details_sets:
             response = self.client.react(trainee.id, contexts=[['1']],
                                          details=audit_detail_set)
-            explanation = response['explanation']
-            assert (all(explanation[key] is not None for key in keys_to_expect))
+            details = response['details']
+            assert (all(details[key] is not None for key in keys_to_expect))
 
     def test_get_version(self):
         """Test get_version()."""

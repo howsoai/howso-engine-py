@@ -251,7 +251,7 @@ def test_build_react_series_df():
     Also tests that it includes the series index feature when specified.
     """
     test_react_series_response = {
-        'explanation': {'action_features': ['id', 'x', 'y']},
+        'details': {'action_features': ['id', 'x', 'y']},
         'series': [
             [["A", 1, 2], ["A", 2, 2]],
             [["B", 4, 4], ["B", 6, 7], ["B", 8, 9]]
@@ -259,7 +259,7 @@ def test_build_react_series_df():
     }
 
     # Without the series index feature
-    columns = test_react_series_response['explanation']['action_features']
+    columns = test_react_series_response['details']['action_features']
     expected_data = [["A", 1, 2], ["A", 2, 2], ["B", 4, 4], ["B", 6, 7], ["B", 8, 9]]
     expected_df = pd.DataFrame(expected_data, columns=columns)
     df = utils.build_react_series_df(test_react_series_response)

@@ -776,7 +776,7 @@ class HowsoEstimator(BaseEstimator):
 
                 {
                     'action': list of dicts of action_features -> action_values,
-                    'explanation': dict with requested audit data
+                    'details': dict with requested audit data
                 }
 
         """
@@ -1374,7 +1374,7 @@ class HowsoClassifier(HowsoEstimator):
         target = self.target_names[0]
         result = self.describe_prediction(X, details={"categorical_action_probabilities": True})
         proba = []
-        for exp in result['explanation']['categorical_action_probabilities']:
+        for exp in result['details']['categorical_action_probabilities']:
             sub_probas = []
             for clss in self.classes_:
                 sub_probas += [0 if clss not in exp[target] else

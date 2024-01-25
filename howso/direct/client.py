@@ -2345,9 +2345,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             if isinstance(progress_callback, Callable):
                 progress_callback(progress, response)
 
-        # put all explanations under the 'explanation' key
+        # put all details under the 'details' key
         series = response.pop('series')
-        response = {'series': series, 'explanation': response}
+        response = {'series': series, 'details': response}
 
         # If the number of series generated is less then requested, raise
         # warning, for generative reacts
@@ -2360,7 +2360,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         series_df = build_react_series_df(response, series_index=series_index)
 
-        response = Reaction(series_df, response.get('explanation'))
+        response = Reaction(series_df, response.get('details'))
 
         return response
 
@@ -3197,7 +3197,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 suppress_warning=suppress_warning
             )
 
-        response = Reaction(response.get('action'), response.get('explanation'))
+        response = Reaction(response.get('action'), response.get('details'))
 
         return response
 
