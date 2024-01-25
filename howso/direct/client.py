@@ -5079,7 +5079,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         Get parameters set by :meth:`set_auto_ablate_params`.
         """
         self._auto_resolve_trainee(trainee_id)
-        self.howso.get_auto_ablate_params(trainee_id)
+        return self.howso.get_auto_ablate_params(trainee_id)
     
     def set_auto_ablate_params(
         self,
@@ -5106,24 +5106,26 @@ class HowsoDirectClient(AbstractHowsoClient):
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee to set auto analysis parameters for.
+            The ID of the Trainee to set auto ablation parameters for.
         auto_ablate_enabled : bool, default False
             When True, the :meth:`train` method will ablate cases that meet the set criteria.
         auto_ablate_weight_feature : str, default ".case_weight"
             The weight feature that should be accumulated to when cases are ablated.
         minimum_model_size : int, default 1,000
-            The threshold ofr the minimum number of cases at which the model should auto-ablate.
+            The threshold of the minimum number of cases at which the model should auto-ablate.
         influence_weight_entropy_threshold : float, default 0.6
             The influence weight entropy quantile that a case must be beneath in order to be trained.
         exact_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
         residual_prediction_features : Optional[List[str]], optional
-            For each of the features specified, will ablate a case if abs(prediction - case value) / prediction <= feature residual.
+            For each of the features specified, will ablate a case if
+            abs(prediction - case value) / prediction <= feature residual.
         tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
-            For each of the features specified, will ablate a case if the prediction >= (case value - MIN) and the prediction
-            <= (case value + MAX).
+            For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
+            and the prediction <= (case value + MAX).
         relative_prediction_threshold_map : Optional[Dict[str, float]], optional
-            For each of the features specified, will ablate a case if abs(prediction - case value) / prediction <= relative threshold
+            For each of the features specified, will ablate a case if
+            abs(prediction - case value) / prediction <= relative threshold
         conviction_lower_threshold : Optional[float], optional
             The conviction value above which cases will be ablated.
         conviction_upper_threshold : Optional[float], optional
