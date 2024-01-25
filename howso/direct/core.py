@@ -1125,7 +1125,6 @@ class HowsoCore:
         input_cases: List[List[Any]],
         features: Optional[Iterable[str]] = None,
         *,
-        ablatement_params: Optional[Dict[str, List[Any]]] = None,
         accumulate_weight_feature: Optional[str] = None,
         derived_features: Optional[Iterable[str]] = None,
         input_is_substituted: bool = False,
@@ -1144,8 +1143,6 @@ class HowsoCore:
             One or more cases to train into the model.
         features : iterable of str, optional
             An iterable of feature names corresponding to the input cases.
-        ablatement_params : dict of str to list of object, optional
-            Parameters describing how to ablate cases.
         accumulate_weight_feature : str, optional
             Name of feature into which to accumulate neighbors'
             influences as weight for ablated cases. If unspecified, will not

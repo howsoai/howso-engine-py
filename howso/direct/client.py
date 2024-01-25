@@ -1179,7 +1179,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         cases: Union[List[List[object]], DataFrame],
         features: Optional[Iterable[str]] = None,
         *,
-        ablatement_params: Optional[Dict[str, List[object]]] = None,
         accumulate_weight_feature: Optional[str] = None,
         batch_size: Optional[int] = None,
         derived_features: Optional[Iterable[str]] = None,
@@ -1207,20 +1206,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 b. You want to train only a subset of columns defined in your
                    cases DataFrame.
                 c. You want to re-order the columns that are trained.
-
-        ablatement_params : dict of str to list of object, optional
-            Where keys are a feature name and values are threshold_type where
-            threshold_type is one of:
-
-                - ['exact']: Don't train if prediction matches exactly
-                - ['tolerance', MIN, MAX]: Don't train if ``prediction
-                  >= (case value - MIN) & prediction <= (case value + MAX)``
-                - ['relative', PERCENT]: Don't train if
-                  ``abs(prediction - case value) / prediction <= PERCENT``
-                - ['residual']: Don't train if
-                  ``abs(prediction - case value) <= feature residual``
-
-            >>> {'species': ['exact'], 'sepal_length': ['tolerance', 0.1, 0.25]}
 
         accumulate_weight_feature : str, optional
             Name of feature into which to accumulate neighbors'

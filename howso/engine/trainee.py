@@ -716,7 +716,6 @@ class Trainee(BaseTrainee):
         self,
         cases: Union[List[List[object]], "DataFrame"],
         *,
-        ablatement_params: Optional[Dict[str, List[object]]] = None,
         accumulate_weight_feature: Optional[str] = None,
         batch_size: Optional[int] = None,
         derived_features: Optional[Iterable[str]] = None,
@@ -734,18 +733,6 @@ class Trainee(BaseTrainee):
         ----------
         cases : list of list of object or pandas.DataFrame
             One or more cases to train into the model.
-        ablatement_params : dict [str, list of obj], optional
-            A dict of feature name to threshold type.
-            Valid thresholds include:
-
-                - ['exact']: Don't train if prediction matches exactly
-                - ['tolerance', MIN, MAX]: Don't train if ``prediction
-                  >= (case value - MIN) & prediction <= (case value + MAX)``
-                - ['relative', PERCENT]: Don't train if
-                  ``abs(prediction - case value) / prediction <= PERCENT``
-                - ['residual']: Don't train if
-                  ``abs(prediction - case value) <= feature residual``
-
         accumulate_weight_feature : str, default None
             Name of feature into which to accumulate neighbors'
             influences as weight for ablated cases. If unspecified, will not

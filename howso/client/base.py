@@ -99,7 +99,6 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def train(
         self, trainee_id, cases, features=None, *,
-        ablatement_params=None,
         accumulate_weight_feature=None,
         batch_size=None,
         derived_features=None,
