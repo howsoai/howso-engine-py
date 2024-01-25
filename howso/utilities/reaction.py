@@ -290,5 +290,5 @@ class Reaction(abc.MutableMapping):
 
 @Reaction.add_reaction.register
 def _(self, reaction: "Reaction"):
-    """Add anothoer `Reaction` to Reaction."""
+    """Add another `Reaction` to Reaction."""
     return self.add_reaction(reaction.get("action"), reaction.get("details", {}))
