@@ -1600,7 +1600,7 @@ class Trainee(BaseTrainee):
         -------
         Reaction:
             A MutableMapping (dict) with these keys -> values:
-                actions -> pandas.DataFrame
+                action -> pandas.DataFrame
                     A data frame with columns specified in
                     ``features_to_generate`` list (or list of lists).
 
@@ -1835,7 +1835,7 @@ class Trainee(BaseTrainee):
         -------
         Reaction:
             A MutableMapping (dict) with these keys -> values:
-                actions -> pandas.DataFrame
+                action -> pandas.DataFrame
                     A data frame with columns specified in
                     ``features_to_generate`` list (or list of lists).
 
