@@ -2491,7 +2491,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         ret['action_features'] = batch_result.pop('action_features') or []
         ret['series'] = batch_result.pop('series')
 
-        # ensure all the explanation items are output as well
+        # ensure all the details items are output as well
         for k, v in batch_result.items():
             ret[k] = v or []
 
