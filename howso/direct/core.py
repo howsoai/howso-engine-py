@@ -1122,7 +1122,6 @@ class HowsoCore:
         input_cases: List[List[Any]],
         features: Optional[Iterable[str]] = None,
         *,
-        ablate: bool = False,
         ablatement_params: Optional[Dict[str, List[Any]]] = None,
         accumulate_weight_feature: Optional[str] = None,
         derived_features: Optional[Iterable[str]] = None,
@@ -1142,9 +1141,6 @@ class HowsoCore:
             One or more cases to train into the model.
         features : iterable of str, optional
             An iterable of feature names corresponding to the input cases.
-        ablate: bool, default False
-            Whether to ablate trained cases according to parameters set in
-            :meth:`set_atuo_ablate_params`.
         ablatement_params : dict of str to list of object, optional
             Parameters describing how to ablate cases.
         accumulate_weight_feature : str, optional
@@ -1175,7 +1171,6 @@ class HowsoCore:
         return self._execute("train", {
             "trainee": trainee_id,
             "input_cases": input_cases,
-            "ablate": ablate,
             "ablatement_params": ablatement_params,
             "accumulate_weight_feature": accumulate_weight_feature,
             "derived_features": derived_features,
