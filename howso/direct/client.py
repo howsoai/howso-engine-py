@@ -2087,23 +2087,17 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        dict
-            A dictionary with keys `action_features` and `series`. Where
-            `series` is a 2d list of values (rows of data per series), and
-            `action_features` is the list of all action features
-            (specified and derived).
+        CasesWithDetails:
+            A MutableMapping (dict) with these keys -> values:
+                actions -> pandas.DataFrame
+                    A data frame with columns specified in
+                    ``features_to_generate`` list (or list of lists).
 
-            Example output for 2 short series with 3 features:
+                    If ``features_to_generate`` is not specified all features
+                    will be generated.
 
-            .. code-block::
-
-                {
-                    'action_features': ['id','x','y'],
-                    'series': [
-                        [ ["A", 1, 2], ["A", 2, 2] ],
-                        [ ["B", 4, 4], ["B", 6, 7], ["B", 8, 9] ]
-                    ]
-                }
+                details -> Dict or List
+                    An aggregated list of any requested details.
 
         Raises
         ------
@@ -3005,21 +2999,17 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        dict
-            A dictionary with keys `action` and `explanation`. Where `action`
-            is a list of dicts of action_features -> action_values, and
-            `explanation` is a dict with the requested audit data.
+        CasesWithDetails:
+            A MutableMapping (dict) with these keys -> values:
+                actions -> pandas.DataFrame
+                    A data frame with columns specified in
+                    ``features_to_generate`` list (or list of lists).
 
-            .. code-block::
-                :caption: Example reaction for 2 contexts with 2 action features:
+                    If ``features_to_generate`` is not specified all features
+                    will be generated.
 
-                {
-                    'action': [{'size': 1, 'width': 1}, {'size': 2, 'width': 2}]
-                    'explanation': {
-                        'action_features': ['size', 'width'],
-                        'distance_contribution': [3.45, 0.89],
-                    }
-                }
+                details -> Dict or List
+                    An aggregated list of any requested details.
 
         Raises
         ------

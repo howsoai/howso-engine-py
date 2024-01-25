@@ -222,10 +222,17 @@ class HowsoPandasClientMixin:
 
         Returns
         -------
-        dict
-            A dictionary with keys `series` and `explanation`. Where `series`
-            is a DataFrame of feature columns with series values as rows,
-            and `explanation` is a dict with the requested audit data.
+        CasesWithDetails:
+            A MutableMapping (dict) with these keys -> values:
+                actions -> pandas.DataFrame
+                    A data frame with columns specified in
+                    ``features_to_generate`` list (or list of lists).
+
+                    If ``features_to_generate`` is not specified all features
+                    will be generated.
+
+                details -> Dict or List
+                    An aggregated list of any requested details.
         """
         trainee_id = self._resolve_trainee_id(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
@@ -241,10 +248,17 @@ class HowsoPandasClientMixin:
 
         Returns
         -------
-        dict
-            A dictionary with keys `action` and `explanation`. Where `action`
-            is a DataFrame of action_feature columns to action_value rows,
-            and `explanation` is a dict with the requested audit data.
+        CasesWithDetails:
+            A MutableMapping (dict) with these keys -> values:
+                actions -> pandas.DataFrame
+                    A data frame with columns specified in
+                    ``features_to_generate`` list (or list of lists).
+
+                    If ``features_to_generate`` is not specified all features
+                    will be generated.
+
+                details -> Dict or List
+                    An aggregated list of any requested details.
         """
         trainee_id = self._resolve_trainee_id(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features

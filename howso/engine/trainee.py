@@ -1598,8 +1598,17 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        dict of {action: pandas.DataFrame, explanation: dict}
-            The action values and explanations.
+        CasesWithDetails:
+            A MutableMapping (dict) with these keys -> values:
+                actions -> pandas.DataFrame
+                    A data frame with columns specified in
+                    ``features_to_generate`` list (or list of lists).
+
+                    If ``features_to_generate`` is not specified all features
+                    will be generated.
+
+                details -> Dict or List
+                    An aggregated list of any requested details.
         """
         return self.client.react(
             trainee_id=self.id,
@@ -1824,8 +1833,17 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-         dict of {series: pandas.DataFrame, explanation: dict}
-            The action values and explanations.
+        CasesWithDetails:
+            A MutableMapping (dict) with these keys -> values:
+                actions -> pandas.DataFrame
+                    A data frame with columns specified in
+                    ``features_to_generate`` list (or list of lists).
+
+                    If ``features_to_generate`` is not specified all features
+                    will be generated.
+
+                details -> Dict or List
+                    An aggregated list of any requested details.
         """
         if self.id:
             return self.client.react_series(
