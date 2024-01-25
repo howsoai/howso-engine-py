@@ -5148,7 +5148,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             warn_params = ", ".join(kwargs)
             warnings.warn(
                 f'The following parameter(s) "{warn_params}" are '
-                'not officially supported by analyze and may or may not have an effect.',
+                'not officially supported by auto ablation and may or may not have an effect.',
                 UserWarning
             )
         self._auto_resolve_trainee(trainee_id)
