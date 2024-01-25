@@ -9,17 +9,16 @@ import numpy as np
 import pandas as pd
 
 __all__ = [
-    "CasesWithDetails"
+    "Reaction"
 ]
 
 
-class CasesWithDetails(abc.MutableMapping):
+class Reaction(abc.MutableMapping):
     """
-    An implementation of a MutableMapping to hold a collection of Reactions.
+    An implementation of a MutableMapping to hold a collection of react outputs.
 
     This is useful where the results need to be aggregated together from a
-    collection of single results or batched results to act as a single Reaction
-    or ReactionSeries struct.
+    collection of single results or batched results to act as a single react output.
 
     Additional Reactions can be aggregated by using the `add_reaction()`
     method. This will coalesce the new details into the correct places within
@@ -28,9 +27,6 @@ class CasesWithDetails(abc.MutableMapping):
     All individual action items (cases) can be returned with their
     corresponding details via the ``gen_cases`` generator. The returned pair of
     values will be returned as a Reaction.
-
-    As this is a MutableMapping, it should be usable anywhere a Reaction type
-    is expected.
 
     Parameters
     ----------
@@ -200,13 +196,13 @@ class CasesWithDetails(abc.MutableMapping):
 
     @add_reaction.register
     def _(self, action: dict, details: t.MutableMapping[str, t.Any]):
-        """Add Dict[List, Dict] to CasesWithDetails."""
+        """Add Dict[List, Dict] to Reaction."""
         action_df = pd.DataFrame.from_dict(action)
         return self.add_reaction(action_df, details)
 
     @add_reaction.register
     def _(self, action: list, details: t.MutableMapping[str, t.Any]):
-        """Add list[Dict] to CasesWithDetails."""
+        """Add list[Dict] to Reaction."""
         action_df = pd.DataFrame(action)
         return self.add_reaction(action_df, details)
 
@@ -292,7 +288,7 @@ class CasesWithDetails(abc.MutableMapping):
         return per_case_details
 
 
-@CasesWithDetails.add_reaction.register
-def _(self, reaction: "CasesWithDetails"):
-    """Add anothoer `CasesWithDetails` to CasesWithDetails."""
+@Reaction.add_reaction.register
+def _(self, reaction: "Reaction"):
+    """Add anothoer `Reaction` to Reaction."""
     return self.add_reaction(reaction.get("action"), reaction.get("explanation", {}))

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
         Metrics,
         TraineeInformation,
     )
-    from howso.utilities.reaction import CasesWithDetails
+    from howso.utilities.reaction import Reaction
 
 
 class AbstractHowsoClient(ABC):
@@ -278,7 +278,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> "CasesWithDetails":
+    ) -> "Reaction":
         """React in a series until a stop condition is met."""
 
     @abstractmethod
@@ -370,7 +370,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> "CasesWithDetails":
+    ) -> "Reaction":
         """Send a `react` to the Howso engine."""
 
     @abstractmethod

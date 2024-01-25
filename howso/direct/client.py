@@ -60,7 +60,7 @@ from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
 )
-from howso.utilities.reaction import CasesWithDetails
+from howso.utilities.reaction import Reaction
 
 import numpy as np
 from packaging.version import parse as parse_version
@@ -1925,7 +1925,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
-    ) -> "CasesWithDetails":
+    ) -> "Reaction":
         """
         React in a series until a series_stop_map condition is met.
 
@@ -2087,7 +2087,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        CasesWithDetails:
+        Reaction:
             A MutableMapping (dict) with these keys -> values:
                 actions -> pandas.DataFrame
                     A data frame with columns specified in
@@ -2360,7 +2360,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         series_df = build_react_series_df(response, series_index=series_index)
 
-        response = CasesWithDetails(series_df, response.get('explanation'))
+        response = Reaction(series_df, response.get('explanation'))
 
         return response
 
@@ -2584,7 +2584,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> "CasesWithDetails":
+    ) -> "Reaction":
         r"""
         React to supplied values and cases contained within the Trainee.
 
@@ -2999,7 +2999,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        CasesWithDetails:
+        Reaction:
             A MutableMapping (dict) with these keys -> values:
                 actions -> pandas.DataFrame
                     A data frame with columns specified in
@@ -3197,7 +3197,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 suppress_warning=suppress_warning
             )
 
-        response = CasesWithDetails(response.get('action'), response.get('explanation'))
+        response = Reaction(response.get('action'), response.get('explanation'))
 
         return response
 

@@ -30,7 +30,7 @@ from howso.openapi.models import (
     Trainee,
     TrainResponse,
 )
-from howso.utilities.reaction import CasesWithDetails
+from howso.utilities.reaction import Reaction
 from howso.utilities.testing import get_configurationless_test_client, get_test_options
 import numpy as np
 import pandas as pd
@@ -313,7 +313,7 @@ class TestDatetimeSerialization:
                           features=df.columns.tolist())
         response = self.client.react(trainee.id,
                                      contexts=[["2020-10-12T10:10:10.333"]])
-        assert isinstance(response, CasesWithDetails)
+        assert isinstance(response, Reaction)
         assert response['action']['nom'].iloc[0] == "b"
 
         response = self.client.react(trainee.id, contexts=[["b"]],
@@ -332,7 +332,7 @@ class TestDatetimeSerialization:
                           features=df.columns.tolist())
         response = self.client.react_series(trainee.id,
                                      contexts=[["2020-10-12T10:10:10.333"]])
-        assert isinstance(response, CasesWithDetails)
+        assert isinstance(response, Reaction)
         assert response['action']['nom'].iloc[0] == "b"
 
 
@@ -440,7 +440,7 @@ class TestClient:
         cases = [['1', '2'], ['3', '4']]
         self.client.train(trainee.id, cases, features=['penguin', 'play'])
         react_response = self.client.react(trainee.id, contexts=[['1']])
-        assert isinstance(react_response, CasesWithDetails)
+        assert isinstance(react_response, Reaction)
         assert react_response['action']['play'].iloc[0] == '2'
         case_response = self.client.get_cases(
             trainee.id, session=self.client.active_session.id)

@@ -13,7 +13,7 @@ from howso.utilities import (
     format_dataframe,
 )
 from howso.utilities.internals import deserialize_to_dataframe
-from howso.utilities.reaction import CasesWithDetails
+from howso.utilities.reaction import Reaction
 import pandas as pd
 from pandas import DataFrame, Index
 
@@ -207,7 +207,7 @@ class HowsoPandasClientMixin:
         *args,
         series_index: str = '.series',
         **kwargs
-    ) -> "CasesWithDetails":
+    ) -> "Reaction":
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_series`.
 
@@ -222,7 +222,7 @@ class HowsoPandasClientMixin:
 
         Returns
         -------
-        CasesWithDetails:
+        Reaction:
             A MutableMapping (dict) with these keys -> values:
                 actions -> pandas.DataFrame
                     A data frame with columns specified in
@@ -242,13 +242,13 @@ class HowsoPandasClientMixin:
 
         return response
 
-    def react(self, trainee_id, *args, **kwargs) -> "CasesWithDetails":
+    def react(self, trainee_id, *args, **kwargs) -> "Reaction":
         """
         Base: :func:`howso.client.AbstractHowsoClient.react`.
 
         Returns
         -------
-        CasesWithDetails:
+        Reaction:
             A MutableMapping (dict) with these keys -> values:
                 actions -> pandas.DataFrame
                     A data frame with columns specified in
