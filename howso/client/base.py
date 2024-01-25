@@ -430,7 +430,7 @@ class AbstractHowsoClient(ABC):
         self,
         trainee_id
     ):
-        """Get parameters set by :meth:`set_auto_ablate_params`."""
+        """Get trainee parameters for auto ablation set by :meth:`set_auto_ablate_params`."""
 
     @abstractmethod
     def set_auto_analyze_params(

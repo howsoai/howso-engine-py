@@ -965,7 +965,7 @@ class Trainee(BaseTrainee):
     
     def get_auto_ablate_params(self):
         """
-        Get auto ablation parameters set by :meth:`set_auto_ablate_params`.
+        Get trainee parameters for auto ablation set by :meth:`set_auto_ablate_params`.
         """
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_auto_ablate_params(self.id)
