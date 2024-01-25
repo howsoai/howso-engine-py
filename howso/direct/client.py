@@ -1179,6 +1179,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         cases: Union[List[List[object]], DataFrame],
         features: Optional[Iterable[str]] = None,
         *,
+        ablate: bool = False,
         ablatement_params: Optional[Dict[str, List[object]]] = None,
         accumulate_weight_feature: Optional[str] = None,
         batch_size: Optional[int] = None,
@@ -1208,6 +1209,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                    cases DataFrame.
                 c. You want to re-order the columns that are trained.
 
+        ablate: bool, default False
+            Whether to ablate trained cases according to parameters set in
+            :meth:`set_atuo_ablate_params`.
         ablatement_params : dict of str to list of object, optional
             Where keys are a feature name and values are threshold_type where
             threshold_type is one of:
@@ -1324,6 +1328,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 end = progress.current_tick + batch_size
                 response = self.howso.train(
                     trainee_id,
+                    ablate=ablate,
                     ablatement_params=ablatement_params,
                     accumulate_weight_feature=accumulate_weight_feature,
                     derived_features=derived_features,

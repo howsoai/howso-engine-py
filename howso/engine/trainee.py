@@ -716,16 +716,17 @@ class Trainee(BaseTrainee):
         self,
         cases: Union[List[List[object]], "DataFrame"],
         *,
-        input_is_substituted: bool = False,
-        train_weights_only: bool = False,
-        validate: bool = True,
+        ablate: bool = False,
         ablatement_params: Optional[Dict[str, List[object]]] = None,
         accumulate_weight_feature: Optional[str] = None,
         batch_size: Optional[int] = None,
         derived_features: Optional[Iterable[str]] = None,
         features: Optional[Iterable[str]] = None,
+        input_is_substituted: bool = False,
         progress_callback: Optional[Callable] = None,
         series: Optional[str] = None,
+        train_weights_only: bool = False,
+        validate: bool = True,
     ) -> None:
         """
         Train one or more cases into the trainee (model).
@@ -734,6 +735,9 @@ class Trainee(BaseTrainee):
         ----------
         cases : list of list of object or pandas.DataFrame
             One or more cases to train into the model.
+        ablate: bool, default False
+            Whether to ablate trained cases according to parameters set in
+            :meth:`set_atuo_ablate_params`.
         ablatement_params : dict [str, list of obj], optional
             A dict of feature name to threshold type.
             Valid thresholds include:
@@ -803,6 +807,7 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             self.client.train(
                 trainee_id=self.id,
+                ablate=ablate,
                 ablatement_params=ablatement_params,
                 accumulate_weight_feature=accumulate_weight_feature,
                 batch_size=batch_size,
