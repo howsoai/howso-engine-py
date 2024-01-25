@@ -229,7 +229,7 @@ class HowsoPandasClientMixin:
         """
         trainee_id = self._resolve_trainee_id(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
-        response = super().react_series(trainee_id, series_index, *args, **kwargs)
+        response = super().react_series(trainee_id, *args, series_index=series_index, **kwargs)
 
         response['series'] = format_dataframe(response.get("series"), feature_attributes)
 

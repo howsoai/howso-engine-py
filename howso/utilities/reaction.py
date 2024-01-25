@@ -210,12 +210,6 @@ class CasesWithDetails(abc.MutableMapping):
         action_df = pd.DataFrame(action)
         return self.add_reaction(action_df, details)
 
-    @add_reaction.register
-    def _(self, reaction: dict):
-        """Add a Reaction to CasesWithDetails."""
-        details = reaction.get("details", reaction.get("explanation"))
-        return self.add_reaction(reaction["action"], details)
-
     def gen_cases(self) -> t.Generator[t.Dict, None, None]:
         """
         Yield dict containing DetailedCase items for a single case.
@@ -296,3 +290,9 @@ class CasesWithDetails(abc.MutableMapping):
             case.update({key: details[key] for key in cls.SPECIAL_KEYS})
 
         return per_case_details
+
+
+@CasesWithDetails.add_reaction.register
+def _(self, reaction: "CasesWithDetails"):
+    """Add anothoer `CasesWithDetails` to CasesWithDetails."""
+    return self.add_reaction(reaction.get("action"), reaction.get("explanation", {}))

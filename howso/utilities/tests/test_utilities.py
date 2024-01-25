@@ -7,6 +7,8 @@ import warnings
 from dateutil import parser
 import howso.utilities as utils
 from howso.utilities import get_kwargs, LocaleOverride
+from howso.utilities.reaction import CasesWithDetails
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -293,3 +295,49 @@ def test_determine_iso_format(date_str, format_str):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         assert format_str == utils.determine_iso_format(date_str, "_")
+
+
+def test_cases_with_details_add_reaction():
+    """Tests that `CasesWithDetails` `add_reaction` works with different data types."""
+    df = pd.DataFrame(data=np.asarray([
+        ['a', 'b', 'c', 'd'],
+        ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
+            '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
+    ]).transpose(), columns=['nom', 'datetime'])
+
+    react_response = {
+        'explanation': {'action_features': ['datetime']},
+        'action': df
+    }
+
+    cwd = CasesWithDetails()
+    cwd.add_reaction(react_response['action'], react_response['explanation'])
+    cwd.add_reaction(react_response['action'].to_dict(), react_response['explanation'])
+    # List of dicts
+    cwd.add_reaction(react_response['action'].to_dict(orient='records'), react_response['explanation'])
+    cwd.add_reaction(CasesWithDetails(react_response['action'], react_response['explanation']))
+
+    assert cwd['action'].shape[0] == 16
+
+
+def test_cases_with_details_instantiate():
+    """Tests that `CasesWithDetails` can be instantiated with different data types."""
+    df = pd.DataFrame(data=np.asarray([
+        ['a', 'b', 'c', 'd'],
+        ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
+            '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
+    ]).transpose(), columns=['nom', 'datetime'])
+
+    react_response = {
+        'explanation': {'action_features': ['datetime']},
+        'action': df
+    }
+
+    cwd = CasesWithDetails(react_response['action'], react_response['explanation'])
+    assert cwd['action'].shape[0] == 4
+
+    cwd = CasesWithDetails(react_response['action'].to_dict(), react_response['explanation'])
+    assert cwd['action'].shape[0] == 4
+
+    cwd = CasesWithDetails(react_response['action'].to_dict(orient='records'), react_response['explanation'])
+    assert cwd['action'].shape[0] == 4
