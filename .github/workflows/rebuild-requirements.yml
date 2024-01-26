@@ -1,0 +1,95 @@
+name: Rebuild Requirements Files
+run-name: "Rebuild Requirements"
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticket-number:
+        description: "A ticket number to use for the creation of the branch and PR."
+        type: string
+        required: false
+      create-pr:
+        description: "Create a PR against the default branch?"
+        required: true
+        type: boolean
+        default: true
+      extras:
+        description: A whitespace-separated list of Python "extras" that should be installed into requirements-<version>-dev.txt (e.g., "dev scikit")
+        type: string
+        required: false
+        default: "dev"
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  gen-branch-name:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      branch: ${{ steps.gen-branch-name.outputs.branch }}
+
+    steps:
+    
+    - name: Generate branch name
+      id: gen-branch-name
+      run: |
+        NOW=$(date +'%Y-%m-%dT%Hh%Mm%Ss')
+        if [[ -n "${{ inputs.ticket-number }}" ]]; then
+          BRANCH="${{ inputs.ticket-number }}-gen-requirements-$NOW"
+        else
+          BRANCH="gen-requirements-$NOW"
+        fi
+        echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+  create-branch:
+    needs: ['gen-branch-name']
+    uses: "howsoai/.github/.github/workflows/create-branch.yml@main"
+    secrets: inherit
+    with:
+      branch: ${{ needs.gen-branch-name.outputs.branch }}
+
+  gen-requirements:
+    needs: ['create-branch', 'gen-branch-name']
+    uses: "howsoai/.github/.github/workflows/compile-requirements.yml@main"
+    secrets: inherit
+    with:
+      branch: ${{ needs.gen-branch-name.outputs.branch }}
+      force-rebuild: true
+      extras: ${{ inputs.extras }}
+
+  gen-pr-title:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      title: ${{ steps.gen-pr-title.outputs.title }}
+    env:
+        GH_TOKEN: ${{ github.token }}
+    steps:
+
+    - name: Generate PR title
+      id: gen-pr-title
+      run: |
+        if [[ -n "${{ inputs.ticket-number }}" ]]; then
+          TITLE="${{ inputs.ticket-number }}: Automated requirements generation"
+        else
+          TITLE="Automated requirements generation"
+        fi
+        echo "title=$TITLE" >> $GITHUB_OUTPUT
+  
+  create-pr:
+    needs: ['gen-branch-name', 'create-branch', 'gen-pr-title', 'gen-requirements']
+    uses: "howsoai/.github/.github/workflows/create-pr.yml@main"
+    with:
+      branch: ${{ needs.gen-branch-name.outputs.branch }}
+      title: ${{ needs.gen-pr-title.outputs.title }}
+      body: "Automated PR with generated requirements.txt files."
