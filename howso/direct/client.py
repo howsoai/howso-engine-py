@@ -5050,7 +5050,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if kwargs:
             warn_params = ', '.join(kwargs)
             warnings.warn(
-                f'The following auto ablate parameter(s) "{warn_params}" '
+                f'The following auto ablation parameter(s) "{warn_params}" '
                 'are not officially supported or may not have an effect.', UserWarning)
 
         self.howso.auto_analyze_params(
