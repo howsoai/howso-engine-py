@@ -1875,15 +1875,16 @@ class HowsoCore:
         self,
         trainee_id: str,
         *,
-        features: Optional[Iterable[str]] = None,
+        distance_contribution: bool = False,
         familiarity_conviction_addition: bool = False,
         familiarity_conviction_removal: bool = False,
+        features: Optional[Iterable[str]] = None,
+        influence_weight_entropy: Union[bool, str] = False,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
         similarity_conviction: bool = False,
-        distance_contribution: bool = False,
+        use_case_weights: bool = False,
         weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
     ) -> None:
         """
         Calculate and cache conviction and other statistics.
@@ -1902,6 +1903,10 @@ class HowsoCore:
             The name of the feature to store conviction of removal
             values. If set to True the values will be stored to the feature
             'familiarity_conviction_removal'.
+        influence_weight_entropy : bool or str, default False
+            The name of the feature to store influence weight entropy values in.
+            If set to True, the values will be stored in the feature
+            'influence_weight_entropy'.
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition
             values. If set to True the values will be stored to the feature
@@ -1930,6 +1935,7 @@ class HowsoCore:
             "features": features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
+            "influence_weight_entropy": influence_weight_entropy,
             "p_value_of_addition": p_value_of_addition,
             "p_value_of_removal": p_value_of_removal,
             "similarity_conviction": similarity_conviction,

@@ -284,11 +284,12 @@ class AbstractHowsoClient(ABC):
         distance_contribution: Union[bool, str] = False,
         familiarity_conviction_addition: Union[bool, str] = False,
         familiarity_conviction_removal: Union[bool, str] = False,
+        features=None,
+        influence_weight_entropy: Union[bool, str] = False,
         p_value_of_addition: Union[bool, str] = False,
         p_value_of_removal: Union[bool, str] = False,
         similarity_conviction: Union[bool, str] = False,
         use_case_weights: Union[bool, str] = False,
-        features=None,
         weight_feature=None
     ):
         """Calculate conviction and other data for the specified feature(s)."""
