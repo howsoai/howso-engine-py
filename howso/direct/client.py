@@ -5058,14 +5058,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
         self._auto_persist_trainee(trainee_id)
     
-    def get_auto_ablate_params(self, trainee_id: str):
+    def get_auto_ablation_params(self, trainee_id: str):
         """
-        Get parameters set by :meth:`set_auto_ablate_params`.
+        Get parameters set by :meth:`set_auto_ablation_params`.
         """
         self._auto_resolve_trainee(trainee_id)
-        return self.howso.get_auto_ablate_params(trainee_id)
+        return self.howso.get_auto_ablation_params(trainee_id)
     
-    def set_auto_ablate_params(
+    def set_auto_ablation_params(
         self,
         trainee_id: str,
         auto_ablate_enabled: bool = False,
@@ -5136,7 +5136,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 UserWarning
             )
         self._auto_resolve_trainee(trainee_id)
-        self.howso.set_auto_ablate_params(
+        self.howso.set_auto_ablation_params(
             trainee_id, **params
         )
 

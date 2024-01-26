@@ -757,15 +757,15 @@ class HowsoCore:
         """
         return self._execute("get_num_training_cases", {"trainee": trainee_id})
 
-    def get_auto_ablate_params(self, trainee_id: str):
+    def get_auto_ablation_params(self, trainee_id: str):
         """
-        Get trainee parameters for auto ablation set by :meth:`set_auto_ablate_params`.
+        Get trainee parameters for auto ablation set by :meth:`set_auto_ablation_params`.
         """
         return self._execute(
-            "get_auto_ablate_params", {"trainee": trainee_id}
+            "get_auto_ablation_params", {"trainee": trainee_id}
         )
     
-    def set_auto_ablate_params(
+    def set_auto_ablation_params(
         self,
         trainee_id: str,
         auto_ablate_enabled: bool = False,
@@ -816,7 +816,7 @@ class HowsoCore:
             The conviction value below which cases will be ablated.
         """
         return self._execute(
-            "set_auto_ablate_params",
+            "set_auto_ablation_params",
             {
                 "trainee": trainee_id,
                 "auto_ablate_enabled": auto_ablate_enabled,

@@ -949,16 +949,16 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'auto_analyze' method.")
     
-    def get_auto_ablate_params(self):
+    def get_auto_ablation_params(self):
         """
-        Get trainee parameters for auto ablation set by :meth:`set_auto_ablate_params`.
+        Get trainee parameters for auto ablation set by :meth:`set_auto_ablation_params`.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            return self.client.get_auto_ablate_params(self.id)
+            return self.client.get_auto_ablation_params(self.id)
         else:
-            raise ValueError("Client must have the 'get_auto_ablate_params' method.")
+            raise ValueError("Client must have the 'get_auto_ablation_params' method.")
     
-    def set_auto_ablate_params(
+    def set_auto_ablation_params(
         self,
         auto_ablate_enabled: bool = False,
         *,
@@ -1006,7 +1006,7 @@ class Trainee(BaseTrainee):
             The conviction value below which cases will be ablated.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.set_auto_ablate_params(
+            self.client.set_auto_ablation_params(
                 trainee_id=self.id,
                 auto_ablate_enabled=auto_ablate_enabled,
                 auto_ablate_weight_feature=auto_ablate_weight_feature,
@@ -1020,7 +1020,7 @@ class Trainee(BaseTrainee):
                 conviction_upper_threshold=conviction_upper_threshold,
             )
         else:
-            raise ValueError("Client must have the 'set_auto_ablate_params' method.")
+            raise ValueError("Client must have the 'set_auto_ablation_params' method.")
 
     def set_auto_analyze_params(
         self,

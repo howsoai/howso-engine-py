@@ -406,7 +406,7 @@ class AbstractHowsoClient(ABC):
         """Auto-analyze the trainee model."""
 
     @abstractmethod
-    def set_auto_ablate_params(
+    def set_auto_ablation_params(
         self,
         trainee_id,
         auto_ablate_enabled=False,
@@ -425,11 +425,11 @@ class AbstractHowsoClient(ABC):
         """Set trainee parameters for auto ablation."""
     
     @abstractmethod
-    def get_auto_ablate_params(
+    def get_auto_ablation_params(
         self,
         trainee_id
     ):
-        """Get trainee parameters for auto ablation set by :meth:`set_auto_ablate_params`."""
+        """Get trainee parameters for auto ablation set by :meth:`set_auto_ablation_params`."""
 
     @abstractmethod
     def set_auto_analyze_params(
