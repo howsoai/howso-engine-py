@@ -7,6 +7,8 @@ import warnings
 from dateutil import parser
 import howso.utilities as utils
 from howso.utilities import get_kwargs, LocaleOverride
+from howso.utilities.reaction import Reaction
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -249,7 +251,7 @@ def test_build_react_series_df():
     Also tests that it includes the series index feature when specified.
     """
     test_react_series_response = {
-        'explanation': {'action_features': ['id', 'x', 'y']},
+        'details': {'action_features': ['id', 'x', 'y']},
         'series': [
             [["A", 1, 2], ["A", 2, 2]],
             [["B", 4, 4], ["B", 6, 7], ["B", 8, 9]]
@@ -257,7 +259,7 @@ def test_build_react_series_df():
     }
 
     # Without the series index feature
-    columns = test_react_series_response['explanation']['action_features']
+    columns = test_react_series_response['details']['action_features']
     expected_data = [["A", 1, 2], ["A", 2, 2], ["B", 4, 4], ["B", 6, 7], ["B", 8, 9]]
     expected_df = pd.DataFrame(expected_data, columns=columns)
     df = utils.build_react_series_df(test_react_series_response)
@@ -293,3 +295,49 @@ def test_determine_iso_format(date_str, format_str):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         assert format_str == utils.determine_iso_format(date_str, "_")
+
+
+def test_cases_with_details_add_reaction():
+    """Tests that `Reaction` `add_reaction` works with different data types."""
+    df = pd.DataFrame(data=np.asarray([
+        ['a', 'b', 'c', 'd'],
+        ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
+            '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
+    ]).transpose(), columns=['nom', 'datetime'])
+
+    react_response = {
+        'details': {'action_features': ['datetime']},
+        'action': df
+    }
+
+    cwd = Reaction()
+    cwd.add_reaction(react_response['action'], react_response['details'])
+    cwd.add_reaction(react_response['action'].to_dict(), react_response['details'])
+    # List of dicts
+    cwd.add_reaction(react_response['action'].to_dict(orient='records'), react_response['details'])
+    cwd.add_reaction(Reaction(react_response['action'], react_response['details']))
+
+    assert cwd['action'].shape[0] == 16
+
+
+def test_cases_with_details_instantiate():
+    """Tests that `Reaction` can be instantiated with different data types."""
+    df = pd.DataFrame(data=np.asarray([
+        ['a', 'b', 'c', 'd'],
+        ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
+            '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
+    ]).transpose(), columns=['nom', 'datetime'])
+
+    react_response = {
+        'details': {'action_features': ['datetime']},
+        'action': df
+    }
+
+    cwd = Reaction(react_response['action'], react_response['details'])
+    assert cwd['action'].shape[0] == 4
+
+    cwd = Reaction(react_response['action'].to_dict(), react_response['details'])
+    assert cwd['action'].shape[0] == 4
+
+    cwd = Reaction(react_response['action'].to_dict(orient='records'), react_response['details'])
+    assert cwd['action'].shape[0] == 4

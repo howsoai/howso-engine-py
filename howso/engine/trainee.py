@@ -37,7 +37,7 @@ from howso.openapi.models import (
 )
 from howso.utilities import CaseIndices
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
-from howso.utilities.types import Reaction, ReactionSeries
+from howso.utilities.reaction import Reaction
 from pandas import DataFrame, Index
 
 __all__ = [
@@ -1256,7 +1256,7 @@ class Trainee(BaseTrainee):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> Union["Reaction", Dict]:
+    ) -> Reaction:
         """
         React to the trainee.
 
@@ -1598,8 +1598,13 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        dict of {action: pandas.DataFrame, explanation: dict}
-            The action values and explanations.
+        Reaction:
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
+
+                details -> Dict or List
+                    An aggregated list of any requested details.
         """
         return self.client.react(
             trainee_id=self.id,
@@ -1678,7 +1683,7 @@ class Trainee(BaseTrainee):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> Union["ReactionSeries", Dict]:
+    ) -> Reaction:
         """
         React to the trainee in a series until a stop condition is met.
 
@@ -1824,8 +1829,13 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-         dict of {series: pandas.DataFrame, explanation: dict}
-            The action values and explanations.
+        Reaction:
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
+
+                details -> Dict or List
+                    An aggregated list of any requested details.
         """
         if self.id:
             return self.client.react_series(
