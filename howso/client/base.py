@@ -409,9 +409,9 @@ class AbstractHowsoClient(ABC):
     def set_auto_ablation_params(
         self,
         trainee_id,
-        auto_ablate_enabled=False,
+        auto_ablation_enabled=False,
         *,
-        auto_ablate_weight_feature=".case_weight",
+        auto_ablation_weight_feature=".case_weight",
         conviction_lower_threshold=None,
         conviction_upper_threshold=None,
         exact_prediction_features=None,

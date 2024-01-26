@@ -768,9 +768,9 @@ class HowsoCore:
     def set_auto_ablation_params(
         self,
         trainee_id: str,
-        auto_ablate_enabled: bool = False,
+        auto_ablation_enabled: bool = False,
         *,
-        auto_ablate_weight_feature: str = ".case_weight",
+        auto_ablation_weight_feature: str = ".case_weight",
         conviction_lower_threshold: Optional[float] = None,
         conviction_upper_threshold: Optional[float] = None,
         exact_prediction_features: Optional[List[str]] = None,
@@ -791,9 +791,9 @@ class HowsoCore:
         ----------
         trainee_id : str
             The ID of the Trainee to set auto ablation parameters for.
-        auto_ablate_enabled : bool, default False
+        auto_ablation_enabled : bool, default False
             When True, the :meth:`train` method will ablate cases that meet the set criteria.
-        auto_ablate_weight_feature : str, default ".case_weight"
+        auto_ablation_weight_feature : str, default ".case_weight"
             The weight feature that should be accumulated to when cases are ablated.
         minimum_model_size : int, default 1,000
             The threshold ofr the minimum number of cases at which the model should auto-ablate.
@@ -819,8 +819,8 @@ class HowsoCore:
             "set_auto_ablation_params",
             {
                 "trainee": trainee_id,
-                "auto_ablate_enabled": auto_ablate_enabled,
-                "auto_ablate_weight_feature": auto_ablate_weight_feature,
+                "auto_ablation_enabled": auto_ablation_enabled,
+                "auto_ablation_weight_feature": auto_ablation_weight_feature,
                 "minimum_model_size": minimum_model_size,
                 "influence_weight_entropy_threshold": influence_weight_entropy_threshold,
                 "exact_prediction_features": exact_prediction_features,
