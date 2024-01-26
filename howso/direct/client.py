@@ -1182,7 +1182,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         cases: Union[List[List[object]], DataFrame],
         features: Optional[Iterable[str]] = None,
         *,
-        ablatement_params: Optional[Dict[str, List[object]]] = None,
         accumulate_weight_feature: Optional[str] = None,
         batch_size: Optional[int] = None,
         derived_features: Optional[Iterable[str]] = None,
@@ -1210,20 +1209,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 b. You want to train only a subset of columns defined in your
                    cases DataFrame.
                 c. You want to re-order the columns that are trained.
-
-        ablatement_params : dict of str to list of object, optional
-            Where keys are a feature name and values are threshold_type where
-            threshold_type is one of:
-
-                - ['exact']: Don't train if prediction matches exactly
-                - ['tolerance', MIN, MAX]: Don't train if ``prediction
-                  >= (case value - MIN) & prediction <= (case value + MAX)``
-                - ['relative', PERCENT]: Don't train if
-                  ``abs(prediction - case value) / prediction <= PERCENT``
-                - ['residual']: Don't train if
-                  ``abs(prediction - case value) <= feature residual``
-
-            >>> {'species': ['exact'], 'sepal_length': ['tolerance', 0.1, 0.25]}
 
         accumulate_weight_feature : str, optional
             Name of feature into which to accumulate neighbors'
@@ -1327,7 +1312,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 end = progress.current_tick + batch_size
                 response = self.howso.train(
                     trainee_id,
-                    ablatement_params=ablatement_params,
                     accumulate_weight_feature=accumulate_weight_feature,
                     derived_features=derived_features,
                     features=features,
@@ -3427,15 +3411,16 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         *,
-        features: Optional[Iterable[str]] = None,
+        distance_contribution: Optional[Union[str, bool]] = False,
         familiarity_conviction_addition: Optional[Union[str, bool]] = False,
         familiarity_conviction_removal: Optional[Union[str, bool]] = False,
+        features: Optional[Iterable[str]] = None,
+        influence_weight_entropy: Union[bool, str] = False,
         p_value_of_addition: Optional[Union[str, bool]] = False,
         p_value_of_removal: Optional[Union[str, bool]] = False,
         similarity_conviction: Optional[Union[str, bool]] = False,
-        distance_contribution: Optional[Union[str, bool]] = False,
+        use_case_weights: bool = False,
         weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
     ):
         """
         Calculate and cache conviction and other statistics.
@@ -3454,6 +3439,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             The name of the feature to store conviction of removal
             values. If set to True the values will be stored to the feature
             'familiarity_conviction_removal'.
+        influence_weight_entropy : bool or str, default False
+            The name of the feature to store influence weight entropy values in.
+            If set to True, the values will be stored in the feature
+            'influence_weight_entropy'.
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition
             values. If set to True the values will be stored to the feature
@@ -3486,6 +3475,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             features=features,
             familiarity_conviction_addition=familiarity_conviction_addition,
             familiarity_conviction_removal=familiarity_conviction_removal,
+            influence_weight_entropy=influence_weight_entropy,
             p_value_of_addition=p_value_of_addition,
             p_value_of_removal=p_value_of_removal,
             similarity_conviction=similarity_conviction,
@@ -5060,9 +5050,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         if kwargs:
             warn_params = ', '.join(kwargs)
             warnings.warn(
-                f'The following auto analyze parameter(s) "{warn_params}" '
-                'are not officially supported by analyze and may or may not '
-                'have an effect.', UserWarning)
+                f'The following auto ablation parameter(s) "{warn_params}" '
+                'are not officially supported or may not have an effect.', UserWarning)
 
         self.howso.auto_analyze_params(
             trainee_id=trainee_id,
@@ -5074,6 +5063,88 @@ class HowsoDirectClient(AbstractHowsoClient):
             **kwargs
         )
         self._auto_persist_trainee(trainee_id)
+    
+    def get_auto_ablation_params(self, trainee_id: str):
+        """
+        Get parameters set by :meth:`set_auto_ablation_params`.
+        """
+        self._auto_resolve_trainee(trainee_id)
+        return self.howso.get_auto_ablation_params(trainee_id)
+    
+    def set_auto_ablation_params(
+        self,
+        trainee_id: str,
+        auto_ablation_enabled: bool = False,
+        *,
+        auto_ablation_weight_feature: str = ".case_weight",
+        conviction_lower_threshold: Optional[float] = None,
+        conviction_upper_threshold: Optional[float] = None,
+        exact_prediction_features: Optional[List[str]] = None,
+        influence_weight_entropy_threshold: float = 0.6,
+        minimum_model_size: int = 1_000,
+        relative_prediction_threshold_map: Optional[Dict[str, float]] = None,
+        residual_prediction_features: Optional[List[str]] = None,
+        tolerance_prediction_threshold_map: Optional[Dict[str, Tuple[float, float]]] = None,
+        **kwargs
+    ):
+        """
+        Set trainee parameters for auto ablation.
+
+        .. note::
+            Auto-ablation is experimental and the API may change without deprecation.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to set auto ablation parameters for.
+        auto_ablation_enabled : bool, default False
+            When True, the :meth:`train` method will ablate cases that meet the set criteria.
+        auto_ablation_weight_feature : str, default ".case_weight"
+            The weight feature that should be accumulated to when cases are ablated.
+        minimum_model_size : int, default 1,000
+            The threshold of the minimum number of cases at which the model should auto-ablate.
+        influence_weight_entropy_threshold : float, default 0.6
+            The influence weight entropy quantile that a case must be beneath in order to be trained.
+        exact_prediction_features : Optional[List[str]], optional
+            For each of the features specified, will ablate a case if the prediction matches exactly.
+        residual_prediction_features : Optional[List[str]], optional
+            For each of the features specified, will ablate a case if
+            abs(prediction - case value) / prediction <= feature residual.
+        tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
+            For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
+            and the prediction <= (case value + MAX).
+        relative_prediction_threshold_map : Optional[Dict[str, float]], optional
+            For each of the features specified, will ablate a case if
+            abs(prediction - case value) / prediction <= relative threshold
+        conviction_lower_threshold : Optional[float], optional
+            The conviction value above which cases will be ablated.
+        conviction_upper_threshold : Optional[float], optional
+            The conviction value below which cases will be ablated.
+        """
+        params = dict(
+            auto_ablation_enabled=auto_ablation_enabled,
+            auto_ablation_weight_feature=auto_ablation_weight_feature,
+            minimum_model_size=minimum_model_size,
+            influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+            exact_prediction_features=exact_prediction_features,
+            residual_prediction_features=residual_prediction_features,
+            tolerance_prediction_threshold_map=tolerance_prediction_threshold_map,
+            relative_prediction_threshold_map=relative_prediction_threshold_map,
+            conviction_lower_threshold=conviction_lower_threshold,
+            conviction_upper_threshold=conviction_upper_threshold,
+        )
+        params.update(kwargs)
+        if kwargs:
+            warn_params = ", ".join(kwargs)
+            warnings.warn(
+                f'The following parameter(s) "{warn_params}" are '
+                'not officially supported by auto ablation and may or may not have an effect.',
+                UserWarning
+            )
+        self._auto_resolve_trainee(trainee_id)
+        self.howso.set_auto_ablation_params(
+            trainee_id, **params
+        )
 
     def optimize(self, *args, **kwargs):
         """
