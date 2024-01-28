@@ -30,6 +30,7 @@ from howso.openapi.models import (
     Trainee,
     TrainResponse,
 )
+from howso.utilities.reaction import Reaction
 from howso.utilities.testing import get_configurationless_test_client, get_test_options
 import numpy as np
 import pandas as pd
@@ -312,12 +313,27 @@ class TestDatetimeSerialization:
                           features=df.columns.tolist())
         response = self.client.react(trainee.id,
                                      contexts=[["2020-10-12T10:10:10.333"]])
-        assert response['action'][0]['nom'] == "b"
+        assert isinstance(response, Reaction)
+        assert response['action']['nom'].iloc[0] == "b"
 
         response = self.client.react(trainee.id, contexts=[["b"]],
                                      context_features=["nom"],
                                      action_features=["datetime"])
-        assert "2020-10-12T10:10:10.333000" in response['action'][0]['datetime']
+        assert "2020-10-12T10:10:10.333000" in response['action']['datetime'].iloc[0]
+
+    def test_react_series(self, trainee):
+        """Test that react series works as expected."""
+        df = pd.DataFrame(data=np.asarray([
+            ['a', 'b', 'c', 'd'],
+            ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
+             '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
+        ]).transpose(), columns=['nom', 'datetime'])
+        self.client.train(trainee.id, cases=df.values.tolist(),
+                          features=df.columns.tolist())
+        response = self.client.react_series(trainee.id,
+                                     contexts=[["2020-10-12T10:10:10.333"]])
+        assert isinstance(response, Reaction)
+        assert response['action']['nom'].iloc[0] == "b"
 
 
 class TestClient:
@@ -424,7 +440,8 @@ class TestClient:
         cases = [['1', '2'], ['3', '4']]
         self.client.train(trainee.id, cases, features=['penguin', 'play'])
         react_response = self.client.react(trainee.id, contexts=[['1']])
-        assert react_response['action'][0]['play'] == '2'
+        assert isinstance(react_response, Reaction)
+        assert react_response['action']['play'].iloc[0] == '2'
         case_response = self.client.get_cases(
             trainee.id, session=self.client.active_session.id)
         for case in case_response.cases:
@@ -536,7 +553,7 @@ class TestClient:
         Test a-la-cart data.
 
         Systematically test a la cart options to ensure only the specified
-        options are returned in the explanation data.
+        options are returned in the details data.
 
         Parameters
         ----------
@@ -590,8 +607,8 @@ class TestClient:
         for audit_detail_set, keys_to_expect in details_sets:
             response = self.client.react(trainee.id, contexts=[['1']],
                                          details=audit_detail_set)
-            explanation = response['explanation']
-            assert (all(explanation[key] is not None for key in keys_to_expect))
+            details = response['details']
+            assert (all(details[key] is not None for key in keys_to_expect))
 
     def test_get_version(self):
         """Test get_version()."""
@@ -1077,7 +1094,7 @@ class TestBaseClient:
             contexts=[2, 2],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
-        )['action'][0]['petal_length']
+        )['action']['petal_length'].iloc[0]
 
         # create another trainee
         other_trainee = Trainee(
@@ -1099,7 +1116,7 @@ class TestBaseClient:
             contexts=[2, 2],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
-        )['action'][0]['petal_length']
+        )['action']['petal_length'].iloc[0]
         assert first_pred != second_pred
 
         # align parameters, make another prediction that should be the same
@@ -1109,7 +1126,7 @@ class TestBaseClient:
             contexts=[2, 2],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
-        )['action'][0]['petal_length']
+        )['action']['petal_length'].iloc[0]
         assert first_pred == third_pred
 
         # verify that both trainees have the same hyperparameter_map now

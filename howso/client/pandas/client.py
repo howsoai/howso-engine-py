@@ -13,6 +13,7 @@ from howso.utilities import (
     format_dataframe,
 )
 from howso.utilities.internals import deserialize_to_dataframe
+from howso.utilities.reaction import Reaction
 import pandas as pd
 from pandas import DataFrame, Index
 
@@ -206,7 +207,7 @@ class HowsoPandasClientMixin:
         *args,
         series_index: str = '.series',
         **kwargs
-    ) -> Dict[str, Union[DataFrame, Dict]]:
+    ) -> Reaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_series`.
 
@@ -221,40 +222,40 @@ class HowsoPandasClientMixin:
 
         Returns
         -------
-        dict
-            A dictionary with keys `series` and `explanation`. Where `series`
-            is a DataFrame of feature columns with series values as rows,
-            and `explanation` is a dict with the requested audit data.
+        Reaction:
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
+
+                details -> Dict or List
+                    An aggregated list of any requested details.
         """
         trainee_id = self._resolve_trainee_id(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
-        response = super().react_series(trainee_id, *args, **kwargs)
+        response = super().react_series(trainee_id, *args, series_index=series_index, **kwargs)
 
-        # If series_index is not a string, the intention is likely for it to not be included
-        if not isinstance(series_index, str):
-            series_index = None
-
-        # Build response DataFrame
-        df = build_react_series_df(response, series_index=series_index)
-        response['series'] = format_dataframe(df, feature_attributes)
+        response['series'] = format_dataframe(response.get("series"), feature_attributes)
 
         return response
 
-    def react(self, trainee_id, *args, **kwargs) -> Dict[str, Union[DataFrame, Dict]]:
+    def react(self, trainee_id, *args, **kwargs) -> Reaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react`.
 
         Returns
         -------
-        dict
-            A dictionary with keys `action` and `explanation`. Where `action`
-            is a DataFrame of action_feature columns to action_value rows,
-            and `explanation` is a dict with the requested audit data.
+        Reaction:
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
+
+                details -> Dict or List
+                    An aggregated list of any requested details.
         """
         trainee_id = self._resolve_trainee_id(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
         response = super().react(trainee_id, *args, **kwargs)
-        columns = response['explanation'].get('action_features')
+        columns = response['details'].get('action_features')
         response['action'] = deserialize_cases(response['action'], columns,
                                                feature_attributes)
         return response

@@ -47,6 +47,7 @@ from howso.openapi.models import (
     TraineeVersion
 )
 from howso.utilities import (
+    build_react_series_df,
     internals,
     num_list_dimensions,
     ProgressTimer,
@@ -59,6 +60,8 @@ from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
 )
+from howso.utilities.reaction import Reaction
+
 import numpy as np
 from packaging.version import parse as parse_version
 from pandas import DataFrame
@@ -1179,7 +1182,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         cases: Union[List[List[object]], DataFrame],
         features: Optional[Iterable[str]] = None,
         *,
-        ablatement_params: Optional[Dict[str, List[object]]] = None,
         accumulate_weight_feature: Optional[str] = None,
         batch_size: Optional[int] = None,
         derived_features: Optional[Iterable[str]] = None,
@@ -1207,20 +1209,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 b. You want to train only a subset of columns defined in your
                    cases DataFrame.
                 c. You want to re-order the columns that are trained.
-
-        ablatement_params : dict of str to list of object, optional
-            Where keys are a feature name and values are threshold_type where
-            threshold_type is one of:
-
-                - ['exact']: Don't train if prediction matches exactly
-                - ['tolerance', MIN, MAX]: Don't train if ``prediction
-                  >= (case value - MIN) & prediction <= (case value + MAX)``
-                - ['relative', PERCENT]: Don't train if
-                  ``abs(prediction - case value) / prediction <= PERCENT``
-                - ['residual']: Don't train if
-                  ``abs(prediction - case value) <= feature residual``
-
-            >>> {'species': ['exact'], 'sepal_length': ['tolerance', 0.1, 0.25]}
 
         accumulate_weight_feature : str, optional
             Name of feature into which to accumulate neighbors'
@@ -1324,7 +1312,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 end = progress.current_tick + batch_size
                 response = self.howso.train(
                     trainee_id,
-                    ablatement_params=ablatement_params,
                     accumulate_weight_feature=accumulate_weight_feature,
                     derived_features=derived_features,
                     features=features,
@@ -1915,13 +1902,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         series_context_features: Optional[Iterable[str]] = None,
         series_context_values: Optional[Union[List[object], List[List[object]]]] = None,
         series_id_tracking: Literal["dynamic", "fixed", "no"] = "fixed",
+        series_index: Optional[str] = None,
         series_stop_maps: Optional[List[Dict[str, Dict]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
-    ) -> Dict:
+    ) -> Reaction:
         """
         React in a series until a series_stop_map condition is met.
 
@@ -2033,7 +2021,10 @@ class HowsoDirectClient(AbstractHowsoClient):
               allowed to change the series ID that it tracks based on its
               current context.
             - If "no", does not track any particular series ID.
-
+        series_index : str, Optional
+            When set to a string, will include the series index as a
+            column in the returned DataFrame using the column name given.
+            If set to None, no column will be added.
         progress_callback : callable, optional
             A callback method that will be called before each
             batched call to react series and at the end of reacting. The method
@@ -2080,23 +2071,13 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        dict
-            A dictionary with keys `action_features` and `series`. Where
-            `series` is a 2d list of values (rows of data per series), and
-            `action_features` is the list of all action features
-            (specified and derived).
+        Reaction:
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
 
-            Example output for 2 short series with 3 features:
-
-            .. code-block::
-
-                {
-                    'action_features': ['id','x','y'],
-                    'series': [
-                        [ ["A", 1, 2], ["A", 2, 2] ],
-                        [ ["B", 4, 4], ["B", 6, 7], ["B", 8, 9] ]
-                    ]
-                }
+                details -> Dict or List
+                    An aggregated list of any requested details.
 
         Raises
         ------
@@ -2344,11 +2325,11 @@ class HowsoDirectClient(AbstractHowsoClient):
             if isinstance(progress_callback, Callable):
                 progress_callback(progress, response)
 
-        # put all explanations under the 'explanation' key
+        # put all details under the 'details' key
         series = response.pop('series')
-        response = {'series': series, 'explanation': response}
+        response = {'series': series, 'details': response}
 
-		# If the number of series generated is less then requested, raise
+        # If the number of series generated is less then requested, raise
         # warning, for generative reacts
         if desired_conviction is not None:
             len_action = len(response['series'])
@@ -2356,6 +2337,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 num_series_to_generate, len_action,
                 suppress_warning=suppress_warning
             )
+
+        series_df = build_react_series_df(response, series_index=series_index)
+
+        response = Reaction(series_df, response.get('details'))
 
         return response
 
@@ -2486,7 +2471,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         ret['action_features'] = batch_result.pop('action_features') or []
         ret['series'] = batch_result.pop('series')
 
-        # ensure all the explanation items are output as well
+        # ensure all the details items are output as well
         for k, v in batch_result.items():
             ret[k] = v or []
 
@@ -2579,7 +2564,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> Dict:
+    ) -> Reaction:
         r"""
         React to supplied values and cases contained within the Trainee.
 
@@ -2994,21 +2979,13 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        dict
-            A dictionary with keys `action` and `explanation`. Where `action`
-            is a list of dicts of action_features -> action_values, and
-            `explanation` is a dict with the requested audit data.
+        Reaction:
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
 
-            .. code-block::
-                :caption: Example reaction for 2 contexts with 2 action features:
-
-                {
-                    'action': [{'size': 1, 'width': 1}, {'size': 2, 'width': 2}]
-                    'explanation': {
-                        'action_features': ['size', 'width'],
-                        'distance_contribution': [3.45, 0.89],
-                    }
-                }
+                details -> Dict or List
+                    An aggregated list of any requested details.
 
         Raises
         ------
@@ -3163,11 +3140,16 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self._should_react_batch(react_params, total_size):
             # Run in batch
             if self.verbose:
-                print('Batch reacting to context on trainee with id: '
-                      f'{trainee_id}')
-            response = self._batch_react(trainee_id, react_params,
-                                         total_size=total_size,
-                                         progress_callback=progress_callback)
+                print(
+                    'Batch reacting to context on trainee with id: '
+                    f'{trainee_id}'
+                )
+            response = self._batch_react(
+                trainee_id,
+                react_params,
+                total_size=total_size,
+                progress_callback=progress_callback
+            )
         else:
             # Run as a single react request
             if self.verbose:
@@ -3190,6 +3172,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 num_cases_to_generate, len(response['action']),
                 suppress_warning=suppress_warning
             )
+
+        response = Reaction(response.get('action'), response.get('details'))
 
         return response
 
@@ -3427,15 +3411,16 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         *,
-        features: Optional[Iterable[str]] = None,
+        distance_contribution: Optional[Union[str, bool]] = False,
         familiarity_conviction_addition: Optional[Union[str, bool]] = False,
         familiarity_conviction_removal: Optional[Union[str, bool]] = False,
+        features: Optional[Iterable[str]] = None,
+        influence_weight_entropy: Union[bool, str] = False,
         p_value_of_addition: Optional[Union[str, bool]] = False,
         p_value_of_removal: Optional[Union[str, bool]] = False,
         similarity_conviction: Optional[Union[str, bool]] = False,
-        distance_contribution: Optional[Union[str, bool]] = False,
+        use_case_weights: bool = False,
         weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
     ):
         """
         Calculate and cache conviction and other statistics.
@@ -3454,6 +3439,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             The name of the feature to store conviction of removal
             values. If set to True the values will be stored to the feature
             'familiarity_conviction_removal'.
+        influence_weight_entropy : bool or str, default False
+            The name of the feature to store influence weight entropy values in.
+            If set to True, the values will be stored in the feature
+            'influence_weight_entropy'.
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition
             values. If set to True the values will be stored to the feature
@@ -3486,6 +3475,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             features=features,
             familiarity_conviction_addition=familiarity_conviction_addition,
             familiarity_conviction_removal=familiarity_conviction_removal,
+            influence_weight_entropy=influence_weight_entropy,
             p_value_of_addition=p_value_of_addition,
             p_value_of_removal=p_value_of_removal,
             similarity_conviction=similarity_conviction,
@@ -5060,9 +5050,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         if kwargs:
             warn_params = ', '.join(kwargs)
             warnings.warn(
-                f'The following auto analyze parameter(s) "{warn_params}" '
-                'are not officially supported by analyze and may or may not '
-                'have an effect.', UserWarning)
+                f'The following auto ablation parameter(s) "{warn_params}" '
+                'are not officially supported or may not have an effect.', UserWarning)
 
         self.howso.auto_analyze_params(
             trainee_id=trainee_id,
@@ -5074,6 +5063,88 @@ class HowsoDirectClient(AbstractHowsoClient):
             **kwargs
         )
         self._auto_persist_trainee(trainee_id)
+    
+    def get_auto_ablation_params(self, trainee_id: str):
+        """
+        Get parameters set by :meth:`set_auto_ablation_params`.
+        """
+        self._auto_resolve_trainee(trainee_id)
+        return self.howso.get_auto_ablation_params(trainee_id)
+    
+    def set_auto_ablation_params(
+        self,
+        trainee_id: str,
+        auto_ablation_enabled: bool = False,
+        *,
+        auto_ablation_weight_feature: str = ".case_weight",
+        conviction_lower_threshold: Optional[float] = None,
+        conviction_upper_threshold: Optional[float] = None,
+        exact_prediction_features: Optional[List[str]] = None,
+        influence_weight_entropy_threshold: float = 0.6,
+        minimum_model_size: int = 1_000,
+        relative_prediction_threshold_map: Optional[Dict[str, float]] = None,
+        residual_prediction_features: Optional[List[str]] = None,
+        tolerance_prediction_threshold_map: Optional[Dict[str, Tuple[float, float]]] = None,
+        **kwargs
+    ):
+        """
+        Set trainee parameters for auto ablation.
+
+        .. note::
+            Auto-ablation is experimental and the API may change without deprecation.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to set auto ablation parameters for.
+        auto_ablation_enabled : bool, default False
+            When True, the :meth:`train` method will ablate cases that meet the set criteria.
+        auto_ablation_weight_feature : str, default ".case_weight"
+            The weight feature that should be accumulated to when cases are ablated.
+        minimum_model_size : int, default 1,000
+            The threshold of the minimum number of cases at which the model should auto-ablate.
+        influence_weight_entropy_threshold : float, default 0.6
+            The influence weight entropy quantile that a case must be beneath in order to be trained.
+        exact_prediction_features : Optional[List[str]], optional
+            For each of the features specified, will ablate a case if the prediction matches exactly.
+        residual_prediction_features : Optional[List[str]], optional
+            For each of the features specified, will ablate a case if
+            abs(prediction - case value) / prediction <= feature residual.
+        tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
+            For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
+            and the prediction <= (case value + MAX).
+        relative_prediction_threshold_map : Optional[Dict[str, float]], optional
+            For each of the features specified, will ablate a case if
+            abs(prediction - case value) / prediction <= relative threshold
+        conviction_lower_threshold : Optional[float], optional
+            The conviction value above which cases will be ablated.
+        conviction_upper_threshold : Optional[float], optional
+            The conviction value below which cases will be ablated.
+        """
+        params = dict(
+            auto_ablation_enabled=auto_ablation_enabled,
+            auto_ablation_weight_feature=auto_ablation_weight_feature,
+            minimum_model_size=minimum_model_size,
+            influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+            exact_prediction_features=exact_prediction_features,
+            residual_prediction_features=residual_prediction_features,
+            tolerance_prediction_threshold_map=tolerance_prediction_threshold_map,
+            relative_prediction_threshold_map=relative_prediction_threshold_map,
+            conviction_lower_threshold=conviction_lower_threshold,
+            conviction_upper_threshold=conviction_upper_threshold,
+        )
+        params.update(kwargs)
+        if kwargs:
+            warn_params = ", ".join(kwargs)
+            warnings.warn(
+                f'The following parameter(s) "{warn_params}" are '
+                'not officially supported by auto ablation and may or may not have an effect.',
+                UserWarning
+            )
+        self._auto_resolve_trainee(trainee_id)
+        self.howso.set_auto_ablation_params(
+            trainee_id, **params
+        )
 
     def optimize(self, *args, **kwargs):
         """

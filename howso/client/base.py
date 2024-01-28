@@ -8,6 +8,8 @@ from typing import (
     TYPE_CHECKING,
     Union,
 )
+
+from howso.utilities.reaction import Reaction
 from pandas import DataFrame, Index
 
 if TYPE_CHECKING:
@@ -99,7 +101,6 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def train(
         self, trainee_id, cases, features=None, *,
-        ablatement_params=None,
         accumulate_weight_feature=None,
         batch_size=None,
         derived_features=None,
@@ -276,7 +277,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> Union["ReactionSeries", Dict]:
+    ) -> Reaction:
         """React in a series until a stop condition is met."""
 
     @abstractmethod
@@ -285,11 +286,12 @@ class AbstractHowsoClient(ABC):
         distance_contribution: Union[bool, str] = False,
         familiarity_conviction_addition: Union[bool, str] = False,
         familiarity_conviction_removal: Union[bool, str] = False,
+        features=None,
+        influence_weight_entropy: Union[bool, str] = False,
         p_value_of_addition: Union[bool, str] = False,
         p_value_of_removal: Union[bool, str] = False,
         similarity_conviction: Union[bool, str] = False,
         use_case_weights: Union[bool, str] = False,
-        features=None,
         weight_feature=None
     ):
         """Calculate conviction and other data for the specified feature(s)."""
@@ -368,7 +370,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> Union["Reaction", Dict]:
+    ) -> Reaction:
         """Send a `react` to the Howso engine."""
 
     @abstractmethod
@@ -405,6 +407,32 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def auto_analyze(self, trainee_id):
         """Auto-analyze the trainee model."""
+
+    @abstractmethod
+    def set_auto_ablation_params(
+        self,
+        trainee_id,
+        auto_ablation_enabled=False,
+        *,
+        auto_ablation_weight_feature=".case_weight",
+        conviction_lower_threshold=None,
+        conviction_upper_threshold=None,
+        exact_prediction_features=None,
+        infleunce_weight_entropy_threshold=0.6,
+        minimum_model_size=1_000,
+        relative_prediction_threshold_map=None,
+        residual_prediction_features=None,
+        tolerance_prediction_threshold_map=None,
+        **kwargs
+    ):
+        """Set trainee parameters for auto ablation."""
+    
+    @abstractmethod
+    def get_auto_ablation_params(
+        self,
+        trainee_id
+    ):
+        """Get trainee parameters for auto ablation set by :meth:`set_auto_ablation_params`."""
 
     @abstractmethod
     def set_auto_analyze_params(
