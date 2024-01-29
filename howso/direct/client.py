@@ -4218,7 +4218,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
                 - accuracy : The number of correct predictions divided by the
                   total number of predictions.
-                - confusion_matrix : A map of actual feature value to a map of
+                - confusion_matrix : A sparse map of actual feature value to a map of
                   predicted feature value to counts.
                 - contribution : Feature contributions to predicted value when
                   each feature is dropped from the model, applies to all
@@ -5063,14 +5063,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             **kwargs
         )
         self._auto_persist_trainee(trainee_id)
-    
+
     def get_auto_ablation_params(self, trainee_id: str):
         """
         Get parameters set by :meth:`set_auto_ablation_params`.
         """
         self._auto_resolve_trainee(trainee_id)
         return self.howso.get_auto_ablation_params(trainee_id)
-    
+
     def set_auto_ablation_params(
         self,
         trainee_id: str,
