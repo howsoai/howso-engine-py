@@ -252,7 +252,7 @@ def test_build_react_series_df():
     """
     test_react_series_response = {
         'details': {'action_features': ['id', 'x', 'y']},
-        'series': [
+        'action': [
             [["A", 1, 2], ["A", 2, 2]],
             [["B", 4, 4], ["B", 6, 7], ["B", 8, 9]]
         ]

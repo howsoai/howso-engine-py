@@ -1141,7 +1141,7 @@ def build_react_series_df(react_series_response, series_index=None):
     # Columns are defined by action_features
     columns = react_series_response['details']['action_features']
     # Series data from the response
-    series = react_series_response['series']
+    series = react_series_response['action']
 
     if series_index:
         # If series_index is specified, include it as a feature
