@@ -41,6 +41,11 @@ jobs:
     - name: Generate branch name
       id: gen-branch-name
       run: |
+        if [[ "${{ github.ref_name }}" != "${{ github.event.repository.default_branch }}" ]]; then
+          echo "Workflow appears to have been triggered from a non-default branch. Committing to ${{ github.ref_name }}." 
+          echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          exit 0
+        fi
         NOW=$(date +'%Y-%m-%dT%Hh%Mm%Ss')
         if [[ -n "${{ inputs.ticket-number }}" ]]; then
           BRANCH="${{ inputs.ticket-number }}-gen-requirements-$NOW"
@@ -66,6 +71,7 @@ jobs:
       extras: ${{ inputs.extras }}
 
   gen-pr-title:
+    if: inputs.create-pr == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -87,8 +93,10 @@ jobs:
         echo "title=$TITLE" >> $GITHUB_OUTPUT
   
   create-pr:
+    if: inputs.create-pr == true
     needs: ['gen-branch-name', 'create-branch', 'gen-pr-title', 'gen-requirements']
     uses: "howsoai/.github/.github/workflows/create-pr.yml@main"
+    secrets: inherit
     with:
       branch: ${{ needs.gen-branch-name.outputs.branch }}
       title: ${{ needs.gen-pr-title.outputs.title }}
