@@ -1749,7 +1749,7 @@ class Trainee(BaseTrainee):
         Aggregates rows of data corresponding to the specified context, action,
         derived_context and derived_action features, utilizing previous rows to
         derive values as necessary. Outputs an dict of "action_features" and
-        corresponding "series" where "series" is the completed 'matrix' for
+        corresponding "action" where "action" is the completed 'matrix' for
         the corresponding action_features and derived_action_features.
 
         Parameters

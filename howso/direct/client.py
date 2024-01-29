@@ -1916,7 +1916,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         Aggregates rows of data corresponding to the specified context, action,
         derived_context and derived_action features, utilizing previous rows to
         derive values as necessary. Outputs a dict of "action_features" and
-        corresponding "series" where "series" is the completed 'matrix' for the
+        corresponding "action" where "action" is the completed 'matrix' for the
         corresponding `action_features` and `derived_action_features`.
 
         Parameters
@@ -2326,13 +2326,13 @@ class HowsoDirectClient(AbstractHowsoClient):
                 progress_callback(progress, response)
 
         # put all details under the 'details' key
-        series = response.pop('series')
-        response = {'series': series, 'details': response}
+        action = response.pop('action')
+        response = {'action': action, 'details': response}
 
         # If the number of series generated is less then requested, raise
         # warning, for generative reacts
         if desired_conviction is not None:
-            len_action = len(response['series'])
+            len_action = len(response['action'])
             internals.insufficient_generation_check(
                 num_series_to_generate, len_action,
                 suppress_warning=suppress_warning
@@ -2469,7 +2469,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         batch_result = replace_doublemax_with_infinity(batch_result)
 
         ret['action_features'] = batch_result.pop('action_features') or []
-        ret['series'] = batch_result.pop('series')
+        ret['action'] = batch_result.pop('series')
 
         # ensure all the details items are output as well
         for k, v in batch_result.items():
