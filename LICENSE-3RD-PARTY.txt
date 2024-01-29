@@ -17,12 +17,12 @@ UNKNOWN
 UNKNOWN
 
 Faker
-22.5.1
+22.6.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.local/lib/python3.10/site-packages/Faker-22.5.1.dist-info/LICENSE.txt
+/home/runner/.local/lib/python3.10/site-packages/Faker-22.6.0.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2443,12 +2443,12 @@ UNKNOWN
 UNKNOWN
 
 pytz
-2023.3.post1
+2023.4
 MIT License
 Stuart Bishop
 http://pythonhosted.org/pytz
 World timezone definitions, modern and historical
-/home/runner/.local/lib/python3.10/site-packages/pytz-2023.3.post1.dist-info/LICENSE.txt
+/home/runner/.local/lib/python3.10/site-packages/pytz-2023.4.dist-info/LICENSE.txt
 Copyright (c) 2003-2019 Stuart Bishop <stuart@stuartbishop.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a
