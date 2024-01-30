@@ -46,8 +46,8 @@ dependencies = [
    "semantic-version>=2.8.5,<3",
    "typing-extensions>=4.1.0,<5.0",
    "urllib3>=1.26.2,<3.0",
-   "howso-openapi-client~=29.0",
-   "amalgam-lang==6.1.0",
+   "howso-openapi-client~=30.0",
+   "amalgam-lang==6.1.3",
 ]
 
 [project.optional-dependencies]
@@ -61,7 +61,7 @@ dev = [
    "pmlb",
    "pycodestyle",
    "pylint",
-   "pytest",
+   "pytest<8.0",
    "pytest-cov",
    "pytest-xdist",
    "pytest-mock>=1.13.0,<1.14.0",
