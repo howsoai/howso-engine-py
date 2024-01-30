@@ -61,7 +61,7 @@ dev = [
    "pmlb",
    "pycodestyle",
    "pylint",
-   "pytest",
+   "pytest<8.0",
    "pytest-cov",
    "pytest-xdist",
    "pytest-mock>=1.13.0,<1.14.0",
