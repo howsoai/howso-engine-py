@@ -765,15 +765,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             save_path = self.howso.default_save_path
 
         trainee_path = Path(save_path, f'{trainee_id}{self.howso.ext}')
-        trainee_ver_path = Path(save_path, f'{trainee_id}Version.txt')
 
         # Delete Trainee
         if trainee_path.exists():
             trainee_path.unlink()
-
-        # Do the same for the version file.
-        if trainee_ver_path.exists():
-            trainee_ver_path.unlink()
 
     def copy_trainee(
         self,
