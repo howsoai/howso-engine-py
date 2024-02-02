@@ -2375,7 +2375,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The `react_series` response.
         """
         temp_result = None
-        accumulated_result = {'series': []}
+        accumulated_result = {'action': []}
 
         actions = react_params.get('action_values')
         contexts = react_params.get('context_values')
@@ -2810,7 +2810,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             - feature_mda_ex_post : bool, optional
                 If True outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation
+                accuracy of predicting the action feature as an explanation detail
                 given that the specified prediction was already made as
                 specified by the action value. Uses both context and action
                 features of the reacted case to determine that area. Relies on
@@ -5203,7 +5203,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
                 1. predictions/accuracy (hyperparameters)
                 2. data synth (cache: global residuals)
-                3. standard explanations
+                3. standard details
                 4. full analysis
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}
             optional, valid values as follows:
@@ -5956,7 +5956,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
                 1. predictions/accuracy (hyperparameters)
                 2. data synth (cache: global residuals)
-                3. standard explanations
+                3. standard details
                 4. full analysis
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}
             optional, valid values as follows:
