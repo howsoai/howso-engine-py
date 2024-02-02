@@ -381,7 +381,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             if not allow_null:
                 output = {'allow_null': False}
 
-        if decimal_places:
+        if decimal_places is not None:
             if 'max' in output:
                 output['max'] = round(output['max'], decimal_places)
             if 'min' in output:
