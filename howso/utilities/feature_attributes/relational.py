@@ -757,6 +757,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         output = None
         allow_null = True
         original_type = feature_attributes[feature_name]['original_type']
+        decimal_places = feature_attributes[feature_name].get('decimal_places')
 
         # Only integers by default do no allow nulls.
         if original_type.get('data_type') == FeatureType.INTEGER.value:
@@ -887,6 +888,12 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         else:
             if not allow_null:
                 output = {'allow_null': False}
+
+        if decimal_places:
+            if 'max' in output:
+                output['max'] = round(output['max'], decimal_places)
+            if 'min' in output:
+                output['min'] = round(output['min'], decimal_places)
 
         return output
 
