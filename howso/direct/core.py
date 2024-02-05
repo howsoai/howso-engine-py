@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 import platform
+import struct
 from typing import (
     Any,
     Dict,
@@ -273,12 +274,18 @@ class HowsoCore:
         if self.handle in self.get_entities():
             self.loaded = True
         else:
-            self.loaded = self.amlg.load_entity(
+            status = self.amlg.load_entity(
                 handle=self.handle,
                 amlg_path=str(self.howso_fully_qualified_path),
                 write_log=str(self.write_log),
                 print_log=str(self.print_log)
             )
+            self.loaded = status.loaded
+            if not self.loaded:
+                raise HowsoError(
+                    'Howso core file '
+                    f'{self.howso_fully_qualified_path} cannot be loaded: load_status=\'{status}\''
+                    f', amalgam=\'{self.amlg.get_version_string()}\'')
 
     @staticmethod
     def random_handle() -> str:
@@ -419,6 +426,15 @@ class HowsoCore:
         """
         filename = trainee_id if filename is None else filename
         filepath = f"{self.default_save_path}/" if filepath is None else filepath
+
+        # TODO:19203 - Remove/rework/etc this code when we can directly call the
+        #              Amalgam LoadEntity API instead of going through engine's
+        #              execute_entity_json. All the logic for reading/checking
+        #              trainee (aka CAML) file versions is through LoadEntity so
+        #              we replicate the logic to check the header versions
+        #              temporarily here until addressed in upcoming changes.
+        self._verify_trainee_header(Path(filepath, filename))
+
         ret = self._execute("load", {
             "trainee": trainee_id,
             "filename": filename,
@@ -764,7 +780,7 @@ class HowsoCore:
         return self._execute(
             "get_auto_ablation_params", {"trainee": trainee_id}
         )
-    
+
     def set_auto_ablation_params(
         self,
         trainee_id: str,
@@ -3094,6 +3110,52 @@ class HowsoCore:
         if result is None or len(result) == 0:
             return None
         return self._deserialize(result)
+
+    @classmethod
+    def _verify_trainee_header(cls, trainee_filepath: Path):
+        """
+        Verifies the trainee header for compatibility with Amalgam binary.
+
+        Parameters
+        ----------
+        trainee_filepath : str
+            Path to trainee.
+        """
+        amalgam_version = cls.amalgam.get_version_string()
+        amalgam_major, amalgam_minor, amalgam_patch, *amalgam_suffix = amalgam_version.split('.')
+
+        if trainee_filepath.exists():
+            with open(trainee_filepath, "rb") as f:
+
+                # Check magic number to make sure we are looking at a CAML file:
+                magic_number = f.read(4)
+                if magic_number.decode('utf-8') != "caml":
+                    raise HowsoError('Trainee has a malformed header')
+
+                # Read trainee version:
+                trainee_major = struct.unpack('>i', f.read(4))
+                trainee_minor = struct.unpack('>i', f.read(4))
+                trainee_patch = struct.unpack('>i', f.read(4))
+                trainee_version = f"{trainee_major}.{trainee_minor}.{trainee_patch}"
+
+                # Check trainee is not newer than amalgam:
+                if (
+                    (trainee_major > amalgam_major) or
+                    (trainee_major == amalgam_major and trainee_minor > amalgam_minor) or
+                    (trainee_major == amalgam_major and trainee_minor == amalgam_minor and
+                        trainee_patch > amalgam_patch)
+                ):
+                    raise HowsoError(
+                        'Newer trainee versions not supported: trainee_version='
+                        f'{trainee_version}, amalgam_version={amalgam_version}'
+                    )
+
+                # Check amalgam version is not too new:
+                if amalgam_major > trainee_major:
+                    raise HowsoError(
+                        'Trainee cannot be read by newer Amalgam: trainee_version='
+                        f'{trainee_version}, amalgam_version={amalgam_version}'
+                    )
 
     @staticmethod
     def _remove_null_entries(payload) -> Dict:

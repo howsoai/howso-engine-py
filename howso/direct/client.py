@@ -900,7 +900,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         Raises
         ------
         HowsoError
-            If no Trainee with the requested ID can be found.
+            If no Trainee with the requested ID can be found or loaded.
         """
         if trainee_id is None:
             raise HowsoError("A trainee id is required.")
