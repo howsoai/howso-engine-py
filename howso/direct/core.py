@@ -3120,7 +3120,7 @@ class HowsoCore:
         trainee_filepath : str
             Path to trainee.
         """
-        amalgam_version = self.amlg.get_version_string()
+        amalgam_version = self.amlg.get_version_string().decode("utf-8")
         amalgam_major, amalgam_minor, amalgam_patch, *amalgam_suffix = amalgam_version.split('.')
 
         if trainee_filepath.exists():
