@@ -3111,7 +3111,6 @@ class HowsoCore:
             return None
         return self._deserialize(result)
 
-    @classmethod
     def _verify_trainee_header(self, trainee_filepath: Path):
         """
         Verifies the trainee header for compatibility with Amalgam binary.
