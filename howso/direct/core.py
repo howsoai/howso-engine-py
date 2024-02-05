@@ -3122,7 +3122,10 @@ class HowsoCore:
         """
         amalgam_version = self.amlg.get_version_string().decode("utf-8")
         amalgam_major, amalgam_minor, amalgam_patch, *amalgam_suffix = amalgam_version.split('.')
+        amalgam_major, amalgam_minor, amalgam_patch = int(amalgam_major), int(amalgam_minor), int(amalgam_patch)
 
+        # If the file doesn't exist, we let the normal code path deal with that. This function
+        # is specifically for checking the header of an existing file.
         if trainee_filepath.exists():
             with open(trainee_filepath, "rb") as f:
 
@@ -3131,10 +3134,10 @@ class HowsoCore:
                 if magic_number.decode('utf-8') != "caml":
                     raise HowsoError('Trainee has a malformed header')
 
-                # Read trainee version:
-                trainee_major = struct.unpack('>i', f.read(4))
-                trainee_minor = struct.unpack('>i', f.read(4))
-                trainee_patch = struct.unpack('>i', f.read(4))
+                # Read trainee version as big endian ints:
+                trainee_major = int(struct.unpack('>i', f.read(4)))
+                trainee_minor = int(struct.unpack('>i', f.read(4)))
+                trainee_patch = int(struct.unpack('>i', f.read(4)))
                 trainee_version = f"{trainee_major}.{trainee_minor}.{trainee_patch}"
 
                 # Check trainee is not newer than amalgam:
