@@ -3120,9 +3120,10 @@ class HowsoCore:
         trainee_filepath : str
             Path to trainee.
         """
+
+        # Parse Amalgam version, removing suffix:
         amalgam_version = self.amlg.get_version_string().decode("utf-8")
-        amalgam_major, amalgam_minor, amalgam_patch, *amalgam_suffix = amalgam_version.split('.')
-        amalgam_major, amalgam_minor, amalgam_patch = int(amalgam_major), int(amalgam_minor), int(amalgam_patch)
+        amalgam_major, amalgam_minor, amalgam_patch = map(int, amalgam_version.split('-')[0].split('.'))
 
         # If the file doesn't exist, we let the normal code path deal with that. This function
         # is specifically for checking the header of an existing file.
