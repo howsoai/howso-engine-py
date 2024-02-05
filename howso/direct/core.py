@@ -3112,7 +3112,7 @@ class HowsoCore:
         return self._deserialize(result)
 
     @classmethod
-    def _verify_trainee_header(cls, trainee_filepath: Path):
+    def _verify_trainee_header(self, trainee_filepath: Path):
         """
         Verifies the trainee header for compatibility with Amalgam binary.
 
@@ -3121,7 +3121,7 @@ class HowsoCore:
         trainee_filepath : str
             Path to trainee.
         """
-        amalgam_version = cls.amalgam.get_version_string()
+        amalgam_version = self.amlg.get_version_string()
         amalgam_major, amalgam_minor, amalgam_patch, *amalgam_suffix = amalgam_version.split('.')
 
         if trainee_filepath.exists():
