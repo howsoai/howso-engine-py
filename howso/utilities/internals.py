@@ -15,7 +15,7 @@ import math
 import random
 import re
 from typing import (
-    Any, Dict, Generator, Iterable, List, Mapping, Optional, Tuple,
+    Any, Dict, Generator, Iterable, List, Mapping, NamedTuple, Optional, Tuple,
     TYPE_CHECKING, Union,
 )
 import unicodedata
@@ -662,23 +662,48 @@ class BatchScalingManager:
         datetime.timedelta(seconds=60), datetime.timedelta(seconds=75))
     # The batch size min and max (respectively)
     size_limits: Tuple[int, Optional[int]] = (1, None)
+    # Limit by memory usage of request or response size (respectively)
+    # In bytes, zero means no limit.
+    memory_limits: Tuple[int, int] = (10_000_000, 10_000_000)  # 10MB
+    # Prevent raising batch size when the size of the request or response
+    # (respectively) is within this range of the limit.
+    memory_limit_thresholds: Tuple[float, float] = (0.1, 0.1)  # 10%
     # The rate at which batches are scaled up and down (respectively)
     # See: https://en.wikipedia.org/wiki/Golden_ratio
     size_multiplier: Tuple[float, float] = (1.618, 0.809)
+
+    class SendOptions(NamedTuple):
+        """Options that can be passed to the generator."""
+
+        tick_duration: Optional[datetime.timedelta]
+        memory_sizes: Optional[Tuple[int, int]]
 
     def __init__(self, starting_size: int, progress_monitor: "ProgressTimer"):
         """Initialize a new BatchScalingManager instance."""
         self.starting_size = starting_size
         self.progress = progress_monitor
 
-    def gen_batch_size(self) -> Generator[int, Optional[datetime.timedelta],
-                                          None]:
+    @staticmethod
+    def send(
+        gen: Generator[int, Optional["SendOptions"], None],
+        options: SendOptions
+    ) -> Union[int, None]:
+        """Helper to send to generator and return None when stopped."""
+        try:
+            return gen.send(options)
+        except StopIteration:
+            return None
+
+    def gen_batch_size(self) -> Generator[int, Optional["SendOptions"], None]:
         """
         Returns a generator to get the next batch size.
 
-        When using "send" progress updating must be done manually and the
-        last tick duration should be provided as the parameter to "send". When
-        not using "send" progress updating will happen automatically.
+        When using "send" options with a tick_duration, progress updating must
+        be done manually and the last tick duration should be provided as
+        the parameter to "send". When not sending the tick_duration progress
+        updating will happen automatically. Additionally, the size of the
+        request and/or response can be provided via "send" to scale based on
+        memory usage.
         """
         if not self.progress.has_started:
             raise ValueError("Batching has not yet started")
@@ -687,35 +712,85 @@ class BatchScalingManager:
         while not self.progress.has_ended and not self.progress.is_complete:
             batch_size = self.clamp(batch_size, self.progress.current_tick,
                                     self.progress.total_ticks)
-            tick_duration = yield batch_size
+            options = yield batch_size
+            tick_duration = options.tick_duration if options else None
+            memory_sizes = options.memory_sizes if options else None
+
             if tick_duration is None:
                 # If send is not used, automatically update progress
                 tick_duration = self.progress.tick_duration
                 self.progress.update(batch_size)
-            batch_size = self.scale(batch_size, tick_duration)
+
+            batch_size = self.scale(batch_size, tick_duration, memory_sizes)
         return None
 
-    def scale(self, batch_size: int, batch_duration: datetime.timedelta) -> int:
+    def scale(
+        self,
+        batch_size: int,
+        batch_duration: Optional[datetime.timedelta],
+        memory_sizes: Optional[Tuple[int, int]]
+    ) -> int:
         """
-        Scale batch size based on duration of the batch.
+        Scale batch size based on duration or memory size of the batch.
 
         Parameters
         ----------
         batch_size : int
             The current batch size.
-        batch_duration : datetime.timedelta
+        batch_duration : datetime.timedelta or None
             The time the last batch took to complete.
+        memory_sizes : tuple of (int, int) or None
+            The request and response payload sizes. (respectively)
 
         Returns
         -------
         int
             The new batch size.
         """
-        if batch_duration <= self.time_threshold[0]:
+        if batch_duration is None:
+            batch_duration = datetime.timedelta(0)
+
+        adjust = None  # -1 = lower, 0/None = keep, 1 = raise
+
+        # Adjust based on memory sizes
+        # We use the threshold to prevent raising batch size when memory usage
+        # is in range of the limit.
+        max_in_mem, max_out_mem = self.memory_limits
+        in_mem, out_mem = memory_sizes or (0, 0)
+        mem_in_threshold, mem_out_threshold = self.memory_limit_thresholds
+        # Adjust based on request size
+        if max_in_mem and in_mem:
+            if in_mem > max_in_mem:
+                adjust = -1
+            elif (
+                adjust is None and
+                max_in_mem - (max_in_mem * mem_in_threshold) <= in_mem
+            ):
+                adjust = 0
+        # Adjust based on response size
+        if max_out_mem and out_mem:
+            if out_mem > max_out_mem:
+                adjust = -1
+            elif (
+                adjust is None and
+                max_out_mem - (max_out_mem * mem_out_threshold) <= out_mem
+            ):
+                adjust = 0
+
+        # Adjust based on duration
+        if adjust is None and batch_duration <= self.time_threshold[0]:
             # If took less than threshold, increase batch size
-            batch_size = math.ceil(batch_size * self.size_multiplier[0])
+            # Only raise when an adjustment has not already been set
+            adjust = 1
         elif batch_duration > self.time_threshold[1]:
             # If took longer than threshold, lower batch size
+            adjust = -1
+
+        if adjust == 1:
+            # Raise batch size
+            batch_size = math.ceil(batch_size * self.size_multiplier[0])
+        elif adjust == -1:
+            # Lower batch size
             if self.size_multiplier[1] < 1:
                 batch_size = math.floor(batch_size * self.size_multiplier[1])
             else:

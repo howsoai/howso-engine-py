@@ -181,3 +181,7 @@ class ProgressTimer(Timer):
         super().start()
         self.last_tick_time = self.start_time
         return self
+
+    def __enter__(self) -> "ProgressTimer":
+        """Context entrance."""
+        return self.start()
