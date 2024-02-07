@@ -3107,7 +3107,7 @@ class HowsoCore:
             return None
         return self._deserialize(result)
 
-    def _execute_sized(self, label: str, payload: Any) -> Any:
+    def _execute_sized(self, label: str, payload: Any) -> Tuple[Any, int, int]:
         """
         Execute label in core and return payload sizes.
 
