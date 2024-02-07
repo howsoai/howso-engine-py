@@ -770,7 +770,7 @@ class HowsoEstimator(BaseEstimator):
                 needed) for all MDA and contribution computations. When true,
                 uses uniform sampling from the power set of all combinations of
                 features (or cases, as needed) instead.
-            - generate-attempts : bool, optional
+            - generate_attempts : bool, optional
                 If True outputs the number of attempts taken to generate each
                 case. Only applicable when 'generate_new_cases' is "always" or
                 "attempt".

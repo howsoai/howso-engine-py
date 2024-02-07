@@ -2867,7 +2867,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'robust_residuals' parameter to determine whether to do
                 standard or robust computation.
 
-            - generate-attempts : bool, optional
+            - generate_attempts : bool, optional
                 If True outputs the number of attempts taken to generate each
                 case. Only applicable when 'generate_new_cases' is "always" or
                 "attempt".
