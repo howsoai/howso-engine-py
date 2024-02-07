@@ -43,11 +43,7 @@ class Reaction(abc.MutableMapping):
 
     SPECIAL_KEYS = {"action_features", }
     KNOWN_KEYS = {
-<<<<<<< Updated upstream
         "case_directional_feature_contributions", "directional_feature_contributions"
-=======
-        "case_directional_feature_contributions", "directional_feature_contributions",
->>>>>>> Stashed changes
         "boundary_cases_familiarity_convictions", "boundary_cases",
         "case_contributions", "case_feature_contributions",
         "case_feature_residuals", "case_mda",
