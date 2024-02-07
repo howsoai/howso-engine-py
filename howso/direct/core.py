@@ -3129,18 +3129,18 @@ class HowsoCore:
         """
         payload = sanitize_for_json(payload)
         payload = self._remove_null_entries(payload)
-        raw_payload = json.dumps(payload)
         try:
+            json_payload = json.dumps(payload)
             result = self.amlg.execute_entity_json(
-                self.handle, label, raw_payload)
+                self.handle, label, json_payload)
         except ValueError as err:
             raise HowsoError(
                 'Invalid payload - please check for infinity or NaN '
                 f'values: {err}')
 
         if result is None or len(result) == 0:
-            return None, len(raw_payload), 0
-        return self._deserialize(result), len(raw_payload), len(result)
+            return None, len(json_payload), 0
+        return self._deserialize(result), len(json_payload), len(result)
 
     @staticmethod
     def _remove_null_entries(payload) -> Dict:
