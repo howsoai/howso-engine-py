@@ -1295,13 +1295,13 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         with ProgressTimer(len(cases)) as progress:
             gen_batch_size = None
+            batch_scaler = None
             if series is not None:
                 # If training series, always send full size
                 batch_size = len(cases)
             if not batch_size:
                 # Scale the batch size automatically
                 batch_scaler = self.batch_scaler_class(100, progress)
-                batch_scaler.size_limits = (1, 250_000)
                 gen_batch_size = batch_scaler.gen_batch_size()
                 batch_size = next(gen_batch_size, None)
 
@@ -1310,7 +1310,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     progress_callback(progress)
                 start = progress.current_tick
                 end = progress.current_tick + batch_size
-                response = self.howso.train(
+                response, in_size, out_size = self.howso.train(
                     trainee_id,
                     accumulate_weight_feature=accumulate_weight_feature,
                     derived_features=derived_features,
@@ -1323,10 +1323,12 @@ class HowsoDirectClient(AbstractHowsoClient):
                 )
                 if response and response.get('status') == 'analyze':
                     auto_analyze = True
-                if gen_batch_size is None:
+                if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
-                    batch_size = next(gen_batch_size, None)
+                    batch_size = batch_scaler.send(
+                        gen_batch_size,
+                        batch_scaler.SendOptions(None, (in_size, out_size)))
 
         # Final call to batch callback on completion
         if isinstance(progress_callback, Callable):
@@ -2319,7 +2321,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             with ProgressTimer(total_size) as progress:
                 if isinstance(progress_callback, Callable):
                     progress_callback(progress, None)
-                response = self._react_series(trainee_id, react_params)
+                response, _, _ = self._react_series(trainee_id, react_params)
                 progress.update(total_size)
 
             if isinstance(progress_callback, Callable):
@@ -2432,11 +2434,14 @@ class HowsoDirectClient(AbstractHowsoClient):
 
                 if react_params.get('desired_conviction') is not None:
                     react_params['num_series_to_generate'] = batch_size
-                temp_result = self._react_series(trainee_id, react_params)
+                temp_result, in_size, out_size = self._react_series(
+                    trainee_id, react_params)
 
                 internals.accumulate_react_result(accumulated_result,
                                                   temp_result)
-                batch_size = next(gen_batch_size, None)
+                batch_size = batch_scaler.send(
+                    gen_batch_size,
+                    batch_scaler.SendOptions(None, (in_size, out_size)))
 
         # Final call to callback on completion
         if isinstance(progress_callback, Callable):
@@ -2459,8 +2464,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         -------
         dict
             The react series response.
+        int
+            The request payload size.
+        int
+            The response payload size.
         """
-        batch_result = self.howso.batch_react_series(trainee_id, **react_params)
+        batch_result, in_size, out_size = self.howso.batch_react_series(
+            trainee_id, **react_params)
 
         if batch_result is None or batch_result.get('series') is None:
             raise ValueError('Invalid parameters passed to react_series.')
@@ -2475,7 +2485,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         for k, v in batch_result.items():
             ret[k] = v or []
 
-        return ret
+        return ret, in_size, out_size
 
     def append_to_series_store(
         self,
@@ -3157,7 +3167,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             with ProgressTimer(total_size) as progress:
                 if isinstance(progress_callback, Callable):
                     progress_callback(progress, None)
-                response = self._react(trainee_id, react_params)
+                response, _, _ = self._react(trainee_id, react_params)
                 progress.update(total_size)
 
             if isinstance(progress_callback, Callable):
@@ -3240,11 +3250,14 @@ class HowsoDirectClient(AbstractHowsoClient):
 
                 if react_params.get('desired_conviction') is not None:
                     react_params['num_cases_to_generate'] = batch_size
-                temp_result = self._react(trainee_id, react_params)
+                temp_result, in_size, out_size = self._react(
+                    trainee_id, react_params)
 
                 internals.accumulate_react_result(accumulated_result,
                                                   temp_result)
-                batch_size = next(gen_batch_size, None)
+                batch_size = batch_scaler.send(
+                    gen_batch_size,
+                    batch_scaler.SendOptions(None, (in_size, out_size)))
 
         # Final call to callback on completion
         if isinstance(progress_callback, Callable):
@@ -3252,7 +3265,8 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         return accumulated_result
 
-    def _react(self, trainee_id: str, react_params: Dict) -> Dict:
+    def _react(self, trainee_id: str, react_params: Dict
+               ) -> Tuple[Dict, int, int]:
         """
         Make a single react request.
 
@@ -3267,8 +3281,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         -------
         dict
             The react response.
+        int
+            The request payload size.
+        int
+            The response payload size.
         """
-        ret = self.howso.batch_react(trainee_id, **react_params)
+        ret, in_size, out_size = self.howso.batch_react(
+            trainee_id, **react_params)
 
         # Action values and features should always be defined
         if not ret.get('action_values'):
@@ -3276,7 +3295,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if not ret.get('action_features'):
             ret['action_features'] = []
 
-        return ret
+        return ret, in_size, out_size
 
     def _should_react_batch(self, react_params: Dict, total_size: int) -> bool:
         """
@@ -4558,8 +4577,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             num=num)
         if result is None:
             result = dict()
-        return Cases(features=result.get('features'),
-                                   cases=result.get('cases'))
+        return Cases(features=result.get('features'), cases=result.get('cases'))
 
     def _preprocess_generate_parameters(  # noqa: C901
         self,
