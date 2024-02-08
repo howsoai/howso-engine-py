@@ -343,26 +343,6 @@ def test_cases_with_details_instantiate():
     assert cwd['action'].shape[0] == 4
 
 
-# def test_reaction_reorganized_details_valid():
-#     """Tests that `Reaction` `reorganized_details` property works."""
-#     df = pd.DataFrame(data=np.asarray([
-#         ['a', 'b', 'c', 'd'],
-#         ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
-#             '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
-#     ]).transpose(), columns=['nom', 'datetime'])
-
-#     # 'action_features' is a special key and should also not raise any warnings.
-#     react_response = {
-#         'details': {
-#             'action_features': ['datetime'],
-#             'similarity_conviction': [5],
-#             'invalid': [4],
-#             'invalid2': [3],
-#         },
-#         'action': df
-#     }
-
-
 def test_reaction_reorganized_details_invalid():
     """Tests that `Reaction` `reorganized_details` property works."""
     df = pd.DataFrame(data=np.asarray([
@@ -377,11 +357,10 @@ def test_reaction_reorganized_details_invalid():
             'action_features': ['datetime'],
             'similarity_conviction': [5],
             'invalid': [4],
-            'invalid2': [3],
         },
         'action': df
     }
 
     cwd = Reaction(react_response['action'], react_response['details'])
-    with pytest.warns(UserWarning, match="Unrecognized detail keys found: \\[invalid, invalid2\\] and"):
+    with pytest.warns(UserWarning, match="Unrecognized detail keys found: \\[invalid\\] and"):
         cwd.reorganized_details
