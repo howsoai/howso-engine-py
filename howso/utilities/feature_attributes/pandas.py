@@ -199,6 +199,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         output = None
         allow_null = True
         column = self.data[feature_name]
+        decimal_places = feature_attributes[feature_name].get('decimal_places')
         # only integers by default do not allow nulls
         if is_integer_dtype(column.dtype):
             allow_null = False
@@ -379,6 +380,12 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:  # Ordinals
             if not allow_null:
                 output = {'allow_null': False}
+
+        if decimal_places is not None:
+            if 'max' in output:
+                output['max'] = round(output['max'], decimal_places)
+            if 'min' in output:
+                output['min'] = round(output['min'], decimal_places)
 
         return output
 

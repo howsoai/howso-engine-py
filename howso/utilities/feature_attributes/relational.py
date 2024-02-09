@@ -327,12 +327,14 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     random_value = (
                         session.query(self.data.c[feature_name])
                                .filter(self.data.c[feature_name].is_not(None))
-                               .offset(idx)
-                               .first()
+                               .order_by(feature_name)  # 19234: using order_by here is necessary for MSSQL,
+                               .offset(idx)             # however, this should ultimately be re-written to
+                               .first()                 # avoid the performance pentalty this imposes.
                     )
                 else:
                     random_value = (
                         session.query(self.data.c[feature_name])
+                               .order_by(feature_name)  # See above
                                .offset(idx)
                                .first()
                     )
@@ -757,6 +759,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         output = None
         allow_null = True
         original_type = feature_attributes[feature_name]['original_type']
+        decimal_places = feature_attributes[feature_name].get('decimal_places')
 
         # Only integers by default do no allow nulls.
         if original_type.get('data_type') == FeatureType.INTEGER.value:
@@ -887,6 +890,12 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         else:
             if not allow_null:
                 output = {'allow_null': False}
+
+        if decimal_places is not None:
+            if 'max' in output:
+                output['max'] = round(output['max'], decimal_places)
+            if 'min' in output:
+                output['min'] = round(output['min'], decimal_places)
 
         return output
 
