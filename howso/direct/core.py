@@ -764,7 +764,7 @@ class HowsoCore:
         return self._execute(
             "get_auto_ablation_params", {"trainee": trainee_id}
         )
-    
+
     def set_auto_ablation_params(
         self,
         trainee_id: str,
@@ -1131,7 +1131,7 @@ class HowsoCore:
         series: Optional[str] = None,
         session: Optional[str] = None,
         train_weights_only: bool = False,
-    ) -> Dict:
+    ) -> Tuple[Dict, int, int]:
         """
         Train one or more cases into a trainee (model).
 
@@ -1167,8 +1167,12 @@ class HowsoCore:
         -------
         dict
             A dictionary containing the trained details.
+        int
+            The request payload size.
+        int
+            The result payload size.
         """
-        return self._execute("train", {
+        return self._execute_sized("train", {
             "trainee": trainee_id,
             "input_cases": input_cases,
             "accumulate_weight_feature": accumulate_weight_feature,
@@ -1531,7 +1535,7 @@ class HowsoCore:
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
-    ) -> Dict:
+    ) -> Tuple[Dict, int, int]:
         """
         Multiple case react.
 
@@ -1637,8 +1641,12 @@ class HowsoCore:
         -------
         dict
             The react result including audit details.
+        int
+            The request payload size.
+        int
+            The result payload size.
         """
-        return self._execute("batch_react", {
+        return self._execute_sized("batch_react", {
             "trainee": trainee_id,
             "context_features": context_features,
             "context_values": context_values,
@@ -1709,7 +1717,7 @@ class HowsoCore:
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
-    ) -> Dict:
+    ) -> Tuple[Dict, int, int]:
         """
         React in a series until a series_stop_map condition is met.
 
@@ -1830,8 +1838,12 @@ class HowsoCore:
             `series` is a 2d list of values (rows of data per series), and
             `action_features` is the list of all action features
             (specified and derived).
+        int
+            The request payload size.
+        int
+            The result payload size.
         """
-        return self._execute("batch_react_series", {
+        return self._execute_sized("batch_react_series", {
             "trainee": trainee_id,
             "context_features": context_features,
             "context_values": context_values,
@@ -3026,7 +3038,7 @@ class HowsoCore:
             "reset_parameter_defaults", {"trainee": trainee_id})
 
     @classmethod
-    def _deserialize(cls, payload):
+    def _deserialize(cls, payload: Union[str, bytes]):
         """Deserialize core response."""
         try:
             deserialized_payload = json.loads(payload)
@@ -3094,6 +3106,41 @@ class HowsoCore:
         if result is None or len(result) == 0:
             return None
         return self._deserialize(result)
+
+    def _execute_sized(self, label: str, payload: Any) -> Tuple[Any, int, int]:
+        """
+        Execute label in core and return payload sizes.
+
+        Parameters
+        ----------
+        label : str
+            The label to execute.
+        payload : Any
+            The payload to send to label.
+
+        Returns
+        -------
+        Any
+            The label's response.
+        int
+            The request payload size.
+        int
+            The response payload size.
+        """
+        payload = sanitize_for_json(payload)
+        payload = self._remove_null_entries(payload)
+        try:
+            json_payload = json.dumps(payload)
+            result = self.amlg.execute_entity_json(
+                self.handle, label, json_payload)
+        except ValueError as err:
+            raise HowsoError(
+                'Invalid payload - please check for infinity or NaN '
+                f'values: {err}')
+
+        if result is None or len(result) == 0:
+            return None, len(json_payload), 0
+        return self._deserialize(result), len(json_payload), len(result)
 
     @staticmethod
     def _remove_null_entries(payload) -> Dict:

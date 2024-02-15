@@ -17,12 +17,12 @@ UNKNOWN
 UNKNOWN
 
 Faker
-22.6.0
+23.1.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.local/lib/python3.10/site-packages/Faker-22.6.0.dist-info/LICENSE.txt
+/home/runner/.local/lib/python3.10/site-packages/Faker-23.1.0.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -450,12 +450,12 @@ UNKNOWN
 UNKNOWN
 
 certifi
-2023.11.17
+2024.2.2
 Mozilla Public License 2.0 (MPL 2.0)
 Kenneth Reitz
 https://github.com/certifi/python-certifi
 Python package for providing Mozilla's CA Bundle.
-/home/runner/.local/lib/python3.10/site-packages/certifi-2023.11.17.dist-info/LICENSE
+/home/runner/.local/lib/python3.10/site-packages/certifi-2024.2.2.dist-info/LICENSE
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
@@ -1122,12 +1122,12 @@ UNKNOWN
 UNKNOWN
 
 numpy
-1.26.3
+1.26.4
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.local/lib/python3.10/site-packages/numpy-1.26.3.dist-info/LICENSE.txt
+/home/runner/.local/lib/python3.10/site-packages/numpy-1.26.4.dist-info/LICENSE.txt
 Copyright (c) 2005-2023, NumPy Developers.
 All rights reserved.
 
@@ -1192,11 +1192,6 @@ Name: Meson
 Files: vendored-meson/meson/*
 License: Apache 2.0
   For license text, see vendored-meson/meson/COPYING
-
-Name: meson-python
-Files: vendored-meson/meson-python/*
-License: MIT
-  For license text, see vendored-meson/meson-python/LICENSE
 
 Name: spin
 Files: .spin/cmds.py
@@ -2207,12 +2202,12 @@ SOFTWARE.
 
 
 platformdirs
-4.1.0
+4.2.0
 MIT License
 UNKNOWN
 https://github.com/platformdirs/platformdirs
 A small Python package for determining appropriate platform-specific dirs, e.g. a "user data dir".
-/usr/local/lib/python3.10/dist-packages/platformdirs-4.1.0.dist-info/licenses/LICENSE
+/usr/local/lib/python3.10/dist-packages/platformdirs-4.2.0.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2010-202x The platformdirs developers
@@ -2443,12 +2438,12 @@ UNKNOWN
 UNKNOWN
 
 pytz
-2023.4
+2024.1
 MIT License
 Stuart Bishop
 http://pythonhosted.org/pytz
 World timezone definitions, modern and historical
-/home/runner/.local/lib/python3.10/site-packages/pytz-2023.4.dist-info/LICENSE.txt
+/home/runner/.local/lib/python3.10/site-packages/pytz-2024.1.dist-info/LICENSE.txt
 Copyright (c) 2003-2019 Stuart Bishop <stuart@stuartbishop.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a

@@ -876,6 +876,7 @@ class TestBaseClient:
     def test_analyze_verbose(self, trainee, capsys):
         """Test for verbose output expected when analyze is called."""
         context_features = ['class']
+        self.client.train(trainee.id, [['iris-setosa']], context_features)
         self.client.analyze(trainee.id, context_features)
         out, _ = capsys.readouterr()
         assert f'Analyzing trainee with id: {trainee.id}' in out
