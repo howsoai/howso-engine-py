@@ -442,12 +442,17 @@ def generate_dataframe(*, client: AbstractHowsoClient,
         end_time = datetime.now() + timedelta(seconds=timeout)
         cases = {"action": []}
         while datetime.now() < end_time:
-            if case := client.react(
+            if reaction := client.react(
                 trainee.id, action_features=feature_names,
                 num_cases_to_generate=1, desired_conviction=1.0,
                 generate_new_cases="no", suppress_warning=True
             ):
-                cases["action"].append(case["action"][0])
+                new_cases = reaction.get("action", [])
+                if isinstance(new_cases, pd.DataFrame):
+                    new_case = new_cases.iloc[0].tolist()
+                else:
+                    new_case = new_cases[0]
+                cases["action"].append(new_case)
         elapsed_time = timeout
     else:
         with Timer() as timer:

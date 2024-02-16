@@ -327,12 +327,14 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     random_value = (
                         session.query(self.data.c[feature_name])
                                .filter(self.data.c[feature_name].is_not(None))
-                               .offset(idx)
-                               .first()
+                               .order_by(feature_name)  # 19234: using order_by here is necessary for MSSQL,
+                               .offset(idx)             # however, this should ultimately be re-written to
+                               .first()                 # avoid the performance pentalty this imposes.
                     )
                 else:
                     random_value = (
                         session.query(self.data.c[feature_name])
+                               .order_by(feature_name)  # See above
                                .offset(idx)
                                .first()
                     )

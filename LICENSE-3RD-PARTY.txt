@@ -17,12 +17,12 @@ UNKNOWN
 UNKNOWN
 
 Faker
-22.6.0
+23.1.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.local/lib/python3.10/site-packages/Faker-22.6.0.dist-info/LICENSE.txt
+/home/runner/.local/lib/python3.10/site-packages/Faker-23.1.0.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1122,12 +1122,12 @@ UNKNOWN
 UNKNOWN
 
 numpy
-1.26.3
+1.26.4
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.local/lib/python3.10/site-packages/numpy-1.26.3.dist-info/LICENSE.txt
+/home/runner/.local/lib/python3.10/site-packages/numpy-1.26.4.dist-info/LICENSE.txt
 Copyright (c) 2005-2023, NumPy Developers.
 All rights reserved.
 
@@ -1192,11 +1192,6 @@ Name: Meson
 Files: vendored-meson/meson/*
 License: Apache 2.0
   For license text, see vendored-meson/meson/COPYING
-
-Name: meson-python
-Files: vendored-meson/meson-python/*
-License: MIT
-  For license text, see vendored-meson/meson-python/LICENSE
 
 Name: spin
 Files: .spin/cmds.py
