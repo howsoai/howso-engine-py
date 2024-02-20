@@ -2375,7 +2375,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The `react_series` response.
         """
         temp_result = None
-        accumulated_result = {'action': []}
+        accumulated_result = {'action_values': []}
 
         actions = react_params.get('action_values')
         contexts = react_params.get('context_values')
@@ -2472,14 +2472,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         batch_result, in_size, out_size = self.howso.batch_react_series(
             trainee_id, **react_params)
 
-        if batch_result is None or batch_result.get('action') is None:
+        if batch_result is None or batch_result.get('action_values') is None:
             raise ValueError('Invalid parameters passed to react_series.')
 
         ret = dict()
         batch_result = replace_doublemax_with_infinity(batch_result)
 
         ret['action_features'] = batch_result.pop('action_features') or []
-        ret['action'] = batch_result.pop('action')
+        ret['action'] = batch_result.pop('action_values')
 
         # ensure all the details items are output as well
         for k, v in batch_result.items():
