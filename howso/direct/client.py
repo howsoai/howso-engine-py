@@ -2375,7 +2375,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The `react_series` response.
         """
         temp_result = None
-        accumulated_result = {'series': []}
+        accumulated_result = {'action_values': []}
 
         actions = react_params.get('action_values')
         contexts = react_params.get('context_values')
@@ -2472,14 +2472,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         batch_result, in_size, out_size = self.howso.batch_react_series(
             trainee_id, **react_params)
 
-        if batch_result is None or batch_result.get('series') is None:
+        if batch_result is None or batch_result.get('action_values') is None:
             raise ValueError('Invalid parameters passed to react_series.')
 
         ret = dict()
         batch_result = replace_doublemax_with_infinity(batch_result)
 
         ret['action_features'] = batch_result.pop('action_features') or []
-        ret['action'] = batch_result.pop('series')
+        ret['action'] = batch_result.pop('action_values')
 
         # ensure all the details items are output as well
         for k, v in batch_result.items():
@@ -2810,7 +2810,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             - feature_mda_ex_post : bool, optional
                 If True outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation
+                accuracy of predicting the action feature as an explanation detail
                 given that the specified prediction was already made as
                 specified by the action value. Uses both context and action
                 features of the reacted case to determine that area. Relies on
@@ -5203,7 +5203,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
                 1. predictions/accuracy (hyperparameters)
                 2. data synth (cache: global residuals)
-                3. standard explanations
+                3. standard details
                 4. full analysis
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}
             optional, valid values as follows:
@@ -5956,7 +5956,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
                 1. predictions/accuracy (hyperparameters)
                 2. data synth (cache: global residuals)
-                3. standard explanations
+                3. standard details
                 4. full analysis
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}
             optional, valid values as follows:
