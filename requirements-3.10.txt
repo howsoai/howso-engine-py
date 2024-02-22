@@ -4,14 +4,14 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=requirements-3.10.txt
 #
-amalgam-lang==6.1.6 \
-    --hash=sha256:0c230c60a86e8492b0eed49716bf0675f8cf951032b3c6712424863d4b41be41 \
-    --hash=sha256:60a61cc675c673a4711217db227164aad0d472f66c6f7dae7f310c5beee8dd87 \
-    --hash=sha256:6102a8d5fa4f662c13358a377ff4755fa754029d5693d286f1a8c3e3a800d946 \
-    --hash=sha256:80b1b82490b145cd045cc42b1decc6a62f88a713a545235277821364ea3abfc9 \
-    --hash=sha256:89b199954fb7b5df140ec6edce6475896c20c7c84020bc21b94376d395894a25 \
-    --hash=sha256:b99267fbbefcd8d9b9bf922c6492d271bf35534f6a3615d2266287bc6c8b5256 \
-    --hash=sha256:c7608912a5469d76aca0f2cae106f3a04837e0aff95977d09b8fffd117ad9fdb
+amalgam-lang==7.0.0 \
+    --hash=sha256:0244057d16c3b929feb229897735bbb03957419202bf00975009fafbff6fa808 \
+    --hash=sha256:025e1551cc02b768082aaeb8f30e792ee11ea63c6cf7485bf164612454ed4d43 \
+    --hash=sha256:0be50cefbc2917b058c7bf7d6e457857e6f7d46195a27b6563aa77318d392233 \
+    --hash=sha256:718d8ade9ebfae8a0defa1aae4c5a1540ed88862bcf13dac67c5bfb8b79e37c8 \
+    --hash=sha256:99cdde063d21c32bbad6d3e7f27aca6958242a455040fee7036ea395198d079c \
+    --hash=sha256:a6bdfeaf7d62f41defa0ff4c75fb4c15eca8699ad911dc103eee7a3e77274a35 \
+    --hash=sha256:e31ce876a6365f4e8586394dcbace94603f73901279e8ed3385d44cdae3d8f0e
     # via howso-engine (pyproject.toml)
 certifi==2024.2.2 \
     --hash=sha256:0569859f95fc761b18b45ef421b1290a0f65f147e92a1e5eb3e635f9a5e4e66f \
@@ -113,8 +113,8 @@ faker==23.2.1 \
     --hash=sha256:0520a6b97e07c658b2798d7140971c1d5bc4bcd5013e7937fe075fd054aa320c \
     --hash=sha256:f07b64d27f67b62c7f0536a72f47813015b3b51cd4664918454011094321e464
     # via howso-engine (pyproject.toml)
-howso-openapi-client==30.1.3 \
-    --hash=sha256:3fcced59529aea4cc49de6b8fd93cce544c3b9738ca3409b1f7aa010302b527f
+howso-openapi-client==30.2.0 \
+    --hash=sha256:fb83516a2ce9021501d970c0a76ed46f89518f674ed304fd362ccd8e66758fa6
     # via howso-engine (pyproject.toml)
 humanize==4.9.0 \
     --hash=sha256:582a265c931c683a7e9b8ed9559089dea7edcf6cc95be39a3cbc2c5d5ac2bcfa \
