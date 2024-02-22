@@ -17,12 +17,12 @@ UNKNOWN
 UNKNOWN
 
 Faker
-23.1.0
+23.2.1
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.local/lib/python3.10/site-packages/Faker-23.1.0.dist-info/LICENSE.txt
+/home/runner/.local/lib/python3.10/site-packages/Faker-23.2.1.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -586,12 +586,12 @@ UNKNOWN
 UNKNOWN
 
 cryptography
-42.0.2
+42.0.4
 Apache Software License; BSD License
 The Python Cryptographic Authority and individual contributors <cryptography-dev@python.org>
 https://github.com/pyca/cryptography
 cryptography is a package which provides cryptographic recipes and primitives to Python developers.
-/home/runner/.local/lib/python3.10/site-packages/cryptography-42.0.2.dist-info/LICENSE
+/home/runner/.local/lib/python3.10/site-packages/cryptography-42.0.4.dist-info/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to cryptography are made
 under the terms of *both* these licenses.
@@ -2340,7 +2340,7 @@ UNKNOWN
 UNKNOWN
 
 python-apt
-2.4.0+ubuntu2
+2.4.0+ubuntu3
 GNU GPL
 APT Development Team
 UNKNOWN
@@ -2897,12 +2897,12 @@ PERFORMANCE OF THIS SOFTWARE.
 
 
 tzdata
-2023.4
+2024.1
 Apache Software License
 Python Software Foundation
 https://github.com/python/tzdata
 Provider of IANA time zone data
-/home/runner/.local/lib/python3.10/site-packages/tzdata-2023.4.dist-info/LICENSE
+/home/runner/.local/lib/python3.10/site-packages/tzdata-2024.1.dist-info/LICENSE
 Apache Software License 2.0
 
 Copyright (c) 2020, Paul Ganssle (Google)
@@ -2948,12 +2948,12 @@ UNKNOWN
 UNKNOWN
 
 urllib3
-2.2.0
+2.2.1
 MIT License
 Andrey Petrov <andrey.petrov@shazow.net>
 https://github.com/urllib3/urllib3/blob/main/CHANGES.rst
 HTTP library with thread-safe connection pooling, file post, and more.
-/home/runner/.local/lib/python3.10/site-packages/urllib3-2.2.0.dist-info/licenses/LICENSE.txt
+/home/runner/.local/lib/python3.10/site-packages/urllib3-2.2.1.dist-info/licenses/LICENSE.txt
 MIT License
 
 Copyright (c) 2008-2020 Andrey Petrov and contributors.
