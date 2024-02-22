@@ -434,7 +434,7 @@ class HowsoCore:
         #              logic to check the header versions temporarily here
         #              until addressed in upcoming changes.
         full_path = Path(filepath, filename)
-        status = self.amlg.verify_entity(full_path)
+        status = self.amlg.verify_entity(str(full_path))
         if status.message:
             _logger.warning(f'File "{full_path}" is invalid: message="{status.message}"'
                             f', version="{status.version}"'
