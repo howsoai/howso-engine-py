@@ -181,32 +181,6 @@ jobs:
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
-  pytest-linux-3-10-mt:
-    needs: ['metadata', 'build']
-    uses: howsoai/.github/.github/workflows/pytest.yml@main
-    secrets: inherit
-    with:
-      platform: 'howso-ubuntu-runner-latest'
-      platform-pretty: 'Linux'
-      amalgam-plat-arch: 'linux-amd64'
-      python-version: '3.10'
-      config-fp: './config/latest-mt-debug-howso.yml'
-      config-pretty: 'MT'
-      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
-
-  pytest-linux-3-11-mt:
-    needs: ['metadata', 'build']
-    uses: howsoai/.github/.github/workflows/pytest.yml@main
-    secrets: inherit
-    with:
-      platform: 'howso-ubuntu-runner-latest'
-      platform-pretty: 'Linux'
-      amalgam-plat-arch: 'linux-amd64'
-      python-version: '3.11'
-      config-fp: './config/latest-mt-debug-howso.yml'
-      config-pretty: 'MT'
-      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
-
   pytest-windows-3-11-mt:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
@@ -220,7 +194,7 @@ jobs:
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
-  pytest-macos-3-11-mt:
+  pytest-macos-3-11-mt-arm64:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -230,6 +204,19 @@ jobs:
       amalgam-plat-arch: 'darwin-arm64'
       python-version: '3.11'
       config-fp: './config/latest-mt-debug-howso.yml'
+      config-pretty: 'MT'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
+
+  pytest-macos-3-10-mt-amd64:
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
+    secrets: inherit
+    with:
+      platform: 'macos-latest-large'
+      platform-pretty: 'MacOS'
+      amalgam-plat-arch: 'darwin-amd64'
+      python-version: '3.10'
+      config-fp: './config/latest-mt-noavx-debug-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
@@ -680,10 +667,9 @@ jobs:
       - metadata
       - pytest-linux-3-8-st
       - pytest-linux-3-9-mt
-      - pytest-linux-3-10-mt
-      - pytest-linux-3-11-mt
       - pytest-windows-3-11-mt
-      - pytest-macos-3-11-mt
+      - pytest-macos-3-11-mt-arm64
+      - pytest-macos-3-10-mt-amd64
       - install-verification-linux-amd64
       - install-verification-linux-arm64
       - install-verification-linux-arm64_8a
