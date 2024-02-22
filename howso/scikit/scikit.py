@@ -679,7 +679,7 @@ class HowsoEstimator(BaseEstimator):
                 determine whether to do standard or robust computation.
             - feature_mda_ex_post : bool, optional
                 If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation
+                accuracy of predicting the action feature as an explanation detail
                 given that the specified prediction was already made as
                 specified by the action value. Uses both context and action
                 features of the reacted case to determine that area. Relies on

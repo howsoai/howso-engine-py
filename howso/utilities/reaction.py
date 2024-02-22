@@ -101,7 +101,7 @@ class Reaction(abc.MutableMapping):
             If the given `key` is not accepted.
         """
         # These replacements are for convenience as we switch from "series" to
-        # "action" and "explanations" to "details".
+        # "action" and "explanation" to "details".
         if key in ("series", "explanation"):
             warnings.warn(
                 "The keys 'series' and 'explanation' are deprecated and will be "

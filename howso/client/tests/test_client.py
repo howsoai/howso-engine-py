@@ -230,7 +230,8 @@ class TestDatetimeSerialization:
         self.client.train(trainee.id, cases=df.values.tolist(),
                           features=df.columns.tolist())
         case_response = self.client.get_cases(
-            trainee.id, session=self.client.active_session.id)
+            trainee.id, session=self.client.active_session.id,
+            features=['nom', 'datetime'])
         for case in case_response.cases:
             print(case)
         assert len(case_response.cases) == 4
@@ -264,7 +265,8 @@ class TestDatetimeSerialization:
                 for warning in warning_list])
 
         case_response = self.client.get_cases(
-            trainee.id, session=self.client.active_session.id)
+            trainee.id, session=self.client.active_session.id,
+            features=['nom', 'datetime'])
         for case in case_response.cases:
             print(case)
         assert len(case_response.cases) == 4

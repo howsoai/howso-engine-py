@@ -841,7 +841,7 @@ class Trainee(BaseTrainee):
 
                 1. predictions/accuracy (hyperparameters)
                 2. data synth (cache: global residuals)
-                3. standard explanations
+                3. standard details
                 4. full analysis
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}
             optional, valid values as follows:
@@ -1131,7 +1131,7 @@ class Trainee(BaseTrainee):
 
                 1. Predictions/accuracy (hyperparameters)
                 2. Data synth (cache: global residuals)
-                3. Standard explanations
+                3. Standard details
                 4. Full analysis
 
         p_values : list of float, optional
@@ -1472,7 +1472,7 @@ class Trainee(BaseTrainee):
                 determine whether to do standard or robust computation.
             - feature_mda_ex_post : bool, optional
                 If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation
+                accuracy of predicting the action feature as an explanation detail
                 given that the specified prediction was already made as
                 specified by the action value. Uses both context and action
                 features of the reacted case to determine that area. Relies on
