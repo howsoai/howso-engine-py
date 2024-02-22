@@ -1,7 +1,6 @@
 import logging
 from pathlib import Path
 import platform
-import struct
 from typing import (
     Any,
     Dict,
@@ -434,7 +433,12 @@ class HowsoCore:
         #              versions is through LoadEntity so we replicate the
         #              logic to check the header versions temporarily here
         #              until addressed in upcoming changes.
-        self._verify_trainee_header(Path(filepath, filename))
+        full_path = Path(filepath, filename)
+        status = self.amlg.verify_entity(full_path)
+        if status.message:
+            _logger.warning(f'File "{full_path}" is invalid: message="{status.message}"'
+                            f', version="{status.version}"'
+                            )
 
         ret = self._execute("load", {
             "trainee": trainee_id,
@@ -3158,55 +3162,6 @@ class HowsoCore:
         if result is None or len(result) == 0:
             return None, len(json_payload), 0
         return self._deserialize(result), len(json_payload), len(result)
-
-    def _verify_trainee_header(self, trainee_filepath: Path):
-        """
-        Verifies the trainee header for compatibility with Amalgam binary.
-
-        Parameters
-        ----------
-        trainee_filepath : str
-            Path to trainee.
-        """
-
-        # Parse Amalgam version, removing suffix:
-        amalgam_version = self.amlg.get_version_string().decode("utf-8")
-        amalgam_major, amalgam_minor, amalgam_patch = map(int, amalgam_version.split('-')[0].split('.'))
-
-        # If the file doesn't exist, we let the normal code path deal with that. This function
-        # is specifically for checking the header of an existing file.
-        if trainee_filepath.exists():
-            with open(trainee_filepath, "rb") as f:
-
-                # Check magic number to make sure we are looking at a CAML file:
-                magic_number = f.read(4)
-                if magic_number.decode('utf-8') != "caml":
-                    raise HowsoError('Trainee has a malformed header')
-
-                # Read trainee version as big endian ints:
-                trainee_major = int(struct.unpack('>i', f.read(4)))
-                trainee_minor = int(struct.unpack('>i', f.read(4)))
-                trainee_patch = int(struct.unpack('>i', f.read(4)))
-                trainee_version = f"{trainee_major}.{trainee_minor}.{trainee_patch}"
-
-                # Check trainee is not newer than amalgam:
-                if (
-                    (trainee_major > amalgam_major) or
-                    (trainee_major == amalgam_major and trainee_minor > amalgam_minor) or
-                    (trainee_major == amalgam_major and trainee_minor == amalgam_minor and
-                        trainee_patch > amalgam_patch)
-                ):
-                    raise HowsoError(
-                        'Newer trainee versions not supported: trainee_version='
-                        f'{trainee_version}, amalgam_version={amalgam_version}'
-                    )
-
-                # Check amalgam version is not too new:
-                if amalgam_major > trainee_major:
-                    raise HowsoError(
-                        'Trainee cannot be read by newer Amalgam: trainee_version='
-                        f'{trainee_version}, amalgam_version={amalgam_version}'
-                    )
 
     @staticmethod
     def _remove_null_entries(payload) -> Dict:
