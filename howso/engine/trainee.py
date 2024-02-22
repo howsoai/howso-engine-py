@@ -1568,6 +1568,10 @@ class Trainee(BaseTrainee):
                 needed) for all MDA and contribution computations. When true,
                 uses uniform sampling from the power set of all combinations of
                 features (or cases, as needed) instead.
+            - generate_attempts : bool, optional
+                If True outputs the number of attempts taken to generate each
+                case. Only applicable when 'generate_new_cases' is "always" or
+                "attempt".
 
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature

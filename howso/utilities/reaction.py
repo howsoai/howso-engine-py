@@ -51,6 +51,7 @@ class Reaction(abc.MutableMapping):
         "derivation_parameters", "distance_contribution",
         "distance_ratio_parts", "distance_ratio", "feature_contributions",
         "feature_mda_ex_post", "feature_mda", "feature_residuals",
+        "generate_attempts", "series_generate_attempts",
         "global_case_feature_residual_convictions", "hypothetical_values",
         "influential_cases_familiarity_convictions",
         "influential_cases_raw_weights", "influential_cases",
