@@ -273,12 +273,18 @@ class HowsoCore:
         if self.handle in self.get_entities():
             self.loaded = True
         else:
-            self.loaded = self.amlg.load_entity(
+            status = self.amlg.load_entity(
                 handle=self.handle,
                 amlg_path=str(self.howso_fully_qualified_path),
                 write_log=str(self.write_log),
                 print_log=str(self.print_log)
             )
+            self.loaded = status.loaded
+            if not self.loaded:
+                raise HowsoError(
+                    'Howso core file '
+                    f'{self.howso_fully_qualified_path} cannot be loaded: load_status=\'{status}\''
+                    f', amalgam=\'{self.amlg.get_version_string()}\'')
 
     @staticmethod
     def random_handle() -> str:
@@ -419,6 +425,21 @@ class HowsoCore:
         """
         filename = trainee_id if filename is None else filename
         filepath = f"{self.default_save_path}/" if filepath is None else filepath
+
+        # TODO:19203 - Remove/rework/etc this code when we can directly
+        #              call the Amalgam LoadEntity API instead of going
+        #              through engine's execute_entity_json. All the logic
+        #              for reading/checking trainee (aka CAML) file
+        #              versions is through LoadEntity so we replicate the
+        #              logic to check the header versions temporarily here
+        #              until addressed in upcoming changes.
+        full_path = Path(filepath, filename)
+        status = self.amlg.verify_entity(str(full_path))
+        if status.message:
+            _logger.warning(f'File "{full_path}" is invalid: message="{status.message}"'
+                            f', version="{status.version}"'
+                            )
+
         ret = self._execute("load", {
             "trainee": trainee_id,
             "filename": filename,
