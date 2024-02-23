@@ -645,17 +645,6 @@ jobs:
       run: |
         cat howso_stacktrace.txt || true
 
-  init-devcontainers-release:
-    if: inputs.build-type == 'release'
-    needs: ["metadata", "build"]
-    uses: "howsoai/.github/.github/workflows/run-external.yml@main"
-    secrets: inherit
-    with:
-      repo: howso-devcontainers
-      check-cache: false
-      workflow-name: build.yml
-      payload: '{"howso-engine-version": "${{ needs.metadata.outputs.version }}", "build-type": "release"}'
-
   release:
     if: inputs.build-type == 'release'
     environment:
@@ -712,3 +701,14 @@ jobs:
 
     - name: Publish distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+
+  init-devcontainers-release:
+    if: inputs.build-type == 'release'
+    needs: ["metadata", "build", "release"]
+    uses: "howsoai/.github/.github/workflows/run-external.yml@main"
+    secrets: inherit
+    with:
+      repo: howso-devcontainers
+      check-cache: false
+      workflow-name: build.yml
+      payload: '{"howso-engine-version": "${{ needs.metadata.outputs.version }}", "build-type": "release"}'
