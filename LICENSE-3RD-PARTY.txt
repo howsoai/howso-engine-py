@@ -2123,12 +2123,12 @@ under the terms of *both* these licenses.
 
 
 pandas
-2.2.0
+2.2.1
 BSD License
 The Pandas Development Team <pandas-dev@python.org>
 https://pandas.pydata.org
 Powerful data structures for data analysis, time series, and statistics
-/home/runner/.local/lib/python3.10/site-packages/pandas-2.2.0.dist-info/LICENSE
+/home/runner/.local/lib/python3.10/site-packages/pandas-2.2.1.dist-info/LICENSE
 BSD 3-Clause License
 
 Copyright (c) 2008-2011, AQR Capital Management, LLC, Lambda Foundry, Inc. and PyData Development Team
