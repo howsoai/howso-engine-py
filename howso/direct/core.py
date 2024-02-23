@@ -426,20 +426,6 @@ class HowsoCore:
         filename = trainee_id if filename is None else filename
         filepath = f"{self.default_save_path}/" if filepath is None else filepath
 
-        # TODO:19203 - Remove/rework/etc this code when we can directly
-        #              call the Amalgam LoadEntity API instead of going
-        #              through engine's execute_entity_json. All the logic
-        #              for reading/checking trainee (aka CAML) file
-        #              versions is through LoadEntity so we replicate the
-        #              logic to check the header versions temporarily here
-        #              until addressed in upcoming changes.
-        full_path = Path(filepath, filename)
-        status = self.amlg.verify_entity(str(full_path))
-        if status.message:
-            _logger.warning(f'File "{full_path}" is invalid: message="{status.message}"'
-                            f', version="{status.version}"'
-                            )
-
         ret = self._execute("load", {
             "trainee": trainee_id,
             "filename": filename,
