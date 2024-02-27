@@ -91,25 +91,6 @@ jobs:
         jq --arg url "$url" '. |= . + {"url": $url}' version.json > temp.json && mv temp.json version.json
         cat version.json
 
-    - name: Compare Amalagam versions
-      run: |
-        cd howso/howso-engine
-        engine_amlg_version=$(jq -r ".dependencies.amalgam" ./version.json)
-        # Go back to root dir
-        cd ../../..
-        git clone https://github.com/howsoai/amalgam-lang-py.git
-        cd amalgam-lang-py
-        # Checkout the latest tag
-        git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
-        amlg_lang_amlg_version=$(jq -r ".dependencies.amalgam" ./version.json)
-        # Check major versions only
-        if [[ "${engine_amlg_version:0:1}" != "${amlg_lang_amlg_version:0:1}" ]]; then
-          echo "Critical failure: embedded howso-engine specifies Amalgam v${engine_amlg_version}, but latest amalgam-lang-py specifies Amalgam v${amlg_lang_amlg_version}"
-          exit 1
-        fi
-        echo "Embedded howso-engine Amalgam version: ${engine_amlg_version}"
-        echo "Latest amalgam-lang-py release Amalgam version: ${amlg_lang_amlg_version}"
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -153,6 +134,7 @@ jobs:
     secrets: inherit
     with:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
+      validate-amlg-versions: true
 
   pytest-linux-3-8-st:
     needs: ['metadata', 'build']
