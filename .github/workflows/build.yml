@@ -636,6 +636,7 @@ jobs:
       id-token: write
     needs:
       - metadata
+      - workflow-summary
       - pytest-linux-3-8-st
       - pytest-linux-3-9-mt
       - pytest-windows-3-11-mt
