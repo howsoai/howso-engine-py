@@ -16,7 +16,11 @@ import warnings
 
 from howso.client import AbstractHowsoClient
 from howso.client.cache import TraineeCache
-from howso.client.exceptions import HowsoApiError, HowsoError
+from howso.client.exceptions import (
+    HowsoApiError,
+    HowsoError,
+    HowsoWarning
+)
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import (
     ProjectClient,
@@ -35,10 +39,14 @@ from howso.openapi.models import (
     TraineeInformation,
     TraineeResources,
 )
-from howso.utilities import CaseIndices
+from howso.utilities import CaseIndices, matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 from howso.utilities.reaction import Reaction
-from pandas import DataFrame, Index
+from pandas import (
+    concat,
+    DataFrame,
+    Index
+)
 
 __all__ = [
     "Trainee",
@@ -3832,6 +3840,154 @@ class Trainee(BaseTrainee):
         except HowsoApiError as error:
             if error.status != 404:
                 raise
+
+    def get_contribution_matrix(
+        self,
+        features: Optional[dict[str, str]] = None,
+        robust: bool = True,
+        cached: bool = False,
+        targeted: bool = False,
+        normalize: bool = False,
+        abval: bool = False,
+        fill_diagonal: bool = True,
+        fill_diagonal_value: Union[float, int] = 1,
+    ) -> DataFrame:
+        """
+        Gets the Feature Contribution matrix.
+
+        Parameters
+        ----------
+        features : Optional[Iterable[str]]
+            An iterable of feature names. If features are not provided, then the default trainee
+            features will be used.
+        robust : bool, default True
+            Whether to use robust calcuations.
+        cached : bool, default False
+            Whether the metric has already been calculated and cached in the trainee. If set
+            to true, `react_into_trainee` will not be called.
+
+        Returns
+        -------
+        result_df : pd.Dataframe
+            The Feature Contribution matrix in a Dataframe.
+        """
+        feature_contribution_matrix = {}
+        if not features:
+            features = self.features
+        for feature in features:
+            if not cached:
+                if targeted:
+                    context_features = [context_feature for context_feature in features if context_feature != feature]
+                    self.analyze(action_features=[feature], context_features=context_features)
+                # Suppresses expected warnings when trainee is targetless
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        "Results may be inaccurate because trainee has not been analyzed*",
+                        category=HowsoWarning
+                    )
+                    if robust:
+                        self.react_into_trainee(action_feature=feature, contributions_robust=True)
+                    else:
+                        self.react_into_trainee(action_feature=feature, contributions=True)
+
+            feature_contribution_matrix[feature] = self.get_prediction_stats(
+                action_feature=feature,
+                robust=robust,
+                stats=['contribution']
+            )
+
+            if len(feature_contribution_matrix[feature]) == 0 and cached is True:
+                warnings.warn(
+                    "Cached is set to True and no values are returned. Please verify that the "
+                    "values have been cached.", HowsoWarning
+                )
+
+            matrix = concat(feature_contribution_matrix.values(), keys=feature_contribution_matrix.keys())
+            matrix = matrix.droplevel(level=1)
+            matrix = matrix_processing(
+                matrix,
+                normalize=normalize,
+                abval=abval,
+                fill_diagonal=fill_diagonal,
+                fill_diagonal_value=fill_diagonal_value
+            )
+
+        return matrix
+
+    def get_mda_matrix(
+        self,
+        features: Optional[dict[str, str]] = None,
+        robust: bool = True,
+        cached: bool = False,
+        targeted: bool = False,
+        normalize: bool = False,
+        abval: bool = False,
+        fill_diagonal: bool = True,
+        fill_diagonal_value: Union[float, int] = 1,
+    ) -> DataFrame:
+        """
+        Gets the Mean Decrease in Accuracy (MDA) matrix.
+
+        Parameters
+        ----------
+        features : Optional[Iterable[str]]
+            An iterable of feature names. If features are not provided, then the default trainee
+            features will be used.
+        robust : bool, default True
+            Whether to use robust calcuations.
+        cached : bool, default False
+            Whether the metric has already been calculated and cached in the trainee. If set
+            to true, `react_into_trainee` will not be called.
+
+        Returns
+        -------
+        result_df : pd.Dataframe
+            The MDA matrix in a Dataframe.
+        """
+        mda_matrix = {}
+        if not features:
+            features = self.features
+        for feature in features:
+            if not cached:
+                if targeted:
+                    context_features = [context_feature for context_feature in features if context_feature != feature]
+                    self.analyze(action_features=[feature], context_features=context_features)
+                # Suppresses expected warnings when trainee is targetless
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        "Results may be inaccurate because trainee has not been analyzed*",
+                        category=HowsoWarning
+                    )
+                    if robust:
+                        self.react_into_trainee(action_feature=feature, mda_robust=True)
+                    else:
+                        self.react_into_trainee(action_feature=feature, mda=True)
+
+            mda_matrix[feature] = self.get_prediction_stats(
+                action_feature=feature,
+                robust=robust,
+                stats=['mda']
+            )
+
+            if len(mda_matrix[feature]) == 0 and cached is True:
+                warnings.warn(
+                    "Cached is set to True and no values are returned. Please verify that the "
+                    "values have been cached.", HowsoWarning
+                )
+
+            matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
+            matrix = matrix.droplevel(level=1)
+            matrix = matrix_processing(
+                matrix,
+                normalize=normalize,
+                abval=abval,
+                fill_diagonal=fill_diagonal,
+                fill_diagonal_value=fill_diagonal_value
+            )
+
+        return matrix
 
 
 def delete_trainee(

@@ -1212,3 +1212,112 @@ def deep_update(base, updates):
             base[k] = deep_update(base.get(k), v)
         return base
     return updates
+
+
+def matrix_processing(
+    matrix: pd.DataFrame,
+    normalize: bool = False,
+    ignore_diagonals_normalize: bool = True,
+    abval: bool = False,
+    fill_diagonal: bool = False,
+    fill_diagonal_value: Union[float, int] = 1,
+) -> pd.DataFrame:
+    """
+    Preprocess a matrix including options to normalize, take the absolute value, and fill in the diagonals.
+
+    The order of operation for this method is first it then normalizes, then takes the absolute value, and
+    lastly fills in the diagonals. This method automatically sorts the matrix.
+
+    Parameters
+    ----------
+    matrix : Dataframe
+        Matrix in Dataframe form.
+    sort : bool, default False
+        Whether to sort both axis by alphabetical/numeric order.
+    normalize : bool, default False
+        Whether to normalize the matrix row wise. If postive and negative values are present, the normalized values
+        will be between -1 and 1. If only positive values are present, then normalized values will be between 0 and
+        1.
+    ignore_diagonals_normalize : bool, default True
+        Whether to ignore the diagonals when normalizing the matrix. Useful for matrices where the diagonals are a
+        constant value such as correlation matrices.
+    abval : bool, default False
+        Whether to transform the matrix values into the absolute values.
+    fill_diagonal : bool, default False
+        Whether to fill in the diagonals of the matrix. If set to true,
+        the diagonal values will be filled in based on the `fill_diagonal_value` value.
+    fill_diagonal_value : bool, default False
+        The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
+        for the diagonal values to be filled in. If `fill_diagonal is set to false, then this
+        parameter will be ignored.
+
+    Returns
+    -------
+    Dataframe
+        Dataframe of the result.
+    """
+    if matrix.shape[0] != matrix.shape[1]:
+        raise ValueError(
+            f"Invalid matrix shape: ({matrix.shape[0]}, {matrix.shape[1]}), "
+            "matrix must be square."
+        )
+
+    if normalize:
+        # Replace all diagonal values with Nan, then put them back after normalization.
+        if ignore_diagonals_normalize:
+            diagonal_values = np.diag(matrix).copy()
+            for i in range(len(matrix)):
+                matrix.iat[i, i] = np.nan
+        matrix = matrix.div(matrix.abs().max(axis=1), axis=0)
+        if ignore_diagonals_normalize:
+            for i, value in enumerate(diagonal_values):
+                matrix.iat[i, i] = value
+
+    if abval:
+        matrix = matrix.abs()
+
+    if fill_diagonal:
+        for i in range(len(matrix)):
+            matrix.iloc[i, i] = fill_diagonal_value
+
+    return matrix
+
+
+def get_matrix_diff(matrix: pd.DataFrame) -> dict:
+    """
+    Calculates the absolute value of a matrix for feature pairs.
+
+    Parameters
+    ----------
+    matrix : DataFrame
+        The matrix in DataFrame format.
+
+    Returns
+    -------
+    dict
+        Sorted dictionary of absolute differences between the feature value pairs. The values
+        are stored in a dictionary with keys consisting of a tuple of the features.
+    """
+    if matrix.shape[0] != matrix.shape[1]:
+        raise ValueError(
+            f"Invalid matrix shape: ({matrix.shape[0]}, {matrix.shape[1]}), "
+            "matrix must be square."
+        )
+
+    # Ensures sorting
+    matrix = matrix.sort_index(axis=0)
+    matrix = matrix.sort_index(axis=0)
+
+    differences_dict = {}
+
+    features = matrix.columns
+    for i, row in enumerate(features):
+        for col in features[i + 1:]:
+            key = (row, col)
+            abs_diff = abs(matrix.loc[row, col] - matrix.loc[col, row])  # type: ignore
+            differences_dict[key] = abs_diff
+
+    # Sort dictionary
+    differences_dict = {k: v for k, v in sorted(differences_dict.items(), key=lambda item: item[1], reverse=True)}
+
+    return differences_dict

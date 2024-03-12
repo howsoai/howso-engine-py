@@ -285,3 +285,16 @@ class TestEngine:
             match='does not exist.'
         ):
             delete_trainee(file_path=file_path)
+
+    @pytest.mark.parametrize(
+        "case_indices,expected",
+        [
+            ([19, 122], [[0, 0], [0, 0]]),
+            ([11, 41, 102], [[0, 0, 0], [0, 0, 0], [0, 0, 0]]),
+        ],
+    )
+    def test_fc_matrices(self, trainee):
+        """
+
+        """
+        matrix = trainee.get_contribution_matrix(normalize=True)

@@ -6,10 +6,11 @@ import warnings
 
 from dateutil import parser
 import howso.utilities as utils
-from howso.utilities import get_kwargs, LocaleOverride
+from howso.utilities import get_kwargs, get_matrix_diff, matrix_processing, LocaleOverride
 from howso.utilities.reaction import Reaction
 import numpy as np
 import pandas as pd
+from pandas.testing import assert_frame_equal
 import pytest
 
 from . import has_locales
@@ -364,3 +365,153 @@ def test_reaction_reorganized_details_invalid():
     cwd = Reaction(react_response['action'], react_response['details'])
     with pytest.warns(UserWarning, match="Unrecognized detail keys found: \\[invalid\\] and"):
         cwd.reorganized_details
+
+
+def test_get_matrix_diff():
+    """Tests that `get_matrix_diff` works properly."""
+    df = pd.DataFrame({
+        'a': [1, 2, 3],
+        'b': [4, 5, 6],
+        'c': [7, 8, 9]
+    }, index=['a', 'b', 'c']).T
+
+    differences_dict = get_matrix_diff(df)
+
+    correct_dict = {
+        ('a', 'c'): 4,
+        ('a', 'b'): 2,
+        ('b', 'c'): 2
+    }
+
+    assert differences_dict == correct_dict
+
+
+@pytest.mark.parametrize(
+    'normalize, ignore_diagonals_normalize, abval, fill_diagonal, fill_diagonal_value',
+    (
+        (False, True, False, False, 2),
+        (True, False, False, False, 2),
+        (True, True, False, False, 2),
+        (False, True, True, False, 2),
+        (False, True, False, True, 2),
+        (True, False, True, False, 2),
+    )
+)
+def test_matrix_processing(
+    normalize,
+    ignore_diagonals_normalize,
+    abval,
+    fill_diagonal,
+    fill_diagonal_value
+):
+    """Tests that `matrix_processing` works properly."""
+    df = pd.DataFrame({
+        'a': [1.5, -3.0, 6.0],
+        'b': [0.75, -1.5, 3.0],
+        'c': [0.75, 1.5, 3.0],
+    }, index=['a', 'b', 'c']).T
+
+    # `matrix_processing` only sorts if all other parameters are False
+    if not any([normalize, abval, fill_diagonal]):
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            abval=abval,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        assert_frame_equal(processed_matrix, df)
+
+    # Tests `normalize` parameter with `ignore_diagonals_normalize` set to False
+    if normalize and not any([ignore_diagonals_normalize, abval, fill_diagonal]):
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            abval=abval,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        correct_matrix = pd.DataFrame({
+            'a': [0.25, -0.5, 1.0],
+            'b': [0.25, -0.5, 1.0],
+            'c': [0.25, 0.5, 1.0]
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+    # Tests `normalize` parameter with `ignore_diagonals_normalize` set to True
+    if normalize and ignore_diagonals_normalize and not any(
+        [abval, fill_diagonal]
+    ):
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            abval=abval,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        # The diagonals are preserved
+        correct_matrix = pd.DataFrame({
+            'a': [1.50, -0.5, 1.0],
+            'b': [0.25, -1.5, 1.0],
+            'c': [0.50, 1.0, 3.0]
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+    # Tests `abval` parameter
+    if abval and not any([normalize, fill_diagonal]):
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            abval=abval,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        correct_matrix = pd.DataFrame({
+            'a': [1.5, 3.0, 6.0],
+            'b': [0.75, 1.5, 3.0],
+            'c': [0.75, 1.5, 3.0],
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+    # Tests `fill_diagonal` parameter
+    if fill_diagonal and not any([abval, normalize]):
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            abval=abval,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        correct_matrix = pd.DataFrame({
+            'a': [fill_diagonal_value, -3.0, 6.0],
+            'b': [0.75, fill_diagonal_value, 3.0],
+            'c': [0.75, 1.5, fill_diagonal_value],
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+    # Tests `normalize` and `abval` parameter with `ignore_diagonals_normalize` set to False
+    if all([abval, normalize]) and not fill_diagonal:
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            abval=abval,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        correct_matrix = pd.DataFrame({
+            'a': [0.25, 0.5, 1.0],
+            'b': [0.25, 0.5, 1.0],
+            'c': [0.25, 0.5, 1.0],
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
