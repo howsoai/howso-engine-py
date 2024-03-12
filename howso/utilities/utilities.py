@@ -1217,6 +1217,7 @@ def deep_update(base, updates):
 def matrix_processing(
     matrix: pd.DataFrame,
     normalize: bool = False,
+    normalize_method: str = "relative",
     ignore_diagonals_normalize: bool = True,
     abval: bool = False,
     fill_diagonal: bool = False,
@@ -1226,7 +1227,7 @@ def matrix_processing(
     Preprocess a matrix including options to normalize, take the absolute value, and fill in the diagonals.
 
     The order of operation for this method is first it then normalizes, then takes the absolute value, and
-    lastly fills in the diagonals. This method automatically sorts the matrix.
+    lastly fills in the diagonals. This method automatically sorts the matrix indexes.
 
     Parameters
     ----------
@@ -1238,6 +1239,11 @@ def matrix_processing(
         Whether to normalize the matrix row wise. If postive and negative values are present, the normalized values
         will be between -1 and 1. If only positive values are present, then normalized values will be between 0 and
         1.
+    normalize_method : str, default 'relative'
+        The normalization method. Allowed values include 'relative' and 'fractional'.
+
+        - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
+        - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
     ignore_diagonals_normalize : bool, default True
         Whether to ignore the diagonals when normalizing the matrix. Useful for matrices where the diagonals are a
         constant value such as correlation matrices.
@@ -1262,13 +1268,23 @@ def matrix_processing(
             "matrix must be square."
         )
 
+    # Ensures sorting
+    matrix = matrix.sort_index(axis=0)
+    matrix = matrix.sort_index(axis=1)
+
     if normalize:
         # Replace all diagonal values with Nan, then put them back after normalization.
         if ignore_diagonals_normalize:
             diagonal_values = np.diag(matrix).copy()
             for i in range(len(matrix)):
                 matrix.iat[i, i] = np.nan
-        matrix = matrix.div(matrix.abs().max(axis=1), axis=0)
+        if normalize_method == "relative":
+            matrix = matrix.div(matrix.abs().max(axis=1), axis=0)
+        elif normalize_method == "fractional":
+            matrix = matrix.div(matrix.abs().sum(axis=1), axis=0)
+        else:
+            raise ValueError(f"Invalid `normalize_method` parameter value: {normalize_method}."
+                             "Must be 'relative' or 'percentage'.")
         if ignore_diagonals_normalize:
             for i, value in enumerate(diagonal_values):
                 matrix.iat[i, i] = value
@@ -1306,7 +1322,7 @@ def get_matrix_diff(matrix: pd.DataFrame) -> dict:
 
     # Ensures sorting
     matrix = matrix.sort_index(axis=0)
-    matrix = matrix.sort_index(axis=0)
+    matrix = matrix.sort_index(axis=1)
 
     differences_dict = {}
 

@@ -135,6 +135,7 @@ class Trainee(BaseTrainee):
         self.name = name
         self._id = id
         self._custom_save_path = None
+        self._calculated_matrices = {}
 
         self.persistence = persistence
         self.set_default_features(
@@ -338,6 +339,18 @@ class Trainee(BaseTrainee):
             The metadata of the trainee.
         """
         return deepcopy(self._metadata)
+
+    @property
+    def calculated_matrices(self) -> Optional[Dict[str, DataFrame]]:
+        """
+        The calculated matrices.
+
+        Returns
+        -------
+        dict
+            The calculated matrices.
+        """
+        return self._calculated_matrices
 
     @property
     def default_action_features(self) -> Optional[List[str]]:
@@ -3845,9 +3858,9 @@ class Trainee(BaseTrainee):
         self,
         features: Optional[dict[str, str]] = None,
         robust: bool = True,
-        cached: bool = False,
         targeted: bool = False,
         normalize: bool = False,
+        normalize_method: str = "relative",
         abval: bool = False,
         fill_diagonal: bool = True,
         fill_diagonal_value: Union[float, int] = 1,
@@ -3862,34 +3875,50 @@ class Trainee(BaseTrainee):
             features will be used.
         robust : bool, default True
             Whether to use robust calcuations.
-        cached : bool, default False
-            Whether the metric has already been calculated and cached in the trainee. If set
-            to true, `react_into_trainee` will not be called.
+        targeted : bool, default False
+            Whether to do a targeted re-analyze before each feature's contribution is calculated.
+        normalize : bool, default False
+            Whether to normalize the matrix row wise. If postive and negative values are present, the normalized values
+            will be between -1 and 1. If only positive values are present, then normalized values will be between 0 and
+            1.
+        normalize_method : str, default 'relative'
+            The normalization method. Allowed values include 'relative' and 'fractional'.
+
+            - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
+            - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
+        abval : bool, default False
+            Whether to transform the matrix values into the absolute values.
+        fill_diagonal : bool, default False
+            Whether to fill in the diagonals of the matrix. If set to true,
+            the diagonal values will be filled in based on the `fill_diagonal_value` value.
+        fill_diagonal_value : bool, default 1
+            The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
+            for the diagonal values to be filled in. If `fill_diagonal is set to false, then this
+            parameter will be ignored.
 
         Returns
         -------
-        result_df : pd.Dataframe
+        Dataframe
             The Feature Contribution matrix in a Dataframe.
         """
         feature_contribution_matrix = {}
         if not features:
             features = self.features
         for feature in features:
-            if not cached:
-                if targeted:
-                    context_features = [context_feature for context_feature in features if context_feature != feature]
-                    self.analyze(action_features=[feature], context_features=context_features)
-                # Suppresses expected warnings when trainee is targetless
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore",
-                        "Results may be inaccurate because trainee has not been analyzed*",
-                        category=HowsoWarning
-                    )
-                    if robust:
-                        self.react_into_trainee(action_feature=feature, contributions_robust=True)
-                    else:
-                        self.react_into_trainee(action_feature=feature, contributions=True)
+            if targeted:
+                context_features = [context_feature for context_feature in features if context_feature != feature]
+                self.analyze(action_features=[feature], context_features=context_features)
+            # Suppresses expected warnings when trainee is targetless
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    "Results may be inaccurate because trainee has not been analyzed*",
+                    category=HowsoWarning
+                )
+                if robust:
+                    self.react_into_trainee(action_feature=feature, contributions_robust=True)
+                else:
+                    self.react_into_trainee(action_feature=feature, contributions=True)
 
             feature_contribution_matrix[feature] = self.get_prediction_stats(
                 action_feature=feature,
@@ -3897,21 +3926,19 @@ class Trainee(BaseTrainee):
                 stats=['contribution']
             )
 
-            if len(feature_contribution_matrix[feature]) == 0 and cached is True:
-                warnings.warn(
-                    "Cached is set to True and no values are returned. Please verify that the "
-                    "values have been cached.", HowsoWarning
-                )
-
-            matrix = concat(feature_contribution_matrix.values(), keys=feature_contribution_matrix.keys())
-            matrix = matrix.droplevel(level=1)
-            matrix = matrix_processing(
-                matrix,
-                normalize=normalize,
-                abval=abval,
-                fill_diagonal=fill_diagonal,
-                fill_diagonal_value=fill_diagonal_value
-            )
+        matrix = concat(feature_contribution_matrix.values(), keys=feature_contribution_matrix.keys())
+        matrix = matrix.droplevel(level=1)
+        # Stores the preprocessed matrix, useful if the user wants a different form of processing 
+        # after calculation.
+        self._calculated_matrices['contribution'] = deepcopy(matrix)
+        matrix = matrix_processing(
+            matrix,
+            normalize=normalize,
+            normalize_method=normalize_method,
+            abval=abval,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
 
         return matrix
 
@@ -3919,9 +3946,9 @@ class Trainee(BaseTrainee):
         self,
         features: Optional[dict[str, str]] = None,
         robust: bool = True,
-        cached: bool = False,
         targeted: bool = False,
         normalize: bool = False,
+        normalize_method: str = "relative",
         abval: bool = False,
         fill_diagonal: bool = True,
         fill_diagonal_value: Union[float, int] = 1,
@@ -3936,34 +3963,50 @@ class Trainee(BaseTrainee):
             features will be used.
         robust : bool, default True
             Whether to use robust calcuations.
-        cached : bool, default False
-            Whether the metric has already been calculated and cached in the trainee. If set
-            to true, `react_into_trainee` will not be called.
+        targeted : bool, default False
+            Whether to do a targeted re-analyze before each feature's contribution is calculated.
+        normalize : bool, default False
+            Whether to normalize the matrix row wise. If postive and negative values are present, the normalized values
+            will be between -1 and 1. If only positive values are present, then normalized values will be between 0 and
+            1.
+        normalize_method : str, default 'relative'
+            The normalization method. Allowed values include 'relative' and 'fractional'.
+
+            - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
+            - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
+        abval : bool, default False
+            Whether to transform the matrix values into the absolute values.
+        fill_diagonal : bool, default False
+            Whether to fill in the diagonals of the matrix. If set to true,
+            the diagonal values will be filled in based on the `fill_diagonal_value` value.
+        fill_diagonal_value : bool, default 1
+            The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
+            for the diagonal values to be filled in. If `fill_diagonal is set to false, then this
+            parameter will be ignored.
 
         Returns
         -------
-        result_df : pd.Dataframe
+        Dataframe
             The MDA matrix in a Dataframe.
         """
         mda_matrix = {}
         if not features:
             features = self.features
         for feature in features:
-            if not cached:
-                if targeted:
-                    context_features = [context_feature for context_feature in features if context_feature != feature]
-                    self.analyze(action_features=[feature], context_features=context_features)
-                # Suppresses expected warnings when trainee is targetless
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore",
-                        "Results may be inaccurate because trainee has not been analyzed*",
-                        category=HowsoWarning
-                    )
-                    if robust:
-                        self.react_into_trainee(action_feature=feature, mda_robust=True)
-                    else:
-                        self.react_into_trainee(action_feature=feature, mda=True)
+            if targeted:
+                context_features = [context_feature for context_feature in features if context_feature != feature]
+                self.analyze(action_features=[feature], context_features=context_features)
+            # Suppresses expected warnings when trainee is targetless
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    "Results may be inaccurate because trainee has not been analyzed*",
+                    category=HowsoWarning
+                )
+                if robust:
+                    self.react_into_trainee(action_feature=feature, mda_robust=True)
+                else:
+                    self.react_into_trainee(action_feature=feature, mda=True)
 
             mda_matrix[feature] = self.get_prediction_stats(
                 action_feature=feature,
@@ -3971,21 +4014,19 @@ class Trainee(BaseTrainee):
                 stats=['mda']
             )
 
-            if len(mda_matrix[feature]) == 0 and cached is True:
-                warnings.warn(
-                    "Cached is set to True and no values are returned. Please verify that the "
-                    "values have been cached.", HowsoWarning
-                )
-
-            matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
-            matrix = matrix.droplevel(level=1)
-            matrix = matrix_processing(
-                matrix,
-                normalize=normalize,
-                abval=abval,
-                fill_diagonal=fill_diagonal,
-                fill_diagonal_value=fill_diagonal_value
-            )
+        matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
+        matrix = matrix.droplevel(level=1)
+        # Stores the preprocessed matrix, useful if the user wants a different form of processing 
+        # after calculation.
+        self._calculated_matrices['mda'] = deepcopy(matrix)
+        matrix = matrix_processing(
+            matrix,
+            normalize=normalize,
+            normalize_method=normalize_method,
+            abval=abval,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
 
         return matrix
 
