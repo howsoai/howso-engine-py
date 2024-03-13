@@ -1214,7 +1214,7 @@ def deep_update(base, updates):
     return updates
 
 
-def matrix_processing(
+def matrix_processing( # noqa
     matrix: pd.DataFrame,
     normalize: bool = False,
     normalize_method: Union[list[Union[str, Callable]], str, Callable] = "relative",
