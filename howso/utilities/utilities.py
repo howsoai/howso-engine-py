@@ -6,7 +6,7 @@ import re
 import sys
 import threading
 from typing import (
-    Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union)
+    Callable, Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union)
 import uuid
 import warnings
 
@@ -1217,9 +1217,9 @@ def deep_update(base, updates):
 def matrix_processing(
     matrix: pd.DataFrame,
     normalize: bool = False,
-    normalize_method: str = "relative",
+    normalize_method: Union[list[Union[str, Callable]], str, Callable] = "relative",
     ignore_diagonals_normalize: bool = True,
-    abval: bool = False,
+    absolute: bool = False,
     fill_diagonal: bool = False,
     fill_diagonal_value: Union[float, int] = 1,
 ) -> pd.DataFrame:
@@ -1239,15 +1239,24 @@ def matrix_processing(
         Whether to normalize the matrix row wise. If postive and negative values are present, the normalized values
         will be between -1 and 1. If only positive values are present, then normalized values will be between 0 and
         1.
-    normalize_method : str, default 'relative'
-        The normalization method. Allowed values include 'relative' and 'fractional'.
+    normalize_method : Union[list[Union[str, Callable]], str, Callable], default 'relative'
+        The normalization method. These methods may be passed in as an individual string or in a list where they will
+        be processed sequentially.
 
+        The method may either one of the strings below that correspond to a default method or a custom Callable.
+
+        Default Methods:
         - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
         - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
+        - 'feature_count': normalizes each row by dividing by the feature count.
+
+        Custom Callable:
+        - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
+            `matrix.apply(Callable)`
     ignore_diagonals_normalize : bool, default True
         Whether to ignore the diagonals when normalizing the matrix. Useful for matrices where the diagonals are a
         constant value such as correlation matrices.
-    abval : bool, default False
+    absolute : bool, default False
         Whether to transform the matrix values into the absolute values.
     fill_diagonal : bool, default False
         Whether to fill in the diagonals of the matrix. If set to true,
@@ -1272,24 +1281,73 @@ def matrix_processing(
     matrix = matrix.sort_index(axis=0)
     matrix = matrix.sort_index(axis=1)
 
+    if not isinstance(normalize_method, list):
+        normalize_method = [normalize_method]
+
+    # Default normalization methods
+    def sum_if_not_zero(row):
+        """Standard sum."""
+        row_sum = row.sum()
+        if row_sum != 0:
+            return row / row_sum
+        else:
+            warnings.warn(
+                f"Sum of row {row.name} is 0. Division cannot be performed. "
+                "Row values will remain unnormalized."
+            )
+            return row
+
+    def abs_sum_if_not_zero(row):
+        """Sum of the absolute values."""
+        row_sum = row.abs().sum()
+        if row_sum != 0:
+            return row / row_sum
+        else:
+            warnings.warn(
+                f"Absolute sum of row {row.name} is 0. Division cannot be performed. "
+                "Row values will remain unnormalized."
+            )
+            return row
+
+    def divide_by_max_abs(row):
+        """Division by the maximum absolute value."""
+        max_abs_value = row.abs().max()
+        if max_abs_value != 0:
+            return row / max_abs_value
+        else:
+            warnings.warn(
+                f"Maximum absolute value of row {row.name} is 0. Division cannot be performed. "
+                "Row values will remain unnormalized."
+            )
+            return row
+
     if normalize:
         # Replace all diagonal values with Nan, then put them back after normalization.
         if ignore_diagonals_normalize:
             diagonal_values = np.diag(matrix).copy()
             for i in range(len(matrix)):
                 matrix.iat[i, i] = np.nan
-        if normalize_method == "relative":
-            matrix = matrix.div(matrix.abs().max(axis=1), axis=0)
-        elif normalize_method == "fractional":
-            matrix = matrix.div(matrix.abs().sum(axis=1), axis=0)
-        else:
-            raise ValueError(f"Invalid `normalize_method` parameter value: {normalize_method}."
-                             "Must be 'relative' or 'percentage'.")
+        for method in normalize_method:
+            if method == "relative":
+                matrix = matrix.apply(divide_by_max_abs, axis=1)  # type: ignore
+            elif method == "sum":
+                matrix = matrix.apply(sum_if_not_zero, axis=1)  # type: ignore
+            elif method == "absolute_sum":
+                matrix = matrix.apply(abs_sum_if_not_zero, axis=1)  # type: ignore
+            elif method == "feature_count":
+                matrix = matrix.apply(lambda x: x / len(matrix.columns), axis=1)  # type: ignore
+            elif callable(method):
+                matrix = matrix.apply(method, axis=1)   # type: ignore
+            else:
+                raise ValueError(
+                    f"Invalid `normalize_method` parameter value: {normalize_method}. "
+                    "Must be 'relative', 'sum', 'absolute_sum', 'feature_count' or a Callable."
+                )
         if ignore_diagonals_normalize:
             for i, value in enumerate(diagonal_values):
                 matrix.iat[i, i] = value
 
-    if abval:
+    if absolute:
         matrix = matrix.abs()
 
     if fill_diagonal:

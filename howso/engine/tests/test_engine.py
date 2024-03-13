@@ -291,7 +291,7 @@ class TestEngine:
         """Test `get_contribution_matrix`."""
         matrix = trainee.get_contribution_matrix(
             normalize=True,
-            abval=True,
+            absolute=True,
             fill_diagonal=True
         )
         assert len(matrix) == 5
@@ -307,7 +307,7 @@ class TestEngine:
         saved_matrix = matrix_processing(
             saved_matrix['contribution'],
             normalize=True,
-            abval=True,
+            absolute=True,
             fill_diagonal=True
         )
 
@@ -317,7 +317,7 @@ class TestEngine:
         """Test `get_mda_matrix`."""
         matrix = trainee.get_mda_matrix(
             normalize=True,
-            abval=True,
+            absolute=True,
             fill_diagonal=True
         )
         assert len(matrix) == 5
@@ -333,7 +333,7 @@ class TestEngine:
         saved_matrix = matrix_processing(
             saved_matrix['mda'],
             normalize=True,
-            abval=True,
+            absolute=True,
             fill_diagonal=True
         )
 
