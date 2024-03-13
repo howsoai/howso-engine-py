@@ -3879,7 +3879,7 @@ class Trainee(BaseTrainee):
             Whether to do a targeted re-analyze before each feature's contribution is calculated.
         normalize : bool, default False
             Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
-        normalize_method : Union[list[Union[str, Callable]], str, Callable], default 'relative'
+        normalize_method: Union[list, str, Callable], default 'relative'
             The normalization method. These methods may be passed in as an individual string or in a list where they
             will be processed sequentially.
 
@@ -3973,7 +3973,7 @@ class Trainee(BaseTrainee):
             Whether to do a targeted re-analyze before each feature's contribution is calculated.
         normalize : bool, default False
             Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
-        normalize_method : Union[list[Union[str, Callable]], str, Callable], default 'relative'
+        normalize_method: Union[list, str, Callable], default 'relative'
             The normalization method. These methods may be passed in as an individual string or in a list where they
             will be processed sequentially.
 

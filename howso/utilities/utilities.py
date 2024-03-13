@@ -1215,14 +1215,14 @@ def deep_update(base, updates):
 
 
 def matrix_processing( # noqa
-    matrix: pd.DataFrame,
+    matrix: "pd.DataFrame",
     normalize: bool = False,
     normalize_method: Union[list, str, Callable] = "relative",
     ignore_diagonals_normalize: bool = True,
     absolute: bool = False,
     fill_diagonal: bool = False,
     fill_diagonal_value: Union[float, int] = 1,
-) -> pd.DataFrame:
+) -> "pd.DataFrame":
     """
     Preprocess a matrix including options to normalize, take the absolute value, and fill in the diagonals.
 
@@ -1235,7 +1235,7 @@ def matrix_processing( # noqa
         Matrix in Dataframe form.
     normalize : bool, default False
         Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
-    normalize_method : Union[list[Union[str, Callable]], str, Callable], default 'relative'
+    normalize_method: Union[list, str, Callable], default 'relative'
         The normalization method. These methods may be passed in as an individual string or in a list where they will
         be processed sequentially.
 
@@ -1353,7 +1353,7 @@ def matrix_processing( # noqa
     return matrix
 
 
-def get_matrix_diff(matrix: pd.DataFrame) -> dict:
+def get_matrix_diff(matrix: "pd.DataFrame") -> dict:
     """
     Calculates the absolute value of a matrix for feature pairs.
 
