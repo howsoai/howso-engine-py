@@ -1217,7 +1217,7 @@ def deep_update(base, updates):
 def matrix_processing( # noqa
     matrix: pd.DataFrame,
     normalize: bool = False,
-    normalize_method: Union[list[Union[str, Callable]], str, Callable] = "relative",
+    normalize_method: Union[list, str, Callable] = "relative",
     ignore_diagonals_normalize: bool = True,
     absolute: bool = False,
     fill_diagonal: bool = False,
@@ -1233,12 +1233,8 @@ def matrix_processing( # noqa
     ----------
     matrix : Dataframe
         Matrix in Dataframe form.
-    sort : bool, default False
-        Whether to sort both axis by alphabetical/numeric order.
     normalize : bool, default False
-        Whether to normalize the matrix row wise. If postive and negative values are present, the normalized values
-        will be between -1 and 1. If only positive values are present, then normalized values will be between 0 and
-        1.
+        Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
     normalize_method : Union[list[Union[str, Callable]], str, Callable], default 'relative'
         The normalization method. These methods may be passed in as an individual string or in a list where they will
         be processed sequentially.
@@ -1263,7 +1259,7 @@ def matrix_processing( # noqa
         the diagonal values will be filled in based on the `fill_diagonal_value` value.
     fill_diagonal_value : bool, default False
         The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
-        for the diagonal values to be filled in. If `fill_diagonal is set to false, then this
+        for the diagonal values to be filled in. If `fill_diagonal` is set to false, then this
         parameter will be ignored.
 
     Returns

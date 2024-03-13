@@ -3860,7 +3860,7 @@ class Trainee(BaseTrainee):
         robust: bool = True,
         targeted: bool = False,
         normalize: bool = False,
-        normalize_method: str = "relative",
+        normalize_method: Union[list, str, Callable] = "relative",
         absolute: bool = False,
         fill_diagonal: bool = True,
         fill_diagonal_value: Union[float, int] = 1,
@@ -3878,15 +3878,21 @@ class Trainee(BaseTrainee):
         targeted : bool, default False
             Whether to do a targeted re-analyze before each feature's contribution is calculated.
         normalize : bool, default False
-            Whether to normalize the matrix row wise. If postive and negative values are present, the normalized values
-            will be between -1 and 1. If only positive values are present, then normalized values will be between 0 and
-            1.
-        normalize_method : str, default 'relative'
-            The normalization method. Allowed values include 'relative' and 'fractional'.
+            Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
+        normalize_method : Union[list[Union[str, Callable]], str, Callable], default 'relative'
+            The normalization method. These methods may be passed in as an individual string or in a list where they
+            will be processed sequentially.
 
+            The method may either one of the strings below that correspond to a default method or a custom Callable.
+
+            Default Methods:
             - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
             - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
-        absolute : bool, default False
+            - 'feature_count': normalizes each row by dividing by the feature count.
+
+            Custom Callable:
+            - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
+                `matrix.apply(Callable)`
             Whether to transform the matrix values into the absolute values.
         fill_diagonal : bool, default False
             Whether to fill in the diagonals of the matrix. If set to true,
@@ -3928,7 +3934,7 @@ class Trainee(BaseTrainee):
 
         matrix = concat(feature_contribution_matrix.values(), keys=feature_contribution_matrix.keys())
         matrix = matrix.droplevel(level=1)
-        # Stores the preprocessed matrix, useful if the user wants a different form of processing 
+        # Stores the preprocessed matrix, useful if the user wants a different form of processing
         # after calculation.
         self._calculated_matrices['contribution'] = deepcopy(matrix)
         matrix = matrix_processing(
@@ -3948,7 +3954,7 @@ class Trainee(BaseTrainee):
         robust: bool = True,
         targeted: bool = False,
         normalize: bool = False,
-        normalize_method: Union[list[Union[str, Callable]], str, Callable] = "relative",
+        normalize_method: Union[list, str, Callable] = "relative",
         absolute: bool = False,
         fill_diagonal: bool = True,
         fill_diagonal_value: Union[float, int] = 1,
@@ -3966,12 +3972,10 @@ class Trainee(BaseTrainee):
         targeted : bool, default False
             Whether to do a targeted re-analyze before each feature's contribution is calculated.
         normalize : bool, default False
-            Whether to normalize the matrix row wise. If postive and negative values are present, the normalized values
-            will be between -1 and 1. If only positive values are present, then normalized values will be between 0 and
-            1.
+            Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
         normalize_method : Union[list[Union[str, Callable]], str, Callable], default 'relative'
-            The normalization method. These methods may be passed in as an individual string or in a list where they will
-            be processed sequentially.
+            The normalization method. These methods may be passed in as an individual string or in a list where they
+            will be processed sequentially.
 
             The method may either one of the strings below that correspond to a default method or a custom Callable.
 
@@ -3983,7 +3987,6 @@ class Trainee(BaseTrainee):
             Custom Callable:
             - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
                 `matrix.apply(Callable)`
-        absolute : bool, default False
             Whether to transform the matrix values into the absolute values.
         fill_diagonal : bool, default False
             Whether to fill in the diagonals of the matrix. If set to true,
