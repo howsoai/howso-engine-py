@@ -502,6 +502,8 @@ class InferFeatureAttributesBase(ABC):
             # What type is this feature?
             feature_type, typing_info = self._get_feature_type(feature_name)
 
+            typing_info = typing_info or dict()
+
             # EXPLICITLY DECLARED ORDINALS
             if feature_name in ordinal_feature_values:
                 feature_attributes[feature_name] = {
@@ -1021,25 +1023,28 @@ class InferFeatureAttributesBase(ABC):
         -------
         True if the column values can be parsed into YAML.
         """
+        # If there is no data, return False
         first_non_none = self._get_first_non_null(feature)
         if first_non_none is None:
             return False
 
-        # Sample 30 random values
+        # Sample up-to 30 random values
         for _ in range(30):
-            rand_val = self._get_random_value(feature, no_nulls=True)
-            if rand_val is None:
+            sample = self._get_random_value(feature, no_nulls=True)
+
+            # Non-string types are not valid YAML documents on their own for
+            # the sake of infer_feature_attributes.
+            if not isinstance(sample, str):
                 return False
 
             # Try to parse rand_val as YAML
             try:
-                yaml.safe_load(rand_val)
-                if len(rand_val.split(':')) <= 1 or '\n' not in rand_val:
+                yaml.safe_load(sample)
+                if len(sample.split(':')) <= 1 or '\n' not in sample:
                     return False
-            except (yaml.YAMLError):
+            except yaml.YAMLError:
                 return False
 
-        # No exception: valid YAML
         return True
 
     @staticmethod
