@@ -3864,7 +3864,7 @@ class Trainee(BaseTrainee):
         absolute: bool = False,
         fill_diagonal: bool = True,
         fill_diagonal_value: Union[float, int] = 1,
-    ) -> DataFrame:
+    ) -> "DataFrame":
         """
         Gets the Feature Contribution matrix.
 
@@ -3958,7 +3958,7 @@ class Trainee(BaseTrainee):
         absolute: bool = False,
         fill_diagonal: bool = True,
         fill_diagonal_value: Union[float, int] = 1,
-    ) -> DataFrame:
+    ) -> "DataFrame":
         """
         Gets the Mean Decrease in Accuracy (MDA) matrix.
 
