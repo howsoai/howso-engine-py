@@ -1337,7 +1337,7 @@ def matrix_processing( # noqa
                 matrix = matrix.apply(method, axis=1)   # type: ignore
             else:
                 raise ValueError(
-                    f"Invalid `normalize_method` parameter value: {normalize_method}. "
+                    f"Invalid normalization method: {normalize_method}. "
                     "Must be 'relative', 'sum', 'absolute_sum', 'feature_count' or a Callable."
                 )
         if ignore_diagonals_normalize:
