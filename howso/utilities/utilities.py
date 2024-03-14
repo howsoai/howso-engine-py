@@ -1278,7 +1278,7 @@ def matrix_processing( # noqa
     matrix = matrix.sort_index(axis=0)
     matrix = matrix.sort_index(axis=1)
 
-    if not isinstance(normalize_method, Iterable):
+    if isinstance(normalize_method, str) or isinstance(normalize_method, Callable):
         normalize_method = [normalize_method]
 
     # Default normalization methods
