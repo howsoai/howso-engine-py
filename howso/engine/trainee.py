@@ -16,7 +16,11 @@ import warnings
 
 from howso.client import AbstractHowsoClient
 from howso.client.cache import TraineeCache
-from howso.client.exceptions import HowsoApiError, HowsoError
+from howso.client.exceptions import (
+    HowsoApiError,
+    HowsoError,
+    HowsoWarning
+)
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import (
     ProjectClient,
@@ -35,10 +39,14 @@ from howso.openapi.models import (
     TraineeInformation,
     TraineeResources,
 )
-from howso.utilities import CaseIndices
+from howso.utilities import CaseIndices, matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 from howso.utilities.reaction import Reaction
-from pandas import DataFrame, Index
+from pandas import (
+    concat,
+    DataFrame,
+    Index
+)
 
 __all__ = [
     "Trainee",
@@ -127,6 +135,7 @@ class Trainee(BaseTrainee):
         self.name = name
         self._id = id
         self._custom_save_path = None
+        self._calculated_matrices = {}
 
         self.persistence = persistence
         self.set_default_features(
@@ -330,6 +339,18 @@ class Trainee(BaseTrainee):
             The metadata of the trainee.
         """
         return deepcopy(self._metadata)
+
+    @property
+    def calculated_matrices(self) -> Optional[Dict[str, DataFrame]]:
+        """
+        The calculated matrices.
+
+        Returns
+        -------
+        dict
+            The calculated matrices.
+        """
+        return self._calculated_matrices
 
     @property
     def default_action_features(self) -> Optional[List[str]]:
@@ -3832,6 +3853,198 @@ class Trainee(BaseTrainee):
         except HowsoApiError as error:
             if error.status != 404:
                 raise
+
+    def get_contribution_matrix(
+        self,
+        features: Optional[Iterable[str]] = None,
+        robust: bool = True,
+        targeted: bool = False,
+        normalize: bool = False,
+        normalize_method: Union[Iterable[Union[str, Callable]], str, Callable] = "relative",
+        absolute: bool = False,
+        fill_diagonal: bool = True,
+        fill_diagonal_value: Union[float, int] = 1,
+    ) -> DataFrame:
+        """
+        Gets the Feature Contribution matrix.
+
+        Parameters
+        ----------
+        features : Optional[Iterable[str]]
+            An iterable of feature names. If features are not provided, then the default trainee
+            features will be used.
+        robust : bool, default True
+            Whether to use robust calcuations.
+        targeted : bool, default False
+            Whether to do a targeted re-analyze before each feature's contribution is calculated.
+        normalize : bool, default False
+            Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
+        normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
+            The normalization method. The method may either one of the strings below that correspond to a 
+            default method or a custom Callable.
+
+            These methods may be passed in as an individual string or in a iterable where they will
+            be processed sequentially.
+
+            Default Methods:
+            - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
+            - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
+            - 'feature_count': normalizes each row by dividing by the feature count.
+
+            Custom Callable:
+            - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
+                `matrix.apply(Callable)`
+        absolute : bool, default False
+            Whether to transform the matrix values into the absolute values.
+        fill_diagonal : bool, default False
+            Whether to fill in the diagonals of the matrix. If set to true,
+            the diagonal values will be filled in based on the `fill_diagonal_value` value.
+        fill_diagonal_value : bool, default 1
+            The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
+            for the diagonal values to be filled in. If `fill_diagonal is set to false, then this
+            parameter will be ignored.
+
+        Returns
+        -------
+        Dataframe
+            The Feature Contribution matrix in a Dataframe.
+        """
+        feature_contribution_matrix = {}
+        if not features:
+            features = self.features
+        for feature in features:
+            if targeted:
+                context_features = [context_feature for context_feature in features if context_feature != feature]
+                self.analyze(action_features=[feature], context_features=context_features)
+            # Suppresses expected warnings when trainee is targetless
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    "Results may be inaccurate because trainee has not been analyzed*",
+                    category=HowsoWarning
+                )
+                if robust:
+                    self.react_into_trainee(action_feature=feature, contributions_robust=True)
+                else:
+                    self.react_into_trainee(action_feature=feature, contributions=True)
+
+            feature_contribution_matrix[feature] = self.get_prediction_stats(
+                action_feature=feature,
+                robust=robust,
+                stats=['contribution']
+            )
+
+        matrix = concat(feature_contribution_matrix.values(), keys=feature_contribution_matrix.keys())
+        matrix = matrix.droplevel(level=1)
+        # Stores the preprocessed matrix, useful if the user wants a different form of processing
+        # after calculation.
+        self._calculated_matrices['contribution'] = deepcopy(matrix)
+        matrix = matrix_processing(
+            matrix,
+            normalize=normalize,
+            normalize_method=normalize_method,
+            absolute=absolute,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+
+        return matrix
+
+    def get_mda_matrix(
+        self,
+        features: Optional[Iterable[str]] = None,
+        robust: bool = True,
+        targeted: bool = False,
+        normalize: bool = False,
+        normalize_method: Union[Iterable[Union[str, Callable]], str, Callable] = "relative",
+        absolute: bool = False,
+        fill_diagonal: bool = True,
+        fill_diagonal_value: Union[float, int] = 1,
+    ) -> DataFrame:
+        """
+        Gets the Mean Decrease in Accuracy (MDA) matrix.
+
+        Parameters
+        ----------
+        features : Optional[Iterable[str]]
+            An iterable of feature names. If features are not provided, then the default trainee
+            features will be used.
+        robust : bool, default True
+            Whether to use robust calcuations.
+        targeted : bool, default False
+            Whether to do a targeted re-analyze before each feature's contribution is calculated.
+        normalize : bool, default False
+            Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
+        normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
+            The normalization method. The method may either one of the strings below that correspond to a 
+            default method or a custom Callable.
+
+            These methods may be passed in as an individual string or in a iterable where they will
+            be processed sequentially.
+
+            Default Methods:
+            - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
+            - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
+            - 'feature_count': normalizes each row by dividing by the feature count.
+
+            Custom Callable:
+            - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
+                `matrix.apply(Callable)`
+        absolute : bool, default False
+            Whether to transform the matrix values into the absolute values.
+        fill_diagonal : bool, default False
+            Whether to fill in the diagonals of the matrix. If set to true,
+            the diagonal values will be filled in based on the `fill_diagonal_value` value.
+        fill_diagonal_value : bool, default 1
+            The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
+            for the diagonal values to be filled in. If `fill_diagonal is set to false, then this
+            parameter will be ignored.
+
+        Returns
+        -------
+        Dataframe
+            The MDA matrix in a Dataframe.
+        """
+        mda_matrix = {}
+        if not features:
+            features = self.features
+        for feature in features:
+            if targeted:
+                context_features = [context_feature for context_feature in features if context_feature != feature]
+                self.analyze(action_features=[feature], context_features=context_features)
+            # Suppresses expected warnings when trainee is targetless
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    "Results may be inaccurate because trainee has not been analyzed*",
+                    category=HowsoWarning
+                )
+                if robust:
+                    self.react_into_trainee(action_feature=feature, mda_robust=True)
+                else:
+                    self.react_into_trainee(action_feature=feature, mda=True)
+
+            mda_matrix[feature] = self.get_prediction_stats(
+                action_feature=feature,
+                robust=robust,
+                stats=['mda']
+            )
+
+        matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
+        matrix = matrix.droplevel(level=1)
+        # Stores the preprocessed matrix, useful if the user wants a different form of processing 
+        # after calculation.
+        self._calculated_matrices['mda'] = deepcopy(matrix)
+        matrix = matrix_processing(
+            matrix,
+            normalize=normalize,
+            normalize_method=normalize_method,
+            absolute=absolute,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+
+        return matrix
 
 
 def delete_trainee(

@@ -2,6 +2,7 @@ from pathlib import Path
 
 from howso.client.exceptions import HowsoError
 from howso.engine import delete_trainee, load_trainee, Trainee
+from howso.utilities import matrix_processing
 from pandas.testing import assert_frame_equal
 import pytest
 
@@ -285,3 +286,55 @@ class TestEngine:
             match='does not exist.'
         ):
             delete_trainee(file_path=file_path)
+
+    def test_get_contribution_matrix(self, trainee):
+        """Test `get_contribution_matrix`."""
+        matrix = trainee.get_contribution_matrix(
+            normalize=True,
+            absolute=True,
+            fill_diagonal=True
+        )
+        assert len(matrix) == 5
+        assert len(matrix.columns) == 5
+
+        # The raw matrix is saved in the trainee. This section
+        # tests to make sure the matrix processing parameters are
+        # passed through correctly.
+        saved_matrix = trainee.calculated_matrices
+        assert len(saved_matrix['contribution']) == 5
+        assert len(saved_matrix['contribution'].columns) == 5
+
+        saved_matrix = matrix_processing(
+            saved_matrix['contribution'],
+            normalize=True,
+            absolute=True,
+            fill_diagonal=True
+        )
+
+        assert_frame_equal(matrix, saved_matrix)
+
+    def test_get_mda_matrix(self, trainee):
+        """Test `get_mda_matrix`."""
+        matrix = trainee.get_mda_matrix(
+            normalize=True,
+            absolute=True,
+            fill_diagonal=True
+        )
+        assert len(matrix) == 5
+        assert len(matrix.columns) == 5
+
+        # The raw matrix is saved in the trainee. This section
+        # tests to make sure the matrix processing parameters are
+        # passed through correctly.
+        saved_matrix = trainee.calculated_matrices
+        assert len(saved_matrix['mda']) == 5
+        assert len(saved_matrix['mda'].columns) == 5
+
+        saved_matrix = matrix_processing(
+            saved_matrix['mda'],
+            normalize=True,
+            absolute=True,
+            fill_diagonal=True
+        )
+
+        assert_frame_equal(matrix, saved_matrix)

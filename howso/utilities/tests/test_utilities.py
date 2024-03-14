@@ -6,10 +6,11 @@ import warnings
 
 from dateutil import parser
 import howso.utilities as utils
-from howso.utilities import get_kwargs, LocaleOverride
+from howso.utilities import get_kwargs, get_matrix_diff, matrix_processing, LocaleOverride
 from howso.utilities.reaction import Reaction
 import numpy as np
 import pandas as pd
+from pandas.testing import assert_frame_equal
 import pytest
 
 from . import has_locales
@@ -364,3 +365,318 @@ def test_reaction_reorganized_details_invalid():
     cwd = Reaction(react_response['action'], react_response['details'])
     with pytest.warns(UserWarning, match="Unrecognized detail keys found: \\[invalid\\] and"):
         cwd.reorganized_details
+
+
+def test_get_matrix_diff():
+    """Tests that `get_matrix_diff` works properly."""
+    df = pd.DataFrame({
+        'a': [1, 2, 3],
+        'b': [4, 5, 6],
+        'c': [7, 8, 9]
+    }, index=['a', 'b', 'c']).T
+
+    differences_dict = get_matrix_diff(df)
+
+    correct_dict = {
+        ('a', 'c'): 4,
+        ('a', 'b'): 2,
+        ('b', 'c'): 2
+    }
+
+    assert differences_dict == correct_dict
+
+
+@pytest.mark.parametrize(
+    'normalize, ignore_diagonals_normalize, absolute, fill_diagonal, fill_diagonal_value',
+    (
+        (False, True, False, False, 2),
+        (True, False, False, False, 2),
+        (True, True, False, False, 2),
+        (False, True, True, False, 2),
+        (False, True, False, True, 2),
+        (True, False, True, False, 2),
+    )
+)
+def test_matrix_processing(
+    normalize,
+    ignore_diagonals_normalize,
+    absolute,
+    fill_diagonal,
+    fill_diagonal_value
+):
+    """Tests that `matrix_processing` works properly."""
+    df = pd.DataFrame({
+        'a': [1.5, -3.0, 6.0],
+        'b': [0.75, -1.5, 3.0],
+        'c': [0.75, 1.5, 3.0],
+    }, index=['a', 'b', 'c']).T
+
+    # `matrix_processing` only sorts if all other parameters are False
+    if not any([normalize, absolute, fill_diagonal]):
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            absolute=absolute,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        assert_frame_equal(processed_matrix, df)
+
+    # Tests `normalize` parameter with `ignore_diagonals_normalize` set to False
+    if normalize and not any([ignore_diagonals_normalize, absolute, fill_diagonal]):
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            absolute=absolute,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        correct_matrix = pd.DataFrame({
+            'a': [0.25, -0.5, 1.0],
+            'b': [0.25, -0.5, 1.0],
+            'c': [0.25, 0.5, 1.0]
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+    # Tests `normalize` parameter with `ignore_diagonals_normalize` set to True
+    if normalize and ignore_diagonals_normalize and not any(
+        [absolute, fill_diagonal]
+    ):
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            absolute=absolute,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        # The diagonals are preserved
+        correct_matrix = pd.DataFrame({
+            'a': [1.50, -0.5, 1.0],
+            'b': [0.25, -1.5, 1.0],
+            'c': [0.50, 1.0, 3.0]
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+    # Tests `absolute` parameter
+    if absolute and not any([normalize, fill_diagonal]):
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            absolute=absolute,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        correct_matrix = pd.DataFrame({
+            'a': [1.5, 3.0, 6.0],
+            'b': [0.75, 1.5, 3.0],
+            'c': [0.75, 1.5, 3.0],
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+    # Tests `fill_diagonal` parameter
+    if fill_diagonal and not any([absolute, normalize]):
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            absolute=absolute,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        correct_matrix = pd.DataFrame({
+            'a': [fill_diagonal_value, -3.0, 6.0],
+            'b': [0.75, fill_diagonal_value, 3.0],
+            'c': [0.75, 1.5, fill_diagonal_value],
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+    # Tests `normalize` and `absolute` parameter with `ignore_diagonals_normalize` set to False
+    if all([absolute, normalize]) and not fill_diagonal:
+        processed_matrix = matrix_processing(
+            matrix=df,
+            normalize=normalize,
+            ignore_diagonals_normalize=ignore_diagonals_normalize,
+            absolute=absolute,
+            fill_diagonal=fill_diagonal,
+            fill_diagonal_value=fill_diagonal_value
+        )
+        correct_matrix = pd.DataFrame({
+            'a': [0.25, 0.5, 1.0],
+            'b': [0.25, 0.5, 1.0],
+            'c': [0.25, 0.5, 1.0],
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+
+@pytest.mark.parametrize(
+    'normalize_method',
+    (
+        ('sum'),
+        ('absolute_sum'),
+        ('feature_count'),
+    )
+)
+def test_matrix_processing_normalization_single_method(
+    normalize_method,
+):
+    """Tests that `matrix_processing` normalization parameters with single methods works properly."""
+    df = pd.DataFrame({
+        'a': [1.0, -3.0, 6.0],
+        'b': [0.5, -0.5, 1.0],
+        'c': [0.5, -1.5, 3.0],
+    }, index=['a', 'b', 'c']).T
+
+    if normalize_method == 'sum':
+        processed_matrix = round(
+            matrix_processing(
+                matrix=df,
+                normalize=True,
+                ignore_diagonals_normalize=False,
+                normalize_method=normalize_method
+            ), 2)
+        correct_matrix = pd.DataFrame({
+            'a': [0.25, -0.75, 1.5],
+            'b': [0.50, -0.50, 1.0],
+            'c': [0.25, -0.75, 1.5]
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+    if normalize_method == 'absolute_sum':
+        processed_matrix = round(
+            matrix_processing(
+                matrix=df,
+                normalize=True,
+                ignore_diagonals_normalize=False,
+                normalize_method=normalize_method
+            ), 2)
+        correct_matrix = pd.DataFrame({
+            'a': [0.10, -0.30, 0.6],
+            'b': [0.25, -0.25, 0.5],
+            'c': [0.10, -0.30, 0.6]
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+    if normalize_method == 'feature_count':
+        processed_matrix = round(
+            matrix_processing(
+                matrix=df,
+                normalize=True,
+                ignore_diagonals_normalize=False,
+                normalize_method=normalize_method
+            ), 2)
+        correct_matrix = pd.DataFrame({
+            'a': [0.33, -1.00, 2.00],
+            'b': [0.17, -0.17, 0.33],
+            'c': [0.17, -0.50, 1.00]
+        }, index=['a', 'b', 'c']).T
+
+        assert_frame_equal(processed_matrix, correct_matrix)
+
+
+def test_matrix_processing_normalization_list(
+    normalize_method=['feature_count', 'sum'],
+):
+    """Tests that `matrix_processing` normalization parameters with lists works properly."""
+    df = pd.DataFrame({
+        'a': [1.0, -3.0, 6.0],
+        'b': [0.5, -0.5, 1.0],
+        'c': [0.5, -1.5, 3.0],
+    }, index=['a', 'b', 'c']).T
+
+    processed_matrix = round(
+        matrix_processing(
+            matrix=df,
+            normalize=True,
+            ignore_diagonals_normalize=False,
+            normalize_method=normalize_method
+        ), 2)
+
+    # When a list is the parameter, the methods inside are calculated sequentialy. It should be the
+    # same as doing the two methods sequentially independently as well.
+    correct_matrix = matrix_processing(
+        matrix=df,
+        normalize=True,
+        ignore_diagonals_normalize=False,
+        normalize_method=normalize_method[0]
+    )
+    correct_matrix = round(
+        matrix_processing(
+            matrix=correct_matrix,
+            normalize=True,
+            ignore_diagonals_normalize=False,
+            normalize_method=normalize_method[1]
+        ), 2)
+
+    assert_frame_equal(processed_matrix, correct_matrix)
+
+
+def test_matrix_processing_normalization_callable():
+    """Tests that `matrix_processing` normalization parameters with Callable works properly."""
+    df = pd.DataFrame({
+        'a': [1.0, -3.0, 6.0],
+        'b': [0.5, -0.5, 1.0],
+        'c': [0.5, -1.5, 3.0],
+    }, index=['a', 'b', 'c']).T
+
+    # This is the exact same function as the 'absolute_sum' normalization method, 
+    # thus it should return the same results.
+    def divide_by_sum_abs(row):
+        sum_abs = row.abs().sum()
+        return row / sum_abs
+
+    processed_matrix = round(
+        matrix_processing(
+            matrix=df,
+            normalize=True,
+            ignore_diagonals_normalize=False,
+            normalize_method=divide_by_sum_abs
+        ), 2)
+
+    correct_matrix = round(
+        matrix_processing(
+            matrix=df,
+            normalize=True,
+            ignore_diagonals_normalize=False,
+            normalize_method='absolute_sum'
+        ), 2)
+
+    assert_frame_equal(processed_matrix, correct_matrix)
+
+
+def test_matrix_processing_normalization_zero_division():
+    """Tests that `matrix_processing` normalization parameters emits correct warning when dividing by 0."""
+    df = pd.DataFrame({
+        'a': [1.0, -1.0, 0.0],
+        'b': [1.5, -0.5, 1.0],
+        'c': [0.5, -1.5, 3.0],
+    }, index=['a', 'b', 'c']).T
+
+    with pytest.warns(UserWarning, match="Sum of row a is 0."):
+        # sum of first row is 0
+        processed_matrix = round(
+            matrix_processing(
+                matrix=df,
+                normalize=True,
+                ignore_diagonals_normalize=False,
+                normalize_method='sum'
+            ), 2)
+
+    # First row is returned unnormalized
+    correct_matrix = pd.DataFrame({
+        'a': [1.00, -1.00, 0.0],
+        'b': [0.75, -0.25, 0.5],
+        'c': [0.25, -0.75, 1.5],
+    }, index=['a', 'b', 'c']).T
+
+    assert_frame_equal(processed_matrix, correct_matrix)

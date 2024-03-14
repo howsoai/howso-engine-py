@@ -6,7 +6,7 @@ import re
 import sys
 import threading
 from typing import (
-    Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union)
+    Callable, Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union)
 import uuid
 import warnings
 
@@ -1212,3 +1212,183 @@ def deep_update(base, updates):
             base[k] = deep_update(base.get(k), v)
         return base
     return updates
+
+
+def matrix_processing( # noqa
+    matrix: pd.DataFrame,
+    normalize: bool = False,
+    normalize_method: Union[Iterable[Union[str, Callable]], str, Callable] = "relative",
+    ignore_diagonals_normalize: bool = True,
+    absolute: bool = False,
+    fill_diagonal: bool = False,
+    fill_diagonal_value: Union[float, int] = 1,
+) -> pd.DataFrame:
+    """
+    Preprocess a matrix including options to normalize, take the absolute value, and fill in the diagonals.
+
+    The order of operation for this method is first it then normalizes, then takes the absolute value, and
+    lastly fills in the diagonals. This method automatically sorts the matrix indexes.
+
+    Parameters
+    ----------
+    matrix : Dataframe
+        Matrix in Dataframe form.
+    normalize : bool, default False
+        Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
+    normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
+        The normalization method. The method may either one of the strings below that correspond to a 
+        default method or a custom Callable.
+
+        These methods may be passed in as an individual string or in a iterable where they will
+        be processed sequentially.
+
+        Default Methods:
+        - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
+        - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
+        - 'feature_count': normalizes each row by dividing by the feature count.
+
+        Custom Callable:
+        - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
+            `matrix.apply(Callable)`
+    ignore_diagonals_normalize : bool, default True
+        Whether to ignore the diagonals when normalizing the matrix. Useful for matrices where the diagonals are a
+        constant value such as correlation matrices.
+    absolute : bool, default False
+        Whether to transform the matrix values into the absolute values.
+    fill_diagonal : bool, default False
+        Whether to fill in the diagonals of the matrix. If set to true,
+        the diagonal values will be filled in based on the `fill_diagonal_value` value.
+    fill_diagonal_value : bool, default False
+        The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
+        for the diagonal values to be filled in. If `fill_diagonal` is set to false, then this
+        parameter will be ignored.
+
+    Returns
+    -------
+    Dataframe
+        Dataframe of the result.
+    """
+    if matrix.shape[0] != matrix.shape[1]:
+        raise ValueError(
+            f"Invalid matrix shape: ({matrix.shape[0]}, {matrix.shape[1]}), "
+            "matrix must be square."
+        )
+
+    # Ensures sorting
+    matrix = matrix.sort_index(axis=0)
+    matrix = matrix.sort_index(axis=1)
+
+    if isinstance(normalize_method, str) or isinstance(normalize_method, Callable):
+        normalize_method = [normalize_method]
+
+    # Default normalization methods
+    def sum_if_not_zero(row):
+        """Standard sum."""
+        row_sum = row.sum()
+        if row_sum != 0:
+            return row / row_sum
+        else:
+            warnings.warn(
+                f"Sum of row {row.name} is 0. Division cannot be performed. "
+                "Row values will remain unnormalized."
+            )
+            return row
+
+    def abs_sum_if_not_zero(row):
+        """Sum of the absolute values."""
+        row_sum = row.abs().sum()
+        if row_sum != 0:
+            return row / row_sum
+        else:
+            warnings.warn(
+                f"Absolute sum of row {row.name} is 0. Division cannot be performed. "
+                "Row values will remain unnormalized."
+            )
+            return row
+
+    def divide_by_max_abs(row):
+        """Division by the maximum absolute value."""
+        max_abs_value = row.abs().max()
+        if max_abs_value != 0:
+            return row / max_abs_value
+        else:
+            warnings.warn(
+                f"Maximum absolute value of row {row.name} is 0. Division cannot be performed. "
+                "Row values will remain unnormalized."
+            )
+            return row
+
+    if normalize:
+        # Replace all diagonal values with Nan, then put them back after normalization.
+        if ignore_diagonals_normalize:
+            diagonal_values = np.diag(matrix).copy()
+            for i in range(len(matrix)):
+                matrix.iat[i, i] = np.nan
+        for method in normalize_method:
+            if method == "relative":
+                matrix = matrix.apply(divide_by_max_abs, axis=1)  # type: ignore
+            elif method == "sum":
+                matrix = matrix.apply(sum_if_not_zero, axis=1)  # type: ignore
+            elif method == "absolute_sum":
+                matrix = matrix.apply(abs_sum_if_not_zero, axis=1)  # type: ignore
+            elif method == "feature_count":
+                matrix = matrix.apply(lambda x: x / len(matrix.columns), axis=1)  # type: ignore
+            elif callable(method):
+                matrix = matrix.apply(method, axis=1)   # type: ignore
+            else:
+                raise ValueError(
+                    f"Invalid normalization method: {normalize_method}. "
+                    "Must be 'relative', 'sum', 'absolute_sum', 'feature_count' or a Callable."
+                )
+        if ignore_diagonals_normalize:
+            for i, value in enumerate(diagonal_values):
+                matrix.iat[i, i] = value
+
+    if absolute:
+        matrix = matrix.abs()
+
+    if fill_diagonal:
+        for i in range(len(matrix)):
+            matrix.iloc[i, i] = fill_diagonal_value
+
+    return matrix
+
+
+def get_matrix_diff(matrix: pd.DataFrame) -> dict:
+    """
+    Calculates the absolute value of a matrix for feature pairs.
+
+    Parameters
+    ----------
+    matrix : DataFrame
+        The matrix in DataFrame format.
+
+    Returns
+    -------
+    dict
+        Sorted dictionary of absolute differences between the feature value pairs. The values
+        are stored in a dictionary with keys consisting of a tuple of the features.
+    """
+    if matrix.shape[0] != matrix.shape[1]:
+        raise ValueError(
+            f"Invalid matrix shape: ({matrix.shape[0]}, {matrix.shape[1]}), "
+            "matrix must be square."
+        )
+
+    # Ensures sorting
+    matrix = matrix.sort_index(axis=0)
+    matrix = matrix.sort_index(axis=1)
+
+    differences_dict = {}
+
+    features = matrix.columns
+    for i, row in enumerate(features):
+        for col in features[i + 1:]:
+            key = (row, col)
+            abs_diff = abs(matrix.loc[row, col] - matrix.loc[col, row])  # type: ignore
+            differences_dict[key] = abs_diff
+
+    # Sort dictionary
+    differences_dict = {k: v for k, v in sorted(differences_dict.items(), key=lambda item: item[1], reverse=True)}
+
+    return differences_dict
