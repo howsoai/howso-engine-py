@@ -161,6 +161,7 @@ class Trainee(BaseTrainee):
             max_wait_time=max_wait_time,
             overwrite=overwrite_existing,
             resources=resources,
+            trainee_id=id
         )
 
     @property
@@ -824,134 +825,6 @@ class Trainee(BaseTrainee):
             )
         else:
             raise ValueError("Client must have the 'train' method.")
-
-    def optimize(self, *args, **kwargs):
-        """
-        Optimizes a trainee.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`Trainee.analyze` instead.
-
-        Parameters
-        ----------
-        context_features : iterable of str, optional
-            The context features to optimize for.
-        action_features : iterable of str, optional
-            The action features to optimize for.
-        k_folds : int
-            optional, (default 6) number of cross validation folds to do
-        bypass_hyperparameter_optimization : bool
-            optional, bypasses hyperparameter optimization
-        bypass_calculate_feature_residuals : bool
-            optional, bypasses feature residual calculation
-        bypass_calculate_feature_weights : bool
-            optional, bypasses calculation of feature weights
-        use_deviations : bool
-            optional, uses deviations for LK metric in queries
-        num_samples : int
-            used in calculating feature residuals
-        k_values : list of int
-            optional list used in hyperparameter search
-        p_values : list of float
-            optional list used in hyperparameter search
-        dwe_values : list of float
-            optional list used in hyperparameter search
-        optimize_level : int
-            optional value, if specified, will optimize for the following
-            flows:
-
-                1. predictions/accuracy (hyperparameters)
-                2. data synth (cache: global residuals)
-                3. standard details
-                4. full analysis
-        targeted_model : {"omni_targeted", "single_targeted", "targetless"}
-            optional, valid values as follows:
-
-                "single_targeted" = optimize hyperparameters for the
-                    specified action_features
-                "omni_targeted" = optimize hyperparameters for each context
-                    feature as an action feature, ignores action_features
-                    parameter
-                "targetless" = optimize hyperparameters for all context
-                    features as possible action features, ignores
-                    action_features parameter
-        num_optimization_samples : int, optional
-            If the dataset size to too large, optimize on
-            (randomly sampled) subset of data. The
-            `num_optimization_samples` specifies the number of
-            observations to be considered for optimization.
-        optimization_sub_model_size : int or Node, optional
-            Number of samples to use for optimization. The rest
-            will be randomly held-out and not included in calculations.
-        inverse_residuals_as_weights : bool, default is False
-            When True will compute and use inverse of residuals
-            as feature weights
-        use_case_weights : bool, default False
-            When True will scale influence weights by each
-            case's weight_feature weight.
-        weight_feature : str, optional
-            Name of feature whose values to use as case weights.
-            When left unspecified uses the internally managed case weight.
-        kwargs
-            Additional experimental optimize parameters.
-        """
-        warnings.warn(
-            'The method `optimize()` is deprecated and will be'
-            'removed in a future release. Please use `analyze()` '
-            'instead.', DeprecationWarning)
-
-        self.analyze(*args, **kwargs)
-
-    def auto_optimize(self):
-        """
-        Auto-optimize the trainee model.
-
-        Re-uses all parameters from the previous optimize or
-        set_auto_optimize_params call. If optimize or set_auto_optimize_params
-        has not been previously called, auto_optimize will default to a robust
-        and versatile optimization.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`Trainee.auto_analyze` instead.
-        """
-        warnings.warn(
-            'The method `auto_optimize()` is deprecated and will be'
-            'removed in a future release. Please use `auto_analyze()` '
-            'instead.', DeprecationWarning)
-
-        return self.auto_analyze()
-
-    def set_auto_optimize_params(self, *args, **kwargs):
-        """
-        Set trainee parameters for auto optimization.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`Trainee.set_auto_analyze_params` instead.
-
-        Parameters
-        ----------
-        auto_optimize_enabled : bool, default False
-            When True, the :func:`train` method will trigger an optimize when
-            it's time for the model to be optimized again.
-        optimize_threshold : int, optional
-            The threshold for the number of cases at which the model should be
-            re-optimized.
-        auto_optimize_limit_size : int, optional
-            The size of of the model at which to stop doing auto-optimization.
-            Value of 0 means no limit.
-        optimize_growth_factor : float, optional
-            The factor by which to increase the optimize threshold every time
-            the model grows to the current threshold size.
-        kwargs : dict, optional
-            Parameters specific for optimize() may be passed in via kwargs, and
-            will be cached and used during future auto-optimizations.
-        """
-        warnings.warn(
-            'The method `set_auto_optimize_params()` is deprecated and will be'
-            'removed in a future release. Please use `set_auto_analyze_params()` '
-            'instead.', DeprecationWarning)
-
-        self.set_auto_analyze_params(*args, **kwargs)
 
     def auto_analyze(self) -> None:
         """
@@ -3751,6 +3624,7 @@ class Trainee(BaseTrainee):
         max_wait_time: Optional[Union[int, float]] = None,
         resources: Optional[Union["TraineeResources", Dict[str, Any]]] = None,
         overwrite: bool = False,
+        trainee_id: Optional[str] = None
     ) -> None:
         """
         Create the trainee at the API.
@@ -3765,6 +3639,8 @@ class Trainee(BaseTrainee):
             The resources to provision for the trainee.
         overwrite : bool, default False
             If True, will overwrite an existing trainee with the same name.
+        trainee_id : str, optional
+            Unique id of trainee. If not specified will be set to the name of trainee.
         Returns
         -------
         None
@@ -3778,6 +3654,7 @@ class Trainee(BaseTrainee):
                     max_wait_time=max_wait_time,
                     overwrite_trainee=overwrite,
                     resources=resources,
+                    trainee_id=trainee_id
                 )
             else:
                 new_trainee = None
@@ -3880,7 +3757,7 @@ class Trainee(BaseTrainee):
         normalize : bool, default False
             Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
         normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
-            The normalization method. The method may either one of the strings below that correspond to a 
+            The normalization method. The method may either one of the strings below that correspond to a
             default method or a custom Callable.
 
             These methods may be passed in as an individual string or in a iterable where they will
@@ -3976,7 +3853,7 @@ class Trainee(BaseTrainee):
         normalize : bool, default False
             Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
         normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
-            The normalization method. The method may either one of the strings below that correspond to a 
+            The normalization method. The method may either one of the strings below that correspond to a
             default method or a custom Callable.
 
             These methods may be passed in as an individual string or in a iterable where they will
@@ -4032,7 +3909,7 @@ class Trainee(BaseTrainee):
 
         matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
         matrix = matrix.droplevel(level=1)
-        # Stores the preprocessed matrix, useful if the user wants a different form of processing 
+        # Stores the preprocessed matrix, useful if the user wants a different form of processing
         # after calculation.
         self._calculated_matrices['mda'] = deepcopy(matrix)
         matrix = matrix_processing(
@@ -4261,3 +4138,80 @@ def list_trainees(
 
     # picks up base
     return client.get_trainees(**params)
+
+def get_hierarchy(self) -> Dict:
+    """
+    Output the hierarchy for a trainee.
+
+    Returns
+    -------
+    dict of {str: dict}
+        Dictionary of the currently contained hierarchy as a nested dict
+        with False for trainees that are stored independently.
+    """
+    return self.client.get_hierarchy(self.id)
+
+def rename(
+        self,
+       	new_name: str = None,
+        *,
+        child_name_path: Optional[List[str]] = None,
+        child_id: Optional[str] = None
+) -> None:
+    """
+    Renames a contained trainee.
+
+    Parameters
+    ----------
+    child_id : str, optional
+        Unique id of child trainee to rename. Ignored if child_name_path is specified
+    child_name_path : list of str, optional
+        List of strings specifying the user-friendly path of the child
+        subtrainee to rename.
+    new_name : str,
+        New name of child trainee
+    """
+    self.client.rename(
+        self.id,
+        child_name_path=child_name_path,
+        child_id=child_id,
+        new_name=new_name
+    )
+
+def execute(
+        self,
+        method: str = None,
+        *,
+        as_external: Optional[bool] = False,
+        child_id: Optional[str] = None,
+        child_name_path: Optional[List[str]] = None,
+        payload: Optional[Dict] = None,
+        load_external_trainee_id: Optional[str] = None
+) -> object:
+    """
+    Executes any method in the API directly on any child trainee of trainee.
+
+    Parameters
+    ----------
+    method : name of method to execute
+    payload : payload to pass to the method
+    child_name_path : optional, list of strings specifying the user-friendly path of the child subtrainee for execution of method
+    child_id : optional, id of child trainee to execute method. Ignored if child_name_path is specified
+    as_external : optional, boolean, applicable only to 'load' and 'save' and if specifying child_name_path or child_id.
+        For 'save', stores the child out as an independent trainee and removes it as a contained entity.
+        For 'load' updates hierarchy by adding the child as an independently stored trainee to the hierarchy without loading the trainee as a subtrainee.
+    load_external_trainee_id : optional, trainee id of trainee being loaded, must be specified only when 'load' and as_external is true.
+
+    Returns
+    -------
+
+    """
+    return self.client.execute(
+        self.id,
+        method=method,
+        as_external=as_external,
+        child_id=child_id,
+        child_name_path=child_name_path,
+        payload=payload,
+        load_external_trainee_id=load_external_trainee_id
+    )

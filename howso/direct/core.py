@@ -458,6 +458,7 @@ class HowsoCore:
             "trainee": trainee_id,
             "filename": filename,
             "filepath": filepath,
+            "trainee_id": trainee_id
         })
 
     def delete(self, trainee_id: str) -> None:
@@ -2677,7 +2678,6 @@ class HowsoCore:
     def move_cases(
         self,
         trainee_id: str,
-        target_trainee_id: Union[str, None],
         num_cases: int = 1,
         *,
         case_indices: Optional[Iterable[Tuple[str, int]]] = None,
@@ -2686,7 +2686,11 @@ class HowsoCore:
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
         preserve_session_data: bool = False,
-        session: Optional[str] = None
+        session: Optional[str] = None,
+        source_id: Optional[str] = None,
+        source_name_path: Optional[List[str]] = None,
+        target_name_path: Optional[List[str]] = None,
+        target_trainee_id: Optional[str] = None
     ) -> Dict:
         """
         Moves cases from one trainee to another trainee.
@@ -2695,8 +2699,6 @@ class HowsoCore:
         ----------
         trainee_id : str
             The identifier of the source Trainee.
-        target_trainee_id : str or None
-            The identifier of the target Trainee.
         num_cases : int
             The number of cases to move; minimum 1 case must be moved.
             Ignored if case_indices is specified.
@@ -2717,6 +2719,18 @@ class HowsoCore:
             When True, will move cases without cleaning up session data.
         session : str, optional
             The identifier of the Trainee session to associate the move with.
+        source_id : str, optional
+            The source trainee unique id to move cases into
+        source_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee from which to move cases.
+        target_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to move cases to.
+        target_trainee_id : str, optional
+            The target trainee id to move the cases to. Ignored if
+            target_name_path is specified. If neither target_name_path nor
+            target_trainee_id are specified, moves cases to the trainee itself.
 
         Returns
         -------
@@ -2725,7 +2739,7 @@ class HowsoCore:
         """
         result = self._execute("move_cases", {
             "trainee": trainee_id,
-            "target_trainee": target_trainee_id,
+            "target_id": target_trainee_id,
             "case_indices": case_indices,
             "condition": condition,
             "condition_session": condition_session,
@@ -2734,6 +2748,9 @@ class HowsoCore:
             "preserve_session_data": preserve_session_data,
             "session": session,
             "distribute_weight_feature": distribute_weight_feature,
+            'source_id': source_id,
+            'source_name_path': source_name_path,
+            'target_name_path': target_name_path
         })
         if not result:
             return {'count': 0}
@@ -2787,18 +2804,20 @@ class HowsoCore:
         dict
             A dictionary with key 'count' for the number of removed cases.
         """
-        return self.move_cases(
-            trainee_id,
-            target_trainee_id=None,
-            case_indices=case_indices,
-            condition=condition,
-            condition_session=condition_session,
-            num_cases=num_cases,
-            precision=precision,
-            preserve_session_data=preserve_session_data,
-            session=session,
-            distribute_weight_feature=distribute_weight_feature,
-        )
+        result = self._execute("remove_cases", {
+            "trainee": trainee_id,
+            "case_indices": case_indices,
+            "condition": condition,
+            "condition_session": condition_session,
+            "precision": precision,
+            "num_cases": num_cases,
+            "preserve_session_data": preserve_session_data,
+            "session": session,
+            "distribute_weight_feature": distribute_weight_feature,
+        })
+        if not result:
+            return {'count': 0}
+        return result
 
     def edit_cases(
         self,

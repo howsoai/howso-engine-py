@@ -4686,14 +4686,17 @@ class HowsoDirectClient(AbstractHowsoClient):
     def move_cases(
         self,
         trainee_id: str,
-        target_trainee_id: str,
         num_cases: int,
         *,
         case_indices: Optional[Iterable[Tuple[str, int]]] = None,
         condition: Optional[Dict] = None,
         condition_session: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
-        preserve_session_data: bool = False
+        preserve_session_data: bool = False,
+        source_id: Optional[str] = None,
+        source_name_path: Optional[List[str]] = None,
+        target_name_path: Optional[List[str]] = None,
+        target_trainee_id: Optional[str] = None
     ) -> int:
         """
         Moves training cases from one trainee to another trainee.
@@ -4702,8 +4705,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         trainee_id : str
             The source trainee to move a cases from.
-        target_trainee_id : str
-            The target trainee to move the cases to.
         num_cases : int
             The number of cases to move; minimum 1 case must be moved.
             Ignored if case_indices is specified.
@@ -4757,6 +4758,18 @@ class HowsoDirectClient(AbstractHowsoClient):
             Ignored if case_indices is specified.
         preserve_session_data : bool, default False
             When True, will move cases without cleaning up session data.
+        source_id : str, optional
+            The source trainee unique id to move cases into
+        source_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee from which to move cases.
+        target_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to move cases to.
+        target_trainee_id : str, optional
+            The target trainee id to move the cases to. Ignored if
+            target_name_path is specified. If neither target_name_path nor
+            target_trainee_id are specified, moves cases to the trainee itself.
 
         Returns
         -------
@@ -4784,14 +4797,18 @@ class HowsoDirectClient(AbstractHowsoClient):
             condition['.session'] = condition['.session'].id
 
         result = self.howso.move_cases(
-            trainee_id, target_trainee_id,
+            trainee_id,
+            target_trainee_id=target_trainee_id,
             case_indices=case_indices,
             condition=condition,
             condition_session=condition_session,
             num_cases=num_cases,
             precision=precision,
             preserve_session_data=preserve_session_data,
-            session=self.active_session.id
+            session=self.active_session.id,
+            source_id=source_id,
+            source_name_path=source_name_path,
+            target_name_path=target_name_path
         )
         self._auto_persist_trainee(trainee_id)
         return result.get('count', 0)
@@ -5163,143 +5180,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.howso.set_auto_ablation_params(
             trainee_id, **params
         )
-
-    def optimize(self, *args, **kwargs):
-        """
-        Optimizes a trainee.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`HowsoDirectClient.analyze` instead.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee.
-        context_features : iterable of str, optional
-            The context features to optimize for.
-        action_features : iterable of str, optional
-            The action features to optimize for.
-        k_folds : int
-            optional, (default 6) number of cross validation folds to do
-        bypass_hyperparameter_optimization : bool
-            optional, bypasses hyperparameter optimization
-        bypass_calculate_feature_residuals : bool
-            optional, bypasses feature residual calculation
-        bypass_calculate_feature_weights : bool
-            optional, bypasses calculation of feature weights
-        use_deviations : bool
-            optional, uses deviations for LK metric in queries
-        num_samples : int
-            used in calculating feature residuals
-        k_values : list of int
-            optional list used in hyperparameter search
-        p_values : list of float
-            optional list used in hyperparameter search
-        dwe_values : list of float
-            optional list used in hyperparameter search
-        optimize_level : int
-            optional value, if specified, will optimize for the following
-            flows:
-
-                1. predictions/accuracy (hyperparameters)
-                2. data synth (cache: global residuals)
-                3. standard details
-                4. full analysis
-        targeted_model : {"omni_targeted", "single_targeted", "targetless"}
-            optional, valid values as follows:
-
-                "single_targeted" = optimize hyperparameters for the
-                    specified action_features
-                "omni_targeted" = optimize hyperparameters for each context
-                    feature as an action feature, ignores action_features
-                    parameter
-                "targetless" = optimize hyperparameters for all context
-                    features as possible action features, ignores
-                    action_features parameter
-        num_optimization_samples : int, optional
-            If the dataset size to too large, optimize on
-            (randomly sampled) subset of data. The
-            `num_optimization_samples` specifies the number of
-            observations to be considered for optimization.
-        optimization_sub_model_size : int or Node, optional
-            Number of samples to use for optimization. The rest
-            will be randomly held-out and not included in calculations.
-        inverse_residuals_as_weights : bool, default is False
-            When True will compute and use inverse of residuals
-            as feature weights
-        use_case_weights : bool, default False
-            When True will scale influence weights by each
-            case's weight_feature weight.
-        weight_feature : str, optional
-            Name of feature whose values to use as case weights.
-            When left unspecified uses the internally managed case weight.
-        kwargs
-            Additional experimental optimize parameters.
-        """
-        warnings.warn(
-            'The method `optimize()` is deprecated and will be'
-            'removed in a future release. Please use `analyze()` '
-            'instead.', DeprecationWarning)
-
-        self.analyze(*args, **kwargs)
-
-    def auto_optimize(self, trainee_id):
-        """
-        Auto-optimize the trainee model.
-
-        Re-uses all parameters from the previous optimize or
-        set_auto_optimize_params call. If optimize or set_auto_optimize_params
-        has not been previously called, auto_optimize will default to a robust
-        and versatile optimization.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`HowsoDirectClient.auto_analyze` instead.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to auto-optimize.
-        """
-        warnings.warn(
-            'The method `auto_optimize()` is deprecated and will be'
-            'removed in a future release. Please use `auto_analyze()` '
-            'instead.', DeprecationWarning)
-
-        return self.auto_analyze(trainee_id)
-
-    def set_auto_optimize_params(self, *args, **kwargs):
-        """
-        Set trainee parameters for auto optimization.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`HowsoDirectClient.set_auto_analyze_params` instead.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to set auto optimization parameters for.
-        auto_optimize_enabled : bool, default False
-            When True, the :func:`train` method will trigger an optimize when
-            it's time for the model to be optimized again.
-        optimize_threshold : int, optional
-            The threshold for the number of cases at which the model should be
-            re-optimized.
-        auto_optimize_limit_size : int, optional
-            The size of of the model at which to stop doing auto-optimization.
-            Value of 0 means no limit.
-        optimize_growth_factor : float, optional
-            The factor by which to increase the optimize threshold every time
-            the model grows to the current threshold size.
-        kwargs : dict, optional
-            Parameters specific for optimize() may be passed in via kwargs, and
-            will be cached and used during future auto-optimizations.
-        """
-        warnings.warn(
-            'The method `set_auto_optimize_params()` is deprecated and will be'
-            'removed in a future release. Please use `set_auto_analyze_params()` '
-            'instead.', DeprecationWarning)
-
-        self.set_auto_analyze_params(*args, **kwargs)
 
     def auto_analyze(self, trainee_id: str):
         """
@@ -6126,3 +6006,5 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
 
         return self.howso.evaluate(trainee_id, **evaluate_params)
+
+

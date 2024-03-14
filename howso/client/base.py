@@ -126,10 +126,12 @@ class AbstractHowsoClient(ABC):
         """Remove training cases from a trainee."""
 
     @abstractmethod
-    def move_cases(self, trainee_id, target_trainee_id, num_cases, *,
+    def move_cases(self, trainee_id, num_cases, *,
                    case_indices=None,
                    condition=None, condition_session=None,
-                   precision=None, preserve_session_data=False) -> int:
+                   precision=None, preserve_session_data=False,
+                   target_trainee_id=None, source_id=None,
+                   source_name_path=None, target_name_path=None) -> int:
         """Move training cases from one trainee to another."""
 
     @abstractmethod
@@ -426,7 +428,7 @@ class AbstractHowsoClient(ABC):
         **kwargs
     ):
         """Set trainee parameters for auto ablation."""
-    
+
     @abstractmethod
     def get_auto_ablation_params(
         self,
