@@ -4913,6 +4913,149 @@ class HowsoDirectClient(AbstractHowsoClient):
             return []
         return result
 
+    def get_hierarchy(self, trainee_id: str) -> Dict:
+        """
+        Output the hierarchy for a trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee get hierarchy from.
+
+        Returns
+        -------
+        dict of {str: dict}
+            Dictionary of the currently contained hierarchy as a nested dict
+            with False for trainees that are stored independently.
+        """
+        self._auto_resolve_trainee(trainee_id)
+        return self.howso.get_hierarchy(trainee_id)
+
+    def rename(
+            self,
+            trainee_id: str,
+            new_name: str = None,
+            *,
+            child_name_path: Optional[List[str]] = None,
+            child_id: Optional[str] = None
+    ) -> None:
+        """
+        Renames a contained child trainee in the hierarchy.
+
+        Parameters
+        ----------
+        child_id : str, optional
+            Unique id of child trainee to rename. Ignored if child_name_path is specified
+        child_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to rename.
+        new_name : str,
+            New name of child trainee
+        trainee_id : str
+            The ID of the Trainee get parameters from.
+        """
+        self._auto_resolve_trainee(trainee_id)
+        if child_id is not None:
+            self._auto_resolve_trainee(child_id)
+        return self.howso.rename(
+            trainee_id,
+            new_name=new_name,
+            child_name_path=child_name_path,
+            child_id=child_id
+        )
+
+
+    def execute(
+            self,
+            trainee_id: str,
+            method: str = None,
+            *,
+            as_external: Optional[bool] = False,
+            child_id: Optional[str] = None,
+            child_name_path: Optional[List[str]] = None,
+            payload: Optional[Dict] = None,
+            load_external_trainee_id: Optional[str] = None
+    ) -> object:
+        """
+        Executes any method in the engine API directly on any child trainee.
+
+        Parameters
+        ----------
+        method : str, name of method to execute
+        payload : dict, parameters specific to the method being called
+        child_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee for execution of method.
+        child_id : str, optional
+            Unique id of child trainee to execute method. Ignored if
+            child_name_path is specified.
+        as_external : bool
+            Applicable only to 'load' and 'save' methods and if specifying
+            child_name_path or child_id.
+            For 'save', stores the child out as an independent trainee and removes
+            it as a contained entity.
+            For 'load' updates hierarchy by adding the child as an independently
+            stored trainee to the hierarchy without loading the trainee as a
+            subtrainee.
+        load_external_trainee_id : str, optional
+            Trainee id of trainee being loaded, must be specified only
+            when method is 'load' and as_external is true.
+        trainee_id : str
+            The id of the Trainee to execute methods on.
+
+        Returns
+        -------
+        object
+            Whatever output the executed method returns.
+        """
+        self._auto_resolve_trainee(trainee_id)
+        if child_id is not None:
+            self._auto_resolve_trainee(child_id)
+
+        result = self.howso.execute(
+            trainee_id,
+            method=method,
+            as_external=as_external,
+            child_id=child_id,
+            child_name_path=child_name_path,
+            payload=payload,
+            load_external_trainee_id=load_external_trainee_id
+        )
+
+        if method in ('get_cases', 'retrieve_extreme_cases_for_feature'):
+            if result is None:
+                result = dict()
+            return Cases(features=result.get('features'),
+                                    cases=result.get('cases'))
+
+        elif method in ['react', 'batch_react']:
+            # Action values and features should always be defined
+            if not result.get('action_values'):
+                result['action_values'] = []
+            if not result.get('action_features'):
+                result['action_features'] = []
+            result = internals.format_react_response(result)
+            result = Reaction(result.get('action'), result.get('details'))
+
+        elif method in ['react_series', 'batch_react_series']:
+            ret = dict()
+            result = replace_doublemax_with_infinity(result)
+            ret['action_features'] = result.pop('action_features') or []
+            ret['action'] = result.pop('action_values')
+
+            # ensure all the details items are output as well
+            for k, v in result.items():
+                ret[k] = v or []
+
+
+            # put all details under the 'details' key
+            action = ret.pop('action')
+            ret = {'action': action, 'details': ret}
+            series_df = build_react_series_df(ret, series_index=None)
+            result = Reaction(series_df, ret.get('details'))
+
+        return result
+
     def set_params(self, trainee_id: str, params: Dict):
         """
         Sets specific hyperparameters in the trainee.

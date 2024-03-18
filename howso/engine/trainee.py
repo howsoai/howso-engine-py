@@ -4159,12 +4159,13 @@ def rename(
         child_id: Optional[str] = None
 ) -> None:
     """
-    Renames a contained trainee.
+    Renames a contained child trainee in the hierarchy.
 
     Parameters
     ----------
     child_id : str, optional
-        Unique id of child trainee to rename. Ignored if child_name_path is specified
+        Unique id of child trainee to rename. Ignored if child_name_path is
+        specified.
     child_name_path : list of str, optional
         List of strings specifying the user-friendly path of the child
         subtrainee to rename.
@@ -4189,22 +4190,34 @@ def execute(
         load_external_trainee_id: Optional[str] = None
 ) -> object:
     """
-    Executes any method in the API directly on any child trainee of trainee.
+    Executes any method in the engine API directly on any child trainee.
 
     Parameters
     ----------
-    method : name of method to execute
-    payload : payload to pass to the method
-    child_name_path : optional, list of strings specifying the user-friendly path of the child subtrainee for execution of method
-    child_id : optional, id of child trainee to execute method. Ignored if child_name_path is specified
-    as_external : optional, boolean, applicable only to 'load' and 'save' and if specifying child_name_path or child_id.
-        For 'save', stores the child out as an independent trainee and removes it as a contained entity.
-        For 'load' updates hierarchy by adding the child as an independently stored trainee to the hierarchy without loading the trainee as a subtrainee.
-    load_external_trainee_id : optional, trainee id of trainee being loaded, must be specified only when 'load' and as_external is true.
+    method : str, name of method to execute
+    payload : dict, parameters specific to the method being called
+    child_name_path : list of str, optional
+        List of strings specifying the user-friendly path of the child
+        subtrainee for execution of method.
+    child_id : str, optional
+        Unique id of child trainee to execute method. Ignored if
+        child_name_path is specified.
+    as_external : bool
+        Applicable only to 'load' and 'save' methods and if specifying
+        child_name_path or child_id.
+        For 'save', stores the child out as an independent trainee and removes
+        it as a contained entity.
+        For 'load' updates hierarchy by adding the child as an independently
+        stored trainee to the hierarchy without loading the trainee as a
+        subtrainee.
+    load_external_trainee_id : str, optional
+        Trainee id of trainee being loaded, must be specified only
+        when method is 'load' and as_external is true.
 
     Returns
     -------
-
+    object
+        Whatever output the executed method returns.
     """
     return self.client.execute(
         self.id,

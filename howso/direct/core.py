@@ -2748,9 +2748,9 @@ class HowsoCore:
             "preserve_session_data": preserve_session_data,
             "session": session,
             "distribute_weight_feature": distribute_weight_feature,
-            'source_id': source_id,
-            'source_name_path': source_name_path,
-            'target_name_path': target_name_path
+            "source_id": source_id,
+            "source_name_path": source_name_path,
+            "target_name_path": target_name_path
         })
         if not result:
             return {'count': 0}
@@ -3062,6 +3062,48 @@ class HowsoCore:
         """
         return self._execute(
             "reset_parameter_defaults", {"trainee": trainee_id})
+
+    def get_hierarchy(self, trainee_id: str) -> Dict:
+        """
+        Output the hierarchy for a trainee.
+
+        Returns
+        -------
+        dict of {str: dict}
+        Dictionary of the currently contained hierarchy as a nested dict
+        with False for trainees that are stored independently.
+        """
+        return self._execute("get_hierarchy", {"trainee": trainee_id})
+
+    def rename(
+            self,
+            trainee_id: str,
+            new_name: str = None,
+            *,
+            child_name_path: Optional[List[str]] = None,
+            child_id: Optional[str] = None
+    ) -> None:
+        """
+        Renames a contained child trainee in the hierarchy.
+
+        Parameters
+        ----------
+        child_id : str, optional
+            Unique id of child trainee to rename. Ignored if child_name_path is specified
+        child_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to rename.
+        new_name : str,
+            New name of child trainee
+        """
+        return self._execute(
+            "rename",
+            {
+                "trainee": trainee_id,
+                "new_name": new_name,
+                "child_name_path": child_name_path,
+                "child_id": child_id
+            })
 
     @classmethod
     def _deserialize(cls, payload: Union[str, bytes]):
