@@ -3070,8 +3070,8 @@ class HowsoCore:
         Returns
         -------
         dict of {str: dict}
-        Dictionary of the currently contained hierarchy as a nested dict
-        with False for trainees that are stored independently.
+            Dictionary of the currently contained hierarchy as a nested dict
+            with False for trainees that are stored independently.
         """
         return self._execute("get_hierarchy", {"trainee": trainee_id})
 
@@ -3103,6 +3103,61 @@ class HowsoCore:
                 "new_name": new_name,
                 "child_name_path": child_name_path,
                 "child_id": child_id
+            })
+
+    def execute(
+            self,
+            trainee_id: str,
+            method: str = None,
+            *,
+            as_external: Optional[bool] = False,
+            child_id: Optional[str] = None,
+            child_name_path: Optional[List[str]] = None,
+            payload: Optional[Dict] = None,
+            load_external_trainee_id: Optional[str] = None
+    ) -> object:
+        """
+        Executes any method in the engine API directly on any child trainee.
+
+        Parameters
+        ----------
+        method : str, name of method to execute
+        payload : dict, parameters specific to the method being called
+        child_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee for execution of method.
+        child_id : str, optional
+            Unique id of child trainee to execute method. Ignored if
+            child_name_path is specified.
+        as_external : bool
+            Applicable only to 'load' and 'save' methods and if specifying
+            child_name_path or child_id.
+            For 'save', stores the child out as an independent trainee and removes
+            it as a contained entity.
+            For 'load' updates hierarchy by adding the child as an independently
+            stored trainee to the hierarchy without loading the trainee as a
+            subtrainee.
+        load_external_trainee_id : str, optional
+            Trainee id of trainee being loaded, must be specified only
+            when method is 'load' and as_external is true.
+        trainee_id : str
+            The id of the Trainee to execute methods on.
+
+        Returns
+        -------
+        object
+            Whatever output the executed method returns.
+        """
+        return self._execute(
+            "execute",
+            {
+                "trainee": trainee_id,
+                "method": method,
+                "as_external": as_external,
+                "child_name_path": child_name_path,
+                "child_id": child_id,
+                "payload": payload,
+                "load_external_trainee_id": load_external_trainee_id
             })
 
     @classmethod
