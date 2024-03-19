@@ -47,6 +47,7 @@ class AbstractHowsoClient(ABC):
         max_wait_time=None,
         overwrite_trainee=False,
         resources=None,
+        trainee_id=None
     ):
         """Create a trainee on the Howso service."""
 

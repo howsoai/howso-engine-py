@@ -376,6 +376,7 @@ class HowsoCore:
             "filepath": f"{self.trainee_template_path}/",
             "trainee_template_filename": fname[0],
             "file_extension": fname[1],
+            "trainee_id": trainee_id
         })
 
     def get_loaded_trainees(self) -> List[str]:
