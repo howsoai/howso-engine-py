@@ -844,6 +844,57 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f"{new_trainee_name} trainee already exists."
             )
 
+    def copy_subtrainee(
+            self,
+            trainee_id: str,
+            target_trainee: str,
+            *,
+            source_id: Optional[str] = None,
+            source_name_path: Optional[List[str]] = None,
+            target_id: Optional[str] = None,
+            target_name_path: Optional[List[str]] = None,
+    ) -> None:
+        """
+        Copy a subtrainee in trainee's hierarchy.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The trainee id of the trainee whose hierarchy is to be modified.
+        target_trainee: str
+            The name of the new Trainee.
+        source_id: str, optional
+            Id of source trainee to copy. Ignored if source_name_path is
+            specified. If neither source_name_path nor source_id are specified,
+            copies the trainee itself.
+        source_name_path: list of str, optional
+            list of strings specifying the user-friendly path of the child
+            subtrainee to copy.
+        target_id: str, optional
+            Id of target trainee to copy trainee into.  Ignored if
+            target_name_path is specified. If neither target_name_path nor
+            target_id are specified, simply copies the trainee as target_trainee.
+        target_name_path: list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to copy trainee into.
+        """
+        # if only target_trainee is specified, call the basic copy_trainee()
+        if all([x is None for x in
+                [source_name_path, source_id, target_id, target_name_path]]):
+            return self.copy_trainee(trainee_id, target_trainee)
+
+        self._auto_resolve_trainee(trainee_id)
+
+        self.howso.copy_subtrainee(
+            trainee_id,
+            target_trainee,
+            source_id=source_id,
+            source_name_path=source_name_path,
+            target_id=target_id,
+            target_name_path=target_name_path
+        )
+
+
     def load_trainee(self, trainee_id: str):
         """
         Load a Trainee that was persisted on the Howso service.

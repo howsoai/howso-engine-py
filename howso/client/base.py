@@ -83,6 +83,15 @@ class AbstractHowsoClient(ABC):
         """Copy a trainee in the Howso service."""
 
     @abstractmethod
+    def copy_subtrainee(
+        self, trainee_id, target_trainee, *,
+        target_name_path=None, target_id=None,
+        source_name_path=None, source_id=None
+    ):
+        """Copy a subtrainee in trainee's hierarchy."""
+
+
+    @abstractmethod
     def acquire_trainee_resources(self, trainee_id, *, max_wait_time=None):
         """Acquire resources for a trainee in the Howso service."""
 
@@ -202,6 +211,33 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def get_trainee_session_training_indices(self, trainee_id, session) -> Union[Index, List[int]]:
         """Get list of all session training indices for a specified session."""
+
+    @abstractmethod
+    def get_hierarchy(self, trainee_id) -> Dict:
+        """Output the hierarchy for a trainee."""
+
+    @abstractmethod
+    def rename(
+            self,
+            trainee_id, *,
+            new_name=None,
+            child_name_path=None,
+            child_id=None
+    ) -> None:
+        """Renames a contained child trainee in the hierarchy."""
+
+    @abstractmethod
+    def execute(
+            self,
+            trainee_id,
+            method, *,
+            as_external=False,
+            child_id=None,
+            child_name_path=None,
+            payload=None,
+            load_external_trainee_id=None
+    ) -> object:
+        """Executes any method in the engine API directly on any child trainee."""
 
     @abstractmethod
     def get_feature_residuals(
