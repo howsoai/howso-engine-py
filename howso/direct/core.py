@@ -1,3 +1,4 @@
+from collections.abc import MutableMapping
 import logging
 from pathlib import Path
 import platform
@@ -285,6 +286,7 @@ class HowsoCore:
                     'Howso core file '
                     f'{self.howso_fully_qualified_path} cannot be loaded: load_status=\'{status}\''
                     f', amalgam=\'{self.amlg.get_version_string()}\'')
+            self._set_label("filepath", str(self.trainee_template_path)+"/")
 
     @staticmethod
     def random_handle() -> str:
@@ -2733,7 +2735,7 @@ class HowsoCore:
         source_id: Optional[str] = None,
         source_name_path: Optional[List[str]] = None,
         target_name_path: Optional[List[str]] = None,
-        target_trainee_id: Optional[str] = None
+        target_id: Optional[str] = None
     ) -> Dict:
         """
         Moves cases from one trainee to another trainee.
@@ -2763,17 +2765,19 @@ class HowsoCore:
         session : str, optional
             The identifier of the Trainee session to associate the move with.
         source_id : str, optional
-            The source trainee unique id to move cases into
+            The source trainee unique id from which to move cases. Ignored
+            if source_name_path is specified. If neither source_name_path nor
+            source_id are specified, moves cases from the trainee itself.
         source_name_path : list of str, optional
             List of strings specifying the user-friendly path of the child
             subtrainee from which to move cases.
         target_name_path : list of str, optional
             List of strings specifying the user-friendly path of the child
             subtrainee to move cases to.
-        target_trainee_id : str, optional
+        target_id : str, optional
             The target trainee id to move the cases to. Ignored if
             target_name_path is specified. If neither target_name_path nor
-            target_trainee_id are specified, moves cases to the trainee itself.
+            target_id are specified, moves cases to the trainee itself.
 
         Returns
         -------
@@ -2782,7 +2786,7 @@ class HowsoCore:
         """
         result = self._execute("move_cases", {
             "trainee": trainee_id,
-            "target_id": target_trainee_id,
+            "target_id": target_id,
             "case_indices": case_indices,
             "condition": condition,
             "condition_session": condition_session,
@@ -3239,7 +3243,8 @@ class HowsoCore:
     def _set_label(self, label: str, payload: Any) -> None:
         """Set label value in core."""
         payload = sanitize_for_json(payload)
-        payload = self._remove_null_entries(payload)
+        if isinstance(payload, MutableMapping):
+            payload = self._remove_null_entries(payload)
         self.amlg.set_json_to_label(
             self.handle, label, json.dumps(payload))
 

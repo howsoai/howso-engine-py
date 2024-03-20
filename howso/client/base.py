@@ -140,7 +140,7 @@ class AbstractHowsoClient(ABC):
                    case_indices=None,
                    condition=None, condition_session=None,
                    precision=None, preserve_session_data=False,
-                   target_trainee_id=None, source_id=None,
+                   target_id=None, source_id=None,
                    source_name_path=None, target_name_path=None) -> int:
         """Move training cases from one trainee to another."""
 

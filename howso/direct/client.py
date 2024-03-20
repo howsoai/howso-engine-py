@@ -4751,7 +4751,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         source_id: Optional[str] = None,
         source_name_path: Optional[List[str]] = None,
         target_name_path: Optional[List[str]] = None,
-        target_trainee_id: Optional[str] = None
+        target_id: Optional[str] = None
     ) -> int:
         """
         Moves training cases from one trainee to another trainee.
@@ -4814,17 +4814,19 @@ class HowsoDirectClient(AbstractHowsoClient):
         preserve_session_data : bool, default False
             When True, will move cases without cleaning up session data.
         source_id : str, optional
-            The source trainee unique id to move cases into
+            The source trainee unique id from which to move cases. Ignored
+            if source_name_path is specified. If neither source_name_path nor
+            source_id are specified, moves cases from the trainee itself.
         source_name_path : list of str, optional
             List of strings specifying the user-friendly path of the child
             subtrainee from which to move cases.
         target_name_path : list of str, optional
             List of strings specifying the user-friendly path of the child
             subtrainee to move cases to.
-        target_trainee_id : str, optional
+        target_id : str, optional
             The target trainee id to move the cases to. Ignored if
             target_name_path is specified. If neither target_name_path nor
-            target_trainee_id are specified, moves cases to the trainee itself.
+            target_id are specified, moves cases to the trainee itself.
 
         Returns
         -------
@@ -4832,7 +4834,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             The number of cases moved.
         """
         self._auto_resolve_trainee(trainee_id)
-        self._auto_resolve_trainee(target_trainee_id)
+        # if neither target is specified, assume moving to main trainee
+        if target_name_path is None:
+            if target_id:
+                self._auto_resolve_trainee(target_id)
+            else:
+                target_id = trainee_id
+
         if num_cases < 1:
             raise ValueError('num_cases must be a value greater than 0')
 
@@ -4842,7 +4850,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if self.verbose:
             print(f'Moving case from trainee with id: {trainee_id} to trainee '
-                  f'with id: {target_trainee_id}')
+                  f'with id: {target_id}')
 
         # Convert session instance to id
         if (
@@ -4853,7 +4861,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         result = self.howso.move_cases(
             trainee_id,
-            target_trainee_id=target_trainee_id,
+            target_id=target_id,
             case_indices=case_indices,
             condition=condition,
             condition_session=condition_session,

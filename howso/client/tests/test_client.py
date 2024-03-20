@@ -550,6 +550,63 @@ class TestClient:
         """
         self.client.persist_trainee(trainee.id)
 
+    def test_hierarchy(self, trainee):
+        """
+        Test hierarchy operations.
+
+        Parameters
+        ----------
+        trainee
+        """
+        self._train(trainee)
+        response = self.client.execute(
+            trainee.id,
+            method="create_trainee",
+            payload={"trainee": "child"}
+        )
+        assert('child' in response['name'])
+
+        response = self.client.execute(
+            trainee.id,
+            method="create_trainee",
+            child_name_path=["child"],
+            payload={"trainee": "grandchild1"}
+        )
+        assert('child' in response['name'])
+        assert('grandchild1' in response['name'])
+
+        response = self.client.move_cases(
+            trainee.id,
+            num_cases=2,
+            target_name_path=["child", "grandchild1"]
+        )
+        assert(response == 2)
+
+        response = self.client.execute(
+            trainee.id,
+            method="get_num_training_cases",
+            child_name_path=["child","grandchild1"]
+        )
+        assert(response['count'] == 2)
+
+        self.client.copy_subtrainee(
+            trainee.id,
+            target_trainee="grandchild2",
+            source_name_path=["child","grandchild1"],
+            target_name_path=["child"]
+        )
+
+        response = self.client.execute(
+            trainee.id,
+            method="get_num_training_cases",
+            child_name_path=["child","grandchild2"]
+        )
+        assert(response['count'] == 2)
+
+        response = self.client.get_hierarchy(trainee.id)
+
+        assert(response == {'child': {'grandchild1': {}, 'grandchild2': {}}})
+
     def test_a_la_cart_data(self, trainee):
         """
         Test a-la-cart data.
