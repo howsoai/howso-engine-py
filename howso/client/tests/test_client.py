@@ -585,27 +585,33 @@ class TestClient:
         response = self.client.execute(
             trainee.id,
             method="get_num_training_cases",
-            child_name_path=["child","grandchild1"]
+            child_name_path=["child", "grandchild1"]
         )
         assert(response['count'] == 2)
 
         self.client.copy_subtrainee(
             trainee.id,
             target_trainee="grandchild2",
-            source_name_path=["child","grandchild1"],
+            source_name_path=["child", "grandchild1"],
             target_name_path=["child"]
         )
 
         response = self.client.execute(
             trainee.id,
             method="get_num_training_cases",
-            child_name_path=["child","grandchild2"]
+            child_name_path=["child", "grandchild2"]
         )
         assert(response['count'] == 2)
 
+        self.client.rename(
+            trainee.id,
+            child_name_path=["child", "grandchild2"]
+            new_name="grandchild_two",
+        )
+
         response = self.client.get_hierarchy(trainee.id)
 
-        assert(response == {'child': {'grandchild1': {}, 'grandchild2': {}}})
+        assert(response == {'child': {'grandchild1': {}, 'grandchild_two': {}}})
 
     def test_a_la_cart_data(self, trainee):
         """

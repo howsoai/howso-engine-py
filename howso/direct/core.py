@@ -286,7 +286,7 @@ class HowsoCore:
                     'Howso core file '
                     f'{self.howso_fully_qualified_path} cannot be loaded: load_status=\'{status}\''
                     f', amalgam=\'{self.amlg.get_version_string()}\'')
-            self._set_label("filepath", str(self.trainee_template_path)+"/")
+            self._set_label("filepath", f"{self.trainee_template_path}/")
 
     @staticmethod
     def random_handle() -> str:
