@@ -5072,8 +5072,11 @@ class HowsoDirectClient(AbstractHowsoClient):
             Whatever output the executed method returns.
         """
         self._auto_resolve_trainee(trainee_id)
-        if child_id is not None:
-            self._auto_resolve_trainee(child_id)
+
+        # when creating child trainees, ensure they have a uid specified
+        if method == 'create_trainee':
+            if 'trainee_id' not in payload:
+                payload['trainee_id'] = str(uuid.uuid4())
 
         result = self.howso.execute(
             trainee_id,
@@ -5097,7 +5100,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                 result['action_values'] = []
             if not result.get('action_features'):
                 result['action_features'] = []
-            result = internals.format_react_response(result)
+            if method=='react':
+                result['action_values'] = [result['action_values']]
+            result = internals.format_react_response(result) #, method=='react')
             result = Reaction(result.get('action'), result.get('details'))
 
         elif method in ['react_series', 'batch_react_series']:
@@ -5110,9 +5115,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             for k, v in result.items():
                 ret[k] = v or []
 
-
             # put all details under the 'details' key
             action = ret.pop('action')
+            if method=='react_series':
+                action = [action]
             ret = {'action': action, 'details': ret}
             series_df = build_react_series_df(ret, series_index=None)
             result = Reaction(series_df, ret.get('details'))

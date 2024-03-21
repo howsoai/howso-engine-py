@@ -565,11 +565,15 @@ class TestClient:
             payload={"trainee": "child"}
         )
         assert('child' in response['name'])
+        assert('id' in response)
+
+        child_id = response['id']
 
         response = self.client.execute(
             trainee.id,
             method="create_trainee",
-            child_name_path=["child"],
+            # create under child by id instead of by path name
+            child_id=child_id,
             payload={"trainee": "grandchild1"}
         )
         assert('child' in response['name'])
@@ -605,13 +609,60 @@ class TestClient:
 
         self.client.rename(
             trainee.id,
-            child_name_path=["child", "grandchild2"]
+            child_name_path=["child", "grandchild2"],
             new_name="grandchild_two",
         )
 
         response = self.client.get_hierarchy(trainee.id)
-
         assert(response == {'child': {'grandchild1': {}, 'grandchild_two': {}}})
+
+        response = self.client.execute(
+            trainee.id,
+            method='get_cases',
+            child_name_path=["child", "grandchild_two"]
+        )
+        assert len(response.cases) == 2
+
+        response = self.client.execute(
+            trainee.id,
+            method='react',
+            child_name_path=["child", "grandchild_two"],
+            payload={
+                "context_features": ["penguin"],
+                "context_values": [20],
+                "action_features": ["play"],
+                "details":{"most_similar_cases":True}
+            }
+        )
+        assert response['action']['play'].iloc[0] == 7
+        assert len(response['details']['most_similar_cases']) == 2
+
+        response = self.client.execute(
+            trainee.id,
+            method='batch_react',
+            child_name_path=["child", "grandchild_two"],
+            payload={
+                "context_features": ["penguin"],
+                "context_values": [[20],[22]],
+                "action_features": ["play"]
+            }
+        )
+        assert response['action']['play'].iloc[0] == 7
+        assert response['action']['play'].iloc[1] == 7
+
+        response = self.client.execute(
+            trainee.id,
+            method='react_series',
+            child_name_path=["child", "grandchild_two"],
+            payload={
+                "initial_values": [10],
+                "initial_features": ["penguin"],
+                "action_features": ["penguin","play"],
+                "desired_conviction": 1
+            }
+        )
+
+        assert isinstance(response['action'], pd.DataFrame)
 
     def test_a_la_cart_data(self, trainee):
         """
