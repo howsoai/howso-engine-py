@@ -524,12 +524,12 @@ class HowsoCore:
         target_id: str, optional
             Id of target trainee to copy trainee into.  Ignored if
             target_name_path is specified. If neither target_name_path nor
-            target_id are specified, simply copies the trainee as target_trainee.
+            target_id are specified, copies as a direct child of trainee.
         target_name_path: list of str, optional
             List of strings specifying the user-friendly path of the child
             subtrainee to copy trainee into.
         """
-        return self._execute("copy", {
+        return self._execute("copy_subtrainee", {
             "trainee": trainee_id,
             "target_trainee": target_trainee,
             "source_id": source_id,
