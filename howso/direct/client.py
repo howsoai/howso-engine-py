@@ -4992,7 +4992,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def rename(
             self,
             trainee_id: str,
-            new_name: str = None,
+            new_name: str,
             *,
             child_name_path: Optional[List[str]] = None,
             child_id: Optional[str] = None
@@ -5013,8 +5013,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             The ID of the Trainee get parameters from.
         """
         self._auto_resolve_trainee(trainee_id)
-        if child_id is not None:
-            self._auto_resolve_trainee(child_id)
         return self.howso.rename(
             trainee_id,
             new_name=new_name,
