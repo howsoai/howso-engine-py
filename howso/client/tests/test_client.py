@@ -607,7 +607,7 @@ class TestClient:
         )
         assert(response['count'] == 2)
 
-        self.client.rename(
+        self.client.rename_subtrainee(
             trainee.id,
             child_name_path=["child", "grandchild2"],
             new_name="grandchild_two",

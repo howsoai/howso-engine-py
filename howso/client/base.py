@@ -217,7 +217,7 @@ class AbstractHowsoClient(ABC):
         """Output the hierarchy for a trainee."""
 
     @abstractmethod
-    def rename(
+    def rename_subtrainee(
         self,
         trainee_id,
         *,

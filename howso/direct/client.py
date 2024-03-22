@@ -4989,7 +4989,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_resolve_trainee(trainee_id)
         return self.howso.get_hierarchy(trainee_id)
 
-    def rename(
+    def rename_subtrainee(
         self,
         trainee_id: str,
         new_name: str,
@@ -5013,7 +5013,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             subtrainee to rename.
         """
         self._auto_resolve_trainee(trainee_id)
-        return self.howso.rename(
+        return self.howso.rename_subtrainee(
             trainee_id,
             new_name=new_name,
             child_id=child_id,

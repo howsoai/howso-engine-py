@@ -3122,7 +3122,7 @@ class HowsoCore:
         """
         return self._execute("get_hierarchy", {"trainee": trainee_id})
 
-    def rename(
+    def rename_subtrainee(
         self,
         trainee_id: str,
         new_name: str = None,
@@ -3146,7 +3146,7 @@ class HowsoCore:
             subtrainee to rename.
         """
         return self._execute(
-            "rename",
+            "rename_subtrainee",
             {
                 "trainee": trainee_id,
                 "new_name": new_name,

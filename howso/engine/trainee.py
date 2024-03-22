@@ -4194,7 +4194,7 @@ def get_hierarchy(self) -> Dict:
     return self.client.get_hierarchy(self.id)
 
 
-def rename(
+def rename_subtrainee(
     self,
     new_name: str = None,
     *,
@@ -4215,7 +4215,7 @@ def rename(
     new_name : str,
         New name of child trainee
     """
-    self.client.rename(
+    self.client.rename_subtrainee(
         self.id,
         child_name_path=child_name_path,
         child_id=child_id,
