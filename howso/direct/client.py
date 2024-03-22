@@ -2523,12 +2523,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         ret = dict()
         batch_result = replace_doublemax_with_infinity(batch_result)
 
+        # batch_result always has action_features and action_values
         ret['action_features'] = batch_result.pop('action_features') or []
         ret['action'] = batch_result.pop('action_values')
 
         # ensure all the details items are output as well
         for k, v in batch_result.items():
-            ret[k] = v or []
+            ret[k] = [] if v is None else v
 
         return ret, in_size, out_size
 
@@ -5063,6 +5064,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         -------
         object
             Whatever output the executed method returns.
+
+        Raises
+        ------
+        ValueError
+            If react series failed.
         """
         self._auto_resolve_trainee(trainee_id)
 
@@ -5095,18 +5101,23 @@ class HowsoDirectClient(AbstractHowsoClient):
                 result['action_features'] = []
             if method == 'react':
                 result['action_values'] = [result['action_values']]
-            result = internals.format_react_response(result) #, method=='react')
+            result = internals.format_react_response(result)
             result = Reaction(result.get('action'), result.get('details'))
 
         elif method in ['react_series', 'batch_react_series']:
+            if result is None or result.get('action_values') is None:
+                raise ValueError('Invalid parameters passed to react_series.')
+
             ret = dict()
             result = replace_doublemax_with_infinity(result)
+
+            # result always has action_features and action_values
             ret['action_features'] = result.pop('action_features') or []
             ret['action'] = result.pop('action_values')
 
             # ensure all the details items are output as well
             for k, v in result.items():
-                ret[k] = v or []
+                ret[k] = [] if v is None else v
 
             # put all details under the 'details' key
             action = ret.pop('action')
