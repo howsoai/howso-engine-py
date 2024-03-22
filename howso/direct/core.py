@@ -3123,25 +3123,27 @@ class HowsoCore:
         return self._execute("get_hierarchy", {"trainee": trainee_id})
 
     def rename(
-            self,
-            trainee_id: str,
-            new_name: str = None,
-            *,
-            child_name_path: Optional[List[str]] = None,
-            child_id: Optional[str] = None
+        self,
+        trainee_id: str,
+        new_name: str = None,
+        *,
+        child_id: Optional[str] = None,
+        child_name_path: Optional[List[str]] = None
     ) -> None:
         """
         Renames a contained child trainee in the hierarchy.
 
         Parameters
         ----------
+        trainee_id : str
+            The ID of the Trainee whose child to rename.
+        new_name : str,
+            New name of child trainee
         child_id : str, optional
             Unique id of child trainee to rename. Ignored if child_name_path is specified
         child_name_path : list of str, optional
             List of strings specifying the user-friendly path of the child
             subtrainee to rename.
-        new_name : str,
-            New name of child trainee
         """
         return self._execute(
             "rename",
@@ -3153,15 +3155,15 @@ class HowsoCore:
             })
 
     def execute(
-            self,
-            trainee_id: str,
-            method: str = None,
-            *,
-            as_external: Optional[bool] = False,
-            child_id: Optional[str] = None,
-            child_name_path: Optional[List[str]] = None,
-            payload: Optional[Dict] = None,
-            load_external_trainee_id: Optional[str] = None
+        self,
+        trainee_id: str,
+        method: str = None,
+        *,
+        as_external: Optional[bool] = False,
+        child_id: Optional[str] = None,
+        child_name_path: Optional[List[str]] = None,
+        payload: Optional[Dict] = None,
+        load_external_trainee_id: Optional[str] = None
     ) -> object:
         """
         Executes any method in the engine API directly on any child trainee.

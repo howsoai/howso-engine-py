@@ -849,14 +849,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             )
 
     def copy_subtrainee(
-            self,
-            trainee_id: str,
-            target_trainee: str,
-            *,
-            source_id: Optional[str] = None,
-            source_name_path: Optional[List[str]] = None,
-            target_id: Optional[str] = None,
-            target_name_path: Optional[List[str]] = None,
+        self,
+        trainee_id: str,
+        target_trainee: str,
+        *,
+        source_id: Optional[str] = None,
+        source_name_path: Optional[List[str]] = None,
+        target_id: Optional[str] = None,
+        target_name_path: Optional[List[str]] = None,
     ) -> None:
         """
         Copy a subtrainee in trainee's hierarchy.
@@ -892,7 +892,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             target_id=target_id,
             target_name_path=target_name_path
         )
-
 
     def load_trainee(self, trainee_id: str):
         """
@@ -4991,47 +4990,47 @@ class HowsoDirectClient(AbstractHowsoClient):
         return self.howso.get_hierarchy(trainee_id)
 
     def rename(
-            self,
-            trainee_id: str,
-            new_name: str,
-            *,
-            child_name_path: Optional[List[str]] = None,
-            child_id: Optional[str] = None
+        self,
+        trainee_id: str,
+        new_name: str,
+        *,
+        child_id: Optional[str] = None,
+        child_name_path: Optional[List[str]] = None
     ) -> None:
         """
         Renames a contained child trainee in the hierarchy.
 
         Parameters
         ----------
+        trainee_id : str
+            The ID of the Trainee whose child to rename.
+        new_name : str,
+            New name of child trainee
         child_id : str, optional
             Unique id of child trainee to rename. Ignored if child_name_path is specified
         child_name_path : list of str, optional
             List of strings specifying the user-friendly path of the child
             subtrainee to rename.
-        new_name : str,
-            New name of child trainee
-        trainee_id : str
-            The ID of the Trainee get parameters from.
         """
         self._auto_resolve_trainee(trainee_id)
         return self.howso.rename(
             trainee_id,
             new_name=new_name,
-            child_name_path=child_name_path,
-            child_id=child_id
+            child_id=child_id,
+            child_name_path=child_name_path
         )
 
 
     def execute(
-            self,
-            trainee_id: str,
-            method: str = None,
-            *,
-            as_external: Optional[bool] = False,
-            child_id: Optional[str] = None,
-            child_name_path: Optional[List[str]] = None,
-            payload: Optional[Dict] = None,
-            load_external_trainee_id: Optional[str] = None
+        self,
+        trainee_id: str,
+        method: str = None,
+        *,
+        as_external: Optional[bool] = False,
+        child_id: Optional[str] = None,
+        child_name_path: Optional[List[str]] = None,
+        payload: Optional[Dict] = None,
+        load_external_trainee_id: Optional[str] = None
     ) -> object:
         """
         Executes any method in the engine API directly on any child trainee.

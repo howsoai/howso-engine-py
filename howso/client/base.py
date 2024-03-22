@@ -91,7 +91,6 @@ class AbstractHowsoClient(ABC):
     ):
         """Copy a subtrainee in trainee's hierarchy."""
 
-
     @abstractmethod
     def acquire_trainee_resources(self, trainee_id, *, max_wait_time=None):
         """Acquire resources for a trainee in the Howso service."""
@@ -219,24 +218,26 @@ class AbstractHowsoClient(ABC):
 
     @abstractmethod
     def rename(
-            self,
-            trainee_id, *,
-            new_name=None,
-            child_name_path=None,
-            child_id=None
+        self,
+        trainee_id,
+        *,
+        new_name=None,
+        child_name_path=None,
+        child_id=None
     ) -> None:
         """Renames a contained child trainee in the hierarchy."""
 
     @abstractmethod
     def execute(
-            self,
-            trainee_id,
-            method, *,
-            as_external=False,
-            child_id=None,
-            child_name_path=None,
-            payload=None,
-            load_external_trainee_id=None
+        self,
+        trainee_id,
+        method,
+        *,
+        as_external=False,
+        child_id=None,
+        child_name_path=None,
+        payload=None,
+        load_external_trainee_id=None
     ) -> object:
         """Executes any method in the engine API directly on any child trainee."""
 

@@ -601,9 +601,13 @@ class Trainee(BaseTrainee):
             raise ValueError('Trainee not correctly copied')
 
     def copy_subtrainee(
-        self, target_trainee, *,
-        target_name_path=None, target_id=None,
-        source_name_path=None, source_id=None
+        self,
+        target_trainee: str,
+        *,
+        source_id: Optional[str] = None,
+        source_name_path: Optional[List[str]] = None,
+        target_id: Optional[str] = None,
+        target_name_path: Optional[List[str]] = None,
     ):
         """
         Copy a subtrainee in trainee's hierarchy.
@@ -3677,6 +3681,7 @@ class Trainee(BaseTrainee):
             If True, will overwrite an existing trainee with the same name.
         trainee_id : str, optional
             Unique id of trainee. If not specified will be set to the name of trainee.
+
         Returns
         -------
         None
@@ -4175,6 +4180,7 @@ def list_trainees(
     # picks up base
     return client.get_trainees(**params)
 
+
 def get_hierarchy(self) -> Dict:
     """
     Output the hierarchy for a trainee.
@@ -4187,12 +4193,13 @@ def get_hierarchy(self) -> Dict:
     """
     return self.client.get_hierarchy(self.id)
 
+
 def rename(
-        self,
-       	new_name: str = None,
-        *,
-        child_name_path: Optional[List[str]] = None,
-        child_id: Optional[str] = None
+    self,
+    new_name: str = None,
+    *,
+    child_name_path: Optional[List[str]] = None,
+    child_id: Optional[str] = None
 ) -> None:
     """
     Renames a contained child trainee in the hierarchy.
@@ -4215,15 +4222,16 @@ def rename(
         new_name=new_name
     )
 
+
 def execute(
-        self,
-        method: str = None,
-        *,
-        as_external: Optional[bool] = False,
-        child_id: Optional[str] = None,
-        child_name_path: Optional[List[str]] = None,
-        payload: Optional[Dict] = None,
-        load_external_trainee_id: Optional[str] = None
+    self,
+    method: str = None,
+    *,
+    as_external: Optional[bool] = False,
+    child_id: Optional[str] = None,
+    child_name_path: Optional[List[str]] = None,
+    payload: Optional[Dict] = None,
+    load_external_trainee_id: Optional[str] = None
 ) -> object:
     """
     Executes any method in the engine API directly on any child trainee.
