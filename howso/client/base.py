@@ -228,20 +228,6 @@ class AbstractHowsoClient(ABC):
         """Renames a contained child trainee in the hierarchy."""
 
     @abstractmethod
-    def execute(
-        self,
-        trainee_id,
-        method,
-        *,
-        as_external=False,
-        child_id=None,
-        child_name_path=None,
-        payload=None,
-        load_external_trainee_id=None
-    ) -> object:
-        """Executes any method in the engine API directly on any child trainee."""
-
-    @abstractmethod
     def get_feature_residuals(
         self, trainee_id, *,
         action_feature=None,
