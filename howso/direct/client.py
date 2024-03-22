@@ -864,7 +864,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         Parameters
         ----------
         trainee_id : str
-            The trainee id of the trainee whose hierarchy is to be modified.
+            The id of the trainee whose hierarchy is to be modified.
         target_trainee: str
             The name of the new Trainee.
         source_id: str, optional
@@ -5095,7 +5095,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 result['action_values'] = []
             if not result.get('action_features'):
                 result['action_features'] = []
-            if method=='react':
+            if method == 'react':
                 result['action_values'] = [result['action_values']]
             result = internals.format_react_response(result) #, method=='react')
             result = Reaction(result.get('action'), result.get('details'))
@@ -5112,7 +5112,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             # put all details under the 'details' key
             action = ret.pop('action')
-            if method=='react_series':
+            if method == 'react_series':
                 action = [action]
             ret = {'action': action, 'details': ret}
             series_df = build_react_series_df(ret, series_index=None)

@@ -511,7 +511,7 @@ class HowsoCore:
         Parameters
         ----------
         trainee_id : str
-            The trainee id of the trainee whose hierarchy is to be modified.
+            The id of the trainee whose hierarchy is to be modified.
         target_trainee: str
             The name of the new Trainee.
         source_id: str, optional
