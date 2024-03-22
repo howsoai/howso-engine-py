@@ -1185,6 +1185,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         series: Optional[str] = None,
         train_weights_only: bool = False,
         validate: bool = True,
+        skip_auto_analyze: bool = False,
     ):
         """
         Train one or more cases into a trainee (model).
@@ -1244,6 +1245,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             Whether to validate the data against the provided feature
             attributes. Issues warnings if there are any discrepancies between
             the data and the features dictionary.
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the response object will contain an "analyze" status when
+            the set auto-analyze parameters indicate that an analyze is needed.
         """
         self._auto_resolve_trainee(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
@@ -1286,7 +1291,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             features = internals.get_features_from_data(cases)
         cases = serialize_cases(cases, features, feature_attributes, warn=True)
 
-        auto_analyze = False
+        needs_analyze = False
 
         with ProgressTimer(len(cases)) as progress:
             gen_batch_size = None
@@ -1314,10 +1319,11 @@ class HowsoDirectClient(AbstractHowsoClient):
                     input_is_substituted=input_is_substituted,
                     series=series,
                     session=self.active_session.id,
-                    train_weights_only=train_weights_only
+                    train_weights_only=train_weights_only,
+                    skip_auto_analyze=skip_auto_analyze,
                 )
                 if response and response.get('status') == 'analyze':
-                    auto_analyze = True
+                    needs_analyze = True
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
@@ -1339,8 +1345,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_persist_trainee(trainee_id)
 
         # kick off auto-analyze if the train response requests it
-        if auto_analyze:
-            self.auto_analyze(trainee_id)
+        if needs_analyze:
+            print((
+                "The auto-analyze conditions of the Trainee have been met. "
+                "Either call `analyze` manually, or `train` without the "
+                "'skip_auto_analyze' flag enabled."
+            ))
 
     def impute(
         self,

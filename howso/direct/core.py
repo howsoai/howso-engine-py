@@ -1138,6 +1138,7 @@ class HowsoCore:
         series: Optional[str] = None,
         session: Optional[str] = None,
         train_weights_only: bool = False,
+        skip_auto_analyze: bool = False,
     ) -> Tuple[Dict, int, int]:
         """
         Train one or more cases into a trainee (model).
@@ -1169,6 +1170,10 @@ class HowsoCore:
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
             training the cases into the model.
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the response object will contain an "analyze" status when
+            the set auto-analyze parameters indicate that an analyze is needed.
 
         Returns
         -------
@@ -1189,6 +1194,7 @@ class HowsoCore:
             "series": series,
             "session": session,
             "train_weights_only": train_weights_only,
+            "skip_auto_analyze": skip_auto_analyze,
         })
 
     def impute(

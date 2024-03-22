@@ -746,6 +746,7 @@ class Trainee(BaseTrainee):
         series: Optional[str] = None,
         train_weights_only: bool = False,
         validate: bool = True,
+        skip_auto_analyze: bool = False,
     ) -> None:
         """
         Train one or more cases into the trainee (model).
@@ -803,6 +804,10 @@ class Trainee(BaseTrainee):
             Whether to validate the data against the provided feature
             attributes. Issues warnings if there are any discrepancies between
             the data and the features dictionary.
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the response object will contain an "analyze" status when
+            the set auto-analyze parameters indicate that an analyze is needed.
 
         Returns
         -------
@@ -821,6 +826,7 @@ class Trainee(BaseTrainee):
                 series=series,
                 train_weights_only=train_weights_only,
                 validate=validate,
+                skip_auto_analyze=skip_auto_analyze,
             )
         else:
             raise ValueError("Client must have the 'train' method.")
