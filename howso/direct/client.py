@@ -5066,9 +5066,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_resolve_trainee(trainee_id)
 
         # when creating child trainees, ensure they have a uid specified
-        if method == 'create_trainee':
-            if 'trainee_id' not in payload:
-                payload['trainee_id'] = str(uuid.uuid4())
+        if method == 'create_trainee' and 'trainee_id' not in payload:
+            payload['trainee_id'] = str(uuid.uuid4())
 
         result = self.howso.execute_subtrainee(
             trainee_id,
@@ -5084,7 +5083,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             if result is None:
                 result = dict()
             return Cases(features=result.get('features'),
-                                    cases=result.get('cases'))
+                         cases=result.get('cases'))
 
         elif method in ['react', 'batch_react']:
             # Action values and features should always be defined
@@ -5105,7 +5104,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             result = replace_doublemax_with_infinity(result)
 
             # result always has action_features and action_values
-            ret['action_features'] = result.pop('action_features') or []
+            ret['action_features'] = result.pop('action_features', [])
             ret['action'] = result.pop('action_values')
 
             # ensure all the details items are output as well
