@@ -391,7 +391,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         max_wait_time: Optional[Union[int, float]] = None,
         overwrite_trainee: bool = False,
         resources: Optional[Union[TraineeResources, Dict]] = None,
-        trainee_id: Optional[str] = None
     ) -> Trainee:
         """
         Create a Trainee on the Howso service.
@@ -414,8 +413,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         resources : howso.openapi.models.TraineeResources or dict, optional
             (Not implemented) Customize the resources provisioned for the
             Trainee instance.
-        trainee_id : str, optional
-            Unique identifier for this trainee
 
         Returns
         -------
@@ -424,10 +421,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if not trainee.id:
             # Default id to trainee name, or new uuid if no name
-            trainee.id =  trainee_id or trainee.name or str(uuid.uuid4())
-
-        if not trainee_id:
-            trainee_id = trainee.id
+            trainee.id =  trainee.name or str(uuid.uuid4())
 
         # Check that the trainee.id is usable for saving later.
         if trainee.name:
@@ -5021,7 +5015,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
 
 
-    def execute(
+    def execute_subtrainee(
         self,
         trainee_id: str,
         method: str = None,
@@ -5076,7 +5070,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             if 'trainee_id' not in payload:
                 payload['trainee_id'] = str(uuid.uuid4())
 
-        result = self.howso.execute(
+        result = self.howso.execute_subtrainee(
             trainee_id,
             method=method,
             as_external=as_external,

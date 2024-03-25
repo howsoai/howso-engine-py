@@ -3154,7 +3154,7 @@ class HowsoCore:
                 "child_id": child_id
             })
 
-    def execute(
+    def execute_subtrainee(
         self,
         trainee_id: str,
         method: str = None,
