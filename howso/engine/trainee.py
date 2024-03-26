@@ -160,8 +160,7 @@ class Trainee(BaseTrainee):
             library_type=library_type,
             max_wait_time=max_wait_time,
             overwrite=overwrite_existing,
-            resources=resources,
-            trainee_id=id
+            resources=resources
         )
 
     @property

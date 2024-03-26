@@ -3157,7 +3157,7 @@ class HowsoCore:
     def execute_on_subtrainee(
         self,
         trainee_id: str,
-        method: str = None,
+        method: str,
         *,
         as_external: Optional[bool] = False,
         child_id: Optional[str] = None,
