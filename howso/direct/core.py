@@ -3198,7 +3198,7 @@ class HowsoCore:
             Whatever output the executed method returns.
         """
         return self._execute(
-            "execute",
+            "execute_on_subtrainee",
             {
                 "trainee": trainee_id,
                 "method": method,
