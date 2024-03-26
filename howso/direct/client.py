@@ -1183,9 +1183,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         input_is_substituted: bool = False,
         progress_callback: Optional[Callable] = None,
         series: Optional[str] = None,
+        skip_auto_analyze: bool = False,
         train_weights_only: bool = False,
         validate: bool = True,
-        skip_auto_analyze: bool = False,
     ) -> bool:
         """
         Train one or more cases into a trainee (model).
@@ -1237,6 +1237,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             the value(s) of this case are appended to all cases in the series.
             If cases is the same length as the series, the value of each case
             in cases is applied in order to each of the cases in the series.
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the boolean response will be True if an analyze is needed.
         train_weights_only : bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -1245,9 +1248,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             Whether to validate the data against the provided feature
             attributes. Issues warnings if there are any discrepancies between
             the data and the features dictionary.
-        skip_auto_analyze : bool, default False
-            When true, the Trainee will not auto-analyze when appropriate.
-            Instead, the boolean response will be True if an analyze is needed.
 
         Returns
         -------
