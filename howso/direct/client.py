@@ -1324,8 +1324,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                     input_is_substituted=input_is_substituted,
                     series=series,
                     session=self.active_session.id,
-                    train_weights_only=train_weights_only,
                     skip_auto_analyze=skip_auto_analyze,
+                    train_weights_only=train_weights_only,
                 )
                 if response and response.get('status') == 'analyze':
                     needs_analyze = True

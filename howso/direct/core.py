@@ -1193,8 +1193,8 @@ class HowsoCore:
             "input_is_substituted": input_is_substituted,
             "series": series,
             "session": session,
-            "train_weights_only": train_weights_only,
             "skip_auto_analyze": skip_auto_analyze,
+            "train_weights_only": train_weights_only,
         })
 
     def impute(

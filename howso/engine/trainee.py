@@ -838,9 +838,9 @@ class Trainee(BaseTrainee):
                 input_is_substituted=input_is_substituted,
                 progress_callback=progress_callback,
                 series=series,
+                skip_auto_analyze=skip_auto_analyze,
                 train_weights_only=train_weights_only,
                 validate=validate,
-                skip_auto_analyze=skip_auto_analyze,
             )
             self._needs_analyze = needs_analyze
         else:
