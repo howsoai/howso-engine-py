@@ -136,6 +136,7 @@ class Trainee(BaseTrainee):
         self._id = id
         self._custom_save_path = None
         self._calculated_matrices = {}
+        self._needs_analyze: bool = False
 
         self.persistence = persistence
         self.set_default_features(
@@ -339,6 +340,18 @@ class Trainee(BaseTrainee):
             The metadata of the trainee.
         """
         return deepcopy(self._metadata)
+
+    @property
+    def needs_analyze(self) -> bool:
+        """
+        The flag indicating of the Trainee needs to analyze.
+
+        Returns
+        -------
+        bool
+            A flag indicating if the Trainee needs to analyze.
+        """
+        return self._needs_analyze
 
     @property
     def calculated_matrices(self) -> Optional[Dict[str, DataFrame]]:
@@ -806,15 +819,16 @@ class Trainee(BaseTrainee):
             the data and the features dictionary.
         skip_auto_analyze : bool, default False
             When true, the Trainee will not auto-analyze when appropriate.
-            Instead, the response object will contain an "analyze" status when
-            the set auto-analyze parameters indicate that an analyze is needed.
+            Instead, the 'needs_analyze' property of the Trainee will be
+            updated.
 
         Returns
         -------
         None
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.train(
+            self._needs_analyze = False
+            needs_analyze = self.client.train(
                 trainee_id=self.id,
                 accumulate_weight_feature=accumulate_weight_feature,
                 batch_size=batch_size,
@@ -828,6 +842,7 @@ class Trainee(BaseTrainee):
                 validate=validate,
                 skip_auto_analyze=skip_auto_analyze,
             )
+            self._needs_analyze = needs_analyze
         else:
             raise ValueError("Client must have the 'train' method.")
 
@@ -3886,7 +3901,7 @@ class Trainee(BaseTrainee):
         normalize : bool, default False
             Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
         normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
-            The normalization method. The method may either one of the strings below that correspond to a 
+            The normalization method. The method may either one of the strings below that correspond to a
             default method or a custom Callable.
 
             These methods may be passed in as an individual string or in a iterable where they will
@@ -3982,7 +3997,7 @@ class Trainee(BaseTrainee):
         normalize : bool, default False
             Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
         normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
-            The normalization method. The method may either one of the strings below that correspond to a 
+            The normalization method. The method may either one of the strings below that correspond to a
             default method or a custom Callable.
 
             These methods may be passed in as an individual string or in a iterable where they will
@@ -4038,7 +4053,7 @@ class Trainee(BaseTrainee):
 
         matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
         matrix = matrix.droplevel(level=1)
-        # Stores the preprocessed matrix, useful if the user wants a different form of processing 
+        # Stores the preprocessed matrix, useful if the user wants a different form of processing
         # after calculation.
         self._calculated_matrices['mda'] = deepcopy(matrix)
         matrix = matrix_processing(
