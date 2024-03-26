@@ -1186,7 +1186,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         train_weights_only: bool = False,
         validate: bool = True,
         skip_auto_analyze: bool = False,
-    ) -> dict:
+    ) -> bool:
         """
         Train one or more cases into a trainee (model).
 
@@ -1247,8 +1247,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             the data and the features dictionary.
         skip_auto_analyze : bool, default False
             When true, the Trainee will not auto-analyze when appropriate.
-            Instead, the response object will contain an "analyze" status when
-            the set auto-analyze parameters indicate that an analyze is needed.
+            Instead, the boolean response will be True if an analyze is needed.
 
         Returns
         -------
@@ -1349,10 +1348,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
 
         self._auto_persist_trainee(trainee_id)
-
-        # update needs_analyze flag if the engine indicates it is necessary
-        if needs_analyze:
-            self._needs_analyze = True
 
         return needs_analyze
 

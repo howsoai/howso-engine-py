@@ -344,7 +344,7 @@ class Trainee(BaseTrainee):
     @property
     def needs_analyze(self) -> bool:
         """
-        The flag indicating of the Trainee needs to analyze.
+        The flag indicating if the Trainee needs to analyze.
 
         Returns
         -------
