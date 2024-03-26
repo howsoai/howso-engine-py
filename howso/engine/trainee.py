@@ -602,7 +602,7 @@ class Trainee(BaseTrainee):
 
     def copy_subtrainee(
         self,
-        target_trainee: str,
+        new_trainee_name: str,
         *,
         source_id: Optional[str] = None,
         source_name_path: Optional[List[str]] = None,
@@ -614,7 +614,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        target_trainee: str
+        new_trainee_name: str
             The name of the new Trainee.
         source_id: str, optional
             Id of source trainee to copy. Ignored if source_name_path is
@@ -633,7 +633,7 @@ class Trainee(BaseTrainee):
         """
         self.client.copy_subtrainee(
             self.id,
-            target_trainee,
+            new_trainee_name,
             source_id=source_id,
             source_name_path=source_name_path,
             target_id=target_id,
@@ -3663,8 +3663,7 @@ class Trainee(BaseTrainee):
         library_type: Optional[str] = None,
         max_wait_time: Optional[Union[int, float]] = None,
         resources: Optional[Union["TraineeResources", Dict[str, Any]]] = None,
-        overwrite: bool = False,
-        trainee_id: Optional[str] = None
+        overwrite: bool = False
     ) -> None:
         """
         Create the trainee at the API.
@@ -3679,8 +3678,6 @@ class Trainee(BaseTrainee):
             The resources to provision for the trainee.
         overwrite : bool, default False
             If True, will overwrite an existing trainee with the same name.
-        trainee_id : str, optional
-            Unique id of trainee. If not specified will be set to the name of trainee.
 
         Returns
         -------
@@ -3694,8 +3691,7 @@ class Trainee(BaseTrainee):
                     library_type=library_type,
                     max_wait_time=max_wait_time,
                     overwrite_trainee=overwrite,
-                    resources=resources,
-                    trainee_id=trainee_id
+                    resources=resources
                 )
             else:
                 new_trainee = None
@@ -4196,24 +4192,24 @@ def get_hierarchy(self) -> Dict:
 
 def rename_subtrainee(
     self,
-    new_name: str = None,
+    new_name: str,
     *,
-    child_name_path: Optional[List[str]] = None,
-    child_id: Optional[str] = None
+    child_id: Optional[str] = None,
+    child_name_path: Optional[List[str]] = None
 ) -> None:
     """
     Renames a contained child trainee in the hierarchy.
 
     Parameters
     ----------
+    new_name : str
+        New name of child trainee
     child_id : str, optional
         Unique id of child trainee to rename. Ignored if child_name_path is
         specified.
     child_name_path : list of str, optional
         List of strings specifying the user-friendly path of the child
         subtrainee to rename.
-    new_name : str,
-        New name of child trainee
     """
     self.client.rename_subtrainee(
         self.id,

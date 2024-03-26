@@ -46,8 +46,7 @@ class AbstractHowsoClient(ABC):
         library_type=None,
         max_wait_time=None,
         overwrite_trainee=False,
-        resources=None,
-        trainee_id=None
+        resources=None
     ):
         """Create a trainee on the Howso service."""
 
@@ -85,7 +84,7 @@ class AbstractHowsoClient(ABC):
 
     @abstractmethod
     def copy_subtrainee(
-        self, trainee_id, target_trainee, *,
+        self, trainee_id, new_trainee_name, *,
         target_name_path=None, target_id=None,
         source_name_path=None, source_id=None
     ):

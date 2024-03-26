@@ -845,7 +845,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def copy_subtrainee(
         self,
         trainee_id: str,
-        target_trainee: str,
+        new_trainee_name: str,
         *,
         source_id: Optional[str] = None,
         source_name_path: Optional[List[str]] = None,
@@ -859,7 +859,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         trainee_id : str
             The id of the trainee whose hierarchy is to be modified.
-        target_trainee: str
+        new_trainee_name: str
             The name of the new Trainee.
         source_id: str, optional
             Id of source trainee to copy. Ignored if source_name_path is
@@ -880,7 +880,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.howso.copy_subtrainee(
             trainee_id,
-            target_trainee,
+            new_trainee_name,
             source_id=source_id,
             source_name_path=source_name_path,
             target_id=target_id,
@@ -5015,7 +5015,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
 
 
-    def execute_subtrainee(
+    def execute_on_subtrainee(
         self,
         trainee_id: str,
         method: str = None,
@@ -5069,7 +5069,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if method == 'create_trainee' and 'trainee_id' not in payload:
             payload['trainee_id'] = str(uuid.uuid4())
 
-        result = self.howso.execute_subtrainee(
+        result = self.howso.execute_on_subtrainee(
             trainee_id,
             method=method,
             as_external=as_external,

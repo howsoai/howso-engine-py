@@ -559,7 +559,7 @@ class TestClient:
         trainee
         """
         self._train(trainee)
-        response = self.client.execute_subtrainee(
+        response = self.client.execute_on_subtrainee(
             trainee.id,
             method="create_trainee",
             payload={"trainee": "child"}
@@ -569,7 +569,7 @@ class TestClient:
 
         child_id = response['id']
 
-        response = self.client.execute_subtrainee(
+        response = self.client.execute_on_subtrainee(
             trainee.id,
             method="create_trainee",
             # create under child by id instead of by path name
@@ -586,7 +586,7 @@ class TestClient:
         )
         assert(response == 2)
 
-        response = self.client.execute_subtrainee(
+        response = self.client.execute_on_subtrainee(
             trainee.id,
             method="get_num_training_cases",
             child_name_path=["child", "grandchild1"]
@@ -595,12 +595,12 @@ class TestClient:
 
         self.client.copy_subtrainee(
             trainee.id,
-            target_trainee="grandchild2",
+            new_trainee_name="grandchild2",
             source_name_path=["child", "grandchild1"],
             target_name_path=["child"]
         )
 
-        response = self.client.execute_subtrainee(
+        response = self.client.execute_on_subtrainee(
             trainee.id,
             method="get_num_training_cases",
             child_name_path=["child", "grandchild2"]
@@ -616,14 +616,14 @@ class TestClient:
         response = self.client.get_hierarchy(trainee.id)
         assert(response == {'child': {'grandchild1': {}, 'grandchild_two': {}}})
 
-        response = self.client.execute_subtrainee(
+        response = self.client.execute_on_subtrainee(
             trainee.id,
             method='get_cases',
             child_name_path=["child", "grandchild_two"]
         )
         assert len(response.cases) == 2
 
-        response = self.client.execute_subtrainee(
+        response = self.client.execute_on_subtrainee(
             trainee.id,
             method='react',
             child_name_path=["child", "grandchild_two"],
@@ -637,7 +637,7 @@ class TestClient:
         assert response['action']['play'].iloc[0] == 7
         assert len(response['details']['most_similar_cases']) == 2
 
-        response = self.client.execute_subtrainee(
+        response = self.client.execute_on_subtrainee(
             trainee.id,
             method='batch_react',
             child_name_path=["child", "grandchild_two"],
@@ -650,7 +650,7 @@ class TestClient:
         assert response['action']['play'].iloc[0] == 7
         assert response['action']['play'].iloc[1] == 7
 
-        response = self.client.execute_subtrainee(
+        response = self.client.execute_on_subtrainee(
             trainee.id,
             method='react_series',
             child_name_path=["child", "grandchild_two"],

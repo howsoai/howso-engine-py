@@ -499,20 +499,20 @@ class HowsoCore:
     def copy_subtrainee(
         self,
         trainee_id: str,
-        target_trainee: str,
+        new_trainee_name: str,
         source_id: Optional[str] = None,
         source_name_path: Optional[List[str]] = None,
         target_id: Optional[str] = None,
         target_name_path: Optional[List[str]] = None,
     ) -> None:
         """
-        Copy a subrtainee in trainee's hierarchy.
+        Copy a subtrainee in trainee's hierarchy.
 
         Parameters
         ----------
         trainee_id : str
             The id of the trainee whose hierarchy is to be modified.
-        target_trainee: str
+        new_trainee_name: str
             The name of the new Trainee.
         source_id: str, optional
             Id of source trainee to copy. Ignored if source_name_path is
@@ -531,7 +531,7 @@ class HowsoCore:
         """
         return self._execute("copy_subtrainee", {
             "trainee": trainee_id,
-            "target_trainee": target_trainee,
+            "target_trainee": new_trainee_name,
             "source_id": source_id,
             "source_name_path": source_name_path,
             "target_id": target_id,
@@ -3154,7 +3154,7 @@ class HowsoCore:
                 "child_id": child_id
             })
 
-    def execute_subtrainee(
+    def execute_on_subtrainee(
         self,
         trainee_id: str,
         method: str = None,
