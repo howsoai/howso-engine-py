@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from copy import deepcopy
 from pathlib import Path
 from typing import (
@@ -39,7 +41,8 @@ from howso.openapi.models import (
     TraineeInformation,
     TraineeResources,
 )
-from howso.utilities import CaseIndices, matrix_processing
+from howso.engine.typing import FeatureAttributesType, GenerateNewCasesType, LibraryType, Mode, NewCaseThresholdType, NormalizeMethod, PersistenceType, Precision, SeriesIDTrackingType, TargetedModelType, CaseIndices
+from howso.utilities import matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 from howso.utilities.reaction import Reaction
 from pandas import (
@@ -71,7 +74,7 @@ class Trainee(BaseTrainee):
     name : str, optional
         The name of the trainee.
     features : dict of {str: dict}
-        The feature attributes of the trainee. Where feature `name` is the key
+        The feature attributes of the trainee. Where feature ``name`` is the key
         and a sub dictionary of feature attributes is the value.
     default_action_features : list of str, optional
         The default action feature names of the trainee.
@@ -80,7 +83,7 @@ class Trainee(BaseTrainee):
     id : str, optional
         The unique identifier of the Trainee. The client automatically completes
         this field and the user should NOT manually use this parameter. Please use
-        the `name` parameter to manually specify a Trainee name.
+        the ``name`` parameter to manually specify a Trainee name.
     library_type : str, optional
         The library type of the Trainee. Valid options include:
 
@@ -88,7 +91,7 @@ class Trainee(BaseTrainee):
             - "mt": use multi-threaded library.
     max_wait_time : int or float, default 30
         The number of seconds to wait for a trainee to be created and become
-        available before aborting gracefully. Set to `0` (or None) to wait as
+        available before aborting gracefully. Set to ``0`` (or None) to wait as
         long as the system-configured maximum for sufficient resources to
         become available, which is typically 20 minutes.
     persistence : str, default "allow"
@@ -112,11 +115,11 @@ class Trainee(BaseTrainee):
         features: Optional[Dict[str, Dict]] = None,
         *,
         overwrite_existing: bool = False,
-        persistence: str = "allow",
+        persistence: PersistenceType = "allow",
         default_action_features: Optional[Iterable[str]] = None,
         default_context_features: Optional[Iterable[str]] = None,
         id: Optional[str] = None,
-        library_type: Optional[str] = None,
+        library_type: Optional[LibraryType] = None,
         max_wait_time: Optional[Union[int, float]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         project: Optional[Union[str, BaseProject]] = None,
@@ -262,8 +265,8 @@ class Trainee(BaseTrainee):
         """
         if name is not None and len(name) > 128:
             raise ValueError(
-                "Invalid value for `name`, length must be less "
-                "than or equal to `128`"
+                "Invalid value for ``name``, length must be less "
+                "than or equal to ``128``"
             )
         self._name = name
         self.update()
@@ -281,7 +284,7 @@ class Trainee(BaseTrainee):
         return self._persistence
 
     @persistence.setter
-    def persistence(self, persistence) -> None:
+    def persistence(self, persistence: PersistenceType) -> None:
         """
         Set the persistence state of the trainee.
 
@@ -295,10 +298,10 @@ class Trainee(BaseTrainee):
         -------
         None
         """
-        allowed_values = ["allow", "always", "never"]
+        allowed_values = {"allow", "always", "never"}
         if persistence not in allowed_values:
             raise ValueError(
-                f"Invalid value for `persistence` ({persistence}), must be"
+                f"Invalid value for ``persistence`` ({persistence}), must be"
                 f"one of {allowed_values}"
             )
         self._persistence = persistence
@@ -310,9 +313,9 @@ class Trainee(BaseTrainee):
         The trainee feature attributes.
 
         .. WARNING::
-            This returns a deep `copy` of the feature attributes. To update
+            This returns a deep ``copy`` of the feature attributes. To update
             features attributes of the trainee, use the method
-            :func:`set_feature_attributes`.
+            :func:``set_feature_attributes``.
 
         Returns
         -------
@@ -330,8 +333,8 @@ class Trainee(BaseTrainee):
         The trainee metadata.
 
         .. WARNING::
-            This returns a deep `copy` of the metadata. To update the
-            metadata of the trainee, use the method :func:`set_metadata`.
+            This returns a deep ``copy`` of the metadata. To update the
+            metadata of the trainee, use the method :func:``set_metadata``.
 
         Returns
         -------
@@ -358,8 +361,8 @@ class Trainee(BaseTrainee):
         The default action features of the trainee.
 
         .. WARNING::
-            This returns a deep `copy` of the default action features. To
-            update them, use the method :func:`set_default_features`.
+            This returns a deep ``copy`` of the default action features. To
+            update them, use the method :func:``set_default_features``.
 
         Returns
         -------
@@ -374,8 +377,8 @@ class Trainee(BaseTrainee):
         The default context features of the trainee.
 
         .. WARNING::
-            This returns a deep `copy` of the default context features. To
-            update them, use the method :func:`set_default_features`.
+            This returns a deep ``copy`` of the default context features. To
+            update them, use the method :func:``set_default_features``.
 
         Returns
         -------
@@ -408,19 +411,19 @@ class Trainee(BaseTrainee):
             an absolute path, a relative path or simply a file name. If no filepath
             is provided, the default filepath will be the CWD.
 
-            If `file_path` is a relative path (with or without a file name),
-            the absolute path will be computed appending the `file_path` to the
+            If ``file_path`` is a relative path (with or without a file name),
+            the absolute path will be computed appending the ``file_path`` to the
             CWD.
 
-            If `file_path` is an absolute path, this is the absolute path that
+            If ``file_path`` is an absolute path, this is the absolute path that
             will be used.
 
-            If `file_path` does not contain a filename, then the natural
-            trainee name will be used `<uuid>.caml`.
+            If ``file_path`` does not contain a filename, then the natural
+            trainee name will be used ``<uuid>.caml``.
         """
 
         if not isinstance(self.client, LocalSaveableProtocol):
-            raise HowsoError("To save, `client` type must have local disk access.")
+            raise HowsoError("To save, ``client`` type must have local disk access.")
 
         if file_path:
             if not isinstance(file_path, Path):
@@ -435,8 +438,8 @@ class Trainee(BaseTrainee):
                 if file_path.suffix.lower() != '.caml':
                     file_path = file_path.parent.joinpath(f"{file_path.stem}.caml")
                     warnings.warn(
-                        'Filepath with a non `.caml` extension was provided. Extension will be '
-                        'ignored and the file be will be saved as a `.caml` file', UserWarning)
+                        'Filepath with a non ``.caml`` extension was provided. Extension will be '
+                        'ignored and the file be will be saved as a ``.caml`` file', UserWarning)
             else:
                 # Add the natural name to the file_path
                 file_path = file_path.joinpath(f"{self.id}.caml")
@@ -464,19 +467,15 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Trainee ID is needed for saving.")
 
-    def set_feature_attributes(self, feature_attributes: Dict[str, Dict]) -> None:
+    def set_feature_attributes(self, feature_attributes: FeatureAttributesType):
         """
         Update the trainee feature attributes.
 
         Parameters
         ----------
         feature_attributes : dict of {str: dict}
-            The feature attributes of the trainee. Where feature `name` is the
+            The feature attributes of the trainee. Where feature ``name`` is the
             key and a sub dictionary of feature attributes is the value.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.set_feature_attributes(
@@ -495,22 +494,18 @@ class Trainee(BaseTrainee):
     def set_default_features(
         self,
         *,
-        action_features: Optional[Iterable[str]],
-        context_features: Optional[Iterable[str]],
-    ) -> None:
+        action_features: Optional[Iterable[str]] = None,
+        context_features: Optional[Iterable[str]] = None,
+    ):
         """
         Update the trainee default features.
 
         Parameters
         ----------
-        action_features : list of str or None
+        action_features : Iterable of str, optional
             The default action feature names.
-        context_features : list of str or None
+        context_features : Iterable of str, optional
             The default context feature names.
-
-        Returns
-        -------
-        None
         """
         if action_features is not None:
             self._default_action_features = list(action_features)
@@ -522,19 +517,15 @@ class Trainee(BaseTrainee):
             self._default_context_features = None
         self.update()
 
-    def set_metadata(self, metadata: Optional[Dict[str, Any]]) -> None:
+    def set_metadata(self, metadata: Optional[Dict[str, Any]]):
         """
         Update the trainee metadata.
 
         Parameters
         ----------
-        metadata : dict or None
+        metadata : dict, optional
             Any key-value pair to store as custom metadata for the trainee.
-            Providing `None` will remove the current metadata.
-
-        Returns
-        -------
-        None
+            Providing ``None`` will remove the current metadata.
         """
         self._metadata = metadata
         self.update()
@@ -543,9 +534,9 @@ class Trainee(BaseTrainee):
         self,
         name: Optional[str] = None,
         *,
-        library_type: Optional[str] = None,
+        library_type: Optional[LibraryType] = None,
         project: Optional[Union[str, BaseProject]] = None,
-        resources: Optional[Union["TraineeResources", Dict[str, Any]]] = None
+        resources: Optional["TraineeResources" | Dict[str, Any]] = None
     ) -> "Trainee":
         """
         Copy the trainee to another trainee.
@@ -599,27 +590,19 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError('Trainee not correctly copied')
 
-    def persist(self) -> None:
+    def persist(self):
         """
         Persist the trainee.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.persist_trainee(self.id)
             self._was_saved = True
 
-    def delete(self) -> None:
+    def delete(self):
         """
         Delete the trainee from the last loaded or saved location.
 
-        If trying to delete a trainee from another location, see :func:`delete_trainee`.
-
-        Returns
-        -------
-        None
+        If trying to delete a trainee from another location, see :func:``delete_trainee``.
         """
         if isinstance(self.client, AbstractHowsoClient):
             if isinstance(self.client, LocalSaveableProtocol) and self._custom_save_path is not None:
@@ -634,52 +617,39 @@ class Trainee(BaseTrainee):
         self._created = False
         self._id = None
 
-    def unload(self) -> None:
+    def unload(self):
         """
         Unload the trainee.
 
         .. deprecated:: 1.0.0
-            Use :meth:`Trainee.release_resources` instead.
-
-        Returns
-        -------
-        None
+            Use :meth:``Trainee.release_resources`` instead.
         """
         warnings.warn(
-            'The method `unload()` is deprecated and will be removed '
-            'in a future release. Please use `release_resources()` '
+            'The method ``unload()`` is deprecated and will be removed '
+            'in a future release. Please use ``release_resources()`` '
             'instead.', DeprecationWarning)
         self.release_resources()
 
-    def acquire_resources(self, *, max_wait_time=None) -> None:
+    def acquire_resources(self, *, max_wait_time: Optional[int | float] = None):
         """
         Acquire resources for a trainee in the Howso service.
 
         Parameters
         ----------
-        max_wait_time : int or float, default 60
+        max_wait_time : int or float, optional
             The number of seconds to wait for trainee resources to be acquired
-            before aborting gracefully. Set to `0` (or None) to wait as long as
+            before aborting gracefully. Set to ``0`` (or None) to wait as long as
             the system-configured maximum for sufficient resources to become
             available, which is typically 20 minutes.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.acquire_trainee_resources(
-                self.id, max_wait_time=max_wait_time)
+            self.client.acquire_trainee_resources(self.id, max_wait_time=max_wait_time)
         else:
             raise ValueError("Client must have the 'acquire_trainee_resources' method.")
 
-    def release_resources(self) -> None:
+    def release_resources(self):
         """
         Release a trainee's resources from the Howso service.
-
-        Returns
-        -------
-        None
         """
         if not self.id:
             return
@@ -717,7 +687,7 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have 'get_trainee_metrics' method")
 
-    def set_random_seed(self, seed: Union[int, float, str]) -> None:
+    def set_random_seed(self, seed: int | float | str):
         """
         Set the random seed for the trainee.
 
@@ -725,17 +695,13 @@ class Trainee(BaseTrainee):
         ----------
         seed : int or float or str
             The random seed.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.set_random_seed(trainee_id=self.id, seed=seed)
 
     def train(
         self,
-        cases: Union[List[List[object]], "DataFrame"],
+        cases: List[List[object]] | "DataFrame",
         *,
         accumulate_weight_feature: Optional[str] = None,
         batch_size: Optional[int] = None,
@@ -746,19 +712,19 @@ class Trainee(BaseTrainee):
         series: Optional[str] = None,
         train_weights_only: bool = False,
         validate: bool = True,
-    ) -> None:
+    ):
         """
         Train one or more cases into the trainee (model).
 
         Parameters
         ----------
-        cases : list of list of object or pandas.DataFrame
+        cases : list of list of object or DataFrame
             One or more cases to train into the model.
-        accumulate_weight_feature : str, default None
+        accumulate_weight_feature : str, optional
             Name of feature into which to accumulate neighbors'
             influences as weight for ablated cases. If unspecified, will not
             accumulate weights.
-        batch_size : int or None, optional
+        batch_size : int, optional
             Define the number of cases to train at once. If left unspecified,
             the batch size will be determined automatically.
         derived_features : list of str, optional
@@ -781,8 +747,8 @@ class Trainee(BaseTrainee):
         input_is_substituted : bool, default False
             If True assumes provided nominal feature values have already
             been substituted.
-        progress_callback : callable or None, optional
-            (Optional) A callback method that will be called before each
+        progress_callback : callable, optional
+            A callback method that will be called before each
             batched call to train and at the end of training. The method is
             given a ProgressTimer containing metrics on the progress and timing
             of the train operation.
@@ -795,7 +761,7 @@ class Trainee(BaseTrainee):
             this case are appended to all cases in the series. If cases is the
             same length as the series, the value of each case in cases is
             applied in order to each of the cases in the series.
-        train_weights_only:  bool, default False
+        train_weights_only: bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
             training the cases into the model.
@@ -803,10 +769,6 @@ class Trainee(BaseTrainee):
             Whether to validate the data against the provided feature
             attributes. Issues warnings if there are any discrepancies between
             the data and the features dictionary.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.train(
@@ -830,7 +792,7 @@ class Trainee(BaseTrainee):
         Optimizes a trainee.
 
         .. deprecated:: 6.0.0
-            Use :meth:`Trainee.analyze` instead.
+            Use :meth:``Trainee.analyze`` instead.
 
         Parameters
         ----------
@@ -878,7 +840,7 @@ class Trainee(BaseTrainee):
         num_optimization_samples : int, optional
             If the dataset size to too large, optimize on
             (randomly sampled) subset of data. The
-            `num_optimization_samples` specifies the number of
+            ``num_optimization_samples`` specifies the number of
             observations to be considered for optimization.
         optimization_sub_model_size : int or Node, optional
             Number of samples to use for optimization. The rest
@@ -896,8 +858,8 @@ class Trainee(BaseTrainee):
             Additional experimental optimize parameters.
         """
         warnings.warn(
-            'The method `optimize()` is deprecated and will be'
-            'removed in a future release. Please use `analyze()` '
+            'The method ``optimize()`` is deprecated and will be'
+            'removed in a future release. Please use ``analyze()`` '
             'instead.', DeprecationWarning)
 
         self.analyze(*args, **kwargs)
@@ -912,11 +874,11 @@ class Trainee(BaseTrainee):
         and versatile optimization.
 
         .. deprecated:: 6.0.0
-            Use :meth:`Trainee.auto_analyze` instead.
+            Use :meth:``Trainee.auto_analyze`` instead.
         """
         warnings.warn(
-            'The method `auto_optimize()` is deprecated and will be'
-            'removed in a future release. Please use `auto_analyze()` '
+            'The method ``auto_optimize()`` is deprecated and will be'
+            'removed in a future release. Please use ``auto_analyze()`` '
             'instead.', DeprecationWarning)
 
         return self.auto_analyze()
@@ -926,12 +888,12 @@ class Trainee(BaseTrainee):
         Set trainee parameters for auto optimization.
 
         .. deprecated:: 6.0.0
-            Use :meth:`Trainee.set_auto_analyze_params` instead.
+            Use :meth:``Trainee.set_auto_analyze_params`` instead.
 
         Parameters
         ----------
         auto_optimize_enabled : bool, default False
-            When True, the :func:`train` method will trigger an optimize when
+            When True, the :func:``train`` method will trigger an optimize when
             it's time for the model to be optimized again.
         optimize_threshold : int, optional
             The threshold for the number of cases at which the model should be
@@ -947,8 +909,8 @@ class Trainee(BaseTrainee):
             will be cached and used during future auto-optimizations.
         """
         warnings.warn(
-            'The method `set_auto_optimize_params()` is deprecated and will be'
-            'removed in a future release. Please use `set_auto_analyze_params()` '
+            'The method ``set_auto_optimize_params()`` is deprecated and will be'
+            'removed in a future release. Please use ``set_auto_analyze_params()`` '
             'instead.', DeprecationWarning)
 
         self.set_auto_analyze_params(*args, **kwargs)
@@ -972,7 +934,7 @@ class Trainee(BaseTrainee):
 
     def get_auto_ablation_params(self):
         """
-        Get trainee parameters for auto ablation set by :meth:`set_auto_ablation_params`.
+        Get trainee parameters for auto ablation set by :meth:``set_auto_ablation_params``.
         """
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_auto_ablation_params(self.id)
@@ -1003,27 +965,27 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         auto_ablation_enabled : bool, default False
-            When True, the :meth:`train` method will ablate cases that meet the set criteria.
+            When True, the :meth:``train`` method will ablate cases that meet the set criteria.
         auto_ablation_weight_feature : str, default ".case_weight"
             The weight feature that should be accumulated to when cases are ablated.
         minimum_model_size : int, default 1,000
             The threshold ofr the minimum number of cases at which the model should auto-ablate.
         influence_weight_entropy_threshold : float, default 0.6
             The influence weight entropy quantile that a case must be beneath in order to be trained.
-        exact_prediction_features : Optional[List[str]], optional
+        exact_prediction_features : list of str, optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
-        residual_prediction_features : Optional[List[str]], optional
+        residual_prediction_features : list of str, optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
-        tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
+        tolerance_prediction_threshold_map : dict of str to tuple of float, optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
         relative_prediction_threshold_map : Optional[Dict[str, float]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= relative threshold
-        conviction_lower_threshold : Optional[float], optional
+        conviction_lower_threshold : float, optional
             The conviction value above which cases will be ablated.
-        conviction_upper_threshold : Optional[float], optional
+        conviction_upper_threshold : float, optional
             The conviction value below which cases will be ablated.
         """
         if isinstance(self.client, AbstractHowsoClient):
@@ -1061,7 +1023,7 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         auto_analyze_enabled : bool, default False
-            When True, the :func:`train` method will trigger an analyze when
+            When True, the :func:``train`` method will trigger an analyze when
             it's time for the model to be analyzed again.
         analyze_threshold : int, optional
             The threshold for the number of cases at which the model should be
@@ -1073,7 +1035,7 @@ class Trainee(BaseTrainee):
             The factor by which to increase the analysis threshold every
             time the model grows to the current threshold size.
         kwargs : dict, optional
-            See parameters in :func:`analyze`.
+            See parameters in :meth:``analyze``.
 
         Returns
         -------
@@ -1108,12 +1070,12 @@ class Trainee(BaseTrainee):
         analysis_sub_model_size: Optional[int] = None,
         analyze_level: Optional[int] = None,
         p_values: Optional[List[float]] = None,
-        targeted_model: Optional[str] = None,
+        targeted_model: Optional[TargetedModelType] = None,
         use_case_weights: Optional[bool] = None,
         use_deviations: Optional[bool] = None,
         weight_feature: Optional[str] = None,
         **kwargs
-    ) -> None:
+    ):
         """
         Analyzes the trainee.
 
@@ -1131,7 +1093,7 @@ class Trainee(BaseTrainee):
             When True, bypasses hyperparameter analysis.
         dt_values : list of float, optional
             The dt value hyperparameters to analyze with.
-        inverse_residuals_as_weights : bool, default is False
+        inverse_residuals_as_weights : bool, default False
             When True, will compute and use inverse of residuals as feature
             weights.
         k_folds : int, optional
@@ -1157,7 +1119,7 @@ class Trainee(BaseTrainee):
 
         p_values : list of float, optional
             The p value hyperparameters to analyze with.
-        targeted_model : str or None
+        targeted_model : {"single_targeted", "omni_targeted", "targetless"}, optional
             Type of hyperparameter targeting.
             Valid options include:
 
@@ -1171,7 +1133,7 @@ class Trainee(BaseTrainee):
                   action_features parameter.
 
         use_case_weights : bool, default False
-            (Optional) When True will scale influence weights by each
+            When True will scale influence weights by each
             case's weight_feature weight.
         use_deviations : bool, default False
             When True, uses deviations for LK metric in queries.
@@ -1180,10 +1142,6 @@ class Trainee(BaseTrainee):
             When left unspecified uses the internally managed case weight.
         kwargs
             Additional experimental analyze parameters.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.analyze(
@@ -1211,66 +1169,66 @@ class Trainee(BaseTrainee):
 
     def predict(
         self,
-        contexts: Optional[Union[List[List[object]], "DataFrame"]] = None,
+        contexts: Optional[List[List[object]] | "DataFrame"] = None,
         *,
-        suppress_warning: bool = False,
-        use_case_weights: bool = False,
-        allow_nulls: bool = False,
         action_features: Optional[Iterable[str]] = None,
+        allow_nulls: bool = False,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         leave_case_out: Optional[bool] = None,
+        suppress_warning: bool = False,
+        use_case_weights: bool = False,
         weight_feature: Optional[str] = None,
     ) -> DataFrame:
         """
-        Wrapper around :func:`react`.
+        Wrapper around :meth:``react``.
 
         Performs a discriminative react to predict the action feature values based on the
         given contexts. Returns only the predicted action values.
 
         .. seealso::
-            :func:`react`
+            :meth:``react``
 
         Parameters
         ----------
-        contexts : list of list of object or pandas.DataFrame, optional
-            (Optional) The context values to react to. If context values are not specified,
-            then `case_indices` must be specified.
+        contexts : list of list of object or DataFrame, optional
+            The context values to react to. If context values are not specified,
+            then ``case_indices`` must be specified.
         action_features : list of str, optional
-            (Optional) Feature names to treat as action features during react. If no
-            `action_features` is specified, the Trainee `default_action_features`
+            Feature names to treat as action features during react. If no
+            ``action_features`` is specified, the Trainee ``default_action_features``
             is used.
         allow_nulls : bool, default False, optional
-            See parameter ``allow_nulls`` in :func:`react`.
-        case_indices : Iterable of Sequence[str, int], default None, optional
-            (Optional) Iterable of Sequences, of session id and index, where index
+            See parameter ``allow_nulls`` in :meth:``react``.
+        case_indices : iterable of sequence of str and int, optional
+            Iterable of Sequences, of session id and index, where index
             is the original 0-based index of the case as it was trained into
             the session. If this case does not exist, discriminative react
             outputs null.
         context_features : list of str, optional
-            (Optional) Feature names to treat as context features during react. If no
-            `context_features` is specified, then the Trainee's `default_action_features`
-            are used. If the Trainee has no `default_action_features`, then
-            `context_features` will be all of the `features` excluding the
-            `action_features`.
+            Feature names to treat as context features during react. If no
+            ``context_features`` is specified, then the Trainee's ``default_action_features``
+            are used. If the Trainee has no ``default_action_features``, then
+            ``context_features`` will be all of the ``features`` excluding the
+            ``action_features``.
         derived_action_features : list of str, optional
-            See parameter ``derived_action_features`` in :func:`react`.
+            See parameter ``derived_action_features`` in :meth:``react``.
         derived_context_features : list of str, optional
-            See parameter ``derived_context_features`` in :func:`react`.
+            See parameter ``derived_context_features`` in :meth:``react``.
         leave_case_out : bool, default False
-            See parameter ``leave_case_out`` in :func:`react`.
+            See parameter ``leave_case_out`` in :meth:``react``.
         suppress_warning : bool, default False
-            See parameter ``suppress_warning`` in :func:`react`.
+            See parameter ``suppress_warning`` in :meth:``react``.
         use_case_weights : bool, default False
-            See parameter ``use_case_weights`` in :func:`react`.
+            See parameter ``use_case_weights`` in :meth:``react``.
         weight_feature : str, optional
-            See parameter ``weight_feature`` in :func:`react`.
+            See parameter ``weight_feature`` in :meth:``react``.
 
         Returns
         -------
-        pandas.DataFrame
+        DataFrame
             DataFrame consisting of the discriminative predicted results.
         """
         if action_features is None:
@@ -1307,26 +1265,26 @@ class Trainee(BaseTrainee):
 
     def react(
         self,
-        contexts: Optional[Union[List[List[object]], "DataFrame"]] = None,
+        contexts: Optional[List[List[object]] | "DataFrame"] = None,
         *,
         action_features: Optional[Iterable[str]] = None,
-        actions: Optional[Union[List[List[object]], "DataFrame"]] = None,
+        actions: Optional[List[List[object]] | "DataFrame"] = None,
         allow_nulls: bool = False,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         post_process_features: Optional[Iterable[str]] = None,
-        post_process_values: Optional[Union[List[List[object]], "DataFrame"]] = None,
+        post_process_values: Optional[List[List[object]] | "DataFrame"] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict[str, object]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[Dict[str, Dict[str, object]]] = None,
-        generate_new_cases: str = "no",
+        generate_new_cases: GenerateNewCasesType = "no",
         input_is_substituted: bool = False,
         into_series_store: Optional[str] = None,
         leave_case_out: Optional[bool] = None,
-        new_case_threshold: str = "min",
+        new_case_threshold: NewCaseThresholdType = "min",
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
         preserve_feature_values: Optional[Iterable[str]] = None,
@@ -1337,24 +1295,24 @@ class Trainee(BaseTrainee):
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
     ) -> Reaction:
-        """
-        React to the trainee.
+        r"""
+        React to the provided comtexts.
 
-        If `desired_conviction` is specified, executes a generative react,
-        producing `action_values` for the specified `action_features`
-        conditioned on the optionally provided `contexts`.
+        If ``desired_conviction`` is specified, executes a generative react,
+        producing ``action_values`` for the specified ``action_features``
+        conditioned on the optionally provided ``contexts``.
 
-        If `desired_conviction` is **not** specified, executes a discriminative
-        react. Provided a list of `contexts`, the trainee reacts to the model
+        If ``desired_conviction`` is **not** specified, executes a discriminative
+        react. Provided a list of ``contexts``, the trainee reacts to the model
         and produces predictions for the specified actions.
 
         Parameters
         ----------
-        contexts : list of list of object or pandas.DataFrame, optional
+        contexts : list of list of object or DataFrame, optional
             The context values to react to.
         action_features : list of str, optional
             Feature names to treat as action features during react.
-        actions : list of list of object or pandas.DataFrame, optional
+        actions : list of list of object or DataFrame, optional
             One or more action values to use for action features.
             If specified, will only return the specified explanation
             details for the given actions. (Discriminative reacts only)
@@ -1362,8 +1320,8 @@ class Trainee(BaseTrainee):
             When true will allow return of null values if there
             are nulls in the local model for the action features, applicable
             only to discriminative reacts.
-        case_indices : Iterable of Sequence[str, int], defaults to None
-            (Optional) Iterable of Sequences, of session id and index, where index
+        case_indices : iterable of sequence of str and int, optional
+            Iterable of Sequences, of session id and index, where index
             is the original 0-based index of the case as it was trained into
             the session. If this case does not exist, discriminative react
             outputs null, generative react ignores it.
@@ -1372,7 +1330,7 @@ class Trainee(BaseTrainee):
         derived_action_features : list of str, optional
             Features whose values should be computed after reaction from
             the resulting case prior to output, in the specified order.
-            Must be a subset of action_features.
+            Must be a subset of ``action_features``.
 
             .. NOTE::
                 Both of these derived feature lists rely on the features'
@@ -1394,8 +1352,8 @@ class Trainee(BaseTrainee):
             If specified will execute a generative react. If not
             specified will execute a discriminative react. Conviction is the
             ratio of expected surprisal to generated surprisal for each
-            feature generated, valid values are in the range of (0,infinity].
-        details : dict of {str: object}
+            feature generated, valid values are in the range of :math:``(0,\infty]``.
+        details : dict of str to object, optional
             If details are specified, the response will contain the requested
             explanation data along with the reaction. Below are the valid keys
             and data types for the different audit details. Omitted keys,
@@ -1598,7 +1556,7 @@ class Trainee(BaseTrainee):
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
-        feature_bounds_map : dict of {str: dict of {str: object}}, optional
+        feature_bounds_map : dict of str to dict of str to object, optional
             A mapping of feature names to the bounds for the feature values to
             be generated in. For continuous features this should be a numeric
             value, for datetimes this should be a datetime string or a numeric
@@ -1615,17 +1573,17 @@ class Trainee(BaseTrainee):
                     "feature_c": {"max": 1}
                 }
 
-        generate_new_cases : str, default "no"
+        generate_new_cases : {"always", "attempt", "no"}, default "no"
             This parameter takes in a string that may be one of the following:
 
-                - **attempt**: `Synthesizer` attempts to generate new cases and
+                - **attempt**: ``Synthesizer`` attempts to generate new cases and
                   if its not possible to generate a new case, it might
                   generate cases in "no" mode (see point c.)
-                - **always**: `Synthesizer` always generates new cases and
+                - **always**: ``Synthesizer`` always generates new cases and
                   if its not possible to generate a new case, it returns
-                  `None`.
-                - **no**: `Synthesizer` generates data based on the
-                  `desired_conviction` specified and the generated data is
+                  ``None``.
+                - **no**: ``Synthesizer`` generates data based on the
+                  ``desired_conviction`` specified and the generated data is
                   not guaranteed to be a new case (that is, a case not found
                   in original dataset.)
 
@@ -1637,12 +1595,11 @@ class Trainee(BaseTrainee):
             record of all react contexts for this session and series to be used
             later with train series.
         leave_case_out : bool, default False
-            When True and specified along with `case_indices`, each individual
+            When True and specified along with ``case_indices``, each individual
             react will respectively ignore the corresponding case specified
-            by `case_indices` by leaving it out.
-        new_case_threshold : str, default None
-            Distance to determine the privacy cutoff. If None,
-            will default to "min".
+            by ``case_indices`` by leaving it out.
+        new_case_threshold : {"max", "min", "most_similar}, default "min"
+            Distance to determine the privacy cutoff.
 
             Possible values:
 
@@ -1657,11 +1614,11 @@ class Trainee(BaseTrainee):
             the order of specified features.
         preserve_feature_values : list of str, optional
             Features that will preserve their values from the case specified
-            by `case_indices`, appending and overwriting the specified
-            contexts as necessary. For generative reacts, if `case_indices`
+            by ``case_indices``, appending and overwriting the specified
+            contexts as necessary. For generative reacts, if ``case_indices``
             isn't specified will preserve feature values of a random case.
-        progress_callback : callable or None, optional
-            (Optional) A callback method that will be called before each
+        progress_callback : callable, optional
+            A callback method that will be called before each
             batched call to react and at the end of reacting. The method is
             given a ProgressTimer containing metrics on the progress and timing
             of the react operation, and the batch result.
@@ -1672,7 +1629,7 @@ class Trainee(BaseTrainee):
             When True, warnings will not be displayed.
         use_case_weights : bool, default False
             When True, will scale influence weights by each case's
-            `weight_feature` weight.
+            ``weight_feature`` weight.
         use_regional_model_residuals : bool, default True
             When false, uses model feature residuals. When True, recalculates
             regional model residuals.
@@ -1682,9 +1639,9 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        Reaction:
+        Reaction :
             A MutableMapping (dict-like) with these keys -> values:
-                action -> pandas.DataFrame
+                action -> DataFrame
                     A data frame of action values.
 
                 details -> Dict or List
@@ -1724,10 +1681,10 @@ class Trainee(BaseTrainee):
 
     def react_series(
         self,
-        contexts: Optional[Union[List[List[object]], "DataFrame"]] = None,
+        contexts: Optional[List[List[object]] | "DataFrame"] = None,
         *,
         action_features: Optional[Iterable[str]] = None,
-        actions: Optional[Union[List[List[object]], "DataFrame"]] = None,
+        actions: Optional[List[List[object]] | "DataFrame"] = None,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         continue_series: bool = False,
@@ -1742,15 +1699,15 @@ class Trainee(BaseTrainee):
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[Dict[str, Dict[str, object]]] = None,
         final_time_steps: Optional[List[object]] = None,
-        generate_new_cases: str = "no",
+        generate_new_cases: GenerateNewCasesType = "no",
         series_index: str = ".series",
         init_time_steps: Optional[List[object]] = None,
         initial_features: Optional[Iterable[str]] = None,
-        initial_values: Optional[Union[List[List[object]], "DataFrame"]] = None,
+        initial_values: Optional[List[List[object]] | "DataFrame"] = None,
         input_is_substituted: bool = False,
         leave_case_out: Optional[bool] = None,
         max_series_lengths: Optional[List[int]] = None,
-        new_case_threshold: str = "min",
+        new_case_threshold: NewCaseThresholdType = "min",
         num_series_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
         output_new_series_ids: bool = True,
@@ -1760,7 +1717,7 @@ class Trainee(BaseTrainee):
         series_context_values: Optional[
             Union[List[List[List[object]]], List["DataFrame"]]
         ] = None,
-        series_id_tracking: Literal["fixed", "dynamic", "no"] = "fixed",
+        series_id_tracking: SeriesIDTrackingType = "fixed",
         series_stop_maps: Optional[List[Dict[str, Dict[str, object]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
@@ -1779,19 +1736,19 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        contexts : list of list of object or pandas.DataFrame, optional
+        contexts : list of list of object or DataFrame, optional
             The context values to react to.
         action_features : list of str, optional
-            See parameter ``action_features`` in :func:`react`.
-        actions : list of list of object or pandas.DataFrame, optional
-            See parameter ``actions`` in :func:`react`.
-        case_indices : Iterable of Sequence[str, int]
-            See parameter ``case_indices`` in :func:`react`.
+            See parameter ``action_features`` in :meth:``react``.
+        actions : list of list of object or DataFrame, optional
+            See parameter ``actions`` in :meth:``react``.
+        case_indices : CaseIndices
+            See parameter ``case_indices`` in :meth:``react``.
         context_features : list of str, optional
-            See parameter ``context_features`` in :func:`react`.
+            See parameter ``context_features`` in :meth:``react``.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
-            starting new series. If `initial_values` provide series IDs, it
+            starting new series. If ``initial_values`` provide series IDs, it
             will continue those explicitly specified IDs, otherwise it will
             randomly select series to continue.
             .. note::
@@ -1800,33 +1757,33 @@ class Trainee(BaseTrainee):
                 will result in null output.
         continue_series_features : list of str, optional
             The list of feature names corresponding to the values in each row of
-            `continue_series_values`. This value is ignored if
-            `continue_series_values` is None.
-        continue_series_values : list of list of list of object or list of pandas.DataFrame, default None
+            ``continue_series_values``. This value is ignored if
+            ``continue_series_values`` is None.
+        continue_series_values : list of list of list of object or list of DataFrame, optional
             The set of series data to be forecasted with feature values in the
-            same order defined by `continue_series_values`. The value of
-            `continue_series` will be ignored and treated as true if this value
+            same order defined by ``continue_series_values``. The value of
+            ``continue_series`` will be ignored and treated as true if this value
             is specified.
         derived_action_features : list of str, optional
-            See parameter ``derived_action_features`` in :func:`react`.
+            See parameter ``derived_action_features`` in :meth:``react``.
         derived_context_features : list of str, optional
-            See parameter ``derived_context_features`` in :func:`react`.
+            See parameter ``derived_context_features`` in :meth:``react``.
         desired_conviction : float, optional
-            See parameter ``desired_conviction`` in :func:`react`.
-        details : dict of {str: object}
-            See parameter ``details`` in :func:`react`.
+            See parameter ``desired_conviction`` in :meth:``react``.
+        details : dict of str to object
+            See parameter ``details`` in :meth:``react``.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
-        feature_bounds_map : dict of {str: dict of {str: object}}, optional
-            See parameter ``feature_bounds_map`` in :func:`react`.
+        feature_bounds_map : dict of str to dict of str to object, optional
+            See parameter ``feature_bounds_map`` in :meth:``react``.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
             Time-series only. Must provide either one for all series, or
             exactly one per series.
-        generate_new_cases : str, default "no"
-            See parameter ``generate_new_cases`` in :func:`react`.
+        generate_new_cases : {"always", "attempt", "no"}, default "no"
+            See parameter ``generate_new_cases`` in :meth:``react``.
         series_index : str, default ".series"
             When set to a string, will include the series index as a
             column in the returned DataFrame using the column name given.
@@ -1842,43 +1799,41 @@ class Trainee(BaseTrainee):
             context_features, action_features, derived_context_features or
             derived_action_features. If provided a value that isn't in one of
             those lists, it will be ignored.
-        initial_values : list of list of object or pandas.DataFrame, optional
+        initial_values : list of list of object or DataFrame, optional
             Values corresponding to the initial_features, used to condition
             just the first case in each series. Must provide either exactly one
             value to use for all series, or one per series.
         input_is_substituted : bool, default False
-            See parameter ``input_is_substituted`` in :func:`react`.
+            See parameter ``input_is_substituted`` in :meth:``react``.
         leave_case_out : bool, default False
-            See parameter ``leave_case_out`` in :func:`react`.
+            See parameter ``leave_case_out`` in :meth:``react``.
         max_series_lengths : list of int, optional
-            Maximum size a series is allowed to be. A 0 or less is no limit.
+            Maximum size a series is allowed to be. 0 or less is no limit.
             Must provide either exactly one to use for all series, or one per
             series. Default is ``3 * model_size``
-        new_case_threshold : str or None, optional
-            See parameter ``new_case_threshold`` in :func:`react`.
+        new_case_threshold : str, optional
+            See parameter ``new_case_threshold`` in :meth:``react``.
         num_series_to_generate : int, default 1
             The number of series to generate.
         ordered_by_specified_features : bool, default False
-            See parameter ``ordered_by_specified_features`` in :func:`react`.
+            See parameter ``ordered_by_specified_features`` in :meth:``react``.
         output_new_series_ids : bool, default True
             If True, series ids are replaced with unique values on output.
             If False, will maintain or replace ids with existing trained values,
             but also allows output of series with duplicate existing ids.
         preserve_feature_values : list of str, optional
-            See parameter ``preserve_feature_values`` in :func:`react`.
-        progress_callback : callable or None, optional
-            (Optional) A callback method that will be called before each
+            See parameter ``preserve_feature_values`` in :meth:``react``.
+        progress_callback : callable, optional
+            A callback method that will be called before each
             batched call to react series and at the end of reacting. The method
             is given a ProgressTimer containing metrics on the progress and
             timing of the react series operation, and the batch result.
-        series_context_features :  list of str, default None
-            (Optional) list of context features corresponding to
-            series_context_values, if specified must not overlap with any
-            initial_features or context_features.
-        series_context_values : list of list of list of object or list of pandas.DataFrame, default None
-            (Optional) 3d-list of context values, one for each feature for each
-            row for each series. If specified, batch_size and
-            max_series_lengths are ignored.
+        series_context_features :  list of str, optional
+            List of context features corresponding to series_context_values, if
+            specified must not overlap with any initial_features or context_features.
+        series_context_values : list of list of list of object or list of DataFrame, optional
+            3d list of context values, one for each feature for each row for each
+            series. If specified, batch_size and max_series_lengths are ignored.
         series_id_tracking : {"fixed", "dynamic", "no"}, default "fixed"
             Controls how closely generated series should follow existing series (plural).
 
@@ -1901,21 +1856,21 @@ class Trainee(BaseTrainee):
                     {"feature_name":  {"values": ["val1", "val2"]}}
 
         substitute_output : bool, default True
-            See parameter ``substitute_output`` in :func:`react`.
+            See parameter ``substitute_output`` in :meth:``react``.
         suppress_warning : bool, default False
-            See parameter ``suppress_warning`` in :func:`react`.
+            See parameter ``suppress_warning`` in :meth:``react``.
         use_case_weights : bool, default False
-            See parameter ``use_case_weights`` in :func:`react`.
+            See parameter ``use_case_weights`` in :meth:``react``.
         use_regional_model_residuals : bool, default True
-            See parameter ``use_regional_model_residuals`` in :func:`react`.
+            See parameter ``use_regional_model_residuals`` in :meth:``react``.
         weight_feature : str, optional
-            See parameter ``weight_feature`` in :func:`react`.
+            See parameter ``weight_feature`` in :meth:``react``.
 
         Returns
         -------
-        Reaction:
+        Reaction :
             A MutableMapping (dict-like) with these keys -> values:
-                action -> pandas.DataFrame
+                action -> DataFrame
                     A data frame of action values.
 
                 details -> Dict or List
@@ -1972,7 +1927,7 @@ class Trainee(BaseTrainee):
         batch_size: int = 1,
         features: Optional[Iterable[str]] = None,
         features_to_impute: Optional[Iterable[str]] = None,
-    ) -> None:
+    ):
         """
         Impute (fill) the missing values for the specified features_to_impute.
 
@@ -1996,10 +1951,6 @@ class Trainee(BaseTrainee):
         features_to_impute : list of str, optional
             A list of feature names to impute. If not specified, features
             will be used.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.impute(
@@ -2053,7 +2004,7 @@ class Trainee(BaseTrainee):
                       features.
 
             .. TIP::
-                Example 1 - Remove all values belonging to `feature_name`::
+                Example 1 - Remove all values belonging to ``feature_name``::
 
                     condition = {"feature_name": None}
 
@@ -2073,10 +2024,10 @@ class Trainee(BaseTrainee):
             If specified, ignores the condition and operates on cases for
             the specified session id or BaseSession instance. Ignored if
             case_indices is specified.
-        distribute_weight_feature : str, default None
+        distribute_weight_feature : str, optional
             When specified, will distribute the removed cases' weights
             from this feature into their neighbors.
-        precision : str, default None
+        precision : str, optional
             The precision to use when removing the cases. Options are 'exact'
             or 'similar'. If not specified "exact" will be used. Ignored if
             case_indices is specified.
@@ -2108,11 +2059,11 @@ class Trainee(BaseTrainee):
 
     def edit_cases(
         self,
-        feature_values: Union[List[object], "DataFrame"],
+        feature_values: List[object] | "DataFrame",
         *,
         case_indices: Optional[CaseIndices] = None,
         condition: Optional[Dict[str, object]] = None,
-        condition_session: Optional[Union[str, BaseSession]] = None,
+        condition_session: Optional[str | BaseSession] = None,
         features: Optional[Iterable[str]] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
@@ -2122,18 +2073,18 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        feature_values : list of object or pandas.DataFrame
+        feature_values : list of object or DataFrame
             The feature values to edit the case(s) with. If specified as a list,
-            the order corresponds with the order of the `features` parameter.
+            the order corresponds with the order of the ``features`` parameter.
             If specified as a DataFrame, only the first row will be used.
-        case_indices : Iterable of Sequence[str, int], optional
+        case_indices : CaseIndices, optional
             An Iterable of Sequences containing the session id and index, where
             index is the original 0-based index of the case as it was trained
             into the session. This explicitly specifies the cases to edit. When
-            specified, `condition` and `condition_session` are ignored.
-        condition : dict or None, optional
+            specified, ``condition`` and ``condition_session`` are ignored.
+        condition : dict, optional
             A condition map to select which cases to edit. Ignored when
-            `case_indices` are specified.
+            ``case_indices`` are specified.
 
             .. NOTE::
                 The dictionary keys are the feature name and values are one of:
@@ -2151,13 +2102,13 @@ class Trainee(BaseTrainee):
             If specified, ignores the condition and operates on all cases for
             the specified session id or BaseSession instance.
         features : list of str, optional
-            The names of the features to edit. Required when `feature_values`
+            The names of the features to edit. Required when ``feature_values``
             is not specified as a DataFrame.
-        num_cases : int, default None
+        num_cases : int, optional
             The maximum amount of cases to edit. If not specified, the limit
             will be k cases if precision is "similar", or no limit if precision
             is "exact".
-        precision : str, default None
+        precision : str, optional
             The precision to use when removing the cases. Options are 'exact'
             or 'similar'. If not specified "exact" will be used.
 
@@ -2221,7 +2172,7 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'delete_trainee_session' method.")
 
-    def get_session_indices(self, session: Union[str, BaseSession]) -> Union[Index, List[int]]:
+    def get_session_indices(self, session: Union[str, BaseSession]) -> Index | List[int]:
         """
         Get all session indices for a specified session.
 
@@ -2233,7 +2184,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        pandas.Index
+        Index or list of int
             An index of the session indices for the requested session.
         """
         if isinstance(session, BaseSession):
@@ -2245,7 +2196,7 @@ class Trainee(BaseTrainee):
             session=session_id,
         )
 
-    def get_session_training_indices(self, session: Union[str, BaseSession]) -> Union[Index, List[int]]:
+    def get_session_training_indices(self, session: Union[str, BaseSession]) -> Index | List[int]:
         """
         Get all session training indices for a specified session.
 
@@ -2257,7 +2208,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        pandas.Index
+        Index or list of int
             An index of the session training indices for the requested session.
         """
         if isinstance(session, BaseSession):
@@ -2275,7 +2226,7 @@ class Trainee(BaseTrainee):
         indicate_imputed: bool = False,
         case_indices: Optional[CaseIndices] = None,
         features: Optional[Iterable[str]] = None,
-        session: Optional[Union[str, BaseSession]] = None,
+        session: Optional[str | BaseSession] = None,
         condition: Optional[Dict] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
@@ -2285,7 +2236,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        case_indices : Iterable of Sequence[str, int], optional
+        case_indices : CaseIndices, optional
             List of tuples, of session id and index, where index is the
             original 0-based index of the case as it was trained into the
             session. If specified, returns only these cases and ignores the
@@ -2339,7 +2290,7 @@ class Trainee(BaseTrainee):
                 This option will be ignored if case_indices is supplied.
 
             .. TIP::
-                Example 1 - Retrieve all values belonging to `feature_name`::
+                Example 1 - Retrieve all values belonging to ``feature_name``::
 
                     criteria = {"feature_name": None}
 
@@ -2371,7 +2322,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        pandas.DataFrame
+        DataFrame
             The trainee's cases.
         """
         if isinstance(session, BaseSession):
@@ -2408,12 +2359,12 @@ class Trainee(BaseTrainee):
             The features to include in the case data.
         num : int
             The number of cases to get.
-        sort_feature
+        sort_feature : str
             The name of the feature by which extreme cases are sorted.
 
         Returns
         -------
-        pandas.DataFrame
+        DataFrame
             The trainee's extreme cases.
         """
         if self.id:
@@ -2449,7 +2400,7 @@ class Trainee(BaseTrainee):
         condition: Optional[Dict[str, object]] = None,
         condition_session: Optional[Union[str, BaseSession]] = None,
         feature_attributes: Optional[Dict] = None,
-    ) -> None:
+    ) :
         """
         Add a feature to the model.
 
@@ -2486,8 +2437,8 @@ class Trainee(BaseTrainee):
                       features.
 
             .. TIP::
-                For instance to add the `feature_value` only when the
-                `length` and `width` features are equal to 10::
+                For instance to add the ``feature_value`` only when the
+                ``length`` and ``width`` features are equal to 10::
 
                     condition = {"length": 10, "width": 10}
 
@@ -2526,8 +2477,8 @@ class Trainee(BaseTrainee):
         feature: str,
         *,
         condition: Optional[Dict[str, object]] = None,
-        condition_session: Optional[Union[str, BaseSession]] = None,
-    ) -> None:
+        condition_session: Optional[str | BaseSession] = None,
+    ):
         """
         Remove a feature from the trainee.
 
@@ -2557,7 +2508,7 @@ class Trainee(BaseTrainee):
                       features.
 
             .. TIP::
-                For instance to remove the `length` feature only when the
+                For instance to remove the ``length`` feature only when the
                 value is between 1 and 5::
 
                     condition = {"length": [1, 5]}
@@ -2587,7 +2538,7 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'remove_feature' method.")
 
-    def remove_series_store(self, series: Optional[str] = None) -> None:
+    def remove_series_store(self, series: Optional[str] = None):
         """
         Clear stored series from trainee.
 
@@ -2596,10 +2547,6 @@ class Trainee(BaseTrainee):
         series : str, optional
             Series id to clear. If not provided, clears the entire
             series store for the trainee.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.remove_series_store(trainee_id=self.id, series=series)
@@ -2609,7 +2556,7 @@ class Trainee(BaseTrainee):
     def append_to_series_store(
         self,
         series: str,
-        contexts: Union[List[List[object]], "DataFrame"],
+        contexts: List[List[object]] | "DataFrame",
         *,
         context_features: Optional[Iterable[str]] = None,
     ) -> None:
@@ -2622,7 +2569,7 @@ class Trainee(BaseTrainee):
         ----------
         series : str
             The name of the series store to append to.
-        contexts : list of list of object or pandas.DataFrame
+        contexts : list of list of object or DataFrame
             The list of context values to append to the series.
         context_features : list of str, optional
             The list of feature names for contexts.
@@ -2654,8 +2601,8 @@ class Trainee(BaseTrainee):
             substitute feature value.
 
             If this dict is None, all substitutions will be disabled and
-            cleared. If any feature in the `substitution_value_map` has
-            features mapping to `None` or `{}`, substitution values will
+            cleared. If any feature in the ``substitution_value_map`` has
+            features mapping to ``None`` or ``{}``, substitution values will
             immediately be generated.
 
         Returns
@@ -2741,7 +2688,7 @@ class Trainee(BaseTrainee):
         kl_divergence_removal : bool, default False
             Calculate and output KL divergence of removing the
             specified cases.
-        new_cases : list of list of list of object or list of pandas.DataFrame, optional
+        new_cases : list of list of list of object or list of DataFrame, optional
             Specify a **set** using a list of cases to compute the conviction
             of groups of cases as shown in the following example.
 
@@ -2762,14 +2709,14 @@ class Trainee(BaseTrainee):
             the trainee object or its ID (trainee name is not supported).
         use_case_weights : bool, default False
             When True, will scale influence weights by each case's
-            `weight_feature` weight.
+            ``weight_feature`` weight.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
 
         Returns
         -------
-        pandas.DataFrame
+        DataFrame
             The conviction of grouped cases.
         """
         if trainees_to_compare:
@@ -2829,14 +2776,14 @@ class Trainee(BaseTrainee):
             features will be used.
         use_case_weights : bool, default False
             When True, will scale influence weights by each case's
-            `weight_feature` weight.
+            ``weight_feature`` weight.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
 
         Returns
         -------
-        pandas.DataFrame
+        DataFrame
             A DataFrame containing the familiarity conviction rows to feature
             columns.
         """
@@ -2857,7 +2804,7 @@ class Trainee(BaseTrainee):
         robust: Optional[bool] = None,
         robust_hyperparameters: Optional[bool] = None,
         weight_feature: Optional[str] = None,
-    ) -> Union["DataFrame", None]:
+    ) -> "DataFrame" | None:
         """
         Get cached feature residuals.
 
@@ -2867,7 +2814,7 @@ class Trainee(BaseTrainee):
         or None if no cached match is found.
 
         .. deprecated:: 1.0.0
-            Use :meth:`Trainee.get_prediction_stats` instead.
+            Use :meth:``Trainee.get_prediction_stats`` instead.
 
         Parameters
         ----------
@@ -2889,8 +2836,8 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        pandas.DataFrame
-            The feature residuals.
+        DataFrame or None
+            The feature residuals or None if no cached values are found.
         """
         return self.client.get_feature_residuals(
             trainee_id=self.id,
@@ -2907,12 +2854,12 @@ class Trainee(BaseTrainee):
         condition: Optional[Dict[str, Any]] = None,
         num_cases: Optional[int] = None,
         num_robust_influence_samples_per_case: Optional[int] = None,
-        precision: Optional[str] = None,
+        precision: Optional[Precision] = None,
         robust: Optional[bool] = None,
         robust_hyperparameters: Optional[bool] = None,
         stats: Optional[Iterable[str]] = None,
         weight_feature: Optional[str] = None,
-    ) -> Union["DataFrame", Dict]:
+    ) -> "DataFrame" | Dict:
         """
         Get feature prediction stats.
 
@@ -2937,7 +2884,7 @@ class Trainee(BaseTrainee):
                 If get_prediction_stats is being used with time series analysis,
                 the action feature for which the prediction statistics information
                 is desired must be specified.
-        condition : dict or None, optional
+        condition : dict, optional
             A condition map to select which cases to compute prediction stats
             for.
 
@@ -2956,15 +2903,15 @@ class Trainee(BaseTrainee):
             The maximum amount of cases to use to calculate prediction stats.
             If not specified, the limit will be k cases if precision is
             "similar", or 1000 cases if precision is "exact". Only used if
-            `condition` is not None.
+            ``condition`` is not None.
         num_robust_influence_samples_per_case : int, optional
             Specifies the number of robust samples to use for each case for
             robust contribution computations.
             Defaults to 300 + 2 * (number of features).
-        precision : str, default None
+        precision : Precision, optional
             The precision to use when selecting cases with the condition.
             Options are 'exact' or 'similar'. If not specified "exact" will be
-            used. Only used if `condition` is not None.
+            used. Only used if ``condition`` is not None.
         robust : bool, optional
             When specified, will attempt to return stats that
             were computed with the specified robust or non-robust type.
@@ -3013,9 +2960,9 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame
+        DataFrame or dict
             A DataFrame of feature name columns to stat value rows. Indexed
-            by the stat type.
+            by the stat type. The return type depends on the underlying client.
         """
         return self.client.get_prediction_stats(
             trainee_id=self.id,
@@ -3034,7 +2981,7 @@ class Trainee(BaseTrainee):
         self, *,
         condition: Optional[Dict[str, Any]] = None,
         num_cases: Optional[int] = None,
-        precision: Optional[Literal["exact", "similar"]] = None,
+        precision: Optional[Precision] = None,
         weight_feature: Optional[str] = None,
     ) -> Union["DataFrame", Dict]:
         """
@@ -3060,20 +3007,20 @@ class Trainee(BaseTrainee):
         num_cases : int, default None
             The maximum amount of cases to use to calculate marginal stats.
             If not specified, the limit will be k cases if precision is
-            "similar". Only used if `condition` is not None.
+            "similar". Only used if ``condition`` is not None.
         precision : str, default None
             The precision to use when selecting cases with the condition.
             Options are 'exact' or 'similar'. If not specified "exact" will be
-            used. Only used if `condition` is not None.
+            used. Only used if ``condition`` is not None.
         weight_feature : str, optional
             When specified, will attempt to return stats that were computed
             using this weight_feature.
 
         Returns
         -------
-        DataFrame
+        DataFrame or dict
             A DataFrame of feature name columns to stat value rows. Indexed
-            by the stat type.
+            by the stat type. The return type depends on the underlying client.
         """
         return self.client.get_marginal_stats(
             trainee_id=self.id,
@@ -3086,17 +3033,17 @@ class Trainee(BaseTrainee):
     def react_into_features(
         self,
         *,
-        distance_contribution: Union[str, bool] = False,
-        familiarity_conviction_addition: Union[str, bool] = False,
-        familiarity_conviction_removal: Union[str, bool] = False,
+        distance_contribution: str | bool = False,
+        familiarity_conviction_addition: str | bool = False,
+        familiarity_conviction_removal: str | bool = False,
         features: Optional[Iterable[str]] = None,
-        influence_weight_entropy: Union[str, bool] = False,
-        p_value_of_addition: Union[str, bool] = False,
-        p_value_of_removal: Union[str, bool] = False,
-        similarity_conviction: Union[str, bool] = False,
+        influence_weight_entropy: str | bool = False,
+        p_value_of_addition: str | bool = False,
+        p_value_of_removal: str | bool = False,
+        similarity_conviction: str | bool = False,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None,
-    ) -> None:
+    ):
         """
         Calculate conviction and other data and stores them into features.
 
@@ -3134,14 +3081,10 @@ class Trainee(BaseTrainee):
             'similarity_conviction'.
         use_case_weights : bool, default False
             When True, will scale influence weights by each case's
-            `weight_feature` weight.
+            ``weight_feature`` weight.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.react_into_features(
@@ -3173,16 +3116,16 @@ class Trainee(BaseTrainee):
         mda_permutation: Optional[bool] = None,
         mda_robust: Optional[bool] = None,
         mda_robust_permutation: Optional[bool] = None,
-        num_robust_influence_samples=None,
-        num_robust_residual_samples=None,
-        num_robust_influence_samples_per_case=None,
+        num_robust_influence_samples: Optional[int] = None,
+        num_robust_residual_samples: Optional[int] = None,
+        num_robust_influence_samples_per_case: Optional[int] = None,
         num_samples: Optional[int] = None,
         residuals: Optional[bool] = None,
         residuals_robust: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
         sub_model_size: Optional[int] = None,
         weight_feature: Optional[str] = None,
-    ) -> None:
+    ):
         """
         Compute and cache specified feature interpretations.
 
@@ -3267,10 +3210,6 @@ class Trainee(BaseTrainee):
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.react_into_trainee(
@@ -3315,7 +3254,7 @@ class Trainee(BaseTrainee):
         or None if no cached match is found.
 
         .. deprecated:: 1.0.0
-            Use :meth:`Trainee.get_prediction_stats` instead.
+            Use :meth:``Trainee.get_prediction_stats`` instead.
 
         Parameters
         ----------
@@ -3335,7 +3274,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        pandas.DataFrame
+        DataFrame
             The mean decrease in accuracy values for context features.
         """
         return self.client.get_feature_mda(
@@ -3363,7 +3302,7 @@ class Trainee(BaseTrainee):
         or None if no cached match is found.
 
         .. deprecated:: 1.0.0
-            Use :meth:`Trainee.get_prediction_stats` instead.
+            Use :meth:``Trainee.get_prediction_stats`` instead.
 
         Parameters
         ----------
@@ -3382,7 +3321,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        pandas.DataFrame
+        DataFrame
             The contribution values for context features.
         """
         return self.client.get_feature_contributions(
@@ -3398,7 +3337,7 @@ class Trainee(BaseTrainee):
         *,
         action_feature: Optional[str] = None,
         context_features: Optional[Iterable[str]] = None,
-        mode: Optional[Literal["robust", "full"]] = None,
+        mode: Optional[Mode] = None,
         weight_feature: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
@@ -3442,7 +3381,7 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'get_params' method.")
 
-    def set_params(self, params: Dict[str, Any]) -> None:
+    def set_params(self, params: Dict[str, Any]):
         """
         Set the workflow attributes for the trainee.
 
@@ -3477,7 +3416,7 @@ class Trainee(BaseTrainee):
             raise ValueError("Client must have the 'set_params' method.")
 
     @property
-    def client(self) -> Union[AbstractHowsoClient, HowsoPandasClientMixin]:
+    def client(self) -> AbstractHowsoClient | HowsoPandasClientMixin:
         """
         The client instance used by the trainee.
 
@@ -3505,13 +3444,13 @@ class Trainee(BaseTrainee):
         """
         if not isinstance(client, AbstractHowsoClient):
             raise HowsoError(
-                "`client` must be a subclass of AbstractHowsoClient"
+                "``client`` must be a subclass of AbstractHowsoClient"
             )
         if not isinstance(client, HowsoPandasClientMixin):
-            raise HowsoError("`client` must be a HowsoPandasClient")
+            raise HowsoError("``client`` must be a HowsoPandasClient")
         self._client = client
 
-    def _update_attributes(self, trainee: BaseTrainee) -> None:
+    def _update_attributes(self, trainee: BaseTrainee):
         """
         Update the protected attributes of the trainee.
 
@@ -3519,10 +3458,6 @@ class Trainee(BaseTrainee):
         ----------
         trainee : BaseTrainee
             The base trainee instance.
-
-        Returns
-        -------
-        None
         """
         for key in self.attribute_map.keys():
             # Update the protected attributes directly since the values
@@ -3563,24 +3498,24 @@ class Trainee(BaseTrainee):
         use_case_weights: bool = False,
         action_feature: Optional[str] = None,
         from_case_indices: Optional[CaseIndices] = None,
-        from_values: Optional[Union[List[List[object]], "DataFrame"]] = None,
+        from_values: Optional[List[List[object]] | "DataFrame"] = None,
         to_case_indices: Optional[CaseIndices] = None,
-        to_values: Optional[Union[List[List[object]], "DataFrame"]] = None,
+        to_values: Optional[List[List[object]] | "DataFrame"] = None,
         weight_feature: Optional[str] = None,
     ) -> List[float]:
         """
         Computes pairwise distances between specified cases.
 
         Returns a list of computed distances between each respective pair of
-        cases specified in either `from_values` or `from_case_indices` to
-        `to_values` or `to_case_indices`. If only one case is specified in any
+        cases specified in either ``from_values`` or ``from_case_indices`` to
+        ``to_values`` or ``to_case_indices``. If only one case is specified in any
         of the lists, all respective distances are computed to/from that one
         case.
 
         .. NOTE::
-            - One of `from_values` or `from_case_indices` must be specified,
+            - One of ``from_values`` or ``from_case_indices`` must be specified,
               not both.
-            - One of `to_values` or `to_case_indices` must be specified,
+            - One of ``to_values`` or ``to_case_indices`` must be specified,
               not both.
 
         Parameters
@@ -3590,27 +3525,27 @@ class Trainee(BaseTrainee):
             If unspecified uses all features.
         action_feature : str, optional
             The action feature. If specified, uses targeted hyperparameters
-            used to predict this `action_feature`, otherwise uses targetless
+            used to predict this ``action_feature``, otherwise uses targetless
             hyperparameters.
-        from_case_indices : Iterable of Sequence[str, int], optional
+        from_case_indices : CaseIndices, optional
             An Iterable of Sequences, of session id and index, where index
             is the original 0-based index of the case as it was trained into
             the session. If specified must be either length of 1 or match
-            length of `to_values` or `to_case_indices`.
-        from_values : list of list of object or pandas.DataFrame, optional
+            length of ``to_values`` or ``to_case_indices``.
+        from_values : list of list of object or DataFrame, optional
             A 2d-list of case values. If specified must be either length of
-            1 or match length of `to_values` or `to_case_indices`.
+            1 or match length of ``to_values`` or ``to_case_indices``.
         to_case_indices : Iterable of Sequence[str, int], optional
             An Iterable of Sequences, of session id and index, where index
             is the original 0-based index of the case as it was trained into
             the session. If specified must be either length of 1 or match
-            length of `from_values` or `from_case_indices`.
-        to_values : list of list of object or pandas.DataFrame, optional
+            length of ``from_values`` or ``from_case_indices``.
+        to_values : list of list of object or DataFrame, optional
             A 2d-list of case values. If specified must be either length of
-            1 or match length of `from_values` or `from_case_indices`.
+            1 or match length of ``from_values`` or ``from_case_indices``.
         use_case_weights : bool, default False
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight.
+            ``weight_feature`` weight.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3619,7 +3554,7 @@ class Trainee(BaseTrainee):
         -------
         list
             A list of computed pairwise distances between each corresponding
-            pair of cases in `from_case_indices` and `to_case_indices`.
+            pair of cases in ``from_case_indices`` and ``to_case_indices``.
         """
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_pairwise_distances(
@@ -3650,8 +3585,8 @@ class Trainee(BaseTrainee):
         Computes distances matrix for specified cases.
 
         Returns a dict with computed distances between all cases
-        specified in `case_indices` or from all cases in local model as defined
-        by `feature_values`.
+        specified in ``case_indices`` or from all cases in local model as defined
+        by ``feature_values``.
 
         Parameters
         ----------
@@ -3660,21 +3595,21 @@ class Trainee(BaseTrainee):
             unspecified uses all features.
         action_feature : str, optional
             The action feature. If specified, uses targeted hyperparameters
-            used to predict this `action_feature`, otherwise uses targetless
+            used to predict this ``action_feature``, otherwise uses targetless
             hyperparameters.
-        case_indices : Iterable of Sequence[str, int], optional
+        case_indices : CaseIndices, optional
             List of tuples, of session id and index, where index is the
             original 0-based index of the case as it was trained into the
             session. If specified, returns distances for all of these
-            cases. Ignored if `feature_values` is provided. If neither
-            `feature_values` nor `case_indices` is specified, uses full dataset.
-        feature_values : list of object or pandas.DataFrame, optional
+            cases. Ignored if ``feature_values`` is provided. If neither
+            ``feature_values`` nor ``case_indices`` is specified, uses full dataset.
+        feature_values : list of object or DataFrame, optional
             If specified, returns distances of the local model relative to
-            these values, ignores `case_indices` parameter. If provided a
+            these values, ignores ``case_indices`` parameter. If provided a
             DataFrame, only the first row will be used.
         use_case_weights : bool, default False
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight.
+            ``weight_feature`` weight.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3702,9 +3637,9 @@ class Trainee(BaseTrainee):
 
     def evaluate(
         self,
-        features_to_code_map,
+        features_to_code_map: Dict[str, str],
         *,
-        aggregation_code=None,
+        aggregation_code: Optional[str] = None,
     ) -> Dict:
         r"""
         Evaluates custom code on feature values of all cases in the trainee.
@@ -3747,17 +3682,17 @@ class Trainee(BaseTrainee):
 
     def _create(
         self, *,
-        library_type: Optional[str] = None,
-        max_wait_time: Optional[Union[int, float]] = None,
-        resources: Optional[Union["TraineeResources", Dict[str, Any]]] = None,
+        library_type: Optional[LibraryType] = None,
+        max_wait_time: Optional[int | float] = None,
+        resources: Optional["TraineeResources" | Dict[str, Any]] = None,
         overwrite: bool = False,
-    ) -> None:
+    ):
         """
         Create the trainee at the API.
 
         Parameters
         ----------
-        library_type : str, optional
+        library_type : LibraryType, optional
             The library type of the Trainee.
         max_wait_time : int or float, optional
             The maximum time to wait for the trainee to be created.
@@ -3765,12 +3700,10 @@ class Trainee(BaseTrainee):
             The resources to provision for the trainee.
         overwrite : bool, default False
             If True, will overwrite an existing trainee with the same name.
-        Returns
-        -------
-        None
         """
         if not self.id:
             trainee = BaseTrainee(**self.to_dict())
+            new_trainee = None
             if isinstance(self.client, AbstractHowsoClient):
                 new_trainee = self.client.create_trainee(
                     trainee=trainee,
@@ -3779,13 +3712,12 @@ class Trainee(BaseTrainee):
                     overwrite_trainee=overwrite,
                     resources=resources,
                 )
-            else:
-                new_trainee = None
-                pass
+
             if new_trainee:
                 self._update_attributes(new_trainee)
             else:
                 raise ValueError("Trainee is unable to be created")
+
         self._created = True
 
     @classmethod
@@ -3827,7 +3759,7 @@ class Trainee(BaseTrainee):
             The trainee instance.
         """
         if not isinstance(trainee_dict, dict):
-            raise ValueError("`trainee_dict` parameter is not a dict")
+            raise ValueError("``trainee_dict`` parameter is not a dict")
         parameters = {"client": trainee_dict.get("client")}
         for key in cls.attribute_map.keys():
             if key in trainee_dict:
@@ -3860,7 +3792,7 @@ class Trainee(BaseTrainee):
         robust: bool = True,
         targeted: bool = False,
         normalize: bool = False,
-        normalize_method: Union[Iterable[Union[str, Callable]], str, Callable] = "relative",
+        normalize_method: Iterable[NormalizeMethod | Callable] | NormalizeMethod | Callable = "relative",
         absolute: bool = False,
         fill_diagonal: bool = True,
         fill_diagonal_value: Union[float, int] = 1,
@@ -3870,16 +3802,16 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        features : Optional[Iterable[str]]
-            An iterable of feature names. If features are not provided, then the default trainee
-            features will be used.
+        features : iterable of str, optional
+            An iterable of feature names. If features are not provided, then the
+            default trainee features will be used.
         robust : bool, default True
             Whether to use robust calcuations.
         targeted : bool, default False
             Whether to do a targeted re-analyze before each feature's contribution is calculated.
         normalize : bool, default False
-            Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
-        normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
+            Whether to normalize the matrix row wise. Normalization method is set by the ``normalize_method`` parameter.
+        normalize_method : iterable of NormalizeMethod or callable, NormalizeMethod, or callable, default "relative"
             The normalization method. The method may either one of the strings below that correspond to a 
             default method or a custom Callable.
 
@@ -3893,14 +3825,14 @@ class Trainee(BaseTrainee):
 
             Custom Callable:
             - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
-                `matrix.apply(Callable)`
+                ``matrix.apply(Callable)``
         absolute : bool, default False
             Whether to transform the matrix values into the absolute values.
         fill_diagonal : bool, default False
             Whether to fill in the diagonals of the matrix. If set to true,
-            the diagonal values will be filled in based on the `fill_diagonal_value` value.
+            the diagonal values will be filled in based on the ``fill_diagonal_value`` value.
         fill_diagonal_value : bool, default 1
-            The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
+            The value to fill in the diagonals with. ``fill_diagonal`` must be set to True in order
             for the diagonal values to be filled in. If `fill_diagonal is set to false, then this
             parameter will be ignored.
 
@@ -3956,7 +3888,7 @@ class Trainee(BaseTrainee):
         robust: bool = True,
         targeted: bool = False,
         normalize: bool = False,
-        normalize_method: Union[Iterable[Union[str, Callable]], str, Callable] = "relative",
+        normalize_method: Iterable[NormalizeMethod | Callable] | NormalizeMethod | Callable = "relative",
         absolute: bool = False,
         fill_diagonal: bool = True,
         fill_diagonal_value: Union[float, int] = 1,
@@ -3974,8 +3906,8 @@ class Trainee(BaseTrainee):
         targeted : bool, default False
             Whether to do a targeted re-analyze before each feature's contribution is calculated.
         normalize : bool, default False
-            Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
-        normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
+            Whether to normalize the matrix row wise. Normalization method is set by the ``normalize_method`` parameter.
+        normalize_method : iterable of NormalizeMethod or callable, NormalizeMethod, or callable, default "relative"
             The normalization method. The method may either one of the strings below that correspond to a 
             default method or a custom Callable.
 
@@ -3989,14 +3921,14 @@ class Trainee(BaseTrainee):
 
             Custom Callable:
             - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
-                `matrix.apply(Callable)`
+                ``matrix.apply(Callable)``
         absolute : bool, default False
             Whether to transform the matrix values into the absolute values.
         fill_diagonal : bool, default False
             Whether to fill in the diagonals of the matrix. If set to true,
-            the diagonal values will be filled in based on the `fill_diagonal_value` value.
+            the diagonal values will be filled in based on the ``fill_diagonal_value`` value.
         fill_diagonal_value : bool, default 1
-            The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
+            The value to fill in the diagonals with. ``fill_diagonal`` must be set to True in order
             for the diagonal values to be filled in. If `fill_diagonal is set to false, then this
             parameter will be ignored.
 
@@ -4049,9 +3981,9 @@ class Trainee(BaseTrainee):
 
 def delete_trainee(
     name_or_id: Optional[str] = None,
-    file_path: Optional[Union[Path, str]] = None,
+    file_path: Optional[Path | str] = None,
     client: Optional[AbstractHowsoClient] = None
-) -> None:
+):
     """
     Delete an existing Trainee.
 
@@ -4062,35 +3994,31 @@ def delete_trainee(
     ----------
     name_or_id : str, optional
         The name or id of the trainee. Deletes the Trainees from memory and attempts to delete a Trainee saved under
-        the same filename from the default save location if no `file_path` is provided.
+        the same filename from the default save location if no ``file_path`` is provided.
     file_path : Path or str, optional
         The path of the file to load the Trainee from. Used for deleting trainees from disk.
 
         The file path must end with a filename, but file path can be either an absolute path, a
         relative path or just the file name.
 
-        If `name_or_id` is not provided, in addition to deleting from disk, will attempt to
+        If ``name_or_id`` is not provided, in addition to deleting from disk, will attempt to
         delete a Trainee from memory assuming the Trainee has the same name as the filename.
 
-        If `file_path` is a relative path the absolute path will be computed
-        appending the `file_path` to the CWD.
+        If ``file_path`` is a relative path the absolute path will be computed
+        appending the ``file_path`` to the CWD.
 
-        If `file_path` is an absolute path, this is the absolute path that
+        If ``file_path`` is an absolute path, this is the absolute path that
         will be used.
 
-        If `file_path` is just a filename, then the absolute path will be computed
+        If ``file_path`` is just a filename, then the absolute path will be computed
         appending the filename to the CWD.
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
-
-    Returns
-    -------
-    None
     """
     client = client or get_client()
     if name_or_id is None and file_path is None:
         raise ValueError(
-            'Either the `name_or_id` or the `file_path` must be provided.'
+            'Either the ``name_or_id`` or the ``file_path`` must be provided.'
         )
 
     # Check if file exists
@@ -4111,7 +4039,7 @@ def delete_trainee(
 
 
 def load_trainee(
-    file_path: Union[Path, str],
+    file_path: Path | str,
     client: Optional[AbstractHowsoClient] = None
 ) -> "Trainee":
     """
@@ -4121,16 +4049,16 @@ def load_trainee(
     ----------
     file_path : Path or str
         The path of the file to load the Trainee from. This path can contain
-        an absolute path, a relative path or simply a file name. A `.caml` file name
+        an absolute path, a relative path or simply a file name. A ``.caml`` file name
         must be always be provided if file paths are provided.
 
-        If `file_path` is a relative path the absolute path will be computed
-        appending the `file_path` to the CWD.
+        If ``file_path`` is a relative path the absolute path will be computed
+        appending the ``file_path`` to the CWD.
 
-        If `file_path` is an absolute path, this is the absolute path that
+        If ``file_path`` is an absolute path, this is the absolute path that
         will be used.
 
-        If `file_path` is just a filename, then the absolute path will be computed
+        If ``file_path`` is just a filename, then the absolute path will be computed
         appending the filename to the CWD.
 
     client : AbstractHowsoClient, optional
@@ -4144,7 +4072,7 @@ def load_trainee(
     client = client or get_client()
 
     if not isinstance(client, LocalSaveableProtocol):
-        raise HowsoError("To save, `client` must have local disk access.")
+        raise HowsoError("To save, ``client`` must have local disk access.")
 
     if not isinstance(file_path, Path):
         file_path = Path(file_path)
@@ -4156,15 +4084,15 @@ def load_trainee(
     # It is decided that if the file contains a suffix then it contains a
     # file name.
     if file_path.suffix:
-        # Check to make sure sure `.caml` file is provided
+        # Check to make sure sure ``.caml`` file is provided
         if file_path.suffix.lower() != '.caml':
             raise HowsoError(
-                'Filepath with a non `.caml` extension was provided.'
+                'Filepath with a non ``.caml`` extension was provided.'
             )
     else:
         # Add the extension to the file_path
         raise HowsoError(
-            'A `.caml` file must be provided.'
+            'A ``.caml`` file must be provided.'
         )
     # If path is not absolute, append it to the default directory.
     if not file_path.is_absolute():
@@ -4199,7 +4127,7 @@ def get_trainee(
     name_or_id: str,
     *,
     client: Optional[AbstractHowsoClient] = None
-) -> Union["Trainee", None]:
+) ->"Trainee" | None:
     """
     Get an existing trainee from Howso Services.
 
@@ -4213,7 +4141,7 @@ def get_trainee(
     Returns
     -------
     Trainee
-        The trainee instance.
+        The trainee instance or None if a trainee with the specified name/id was not found.
     """
     client = client or get_client()
     trainee = client.get_trainee(str(name_or_id))
@@ -4225,18 +4153,18 @@ def list_trainees(
     search_terms: Optional[str] = None,
     *,
     client: Optional[AbstractHowsoClient] = None,
-    project: Optional[Union[str, BaseProject]] = None,
+    project: Optional[str | BaseProject] = None,
 ) -> List["TraineeIdentity"]:
     """
     Get listing of available trainees.
 
     This method only returns a simplified informational listing of available
     trainees, not full engine Trainee instances. To get a Trainee instance
-    that can be used with the engine API call `get_trainee`.
+    that can be used with the engine API call ``get_trainee``.
 
     Parameters
     ----------
-    search_terms : str
+    search_terms : str, optional
         Terms to filter results by.
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
