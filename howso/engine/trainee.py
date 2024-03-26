@@ -315,7 +315,7 @@ class Trainee(BaseTrainee):
         .. WARNING::
             This returns a deep ``copy`` of the feature attributes. To update
             features attributes of the trainee, use the method
-            :func:``set_feature_attributes``.
+            :func:`set_feature_attributes`.
 
         Returns
         -------
@@ -334,7 +334,7 @@ class Trainee(BaseTrainee):
 
         .. WARNING::
             This returns a deep ``copy`` of the metadata. To update the
-            metadata of the trainee, use the method :func:``set_metadata``.
+            metadata of the trainee, use the method :func:`set_metadata`.
 
         Returns
         -------
@@ -362,7 +362,7 @@ class Trainee(BaseTrainee):
 
         .. WARNING::
             This returns a deep ``copy`` of the default action features. To
-            update them, use the method :func:``set_default_features``.
+            update them, use the method :func:`set_default_features`.
 
         Returns
         -------
@@ -378,7 +378,7 @@ class Trainee(BaseTrainee):
 
         .. WARNING::
             This returns a deep ``copy`` of the default context features. To
-            update them, use the method :func:``set_default_features``.
+            update them, use the method :func:`set_default_features`.
 
         Returns
         -------
@@ -602,7 +602,7 @@ class Trainee(BaseTrainee):
         """
         Delete the trainee from the last loaded or saved location.
 
-        If trying to delete a trainee from another location, see :func:``delete_trainee``.
+        If trying to delete a trainee from another location, see :func:`delete_trainee`.
         """
         if isinstance(self.client, AbstractHowsoClient):
             if isinstance(self.client, LocalSaveableProtocol) and self._custom_save_path is not None:
@@ -622,7 +622,7 @@ class Trainee(BaseTrainee):
         Unload the trainee.
 
         .. deprecated:: 1.0.0
-            Use :meth:``Trainee.release_resources`` instead.
+            Use :meth:`release_resources` instead.
         """
         warnings.warn(
             'The method ``unload()`` is deprecated and will be removed '
@@ -792,7 +792,7 @@ class Trainee(BaseTrainee):
         Optimizes a trainee.
 
         .. deprecated:: 6.0.0
-            Use :meth:``Trainee.analyze`` instead.
+            Use :meth:`analyze` instead.
 
         Parameters
         ----------
@@ -874,7 +874,7 @@ class Trainee(BaseTrainee):
         and versatile optimization.
 
         .. deprecated:: 6.0.0
-            Use :meth:``Trainee.auto_analyze`` instead.
+            Use :meth:`auto_analyze` instead.
         """
         warnings.warn(
             'The method ``auto_optimize()`` is deprecated and will be'
@@ -888,12 +888,12 @@ class Trainee(BaseTrainee):
         Set trainee parameters for auto optimization.
 
         .. deprecated:: 6.0.0
-            Use :meth:``Trainee.set_auto_analyze_params`` instead.
+            Use :meth:`set_auto_analyze_params` instead.
 
         Parameters
         ----------
         auto_optimize_enabled : bool, default False
-            When True, the :func:``train`` method will trigger an optimize when
+            When True, the :func:`train` method will trigger an optimize when
             it's time for the model to be optimized again.
         optimize_threshold : int, optional
             The threshold for the number of cases at which the model should be
@@ -934,7 +934,7 @@ class Trainee(BaseTrainee):
 
     def get_auto_ablation_params(self):
         """
-        Get trainee parameters for auto ablation set by :meth:``set_auto_ablation_params``.
+        Get trainee parameters for auto ablation set by :meth:`set_auto_ablation_params`.
         """
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_auto_ablation_params(self.id)
@@ -965,7 +965,7 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         auto_ablation_enabled : bool, default False
-            When True, the :meth:``train`` method will ablate cases that meet the set criteria.
+            When True, the :meth:`train` method will ablate cases that meet the set criteria.
         auto_ablation_weight_feature : str, default ".case_weight"
             The weight feature that should be accumulated to when cases are ablated.
         minimum_model_size : int, default 1,000
@@ -1023,7 +1023,7 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         auto_analyze_enabled : bool, default False
-            When True, the :func:``train`` method will trigger an analyze when
+            When True, the :func:`train` method will trigger an analyze when
             it's time for the model to be analyzed again.
         analyze_threshold : int, optional
             The threshold for the number of cases at which the model should be
@@ -1035,11 +1035,7 @@ class Trainee(BaseTrainee):
             The factor by which to increase the analysis threshold every
             time the model grows to the current threshold size.
         kwargs : dict, optional
-            See parameters in :meth:``analyze``.
-
-        Returns
-        -------
-        None
+            See parameters in :meth:`analyze`.
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.set_auto_analyze_params(
@@ -1183,13 +1179,13 @@ class Trainee(BaseTrainee):
         weight_feature: Optional[str] = None,
     ) -> DataFrame:
         """
-        Wrapper around :meth:``react``.
+        Wrapper around :meth:`react`.
 
         Performs a discriminative react to predict the action feature values based on the
         given contexts. Returns only the predicted action values.
 
         .. seealso::
-            :meth:``react``
+            :meth:`react`
 
         Parameters
         ----------
@@ -1201,7 +1197,7 @@ class Trainee(BaseTrainee):
             ``action_features`` is specified, the Trainee ``default_action_features``
             is used.
         allow_nulls : bool, default False, optional
-            See parameter ``allow_nulls`` in :meth:``react``.
+            See parameter ``allow_nulls`` in :meth:`react`.
         case_indices : iterable of sequence of str and int, optional
             Iterable of Sequences, of session id and index, where index
             is the original 0-based index of the case as it was trained into
@@ -1214,17 +1210,17 @@ class Trainee(BaseTrainee):
             ``context_features`` will be all of the ``features`` excluding the
             ``action_features``.
         derived_action_features : list of str, optional
-            See parameter ``derived_action_features`` in :meth:``react``.
+            See parameter ``derived_action_features`` in :meth:`react`.
         derived_context_features : list of str, optional
-            See parameter ``derived_context_features`` in :meth:``react``.
+            See parameter ``derived_context_features`` in :meth:`react`.
         leave_case_out : bool, default False
-            See parameter ``leave_case_out`` in :meth:``react``.
+            See parameter ``leave_case_out`` in :meth:`react`.
         suppress_warning : bool, default False
-            See parameter ``suppress_warning`` in :meth:``react``.
+            See parameter ``suppress_warning`` in :meth:`react`.
         use_case_weights : bool, default False
-            See parameter ``use_case_weights`` in :meth:``react``.
+            See parameter ``use_case_weights`` in :meth:`react`.
         weight_feature : str, optional
-            See parameter ``weight_feature`` in :meth:``react``.
+            See parameter ``weight_feature`` in :meth:`react`.
 
         Returns
         -------
@@ -1352,7 +1348,7 @@ class Trainee(BaseTrainee):
             If specified will execute a generative react. If not
             specified will execute a discriminative react. Conviction is the
             ratio of expected surprisal to generated surprisal for each
-            feature generated, valid values are in the range of :math:``(0,\infty]``.
+            feature generated, valid values are in the range of :math:`(0,\infty]`.
         details : dict of str to object, optional
             If details are specified, the response will contain the requested
             explanation data along with the reaction. Below are the valid keys
@@ -1739,13 +1735,13 @@ class Trainee(BaseTrainee):
         contexts : list of list of object or DataFrame, optional
             The context values to react to.
         action_features : list of str, optional
-            See parameter ``action_features`` in :meth:``react``.
+            See parameter ``action_features`` in :meth:`react`.
         actions : list of list of object or DataFrame, optional
-            See parameter ``actions`` in :meth:``react``.
+            See parameter ``actions`` in :meth:`react`.
         case_indices : CaseIndices
-            See parameter ``case_indices`` in :meth:``react``.
+            See parameter ``case_indices`` in :meth:`react`.
         context_features : list of str, optional
-            See parameter ``context_features`` in :meth:``react``.
+            See parameter ``context_features`` in :meth:`react`.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
             starting new series. If ``initial_values`` provide series IDs, it
@@ -1765,25 +1761,25 @@ class Trainee(BaseTrainee):
             ``continue_series`` will be ignored and treated as true if this value
             is specified.
         derived_action_features : list of str, optional
-            See parameter ``derived_action_features`` in :meth:``react``.
+            See parameter ``derived_action_features`` in :meth:`react`.
         derived_context_features : list of str, optional
-            See parameter ``derived_context_features`` in :meth:``react``.
+            See parameter ``derived_context_features`` in :meth:`react`.
         desired_conviction : float, optional
-            See parameter ``desired_conviction`` in :meth:``react``.
+            See parameter ``desired_conviction`` in :meth:`react`.
         details : dict of str to object
-            See parameter ``details`` in :meth:``react``.
+            See parameter ``details`` in :meth:`react`.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
         feature_bounds_map : dict of str to dict of str to object, optional
-            See parameter ``feature_bounds_map`` in :meth:``react``.
+            See parameter ``feature_bounds_map`` in :meth:`react`.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
             Time-series only. Must provide either one for all series, or
             exactly one per series.
         generate_new_cases : {"always", "attempt", "no"}, default "no"
-            See parameter ``generate_new_cases`` in :meth:``react``.
+            See parameter ``generate_new_cases`` in :meth:`react`.
         series_index : str, default ".series"
             When set to a string, will include the series index as a
             column in the returned DataFrame using the column name given.
@@ -1804,25 +1800,25 @@ class Trainee(BaseTrainee):
             just the first case in each series. Must provide either exactly one
             value to use for all series, or one per series.
         input_is_substituted : bool, default False
-            See parameter ``input_is_substituted`` in :meth:``react``.
+            See parameter ``input_is_substituted`` in :meth:`react`.
         leave_case_out : bool, default False
-            See parameter ``leave_case_out`` in :meth:``react``.
+            See parameter ``leave_case_out`` in :meth:`react`.
         max_series_lengths : list of int, optional
             Maximum size a series is allowed to be. 0 or less is no limit.
             Must provide either exactly one to use for all series, or one per
             series. Default is ``3 * model_size``
         new_case_threshold : str, optional
-            See parameter ``new_case_threshold`` in :meth:``react``.
+            See parameter ``new_case_threshold`` in :meth:`react`.
         num_series_to_generate : int, default 1
             The number of series to generate.
         ordered_by_specified_features : bool, default False
-            See parameter ``ordered_by_specified_features`` in :meth:``react``.
+            See parameter ``ordered_by_specified_features`` in :meth:`react`.
         output_new_series_ids : bool, default True
             If True, series ids are replaced with unique values on output.
             If False, will maintain or replace ids with existing trained values,
             but also allows output of series with duplicate existing ids.
         preserve_feature_values : list of str, optional
-            See parameter ``preserve_feature_values`` in :meth:``react``.
+            See parameter ``preserve_feature_values`` in :meth:`react`.
         progress_callback : callable, optional
             A callback method that will be called before each
             batched call to react series and at the end of reacting. The method
@@ -1856,15 +1852,15 @@ class Trainee(BaseTrainee):
                     {"feature_name":  {"values": ["val1", "val2"]}}
 
         substitute_output : bool, default True
-            See parameter ``substitute_output`` in :meth:``react``.
+            See parameter ``substitute_output`` in :meth:`react`.
         suppress_warning : bool, default False
-            See parameter ``suppress_warning`` in :meth:``react``.
+            See parameter ``suppress_warning`` in :meth:`react`.
         use_case_weights : bool, default False
-            See parameter ``use_case_weights`` in :meth:``react``.
+            See parameter ``use_case_weights`` in :meth:`react`.
         use_regional_model_residuals : bool, default True
-            See parameter ``use_regional_model_residuals`` in :meth:``react``.
+            See parameter ``use_regional_model_residuals`` in :meth:`react`.
         weight_feature : str, optional
-            See parameter ``weight_feature`` in :meth:``react``.
+            See parameter ``weight_feature`` in :meth:`react`.
 
         Returns
         -------
@@ -2814,7 +2810,7 @@ class Trainee(BaseTrainee):
         or None if no cached match is found.
 
         .. deprecated:: 1.0.0
-            Use :meth:``Trainee.get_prediction_stats`` instead.
+            Use :meth:`get_prediction_stats` instead.
 
         Parameters
         ----------
@@ -3254,7 +3250,7 @@ class Trainee(BaseTrainee):
         or None if no cached match is found.
 
         .. deprecated:: 1.0.0
-            Use :meth:``Trainee.get_prediction_stats`` instead.
+            Use :meth:`get_prediction_stats` instead.
 
         Parameters
         ----------
@@ -3302,7 +3298,7 @@ class Trainee(BaseTrainee):
         or None if no cached match is found.
 
         .. deprecated:: 1.0.0
-            Use :meth:``Trainee.get_prediction_stats`` instead.
+            Use :meth:`get_prediction_stats` instead.
 
         Parameters
         ----------
