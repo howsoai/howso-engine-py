@@ -219,8 +219,8 @@ class AbstractHowsoClient(ABC):
     def rename_subtrainee(
         self,
         trainee_id,
+        new_name,
         *,
-        new_name=None,
         child_name_path=None,
         child_id=None
     ) -> None:

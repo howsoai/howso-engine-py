@@ -3125,7 +3125,7 @@ class HowsoCore:
     def rename_subtrainee(
         self,
         trainee_id: str,
-        new_name: str = None,
+        new_name: str,
         *,
         child_id: Optional[str] = None,
         child_name_path: Optional[List[str]] = None
@@ -3137,7 +3137,7 @@ class HowsoCore:
         ----------
         trainee_id : str
             The ID of the Trainee whose child to rename.
-        new_name : str,
+        new_name : str
             New name of child trainee
         child_id : str, optional
             Unique id of child trainee to rename. Ignored if child_name_path is specified
