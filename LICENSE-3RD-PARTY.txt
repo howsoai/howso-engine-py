@@ -17,12 +17,12 @@ UNKNOWN
 UNKNOWN
 
 Faker
-24.2.0
+24.4.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.local/lib/python3.10/site-packages/Faker-24.2.0.dist-info/LICENSE.txt
+/home/runner/.local/lib/python3.10/site-packages/Faker-24.4.0.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2920,7 +2920,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 
-ubuntu-advantage-tools
+ubuntu-pro-client
 8001
 GPLv3
 Ubuntu Server Team
