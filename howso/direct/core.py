@@ -1183,6 +1183,7 @@ class HowsoCore:
         input_is_substituted: bool = False,
         series: Optional[str] = None,
         session: Optional[str] = None,
+        skip_auto_analyze: bool = False,
         train_weights_only: bool = False,
     ) -> Tuple[Dict, int, int]:
         """
@@ -1211,6 +1212,10 @@ class HowsoCore:
             from internal series storage.
         session : str, optional
             The identifier of the Trainee session to associate the cases with.
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the response object will contain an "analyze" status when
+            the set auto-analyze parameters indicate that an analyze is needed.
         train_weights_only : bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -1234,6 +1239,7 @@ class HowsoCore:
             "input_is_substituted": input_is_substituted,
             "series": series,
             "session": session,
+            "skip_auto_analyze": skip_auto_analyze,
             "train_weights_only": train_weights_only,
         })
 

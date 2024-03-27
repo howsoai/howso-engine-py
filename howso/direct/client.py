@@ -1228,9 +1228,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         input_is_substituted: bool = False,
         progress_callback: Optional[Callable] = None,
         series: Optional[str] = None,
+        skip_auto_analyze: bool = False,
         train_weights_only: bool = False,
         validate: bool = True,
-    ):
+    ) -> bool:
         """
         Train one or more cases into a trainee (model).
 
@@ -1281,6 +1282,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             the value(s) of this case are appended to all cases in the series.
             If cases is the same length as the series, the value of each case
             in cases is applied in order to each of the cases in the series.
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the boolean response will be True if an analyze is needed.
         train_weights_only : bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -1289,6 +1293,12 @@ class HowsoDirectClient(AbstractHowsoClient):
             Whether to validate the data against the provided feature
             attributes. Issues warnings if there are any discrepancies between
             the data and the features dictionary.
+
+        Returns
+        -------
+        bool
+            Flag indicating if the Trainee needs to analyze. Only true if
+            auto-analyze is enabled and the conditions are met.
         """
         self._auto_resolve_trainee(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
@@ -1331,7 +1341,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             features = internals.get_features_from_data(cases)
         cases = serialize_cases(cases, features, feature_attributes, warn=True)
 
-        auto_analyze = False
+        needs_analyze = False
 
         with ProgressTimer(len(cases)) as progress:
             gen_batch_size = None
@@ -1359,10 +1369,11 @@ class HowsoDirectClient(AbstractHowsoClient):
                     input_is_substituted=input_is_substituted,
                     series=series,
                     session=self.active_session.id,
-                    train_weights_only=train_weights_only
+                    skip_auto_analyze=skip_auto_analyze,
+                    train_weights_only=train_weights_only,
                 )
                 if response and response.get('status') == 'analyze':
-                    auto_analyze = True
+                    needs_analyze = True
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
@@ -1383,9 +1394,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self._auto_persist_trainee(trainee_id)
 
-        # kick off auto-analyze if the train response requests it
-        if auto_analyze:
-            self.auto_analyze(trainee_id)
+        return needs_analyze
 
     def impute(
         self,

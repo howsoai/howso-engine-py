@@ -136,6 +136,7 @@ class Trainee(BaseTrainee):
         self._id = id
         self._custom_save_path = None
         self._calculated_matrices = {}
+        self._needs_analyze: bool = False
 
         self.persistence = persistence
         self.set_default_features(
@@ -339,6 +340,18 @@ class Trainee(BaseTrainee):
             The metadata of the trainee.
         """
         return deepcopy(self._metadata)
+
+    @property
+    def needs_analyze(self) -> bool:
+        """
+        The flag indicating if the Trainee needs to analyze.
+
+        Returns
+        -------
+        bool
+            A flag indicating if the Trainee needs to analyze.
+        """
+        return self._needs_analyze
 
     @property
     def calculated_matrices(self) -> Optional[Dict[str, DataFrame]]:
@@ -784,6 +797,7 @@ class Trainee(BaseTrainee):
         input_is_substituted: bool = False,
         progress_callback: Optional[Callable] = None,
         series: Optional[str] = None,
+        skip_auto_analyze: bool = False,
         train_weights_only: bool = False,
         validate: bool = True,
     ) -> None:
@@ -835,6 +849,10 @@ class Trainee(BaseTrainee):
             this case are appended to all cases in the series. If cases is the
             same length as the series, the value of each case in cases is
             applied in order to each of the cases in the series.
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the 'needs_analyze' property of the Trainee will be
+            updated.
         train_weights_only:  bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -849,7 +867,8 @@ class Trainee(BaseTrainee):
         None
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.train(
+            self._needs_analyze = False
+            needs_analyze = self.client.train(
                 trainee_id=self.id,
                 accumulate_weight_feature=accumulate_weight_feature,
                 batch_size=batch_size,
@@ -859,9 +878,11 @@ class Trainee(BaseTrainee):
                 input_is_substituted=input_is_substituted,
                 progress_callback=progress_callback,
                 series=series,
+                skip_auto_analyze=skip_auto_analyze,
                 train_weights_only=train_weights_only,
                 validate=validate,
             )
+            self._needs_analyze = needs_analyze
         else:
             raise ValueError("Client must have the 'train' method.")
 
