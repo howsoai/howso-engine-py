@@ -443,7 +443,7 @@ class AbstractHowsoClient(ABC):
         conviction_lower_threshold=None,
         conviction_upper_threshold=None,
         exact_prediction_features=None,
-        infleunce_weight_entropy_threshold=0.6,
+        influence_weight_entropy_threshold=0.6,
         minimum_model_size=1_000,
         relative_prediction_threshold_map=None,
         residual_prediction_features=None,
