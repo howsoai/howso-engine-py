@@ -88,7 +88,7 @@ class AbstractHowsoClient(ABC):
         target_name_path=None, target_id=None,
         source_name_path=None, source_id=None
     ):
-        """Copy a subtrainee in trainee's hierarchy."""
+        """Copy a sub-trainee in trainee's hierarchy."""
 
     @abstractmethod
     def acquire_trainee_resources(self, trainee_id, *, max_wait_time=None):
@@ -443,7 +443,7 @@ class AbstractHowsoClient(ABC):
         conviction_lower_threshold=None,
         conviction_upper_threshold=None,
         exact_prediction_features=None,
-        infleunce_weight_entropy_threshold=0.6,
+        influence_weight_entropy_threshold=0.6,
         minimum_model_size=1_000,
         relative_prediction_threshold_map=None,
         residual_prediction_features=None,
