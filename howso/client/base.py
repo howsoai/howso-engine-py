@@ -88,7 +88,7 @@ class AbstractHowsoClient(ABC):
         target_name_path=None, target_id=None,
         source_name_path=None, source_id=None
     ):
-        """Copy a sub-trainee in trainee's hierarchy."""
+        """Copy a subtrainee in trainee's hierarchy."""
 
     @abstractmethod
     def acquire_trainee_resources(self, trainee_id, *, max_wait_time=None):
