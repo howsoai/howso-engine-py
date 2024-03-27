@@ -41,7 +41,7 @@ the Howso product suite and still be able to test configuration-less operation.
 ### Testing against other configurations
 
 If it is desirable to test other configurations as well. The environment
-variable `TESTING_OPTIONS` can include the option `USE_HOWSO_CONFIG`. Providing
+variable `TEST_OPTIONS` can include the option `USE_HOWSO_CONFIG`. Providing
 this option restores the normal configuration-finding facilities to locate
 a configuration that may already exist in your development environment.
 
@@ -54,7 +54,7 @@ Amalgam shared libraries installed with `amalgam-lang`.
 
 #### Normal, locally configured behavior
 
-    > TESTING_OPTIONS="USE_HOWSO_CONFIG" python -m pytest
+    > TEST_OPTIONS="USE_HOWSO_CONFIG" python -m pytest
 
 This will be configured using the normal local configuration options which may
 include a specific location to find the `howso-engine` and/or specific
