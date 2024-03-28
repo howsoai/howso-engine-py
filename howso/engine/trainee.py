@@ -17,6 +17,8 @@ from typing import (
 import uuid
 import warnings
 
+from typing_extensions import TypeAlias
+
 from howso.client import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.exceptions import (
@@ -50,7 +52,6 @@ from pandas import (
     DataFrame,
     Index
 )
-from typing_extensions import TypeAlias
 
 CaseIndices: TypeAlias = Iterable[Tuple[str, int]]
 GenerateNewCases: TypeAlias = Literal["always", "attempt", "no"]
