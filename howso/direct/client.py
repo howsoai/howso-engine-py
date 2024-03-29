@@ -3761,20 +3761,17 @@ class HowsoDirectClient(AbstractHowsoClient):
         feature_attributes = self.trainee_cache.get(trainee_id).features
         serialized_cases = None
 
-        if new_cases is not None and num_list_dimensions(new_cases) != 3:
+        if num_list_dimensions(new_cases) != 3:
             raise ValueError(
                 "Improper shape of `new_cases` values passed. "
                 "`new_cases` must be a 3d list of object.")
-        elif new_cases is None:
-            raise ValueError("`new_cases` must be provided.")
 
-        if new_cases is not None:
-            serialized_cases = []
-            for group in new_cases:
-                if features is None:
-                    features = internals.get_features_from_data(group)
-                serialized_cases.append(serialize_cases(group, features,
-                                                        feature_attributes))
+        serialized_cases = []
+        for group in new_cases:
+            if features is None:
+                features = internals.get_features_from_data(group)
+            serialized_cases.append(serialize_cases(group, features,
+                                                    feature_attributes))
 
         if self.verbose:
             print('Reacting to a set of cases on trainee with id: '
