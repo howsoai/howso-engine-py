@@ -117,7 +117,7 @@ class Trainee(BaseTrainee):
         The instance or id of the project to use for the trainee.
     metadata : dict, optional
         Any key-value pair to store as custom metadata for the trainee.
-    resources : TraineeResources | dict, optional
+    resources : TraineeResources or map, optional
         Customize the resources provisioned for the Trainee instance.
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
