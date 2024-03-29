@@ -452,8 +452,8 @@ class Trainee(BaseTrainee):
                 if file_path.suffix.lower() != '.caml':
                     file_path = file_path.parent.joinpath(f"{file_path.stem}.caml")
                     warnings.warn(
-                        'Filepath with a non ``.caml`` extension was provided. Extension will be '
-                        'ignored and the file be will be saved as a ``.caml`` file', UserWarning)
+                        'Filepath with a non `.caml` extension was provided. Extension will be '
+                        'ignored and the file be will be saved as a `.caml` file', UserWarning)
             else:
                 # Add the natural name to the file_path
                 file_path = file_path.joinpath(f"{self.id}.caml")
@@ -3986,15 +3986,15 @@ def load_trainee(
     # It is decided that if the file contains a suffix then it contains a
     # file name.
     if file_path.suffix:
-        # Check to make sure sure ``.caml`` file is provided
+        # Check to make sure sure `.caml` file is provided
         if file_path.suffix.lower() != '.caml':
             raise HowsoError(
-                'Filepath with a non ``.caml`` extension was provided.'
+                'Filepath with a non `.caml` extension was provided.'
             )
     else:
         # Add the extension to the file_path
         raise HowsoError(
-            'A ``.caml`` file must be provided.'
+            'A `.caml` file must be provided.'
         )
     # If path is not absolute, append it to the default directory.
     if not file_path.is_absolute():
