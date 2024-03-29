@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from copy import deepcopy
-import os
 from pathlib import Path
 from typing import (
     Any,
@@ -9,28 +8,31 @@ from typing import (
     Dict,
     Iterable,
     List,
-    Literal,
+    MutableMapping,
     Optional,
     Tuple,
     Union,
-    MutableMapping,
 )
 import uuid
 import warnings
 
-from typing_extensions import TypeAlias
+from pandas import (
+    concat,
+    DataFrame,
+    Index,
+)
 
 from howso.client import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.exceptions import (
     HowsoApiError,
     HowsoError,
-    HowsoWarning
+    HowsoWarning,
 )
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import (
+    LocalSaveableProtocol,
     ProjectClient,
-    LocalSaveableProtocol
 )
 from howso.engine.client import get_client
 from howso.engine.project import Project
@@ -38,9 +40,11 @@ from howso.engine.session import Session
 from howso.openapi.models import (
     Cases,
     Metrics,
-    Project as BaseProject,
-    Session as BaseSession,
-    Trainee as BaseTrainee,
+)
+from howso.openapi.models import Project as BaseProject
+from howso.openapi.models import Session as BaseSession
+from howso.openapi.models import Trainee as BaseTrainee
+from howso.openapi.models import (
     TraineeIdentity,
     TraineeInformation,
     TraineeResources,
@@ -48,26 +52,22 @@ from howso.openapi.models import (
 from howso.utilities import matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 from howso.utilities.reaction import Reaction
-from pandas import (
-    concat,
-    DataFrame,
-    Index
+
+from .typing import (
+    CaseIndices,
+    GenerateNewCases,
+    Library,
+    Mode,
+    NewCaseThreshold,
+    NormalizeMethod,
+    PathLike,
+    Persistence,
+    Precision,
+    SeriesIDTracking,
+    TabularData2D,
+    TabularData3D,
+    TargetedModel,
 )
-
-CaseIndices: TypeAlias = Iterable[Tuple[str, int]]
-GenerateNewCases: TypeAlias = Literal["always", "attempt", "no"]
-Library: TypeAlias = Literal["st", "mt"]
-Mode: TypeAlias = Literal["robust", "full"]
-NewCaseThreshold: TypeAlias = Literal["max", "min", "most_similar"]
-NormalizeMethod: TypeAlias = Literal["feature_count", "fractional", "relative"]
-Persistence: TypeAlias = Literal["allow", "always", "never"]
-Precision: TypeAlias = Literal["exact", "similar"]
-SeriesIDTracking: TypeAlias = Literal["fixed", "dynamic", "no"]
-TargetedModel: TypeAlias = Literal["single_targeted", "omni_targeted", "targetless"]
-PathLike: TypeAlias = Union[str, bytes, os.PathLike]
-TabularData2D = Union[DataFrame, List[List[Any]]]
-TabularData3D = Union[List[DataFrame], List[List[List[Any]]]]
-
 
 __all__ = [
     "Trainee",
@@ -1673,9 +1673,7 @@ class Trainee(BaseTrainee):
         context_features: Optional[Iterable[str]] = None,
         continue_series: bool = False,
         continue_series_features: Optional[Iterable[str]] = None,
-        continue_series_values: Optional[
-            List[DataFrame] | List[List[List[object]]]
-        ] = None,
+        continue_series_values: Optional[TabularData3D] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
@@ -1698,9 +1696,7 @@ class Trainee(BaseTrainee):
         preserve_feature_values: Optional[Iterable[str]] = None,
         progress_callback: Optional[Callable] = None,
         series_context_features: Optional[Iterable[str]] = None,
-        series_context_values: Optional[
-            List[DataFrame] | List[List[List[object]]]
-        ] = None,
+        series_context_values: Optional[TabularData3D] = None,
         series_id_tracking: SeriesIDTracking = "fixed",
         series_stop_maps: Optional[List[MutableMapping[str, MutableMapping[str, object]]]] = None,
         substitute_output: bool = True,
@@ -2630,9 +2626,7 @@ class Trainee(BaseTrainee):
         p_value_of_removal: bool = False,
         use_case_weights: bool = False,
         features: Optional[Iterable[str]] = None,
-        new_cases: Optional[
-            List[DataFrame] | List[List[List[object]]]
-        ] = None,
+        new_cases: Optional[TabularData3D] = None,
         trainees_to_compare: Optional[Iterable["Trainee" | str]] = None,
         weight_feature: Optional[str] = None,
     ) -> DataFrame | dict:
