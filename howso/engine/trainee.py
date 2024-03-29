@@ -1027,7 +1027,7 @@ class Trainee(BaseTrainee):
         analyze_growth_factor : float, optional
             The factor by which to increase the analysis threshold every
             time the model grows to the current threshold size.
-        **kwargs
+        **kwargs: dict, optional
             Accepts any of the keyword arguments in :meth:`analyze`.
         """
         if isinstance(self.client, AbstractHowsoClient):
