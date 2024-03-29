@@ -1110,11 +1110,13 @@ class TestBaseClient:
         Test that react_group raises when expected.
 
         Test the expected exception is raised when react_group
-        gets parameters trainee_id and trainee_to_compare passed in as None.
+        gets parameters trainee_id and new_cases passed in as None.
         """
         with pytest.raises(TypeError) as exc:
             self.client.react_group(trainee.id)
-        assert str(exc.value) == ("HowsoDirectClient.react_group() missing 1 required positional argument: 'new_cases'")
+        assert str(exc.value) == (
+            "HowsoDirectClient.react_group() "
+            "missing 1 required positional argument: 'new_cases'")
 
     def test_react_group_trainee_compare_verbose(self, trainee, capsys):
         """
