@@ -64,6 +64,8 @@ Precision: TypeAlias = Literal["exact", "similar"]
 SeriesIDTracking: TypeAlias = Literal["fixed", "dynamic", "no"]
 TargetedModel: TypeAlias = Literal["single_targeted", "omni_targeted", "targetless"]
 PathLike: TypeAlias = Union[str, bytes, os.PathLike]
+TabularData2D = Union[DataFrame, List[List[Any]]]
+TabularData3D = Union[List[DataFrame], List[List[List[Any]]]]
 
 
 __all__ = [
@@ -188,7 +190,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        str | None
+        str or None
             The trainee's ID.
         """
         return self._id
@@ -200,7 +202,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        str | None
+        str or None
             The trainee's project ID.
         """
         return self._project_id
@@ -212,7 +214,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        Project | None
+        Project or None
             The trainee's project.
         """
         if (
@@ -238,7 +240,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        str | bytes | PathLike
+        str or bytes or os.PathLike
             The current storage location of the trainee based on the last saved location or the location
             from which the trainee was loaded from. If not saved or loaded from a custom location, then
             the default save location will be returned.
@@ -258,7 +260,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        str | None
+        str or None
             The name.
         """
         return self._name
@@ -270,7 +272,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        name : str | None
+        name : str or None
             The name.
         """
         if name is not None and len(name) > 128:
@@ -343,25 +345,25 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        dict
+        dict or None
             The metadata of the trainee.
         """
         return deepcopy(self._metadata)
 
     @property
-    def calculated_matrices(self) -> None | Dict[str, DataFrame]:
+    def calculated_matrices(self) -> Dict[str, DataFrame] | None:
         """
         The calculated matrices.
 
         Returns
         -------
-        None | dict of str -> DataFrame
+        None or dict of str -> DataFrame
             The calculated matrices.
         """
         return self._calculated_matrices
 
     @property
-    def default_action_features(self) -> None | List[str]:
+    def default_action_features(self) -> List[str] | None:
         """
         The default action features of the trainee.
 
@@ -371,7 +373,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        None | list of str
+        None or list of str
             The default action feature names for the trainee.
         """
         return deepcopy(self._default_action_features)
@@ -387,7 +389,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        None | list of str
+        None or list of str
             The default context feature names for the trainee.
         """
         return deepcopy(self._default_context_features)
@@ -399,7 +401,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        Session | None
+        Session or None
             The session instance, if it exists.
         """
         if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
@@ -411,7 +413,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        file_path : str | bytes | PathLike, optional
+        file_path : str | bytes | os.PathLike, optional
             The path of the file to save the Trainee to. This path can contain
             an absolute path, a relative path or simply a file name. If no filepath
             is provided, the default filepath will be the CWD. If ``file_path`` is a
@@ -546,7 +548,7 @@ class Trainee(BaseTrainee):
         library_type : {"st", "mt"}, optional
             The library type of the Trainee. "st" will use the single-threaded library,
             while "mt" will use the multi-threaded library.
-        project : str | Project, optional
+        project : str or Project, optional
             The instance or id of the project to use for the new trainee.
         resources : TraineeResources or dict, optional
             Customize the resources provisioned for the Trainee instance. If
@@ -629,7 +631,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        max_wait_time : int | float, optional
+        max_wait_time : int or float, optional
             The number of seconds to wait for trainee resources to be acquired
             before aborting gracefully. Set to 0 (or None) to wait as long as
             the system-configured maximum for sufficient resources to become
@@ -684,7 +686,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        seed : int | float | str
+        seed : int or float or str
             The random seed.
         """
         if isinstance(self.client, AbstractHowsoClient):
@@ -709,7 +711,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        cases : DataFrame | 2d list of object
+        cases : DataFrame or 2-dimensional list of object
             One or more cases to train into the model.
         accumulate_weight_feature : str, optional
             Name of feature into which to accumulate neighbors'
@@ -901,17 +903,13 @@ class Trainee(BaseTrainee):
 
         self.set_auto_analyze_params(*args, **kwargs)
 
-    def auto_analyze(self) -> None:
+    def auto_analyze(self):
         """
         Auto-analyze the trainee.
 
-        Re-use all parameters from the previous analyze call, assuming that
-        the user has called 'analyze' before. If not, it will default to a
+        Re-use all parameters from the previous :meth:`analyze` call, assuming that
+        the user has called :meth:`analyze` before. If not, it will default to a
         robust and versatile analysis.
-
-        Returns
-        -------
-        None
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.auto_analyze(self.id)
@@ -1130,7 +1128,7 @@ class Trainee(BaseTrainee):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        **kwargs
+        **kwargs : dict, optional
             Additional experimental analyze parameters.
         """
         if isinstance(self.client, AbstractHowsoClient):
@@ -1159,7 +1157,7 @@ class Trainee(BaseTrainee):
 
     def predict(
         self,
-        contexts: Optional[DataFrame | List[List[object]]] = None,
+        contexts: Optional[TabularData2D] = None,
         *,
         action_features: Optional[Iterable[str]] = None,
         allow_nulls: bool = False,
@@ -1180,7 +1178,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        contexts : DataFrame | 2d list of object, optional
+        contexts : DataFrame or 2-dimensional list of object, optional
             The context values to react to. If neither this nor ``context_values`` are
             specified then ``case_indices`` must be specified.
         action_features : list of str, optional
@@ -1250,17 +1248,17 @@ class Trainee(BaseTrainee):
 
     def react(
         self,
-        contexts: Optional[DataFrame | List[List[object]]] = None,
+        contexts: Optional[TabularData2D] = None,
         *,
         action_features: Optional[Iterable[str]] = None,
-        actions: Optional[DataFrame | List[List[object]]] = None,
+        actions: Optional[TabularData2D] = None,
         allow_nulls: bool = False,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         post_process_features: Optional[Iterable[str]] = None,
-        post_process_values: Optional[DataFrame | List[List[object]]] = None,
+        post_process_values: Optional[TabularData2D] = None,
         desired_conviction: Optional[float] = None,
         details: Optional[Dict[str, object]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
@@ -1293,11 +1291,11 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        contexts : DataFrame | 2d list of object, optional
+        contexts : DataFrame or 2-dimensional list of object, optional
             The context values to react to.
         action_features : list of str, optional
             Feature names to treat as action features during react.
-        actions : DataFrame | 2d list of object, optional
+        actions : DataFrame or 2-dimensional list of object, optional
             One or more action values to use for action features.
             If specified, will only return the specified explanation
             details for the given actions. (Discriminative reacts only)
@@ -1329,7 +1327,7 @@ class Trainee(BaseTrainee):
         post_process_features : iterable of str, optional
             List of feature names that will be made available during the
             execution of post_process feature attributes.
-        post_process_values : DataFrame | 2d list of object, optional
+        post_process_values : DataFrame or 2-dimensional list of object, optional
             A 2d list of values corresponding to post_process_features that
             will be made available during the execution of post_process feature
             attributes.
@@ -1629,7 +1627,7 @@ class Trainee(BaseTrainee):
                 action -> DataFrame
                     A data frame of action values.
 
-                details -> dict | list
+                details -> dict or list
                     An aggregated list of any requested details.
         """
         return self.client.react(
@@ -1666,10 +1664,10 @@ class Trainee(BaseTrainee):
 
     def react_series(
         self,
-        contexts: Optional[DataFrame | List[List[object]]] = None,
+        contexts: Optional[TabularData2D] = None,
         *,
         action_features: Optional[Iterable[str]] = None,
-        actions: Optional[DataFrame | List[List[object]]] = None,
+        actions: Optional[TabularData2D] = None,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         continue_series: bool = False,
@@ -1688,7 +1686,7 @@ class Trainee(BaseTrainee):
         series_index: str = ".series",
         init_time_steps: Optional[List[object]] = None,
         initial_features: Optional[Iterable[str]] = None,
-        initial_values:Optional[DataFrame | List[List[object]]] = None,
+        initial_values: Optional[TabularData2D] = None,
         input_is_substituted: bool = False,
         leave_case_out: Optional[bool] = None,
         max_series_lengths: Optional[List[int]] = None,
@@ -1721,11 +1719,11 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        contexts : DataFrame | 2d list of object, optional
+        contexts : DataFrame or 2-dimensional list of object, optional
             The context values to react to.
         action_features : list of str, optional
             See parameter ``action_features`` in :meth:`react`.
-        actions : DataFrame | 2d list of object, optional
+        actions : DataFrame or 2-dimensional list of object, optional
             See parameter ``actions`` in :meth:`react`.
         case_indices : CaseIndices
             See parameter ``case_indices`` in :meth:`react`.
@@ -1744,7 +1742,7 @@ class Trainee(BaseTrainee):
             The list of feature names corresponding to the values in each row of
             ``continue_series_values``. This value is ignored if
             ``continue_series_values`` is None.
-        continue_series_values : list of DataFrame | 3d list of object, optional
+        continue_series_values : list of DataFrame or 3-dimensional list of object, optional
             The set of series data to be forecasted with feature values in the
             same order defined by ``continue_series_values``. The value of
             ``continue_series`` will be ignored and treated as true if this value
@@ -1784,7 +1782,7 @@ class Trainee(BaseTrainee):
             context_features, action_features, derived_context_features or
             derived_action_features. If provided a value that isn't in one of
             those lists, it will be ignored.
-        initial_values : DataFrame | 2d list of object, optional
+        initial_values : DataFrame or 2-dimensional list of object, optional
             Values corresponding to the initial_features, used to condition
             just the first case in each series. Must provide either exactly one
             value to use for all series, or one per series.
@@ -1858,7 +1856,7 @@ class Trainee(BaseTrainee):
                 action -> DataFrame
                     A data frame of action values.
 
-                details -> dict | list
+                details -> dict or list
                     An aggregated list of any requested details.
         """
         if self.id:
@@ -2005,7 +2003,7 @@ class Trainee(BaseTrainee):
 
                     condition = {"feature_name": ['a', 'c', 'e']}
 
-        condition_session : str | BaseSession, optional
+        condition_session : str or BaseSession, optional
             If specified, ignores the condition and operates on cases for
             the specified session id or BaseSession instance. Ignored if
             case_indices is specified.
@@ -2043,7 +2041,7 @@ class Trainee(BaseTrainee):
 
     def edit_cases(
         self,
-        feature_values: DataFrame | List[List[object]],
+        feature_values: TabularData2D,
         *,
         case_indices: Optional[CaseIndices] = None,
         condition: Optional[Dict[str, object]] = None,
@@ -2057,7 +2055,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        feature_values : DataFrame | 2d list of object
+        feature_values : DataFrame or 2-dimensional list of object
             The feature values to edit the case(s) with. If specified as a list,
             the order corresponds with the order of the ``features`` parameter.
             If specified as a DataFrame, only the first row will be used.
@@ -2082,7 +2080,7 @@ class Trainee(BaseTrainee):
                       exactly. Only applicable to nominal and string ordinal
                       features.
 
-        condition_session : str | BaseSession, optional
+        condition_session : str or BaseSession, optional
             If specified, ignores the condition and operates on all cases for
             the specified session id or BaseSession instance.
         features : list of str, optional
@@ -2140,7 +2138,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        session : str | BaseSession
+        session : str or BaseSession
             The id or instance of the session to remove from the model.
         """
         if isinstance(session, BaseSession):
@@ -2158,13 +2156,13 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        session : str | BaseSession
+        session : str or BaseSession
             The id or instance of the session to retrieve indices for from
             the model.
 
         Returns
         -------
-        Index | list of int
+        Index or list of int
             An index of the session indices for the requested session.
         """
         if isinstance(session, BaseSession):
@@ -2182,13 +2180,13 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        session : str | BaseSession
+        session : str or BaseSession
             The id or instance of the session to retrieve training indices for
             from the model.
 
         Returns
         -------
-        Index | list of int
+        Index or list of int
             An index of the session training indices for the requested session.
         """
         if isinstance(session, BaseSession):
@@ -2210,7 +2208,7 @@ class Trainee(BaseTrainee):
         condition: Optional[Dict] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
-    ) -> Union["Cases", "DataFrame"]:
+    ) -> Cases | DataFrame:
         """
         Get the trainee's cases.
 
@@ -2241,7 +2239,7 @@ class Trainee(BaseTrainee):
             If True, an additional value will be appended to the cases
             indicating if the case was imputed.
 
-        session : str | BaseSession, optional
+        session : str or BaseSession, optional
             The id or instance of the session to retrieve training indices for
             from the model.
 
@@ -2302,7 +2300,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame
+        Cases or DataFrame
             The trainee's cases.
         """
         if isinstance(session, BaseSession):
@@ -2344,7 +2342,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        Cases | DataFrame
+        Cases or DataFrame
             The trainee's extreme cases.
         """
         if self.id:
@@ -2380,7 +2378,7 @@ class Trainee(BaseTrainee):
         condition: Optional[Dict[str, object]] = None,
         condition_session: Optional[str | BaseSession] = None,
         feature_attributes: Optional[Dict] = None,
-    ) :
+    ):
         """
         Add a feature to the model.
 
@@ -2392,7 +2390,7 @@ class Trainee(BaseTrainee):
             The dict of feature specific attributes for this feature. If
             unspecified and conditions are not specified, will assume feature
             type as 'continuous'.
-        feature_value : int | float | str, optional
+        feature_value : int or float or str, optional
             The value to populate the feature with.
             By default, populates the new feature with None.
         condition : dict of str -> object, optional
@@ -2422,7 +2420,7 @@ class Trainee(BaseTrainee):
 
                     condition = {"length": 10, "width": 10}
 
-        condition_session : str | BaseSession, optional
+        condition_session : str or BaseSession, optional
             If specified, ignores the condition and operates on cases for the
             specified session id or BaseSession instance.
         overwrite : bool, default False
@@ -2493,7 +2491,7 @@ class Trainee(BaseTrainee):
 
                     condition = {"length": [1, 5]}
 
-        condition_session : str | BaseSession, optional
+        condition_session : str or BaseSession, optional
             If specified, ignores the condition and operates on cases for the
             specified session id or BaseSession instance.
         """
@@ -2536,7 +2534,7 @@ class Trainee(BaseTrainee):
     def append_to_series_store(
         self,
         series: str,
-        contexts: DataFrame | List[List[object]],
+        contexts: TabularData2D,
         *,
         context_features: Optional[Iterable[str]] = None,
     ):
@@ -2549,7 +2547,7 @@ class Trainee(BaseTrainee):
         ----------
         series : str
             The name of the series store to append to.
-        contexts : DataFrame | 2d list of object
+        contexts : DataFrame or 2-dimensional list of object
             The list of context values to append to the series.
         context_features : iterable of str, optional
             The list of feature names for contexts.
@@ -2641,7 +2639,7 @@ class Trainee(BaseTrainee):
         Computes specified data for a **set** of cases.
 
         Return the list of familiarity convictions (and optionally, distance
-        contributions or p values) for each set.
+        contributions or :math:`p` values) for each set.
 
         Parameters
         ----------
@@ -2662,7 +2660,7 @@ class Trainee(BaseTrainee):
         kl_divergence_removal : bool, default False
             Calculate and output KL divergence of removing the
             specified cases.
-        new_cases : list of DataFrame | 3d list of object, optional
+        new_cases : list of DataFrame or 3-dimensional list of object, optional
             Specify a **set** using a list of cases to compute the conviction
             of groups of cases as shown in the following example.
 
@@ -2674,11 +2672,11 @@ class Trainee(BaseTrainee):
                 ]
 
         p_value_of_addition : bool, default False
-            If true will output p value of addition.
+            If true will output :math:`p` value of addition.
         p_value_of_removal : bool, default False
-            If true will output p value of removal.
+            If true will output :math:`p` value of removal.
         trainees_to_compare : list of str | Trainee, optional
-            (Optional) If specified ignores the 'new_cases' parameter and uses
+            If specified ignores the 'new_cases' parameter and uses
             cases from the specified trainee(s) instead. Values should be either
             the trainee object or its ID (trainee name is not supported).
         use_case_weights : bool, default False
@@ -2690,7 +2688,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame | dict
+        DataFrame or dict
             The conviction of grouped cases.
         """
         if trainees_to_compare:
@@ -2757,7 +2755,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame | dict
+        DataFrame or dict
             A DataFrame containing the familiarity conviction rows to feature
             columns.
         """
@@ -2810,7 +2808,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame | None
+        DataFrame or None
             The feature residuals or None if no cached values are found.
         """
         return self.client.get_feature_residuals(
@@ -2934,7 +2932,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame | dict
+        DataFrame or dict
             A DataFrame of feature name columns to stat value rows. Indexed
             by the stat type. The return type depends on the underlying client.
         """
@@ -2992,7 +2990,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame | dict
+        DataFrame or dict
             A DataFrame of feature name columns to stat value rows. Indexed
             by the stat type. The return type depends on the underlying client.
         """
@@ -3023,33 +3021,33 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        distance_contribution : bool | str, default False
+        distance_contribution : bool or str, default False
             The name of the feature to store distance contribution.
             If set to True the values will be stored to the feature
             'distance_contribution'.
-        familiarity_conviction_addition : bool | str, default False
+        familiarity_conviction_addition : bool or str, default False
             The name of the feature to store conviction of addition
             values. If set to True the values will be stored to the feature
             'familiarity_conviction_addition'.
-        familiarity_conviction_removal : bool | str, default False
+        familiarity_conviction_removal : bool or str, default False
             The name of the feature to store conviction of removal
             values. If set to True the values will be stored to the feature
             'familiarity_conviction_removal'.
         features : iterable of str, optional
             A list of features to calculate convictions.
-        influence_weight_entropy : bool | str, default False
+        influence_weight_entropy : bool or str, default False
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
             'influence_weight_entropy'.
-        p_value_of_addition : bool | str, default False
+        p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition
             values. If set to True the values will be stored to the feature
             'p_value_of_addition'.
-        p_value_of_removal : bool | str, default False
+        p_value_of_removal : bool or str, default False
             The name of the feature to store p value of removal
             values. If set to True the values will be stored to the feature
             'p_value_of_removal'.
-        similarity_conviction : bool | str, default False
+        similarity_conviction : bool or str, default False
             The name of the feature to store similarity conviction
             values. If set to True the values will be stored to the feature
             'similarity_conviction'.
@@ -3436,9 +3434,7 @@ class Trainee(BaseTrainee):
             setattr(self, f"_{key}", getattr(trainee, key))
 
     def update(self):
-        """
-        Update the remote trainee with local state.
-        """
+        """Update the remote trainee with local state."""
         if (
             getattr(self, "id", None)
             and getattr(self, "_created", False)
@@ -3464,9 +3460,9 @@ class Trainee(BaseTrainee):
         use_case_weights: bool = False,
         action_feature: Optional[str] = None,
         from_case_indices: Optional[CaseIndices] = None,
-        from_values: Optional[DataFrame | List[List[object]]] = None,
+        from_values: Optional[TabularData2D] = None,
         to_case_indices: Optional[CaseIndices] = None,
-        to_values: Optional[DataFrame | List[List[object]]] = None,
+        to_values: Optional[TabularData2D] = None,
         weight_feature: Optional[str] = None,
     ) -> List[float]:
         """
@@ -3498,7 +3494,7 @@ class Trainee(BaseTrainee):
             is the original 0-based index of the case as it was trained into
             the session. If specified must be either length of 1 or match
             length of ``to_values`` or ``to_case_indices``.
-        from_values : DataFrame | 2d list of object, optional
+        from_values : DataFrame or 2-dimensional list of object, optional
             A 2d-list of case values. If specified must be either length of
             1 or match length of ``to_values`` or ``to_case_indices``.
         to_case_indices : iterable of (str, int), optional
@@ -3506,7 +3502,7 @@ class Trainee(BaseTrainee):
             is the original 0-based index of the case as it was trained into
             the session. If specified must be either length of 1 or match
             length of ``from_values`` or ``from_case_indices``.
-        to_values : DataFrame | 2d list of object, optional
+        to_values : DataFrame or 2-dimensional list of object, optional
             A 2d-list of case values. If specified must be either length of
             1 or match length of ``from_values`` or ``from_case_indices``.
         use_case_weights : bool, default False
@@ -3569,7 +3565,7 @@ class Trainee(BaseTrainee):
             session. If specified, returns distances for all of these
             cases. Ignored if ``feature_values`` is provided. If neither
             ``feature_values`` nor ``case_indices`` is specified, uses full dataset.
-        feature_values : DataFrame | list of object
+        feature_values : DataFrame or list of object
             If specified, returns distances of the local model relative to
             these values, ignores ``case_indices`` parameter. If provided a
             DataFrame, only the first row will be used.
@@ -3660,9 +3656,9 @@ class Trainee(BaseTrainee):
         ----------
         library_type : {"mt", "st"}, optional
             The library type of the Trainee.
-        max_wait_time : int | float, optional
+        max_wait_time : int or float, optional
             The maximum time to wait for the trainee to be created.
-        resources : TraineeResources | dict of str -> any, optional
+        resources : TraineeResources or dict of str -> any, optional
             The resources to provision for the trainee.
         overwrite : bool, default False
             If True, will overwrite an existing trainee with the same name.
@@ -3780,7 +3776,7 @@ class Trainee(BaseTrainee):
         normalize : bool, default False
             Whether to normalize the matrix row wise. Normalization method is set by the ``normalize_method``
             parameter.
-        normalize_method : str | callable | iterable of str | callable, default "relative"
+        normalize_method : str or callable or iterable of str or callable, default "relative"
             The normalization method. The method may either one of the strings below that correspond to a
             default method or a custom callable.
 
@@ -3879,7 +3875,7 @@ class Trainee(BaseTrainee):
         normalize : bool, default False
             Whether to normalize the matrix row wise. Normalization method is set by the ``normalize_method``
             parameter.
-        normalize_method : str | callable | iterable of str | callable, default "relative"
+        normalize_method : str or callable or iterable of str or callable, default "relative"
             The normalization method. The method may either one of the strings below that correspond to a
             default method or a custom callable.
 
@@ -3967,7 +3963,7 @@ def delete_trainee(
     name_or_id : str, optional
         The name or id of the trainee. Deletes the Trainees from memory and attempts to delete a Trainee saved under
         the same filename from the default save location if no ``file_path`` is provided.
-    file_path : str | bytes | PathLike, optional
+    file_path : str or bytes or os.PathLike, optional
         The path of the file to load the Trainee from. Used for deleting trainees from disk.
 
         The file path must end with a filename, but file path can be either an absolute path, a
@@ -4019,7 +4015,7 @@ def load_trainee(
 
     Parameters
     ----------
-    file_path : str | bytes | PathLike
+    file_path : str or bytes or os.PathLike
         The path of the file to load the Trainee from. This path can contain
         an absolute path, a relative path or simply a file name. A ``.caml`` file name
         must be always be provided if file paths are provided.
@@ -4099,7 +4095,7 @@ def get_trainee(
     name_or_id: str,
     *,
     client: Optional[AbstractHowsoClient] = None
-) ->"Trainee" | None:
+) -> "Trainee" | None:
     """
     Get an existing trainee from Howso Services.
 
@@ -4112,7 +4108,7 @@ def get_trainee(
 
     Returns
     -------
-    Trainee
+    Trainee or None
         The trainee instance or None if a trainee with the specified name/id was not found.
     """
     client = client or get_client()
@@ -4140,7 +4136,7 @@ def list_trainees(
         Terms to filter results by.
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
-    project : str | Project, optional
+    project : str or Project, optional
         The instance or id of a project to filter by.
 
     Returns
