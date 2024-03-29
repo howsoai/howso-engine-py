@@ -106,14 +106,14 @@ class Trainee(BaseTrainee):
     library_type : {"st", "mt"}, optional
         The library type of the Trainee. "st" will use the single-threaded library,
         while "mt" will use the multi-threaded library.
-    max_wait_time : int | float, default 30
+    max_wait_time : int or float, default 30
         The number of seconds to wait for a trainee to be created and become
         available before aborting gracefully. Set to ``0`` (or None) to wait as
         long as the system-configured maximum for sufficient resources to
         become available, which is typically 20 minutes.
     persistence : {"allow", "always", "never"}, default "allow"
         The requested persistence state of the trainee.
-    project : str | Project, optional
+    project : str or Project, optional
         The instance or id of the project to use for the trainee.
     metadata : dict, optional
         Any key-value pair to store as custom metadata for the trainee.
