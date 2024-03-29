@@ -1219,7 +1219,7 @@ class Trainee(BaseTrainee):
         weight_feature: Optional[str] = None,
     ) -> Reaction:
         r"""
-        React to the provided comtexts.
+        React to the provided contexts.
 
         If ``desired_conviction`` is specified, executes a generative react,
         producing ``action_values`` for the specified ``action_features``
