@@ -13,6 +13,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    MutableMapping,
 )
 import uuid
 import warnings
@@ -127,7 +128,7 @@ class Trainee(BaseTrainee):
     def __init__(
         self,
         name: Optional[str] = None,
-        features: Optional[Dict[str, Dict]] = None,
+        features: Optional[SingleTableFeatureAttributes] = None,
         *,
         overwrite_existing: bool = False,
         persistence: Persistence = "allow",
@@ -136,9 +137,9 @@ class Trainee(BaseTrainee):
         id: Optional[str] = None,
         library_type: Optional[Library] = None,
         max_wait_time: Optional[Union[int, float]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[MutableMapping[str, Any]] = None,
         project: Optional[Union[str, BaseProject]] = None,
-        resources: Optional[Union["TraineeResources", Dict[str, Any]]] = None,
+        resources: Optional[Union["TraineeResources", MutableMapping[str, Any]]] = None,
         client: Optional[AbstractHowsoClient] = None,
     ):
         self._created: bool = False
@@ -517,13 +518,13 @@ class Trainee(BaseTrainee):
             self._default_context_features = None
         self.update()
 
-    def set_metadata(self, metadata: Optional[Dict[str, Any]]):
+    def set_metadata(self, metadata: Optional[MutableMapping[str, Any]]):
         """
         Update the trainee metadata.
 
         Parameters
         ----------
-        metadata : dict of str -> any, optional
+        metadata : map of str -> any, optional
             Any key-value pair to store as custom metadata for the trainee.
             Providing ``None`` will remove the current metadata.
         """
@@ -536,7 +537,7 @@ class Trainee(BaseTrainee):
         *,
         library_type: Optional[Library] = None,
         project: Optional[str | BaseProject] = None,
-        resources: Optional["TraineeResources" | Dict[str, Any]] = None,
+        resources: Optional["TraineeResources" | MutableMapping[str, Any]] = None,
     ) -> "Trainee":
         """
         Copy the trainee to another trainee.
@@ -694,7 +695,7 @@ class Trainee(BaseTrainee):
 
     def train(
         self,
-        cases: List[List[object]] | "DataFrame",
+        cases: TabularData2D,
         *,
         accumulate_weight_feature: Optional[str] = None,
         batch_size: Optional[int] = None,
@@ -940,9 +941,9 @@ class Trainee(BaseTrainee):
         exact_prediction_features: Optional[List[str]] = None,
         influence_weight_entropy_threshold: float = 0.6,
         minimum_model_size: int = 1_000,
-        relative_prediction_threshold_map: Optional[Dict[str, float]] = None,
+        relative_prediction_threshold_map: Optional[MutableMapping[str, float]] = None,
         residual_prediction_features: Optional[List[str]] = None,
-        tolerance_prediction_threshold_map: Optional[Dict[str, Tuple[float, float]]] = None,
+        tolerance_prediction_threshold_map: Optional[MutableMapping[str, Tuple[float, float]]] = None,
         **kwargs
     ):
         """
@@ -966,10 +967,10 @@ class Trainee(BaseTrainee):
         residual_prediction_features : list of str, optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
-        tolerance_prediction_threshold_map : dict of str to tuple of float, optional
+        tolerance_prediction_threshold_map : map of str to tuple of float, optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
-        relative_prediction_threshold_map : dict of str -> (float, float), optional
+        relative_prediction_threshold_map : map of str -> (float, float), optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= relative threshold
         conviction_lower_threshold : float, optional
@@ -1260,9 +1261,9 @@ class Trainee(BaseTrainee):
         post_process_features: Optional[Iterable[str]] = None,
         post_process_values: Optional[TabularData2D] = None,
         desired_conviction: Optional[float] = None,
-        details: Optional[Dict[str, object]] = None,
+        details: Optional[MutableMapping[str, object]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
-        feature_bounds_map: Optional[Dict[str, Dict[str, object]]] = None,
+        feature_bounds_map: Optional[MutableMapping[str, MutableMapping[str, object]]] = None,
         generate_new_cases: GenerateNewCases = "no",
         input_is_substituted: bool = False,
         into_series_store: Optional[str] = None,
@@ -1336,7 +1337,7 @@ class Trainee(BaseTrainee):
             specified will execute a discriminative react. Conviction is the
             ratio of expected surprisal to generated surprisal for each
             feature generated, valid values are in the range of :math:`(0,\infty]`.
-        details : dict of str -> object, optional
+        details : map of str -> object, optional
             If details are specified, the response will contain the requested
             explanation data along with the reaction. Below are the valid keys
             and data types for the different audit details. Omitted keys,
@@ -1539,7 +1540,7 @@ class Trainee(BaseTrainee):
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
-        feature_bounds_map : dict of str -> dict of str -> object, optional
+        feature_bounds_map : map of str -> map of str -> object, optional
             A mapping of feature names to the bounds for the feature values to
             be generated in. For continuous features this should be a numeric
             value, for datetimes this should be a datetime string or a numeric
@@ -1678,9 +1679,9 @@ class Trainee(BaseTrainee):
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
-        details: Optional[Dict[str, object]] = None,
+        details: Optional[MutableMapping[str, object]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
-        feature_bounds_map: Optional[Dict[str, Dict[str, object]]] = None,
+        feature_bounds_map: Optional[MutableMapping[str, MutableMapping[str, object]]] = None,
         final_time_steps: Optional[List[object]] = None,
         generate_new_cases: GenerateNewCases = "no",
         series_index: str = ".series",
@@ -1701,7 +1702,7 @@ class Trainee(BaseTrainee):
             List[DataFrame] | List[List[List[object]]]
         ] = None,
         series_id_tracking: SeriesIDTracking = "fixed",
-        series_stop_maps: Optional[List[Dict[str, Dict[str, object]]]] = None,
+        series_stop_maps: Optional[List[MutableMapping[str, MutableMapping[str, object]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: bool = False,
@@ -1713,7 +1714,7 @@ class Trainee(BaseTrainee):
 
         Aggregates rows of data corresponding to the specified context, action,
         derived_context and derived_action features, utilizing previous rows to
-        derive values as necessary. Outputs an dict of "action_features" and
+        derive values as necessary. Outputs a dict of "action_features" and
         corresponding "action" where "action" is the completed 'matrix' for
         the corresponding action_features and derived_action_features.
 
@@ -1753,13 +1754,13 @@ class Trainee(BaseTrainee):
             See parameter ``derived_context_features`` in :meth:`react`.
         desired_conviction : float, optional
             See parameter ``desired_conviction`` in :meth:`react`.
-        details : dict of str to object
+        details : map of str to object
             See parameter ``details`` in :meth:`react`.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
-        feature_bounds_map : dict of str -> dict of str -> object, optional
+        feature_bounds_map : map of str -> map of str -> object, optional
             See parameter ``feature_bounds_map`` in :meth:`react`.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
@@ -1824,7 +1825,7 @@ class Trainee(BaseTrainee):
             - If "dynamic", tracks the particular relevant series ID, but is allowed to
               change the series ID that it tracks based on its current context.
             - If "no", does not track any particular series ID.
-        series_stop_maps : list of dict of str -> dict, optional
+        series_stop_maps : list of map of str -> dict, optional
             Map of series stop conditions. Must provide either exactly one to
             use for all series, or one per series.
 
@@ -1950,7 +1951,7 @@ class Trainee(BaseTrainee):
         num_cases: int,
         *,
         case_indices: Optional[CaseIndices] = None,
-        condition: Optional[Dict[str, object]] = None,
+        condition: Optional[MutableMapping[str, object]] = None,
         condition_session: Optional[str | BaseSession] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Precision] = None,
@@ -2044,7 +2045,7 @@ class Trainee(BaseTrainee):
         feature_values: TabularData2D,
         *,
         case_indices: Optional[CaseIndices] = None,
-        condition: Optional[Dict[str, object]] = None,
+        condition: Optional[MutableMapping[str, object]] = None,
         condition_session: Optional[str | BaseSession] = None,
         features: Optional[Iterable[str]] = None,
         num_cases: Optional[int] = None,
@@ -2064,7 +2065,7 @@ class Trainee(BaseTrainee):
             index is the original 0-based index of the case as it was trained
             into the session. This explicitly specifies the cases to edit. When
             specified, ``condition`` and ``condition_session`` are ignored.
-        condition : dict of str -> object, optional
+        condition : map of str -> object, optional
             A condition map to select which cases to edit. Ignored when
             ``case_indices`` are specified.
 
@@ -2205,7 +2206,7 @@ class Trainee(BaseTrainee):
         case_indices: Optional[CaseIndices] = None,
         features: Optional[Iterable[str]] = None,
         session: Optional[str | BaseSession] = None,
-        condition: Optional[Dict] = None,
+        condition: Optional[MutableMapping] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
     ) -> Cases | DataFrame:
@@ -2375,9 +2376,9 @@ class Trainee(BaseTrainee):
         feature_value: Optional[int | float | str] = None,
         *,
         overwrite: bool = False,
-        condition: Optional[Dict[str, object]] = None,
+        condition: Optional[MutableMapping[str, object]] = None,
         condition_session: Optional[str | BaseSession] = None,
-        feature_attributes: Optional[Dict] = None,
+        feature_attributes: Optional[MutableMapping] = None,
     ):
         """
         Add a feature to the model.
@@ -2386,14 +2387,14 @@ class Trainee(BaseTrainee):
         ----------
         feature : str
             The name of the feature.
-        feature_attributes : dict, optional
+        feature_attributes : map, optional
             The dict of feature specific attributes for this feature. If
             unspecified and conditions are not specified, will assume feature
             type as 'continuous'.
         feature_value : int or float or str, optional
             The value to populate the feature with.
             By default, populates the new feature with None.
-        condition : dict of str -> object, optional
+        condition : map of str -> object, optional
             A condition map where feature values will only be added when
             certain criteria is met.
 
@@ -2454,7 +2455,7 @@ class Trainee(BaseTrainee):
         self,
         feature: str,
         *,
-        condition: Optional[Dict[str, object]] = None,
+        condition: Optional[MutableMapping[str, object]] = None,
         condition_session: Optional[str | BaseSession] = None,
     ):
         """
@@ -2464,7 +2465,7 @@ class Trainee(BaseTrainee):
         ----------
         feature : str
             The name of the feature to remove.
-        condition : dict of str -> object, optional
+        condition : map of str -> object, optional
             A condition map where features will only be removed when certain
             criteria is met.
 
@@ -2563,14 +2564,14 @@ class Trainee(BaseTrainee):
             raise ValueError("Client must have the 'append_to_series_store' method.")
 
     def set_substitute_feature_values(
-        self, substitution_value_map: Dict[str, Dict[str, Any]]
+        self, substitution_value_map: MutableMapping[str, MutableMapping[str, Any]]
     ):
         """
         Set a substitution map for use in extended nominal generation.
 
         Parameters
         ----------
-        substitution_value_map : dict of str -> dict of str -> any
+        substitution_value_map : map of str -> map of str -> any
             A dictionary of feature name to a dictionary of feature value to
             substitute feature value.
 
@@ -2823,7 +2824,7 @@ class Trainee(BaseTrainee):
         self,
         *,
         action_feature: Optional[str] = None,
-        condition: Optional[Dict[str, Any]] = None,
+        condition: Optional[MutableMapping[str, Any]] = None,
         num_cases: Optional[int] = None,
         num_robust_influence_samples_per_case: Optional[int] = None,
         precision: Optional[Precision] = None,
@@ -2856,7 +2857,7 @@ class Trainee(BaseTrainee):
                 If get_prediction_stats is being used with time series analysis,
                 the action feature for which the prediction statistics information
                 is desired must be specified.
-        condition : dict of str -> any, optional
+        condition : map of str -> any, optional
             A condition map to select which cases to compute prediction stats
             for.
 
@@ -2951,7 +2952,7 @@ class Trainee(BaseTrainee):
 
     def get_marginal_stats(
         self, *,
-        condition: Optional[Dict[str, Any]] = None,
+        condition: Optional[MutableMapping[str, Any]] = None,
         num_cases: Optional[int] = None,
         precision: Optional[Precision] = None,
         weight_feature: Optional[str] = None,
@@ -2961,7 +2962,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        condition : dict of str -> any, optional
+        condition : map of str -> any, optional
             A condition map to select which cases to compute marginal stats
             for.
 
@@ -3353,13 +3354,13 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'get_params' method.")
 
-    def set_params(self, params: Dict[str, Any]):
+    def set_params(self, params: MutableMapping[str, Any]):
         """
         Set the workflow attributes for the trainee.
 
         Parameters
         ----------
-        params : dict of str -> any
+        params : map of str -> any
             A dictionary in the following format containing the hyperparameter
             information, which is required, and other parameters which are
             all optional.
@@ -3455,7 +3456,7 @@ class Trainee(BaseTrainee):
 
     def get_pairwise_distances(
         self,
-        features: Optional[Dict[str, Dict]] = None,
+        features: Optional[MutableMapping[str, MutableMapping]] = None,
         *,
         use_case_weights: bool = False,
         action_feature: Optional[str] = None,
@@ -3599,7 +3600,7 @@ class Trainee(BaseTrainee):
 
     def evaluate(
         self,
-        features_to_code_map: Dict[str, str],
+        features_to_code_map: MutableMapping[str, str],
         *,
         aggregation_code: Optional[str] = None,
     ) -> dict:
@@ -3608,7 +3609,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        features_to_code_map : dict of str -> str
+        features_to_code_map : map of str -> str
             A dictionary with feature name keys and custom Amalgam code string
             values.
 
@@ -3646,7 +3647,7 @@ class Trainee(BaseTrainee):
         self, *,
         library_type: Optional[Library] = None,
         max_wait_time: Optional[int | float] = None,
-        resources: Optional[TraineeResources | Dict[str, Any]] = None,
+        resources: Optional[TraineeResources | MutableMapping[str, Any]] = None,
         overwrite: bool = False,
     ):
         """
@@ -3658,7 +3659,7 @@ class Trainee(BaseTrainee):
             The library type of the Trainee.
         max_wait_time : int or float, optional
             The maximum time to wait for the trainee to be created.
-        resources : TraineeResources or dict of str -> any, optional
+        resources : TraineeResources or map of str -> any, optional
             The resources to provision for the trainee.
         overwrite : bool, default False
             If True, will overwrite an existing trainee with the same name.
