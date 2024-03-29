@@ -484,7 +484,6 @@ class TestClient:
                  ['23', '24'],
                  ['25', '26']]
         self.client.train(trainee.id, cases, features=['penguin', 'play'])
-        trainee_copy = trainee_builder.copy(trainee.id, trainee.name + "_copy")
         cases2 = [['5', '6'],
                   ['7', '8'],
                   ['9', '10'],
@@ -497,10 +496,7 @@ class TestClient:
                   ['23', '24'],
                   ['25', '26'],
                   ['27', '28']]
-        self.client.train(
-            trainee.name + "_copy", cases2, features=['penguin', 'play'])
-        conviction = self.client.react_group(
-            trainee.id, trainees_to_compare=[trainee_copy.id])
+        conviction = self.client.react_group(trainee.id, new_cases=[cases2], features=['penguin', 'play'])
         assert conviction is not None
 
     def test_impute(self, trainee):
@@ -1118,8 +1114,7 @@ class TestBaseClient:
         """
         with pytest.raises(ValueError) as exc:
             self.client.react_group(trainee.id)
-        assert str(exc.value) == ("Either `new_cases` or `trainees_to_compare` "
-                                  "must be provided.")
+        assert str(exc.value) == ("`new_cases` must be provided.")
 
     def test_react_group_trainee_compare_verbose(self, trainee, capsys):
         """
@@ -1128,7 +1123,9 @@ class TestBaseClient:
         Test. the verbose output expected when react_group w/ trainee
         is called.
         """
-        self.client.react_group(trainee.id, trainees_to_compare=[trainee.id])
+        self.client.react_group(trainee.id,
+                                new_cases=[[['5','8']]],
+                                features=['penguin', 'play'])
         out, _ = capsys.readouterr()
         assert 'Reacting to a set of cases on trainee with id' in out
 

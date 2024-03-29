@@ -3691,10 +3691,9 @@ class HowsoDirectClient(AbstractHowsoClient):
     def react_group(
         self,
         trainee_id: str,
+        new_cases: Union[List[List[List[object]]], List[DataFrame]],
         *,
-        new_cases: Optional[Union[List[List[List[object]]], List[DataFrame]]] = None,
         features: Optional[Iterable[str]] = None,
-        trainees_to_compare: Optional[Iterable[str]] = None,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
@@ -3716,7 +3715,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id : str
             The trainee id.
 
-        new_cases : list of list of list of object or list of DataFrame, optional
+        new_cases : list of list of list of object or list of DataFrame
             Specify a **set** using a list of cases to compute the conviction of
             groups of cases as shown in the following example.
 
@@ -3726,8 +3725,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         features : iterable of str, optional
             An iterable of feature names to consider while calculating
             convictions.
-        trainees_to_compare : iterable of str, optional
-            If specified ignores the 'new_cases' parameter and uses
             cases from this other specified trainee instead.
         distance_contributions : bool, default False
             Calculate and output distance contribution ratios in
@@ -3764,22 +3761,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         feature_attributes = self.trainee_cache.get(trainee_id).features
         serialized_cases = None
 
-        if new_cases is not None:
-            # if trainees_to_compare is specified, ignore new_cases
-            if trainees_to_compare is not None:
-                new_cases = None
-            elif num_list_dimensions(new_cases) != 3:
-                raise ValueError(
-                    "Improper shape of `new_cases` values passed. "
-                    "`new_cases` must be a 3d list of object.")
-        elif trainees_to_compare is None:
+        if new_cases is not None and num_list_dimensions(new_cases) != 3:
             raise ValueError(
-                "Either `new_cases` or `trainees_to_compare` must be provided.")
-
-        if trainees_to_compare is not None:
-            # Ensure all trainees being compared are available
-            for other_trainee_id in trainees_to_compare:
-                self._auto_resolve_trainee(other_trainee_id)
+                "Improper shape of `new_cases` values passed. "
+                "`new_cases` must be a 3d list of object.")
+        elif new_cases is None:
+            raise ValueError("`new_cases` must be provided.")
 
         if new_cases is not None:
             serialized_cases = []
@@ -3797,7 +3784,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             trainee_id,
             features=features,
             new_cases=serialized_cases,
-            trainees_to_compare=trainees_to_compare,
             familiarity_conviction_addition=familiarity_conviction_addition,
             familiarity_conviction_removal=familiarity_conviction_removal,
             kl_divergence_addition=kl_divergence_addition,
@@ -4754,12 +4740,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         target_id: Optional[str] = None
     ) -> int:
         """
-        Moves training cases from one trainee to another trainee.
+        Moves training cases from one trainee to another in the hierarchy.
 
         Parameters
         ----------
         trainee_id : str
-            The source trainee to move a cases from.
+            The identifier of the Trainee doing the moving.
         num_cases : int
             The number of cases to move; minimum 1 case must be moved.
             Ignored if case_indices is specified.
@@ -4834,12 +4820,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             The number of cases moved.
         """
         self._auto_resolve_trainee(trainee_id)
-        # if neither target is specified, assume moving to main trainee
-        if target_name_path is None:
-            if target_id:
-                self._auto_resolve_trainee(target_id)
-            else:
-                target_id = trainee_id
 
         if num_cases < 1:
             raise ValueError('num_cases must be a value greater than 0')
@@ -4849,8 +4829,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
 
         if self.verbose:
-            print(f'Moving case from trainee with id: {trainee_id} to trainee '
-                  f'with id: {target_id}')
+            print(f'Moving case from trainee with id: {trainee_id}')
 
         # Convert session instance to id
         if (
