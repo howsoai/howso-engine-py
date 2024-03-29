@@ -46,7 +46,7 @@ class AbstractHowsoClient(ABC):
         library_type=None,
         max_wait_time=None,
         overwrite_trainee=False,
-        resources=None,
+        resources=None
     ):
         """Create a trainee on the Howso service."""
 
@@ -81,6 +81,14 @@ class AbstractHowsoClient(ABC):
         resources=None,
     ):
         """Copy a trainee in the Howso service."""
+
+    @abstractmethod
+    def copy_subtrainee(
+        self, trainee_id, new_trainee_name, *,
+        target_name_path=None, target_id=None,
+        source_name_path=None, source_id=None
+    ):
+        """Copy a subtrainee in trainee's hierarchy."""
 
     @abstractmethod
     def acquire_trainee_resources(self, trainee_id, *, max_wait_time=None):
@@ -126,10 +134,12 @@ class AbstractHowsoClient(ABC):
         """Remove training cases from a trainee."""
 
     @abstractmethod
-    def move_cases(self, trainee_id, target_trainee_id, num_cases, *,
+    def move_cases(self, trainee_id, num_cases, *,
                    case_indices=None,
                    condition=None, condition_session=None,
-                   precision=None, preserve_session_data=False) -> int:
+                   precision=None, preserve_session_data=False,
+                   target_id=None, source_id=None,
+                   source_name_path=None, target_name_path=None) -> int:
         """Move training cases from one trainee to another."""
 
     @abstractmethod
@@ -200,6 +210,21 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def get_trainee_session_training_indices(self, trainee_id, session) -> Union[Index, List[int]]:
         """Get list of all session training indices for a specified session."""
+
+    @abstractmethod
+    def get_hierarchy(self, trainee_id) -> Dict:
+        """Output the hierarchy for a trainee."""
+
+    @abstractmethod
+    def rename_subtrainee(
+        self,
+        trainee_id,
+        new_name,
+        *,
+        child_name_path=None,
+        child_id=None
+    ) -> None:
+        """Renames a contained child trainee in the hierarchy."""
 
     @abstractmethod
     def get_feature_residuals(
@@ -418,7 +443,7 @@ class AbstractHowsoClient(ABC):
         conviction_lower_threshold=None,
         conviction_upper_threshold=None,
         exact_prediction_features=None,
-        infleunce_weight_entropy_threshold=0.6,
+        influence_weight_entropy_threshold=0.6,
         minimum_model_size=1_000,
         relative_prediction_threshold_map=None,
         residual_prediction_features=None,
@@ -426,7 +451,7 @@ class AbstractHowsoClient(ABC):
         **kwargs
     ):
         """Set trainee parameters for auto ablation."""
-    
+
     @abstractmethod
     def get_auto_ablation_params(
         self,

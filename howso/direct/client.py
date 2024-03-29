@@ -421,7 +421,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if not trainee.id:
             # Default id to trainee name, or new uuid if no name
-            trainee.id = trainee.name or str(uuid.uuid4())
+            trainee.id =  trainee.name or str(uuid.uuid4())
 
         trainee_id = trainee.id
 
@@ -844,6 +844,51 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f"{new_trainee_name} trainee already exists."
             )
 
+    def copy_subtrainee(
+        self,
+        trainee_id: str,
+        new_trainee_name: str,
+        *,
+        source_id: Optional[str] = None,
+        source_name_path: Optional[List[str]] = None,
+        target_id: Optional[str] = None,
+        target_name_path: Optional[List[str]] = None,
+    ) -> None:
+        """
+        Copy a subtrainee in trainee's hierarchy.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee whose hierarchy is to be modified.
+        new_trainee_name: str
+            The name of the new Trainee.
+        source_id: str, optional
+            Id of source trainee to copy. Ignored if source_name_path is
+            specified. If neither source_name_path nor source_id are specified,
+            copies the trainee itself.
+        source_name_path: list of str, optional
+            list of strings specifying the user-friendly path of the child
+            subtrainee to copy.
+        target_id: str, optional
+            Id of target trainee to copy trainee into.  Ignored if
+            target_name_path is specified. If neither target_name_path nor
+            target_id are specified, copies as a direct child of trainee.
+        target_name_path: list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to copy trainee into.
+        """
+        self._auto_resolve_trainee(trainee_id)
+
+        self.howso.copy_subtrainee(
+            trainee_id,
+            new_trainee_name,
+            source_id=source_id,
+            source_name_path=source_name_path,
+            target_id=target_id,
+            target_name_path=target_name_path
+        )
+
     def load_trainee(self, trainee_id: str):
         """
         Load a Trainee that was persisted on the Howso service.
@@ -1183,9 +1228,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         input_is_substituted: bool = False,
         progress_callback: Optional[Callable] = None,
         series: Optional[str] = None,
+        skip_auto_analyze: bool = False,
         train_weights_only: bool = False,
         validate: bool = True,
-    ):
+    ) -> bool:
         """
         Train one or more cases into a trainee (model).
 
@@ -1236,6 +1282,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             the value(s) of this case are appended to all cases in the series.
             If cases is the same length as the series, the value of each case
             in cases is applied in order to each of the cases in the series.
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the boolean response will be True if an analyze is needed.
         train_weights_only : bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -1244,6 +1293,12 @@ class HowsoDirectClient(AbstractHowsoClient):
             Whether to validate the data against the provided feature
             attributes. Issues warnings if there are any discrepancies between
             the data and the features dictionary.
+
+        Returns
+        -------
+        bool
+            Flag indicating if the Trainee needs to analyze. Only true if
+            auto-analyze is enabled and the conditions are met.
         """
         self._auto_resolve_trainee(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
@@ -1286,7 +1341,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             features = internals.get_features_from_data(cases)
         cases = serialize_cases(cases, features, feature_attributes, warn=True)
 
-        auto_analyze = False
+        needs_analyze = False
 
         with ProgressTimer(len(cases)) as progress:
             gen_batch_size = None
@@ -1314,10 +1369,11 @@ class HowsoDirectClient(AbstractHowsoClient):
                     input_is_substituted=input_is_substituted,
                     series=series,
                     session=self.active_session.id,
-                    train_weights_only=train_weights_only
+                    skip_auto_analyze=skip_auto_analyze,
+                    train_weights_only=train_weights_only,
                 )
                 if response and response.get('status') == 'analyze':
-                    auto_analyze = True
+                    needs_analyze = True
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
@@ -1338,9 +1394,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self._auto_persist_trainee(trainee_id)
 
-        # kick off auto-analyze if the train response requests it
-        if auto_analyze:
-            self.auto_analyze(trainee_id)
+        return needs_analyze
 
     def impute(
         self,
@@ -2473,12 +2527,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         ret = dict()
         batch_result = replace_doublemax_with_infinity(batch_result)
 
+        # batch_result always has action_features and action_values
         ret['action_features'] = batch_result.pop('action_features') or []
         ret['action'] = batch_result.pop('action_values')
 
         # ensure all the details items are output as well
         for k, v in batch_result.items():
-            ret[k] = v or []
+            ret[k] = [] if v is None else v
 
         return ret, in_size, out_size
 
@@ -4686,14 +4741,17 @@ class HowsoDirectClient(AbstractHowsoClient):
     def move_cases(
         self,
         trainee_id: str,
-        target_trainee_id: str,
         num_cases: int,
         *,
         case_indices: Optional[Iterable[Tuple[str, int]]] = None,
         condition: Optional[Dict] = None,
         condition_session: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
-        preserve_session_data: bool = False
+        preserve_session_data: bool = False,
+        source_id: Optional[str] = None,
+        source_name_path: Optional[List[str]] = None,
+        target_name_path: Optional[List[str]] = None,
+        target_id: Optional[str] = None
     ) -> int:
         """
         Moves training cases from one trainee to another trainee.
@@ -4702,8 +4760,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         trainee_id : str
             The source trainee to move a cases from.
-        target_trainee_id : str
-            The target trainee to move the cases to.
         num_cases : int
             The number of cases to move; minimum 1 case must be moved.
             Ignored if case_indices is specified.
@@ -4757,6 +4813,20 @@ class HowsoDirectClient(AbstractHowsoClient):
             Ignored if case_indices is specified.
         preserve_session_data : bool, default False
             When True, will move cases without cleaning up session data.
+        source_id : str, optional
+            The source trainee unique id from which to move cases. Ignored
+            if source_name_path is specified. If neither source_name_path nor
+            source_id are specified, moves cases from the trainee itself.
+        source_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee from which to move cases.
+        target_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to move cases to.
+        target_id : str, optional
+            The target trainee id to move the cases to. Ignored if
+            target_name_path is specified. If neither target_name_path nor
+            target_id are specified, moves cases to the trainee itself.
 
         Returns
         -------
@@ -4764,7 +4834,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             The number of cases moved.
         """
         self._auto_resolve_trainee(trainee_id)
-        self._auto_resolve_trainee(target_trainee_id)
+        # if neither target is specified, assume moving to main trainee
+        if target_name_path is None:
+            if target_id:
+                self._auto_resolve_trainee(target_id)
+            else:
+                target_id = trainee_id
+
         if num_cases < 1:
             raise ValueError('num_cases must be a value greater than 0')
 
@@ -4774,7 +4850,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if self.verbose:
             print(f'Moving case from trainee with id: {trainee_id} to trainee '
-                  f'with id: {target_trainee_id}')
+                  f'with id: {target_id}')
 
         # Convert session instance to id
         if (
@@ -4784,14 +4860,18 @@ class HowsoDirectClient(AbstractHowsoClient):
             condition['.session'] = condition['.session'].id
 
         result = self.howso.move_cases(
-            trainee_id, target_trainee_id,
+            trainee_id,
+            target_id=target_id,
             case_indices=case_indices,
             condition=condition,
             condition_session=condition_session,
             num_cases=num_cases,
             precision=precision,
             preserve_session_data=preserve_session_data,
-            session=self.active_session.id
+            session=self.active_session.id,
+            source_id=source_id,
+            source_name_path=source_name_path,
+            target_name_path=target_name_path
         )
         self._auto_persist_trainee(trainee_id)
         return result.get('count', 0)
@@ -4895,6 +4975,55 @@ class HowsoDirectClient(AbstractHowsoClient):
         if result is None:
             return []
         return result
+
+    def get_hierarchy(self, trainee_id: str) -> Dict:
+        """
+        Output the hierarchy for a trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee get hierarchy from.
+
+        Returns
+        -------
+        dict of {str: dict}
+            Dictionary of the currently contained hierarchy as a nested dict
+            with False for trainees that are stored independently.
+        """
+        self._auto_resolve_trainee(trainee_id)
+        return self.howso.get_hierarchy(trainee_id)
+
+    def rename_subtrainee(
+        self,
+        trainee_id: str,
+        new_name: str,
+        *,
+        child_id: Optional[str] = None,
+        child_name_path: Optional[List[str]] = None
+    ) -> None:
+        """
+        Renames a contained child trainee in the hierarchy.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee whose child to rename.
+        new_name : str,
+            New name of child trainee
+        child_id : str, optional
+            Unique id of child trainee to rename. Ignored if child_name_path is specified
+        child_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to rename.
+        """
+        self._auto_resolve_trainee(trainee_id)
+        return self.howso.rename_subtrainee(
+            trainee_id,
+            new_name=new_name,
+            child_id=child_id,
+            child_name_path=child_name_path
+        )
 
     def set_params(self, trainee_id: str, params: Dict):
         """
@@ -5163,143 +5292,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.howso.set_auto_ablation_params(
             trainee_id, **params
         )
-
-    def optimize(self, *args, **kwargs):
-        """
-        Optimizes a trainee.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`HowsoDirectClient.analyze` instead.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee.
-        context_features : iterable of str, optional
-            The context features to optimize for.
-        action_features : iterable of str, optional
-            The action features to optimize for.
-        k_folds : int
-            optional, (default 6) number of cross validation folds to do
-        bypass_hyperparameter_optimization : bool
-            optional, bypasses hyperparameter optimization
-        bypass_calculate_feature_residuals : bool
-            optional, bypasses feature residual calculation
-        bypass_calculate_feature_weights : bool
-            optional, bypasses calculation of feature weights
-        use_deviations : bool
-            optional, uses deviations for LK metric in queries
-        num_samples : int
-            used in calculating feature residuals
-        k_values : list of int
-            optional list used in hyperparameter search
-        p_values : list of float
-            optional list used in hyperparameter search
-        dwe_values : list of float
-            optional list used in hyperparameter search
-        optimize_level : int
-            optional value, if specified, will optimize for the following
-            flows:
-
-                1. predictions/accuracy (hyperparameters)
-                2. data synth (cache: global residuals)
-                3. standard details
-                4. full analysis
-        targeted_model : {"omni_targeted", "single_targeted", "targetless"}
-            optional, valid values as follows:
-
-                "single_targeted" = optimize hyperparameters for the
-                    specified action_features
-                "omni_targeted" = optimize hyperparameters for each context
-                    feature as an action feature, ignores action_features
-                    parameter
-                "targetless" = optimize hyperparameters for all context
-                    features as possible action features, ignores
-                    action_features parameter
-        num_optimization_samples : int, optional
-            If the dataset size to too large, optimize on
-            (randomly sampled) subset of data. The
-            `num_optimization_samples` specifies the number of
-            observations to be considered for optimization.
-        optimization_sub_model_size : int or Node, optional
-            Number of samples to use for optimization. The rest
-            will be randomly held-out and not included in calculations.
-        inverse_residuals_as_weights : bool, default is False
-            When True will compute and use inverse of residuals
-            as feature weights
-        use_case_weights : bool, default False
-            When True will scale influence weights by each
-            case's weight_feature weight.
-        weight_feature : str, optional
-            Name of feature whose values to use as case weights.
-            When left unspecified uses the internally managed case weight.
-        kwargs
-            Additional experimental optimize parameters.
-        """
-        warnings.warn(
-            'The method `optimize()` is deprecated and will be'
-            'removed in a future release. Please use `analyze()` '
-            'instead.', DeprecationWarning)
-
-        self.analyze(*args, **kwargs)
-
-    def auto_optimize(self, trainee_id):
-        """
-        Auto-optimize the trainee model.
-
-        Re-uses all parameters from the previous optimize or
-        set_auto_optimize_params call. If optimize or set_auto_optimize_params
-        has not been previously called, auto_optimize will default to a robust
-        and versatile optimization.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`HowsoDirectClient.auto_analyze` instead.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to auto-optimize.
-        """
-        warnings.warn(
-            'The method `auto_optimize()` is deprecated and will be'
-            'removed in a future release. Please use `auto_analyze()` '
-            'instead.', DeprecationWarning)
-
-        return self.auto_analyze(trainee_id)
-
-    def set_auto_optimize_params(self, *args, **kwargs):
-        """
-        Set trainee parameters for auto optimization.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`HowsoDirectClient.set_auto_analyze_params` instead.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to set auto optimization parameters for.
-        auto_optimize_enabled : bool, default False
-            When True, the :func:`train` method will trigger an optimize when
-            it's time for the model to be optimized again.
-        optimize_threshold : int, optional
-            The threshold for the number of cases at which the model should be
-            re-optimized.
-        auto_optimize_limit_size : int, optional
-            The size of of the model at which to stop doing auto-optimization.
-            Value of 0 means no limit.
-        optimize_growth_factor : float, optional
-            The factor by which to increase the optimize threshold every time
-            the model grows to the current threshold size.
-        kwargs : dict, optional
-            Parameters specific for optimize() may be passed in via kwargs, and
-            will be cached and used during future auto-optimizations.
-        """
-        warnings.warn(
-            'The method `set_auto_optimize_params()` is deprecated and will be'
-            'removed in a future release. Please use `set_auto_analyze_params()` '
-            'instead.', DeprecationWarning)
-
-        self.set_auto_analyze_params(*args, **kwargs)
 
     def auto_analyze(self, trainee_id: str):
         """
@@ -6126,3 +6118,5 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
 
         return self.howso.evaluate(trainee_id, **evaluate_params)
+
+

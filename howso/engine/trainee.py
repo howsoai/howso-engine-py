@@ -154,6 +154,7 @@ class Trainee(BaseTrainee):
         self._id = id
         self._custom_save_path = None
         self._calculated_matrices = {}
+        self._needs_analyze: bool = False
 
         self.persistence = persistence
         self.set_default_features(
@@ -178,7 +179,7 @@ class Trainee(BaseTrainee):
             library_type=library_type,
             max_wait_time=max_wait_time,
             overwrite=overwrite_existing,
-            resources=resources,
+            resources=resources
         )
 
     @property
@@ -352,7 +353,19 @@ class Trainee(BaseTrainee):
         return deepcopy(self._metadata)
 
     @property
-    def calculated_matrices(self) -> Dict[str, DataFrame] | None:
+    def needs_analyze(self) -> bool:
+        """
+        The flag indicating if the Trainee needs to analyze.
+
+        Returns
+        -------
+        bool
+            A flag indicating if the Trainee needs to analyze.
+        """
+        return self._needs_analyze
+
+    @property
+    def calculated_matrices(self) -> Optional[Dict[str, DataFrame]]:
         """
         The calculated matrices.
 
@@ -588,8 +601,54 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError('Trainee not correctly copied')
 
-    def persist(self):
-        """Persist the trainee."""
+    def copy_subtrainee(
+        self,
+        new_trainee_name: str,
+        *,
+        source_id: Optional[str] = None,
+        source_name_path: Optional[List[str]] = None,
+        target_id: Optional[str] = None,
+        target_name_path: Optional[List[str]] = None,
+    ):
+        """
+        Copy a subtrainee in trainee's hierarchy.
+
+        Parameters
+        ----------
+        new_trainee_name: str
+            The name of the new Trainee.
+        source_id: str, optional
+            Id of source trainee to copy. Ignored if source_name_path is
+            specified. If neither source_name_path nor source_id are specified,
+            copies the trainee itself.
+        source_name_path: list of str, optional
+            list of strings specifying the user-friendly path of the child
+            subtrainee to copy.
+        target_id: str, optional
+            Id of target trainee to copy trainee into.  Ignored if
+            target_name_path is specified. If neither target_name_path nor
+            target_id are specified, copies as a direct child of trainee.
+        target_name_path: list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to copy trainee into.
+        """
+        self.client.copy_subtrainee(
+            self.id,
+            new_trainee_name,
+            source_id=source_id,
+            source_name_path=source_name_path,
+            target_id=target_id,
+            target_name_path=target_name_path
+        )
+
+    def persist(self) -> None:
+        """
+        Persist the trainee.
+
+        Returns
+        -------
+        None
+        """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.persist_trainee(self.id)
             self._was_saved = True
@@ -704,6 +763,7 @@ class Trainee(BaseTrainee):
         input_is_substituted: bool = False,
         progress_callback: Optional[Callable] = None,
         series: Optional[str] = None,
+        skip_auto_analyze: bool = False,
         train_weights_only: bool = False,
         validate: bool = True,
     ):
@@ -750,7 +810,11 @@ class Trainee(BaseTrainee):
             this case are appended to all cases in the series. If cases is the
             same length as the series, the value of each case in cases is
             applied in order to each of the cases in the series.
-        train_weights_only: bool, default False
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the 'needs_analyze' property of the Trainee will be
+            updated.
+        train_weights_only:  bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
             training the cases into the model.
@@ -760,7 +824,8 @@ class Trainee(BaseTrainee):
             the data and the features dictionary.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.train(
+            self._needs_analyze = False
+            needs_analyze = self.client.train(
                 trainee_id=self.id,
                 accumulate_weight_feature=accumulate_weight_feature,
                 batch_size=batch_size,
@@ -770,141 +835,15 @@ class Trainee(BaseTrainee):
                 input_is_substituted=input_is_substituted,
                 progress_callback=progress_callback,
                 series=series,
+                skip_auto_analyze=skip_auto_analyze,
                 train_weights_only=train_weights_only,
                 validate=validate,
             )
+            self._needs_analyze = needs_analyze
         else:
             raise ValueError("Client must have the 'train' method.")
 
-    def optimize(self, *args, **kwargs):
-        """
-        Optimizes a trainee.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`analyze` instead.
-
-        Parameters
-        ----------
-        context_features : iterable of str, optional
-            The context features to optimize for.
-        action_features : iterable of str, optional
-            The action features to optimize for.
-        k_folds : int
-            optional, (default 6) number of cross validation folds to do
-        bypass_hyperparameter_optimization : bool
-            optional, bypasses hyperparameter optimization
-        bypass_calculate_feature_residuals : bool
-            optional, bypasses feature residual calculation
-        bypass_calculate_feature_weights : bool
-            optional, bypasses calculation of feature weights
-        use_deviations : bool
-            optional, uses deviations for LK metric in queries
-        num_samples : int
-            used in calculating feature residuals
-        k_values : list of int
-            optional list used in hyperparameter search
-        p_values : list of float
-            optional list used in hyperparameter search
-        dwe_values : list of float
-            optional list used in hyperparameter search
-        optimize_level : int
-            optional value, if specified, will optimize for the following
-            flows:
-
-                1. predictions/accuracy (hyperparameters)
-                2. data synth (cache: global residuals)
-                3. standard details
-                4. full analysis
-        targeted_model : TargetedModel, optional
-            What type of targeted model to optimize for. Valid values as follows:
-
-                "single_targeted" = optimize hyperparameters for the
-                    specified action_features
-                "omni_targeted" = optimize hyperparameters for each context
-                    feature as an action feature, ignores action_features
-                    parameter
-                "targetless" = optimize hyperparameters for all context
-                    features as possible action features, ignores
-                    action_features parameter
-        num_optimization_samples : int, optional
-            If the dataset size to too large, optimize on
-            (randomly sampled) subset of data. The
-            ``num_optimization_samples`` specifies the number of
-            observations to be considered for optimization.
-        optimization_sub_model_size : int | Node, optional
-            Number of samples to use for optimization. The rest
-            will be randomly held-out and not included in calculations.
-        inverse_residuals_as_weights : bool, default is False
-            When True will compute and use inverse of residuals
-            as feature weights
-        use_case_weights : bool, default False
-            When True will scale influence weights by each
-            case's weight_feature weight.
-        weight_feature : str, optional
-            Name of feature whose values to use as case weights.
-            When left unspecified uses the internally managed case weight.
-        kwargs
-            Additional experimental optimize parameters.
-        """
-        warnings.warn(
-            'The method ``optimize()`` is deprecated and will be'
-            'removed in a future release. Please use ``analyze()`` '
-            'instead.', DeprecationWarning)
-
-        self.analyze(*args, **kwargs)
-
-    def auto_optimize(self):
-        """
-        Auto-optimize the trainee model.
-
-        Re-uses all parameters from the previous optimize or
-        set_auto_optimize_params call. If optimize or set_auto_optimize_params
-        has not been previously called, auto_optimize will default to a robust
-        and versatile optimization.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`auto_analyze` instead.
-        """
-        warnings.warn(
-            'The method ``auto_optimize()`` is deprecated and will be'
-            'removed in a future release. Please use ``auto_analyze()`` '
-            'instead.', DeprecationWarning)
-
-        return self.auto_analyze()
-
-    def set_auto_optimize_params(self, *args, **kwargs):
-        """
-        Set trainee parameters for auto optimization.
-
-        .. deprecated:: 6.0.0
-            Use :meth:`set_auto_analyze_params` instead.
-
-        Parameters
-        ----------
-        auto_optimize_enabled : bool, default False
-            When True, the :func:`train` method will trigger an optimize when
-            it's time for the model to be optimized again.
-        optimize_threshold : int, optional
-            The threshold for the number of cases at which the model should be
-            re-optimized.
-        auto_optimize_limit_size : int, optional
-            The size of of the model at which to stop doing auto-optimization.
-            Value of 0 means no limit.
-        optimize_growth_factor : float, optional
-            The factor by which to increase the optimize threshold every time
-            the model grows to the current threshold size.
-        kwargs : dict, optional
-            Parameters specific for optimize() may be passed in via kwargs, and
-            will be cached and used during future auto-optimizations.
-        """
-        warnings.warn(
-            'The method ``set_auto_optimize_params()`` is deprecated and will be'
-            'removed in a future release. Please use ``set_auto_analyze_params()`` '
-            'instead.', DeprecationWarning)
-
-        self.set_auto_analyze_params(*args, **kwargs)
-
-    def auto_analyze(self):
+    def auto_analyze(self) -> None:
         """
         Auto-analyze the trainee.
 
@@ -3667,7 +3606,7 @@ class Trainee(BaseTrainee):
                     library_type=library_type,
                     max_wait_time=max_wait_time,
                     overwrite_trainee=overwrite,
-                    resources=resources,
+                    resources=resources
                 )
 
             if new_trainee:
@@ -3927,7 +3866,7 @@ class Trainee(BaseTrainee):
 
         matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
         matrix = matrix.droplevel(level=1)
-        # Stores the preprocessed matrix, useful if the user wants a different form of processing 
+        # Stores the preprocessed matrix, useful if the user wants a different form of processing
         # after calculation.
         self._calculated_matrices['mda'] = deepcopy(matrix)
         matrix = matrix_processing(
@@ -4152,3 +4091,45 @@ def list_trainees(
 
     # picks up base
     return client.get_trainees(**params)
+
+
+def get_hierarchy(self) -> Dict:
+    """
+    Output the hierarchy for a trainee.
+
+    Returns
+    -------
+    dict of {str: dict}
+        Dictionary of the currently contained hierarchy as a nested dict
+        with False for trainees that are stored independently.
+    """
+    return self.client.get_hierarchy(self.id)
+
+
+def rename_subtrainee(
+    self,
+    new_name: str,
+    *,
+    child_id: Optional[str] = None,
+    child_name_path: Optional[List[str]] = None
+) -> None:
+    """
+    Renames a contained child trainee in the hierarchy.
+
+    Parameters
+    ----------
+    new_name : str
+        New name of child trainee
+    child_id : str, optional
+        Unique id of child trainee to rename. Ignored if child_name_path is
+        specified.
+    child_name_path : list of str, optional
+        List of strings specifying the user-friendly path of the child
+        subtrainee to rename.
+    """
+    self.client.rename_subtrainee(
+        self.id,
+        child_name_path=child_name_path,
+        child_id=child_id,
+        new_name=new_name
+    )

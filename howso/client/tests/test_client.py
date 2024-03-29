@@ -550,6 +550,122 @@ class TestClient:
         """
         self.client.persist_trainee(trainee.id)
 
+    def test_hierarchy(self, trainee):
+        """
+        Test hierarchy operations.
+
+        Parameters
+        ----------
+        trainee
+        """
+        self._train(trainee)
+        response = self.client.howso.execute_on_subtrainee(
+            trainee.id,
+            method="create_trainee",
+            payload={"trainee": "child", "trainee_id": str(uuid.uuid4()) }
+        )
+        assert('child' in response['name'])
+        assert('id' in response)
+
+        child_id = response['id']
+
+        response = self.client.howso.execute_on_subtrainee(
+            trainee.id,
+            method="create_trainee",
+            # create under child by id instead of by path name
+            child_id=child_id,
+            payload={"trainee": "grandchild1"}
+        )
+        assert('child' in response['name'])
+        assert('grandchild1' in response['name'])
+
+        response = self.client.move_cases(
+            trainee.id,
+            num_cases=2,
+            target_name_path=["child", "grandchild1"]
+        )
+        assert(response == 2)
+
+        response = self.client.howso.execute_on_subtrainee(
+            trainee.id,
+            method="get_num_training_cases",
+            child_name_path=["child", "grandchild1"]
+        )
+        assert(response['count'] == 2)
+
+        self.client.copy_subtrainee(
+            trainee.id,
+            new_trainee_name="grandchild2",
+            source_name_path=["child", "grandchild1"],
+            target_name_path=["child"]
+        )
+
+        response = self.client.howso.execute_on_subtrainee(
+            trainee.id,
+            method="get_num_training_cases",
+            child_name_path=["child", "grandchild2"]
+        )
+        assert(response['count'] == 2)
+
+        self.client.rename_subtrainee(
+            trainee.id,
+            child_name_path=["child", "grandchild2"],
+            new_name="grandchild_two",
+        )
+
+        response = self.client.get_hierarchy(trainee.id)
+        assert(response == {'child': {'grandchild1': {}, 'grandchild_two': {}}})
+
+        response = self.client.howso.execute_on_subtrainee(
+            trainee.id,
+            method='get_cases',
+            child_name_path=["child", "grandchild_two"]
+        )
+        assert len(response['cases']) == 2
+
+        response = self.client.howso.execute_on_subtrainee(
+            trainee.id,
+            method='react',
+            child_name_path=["child", "grandchild_two"],
+            payload={
+                "context_features": ["penguin"],
+                "context_values": [20],
+                "action_features": ["play"],
+                "details":{"most_similar_cases":True}
+            }
+        )
+        assert response['action_values'][0] == 7
+        assert len(response['most_similar_cases']) == 2
+
+        response = self.client.howso.execute_on_subtrainee(
+            trainee.id,
+            method='batch_react',
+            child_name_path=["child", "grandchild_two"],
+            payload={
+                "context_features": ["penguin"],
+                "context_values": [[20],[22]],
+                "action_features": ["play"]
+            }
+        )
+        assert response['action_values'][0][0] == 7
+        assert response['action_values'][1][0] == 7
+
+        response = self.client.howso.execute_on_subtrainee(
+            trainee.id,
+            method='react_series',
+            child_name_path=["child", "grandchild_two"],
+            payload={
+                "initial_values": [10],
+                "initial_features": ["penguin"],
+                "action_features": ["penguin","play"],
+                "desired_conviction": 1
+            }
+        )
+
+        assert response['action_features'] == ['penguin', 'play']
+        # series has at least one case, one value per feature
+        assert len(response['action_values'][0]) == 2
+
     def test_a_la_cart_data(self, trainee):
         """
         Test a-la-cart data.

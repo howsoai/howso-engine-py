@@ -1,3 +1,4 @@
+from collections.abc import MutableMapping
 import logging
 from pathlib import Path
 import platform
@@ -285,6 +286,7 @@ class HowsoCore:
                     'Howso core file '
                     f'{self.howso_fully_qualified_path} cannot be loaded: load_status=\'{status}\''
                     f', amalgam=\'{self.amlg.get_version_string()}\'')
+            self._set_label("filepath", f"{self.trainee_template_path}/")
 
     @staticmethod
     def random_handle() -> str:
@@ -376,6 +378,7 @@ class HowsoCore:
             "filepath": f"{self.trainee_template_path}/",
             "trainee_template_filename": fname[0],
             "file_extension": fname[1],
+            "trainee_id": trainee_id
         })
 
     def get_loaded_trainees(self) -> List[str]:
@@ -458,6 +461,7 @@ class HowsoCore:
             "trainee": trainee_id,
             "filename": filename,
             "filepath": filepath,
+            "trainee_id": trainee_id
         })
 
     def delete(self, trainee_id: str) -> None:
@@ -490,6 +494,48 @@ class HowsoCore:
         return self._execute("copy", {
             "trainee": trainee_id,
             "target_trainee": target_trainee_id,
+        })
+
+    def copy_subtrainee(
+        self,
+        trainee_id: str,
+        new_trainee_name: str,
+        source_id: Optional[str] = None,
+        source_name_path: Optional[List[str]] = None,
+        target_id: Optional[str] = None,
+        target_name_path: Optional[List[str]] = None,
+    ) -> None:
+        """
+        Copy a subtrainee in trainee's hierarchy.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee whose hierarchy is to be modified.
+        new_trainee_name: str
+            The name of the new Trainee.
+        source_id: str, optional
+            Id of source trainee to copy. Ignored if source_name_path is
+            specified. If neither source_name_path nor source_id are specified,
+            copies the trainee itself.
+        source_name_path: list of str, optional
+            list of strings specifying the user-friendly path of the child
+            subtrainee to copy.
+        target_id: str, optional
+            Id of target trainee to copy trainee into.  Ignored if
+            target_name_path is specified. If neither target_name_path nor
+            target_id are specified, copies as a direct child of trainee.
+        target_name_path: list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to copy trainee into.
+        """
+        return self._execute("copy_subtrainee", {
+            "trainee": trainee_id,
+            "target_trainee": new_trainee_name,
+            "source_id": source_id,
+            "source_name_path": source_name_path,
+            "target_id": target_id,
+            "target_name_path": target_name_path
         })
 
     def remove_series_store(self, trainee_id: str, series: Optional[str] = None
@@ -1137,6 +1183,7 @@ class HowsoCore:
         input_is_substituted: bool = False,
         series: Optional[str] = None,
         session: Optional[str] = None,
+        skip_auto_analyze: bool = False,
         train_weights_only: bool = False,
     ) -> Tuple[Dict, int, int]:
         """
@@ -1165,6 +1212,10 @@ class HowsoCore:
             from internal series storage.
         session : str, optional
             The identifier of the Trainee session to associate the cases with.
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the response object will contain an "analyze" status when
+            the set auto-analyze parameters indicate that an analyze is needed.
         train_weights_only : bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -1188,6 +1239,7 @@ class HowsoCore:
             "input_is_substituted": input_is_substituted,
             "series": series,
             "session": session,
+            "skip_auto_analyze": skip_auto_analyze,
             "train_weights_only": train_weights_only,
         })
 
@@ -2677,7 +2729,6 @@ class HowsoCore:
     def move_cases(
         self,
         trainee_id: str,
-        target_trainee_id: Union[str, None],
         num_cases: int = 1,
         *,
         case_indices: Optional[Iterable[Tuple[str, int]]] = None,
@@ -2686,7 +2737,11 @@ class HowsoCore:
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
         preserve_session_data: bool = False,
-        session: Optional[str] = None
+        session: Optional[str] = None,
+        source_id: Optional[str] = None,
+        source_name_path: Optional[List[str]] = None,
+        target_name_path: Optional[List[str]] = None,
+        target_id: Optional[str] = None
     ) -> Dict:
         """
         Moves cases from one trainee to another trainee.
@@ -2695,8 +2750,6 @@ class HowsoCore:
         ----------
         trainee_id : str
             The identifier of the source Trainee.
-        target_trainee_id : str or None
-            The identifier of the target Trainee.
         num_cases : int
             The number of cases to move; minimum 1 case must be moved.
             Ignored if case_indices is specified.
@@ -2717,6 +2770,20 @@ class HowsoCore:
             When True, will move cases without cleaning up session data.
         session : str, optional
             The identifier of the Trainee session to associate the move with.
+        source_id : str, optional
+            The source trainee unique id from which to move cases. Ignored
+            if source_name_path is specified. If neither source_name_path nor
+            source_id are specified, moves cases from the trainee itself.
+        source_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee from which to move cases.
+        target_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to move cases to.
+        target_id : str, optional
+            The target trainee id to move the cases to. Ignored if
+            target_name_path is specified. If neither target_name_path nor
+            target_id are specified, moves cases to the trainee itself.
 
         Returns
         -------
@@ -2725,7 +2792,7 @@ class HowsoCore:
         """
         result = self._execute("move_cases", {
             "trainee": trainee_id,
-            "target_trainee": target_trainee_id,
+            "target_id": target_id,
             "case_indices": case_indices,
             "condition": condition,
             "condition_session": condition_session,
@@ -2734,6 +2801,9 @@ class HowsoCore:
             "preserve_session_data": preserve_session_data,
             "session": session,
             "distribute_weight_feature": distribute_weight_feature,
+            "source_id": source_id,
+            "source_name_path": source_name_path,
+            "target_name_path": target_name_path
         })
         if not result:
             return {'count': 0}
@@ -2787,18 +2857,20 @@ class HowsoCore:
         dict
             A dictionary with key 'count' for the number of removed cases.
         """
-        return self.move_cases(
-            trainee_id,
-            target_trainee_id=None,
-            case_indices=case_indices,
-            condition=condition,
-            condition_session=condition_session,
-            num_cases=num_cases,
-            precision=precision,
-            preserve_session_data=preserve_session_data,
-            session=session,
-            distribute_weight_feature=distribute_weight_feature,
-        )
+        result = self._execute("remove_cases", {
+            "trainee": trainee_id,
+            "case_indices": case_indices,
+            "condition": condition,
+            "condition_session": condition_session,
+            "precision": precision,
+            "num_cases": num_cases,
+            "preserve_session_data": preserve_session_data,
+            "session": session,
+            "distribute_weight_feature": distribute_weight_feature,
+        })
+        if not result:
+            return {'count': 0}
+        return result
 
     def edit_cases(
         self,
@@ -3044,6 +3116,105 @@ class HowsoCore:
         return self._execute(
             "reset_parameter_defaults", {"trainee": trainee_id})
 
+    def get_hierarchy(self, trainee_id: str) -> Dict:
+        """
+        Output the hierarchy for a trainee.
+
+        Returns
+        -------
+        dict of {str: dict}
+            Dictionary of the currently contained hierarchy as a nested dict
+            with False for trainees that are stored independently.
+        """
+        return self._execute("get_hierarchy", {"trainee": trainee_id})
+
+    def rename_subtrainee(
+        self,
+        trainee_id: str,
+        new_name: str,
+        *,
+        child_id: Optional[str] = None,
+        child_name_path: Optional[List[str]] = None
+    ) -> None:
+        """
+        Renames a contained child trainee in the hierarchy.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee whose child to rename.
+        new_name : str
+            New name of child trainee
+        child_id : str, optional
+            Unique id of child trainee to rename. Ignored if child_name_path is specified
+        child_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee to rename.
+        """
+        return self._execute(
+            "rename_subtrainee",
+            {
+                "trainee": trainee_id,
+                "new_name": new_name,
+                "child_name_path": child_name_path,
+                "child_id": child_id
+            })
+
+    def execute_on_subtrainee(
+        self,
+        trainee_id: str,
+        method: str,
+        *,
+        as_external: Optional[bool] = False,
+        child_id: Optional[str] = None,
+        child_name_path: Optional[List[str]] = None,
+        payload: Optional[Dict] = None,
+        load_external_trainee_id: Optional[str] = None
+    ) -> object:
+        """
+        Executes any method in the engine API directly on any child trainee.
+
+        Parameters
+        ----------
+        method : str, name of method to execute
+        payload : dict, parameters specific to the method being called
+        child_name_path : list of str, optional
+            List of strings specifying the user-friendly path of the child
+            subtrainee for execution of method.
+        child_id : str, optional
+            Unique id of child trainee to execute method. Ignored if
+            child_name_path is specified.
+        as_external : bool
+            Applicable only to 'load' and 'save' methods and if specifying
+            child_name_path or child_id.
+            For 'save', stores the child out as an independent trainee and removes
+            it as a contained entity.
+            For 'load' updates hierarchy by adding the child as an independently
+            stored trainee to the hierarchy without loading the trainee as a
+            subtrainee.
+        load_external_trainee_id : str, optional
+            Trainee id of trainee being loaded, must be specified only
+            when method is 'load' and as_external is true.
+        trainee_id : str
+            The id of the Trainee to execute methods on.
+
+        Returns
+        -------
+        object
+            Whatever output the executed method returns.
+        """
+        return self._execute(
+            "execute_on_subtrainee",
+            {
+                "trainee": trainee_id,
+                "method": method,
+                "as_external": as_external,
+                "child_name_path": child_name_path,
+                "child_id": child_id,
+                "payload": payload,
+                "load_external_trainee_id": load_external_trainee_id
+            })
+
     @classmethod
     def _deserialize(cls, payload: Union[str, bytes]):
         """Deserialize core response."""
@@ -3080,7 +3251,8 @@ class HowsoCore:
     def _set_label(self, label: str, payload: Any) -> None:
         """Set label value in core."""
         payload = sanitize_for_json(payload)
-        payload = self._remove_null_entries(payload)
+        if isinstance(payload, MutableMapping):
+            payload = self._remove_null_entries(payload)
         self.amlg.set_json_to_label(
             self.handle, label, json.dumps(payload))
 
