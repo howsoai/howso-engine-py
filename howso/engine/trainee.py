@@ -278,8 +278,8 @@ class Trainee(BaseTrainee):
         """
         if name is not None and len(name) > 128:
             raise ValueError(
-                "Invalid value for ``name``, length must be less "
-                "than or equal to ``128``"
+                "Invalid value for `name`, length must be less "
+                "than or equal to 128"
             )
         self._name = name
         self.update()
