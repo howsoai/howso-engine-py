@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from typing import (
-    Any,
     Iterable,
     List,
     Literal,
@@ -23,6 +22,6 @@ PathLike: TypeAlias = Union[str, bytes, os.PathLike]
 Persistence: TypeAlias = Literal["allow", "always", "never"]
 Precision: TypeAlias = Literal["exact", "similar"]
 SeriesIDTracking: TypeAlias = Literal["fixed", "dynamic", "no"]
-TabularData2D = Union[DataFrame, List[List[Any]]]
-TabularData3D = Union[List[DataFrame], List[List[List[Any]]]]
+TabularData2D = Union[DataFrame, List[List[object]]]
+TabularData3D = Union[List[DataFrame], List[List[List[object]]]]
 TargetedModel: TypeAlias = Literal["single_targeted", "omni_targeted", "targetless"]
