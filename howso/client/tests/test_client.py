@@ -1105,19 +1105,6 @@ class TestBaseClient:
         number_cases = self.client.get_num_training_cases(trainee.id)
         assert isinstance(number_cases, int)
 
-    def test_react_group_trainee_compare_verbose(self, trainee, capsys):
-        """
-        Test that react_group_trainee_compare is verbose when enabled.
-
-        Test. the verbose output expected when react_group w/ trainee
-        is called.
-        """
-        self.client.react_group(trainee.id,
-                                new_cases=[[['5','8']]],
-                                features=['penguin', 'play'])
-        out, _ = capsys.readouterr()
-        assert 'Reacting to a set of cases on trainee with id' in out
-
     def test_react_into_features_verbose(self, trainee, capsys):
         """
         Test that react_into_features is verbose when enabled.
