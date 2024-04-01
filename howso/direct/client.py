@@ -2011,8 +2011,10 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         max_series_lengths : list of int, optional
             maximum size a series is allowed to be.  Default is
-            3 * model_size, a 0 or less is no limit. Must provide
-            either one for all series, or exactly one per series.
+            3 * model_size, a 0 or less is no limit. If forecasting
+            with ``continue_series``, this defines the maximum length of the
+            forecast. Must provide either one for all series, or exactly
+            one per series.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
             starting new series. If `initial_values` provide series IDs, it

@@ -1727,9 +1727,11 @@ class Trainee(BaseTrainee):
         leave_case_out : bool, default False
             See parameter ``leave_case_out`` in :meth:`react`.
         max_series_lengths : list of int, optional
-            Maximum size a series is allowed to be. 0 or less is no limit.
-            Must provide either exactly one to use for all series, or one per
-            series. Default is ``3 * model_size``
+            maximum size a series is allowed to be.  Default is
+            3 * model_size, a 0 or less is no limit. If forecasting
+            with ``continue_series``, this defines the maximum length of the
+            forecast. Must provide either one for all series, or exactly
+            one per series.
         new_case_threshold : str, optional
             See parameter ``new_case_threshold`` in :meth:`react`.
         num_series_to_generate : int, default 1
