@@ -140,7 +140,7 @@ class AbstractHowsoClient(ABC):
                    precision=None, preserve_session_data=False,
                    target_id=None, source_id=None,
                    source_name_path=None, target_name_path=None) -> int:
-        """Move training cases from one trainee to another."""
+        """Move training cases from one trainee to another in the hierarchy."""
 
     @abstractmethod
     def edit_cases(self, trainee_id, feature_values, *, case_indices=None,
@@ -348,17 +348,15 @@ class AbstractHowsoClient(ABC):
 
     @abstractmethod
     def react_group(
-        self, trainee_id, *,
+        self, trainee_id, new_cases, *,
         distance_contributions=False,
         familiarity_conviction_addition=True,
         familiarity_conviction_removal=False,
         features=None,
         kl_divergence_addition=False,
         kl_divergence_removal=False,
-        new_cases=None,
         p_value_of_addition=False,
         p_value_of_removal=False,
-        trainees_to_compare=None,
         use_case_weights=False,
         weight_feature=None
     ) -> Union["DataFrame", Dict]:
