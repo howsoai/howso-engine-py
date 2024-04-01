@@ -408,6 +408,10 @@ jobs:
       run: |
         ./config/powershell/Download-Tzdata.ps1
 
+    - name: Remove Pip cache
+      shell: bash
+      run: rm -rf ~/AppData/Local/pip/cache
+
     - name: Verify Howso install
       run: |
         echo "Installing Howso Engine..."
@@ -458,6 +462,10 @@ jobs:
       shell: pwsh
       run: |
         ./config/powershell/Download-Tzdata.ps1
+
+    - name: Remove Pip cache
+      shell: bash
+      run: rm -rf ~/AppData/Local/pip/cache
 
     - name: Verify Howso install
       shell: cmd
@@ -516,6 +524,10 @@ jobs:
       shell: pwsh
       run: |
         ./config/powershell/Download-Tzdata.ps1
+
+    - name: Remove Pip cache
+      shell: bash
+      run: rm -rf ~/AppData/Local/pip/cache
 
     - name: Verify Howso install
       shell: pwsh
