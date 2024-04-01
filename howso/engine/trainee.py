@@ -2555,6 +2555,7 @@ class Trainee(BaseTrainee):
 
     def react_group(
         self,
+        new_cases: Union[List["DataFrame"], List[List[List[object]]]],
         *,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = True,
@@ -2565,8 +2566,6 @@ class Trainee(BaseTrainee):
         p_value_of_removal: bool = False,
         use_case_weights: bool = False,
         features: Optional[Iterable[str]] = None,
-        new_cases: Optional[TabularData3D] = None,
-        trainees_to_compare: Optional[Iterable["Trainee" | str]] = None,
         weight_feature: Optional[str] = None,
     ) -> DataFrame | dict:
         """
@@ -2594,7 +2593,7 @@ class Trainee(BaseTrainee):
         kl_divergence_removal : bool, default False
             Calculate and output KL divergence of removing the
             specified cases.
-        new_cases : list of DataFrame or 3-dimensional list of object, optional
+        new_cases : list of DataFrame or 3-dimensional list of object
             Specify a **set** using a list of cases to compute the conviction
             of groups of cases as shown in the following example.
 
@@ -2609,10 +2608,6 @@ class Trainee(BaseTrainee):
             If true will output :math:`p` value of addition.
         p_value_of_removal : bool, default False
             If true will output :math:`p` value of removal.
-        trainees_to_compare : list of str | Trainee, optional
-            If specified ignores the 'new_cases' parameter and uses
-            cases from the specified trainee(s) instead. Values should be either
-            the trainee object or its ID (trainee name is not supported).
         use_case_weights : bool, default False
             When True, will scale influence weights by each case's
             ``weight_feature`` weight.
@@ -2625,19 +2620,10 @@ class Trainee(BaseTrainee):
         DataFrame or dict
             The conviction of grouped cases.
         """
-        if trainees_to_compare:
-            serialized_trainees_to_compare = [
-                t.id if isinstance(t, BaseTrainee) else t
-                for t in trainees_to_compare
-            ]
-        else:
-            serialized_trainees_to_compare = None
-
         return self.client.react_group(
             trainee_id=self.id,
             new_cases=new_cases,
             features=features,
-            trainees_to_compare=serialized_trainees_to_compare,
             familiarity_conviction_addition=familiarity_conviction_addition,
             familiarity_conviction_removal=familiarity_conviction_removal,
             kl_divergence_addition=kl_divergence_addition,
