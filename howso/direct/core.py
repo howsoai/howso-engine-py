@@ -2018,10 +2018,9 @@ class HowsoCore:
     def batch_react_group(
         self,
         trainee_id: str,
+        new_cases: List[List[List[object]]],
         *,
-        new_cases: Optional[List[List[List[object]]]] = None,
         features: Optional[Iterable[str]] = None,
-        trainees_to_compare: Optional[Iterable[str]] = None,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
@@ -2039,15 +2038,12 @@ class HowsoCore:
         ----------
         trainee_id : str
             The identifier of the Trainee.
-        new_cases : list of list of list of object or list, optional
+        new_cases : list of list of list of object or list
             Specify a **set** using a list of cases to compute the conviction of
             groups of cases as shown in the following example.
         features : iterable of str, optional
             An iterable of feature names to consider while calculating
             convictions.
-        trainees_to_compare : iterable of str, optional
-            If specified ignores the 'new_cases' parameter and uses
-            cases from this other specified trainee instead.
         distance_contributions : bool, default False
             Calculate and output distance contribution ratios in
             the output dict for each case.
@@ -2083,7 +2079,6 @@ class HowsoCore:
             "trainee": trainee_id,
             "features": features,
             "new_cases": new_cases,
-            "trainees_to_compare": trainees_to_compare,
             "distance_contributions": distance_contributions,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
@@ -2744,12 +2739,12 @@ class HowsoCore:
         target_id: Optional[str] = None
     ) -> Dict:
         """
-        Moves cases from one trainee to another trainee.
+        Moves cases from one trainee to another in the hierarchy.
 
         Parameters
         ----------
         trainee_id : str
-            The identifier of the source Trainee.
+            The identifier of the Trainee doing the moving.
         num_cases : int
             The number of cases to move; minimum 1 case must be moved.
             Ignored if case_indices is specified.
