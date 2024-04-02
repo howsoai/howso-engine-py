@@ -1,28 +1,10 @@
-Automat
-20.2.0
-MIT License
-Glyph
-https://github.com/glyph/Automat
-Self-service finite-state machines for the programmer on the go.
-UNKNOWN
-UNKNOWN
-
-Babel
-2.8.0
-BSD License
-Armin Ronacher
-http://babel.pocoo.org/
-Internationalization utilities
-UNKNOWN
-UNKNOWN
-
 Faker
 24.4.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.local/lib/python3.10/site-packages/Faker-24.4.0.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/Faker-24.4.0.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -44,58 +26,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-Jinja2
-3.0.3
-BSD License
-Armin Ronacher
-https://palletsprojects.com/p/jinja/
-A very fast and expressive template engine.
-UNKNOWN
-UNKNOWN
-
-MarkupSafe
-2.0.1
-BSD License
-Armin Ronacher
-https://palletsprojects.com/p/markupsafe/
-Safely add untrusted strings to HTML/XML markup.
-UNKNOWN
-UNKNOWN
-
-PyGObject
-3.42.1
-GNU Lesser General Public License v2 or later (LGPLv2+)
-James Henstridge
-https://pygobject.readthedocs.io
-Python bindings for GObject Introspection
-UNKNOWN
-UNKNOWN
-
-PyHamcrest
-2.0.2
-BSD License
-Chris Rose
-https://github.com/hamcrest/PyHamcrest
-Hamcrest framework for matcher objects
-UNKNOWN
-UNKNOWN
-
-PyJWT
-2.3.0
-MIT License
-Jose Padilla
-https://github.com/jpadilla/pyjwt
-JSON Web Token implementation in Python
-UNKNOWN
-UNKNOWN
-
 PyJWT
 2.8.0
 MIT License
 Jose Padilla
 https://github.com/jpadilla/pyjwt
 JSON Web Token implementation in Python
-/home/runner/.local/lib/python3.10/site-packages/PyJWT-2.8.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/PyJWT-2.8.0.dist-info/LICENSE
 The MIT License (MIT)
 
 Copyright (c) 2015-2022 José Padilla
@@ -120,21 +57,12 @@ SOFTWARE.
 
 
 PyYAML
-5.4.1
-MIT License
-Kirill Simonov
-https://pyyaml.org/
-YAML parser and emitter for Python
-UNKNOWN
-UNKNOWN
-
-PyYAML
 6.0.1
 MIT License
 Kirill Simonov
 https://pyyaml.org/
 YAML parser and emitter for Python
-/home/runner/.local/lib/python3.10/site-packages/PyYAML-6.0.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/PyYAML-6.0.1.dist-info/LICENSE
 Copyright (c) 2017-2021 Ingy döt Net
 Copyright (c) 2006-2016 Kirill Simonov
 
@@ -158,21 +86,12 @@ SOFTWARE.
 
 
 Pygments
-2.11.2
-BSD License
-Georg Brandl
-https://pygments.org/
-Pygments is a syntax highlighting package written in Python.
-UNKNOWN
-UNKNOWN
-
-Pygments
 2.17.2
 BSD License
 Georg Brandl <georg@python.org>
 https://pygments.org
 Pygments is a syntax highlighting package written in Python.
-/home/runner/.local/lib/python3.10/site-packages/pygments-2.17.2.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/pygments-2.17.2.dist-info/licenses/LICENSE
 Copyright (c) 2006-2022 by the respective authors (see AUTHORS file).
 All rights reserved.
 
@@ -200,254 +119,34 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-SecretStorage
-3.3.1
-BSD License
-Dmitry Shachnev
-https://github.com/mitya57/secretstorage
-Python bindings to FreeDesktop.org Secret Service API
-UNKNOWN
-UNKNOWN
-
-Twisted
-22.1.0
-MIT
-Twisted Matrix Laboratories
-https://twistedmatrix.com/
-An asynchronous networking framework written in Python
-UNKNOWN
-UNKNOWN
-
-WALinuxAgent
-2.2.46
-Apache License Version 2.0
-Microsoft Corporation
-https://github.com/Azure/WALinuxAgent
-UNKNOWN
-UNKNOWN
-UNKNOWN
-
-argcomplete
-3.2.3
-Apache Software License
-Andrey Kislyuk
-https://github.com/kislyuk/argcomplete
-Bash tab completion for argparse
-/usr/local/lib/python3.10/dist-packages/argcomplete-3.2.3.dist-info/LICENSE.rst
-
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
-
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-   1. Definitions.
-
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
-
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
-
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
-
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
-
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
-
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
-
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
-
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
-
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-
-attrs
-21.2.0
+build
+1.2.1
 MIT License
-Hynek Schlawack
-https://www.attrs.org/
-Classes Without Boilerplate
-UNKNOWN
-UNKNOWN
+Filipe Laíns <lains@riseup.net>, Bernát Gábor <gaborjbernat@gmail.com>, layday <layday@protonmail.com>, Henry Schreiner <henryschreineriii@gmail.com>
+https://build.pypa.io
+A simple, correct Python build frontend
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/build-1.2.1.dist-info/LICENSE
+Copyright © 2019 Filipe Laíns <filipe.lains@gmail.com>
 
-bcrypt
-3.2.0
-Apache Software License
-The Python Cryptographic Authority developers
-https://github.com/pyca/bcrypt/
-Modern password hashing for your software and your servers
-UNKNOWN
-UNKNOWN
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
 
-blinker
-1.4
-MIT License
-Jason Kirtland
-http://pythonhosted.org/blinker/
-Fast, simple object-to-object and broadcast signaling
-UNKNOWN
-UNKNOWN
+The above copyright notice and this permission notice (including the next
+paragraph) shall be included in all copies or substantial portions of the
+Software.
 
-certifi
-2020.6.20
-Mozilla Public License 2.0 (MPL 2.0)
-Kenneth Reitz
-https://certifiio.readthedocs.io/en/latest/
-Python package for providing Mozilla's CA Bundle.
-UNKNOWN
-UNKNOWN
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
 
 certifi
 2024.2.2
@@ -455,7 +154,7 @@ Mozilla Public License 2.0 (MPL 2.0)
 Kenneth Reitz
 https://github.com/certifi/python-certifi
 Python package for providing Mozilla's CA Bundle.
-/home/runner/.local/lib/python3.10/site-packages/certifi-2024.2.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/certifi-2024.2.2.dist-info/LICENSE
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
@@ -484,7 +183,7 @@ MIT License
 Armin Rigo, Maciej Fijalkowski
 http://cffi.readthedocs.org
 Foreign Function Interface for Python calling C code.
-/home/runner/.local/lib/python3.10/site-packages/cffi-1.16.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/cffi-1.16.0.dist-info/LICENSE
 
 Except when otherwise stated (look for LICENSE files in directories or
 information at the beginning of each file) all software and
@@ -513,77 +212,42 @@ documentation is licensed as follows:
 
 
 
-chardet
-4.0.0
-GNU Library or Lesser General Public License (LGPL)
-Mark Pilgrim
-https://github.com/chardet/chardet
-Universal encoding detector for Python 2 and 3
-UNKNOWN
-UNKNOWN
-
 click
-8.0.3
+8.1.7
 BSD License
-Armin Ronacher
+UNKNOWN
 https://palletsprojects.com/p/click/
 Composable command line interface toolkit
-UNKNOWN
-UNKNOWN
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/click-8.1.7.dist-info/LICENSE.rst
+Copyright 2014 Pallets
 
-cloud-init
-23.4.4
-Dual-licensed under GPLv3 or Apache 2.0
-Scott Moser
-http://launchpad.net/cloud-init/
-Cloud instance initialisation magic
-UNKNOWN
-UNKNOWN
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
 
-colorama
-0.4.4
-BSD License
-Jonathan Hartley
-https://github.com/tartley/colorama
-Cross-platform colored terminal text.
-UNKNOWN
-UNKNOWN
+1.  Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
 
-command-not-found
-0.3
-UNKNOWN
-UNKNOWN
-UNKNOWN
-UNKNOWN
-UNKNOWN
-UNKNOWN
+2.  Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
 
-configobj
-5.0.6
-BSD License
-Rob Dennis, Eli Courtwright (Michael Foord & Nicola Larosa original maintainers)
-https://github.com/DiffSK/configobj
-Config file reading, writing and validation.
-UNKNOWN
-UNKNOWN
+3.  Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
 
-constantly
-15.1.0
-MIT License
-UNKNOWN
-https://github.com/twisted/constantly
-Symbolic constants in Python
-UNKNOWN
-UNKNOWN
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-cryptography
-3.4.8
-Apache Software License; BSD License
-The Python Cryptographic Authority and individual contributors
-https://github.com/pyca/cryptography
-cryptography is a package which provides cryptographic recipes and primitives to Python developers.
-UNKNOWN
-UNKNOWN
 
 cryptography
 42.0.5
@@ -591,20 +255,11 @@ Apache Software License; BSD License
 The Python Cryptographic Authority and individual contributors <cryptography-dev@python.org>
 https://github.com/pyca/cryptography
 cryptography is a package which provides cryptographic recipes and primitives to Python developers.
-/home/runner/.local/lib/python3.10/site-packages/cryptography-42.0.5.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/cryptography-42.0.5.dist-info/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to cryptography are made
 under the terms of *both* these licenses.
 
-
-dbus-python
-1.2.18
-MIT License
-UNKNOWN
-http://www.freedesktop.org/wiki/Software/DBusBindings/#python
-Python bindings for libdbus
-UNKNOWN
-UNKNOWN
 
 deprecation
 2.1.0
@@ -612,7 +267,7 @@ Apache Software License
 Brian Curtin
 http://deprecation.readthedocs.io/
 A library to handle automated deprecations
-/home/runner/.local/lib/python3.10/site-packages/deprecation-2.1.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/deprecation-2.1.0.dist-info/LICENSE
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -816,40 +471,13 @@ A library to handle automated deprecations
    limitations under the License.
 
 
-distro
-1.7.0
-Apache Software License
-Nir Cohen
-https://github.com/python-distro/distro
-Distro - an OS platform information API
-UNKNOWN
-UNKNOWN
-
-distro-info
-1.1+ubuntu0.2
-UNKNOWN
-Benjamin Drung
-https://salsa.debian.org/debian/distro-info
-UNKNOWN
-UNKNOWN
-UNKNOWN
-
-httplib2
-0.20.2
-MIT License
-Joe Gregorio
-https://github.com/httplib2/httplib2
-A comprehensive HTTP client library.
-UNKNOWN
-UNKNOWN
-
 humanize
 4.9.0
 MIT License
 Jason Moiron <jmoiron@jmoiron.net>
 https://github.com/python-humanize/humanize
 Python humanize utilities
-/home/runner/.local/lib/python3.10/site-packages/humanize-4.9.0.dist-info/licenses/LICENCE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/humanize-4.9.0.dist-info/licenses/LICENCE
 Copyright (c) 2010-2020 Jason Moiron and Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -872,121 +500,13 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-hyperlink
-21.0.0
-MIT License
-Mahmoud Hashemi and Glyph Lefkowitz
-https://github.com/python-hyper/hyperlink
-A featureful, immutable, and correct URL for Python.
-UNKNOWN
-UNKNOWN
-
-idna
-3.3
-BSD License
-Kim Davies
-https://github.com/kjd/idna
-Internationalized Domain Names in Applications (IDNA)
-UNKNOWN
-UNKNOWN
-
-importlib-metadata
-4.6.4
-Apache Software License
-Jason R. Coombs
-https://github.com/python/importlib_metadata
-Read metadata from Python packages
-UNKNOWN
-UNKNOWN
-
-incremental
-21.3.0
-MIT License
-UNKNOWN
-https://github.com/twisted/incremental
-A small library that versions your Python projects.
-UNKNOWN
-UNKNOWN
-
-jeepney
-0.7.1
-MIT License
-Thomas Kluyver
-https://gitlab.com/takluyver/jeepney
-Low-level, pure Python DBus protocol wrapper.
-UNKNOWN
-UNKNOWN
-
-jsonpatch
-1.32
-BSD License
-Stefan Kögl
-https://github.com/stefankoegl/python-json-patch
-Apply JSON-Patches (RFC 6902) 
-UNKNOWN
-UNKNOWN
-
-jsonpointer
-2.0
-BSD License
-Stefan Kögl
-https://github.com/stefankoegl/python-json-pointer
-Identify specific nodes in a JSON document (RFC 6901) 
-UNKNOWN
-UNKNOWN
-
-jsonschema
-3.2.0
-MIT License
-Julian Berman
-https://github.com/Julian/jsonschema
-An implementation of JSON Schema validation for Python
-UNKNOWN
-UNKNOWN
-
-keyring
-23.5.0
-MIT License; Python Software Foundation License
-Kang Zhang
-https://github.com/jaraco/keyring
-Store and access your passwords safely.
-UNKNOWN
-UNKNOWN
-
-launchpadlib
-1.10.16
-GNU Library or Lesser General Public License (LGPL)
-The Launchpad developers
-https://help.launchpad.net/API/launchpadlib
-Script Launchpad through its web services interfaces.  Officially supported.
-UNKNOWN
-UNKNOWN
-
-lazr.restfulclient
-0.14.4
-GNU Library or Lesser General Public License (LGPL)
-UNKNOWN
-https://launchpad.net/lazr.restfulclient
-A programmable client library that takes advantage of the commonalities among
-UNKNOWN
-UNKNOWN
-
-lazr.uri
-1.0.6
-GNU Library or Lesser General Public License (LGPL)
-UNKNOWN
-https://launchpad.net/lazr.uri
-A self-contained, easily reusable library for parsing, manipulating,
-UNKNOWN
-UNKNOWN
-
 markdown-it-py
 3.0.0
 MIT License
 Chris Sewell <chrisj_sewell@hotmail.com>
 https://github.com/executablebooks/markdown-it-py
 Python port of markdown-it. Markdown parsing, done right!
-/home/runner/.local/lib/python3.10/site-packages/markdown_it_py-3.0.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/markdown_it_py-3.0.0.dist-info/LICENSE
 MIT License
 
 Copyright (c) 2020 ExecutableBookProject
@@ -1016,7 +536,7 @@ MIT License
 Taneli Hukkinen <hukkin@users.noreply.github.com>
 https://github.com/executablebooks/mdurl
 Markdown URL utilities
-/home/runner/.local/lib/python3.10/site-packages/mdurl-0.1.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/mdurl-0.1.2.dist-info/LICENSE
 Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin.
 Copyright (c) 2021 Taneli Hukkinen
 
@@ -1065,22 +585,13 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 
 
-mercurial
-6.1.1
-GNU General Public License (GPL)
-Olivia Mackall and many others
-https://mercurial-scm.org/
-Fast scalable distributed SCM (revision control, version control) system
-UNKNOWN
-UNKNOWN
-
 mmh3
 4.1.0
 MIT License
 Hajime Senuma <hajime.senuma@gmail.com>
 https://pypi.org/project/mmh3/
 Python extension for MurmurHash (MurmurHash3), a set of fast and robust hash functions.
-/home/runner/.local/lib/python3.10/site-packages/mmh3-4.1.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/mmh3-4.1.0.dist-info/LICENSE
 MIT License
 
 Copyright (c) 2011-2023 Hajime Senuma
@@ -1103,31 +614,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-more-itertools
-8.10.0
-MIT License
-Erik Rose
-https://github.com/more-itertools/more-itertools
-More routines for operating on iterables, beyond itertools
-UNKNOWN
-UNKNOWN
-
-netifaces
-0.11.0
-MIT License
-Alastair Houghton
-https://github.com/al45tair/netifaces
-Portable network interface information.
-UNKNOWN
-UNKNOWN
-
 numpy
 1.26.4
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.local/lib/python3.10/site-packages/numpy-1.26.4.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/numpy-1.26.4.dist-info/LICENSE.txt
 Copyright (c) 2005-2023, NumPy Developers.
 All rights reserved.
 
@@ -2101,22 +1594,13 @@ License: LGPL-2.1-or-later
     https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 
 
-oauthlib
-3.2.0
-BSD License
-The OAuthlib Community
-https://github.com/oauthlib/oauthlib
-A generic, spec-compliant, thorough implementation of the OAuth request-signing logic
-UNKNOWN
-UNKNOWN
-
 packaging
 24.0
 Apache Software License; BSD License
 Donald Stufft <donald@stufft.io>
 https://github.com/pypa/packaging
 Core utilities for Python packages
-/usr/local/lib/python3.10/dist-packages/packaging-24.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/packaging-24.0.dist-info/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to this software is made
 under the terms of *both* these licenses.
@@ -2128,7 +1612,7 @@ BSD License
 The Pandas Development Team <pandas-dev@python.org>
 https://pandas.pydata.org
 Powerful data structures for data analysis, time series, and statistics
-/home/runner/.local/lib/python3.10/site-packages/pandas-2.2.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/pandas-2.2.1.dist-info/LICENSE
 BSD 3-Clause License
 
 Copyright (c) 2008-2011, AQR Capital Management, LLC, Lambda Foundry, Inc. and PyData Development Team
@@ -2162,121 +1646,53 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-pexpect
-4.8.0
-ISC License (ISCL)
-Noah Spurrier; Thomas Kluyver; Jeff Quast
-https://pexpect.readthedocs.io/
-Pexpect allows easy control of interactive console applications.
-UNKNOWN
-UNKNOWN
-
-pipx
-1.4.3
-MIT License
-Chad Smith <chadsmith.software@gmail.com>
-https://pipx.pypa.io
-Install and Run Python Applications in Isolated Environments
-/usr/local/lib/python3.10/dist-packages/pipx-1.4.3.dist-info/licenses/LICENSE
-MIT License
-
-Copyright (c) 2018 Chad Smith and contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-
-platformdirs
-4.2.0
-MIT License
-UNKNOWN
-https://github.com/platformdirs/platformdirs
-A small Python package for determining appropriate platform-specific dirs, e.g. a "user data dir".
-/usr/local/lib/python3.10/dist-packages/platformdirs-4.2.0.dist-info/licenses/LICENSE
-MIT License
-
-Copyright (c) 2010-202x The platformdirs developers
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-
-ptyprocess
-0.7.0
-ISC License (ISCL)
-Thomas Kluyver
-https://github.com/pexpect/ptyprocess
-Run a subprocess in a pseudo terminal
-UNKNOWN
-UNKNOWN
-
-pyOpenSSL
-21.0.0
-Apache Software License
-The pyOpenSSL developers
-https://pyopenssl.org/
-Python wrapper module around the OpenSSL library
-UNKNOWN
-UNKNOWN
-
-pyasn1
-0.4.8
+pip-tools
+7.4.1
 BSD License
-Ilya Etingof
-https://github.com/etingof/pyasn1
-ASN.1 types and codecs
-UNKNOWN
-UNKNOWN
+Vincent Driessen <me@nvie.com>
+https://github.com/jazzband/pip-tools/
+pip-tools keeps your pinned dependencies fresh.
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/pip_tools-7.4.1.dist-info/LICENSE
+BSD 3-Clause License
 
-pyasn1-modules
-0.2.1
-BSD License
-Ilya Etingof <etingof@gmail.com>
-https://github.com/etingof/pyasn1-modules
-A collection of ASN.1-based protocols modules.
-UNKNOWN
-UNKNOWN
+Copyright (c). All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+    1. Redistributions of source code must retain the above copyright notice,
+       this list of conditions and the following disclaimer.
+
+    2. Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+
+    3. Neither the name of pip-tools nor the names of its contributors may be
+       used to endorse or promote products derived from this software without
+       specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 
 pycparser
-2.21
+2.22
 BSD License
 Eli Bendersky
 https://github.com/eliben/pycparser
 C parser in Python
-/home/runner/.local/lib/python3.10/site-packages/pycparser-2.21.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/pycparser-2.22.dist-info/LICENSE
 pycparser -- A C parser in Python
 
-Copyright (c) 2008-2020, Eli Bendersky
+Copyright (c) 2008-2022, Eli Bendersky
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -2287,7 +1703,7 @@ are permitted provided that the following conditions are met:
 * Redistributions in binary form must reproduce the above copyright notice, 
   this list of conditions and the following disclaimer in the documentation 
   and/or other materials provided with the distribution.
-* Neither the name of Eli Bendersky nor the names of its contributors may 
+* Neither the name of the copyright holder nor the names of its contributors may 
   be used to endorse or promote products derived from this software without 
   specific prior written permission.
 
@@ -2303,50 +1719,35 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-pyparsing
-2.4.7
+pyproject_hooks
+1.0.0
 MIT License
-Paul McGuire
-https://github.com/pyparsing/pyparsing/
-Python parsing module
-UNKNOWN
-UNKNOWN
+Thomas Kluyver <thomas@kluyver.me.uk>
+https://github.com/pypa/pyproject-hooks
+Wrappers to call pyproject.toml-based build backend hooks.
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/pyproject_hooks-1.0.0.dist-info/LICENSE
+The MIT License (MIT)
 
-pyparted
-3.11.7
-GPLv2+
-David Cantrell
-https://github.com/dcantrell/pyparted/
-Python bindings for GNU parted
-UNKNOWN
-UNKNOWN
+Copyright (c) 2017 Thomas Kluyver
 
-pyrsistent
-0.18.1
-MIT License
-Tobias Gustafsson
-http://github.com/tobgu/pyrsistent/
-Persistent/Functional/Immutable data structures
-UNKNOWN
-UNKNOWN
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-pyserial
-3.5
-BSD License
-Chris Liechti
-https://github.com/pyserial/pyserial
-Python Serial Port Extension
-UNKNOWN
-UNKNOWN
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-python-apt
-2.4.0+ubuntu3
-GNU GPL
-APT Development Team
-UNKNOWN
-Python bindings for APT
-UNKNOWN
-UNKNOWN
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
 
 python-dateutil
 2.9.0.post0
@@ -2354,7 +1755,7 @@ Apache Software License; BSD License
 Gustavo Niemeyer
 https://github.com/dateutil/dateutil
 Extensions to the standard Python datetime module
-/home/runner/.local/lib/python3.10/site-packages/python_dateutil-2.9.0.post0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/python_dateutil-2.9.0.post0.dist-info/LICENSE
 Copyright 2017- Paul Ganssle <paul@ganssle.io>
 Copyright 2017- dateutil contributors (see AUTHORS file)
 
@@ -2410,40 +1811,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 The above BSD License Applies to all code, even that also covered by Apache 2.0.
 
-python-debian
-0.1.43+ubuntu1.1
-DFSG approved; GNU General Public License v2 or later (GPLv2+)
-UNKNOWN
-https://salsa.debian.org/python-debian-team/python-debian
-Debian package related modules
-UNKNOWN
-UNKNOWN
-
-python-magic
-0.4.24
-MIT License
-Adam Hupp
-http://github.com/ahupp/python-magic
-File type identification using libmagic
-UNKNOWN
-UNKNOWN
-
-pytz
-2022.1
-MIT License
-Stuart Bishop
-http://pythonhosted.org/pytz
-World timezone definitions, modern and historical
-UNKNOWN
-UNKNOWN
-
 pytz
 2024.1
 MIT License
 Stuart Bishop
 http://pythonhosted.org/pytz
 World timezone definitions, modern and historical
-/home/runner/.local/lib/python3.10/site-packages/pytz-2024.1.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/pytz-2024.1.dist-info/LICENSE.txt
 Copyright (c) 2003-2019 Stuart Bishop <stuart@stuartbishop.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -2465,22 +1839,13 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 
-requests
-2.25.1
-Apache Software License
-Kenneth Reitz
-https://requests.readthedocs.io
-Python HTTP for Humans.
-UNKNOWN
-UNKNOWN
-
 rich
 13.7.1
 MIT License
 Will McGugan
 https://github.com/Textualize/rich
 Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal
-/home/runner/.local/lib/python3.10/site-packages/rich-13.7.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/rich-13.7.1.dist-info/LICENSE
 Copyright (c) 2020 Will McGugan
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2508,7 +1873,7 @@ BSD License
 Raphaël Barrois
 https://github.com/rbarrois/python-semanticversion
 A library implementing the 'SemVer' scheme.
-/home/runner/.local/lib/python3.10/site-packages/semantic_version-2.10.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/semantic_version-2.10.0.dist-info/LICENSE
 Copyright (c) The python-semanticversion project
 All rights reserved.
 
@@ -2533,79 +1898,31 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-service-identity
-18.1.0
-MIT License
-Hynek Schlawack
-https://service-identity.readthedocs.io/
-Service identity verification for pyOpenSSL & cryptography.
-UNKNOWN
-UNKNOWN
-
 six
 1.16.0
 MIT License
 Benjamin Peterson
 https://github.com/benjaminp/six
 Python 2 and 3 compatibility utilities
-UNKNOWN
-UNKNOWN
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/six-1.16.0.dist-info/LICENSE
+Copyright (c) 2010-2020 Benjamin Peterson
 
-sos
-4.5.6
-GPLv2+
-Bryn M. Reeves
-https://github.com/sosreport/sos
-A set of tools to gather troubleshooting information from a system
-UNKNOWN
-UNKNOWN
-
-ssh-import-id
-5.11
-GPLv3
-Dustin Kirkland, Casey Marshall
-https://launchpad.net/ssh-import-id
-Authorize SSH public keys from trusted online identities
-UNKNOWN
-UNKNOWN
-
-systemd-python
-234
-GNU Lesser General Public License v2 or later (LGPLv2+)
-systemd developers
-https://github.com/systemd/python-systemd
-Python interface for libsystemd
-UNKNOWN
-UNKNOWN
-
-tomli
-2.0.1
-MIT License
-Taneli Hukkinen <hukkin@users.noreply.github.com>
-https://github.com/hukkin/tomli
-A lil' TOML parser
-/usr/local/lib/python3.10/dist-packages/tomli-2.0.1.dist-info/LICENSE
-MIT License
-
-Copyright (c) 2021 Taneli Hukkinen
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 typing_extensions
@@ -2614,7 +1931,7 @@ Python Software Foundation License
 "Guido van Rossum, Jukka Lehtosalo, Łukasz Langa, Michael Lee" <levkivskyi@gmail.com>
 https://github.com/python/typing_extensions
 Backported and Experimental Type Hints for Python 3.8+
-/home/runner/.local/lib/python3.10/site-packages/typing_extensions-4.10.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/typing_extensions-4.10.0.dist-info/LICENSE
 A. HISTORY OF THE SOFTWARE
 ==========================
 
@@ -2902,7 +2219,7 @@ Apache Software License
 Python Software Foundation
 https://github.com/python/tzdata
 Provider of IANA time zone data
-/home/runner/.local/lib/python3.10/site-packages/tzdata-2024.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/tzdata-2024.1.dist-info/LICENSE
 Apache Software License 2.0
 
 Copyright (c) 2020, Paul Ganssle (Google)
@@ -2920,40 +2237,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 
-ubuntu-pro-client
-8001
-GPLv3
-Ubuntu Server Team
-https://ubuntu.com/support
-Manage Ubuntu Pro support entitlements
-UNKNOWN
-UNKNOWN
-
-ufw
-0.36.1
-GPL-3
-Jamie Strandboge
-https://launchpad.net/ufw
-front-end for Linux firewalling
-UNKNOWN
-UNKNOWN
-
-urllib3
-1.26.5
-MIT License
-Andrey Petrov
-https://urllib3.readthedocs.io/
-HTTP library with thread-safe connection pooling, file post, and more.
-UNKNOWN
-UNKNOWN
-
 urllib3
 2.2.1
 MIT License
 Andrey Petrov <andrey.petrov@shazow.net>
 https://github.com/urllib3/urllib3/blob/main/CHANGES.rst
 HTTP library with thread-safe connection pooling, file post, and more.
-/home/runner/.local/lib/python3.10/site-packages/urllib3-2.2.1.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.11.1/lib/python3.11/site-packages/urllib3-2.2.1.dist-info/licenses/LICENSE.txt
 MIT License
 
 Copyright (c) 2008-2020 Andrey Petrov and contributors.
@@ -2976,50 +2266,5 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-userpath
-1.9.2
-MIT License
-Ofek Lev <oss@ofek.dev>
-https://github.com/ofek/userpath
-Cross-platform tool for adding locations to the user PATH
-/usr/local/lib/python3.10/dist-packages/userpath-1.9.2.dist-info/licenses/LICENSE.txt
-MIT License
-
-Copyright (c) 2017-present Ofek Lev <oss@ofek.dev>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-wadllib
-1.3.6
-GNU Library or Lesser General Public License (LGPL)
-UNKNOWN
-https://launchpad.net/wadllib
-Navigate HTTP resources using WADL files as guides.
-UNKNOWN
-UNKNOWN
-
-zipp
-1.0.0
-MIT License
-Jason R. Coombs
-https://github.com/jaraco/zipp
-Backport of pathlib-compatible object wrapper for zip files
-UNKNOWN
-UNKNOWN
-
-zope.interface
-5.4.0
-Zope Public License
-Zope Foundation and Contributors
-https://github.com/zopefoundation/zope.interface
-Interfaces for Python
-UNKNOWN
-UNKNOWN
 
 
