@@ -301,8 +301,9 @@ flake8-import-order==0.18.2 \
     --hash=sha256:82ed59f1083b629b030ee9d3928d9e06b6213eb196fe745b3a7d4af2168130df \
     --hash=sha256:e23941f892da3e0c09d711babbb0c73bc735242e9b216b726616758a920d900e
     # via howso-engine (pyproject.toml)
-howso-openapi-client==30.3.0 \
-    --hash=sha256:e6db106b4b31f478f8f5c205396b678db80c7cb5d65f4f4c99327700664d4766
+howso-openapi-client==30.3.1 \
+    --hash=sha256:5e9cf0815db0056d3a12e2e55e930895682548082a97b7646557c3906389d9d5 \
+    --hash=sha256:97ac6bbba2b7a51daa3dcb93090bd60a2aff8e17fbd1189f91e952b16c8830d3
     # via howso-engine (pyproject.toml)
 humanize==4.9.0 \
     --hash=sha256:582a265c931c683a7e9b8ed9559089dea7edcf6cc95be39a3cbc2c5d5ac2bcfa \
@@ -533,9 +534,9 @@ pycodestyle==2.7.0 \
     #   flake8
     #   flake8-import-order
     #   howso-engine (pyproject.toml)
-pycparser==2.21 \
-    --hash=sha256:8ee45429555515e1f6b185e78100aea234072576aa43ab53aefcae078162fca9 \
-    --hash=sha256:e644fdec12f7872f86c58ff790da456218b10f863970249516d60a5eaca77206
+pycparser==2.22 \
+    --hash=sha256:491c8be9c040f5390f5bf44a5b07752bd07f56edf992381b05c701439eec10f6 \
+    --hash=sha256:c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc
     # via cffi
 pydocstyle==6.3.0 \
     --hash=sha256:118762d452a49d6b05e194ef344a55822987a462831ade91ec5c06fd2169d019 \

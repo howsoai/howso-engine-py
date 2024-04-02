@@ -114,6 +114,7 @@ faker==24.4.0 \
     --hash=sha256:a5ddccbe97ab691fad6bd8036c31f5697cfaa550e62e000078d1935fa8a7ec2e
     # via howso-engine (pyproject.toml)
 howso-openapi-client==30.3.0 \
+    --hash=sha256:d953e31f6c36c996f5e978f6de300e1b7ba38133c3a55ee943792d89b35c1101 \
     --hash=sha256:e6db106b4b31f478f8f5c205396b678db80c7cb5d65f4f4c99327700664d4766
     # via howso-engine (pyproject.toml)
 humanize==4.9.0 \
@@ -273,9 +274,9 @@ pandas==2.0.3 \
     --hash=sha256:f167beed68918d62bffb6ec64f2e1d8a7d297a038f86d4aed056b9493fca407f \
     --hash=sha256:f3421a7afb1a43f7e38e82e844e2bca9a6d793d66c1a7f9f0ff39a795bbc5e02
     # via howso-engine (pyproject.toml)
-pycparser==2.21 \
-    --hash=sha256:8ee45429555515e1f6b185e78100aea234072576aa43ab53aefcae078162fca9 \
-    --hash=sha256:e644fdec12f7872f86c58ff790da456218b10f863970249516d60a5eaca77206
+pycparser==2.22 \
+    --hash=sha256:491c8be9c040f5390f5bf44a5b07752bd07f56edf992381b05c701439eec10f6 \
+    --hash=sha256:c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc
     # via cffi
 pygments==2.17.2 \
     --hash=sha256:b27c2826c47d0f3219f29554824c30c5e8945175d888647acd804ddd04af846c \
