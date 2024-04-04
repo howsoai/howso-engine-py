@@ -128,6 +128,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         The howso core entity handle to use.
 
         If None, :attr:`HowsoDirectClient.DEFAULT_HANDLE` will be used.
+    react_initial_batch_size: int, default 10
+        The default number of cases or series to react to in the first batch
+        for calls to :meth:`HowsoDirectClient.react`.
+    train_initial_batch_size: int, default 100
+        The default number of cases to train to in the first batch
+        for calls to :meth:`HowsoDirectClient.train`.
     verbose : bool, default False
         Set verbose output.
     version_check : bool, default True
@@ -148,12 +154,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         "\"exact\"."
     )
 
-    #: The default initial batch size for calls to react
-    REACT_INITIAL_BATCH_SIZE = 10
-
-    #: The default intitial batch size for calls to train
-    TRAIN_INITIAL_BATCH_SIZE = 100
-
     def __init__(
         self,
         howso_core: Optional[HowsoCore] = None,
@@ -161,6 +161,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         config_path: Union[str, Path, None] = None,
         debug: bool = False,
         handle: Optional[str] = None,
+        react_initial_batch_size: int = 10,
+        train_initial_batch_size: int = 100,
         verbose: bool = False,
         version_check: bool = True,
         **kwargs
@@ -209,6 +211,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._active_session = None
         self._react_generative_batch_threshold = 1
         self._react_discriminative_batch_threshold = 10
+        self._react_initial_batch_size = react_initial_batch_size
+        self._train_initial_batch_size = train_initial_batch_size
         self.begin_session()
 
     def check_version(self) -> Union[str, None]:
@@ -243,6 +247,62 @@ class HowsoDirectClient(AbstractHowsoClient):
                         f"Version {latest_version} of Howso Engine™ is "
                         f"available. You are using version {CLIENT_VERSION}. "
                         f"This is a pre-release version.")
+
+    @property
+    def react_initial_batch_size(self) -> int:
+        """
+        The default number of cases in the first react batch.
+
+        Returns
+        -------
+        int
+            The default number of cases to react to in the first batch.
+        """
+        return self._react_initial_batch_size
+
+    @react_initial_batch_size.setter
+    def react_initial_batch_size(self, initial_batch_size: int):
+        """
+        Set the default number of cases in the first react batch.
+
+        Parameters
+        ----------
+        initial_batch_size : int
+            The number of cases to react to in the first batch of
+            :meth:`HowsoDirectClient.react`.
+        """
+        if isinstance(initial_batch_size, int):
+            self._react_initial_batch_size = initial_batch_size
+        else:
+            raise ValueError("The initial batch size must be an integer.")
+
+    @property
+    def train_initial_batch_size(self) -> int:
+        """
+        The default number of cases in the first train batch.
+
+        Returns
+        -------
+        int
+            The default number of cases to train in the first batch.
+        """
+        return self._train_initial_batch_size
+
+    @train_initial_batch_size.setter
+    def train_initial_batch_size(self, initial_batch_size: int):
+        """
+        Set the default number of cases in the first train batch.
+
+        Parameters
+        ----------
+        initial_batch_size : int
+            The number of cases to train in the first batch of
+            :meth:`HowsoDirectClient.train`.
+        """
+        if isinstance(initial_batch_size, int):
+            self._train_initial_batch_size = initial_batch_size
+        else:
+            raise ValueError("The initial batch size must be an integer.")
 
     @property
     def active_session(self) -> Session:
@@ -427,7 +487,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if not trainee.id:
             # Default id to trainee name, or new uuid if no name
-            trainee.id =  trainee.name or str(uuid.uuid4())
+            trainee.id = trainee.name or str(uuid.uuid4())
 
         trainee_id = trainee.id
 
@@ -1274,7 +1334,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             not be derived since their values are being explicitly provided.
         initial_batch_size: int, optional
             Define the number of cases to train in the first batch. If
-            unspecified, a default of 100 is used.
+            unspecified, the value of the ``train_initial_batch_size`` property
+            is used.
             The number of cases in following batches will be automatically
             adjusted. This value is ignored if ``batch_size`` is specified.
         input_is_substituted : bool, default False
@@ -1363,7 +1424,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 batch_size = len(cases)
             if not batch_size:
                 # Scale the batch size automatically
-                start_batch_size = initial_batch_size or self.TRAIN_INITIAL_BATCH_SIZE
+                start_batch_size = initial_batch_size or self._train_initial_batch_size
                 batch_scaler = self.batch_scaler_class(
                     start_batch_size, progress)
                 gen_batch_size = batch_scaler.gen_batch_size()
@@ -3326,7 +3387,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             the batch size will be determined automatically.
         initial_batch_size: int, optional
             Define the number of cases to react to in the first batch. If
-            unspecified, a default value of 10 is used.
+            unspecified, the value of the ``react_initial_batch_size`` property
+            is used.
             The number of cases in following batches will be automatically
             adjusted. This value is ignored if ``batch_size`` is specified.
         total_size : int
@@ -3353,7 +3415,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             batch_scaler = None
             if not batch_size:
                 # Scale the batch size automatically
-                start_batch_size = initial_batch_size or self.REACT_INITIAL_BATCH_SIZE
+                start_batch_size = initial_batch_size or self._react_initial_batch_size
                 batch_scaler = self.batch_scaler_class(
                     start_batch_size, progress)
                 gen_batch_size = batch_scaler.gen_batch_size()

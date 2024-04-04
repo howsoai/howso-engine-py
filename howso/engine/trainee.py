@@ -794,9 +794,10 @@ class Trainee(BaseTrainee):
             ``cases`` is not a DataFrame with named columns. Otherwise, this parameter
             can be provided when you do not want to train on all of the features
             in ``cases`` or you want to re-order the features in ``cases``.
-        initial_batch_size: int, optional
+        initial_batch_size : int, optional
             Define the number of cases to train in the first batch. If
-            unspecified, a default defined by the selected client will be used.
+            unspecified, a default defined by the ``train_initial_batch_size``
+            property of the selected client will be used.
             The number of cases in following batches will be automatically
             adjusted. This value is ignored if ``batch_size`` is specified.
         input_is_substituted : bool, default False
@@ -1524,7 +1525,8 @@ class Trainee(BaseTrainee):
 
         initial_batch_size: int, optional
             Define the number of cases to react to in the first batch. If
-            unspecified, a default value of 10 is used.
+            unspecified, a default defined by the ``react_initial_batch_size``
+            property of the selected client will be used.
             The number of cases in following batches will be automatically
             adjusted. This value is ignored if ``batch_size`` is specified.
         input_is_substituted : bool, default False
@@ -1737,9 +1739,9 @@ class Trainee(BaseTrainee):
             exactly one per series.
         initial_batch_size: int, optional
             The number of series to react to in the first batch. If unspecified,
-            the number will be determined automatically. The number of series
-            in following batches will be automatically adjusted. This value is
-            ignored if ``batch_size`` is specified.
+            the number will be determined automatically by the client. The
+            number of series in following batches will be automatically
+            adjusted. This value is ignored if ``batch_size`` is specified.
         initial_features : list of str, optional
             Features to condition just the first case in a series,
             overwrites context_features and derived_context_features for that
