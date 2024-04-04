@@ -6,26 +6,33 @@ import re
 import sys
 import threading
 from typing import (
-    Callable, Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union)
+    Callable,
+    Collection,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Union,
+)
 import uuid
 import warnings
 
 from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
 from dateutil.tz import tzoffset
-from howso.openapi.models import (
-    FeatureAttributes,
-    Trainee
-)
 import numpy as np
 import pandas as pd
 
+from howso.openapi.models import (
+    FeatureAttributes,
+    Trainee,
+)
+
+from ..engine.typing import CaseIndices
 from .internals import serialize_openapi_models
 
-
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
-# Custom type for case_indices parameter
-CaseIndices = Iterable[Union[List[Union[str, int]], Tuple[Union[str, int]]]]
 DATETIME_TIMEZONE_PATTERN = re.compile(r"(?<!%)(?:%%)*(%z)", re.IGNORECASE)
 DATETIME_UTC_Z_PATTERN = re.compile(r"\dZ$")
 EPOCH = dt.datetime.utcfromtimestamp(0)
