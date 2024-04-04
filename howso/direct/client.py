@@ -129,7 +129,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         If None, :attr:`HowsoDirectClient.DEFAULT_HANDLE` will be used.
     react_initial_batch_size: int, default 10
-        The default number of cases or series to react to in the first batch
+        The default number of cases to react to in the first batch
         for calls to :meth:`HowsoDirectClient.react`.
     train_initial_batch_size: int, default 100
         The default number of cases to train to in the first batch
@@ -1335,9 +1335,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         initial_batch_size: int, optional
             Define the number of cases to train in the first batch. If
             unspecified, the value of the ``train_initial_batch_size`` property
-            is used.
-            The number of cases in following batches will be automatically
-            adjusted. This value is ignored if ``batch_size`` is specified.
+            is used. The number of cases in following batches will be
+            automatically adjusted. This value is ignored if ``batch_size`` is
+            specified.
         input_is_substituted : bool, default False
             if True assumes provided nominal feature values have
             already been substituted.
@@ -1424,7 +1424,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 batch_size = len(cases)
             if not batch_size:
                 # Scale the batch size automatically
-                start_batch_size = initial_batch_size or self._train_initial_batch_size
+                start_batch_size = initial_batch_size or self.train_initial_batch_size
                 batch_scaler = self.batch_scaler_class(
                     start_batch_size, progress)
                 gen_batch_size = batch_scaler.gen_batch_size()
@@ -3078,9 +3078,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             case specified by case_indices by leaving it out.
         initial_batch_size: int, optional
             Define the number of cases to react to in the first batch. If
-            unspecified, a default value of 10 is used.
-            The number of cases in following batches will be automatically
-            adjusted. This value is ignored if ``batch_size`` is specified.
+            unspecified, the value of the ``react_initial_batch_size`` property
+            is used. The number of cases in following batches will be
+            automatically adjusted. This value is ignored if ``batch_size`` is
+            specified.
         into_series_store : str, optional
             The name of a series store. If specified, will store an internal
             record of all react contexts for this session and series to be used
@@ -3388,9 +3389,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         initial_batch_size: int, optional
             Define the number of cases to react to in the first batch. If
             unspecified, the value of the ``react_initial_batch_size`` property
-            is used.
-            The number of cases in following batches will be automatically
-            adjusted. This value is ignored if ``batch_size`` is specified.
+            is used. The number of cases in following batches will be
+            automatically adjusted. This value is ignored if ``batch_size`` is
+            specified.
         total_size : int
             The total size of the data that will be batched.
         progress_callback : callable, optional
@@ -3415,7 +3416,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             batch_scaler = None
             if not batch_size:
                 # Scale the batch size automatically
-                start_batch_size = initial_batch_size or self._react_initial_batch_size
+                start_batch_size = initial_batch_size or self.react_initial_batch_size
                 batch_scaler = self.batch_scaler_class(
                     start_batch_size, progress)
                 gen_batch_size = batch_scaler.gen_batch_size()
