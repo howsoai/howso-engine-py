@@ -36,6 +36,16 @@ class AbstractHowsoClient(ABC):
     def active_session(self):
         """Return the active session."""
 
+    @property
+    @abstractmethod
+    def train_initial_batch_size(self):
+        """The default number of cases in the first train batch."""
+
+    @property
+    @abstractmethod
+    def react_initial_batch_size(self):
+        """The default number of cases in the first react batch."""
+
     @abstractmethod
     def get_version(self):
         """Get Howso version."""
