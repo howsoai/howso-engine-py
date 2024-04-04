@@ -38,12 +38,12 @@ class AbstractHowsoClient(ABC):
 
     @property
     @abstractmethod
-    def train_initial_batch_size(self):
+    def train_initial_batch_size(self) -> int:
         """The default number of cases in the first train batch."""
 
     @property
     @abstractmethod
-    def react_initial_batch_size(self):
+    def react_initial_batch_size(self) -> int:
         """The default number of cases in the first react batch."""
 
     @abstractmethod
