@@ -289,15 +289,6 @@ class HowsoCore:
             str(self.amlg)
         )
 
-    def version(self) -> str:
-        """Return the version of the Howso Core."""
-        return "0.0.0"
-        # if self.howso_fname.split('.')[1] == 'amlg':
-        #     version = "9.9.9"
-        # else:
-        #     version = self._execute("version", {})
-        # return version
-
     def get_trainee_version(
         self,
         trainee_id: str,
@@ -423,9 +414,7 @@ class HowsoCore:
 
         self.amlg.store_entity(
             trainee_id,
-            str(Path(filepath, filename)),
-            True,
-            True,
+            str(Path(filepath, filename))
         )
 
     def delete(self, trainee_id: str) -> None:
@@ -455,10 +444,8 @@ class HowsoCore:
         dict
             A dict containing the name of the trainee that was created by copy.
         """
-        return self._execute("copy", {
-            "trainee": trainee_id,
-            "target_trainee": target_trainee_id,
-        })
+        #TODO: create a copy of the trainee handle
+        return None
 
     def copy_subtrainee(
         self,
@@ -493,8 +480,7 @@ class HowsoCore:
             List of strings specifying the user-friendly path of the child
             subtrainee to copy trainee into.
         """
-        return self._execute("copy_subtrainee", {
-            "trainee": trainee_id,
+        return self._execute("copy_subtrainee", trainee_id, {
             "target_trainee": new_trainee_name,
             "source_id": source_id,
             "source_name_path": source_name_path,
@@ -515,8 +501,7 @@ class HowsoCore:
             The ID of the series to remove from the series store.
             If None, the entire series store will be deleted.
         """
-        return self._execute("remove_series_store", {
-            "trainee": trainee_id,
+        return self._execute("remove_series_store", trainee_id, {
             "series": series,
         })
 
@@ -545,8 +530,7 @@ class HowsoCore:
         remove_duplicates : bool, default False
             If true, will remove duplicate cases (cases with identical values).
         """
-        return self._execute("clean_data", {
-            "trainee": trainee_id,
+        return self._execute("clean_data", trainee_id, {
             "context_features": context_features,
             "action_features": action_features,
             "remove_duplicates": remove_duplicates,
@@ -568,8 +552,7 @@ class HowsoCore:
             A dictionary of feature name to value to substitution value. If the
             map is None, all substitutions will be disabled and cleared.
         """
-        return self._execute("set_substitute_feature_values", {
-            "trainee": trainee_id,
+        return self._execute("set_substitute_feature_values", trainee_id, {
             "substitution_value_map": substitution_value_map,
         })
 
@@ -587,9 +570,7 @@ class HowsoCore:
         dict
             The dictionary of feature name to value to substitution value.
         """
-        return self._execute("get_substitute_feature_values", {
-            "trainee": trainee_id
-        })
+        return self._execute("get_substitute_feature_values", trainee_id, {})
 
     def set_session_metadata(
         self,
@@ -609,8 +590,7 @@ class HowsoCore:
         metadata : dict
             The metadata to associate to the session.
         """
-        return self._execute("set_session_metadata", {
-            "trainee": trainee_id,
+        return self._execute("set_session_metadata", trainee_id, {
             "session": session,
             "metadata": metadata,
         })
@@ -632,8 +612,7 @@ class HowsoCore:
         dict or None
             The metadata of the session. Or None if no metadata set.
         """
-        return self._execute("get_session_metadata", {
-            "trainee": trainee_id,
+        return self._execute("get_session_metadata", trainee_id, {
             "session": session,
         })
 
@@ -655,8 +634,7 @@ class HowsoCore:
         list of dict
             The list of Trainee sessions.
         """
-        return self._execute("get_sessions", {
-            "trainee": trainee_id,
+        return self._execute("get_sessions", trainee_id, {
             "attributes": attributes,
         })
 
@@ -671,8 +649,7 @@ class HowsoCore:
         session : str
             The identifier of the Trainee session.
         """
-        return self._execute("remove_session", {
-            "trainee": trainee_id,
+        return self._execute("remove_session", trainee_id, {
             "session": session,
         })
 
@@ -704,8 +681,7 @@ class HowsoCore:
             The identifier of the Trainee session to associate the feature
             removal with.
         """
-        return self._execute("remove_feature", {
-            "trainee": trainee_id,
+        return self._execute("remove_feature", trainee_id, {
             "feature": feature,
             "condition": condition,
             "session": session,
@@ -747,8 +723,7 @@ class HowsoCore:
             The identifier of the Trainee session to associate the feature
             addition with.
         """
-        return self._execute("add_feature", {
-            "trainee": trainee_id,
+        return self._execute("add_feature", trainee_id, {
             "feature": feature,
             "feature_value": feature_value,
             "overwrite": overwrite,
@@ -772,14 +747,14 @@ class HowsoCore:
         dict
             A dictionary containing the key "count".
         """
-        return self._execute("get_num_training_cases", {"trainee": trainee_id})
+        return self._execute("get_num_training_cases", trainee_id, {})
 
     def get_auto_ablation_params(self, trainee_id: str):
         """
         Get trainee parameters for auto ablation set by :meth:`set_auto_ablation_params`.
         """
         return self._execute(
-            "get_auto_ablation_params", {"trainee": trainee_id}
+            "get_auto_ablation_params", trainee_id, {}
         )
 
     def set_auto_ablation_params(
@@ -833,9 +808,8 @@ class HowsoCore:
             The conviction value below which cases will be ablated.
         """
         return self._execute(
-            "set_auto_ablation_params",
+            "set_auto_ablation_params", trainee_id,
             {
-                "trainee": trainee_id,
                 "auto_ablation_enabled": auto_ablation_enabled,
                 "auto_ablation_weight_feature": auto_ablation_weight_feature,
                 "minimum_model_size": minimum_model_size,
@@ -882,13 +856,12 @@ class HowsoCore:
             will be cached and used during future auto-analysis.
         """
         params = {
-            "trainee": trainee_id,
             "auto_analyze_enabled": auto_analyze_enabled,
             "analyze_threshold": analyze_threshold,
             "analyze_growth_factor": analyze_growth_factor,
             "auto_analyze_limit_size": auto_analyze_limit_size,
         }
-        return self._execute("set_auto_analyze_params", {**kwargs, **params})
+        return self._execute("set_auto_analyze_params", trainee_id, {**kwargs, **params})
 
     def auto_analyze(self, trainee_id: str) -> None:
         """
@@ -899,7 +872,7 @@ class HowsoCore:
         trainee_id : str
             The identifier of the Trainee.
         """
-        return self._execute("auto_analyze", {"trainee": trainee_id})
+        return self._execute("auto_analyze", trainee_id,  {})
 
     def compute_feature_weights(
         self,
@@ -938,89 +911,12 @@ class HowsoCore:
         dict
             A dictionary of computed context features -> weights.
         """
-        return self._execute("compute_feature_weights", {
-            "trainee": trainee_id,
+        return self._execute("compute_feature_weights", trainee_id, {
             "action_feature": action_feature,
             "context_features": context_features,
             "robust": robust,
             "weight_feature": weight_feature,
             "use_case_weights": use_case_weights,
-        })
-
-    def set_feature_weights(
-        self,
-        trainee_id: str,
-        feature_weights: Optional[Dict[str, float]] = None,
-        action_feature: Optional[str] = None,
-        use_feature_weights: bool = True
-    ) -> None:
-        """
-        Set the weights for the features in the Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        action_feature : str, optional
-            Action feature for which to set the specified feature weights for
-        feature_weights : dict, optional
-            A dictionary of feature names -> weight values.
-            If not set, the feature weights are cleared in the model.
-        use_feature_weights : bool, default True
-            When set to true, forces the trainee to use the specified feature
-            weights.
-        """
-        return self._execute("set_feature_weights", {
-            "trainee": trainee_id,
-            "action_feature": action_feature,
-            "feature_weights_map": feature_weights,
-            "use_feature_weights": use_feature_weights,
-        })
-
-    def set_feature_weights_matrix(
-        self,
-        trainee_id: str,
-        feature_weights_matrix: Dict[str, Dict[str, float]],
-        use_feature_weights: bool = True
-    ) -> None:
-        """
-        Set the feature weights for all the features in the Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        feature_weights_matrix : dict
-            A dictionary of feature names to a dictionary of feature names to
-            weight values.
-        use_feature_weights : bool, default True
-            When set to true, forces the trainee to use the specified feature
-            weights
-        """
-        return self._execute("set_feature_weights_matrix", {
-            "trainee": trainee_id,
-            "feature_weights_matrix": feature_weights_matrix,
-            "use_feature_weights": use_feature_weights,
-        })
-
-    def get_feature_weights_matrix(self, trainee_id: str
-                                   ) -> Dict[str, Dict[str, float]]:
-        """
-        Get the full feature weights matrix.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-
-        Returns
-        -------
-        dict
-            A dictionary of action feature names to dictionary of feature names
-            to feature weight.
-        """
-        return self._execute("get_feature_weights_matrix", {
-            "trainee": trainee_id
         })
 
     def clear_conviction_thresholds(self, trainee_id: str) -> None:
@@ -1032,9 +928,7 @@ class HowsoCore:
         trainee_id : str
             The identifier of the Trainee.
         """
-        return self._execute("clear_conviction_thresholds", {
-            "trainee": trainee_id,
-        })
+        return self._execute("clear_conviction_thresholds", trainee_id, {})
 
     def set_conviction_lower_threshold(self, trainee_id: str, threshold: float
                                        ) -> None:
@@ -1048,8 +942,7 @@ class HowsoCore:
         threshold : float
             The threshold value.
         """
-        return self._execute("set_conviction_lower_threshold", {
-            "trainee": trainee_id,
+        return self._execute("set_conviction_lower_threshold", trainee_id, {
             "conviction_lower_threshold": threshold,
         })
 
@@ -1065,8 +958,7 @@ class HowsoCore:
         threshold : float
             The threshold value.
         """
-        return self._execute("set_conviction_upper_threshold", {
-            "trainee": trainee_id,
+        return self._execute("set_conviction_upper_threshold", trainee_id, {
             "conviction_upper_threshold": threshold,
         })
 
@@ -1082,8 +974,7 @@ class HowsoCore:
         metadata : dict or None
             The metadata dictionary.
         """
-        return self._execute("set_metadata", {
-            "trainee": trainee_id,
+        return self._execute("set_metadata", trainee_id, {
             "metadata": metadata,
         })
 
@@ -1101,7 +992,7 @@ class HowsoCore:
         dict or None
             The metadata dictionary.
         """
-        return self._execute("get_metadata", {"trainee": trainee_id})
+        return self._execute("get_metadata", trainee_id, {})
 
     def retrieve_extreme_cases_for_feature(
         self,
@@ -1129,8 +1020,7 @@ class HowsoCore:
         dict
             A dictionary of keys 'cases' and 'features'.
         """
-        return self._execute("retrieve_extreme_cases_for_feature", {
-            "trainee": trainee_id,
+        return self._execute("retrieve_extreme_cases_for_feature", trainee_id, {
             "features": features,
             "sort_feature": sort_feature,
             "num": num,
@@ -1235,8 +1125,7 @@ class HowsoCore:
         session : str, optional
             The identifier of the Trainee session to associate the edit with.
         """
-        return self._execute("impute", {
-            "trainee": trainee_id,
+        return self._execute("impute", trainee_id, {
             "features": features,
             "features_to_impute": features_to_impute,
             "session": session,
@@ -1264,8 +1153,7 @@ class HowsoCore:
         session : str, optional
             The identifier of the Trainee session to associate this edit with.
         """
-        return self._execute("clear_imputed_session", {
-            "trainee": trainee_id,
+        return self._execute("clear_imputed_session", trainee_id, {
             "session": session,
             "impute_session": impute_session,
         })
@@ -1319,8 +1207,7 @@ class HowsoCore:
         dict
             A dictionary containing keys 'features' and 'cases'.
         """
-        return self._execute("get_cases", {
-            "trainee": trainee_id,
+        return self._execute("get_cases", trainee_id, {
             "features": features,
             "session": session,
             "case_indices": case_indices,
@@ -1354,8 +1241,7 @@ class HowsoCore:
         context_features : iterable of str, optional
             The list of feature names for contexts.
         """
-        return self._execute("append_to_series_store", {
-            "trainee": trainee_id,
+        return self._execute("append_to_series_store", trainee_id, {
             "context_features": context_features,
             "context_values": contexts,
             "series": series,
@@ -1496,8 +1382,7 @@ class HowsoCore:
         dict
             The react result including audit details.
         """
-        return self._execute("react", {
-            "trainee": trainee_id,
+        return self._execute("react", trainee_id, {
             "context_features": context_features,
             "context_values": context_values,
             "action_features": action_features,
@@ -1668,8 +1553,7 @@ class HowsoCore:
         int
             The result payload size.
         """
-        return self._execute_sized("batch_react", {
-            "trainee": trainee_id,
+        return self._execute_sized("batch_react", trainee_id, {
             "context_features": context_features,
             "context_values": context_values,
             "action_features": action_features,
@@ -1867,8 +1751,7 @@ class HowsoCore:
         int
             The result payload size.
         """
-        return self._execute_sized("batch_react_series", {
-            "trainee": trainee_id,
+        return self._execute_sized("batch_react_series", trainee_id, {
             "context_features": context_features,
             "context_values": context_values,
             "action_features": action_features,
@@ -1966,8 +1849,7 @@ class HowsoCore:
             If set to True will scale influence weights by each
             case's weight_feature weight.
         """
-        return self._execute("react_into_features", {
-            "trainee": trainee_id,
+        return self._execute("react_into_features", trainee_id, {
             "features": features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
@@ -2040,8 +1922,7 @@ class HowsoCore:
         dict
             The react response.
         """
-        return self._execute("batch_react_group", {
-            "trainee": trainee_id,
+        return self._execute("batch_react_group", trainee_id, {
             "features": features,
             "new_cases": new_cases,
             "distance_contributions": distance_contributions,
@@ -2171,8 +2052,7 @@ class HowsoCore:
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
         """
-        self._execute("react_into_trainee", {
-            "trainee": trainee_id,
+        self._execute("react_into_trainee", trainee_id, {
             "context_features": context_features,
             "use_case_weights": use_case_weights,
             "weight_feature": weight_feature,
@@ -2242,8 +2122,7 @@ class HowsoCore:
             A dict with familiarity_conviction_addition or
             familiarity_conviction_removal.
         """
-        return self._execute("compute_conviction_of_features", {
-            "trainee": trainee_id,
+        return self._execute("compute_conviction_of_features", trainee_id, {
             "features": features,
             "action_features": action_features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
@@ -2267,8 +2146,7 @@ class HowsoCore:
         list of int
             A list of the session indices for the session.
         """
-        return self._execute("get_session_indices", {
-            "trainee": trainee_id,
+        return self._execute("get_session_indices", trainee_id, {
             "session": session,
         })
 
@@ -2289,8 +2167,7 @@ class HowsoCore:
         list of int
             A list of the session training indices for the session.
         """
-        return self._execute("get_session_training_indices", {
-            "trainee": trainee_id,
+        return self._execute("get_session_training_indices", trainee_id, {
             "session": session,
         })
 
@@ -2305,8 +2182,7 @@ class HowsoCore:
         params : dict
             A dictionary containing the internal parameters.
         """
-        return self._execute("set_internal_parameters", {
-            "trainee": trainee_id,
+        return self._execute("set_internal_parameters", trainee_id, {
             **params
         })
 
@@ -2330,8 +2206,7 @@ class HowsoCore:
         dict
             The updated feature attributes.
         """
-        return self._execute("set_feature_attributes", {
-            "trainee": trainee_id,
+        return self._execute("set_feature_attributes", trainee_id, {
             "features": feature_attributes,
         })
 
@@ -2349,7 +2224,7 @@ class HowsoCore:
         dict
             A dictionary of feature name to dictionary of feature attributes.
         """
-        return self._execute("get_feature_attributes", {"trainee": trainee_id})
+        return self._execute("get_feature_attributes", trainee_id, {})
 
     def export_trainee(
         self,
@@ -2375,8 +2250,7 @@ class HowsoCore:
         if path_to_trainee is None:
             path_to_trainee = self.default_save_path
 
-        return self._execute("export_trainee", {
-            "trainee": trainee_id,
+        return self._execute("export_trainee", trainee_id, {
             "trainee_filepath": f"{path_to_trainee}/",
             "root_filepath": f"{self.howso_path}/",
             "decode_cases": decode_cases,
@@ -2404,8 +2278,7 @@ class HowsoCore:
         if path_to_trainee is None:
             path_to_trainee = self.default_save_path
 
-        return self._execute("upgrade_trainee", {
-            "trainee": trainee_id,
+        return self._execute("upgrade_trainee", trainee_id, {
             "trainee_filepath": f"{path_to_trainee}/",
             "root_filepath": f"{self.howso_path}/",
             "separate_files": separate_files,
@@ -2422,8 +2295,8 @@ class HowsoCore:
         kwargs : dict
             Analysis arguments.
         """
-        params = {**kwargs, "trainee": trainee_id}
-        return self._execute("analyze", params)
+        params = {**kwargs}
+        return self._execute("analyze", trainee_id, params)
 
     def get_feature_residuals(
         self,
@@ -2439,8 +2312,7 @@ class HowsoCore:
         .. deprecated:: 1.0.0
             Use get_prediction_stats() instead.
         """
-        return self._execute("get_feature_residuals", {
-            "trainee": trainee_id,
+        return self._execute("get_feature_residuals", trainee_id, {
             "robust": robust,
             "action_feature": action_feature,
             "robust_hyperparameters": robust_hyperparameters,
@@ -2461,8 +2333,7 @@ class HowsoCore:
         .. deprecated:: 1.0.0
             Use get_prediction_stats() instead.
         """
-        return self._execute("get_feature_mda", {
-            "trainee": trainee_id,
+        return self._execute("get_feature_mda", trainee_id, {
             "robust": robust,
             "action_feature": action_feature,
             "permutation": permutation,
@@ -2483,8 +2354,7 @@ class HowsoCore:
         .. deprecated:: 1.0.0
             Use get_prediction_stats() instead.
         """
-        return self._execute("get_feature_contributions", {
-            "trainee": trainee_id,
+        return self._execute("get_feature_contributions", trainee_id, {
             "robust": robust,
             "action_feature": action_feature,
             "directional": directional,
@@ -2549,8 +2419,7 @@ class HowsoCore:
         dict of str to dict of str to float
             A map of feature to map of stat type to stat values.
         """
-        return self._execute("get_prediction_stats", {
-            "trainee": trainee_id,
+        return self._execute("get_prediction_stats", trainee_id, {
             "robust": robust,
             "action_feature": action_feature,
             "condition": condition,
@@ -2610,8 +2479,7 @@ class HowsoCore:
         dict of str to dict of str to float
             A map of feature names to map of stat type to stat values.
         """
-        return self._execute("get_marginal_stats", {
-            "trainee": trainee_id,
+        return self._execute("get_marginal_stats", trainee_id, {
             "condition": condition,
             "num_cases": num_cases,
             "precision": precision,
@@ -2630,8 +2498,7 @@ class HowsoCore:
         seed: int or float or str
             The random seed.
         """
-        return self._execute("set_random_seed", {
-            "trainee": trainee_id,
+        return self._execute("set_random_seed", trainee_id, {
             "seed": seed,
         })
 
@@ -2678,8 +2545,7 @@ class HowsoCore:
             parameters or only the best hyperparameters selected using the
             passed parameters.
         """
-        return self._execute("get_internal_parameters", {
-            "trainee": trainee_id,
+        return self._execute("get_internal_parameters", trainee_id, {
             "action_feature": action_feature,
             "context_features": context_features,
             "mode": mode,
@@ -2750,8 +2616,7 @@ class HowsoCore:
         dict
             A dictionary with key 'count' for the number of moved cases.
         """
-        result = self._execute("move_cases", {
-            "trainee": trainee_id,
+        result = self._execute("move_cases", trainee_id, {
             "target_id": target_id,
             "case_indices": case_indices,
             "condition": condition,
@@ -2817,8 +2682,7 @@ class HowsoCore:
         dict
             A dictionary with key 'count' for the number of removed cases.
         """
-        result = self._execute("remove_cases", {
-            "trainee": trainee_id,
+        result = self._execute("remove_cases", trainee_id, {
             "case_indices": case_indices,
             "condition": condition,
             "condition_session": condition_session,
@@ -2882,8 +2746,7 @@ class HowsoCore:
         dict
             A dictionary with key 'count' for the number of modified cases.
         """
-        result = self._execute("edit_cases", {
-            "trainee": trainee_id,
+        result = self._execute("edit_cases", trainee_id, {
             "case_indices": case_indices,
             "condition": condition,
             "condition_session": condition_session,
@@ -2953,8 +2816,7 @@ class HowsoCore:
             A list of computed pairwise distances between each corresponding
             pair of cases in `from_case_indices` and `to_case_indices`.
         """
-        return self._execute("pairwise_distances", {
-            "trainee": trainee_id,
+        return self._execute("pairwise_distances", trainee_id, {
             "features": features,
             "action_feature": action_feature,
             "from_case_indices": from_case_indices,
@@ -3016,8 +2878,7 @@ class HowsoCore:
             A dictionary of keys, 'distances', 'row_case_indices' and
             'column_case_indices'.
         """
-        return self._execute("distances", {
-            "trainee": trainee_id,
+        return self._execute("distances", trainee_id, {
             "features": features,
             "action_feature": action_feature,
             "case_indices": case_indices,
@@ -3057,9 +2918,8 @@ class HowsoCore:
             A dictionary with keys: 'evaluated' and 'aggregated'.
         """
         return self._execute(
-            "evaluate",
+            "evaluate", trainee_id,
             {
-                "trainee": trainee_id,
                 "features_to_code_map": features_to_code_map,
                 "aggregation_code": aggregation_code
             })
@@ -3074,7 +2934,7 @@ class HowsoCore:
             The identifier of the Trainee.
         """
         return self._execute(
-            "reset_parameter_defaults", {"trainee": trainee_id})
+            "reset_parameter_defaults", trainee_id,  {})
 
     def get_hierarchy(self, trainee_id: str) -> Dict:
         """
@@ -3086,7 +2946,7 @@ class HowsoCore:
             Dictionary of the currently contained hierarchy as a nested dict
             with False for trainees that are stored independently.
         """
-        return self._execute("get_hierarchy", {"trainee": trainee_id})
+        return self._execute("get_hierarchy", trainee_id, {})
 
     def rename_subtrainee(
         self,
@@ -3112,9 +2972,8 @@ class HowsoCore:
             subtrainee to rename.
         """
         return self._execute(
-            "rename_subtrainee",
+            "rename_subtrainee", trainee_id,
             {
-                "trainee": trainee_id,
                 "new_name": new_name,
                 "child_name_path": child_name_path,
                 "child_id": child_id
@@ -3164,9 +3023,8 @@ class HowsoCore:
             Whatever output the executed method returns.
         """
         return self._execute(
-            "execute_on_subtrainee",
+            "execute_on_subtrainee", trainee_id,
             {
-                "trainee": trainee_id,
                 "method": method,
                 "as_external": as_external,
                 "child_name_path": child_name_path,

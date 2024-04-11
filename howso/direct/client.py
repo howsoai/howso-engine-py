@@ -386,7 +386,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             The ID of the Trainee that should retrieve the Howso version.
         """
         amlg_version = self.howso.amlg.get_version_string()
-        self.howso.version()
         trace_version = f"client: {CLIENT_VERSION}  amalgam: {amlg_version}"
 
         # don't need to return the output, make the call to core in order for
@@ -679,14 +678,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         self._auto_resolve_trainee(trainee_id)
         trainee_version = self.howso.get_trainee_version(trainee_id)
-        core_version = self.howso.version()
         amlg_version = self.howso.amlg.get_version_string().decode()
         library_type = 'st'
         if self.howso.amlg.library_postfix:
             library_type = self.howso.amlg.library_postfix[1:]
 
         version = TraineeVersion(
-            core=core_version,
             amalgam=amlg_version,
             trainee=trainee_version
         )
@@ -5862,85 +5859,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             weight_feature, use_case_weights)
         self._auto_persist_trainee(trainee_id)
         return weights
-
-    def set_feature_weights(
-        self,
-        trainee_id: str,
-        feature_weights: Optional[Dict[str, float]] = None,
-        action_feature: Optional[str] = None,
-        use_feature_weights: bool = True
-    ):
-        """
-        Set the weights for the features in the Trainee.
-
-        If action_feature is not specified, it will set the passed in weights
-        as targetless.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee.
-        action_feature : str, optional
-            Action feature for which to set the specified feature weights for
-        feature_weights : dict, optional
-            A dictionary of feature names -> weight values.
-            Ex {"a", 1.0, "b": 0.1, "c": 0.5, ... , "z": 1.0}
-            If not set, the feature weights are cleared in the model
-        use_feature_weights : bool, default True
-            When set to true, forces the trainee to use the specified feature
-            weights
-        """
-        self._auto_resolve_trainee(trainee_id)
-        self.howso.set_feature_weights(
-            trainee_id, feature_weights, action_feature, use_feature_weights)
-        self._auto_persist_trainee(trainee_id)
-
-    def set_feature_weights_matrix(
-        self,
-        trainee_id: str,
-        feature_weights_matrix: Dict[str, Dict[str, float]],
-        use_feature_weights: bool = True
-    ):
-        """
-        Set the feature weights for all the features in the Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee.
-        feature_weights_matrix : dict
-            A dictionary of feature names to a dictionary of feature names to
-            weight values.
-            i.e. {"a" : {"a", 1.0, "b": 0.1, "c": 0.5, ... , "z": 1.0} }
-        use_feature_weights : bool, default True
-            When set to true, forces the trainee to use the specified feature
-            weights.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        self.howso.set_feature_weights_matrix(
-            trainee_id, feature_weights_matrix, use_feature_weights)
-        self._auto_persist_trainee(trainee_id)
-
-    def get_feature_weights_matrix(
-        self,
-        trainee_id: str
-    ) -> Dict[str, Dict[str, float]]:
-        """
-        Get the full feature weights matrix.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee.
-
-        Returns
-        -------
-        dict
-            A dictionary of action feature names to dictionary of feature names
-            to feature weight.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        return self.howso.get_feature_weights_matrix(trainee_id)
 
     def get_feature_attributes(self, trainee_id: str) -> Dict[str, Dict]:
         """
