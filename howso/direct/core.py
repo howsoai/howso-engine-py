@@ -78,13 +78,10 @@ class HowsoCore:
 
     def __init__(  # noqa: C901
         self,
-        handle: Optional[str] = None,
         library_path: Optional[str] = None,
         gc_interval: int = 100,
         howso_path: Path = DEFAULT_CORE_PATH,
-        trainee_template_path: Path = DEFAULT_CORE_PATH,
         howso_fname: str = "howso.caml",
-        trainee_template_fname: str = "trainee_template.caml",
         write_log: Optional[str] = None,
         print_log: Optional[str] = None,
         trace: bool = False,
@@ -92,7 +89,6 @@ class HowsoCore:
         max_num_threads: int = 0,
         **kwargs
     ):
-        self.handle = handle if handle is not None else self.random_handle()
         if kwargs.get("amlg_debug", None) is not None:
             if trace is None:
                 trace = kwargs["amlg_debug"]
@@ -211,22 +207,18 @@ class HowsoCore:
         if core_params.get('download', False):
             self.howso_path = Path(
                 self.download_core(core_params)).expanduser()
-            self.trainee_template_path = self.howso_path
             self.default_save_path = Path(self.howso_path, 'trainee')
 
         # If version is set, but download not, use the default download location
         elif version := core_params.get('version'):
             # Set paths, ensuring tailing slash
             self.howso_path = Path(Path.home(), core_lib_dirname, version)
-            self.trainee_template_path = self.howso_path
             self.default_save_path = Path(self.howso_path, "trainee")
 
         # .... otherwise use default locations
         else:
             # Set paths, ensuring tailing slash
             self.howso_path = Path(howso_path).expanduser()
-            self.trainee_template_path = Path(
-                trainee_template_path).expanduser()
             self.default_save_path = Path(self.howso_path, "trainee")
 
         # Allow for trainee save directory to be overridden
@@ -249,8 +241,7 @@ class HowsoCore:
             self.print_log.mkdir()
 
         self.howso_fname = howso_fname
-        self.trainee_template_fname = trainee_template_fname
-        self.ext = trainee_template_fname[trainee_template_fname.rindex('.'):]
+        self.ext = howso_fname[howso_fname.rindex('.'):]
 
         self.howso_fully_qualified_path = Path(
             self.howso_path, self.howso_fname)
@@ -261,32 +252,6 @@ class HowsoCore:
         _logger.debug(
             'Using howso-core location: '
             f'{self.howso_fully_qualified_path}')
-
-        self.trainee_template_fully_qualified_path = Path(
-            self.trainee_template_path, self.trainee_template_fname)
-        if not self.trainee_template_fully_qualified_path.exists():
-            raise HowsoError(
-                'Howso core file '
-                f'{self.trainee_template_fully_qualified_path} does not exist')
-        _logger.debug('Using howso-core trainee template location: '
-                      f'{self.trainee_template_fully_qualified_path}')
-
-        if self.handle in self.get_entities():
-            self.loaded = True
-        else:
-            status = self.amlg.load_entity(
-                handle=self.handle,
-                amlg_path=str(self.howso_fully_qualified_path),
-                write_log=str(self.write_log),
-                print_log=str(self.print_log)
-            )
-            self.loaded = status.loaded
-            if not self.loaded:
-                raise HowsoError(
-                    'Howso core file '
-                    f'{self.howso_fully_qualified_path} cannot be loaded: load_status=\'{status}\''
-                    f', amalgam=\'{self.amlg.get_version_string()}\'')
-            self._set_label("filepath", f"{self.trainee_template_path}/")
 
     @staticmethod
     def random_handle() -> str:
@@ -311,31 +276,27 @@ class HowsoCore:
     def __str__(self) -> str:
         """Return a string representation of the HowsoCore object."""
         template = (
-            "Trainee template:\t %s%s\n "
             "Howso Path:\t\t %s%s\n "
             "Save Path:\t\t %s\n "
             "Write Log:\t\t %s\n "
-            "Print Log:\t\t %s\n "
-            "Handle:\t\t\t %s\n %s")
+            "Print Log:\t\t %s\n ")
         return template % (
-            self.trainee_template_path,
-            self.trainee_template_fname,
             self.howso_path,
             self.howso_fname,
             self.default_save_path,
             self.write_log,
             self.print_log,
-            self.handle,
             str(self.amlg)
         )
 
     def version(self) -> str:
         """Return the version of the Howso Core."""
-        if self.trainee_template_fname.split('.')[1] == 'amlg':
-            version = "9.9.9"
-        else:
-            version = self._execute("version", {})
-        return version
+        return "0.0.0"
+        # if self.howso_fname.split('.')[1] == 'amlg':
+        #     version = "9.9.9"
+        # else:
+        #     version = self._execute("version", {})
+        # return version
 
     def get_trainee_version(
         self,
@@ -353,8 +314,7 @@ class HowsoCore:
             A version comment to include in the trace file. Useful to capture
             client and amalgam versions.
         """
-        return self._execute("get_trainee_version", {
-            "trainee": trainee_id,
+        return self._execute("get_trainee_version", trainee_id, {
             "version": trace_version,
         })
 
@@ -372,14 +332,14 @@ class HowsoCore:
         dict
             A dict containing the name of the trainee that was created.
         """
-        fname = self.trainee_template_fname.split('.')
-        return self._execute("create_trainee", {
-            "trainee": trainee_id,
-            "filepath": f"{self.trainee_template_path}/",
-            "trainee_template_filename": fname[0],
-            "file_extension": fname[1],
-            "trainee_id": trainee_id
-        })
+        status = self.amlg.load_entity(
+            trainee_id,
+            self.howso_fully_qualified_path,
+            False,
+            False,
+        )
+        if not status.loaded:
+            raise ValueError("Error loading the Trainee")
 
     def get_loaded_trainees(self) -> List[str]:
         """
@@ -390,7 +350,7 @@ class HowsoCore:
         list of str
             A list of trainee identifiers that are currently loaded.
         """
-        return self._execute("get_loaded_trainees", {})
+        return self.get_entities()
 
     def get_entities(self) -> List[str]:
         """
@@ -429,12 +389,15 @@ class HowsoCore:
         filename = trainee_id if filename is None else filename
         filepath = f"{self.default_save_path}/" if filepath is None else filepath
 
-        ret = self._execute("load", {
-            "trainee": trainee_id,
-            "filename": filename,
-            "filepath": filepath,
-        })
-        return ret
+        status = self.amlg.load_entity(
+            trainee_id,
+            str(Path(filepath, filename)),
+            False,
+            False,
+        )
+        if not status.loaded:
+            raise ValueError("Error loading the Trainee")
+        return trainee_id
 
     def persist(
         self,
@@ -457,12 +420,13 @@ class HowsoCore:
         filename = trainee_id if filename is None else filename
         filepath = (
             f"{self.default_save_path}/" if filepath is None else filepath)
-        return self._execute("save", {
-            "trainee": trainee_id,
-            "filename": filename,
-            "filepath": filepath,
-            "trainee_id": trainee_id
-        })
+
+        self.amlg.store_entity(
+            trainee_id,
+            str(Path(filepath, filename)),
+            True,
+            True,
+        )
 
     def delete(self, trainee_id: str) -> None:
         """
@@ -473,7 +437,7 @@ class HowsoCore:
         trainee_id : str
             The identifier of the Trainee to delete.
         """
-        return self._execute("delete", {"trainee": trainee_id})
+        return self.amlg.destroy_entity(trainee_id)
 
     def copy(self, trainee_id: str, target_trainee_id: str) -> Dict:
         """
@@ -1230,8 +1194,7 @@ class HowsoCore:
         int
             The result payload size.
         """
-        return self._execute_sized("train", {
-            "trainee": trainee_id,
+        return self._execute_sized("train", trainee_id, {
             "input_cases": input_cases,
             "accumulate_weight_feature": accumulate_weight_feature,
             "derived_features": derived_features,
