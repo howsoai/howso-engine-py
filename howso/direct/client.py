@@ -86,9 +86,6 @@ VERSION_CHECK_HOST = "https://version-check.howso.com"
 # Cache of trainee information shared across client instances
 _trainee_cache = TraineeCache()
 
-# Cache of core entities shared across client instances
-_core_cache = dict()
-
 
 @contextmanager
 def squelch_logs(log_level: int):
@@ -160,7 +157,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         config_path: Union[str, Path, None] = None,
         debug: bool = False,
-        handle: Optional[str] = None,
         react_initial_batch_size: int = 10,
         train_initial_batch_size: int = 100,
         verbose: bool = False,
@@ -182,7 +178,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 self.version_check_task.add_done_callback(self.report_version)
 
         super().__init__()
-        handle = str(handle or self.DEFAULT_HANDLE)
 
         # Show deprecation warnings to the user.
         warnings.filterwarnings("default", category=DeprecationWarning)
@@ -195,18 +190,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.configuration = HowsoConfiguration(
             config_path=config_path, verbose=verbose)
 
-        if howso_core is None:
-            if handle not in _core_cache:
-                _core_cache[handle] = HowsoCore(
-                    self.get_unique_handle(handle),
-                    **kwargs
-                )
-            self.howso = _core_cache[handle]
-        elif isinstance(howso_core, HowsoCore):
-            self.howso = howso_core
-        else:
-            raise ValueError("The client parameter howso_core must be "
-                             "an instance of HowsoCore")
+        self.howso = HowsoCore(
+            **kwargs
+        )
+
         self.batch_scaler_class = internals.BatchScalingManager
         self._active_session = None
         self._react_generative_batch_threshold = 1
@@ -545,7 +532,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._output_version_in_trace(trainee_id)
 
         new_trainee = internals.postprocess_trainee(trainee)
-        self.trainee_cache.set(new_trainee, entity_id=self.howso.handle)
+        self.trainee_cache.set(new_trainee, entity_id=trainee_id)
         return new_trainee
 
     def update_trainee(self, trainee: Trainee) -> Trainee:
@@ -1157,16 +1144,16 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if trainee_id not in self.trainee_cache:
             self.acquire_trainee_resources(trainee_id)
-        else:
-            entity_id = self.trainee_cache.get_item(trainee_id).get('entity_id')
-            if entity_id != self.howso.handle:
-                raise HowsoError(
-                    f"Attempted to access the trainee '{trainee_id}' via a "
-                    "client using a different core entity than the entity "
-                    "where the trainee is currently loaded. Use the "
-                    "HowsoClient instance with the core entity handle "
-                    f"'{self.howso.handle}' instead to access this trainee or "
-                    "release it via the other client first.")
+        # else:
+        #     entity_id = self.trainee_cache.get_item(trainee_id).get('entity_id')
+        #     if entity_id != self.howso.handle:
+        #         raise HowsoError(
+        #             f"Attempted to access the trainee '{trainee_id}' via a "
+        #             "client using a different core entity than the entity "
+        #             "where the trainee is currently loaded. Use the "
+        #             "HowsoClient instance with the core entity handle "
+        #             f"'{self.howso.handle}' instead to access this trainee or "
+        #             "release it via the other client first.")
 
     def _auto_persist_trainee(self, trainee_id: str):
         """

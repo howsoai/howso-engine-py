@@ -115,7 +115,7 @@ class HowsoCore:
             'sbf_datastore_enabled': sbf_datastore_enabled,
             'max_num_threads': max_num_threads,
             'trace': self.trace,
-            'execution_trace_file': self.handle + "_execution.trace",
+            'execution_trace_file': "RAND_execution.trace",  # TODO:replace this with actual RAND
         }
 
         if amalgam_opts := kwargs.get("amalgam", {}):
@@ -325,12 +325,13 @@ class HowsoCore:
         """
         status = self.amlg.load_entity(
             trainee_id,
-            self.howso_fully_qualified_path,
+            str(self.howso_fully_qualified_path),
             False,
             False,
         )
         if not status.loaded:
             raise ValueError("Error loading the Trainee")
+        return trainee_id
 
     def get_loaded_trainees(self) -> List[str]:
         """
@@ -444,8 +445,14 @@ class HowsoCore:
         dict
             A dict containing the name of the trainee that was created by copy.
         """
-        #TODO: create a copy of the trainee handle
-        return None
+        cloned_successfully = self.amlg.clone_entity(
+            trainee_id,
+            target_trainee_id,
+            # TODO: make persistent and where to file path?
+        )
+
+        if not cloned_successfully:
+            raise ValueError("Cloning was unsuccessful.")
 
     def copy_subtrainee(
         self,
@@ -3074,12 +3081,14 @@ class HowsoCore:
         self.amlg.set_json_to_label(
             self.handle, label, json.dumps(payload))
 
-    def _execute(self, label: str, payload: Any) -> Any:
+    def _execute(self, handle: str, label: str, payload: Any) -> Any:
         """
         Execute label in core.
 
         Parameters
         ----------
+        handle : str
+            The entity handle of the Trainee
         label : str
             The label to execute.
         payload : Any
@@ -3094,7 +3103,7 @@ class HowsoCore:
         payload = self._remove_null_entries(payload)
         try:
             result = self.amlg.execute_entity_json(
-                self.handle, label, json.dumps(payload))
+                handle, label, json.dumps(payload))
         except ValueError as err:
             raise HowsoError(
                 'Invalid payload - please check for infinity or NaN '
