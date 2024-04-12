@@ -329,7 +329,10 @@ class HowsoCore:
             False,
             True,
         )
-        self._execute(trainee_id, "initialize", {})
+        self._execute(trainee_id, "initialize", {
+            "trainee_id": trainee_id,
+            "filepath": str(self.howso_path) + '/',
+        })
         if not status.loaded:
             raise ValueError("Error loading the Trainee")
         return trainee_id
