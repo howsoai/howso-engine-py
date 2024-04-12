@@ -328,6 +328,8 @@ class HowsoCore:
             str(self.howso_fully_qualified_path),
             False,
             True,
+            False,
+            False
         )
         self._execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,
@@ -1003,7 +1005,7 @@ class HowsoCore:
         dict or None
             The metadata dictionary.
         """
-        return self._execute(trainee_id, "get_metadata",{})
+        return self._execute(trainee_id, "get_metadata", {})
 
     def retrieve_extreme_cases_for_feature(
         self,

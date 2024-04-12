@@ -1083,14 +1083,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         try:
             cache_item = self.trainee_cache.get_item(trainee_id)
             trainee = cache_item['trainee']
-            if cache_item.get('entity_id', self.howso.handle) == self.howso.handle:
-                if trainee.persistence in ['allow', 'always']:
-                    # Persist on unload
-                    self.howso.persist(trainee_id)
-                elif trainee.persistence == "never":
-                    raise HowsoError(
-                        "Trainees set to never persist may not have their "
-                        "resources released. Delete the Trainee instead.")
+
+            if trainee.persistence in ['allow', 'always']:
+                # Persist on unload
+                self.howso.persist(trainee_id)
+            elif trainee.persistence == "never":
+                raise HowsoError(
+                    "Trainees set to never persist may not have their "
+                    "resources released. Delete the Trainee instead.")
                 self.trainee_cache.discard(trainee_id)
         except KeyError:
             # Trainee not cached, ignore
