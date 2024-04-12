@@ -687,7 +687,7 @@ jobs:
         artifactErrorsFailBuild: true
         body: ${{ needs.generate-changelog.outputs.changelog }}
         makeLatest: legacy
-        artifacts: "./tmp/howso-engine-*/howso-engine-*.tar.gz,./tmp/howso_engine-*/howso_engine-*.whl"
+        artifacts: "./tmp/howso_engine-*/howso_engine-*.tar.gz,./tmp/howso_engine-*/howso_engine-*.whl"
         artifactContentType: application/gzip
 
     - name: Clean up dir
