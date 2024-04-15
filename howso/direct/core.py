@@ -115,7 +115,7 @@ class HowsoCore:
             'sbf_datastore_enabled': sbf_datastore_enabled,
             'max_num_threads': max_num_threads,
             'trace': self.trace,
-            'execution_trace_file': "RAND_execution.trace",  # TODO:replace this with actual RAND
+            'execution_trace_file': f"{self.random_handle()}_execution.trace",
         }
 
         if amalgam_opts := kwargs.get("amalgam", {}):
@@ -389,7 +389,7 @@ class HowsoCore:
 
         status = self.amlg.load_entity(
             trainee_id,
-            str(Path(filepath, filename)),
+            str(Path(filepath, filename)) + ".caml",
             False,
             False,
         )
@@ -421,7 +421,7 @@ class HowsoCore:
 
         self.amlg.store_entity(
             trainee_id,
-            str(Path(filepath, filename))
+            str(Path(filepath, filename)) + ".caml"
         )
 
     def delete(self, trainee_id: str) -> None:
