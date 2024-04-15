@@ -13,6 +13,7 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Tuple,
     Union,
 )
 import uuid
@@ -29,10 +30,12 @@ from howso.openapi.models import (
     Trainee,
 )
 
-from ..engine.typing import CaseIndices
 from .internals import serialize_openapi_models
 
+
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
+# Custom type for case_indices parameter
+CaseIndices = Iterable[Union[List[Union[str, int]], Tuple[Union[str, int]]]]
 DATETIME_TIMEZONE_PATTERN = re.compile(r"(?<!%)(?:%%)*(%z)", re.IGNORECASE)
 DATETIME_UTC_Z_PATTERN = re.compile(r"\dZ$")
 EPOCH = dt.datetime.utcfromtimestamp(0)
