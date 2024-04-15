@@ -760,6 +760,7 @@ class Trainee(BaseTrainee):
         batch_size: Optional[int] = None,
         derived_features: Optional[Iterable[str]] = None,
         features: Optional[Iterable[str]] = None,
+        initial_batch_size: Optional[int] = None,
         input_is_substituted: bool = False,
         progress_callback: Optional[Callable] = None,
         series: Optional[str] = None,
@@ -793,6 +794,12 @@ class Trainee(BaseTrainee):
             ``cases`` is not a DataFrame with named columns. Otherwise, this parameter
             can be provided when you do not want to train on all of the features
             in ``cases`` or you want to re-order the features in ``cases``.
+        initial_batch_size : int, optional
+            Define the number of cases to train in the first batch. If
+            unspecified, a default defined by the ``train_initial_batch_size``
+            property of the selected client will be used.
+            The number of cases in following batches will be automatically
+            adjusted. This value is ignored if ``batch_size`` is specified.
         input_is_substituted : bool, default False
             If True assumes provided nominal feature values have already
             been substituted.
@@ -832,6 +839,7 @@ class Trainee(BaseTrainee):
                 cases=cases,
                 derived_features=derived_features,
                 features=features,
+                initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
                 progress_callback=progress_callback,
                 series=series,
@@ -1193,6 +1201,7 @@ class Trainee(BaseTrainee):
         action_features: Optional[Iterable[str]] = None,
         actions: Optional[TabularData2D] = None,
         allow_nulls: bool = False,
+        batch_size: Optional[int] = None,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         derived_action_features: Optional[Iterable[str]] = None,
@@ -1204,6 +1213,7 @@ class Trainee(BaseTrainee):
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[MutableMapping[str, MutableMapping[str, object]]] = None,
         generate_new_cases: GenerateNewCases = "no",
+        initial_batch_size: Optional[int] = None,
         input_is_substituted: bool = False,
         into_series_store: Optional[str] = None,
         leave_case_out: Optional[bool] = None,
@@ -1243,6 +1253,9 @@ class Trainee(BaseTrainee):
             When true will allow return of null values if there
             are nulls in the local model for the action features, applicable
             only to discriminative reacts.
+        batch_size: int, optional
+            Define the number of cases to react to at once. If left unspecified,
+            the batch size will be determined automatically.
         case_indices : iterable of (str, int), optional
             Iterable of Sequences, of session id and index, where index
             is the original 0-based index of the case as it was trained into
@@ -1510,6 +1523,12 @@ class Trainee(BaseTrainee):
                   not guaranteed to be a new case (that is, a case not found
                   in original dataset.)
 
+        initial_batch_size: int, optional
+            Define the number of cases to react to in the first batch. If
+            unspecified, a default defined by the ``react_initial_batch_size``
+            property of the selected client will be used.
+            The number of cases in following batches will be automatically
+            adjusted. This value is ignored if ``batch_size`` is specified.
         input_is_substituted : bool, default False
             When True, assumes provided categorical (nominal or ordinal)
             feature values have already been substituted.
@@ -1575,6 +1594,7 @@ class Trainee(BaseTrainee):
             action_features=action_features,
             actions=actions,
             allow_nulls=allow_nulls,
+            batch_size=batch_size,
             case_indices=case_indices,
             contexts=contexts,
             context_features=context_features,
@@ -1585,6 +1605,7 @@ class Trainee(BaseTrainee):
             exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
             feature_bounds_map=feature_bounds_map,
             generate_new_cases=generate_new_cases,
+            initial_batch_size=initial_batch_size,
             input_is_substituted=input_is_substituted,
             into_series_store=into_series_store,
             leave_case_out=leave_case_out,
@@ -1608,6 +1629,7 @@ class Trainee(BaseTrainee):
         *,
         action_features: Optional[Iterable[str]] = None,
         actions: Optional[TabularData2D] = None,
+        batch_size: Optional[int] = None,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
         continue_series: bool = False,
@@ -1623,6 +1645,7 @@ class Trainee(BaseTrainee):
         generate_new_cases: GenerateNewCases = "no",
         series_index: str = ".series",
         init_time_steps: Optional[List[object]] = None,
+        initial_batch_size: Optional[int] = None,
         initial_features: Optional[Iterable[str]] = None,
         initial_values: Optional[TabularData2D] = None,
         input_is_substituted: bool = False,
@@ -1661,6 +1684,9 @@ class Trainee(BaseTrainee):
             See parameter ``action_features`` in :meth:`react`.
         actions : DataFrame or 2-dimensional list of object, optional
             See parameter ``actions`` in :meth:`react`.
+        batch_size: int, optional
+            Define the number of series to react to at once. If left
+            unspecified, the batch size will be determined automatically.
         case_indices : CaseIndices
             See parameter ``case_indices`` in :meth:`react`.
         context_features : list of str, optional
@@ -1711,6 +1737,11 @@ class Trainee(BaseTrainee):
             The time steps at which to begin synthesis. Time-series only.
             Time-series only. Must provide either one for all series, or
             exactly one per series.
+        initial_batch_size: int, optional
+            The number of series to react to in the first batch. If unspecified,
+            the number will be determined automatically by the client. The
+            number of series in following batches will be automatically
+            adjusted. This value is ignored if ``batch_size`` is specified.
         initial_features : list of str, optional
             Features to condition just the first case in a series,
             overwrites context_features and derived_context_features for that
@@ -1802,6 +1833,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 action_features=action_features,
                 actions=actions,
+                batch_size=batch_size,
                 case_indices=case_indices,
                 contexts=contexts,
                 context_features=context_features,
@@ -1818,6 +1850,7 @@ class Trainee(BaseTrainee):
                 generate_new_cases=generate_new_cases,
                 series_index=series_index,
                 init_time_steps=init_time_steps,
+                initial_batch_size=initial_batch_size,
                 initial_features=initial_features,
                 initial_values=initial_values,
                 input_is_substituted=input_is_substituted,
@@ -1840,7 +1873,7 @@ class Trainee(BaseTrainee):
                 weight_feature=weight_feature,
             )
         else:
-            raise ValueError("Trainee ID is needed for setting feature attributes.")
+            raise ValueError("Trainee ID is needed for react_series.")
 
     def impute(
         self,

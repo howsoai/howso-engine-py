@@ -117,8 +117,8 @@ jobs:
     - name: Upload Tarball Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: howso-engine-${{ needs.metadata.outputs.version }}
-        path: dist/howso-engine-${{ needs.metadata.outputs.version }}.tar.gz
+        name: howso_engine-${{ needs.metadata.outputs.version }}
+        path: dist/howso_engine-${{ needs.metadata.outputs.version }}.tar.gz
         if-no-files-found: error
 
     - name: Upload Wheel Artifact
@@ -639,6 +639,13 @@ jobs:
       run: |
         cat howso_stacktrace.txt || true
 
+  generate-changelog:
+    if: inputs.build-type == 'release'
+    secrets: inherit
+    needs:
+      - metadata
+    uses: "howsoai/.github/.github/workflows/release-notes.yml@main"
+
   release:
     if: inputs.build-type == 'release'
     environment:
@@ -648,6 +655,7 @@ jobs:
       id-token: write
     needs:
       - metadata
+      - generate-changelog
       - workflow-summary
       - pytest-linux-3-8-st
       - pytest-linux-3-9-mt
@@ -677,9 +685,9 @@ jobs:
         commit: ${{ github.sha }}
         name: ${{ github.event.repository.name }} ${{ needs.metadata.outputs.version }}
         artifactErrorsFailBuild: true
-        generateReleaseNotes: true
+        body: ${{ needs.generate-changelog.outputs.changelog }}
         makeLatest: legacy
-        artifacts: "./tmp/howso-engine-*/howso-engine-*.tar.gz,./tmp/howso_engine-*/howso_engine-*.whl"
+        artifacts: "./tmp/howso_engine-*/howso_engine-*.tar.gz,./tmp/howso_engine-*/howso_engine-*.whl"
         artifactContentType: application/gzip
 
     - name: Clean up dir

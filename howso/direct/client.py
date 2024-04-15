@@ -128,6 +128,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         The howso core entity handle to use.
 
         If None, :attr:`HowsoDirectClient.DEFAULT_HANDLE` will be used.
+    react_initial_batch_size: int, default 10
+        The default number of cases to react to in the first batch
+        for calls to :meth:`HowsoDirectClient.react`.
+    train_initial_batch_size: int, default 100
+        The default number of cases to train to in the first batch
+        for calls to :meth:`HowsoDirectClient.train`.
     verbose : bool, default False
         Set verbose output.
     version_check : bool, default True
@@ -155,6 +161,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         config_path: Union[str, Path, None] = None,
         debug: bool = False,
         handle: Optional[str] = None,
+        react_initial_batch_size: int = 10,
+        train_initial_batch_size: int = 100,
         verbose: bool = False,
         version_check: bool = True,
         **kwargs
@@ -203,6 +211,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._active_session = None
         self._react_generative_batch_threshold = 1
         self._react_discriminative_batch_threshold = 10
+        self._react_initial_batch_size = react_initial_batch_size
+        self._train_initial_batch_size = train_initial_batch_size
         self.begin_session()
 
     def check_version(self) -> Union[str, None]:
@@ -237,6 +247,62 @@ class HowsoDirectClient(AbstractHowsoClient):
                         f"Version {latest_version} of Howso Engine™ is "
                         f"available. You are using version {CLIENT_VERSION}. "
                         f"This is a pre-release version.")
+
+    @property
+    def react_initial_batch_size(self) -> int:
+        """
+        The default number of cases in the first react batch.
+
+        Returns
+        -------
+        int
+            The default number of cases to react to in the first batch.
+        """
+        return self._react_initial_batch_size
+
+    @react_initial_batch_size.setter
+    def react_initial_batch_size(self, initial_batch_size: int):
+        """
+        Set the default number of cases in the first react batch.
+
+        Parameters
+        ----------
+        initial_batch_size : int
+            The number of cases to react to in the first batch of
+            :meth:`HowsoDirectClient.react`.
+        """
+        if isinstance(initial_batch_size, int):
+            self._react_initial_batch_size = initial_batch_size
+        else:
+            raise ValueError("The initial batch size must be an integer.")
+
+    @property
+    def train_initial_batch_size(self) -> int:
+        """
+        The default number of cases in the first train batch.
+
+        Returns
+        -------
+        int
+            The default number of cases to train in the first batch.
+        """
+        return self._train_initial_batch_size
+
+    @train_initial_batch_size.setter
+    def train_initial_batch_size(self, initial_batch_size: int):
+        """
+        Set the default number of cases in the first train batch.
+
+        Parameters
+        ----------
+        initial_batch_size : int
+            The number of cases to train in the first batch of
+            :meth:`HowsoDirectClient.train`.
+        """
+        if isinstance(initial_batch_size, int):
+            self._train_initial_batch_size = initial_batch_size
+        else:
+            raise ValueError("The initial batch size must be an integer.")
 
     @property
     def active_session(self) -> Session:
@@ -421,7 +487,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if not trainee.id:
             # Default id to trainee name, or new uuid if no name
-            trainee.id =  trainee.name or str(uuid.uuid4())
+            trainee.id = trainee.name or str(uuid.uuid4())
 
         trainee_id = trainee.id
 
@@ -1225,6 +1291,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         accumulate_weight_feature: Optional[str] = None,
         batch_size: Optional[int] = None,
         derived_features: Optional[Iterable[str]] = None,
+        initial_batch_size: Optional[int] = None,
         input_is_substituted: bool = False,
         progress_callback: Optional[Callable] = None,
         series: Optional[str] = None,
@@ -1265,6 +1332,12 @@ class HowsoDirectClient(AbstractHowsoClient):
             auto-derived. If provided an empty list, no features are derived.
             Any derived_features that are already in the 'features' list will
             not be derived since their values are being explicitly provided.
+        initial_batch_size: int, optional
+            Define the number of cases to train in the first batch. If
+            unspecified, the value of the ``train_initial_batch_size`` property
+            is used. The number of cases in following batches will be
+            automatically adjusted. This value is ignored if ``batch_size`` is
+            specified.
         input_is_substituted : bool, default False
             if True assumes provided nominal feature values have
             already been substituted.
@@ -1351,7 +1424,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                 batch_size = len(cases)
             if not batch_size:
                 # Scale the batch size automatically
-                batch_scaler = self.batch_scaler_class(100, progress)
+                start_batch_size = initial_batch_size or self.train_initial_batch_size
+                batch_scaler = self.batch_scaler_class(
+                    start_batch_size, progress)
                 gen_batch_size = batch_scaler.gen_batch_size()
                 batch_size = next(gen_batch_size, None)
 
@@ -1924,6 +1999,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         action_features: Optional[Iterable[str]] = None,
         actions: Optional[Union[List[List[object]], DataFrame]] = None,
+        batch_size: Optional[int] = None,
         case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
         contexts: Optional[Union[List[List[object]], DataFrame]] = None,
         context_features: Optional[Iterable[str]] = None,
@@ -1939,6 +2015,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         final_time_steps: Optional[Union[List[object], List[List[object]]]] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
         init_time_steps: Optional[Union[List[object], List[List[object]]]] = None,
+        initial_batch_size: Optional[int] = None,
         initial_features: Optional[Iterable[str]] = None,
         initial_values: Optional[Union[List[object], List[List[object]]]] = None,
         input_is_substituted: bool = False,
@@ -2083,6 +2160,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             batched call to react series and at the end of reacting. The method
             is given a ProgressTimer containing metrics on the progress and
             timing of the react series operation, and the batch result.
+        batch_size: int, optional
+            Define the number of series to react to at once. If left
+            unspecified, the batch size will be determined automatically.
+        initial_batch_size: int, optional
+            The number of series to react to in the first batch. If unspecified,
+            the number will be determined automatically. The number of series
+            in following batches will be automatically adjusted. This value is
+            ignored if ``batch_size`` is specified.
         contexts: list of list of object or DataFrame
             See parameter ``contexts`` in :meth:`HowsoDirectClient.react`.
         action_features: iterable of str
@@ -2360,11 +2445,13 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "output_new_series_ids": output_new_series_ids,
             }
 
-        if self._should_react_batch(react_params, total_size):
+        if batch_size or self._should_react_batch(react_params, total_size):
             if self.verbose:
                 print(f'Batch series reacting on trainee with id: {trainee_id}')
             response = self._batch_react_series(
                 trainee_id, react_params, total_size=total_size,
+                batch_size=batch_size,
+                initial_batch_size=initial_batch_size,
                 progress_callback=progress_callback)
         else:
             if self.verbose:
@@ -2402,6 +2489,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         react_params: dict,
         *,
+        batch_size: Optional[int] = None,
+        initial_batch_size: Optional[int] = None,
         total_size: int,
         progress_callback: Optional[Callable] = None
     ):
@@ -2414,6 +2503,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             The ID of the Trainee to react to.
         react_params : dict
             The request object.
+        batch_size: int, optional
+            Define the number of series to react to at once. If left
+            unspecified, the batch size will be determined automatically.
+        initial_batch_size: int, optional
+            The number of series to react to in the first batch. If unspecified,
+            the number will be determined automatically. The number of series
+            in following batches will be automatically adjusted. This value is
+            ignored if ``batch_size`` is specified.
         total_size : int
             The total size of the data that will be batched.
         progress_callback : callable, optional
@@ -2438,13 +2535,19 @@ class HowsoDirectClient(AbstractHowsoClient):
         continue_values = react_params.get('continue_series_values')
 
         with ProgressTimer(total_size) as progress:
-            if self.howso.amlg.library_postfix[1:] == 'mt':
-                start_batch_size = max(multiprocessing.cpu_count(), 1)
-            else:
-                start_batch_size = 1
-            batch_scaler = self.batch_scaler_class(start_batch_size, progress)
-            gen_batch_size = batch_scaler.gen_batch_size()
-            batch_size = next(gen_batch_size, None)
+            batch_scaler = None
+            gen_batch_size = None
+            if not batch_size:
+                if not initial_batch_size:
+                    if self.howso.amlg.library_postfix[1:] == 'mt':
+                        start_batch_size = max(multiprocessing.cpu_count(), 1)
+                    else:
+                        start_batch_size = 1
+                else:
+                    start_batch_size = initial_batch_size
+                batch_scaler = self.batch_scaler_class(start_batch_size, progress)
+                gen_batch_size = batch_scaler.gen_batch_size()
+                batch_size = next(gen_batch_size, None)
 
             while not progress.is_complete and batch_size is not None:
                 if isinstance(progress_callback, Callable):
@@ -2490,9 +2593,12 @@ class HowsoDirectClient(AbstractHowsoClient):
 
                 internals.accumulate_react_result(accumulated_result,
                                                   temp_result)
-                batch_size = batch_scaler.send(
-                    gen_batch_size,
-                    batch_scaler.SendOptions(None, (in_size, out_size)))
+                if batch_scaler is None or gen_batch_size is None:
+                    progress.update(batch_size)
+                else:
+                    batch_size = batch_scaler.send(
+                        gen_batch_size,
+                        batch_scaler.SendOptions(None, (in_size, out_size)))
 
         # Final call to callback on completion
         if isinstance(progress_callback, Callable):
@@ -2601,6 +2707,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         action_features: Optional[Iterable[str]] = None,
         actions: Optional[Union[List[List[object]], DataFrame]] = None,
         allow_nulls: bool = False,
+        batch_size: Optional[int] = None,
         case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
         contexts: Optional[Union[List[List[object]], DataFrame]] = None,
         context_features: Optional[Iterable[str]] = None,
@@ -2611,6 +2718,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[Dict] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
+        initial_batch_size: Optional[int] = None,
         input_is_substituted: bool = False,
         into_series_store: Optional[str] = None,
         leave_case_out: bool = False,
@@ -2666,6 +2774,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             When true will allow return of null values if there
             are nulls in the local model for the action features, applicable
             only to discriminative reacts.
+
+        batch_size: int, optional
+            Define the number of cases to react to at once. If left unspecified,
+            the batch size will be determined automatically.
 
         context_features : iterable of str, optional
             An iterable of feature names to treat as context features during
@@ -2964,6 +3076,12 @@ class HowsoDirectClient(AbstractHowsoClient):
             If set to True and specified along with case_indices,
             each individual react will respectively ignore the corresponding
             case specified by case_indices by leaving it out.
+        initial_batch_size: int, optional
+            Define the number of cases to react to in the first batch. If
+            unspecified, the value of the ``react_initial_batch_size`` property
+            is used. The number of cases in following batches will be
+            automatically adjusted. This value is ignored if ``batch_size`` is
+            specified.
         into_series_store : str, optional
             The name of a series store. If specified, will store an internal
             record of all react contexts for this session and series to be used
@@ -3204,7 +3322,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
             }
 
-        if self._should_react_batch(react_params, total_size):
+        if batch_size or self._should_react_batch(react_params, total_size):
             # Run in batch
             if self.verbose:
                 print(
@@ -3214,6 +3332,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             response = self._batch_react(
                 trainee_id,
                 react_params,
+                batch_size=batch_size,
+                initial_batch_size=initial_batch_size,
                 total_size=total_size,
                 progress_callback=progress_callback
             )
@@ -3249,6 +3369,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         react_params: Dict,
         *,
+        batch_size: Optional[int] = None,
+        initial_batch_size: Optional[int] = None,
         total_size: int,
         progress_callback: Optional[Callable] = None
     ):
@@ -3261,6 +3383,15 @@ class HowsoDirectClient(AbstractHowsoClient):
             The ID of the Trainee to react to.
         react_params : dict
             The request object.
+        batch_size: int, optional
+            Define the number of cases to react to at once. If left unspecified,
+            the batch size will be determined automatically.
+        initial_batch_size: int, optional
+            Define the number of cases to react to in the first batch. If
+            unspecified, the value of the ``react_initial_batch_size`` property
+            is used. The number of cases in following batches will be
+            automatically adjusted. This value is ignored if ``batch_size`` is
+            specified.
         total_size : int
             The total size of the data that will be batched.
         progress_callback : callable, optional
@@ -3281,9 +3412,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         post_process_values = react_params.get('post_process_values')
 
         with ProgressTimer(total_size) as progress:
-            batch_scaler = self.batch_scaler_class(10, progress)
-            gen_batch_size = batch_scaler.gen_batch_size()
-            batch_size = next(gen_batch_size, None)
+            gen_batch_size = None
+            batch_scaler = None
+            if not batch_size:
+                # Scale the batch size automatically
+                start_batch_size = initial_batch_size or self.react_initial_batch_size
+                batch_scaler = self.batch_scaler_class(
+                    start_batch_size, progress)
+                gen_batch_size = batch_scaler.gen_batch_size()
+                batch_size = next(gen_batch_size, None)
 
             while not progress.is_complete and batch_size is not None:
                 if isinstance(progress_callback, Callable):
@@ -3312,9 +3449,12 @@ class HowsoDirectClient(AbstractHowsoClient):
 
                 internals.accumulate_react_result(accumulated_result,
                                                   temp_result)
-                batch_size = batch_scaler.send(
-                    gen_batch_size,
-                    batch_scaler.SendOptions(None, (in_size, out_size)))
+                if batch_scaler is None or gen_batch_size is None:
+                    progress.update(batch_size)
+                else:
+                    batch_size = batch_scaler.send(
+                        gen_batch_size,
+                        batch_scaler.SendOptions(None, (in_size, out_size)))
 
         # Final call to callback on completion
         if isinstance(progress_callback, Callable):

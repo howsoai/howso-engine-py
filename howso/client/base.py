@@ -36,6 +36,16 @@ class AbstractHowsoClient(ABC):
     def active_session(self):
         """Return the active session."""
 
+    @property
+    @abstractmethod
+    def train_initial_batch_size(self) -> int:
+        """The default number of cases in the first train batch."""
+
+    @property
+    @abstractmethod
+    def react_initial_batch_size(self) -> int:
+        """The default number of cases in the first react batch."""
+
     @abstractmethod
     def get_version(self):
         """Get Howso version."""
@@ -112,6 +122,7 @@ class AbstractHowsoClient(ABC):
         accumulate_weight_feature=None,
         batch_size=None,
         derived_features=None,
+        initial_batch_size=None,
         input_is_substituted=False,
         progress_callback=None,
         series=None,
@@ -266,6 +277,7 @@ class AbstractHowsoClient(ABC):
         self, trainee_id, *,
         action_features=None,
         actions=None,
+        batch_size=None,
         case_indices=None,
         contexts=None,
         context_features=None,
@@ -281,6 +293,7 @@ class AbstractHowsoClient(ABC):
         final_time_steps=None,
         generate_new_cases="no",
         init_time_steps=None,
+        initial_batch_size=None,
         initial_features=None,
         initial_values=None,
         input_is_substituted=False,
@@ -368,6 +381,7 @@ class AbstractHowsoClient(ABC):
         action_features=None,
         actions=None,
         allow_nulls=False,
+        batch_size=None,
         case_indices=None,
         contexts=None,
         context_features=None,
@@ -378,6 +392,7 @@ class AbstractHowsoClient(ABC):
         exclude_novel_nominals_from_uniqueness_check=False,
         feature_bounds_map=None,
         generate_new_cases="no",
+        initial_batch_size=None,
         input_is_substituted=False,
         into_series_store=None,
         leave_case_out=None,
