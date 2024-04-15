@@ -110,7 +110,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     howso_core : howso.direct.HowsoCore, optional
         A specified howso core direct interface object.
 
-        If None, an interface will be generated using the provided handle.
+        If None, a HowsoCore will be initialized.
     config_path : str or Path or None, optional
         A configuration file in yaml format that specifies Howso engine
         settings.
@@ -121,10 +121,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             - ~/.howso for howso.yml, howso.yaml, config.yml.
     debug : bool, default False
         Set debug output.
-    handle : str, optional
-        The howso core entity handle to use.
-
-        If None, :attr:`HowsoDirectClient.DEFAULT_HANDLE` will be used.
     react_initial_batch_size: int, default 10
         The default number of cases to react to in the first batch
         for calls to :meth:`HowsoDirectClient.react`.
@@ -136,9 +132,6 @@ class HowsoDirectClient(AbstractHowsoClient):
     version_check : bool, default True
         Check if the latest version of Howso engine is installed.
     """
-
-    #: The default Howso core entity handle.
-    DEFAULT_HANDLE = "howso"
 
     #: The characters which are disallowed from being a part of a Trainee name or ID.
     BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':'}
@@ -190,9 +183,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.configuration = HowsoConfiguration(
             config_path=config_path, verbose=verbose)
 
-        self.howso = HowsoCore(
-            **kwargs
-        )
+        if howso_core is not None and isinstance(howso_core, HowsoCore):
+            self.howso = howso_core
+        else:
+            self.howso = HowsoCore(
+                **kwargs
+            )
 
         self.batch_scaler_class = internals.BatchScalingManager
         self._active_session = None
@@ -532,7 +528,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._output_version_in_trace(trainee_id)
 
         new_trainee = internals.postprocess_trainee(trainee)
-        self.trainee_cache.set(new_trainee, entity_id=trainee_id)
+        self.trainee_cache.set(new_trainee)
         return new_trainee
 
     def update_trainee(self, trainee: Trainee) -> Trainee:
