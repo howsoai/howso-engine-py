@@ -1,16 +1,23 @@
 """This module contains various utilities for the Howso clients."""
 from .feature_attributes import infer_feature_attributes  # noqa: F401
+from .feature_attributes.base import (
+    FeatureAttributesBase,
+    MultiTableFeatureAttributes,
+    SingleTableFeatureAttributes,
+)
 from .features import (  # noqa: F401
     deserialize_cases,
     FeatureType,
     format_dataframe,
     serialize_cases,
 )
-from .monitors import ProgressTimer, Timer
+from .monitors import (
+    ProgressTimer,
+    Timer,
+)
 from .utilities import (  # noqa: F401
     align_data,
     build_react_series_df,
-    CaseIndices,
     check_feature_names,
     date_format_is_iso,
     date_to_epoch,
@@ -48,10 +55,12 @@ __all__ = [
     "check_feature_names",
     "date_format_is_iso",
     "date_to_epoch",
+    "deep_update",
     "deserialize_cases",
     "determine_iso_format",
     "dprint",
     "epoch_to_date",
+    "FeatureAttributesBase",
     "FeatureType",
     "format_dataframe",
     "get_kwargs",
@@ -62,6 +71,7 @@ __all__ = [
     "ISO_8601_FORMAT",
     "LocaleOverride",
     "matrix_processing",
+    "MultiTableFeatureAttributes",
     "num_list_dimensions",
     "ProgressTimer",
     "replace_doublemax_with_infinity",
@@ -71,6 +81,7 @@ __all__ = [
     "seconds_to_time",
     "serialize_cases",
     "serialize_datetimes",
+    "SingleTableFeatureAttributes",
     "StopExecution",
     "time_to_seconds",
     "Timer",

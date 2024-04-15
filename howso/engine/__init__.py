@@ -1,5 +1,6 @@
 """The Python API for the Howso Engine Client."""
 
+from . import typing  # noqa: F401
 from .client import get_client, use_client  # noqa: F401
 from .project import (  # noqa: F401
     delete_project,
@@ -33,10 +34,11 @@ __all__ = [
     "list_projects",
     "list_sessions",
     "list_trainees",
-    'load_trainee',
+    "load_trainee",
     "Project",
     "Session",
     "switch_project",
     "Trainee",
-    "use_client"
+    "typing",
+    "use_client",
 ]
