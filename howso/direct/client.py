@@ -880,7 +880,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'persistence': new_trainee.persistence,
             }
             self.howso.set_metadata(new_trainee_id, metadata)
-            self.trainee_cache.set(new_trainee, entity_id=self.howso.handle)
+            self.trainee_cache.set(new_trainee)
 
             return new_trainee
         else:
@@ -1000,15 +1000,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if trainee_id in self.trainee_cache:
             # Trainee is already loaded
-            cache_item = self.trainee_cache.get_item(trainee_id)
-            if cache_item.get('entity_id') != self.howso.handle:
-                raise HowsoError(
-                    "Unable to acquire trainee resources for the trainee "
-                    f"'{trainee_id}'. Trainee is already loaded in another "
-                    "core entity. Use the HowsoClient instance with the "
-                    f"entity handle '{self.howso.handle}' instead or release it "
-                    "via the other client first."
-                )
             return
 
         ret = self.howso.load(trainee_id)
@@ -1017,7 +1008,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError(f"Trainee '{trainee_id}' not found.")
 
         trainee = self._get_trainee_from_core(trainee_id)
-        self.trainee_cache.set(trainee, entity_id=self.howso.handle)
+        self.trainee_cache.set(trainee)
 
     def _get_trainee_from_core(self, trainee_id: str) -> Trainee:
         """
@@ -1091,6 +1082,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         except KeyError:
             # Trainee not cached, ignore
             pass
+        self.trainee_cache.discard(trainee_id)
         self.howso.delete(trainee_id)
 
     def persist_trainee(self, trainee_id: str):
@@ -1140,16 +1132,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if trainee_id not in self.trainee_cache:
             self.acquire_trainee_resources(trainee_id)
-        # else:
-        #     entity_id = self.trainee_cache.get_item(trainee_id).get('entity_id')
-        #     if entity_id != self.howso.handle:
-        #         raise HowsoError(
-        #             f"Attempted to access the trainee '{trainee_id}' via a "
-        #             "client using a different core entity than the entity "
-        #             "where the trainee is currently loaded. Use the "
-        #             "HowsoClient instance with the core entity handle "
-        #             f"'{self.howso.handle}' instead to access this trainee or "
-        #             "release it via the other client first.")
 
     def _auto_persist_trainee(self, trainee_id: str):
         """

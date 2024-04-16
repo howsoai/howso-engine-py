@@ -459,6 +459,7 @@ class HowsoCore:
 
         if not cloned_successfully:
             raise ValueError("Cloning was unsuccessful.")
+        return {'name': target_trainee_id}
 
     def copy_subtrainee(
         self,
