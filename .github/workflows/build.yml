@@ -136,21 +136,7 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       validate-amlg-versions: true
 
-  pytest-linux-3-8-st:
-    needs: ['metadata', 'build']
-    uses: howsoai/.github/.github/workflows/pytest.yml@main
-    secrets: inherit
-    with:
-      platform: 'howso-ubuntu-runner-latest'
-      platform-pretty: 'Linux'
-      amalgam-plat-arch: 'linux-amd64'
-      python-version: '3.8'
-      config-fp: './config/latest-st-debug-howso.yml'
-      config-pretty: 'ST'
-      workers: 'auto'
-      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
-
-  pytest-linux-3-9-mt:
+  pytest-linux-3-9-st:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -159,6 +145,20 @@ jobs:
       platform-pretty: 'Linux'
       amalgam-plat-arch: 'linux-amd64'
       python-version: '3.9'
+      config-fp: './config/latest-st-debug-howso.yml'
+      config-pretty: 'ST'
+      workers: 'auto'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
+
+  pytest-linux-3-12-mt:
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
+    secrets: inherit
+    with:
+      platform: 'howso-ubuntu-runner-latest'
+      platform-pretty: 'Linux'
+      amalgam-plat-arch: 'linux-amd64'
+      python-version: '3.12'
       config-fp: './config/latest-mt-debug-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
@@ -176,7 +176,7 @@ jobs:
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
-  pytest-macos-3-11-mt-arm64:
+  pytest-macos-3-12-mt-arm64:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -184,12 +184,12 @@ jobs:
       platform: 'macos-latest-xlarge'
       platform-pretty: 'MacOS'
       amalgam-plat-arch: 'darwin-arm64'
-      python-version: '3.11'
+      python-version: '3.12'
       config-fp: './config/latest-mt-debug-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
-  pytest-macos-3-10-mt-amd64:
+  pytest-macos-3-11-mt-amd64:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -197,7 +197,7 @@ jobs:
       platform: 'macos-latest-large'
       platform-pretty: 'MacOS'
       amalgam-plat-arch: 'darwin-amd64'
-      python-version: '3.10'
+      python-version: '3.11'
       config-fp: './config/latest-mt-noavx-debug-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
@@ -226,7 +226,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.12"
 
     - name: Verify Howso install
       run: |
@@ -401,7 +401,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.12"
 
     - name: Download tz data
       shell: pwsh
@@ -456,7 +456,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.12"
 
     - name: Download tz data
       shell: pwsh
@@ -518,7 +518,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.12"
 
     - name: Download tz data
       shell: pwsh
@@ -575,7 +575,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.12"
 
     - name: Verify Howso install
       run: |
@@ -619,7 +619,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.12"
 
     - name: Verify Howso install
       run: |
@@ -657,11 +657,11 @@ jobs:
       - metadata
       - generate-changelog
       - workflow-summary
-      - pytest-linux-3-8-st
-      - pytest-linux-3-9-mt
+      - pytest-linux-3-9-st
+      - pytest-linux-3-12-mt
       - pytest-windows-3-11-mt
-      - pytest-macos-3-11-mt-arm64
-      - pytest-macos-3-10-mt-amd64
+      - pytest-macos-3-12-mt-arm64
+      - pytest-macos-3-11-mt-amd64
       - install-verification-linux-amd64
       - install-verification-linux-arm64
       - install-verification-linux-arm64_8a
