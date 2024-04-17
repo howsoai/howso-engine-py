@@ -449,13 +449,12 @@ class HowsoCore:
             A dict containing the name of the trainee that was created by copy.
         """
         cloned_successfully = self.amlg.clone_entity(
-            trainee_id,
-            target_trainee_id,
-            # TODO: make persistent and where to file path?
+            handle=trainee_id,
+            clone_handle=target_trainee_id,
         )
 
         if not cloned_successfully:
-            raise ValueError("Cloning was unsuccessful.")
+            raise HowsoError("Cloning was unsuccessful.")
         return {'name': target_trainee_id}
 
     def copy_subtrainee(
