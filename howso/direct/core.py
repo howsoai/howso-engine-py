@@ -52,12 +52,8 @@ class HowsoCore:
         Higher is better performance but may result in higher memory usage.
     howso_path : str, default `DEFAULT_CORE_PATH`
         Directory path to the Howso caml files.
-    trainee_template_path : str, default `DEFAULT_CORE_PATH`
-        Directory path to the trainee_template caml files.
     howso_fname : str, default "howso.caml"
         Name of the Howso caml file with extension.
-    trainee_template_fname : str, default "trainee_template.caml"
-        Name of the trainee template file with extension.
     write_log : str, optional
         Absolute path to write log file.
     print_log : str, optional

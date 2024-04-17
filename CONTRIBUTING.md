@@ -26,7 +26,6 @@ The file structure should look something like this:
                     migrations.caml
                 trainee/
                 howso.caml
-                trainee_template.caml
                 version.json
             ...
 
