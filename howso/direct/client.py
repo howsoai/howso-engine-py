@@ -183,12 +183,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.configuration = HowsoConfiguration(
             config_path=config_path, verbose=verbose)
 
-        if howso_core is not None and isinstance(howso_core, HowsoCore):
-            self.howso = howso_core
-        else:
+        if howso_core is None:
             self.howso = HowsoCore(
                 **kwargs
             )
+        elif isinstance(howso_core, HowsoCore):
+            self.howso = howso_core
+        else:
+            raise ValueError("`howso_core` must be an instance of a HowsoCore.")
 
         self.batch_scaler_class = internals.BatchScalingManager
         self._active_session = None
@@ -1078,12 +1080,12 @@ class HowsoDirectClient(AbstractHowsoClient):
                 raise HowsoError(
                     "Trainees set to never persist may not have their "
                     "resources released. Delete the Trainee instead.")
-                self.trainee_cache.discard(trainee_id)
         except KeyError:
             # Trainee not cached, ignore
             pass
-        self.trainee_cache.discard(trainee_id)
-        self.howso.delete(trainee_id)
+        finally:
+            self.trainee_cache.discard(trainee_id)
+            self.howso.delete(trainee_id)
 
     def persist_trainee(self, trainee_id: str):
         """
