@@ -319,12 +319,12 @@ class HowsoCore:
             A dict containing the name of the trainee that was created.
         """
         status = self.amlg.load_entity(
-            trainee_id,
-            str(self.howso_fully_qualified_path),
-            False,
-            True,
-            False,
-            False
+            handle=trainee_id,
+            amlg_path=str(self.howso_fully_qualified_path),
+            persist=False,
+            load_contained=True,
+            escape_filename=False,
+            escape_contained_filenames=False
         )
         self._execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,
@@ -332,7 +332,7 @@ class HowsoCore:
         })
         if not status.loaded:
             raise HowsoError("Error loading the Trainee.")
-        return trainee_id
+        return {"name": trainee_id}
 
     def get_loaded_trainees(self) -> List[str]:
         """
@@ -383,14 +383,16 @@ class HowsoCore:
         filepath = f"{self.default_save_path}/" if filepath is None else filepath
 
         status = self.amlg.load_entity(
-            trainee_id,
-            str(Path(filepath, filename)) + self.ext,
-            False,
-            False,
+            handle=trainee_id,
+            amlg_path=str(Path(filepath, filename)) + self.ext,
+            persist=False,
+            load_contained=True,
+            escape_filename=False,
+            escape_contained_filenames=False,
         )
         if not status.loaded:
             raise HowsoError("Error loading the Trainee.")
-        return trainee_id
+        return {"name": trainee_id}
 
     def persist(
         self,
@@ -516,7 +518,7 @@ class HowsoCore:
 
     def clean_data(
         self,
-        trainee_id: Optional[str],
+        trainee_id: str,
         context_features: Optional[Iterable[str]] = None,
         action_features: Optional[Iterable[str]] = None,
         remove_duplicates: Optional[bool] = None
@@ -530,7 +532,7 @@ class HowsoCore:
 
         Parameters
         ----------
-        trainee_id : str, optional
+        trainee_id : str
             The identifier of the Trainee to clean.
         context_features : list of str, optional
             Only remove cases that don't have specified context features.
@@ -3069,19 +3071,6 @@ class HowsoCore:
             raise
         except Exception:  # noqa: Deliberately broad
             raise HowsoError('Failed to deserialize the core response.')
-
-    def _get_label(self, label: str) -> Any:
-        """Get label value from core."""
-        result = self.amlg.get_json_from_label(self.handle, label)
-        return result
-
-    def _set_label(self, label: str, payload: Any) -> None:
-        """Set label value in core."""
-        payload = sanitize_for_json(payload)
-        if isinstance(payload, MutableMapping):
-            payload = self._remove_null_entries(payload)
-        self.amlg.set_json_to_label(
-            self.handle, label, json.dumps(payload))
 
     def _execute(self, handle: str, label: str, payload: Any) -> Any:
         """
