@@ -286,7 +286,6 @@ class HowsoCore:
             self.default_save_path,
             self.write_log,
             self.print_log,
-            str(self.amlg)
         )
 
     def get_trainee_version(
@@ -305,7 +304,7 @@ class HowsoCore:
             A version comment to include in the trace file. Useful to capture
             client and amalgam versions.
         """
-        return self._execute(trainee_id, "get_trainee_version",{
+        return self._execute(trainee_id, "get_trainee_version", {
             "version": trace_version,
         })
 
@@ -336,7 +335,7 @@ class HowsoCore:
             "filepath": str(self.howso_path) + '/',
         })
         if not status.loaded:
-            raise ValueError("Error loading the Trainee")
+            raise HowsoError("Error loading the Trainee.")
         return trainee_id
 
     def get_loaded_trainees(self) -> List[str]:
@@ -389,12 +388,12 @@ class HowsoCore:
 
         status = self.amlg.load_entity(
             trainee_id,
-            str(Path(filepath, filename)) + ".caml",
+            str(Path(filepath, filename)) + self.ext,
             False,
             False,
         )
         if not status.loaded:
-            raise HowsoError("Error loading the Trainee")
+            raise HowsoError("Error loading the Trainee.")
         return trainee_id
 
     def persist(
@@ -421,7 +420,7 @@ class HowsoCore:
 
         self.amlg.store_entity(
             trainee_id,
-            str(Path(filepath, filename)) + ".caml"
+            str(Path(filepath, filename)) + self.ext
         )
 
     def delete(self, trainee_id: str) -> None:
