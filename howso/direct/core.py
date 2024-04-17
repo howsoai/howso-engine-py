@@ -65,7 +65,7 @@ class HowsoCore:
     trace: bool, default False
         If true, sets debug flag for amlg operations. This will generate an
         execution trace useful in debugging with the standard name of
-        [HANDLE]_execution.trace.
+        howso_[random 6 byte hex]_execution.trace.
     sbf_datastore_enabled : bool, default True
         If true, sbf tree structures are enabled.
     max_num_threads : int, default 0
@@ -115,7 +115,7 @@ class HowsoCore:
             'sbf_datastore_enabled': sbf_datastore_enabled,
             'max_num_threads': max_num_threads,
             'trace': self.trace,
-            'execution_trace_file': f"{self.random_handle()}_execution.trace",
+            'execution_trace_file': f"howso_{self.random_handle()}_execution.trace",
         }
 
         if amalgam_opts := kwargs.get("amalgam", {}):
