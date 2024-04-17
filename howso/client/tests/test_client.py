@@ -555,10 +555,10 @@ class TestClient:
         trainee
         """
         self._train(trainee)
-        response = self.client.howso.execute_on_subtrainee(
+        response = self.client.howso.create_subtrainee(
             trainee.id,
-            method="create_trainee",
-            payload={"trainee": "child", "trainee_id": str(uuid.uuid4()) }
+            trainee_name="child",
+            subtrainee_id=str(uuid.uuid4())
         )
         assert('child' in response['name'])
         assert('id' in response)
@@ -567,7 +567,7 @@ class TestClient:
 
         response = self.client.howso.execute_on_subtrainee(
             trainee.id,
-            method="create_trainee",
+            method="create_subtrainee",
             # create under child by id instead of by path name
             child_id=child_id,
             payload={"trainee": "grandchild1"}

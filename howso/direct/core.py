@@ -520,6 +520,7 @@ class HowsoCore:
     def load_subtrainee(
         self,
         trainee_id: str,
+        *,
         filename: Optional[str] = None,
         filepath: Optional[str] = None,
         trainee_name_path: Optional[List[str]] = None,
@@ -557,6 +558,7 @@ class HowsoCore:
     def save_subtrainee(
         self,
         trainee_id: str,
+        *,
         filename: Optional[str] = None,
         filepath: Optional[str] = None,
         subtrainee_id: Optional[str] = None,
@@ -612,7 +614,7 @@ class HowsoCore:
         Returns
         -------
         dict
-            A dict containing the name of the trainee that was created.
+            A dict containing the name of the subtrainee that was created.
         """
         return self._execute(trainee_id, "create_subtrainee", {
             "trainee": trainee_name,
