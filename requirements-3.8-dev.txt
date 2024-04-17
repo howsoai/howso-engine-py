@@ -4,14 +4,14 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --generate-hashes --no-emit-index-url --output-file=requirements-3.8-dev.txt
 #
-amalgam-lang==9.0.0 \
-    --hash=sha256:2da763dc3391befc18fdacdfadbc4abb0d25332db6c8e0687e9e467cd1e87511 \
-    --hash=sha256:2e52701a7a5ebf4106dfb740392a1f94f7cad79f9e0908dd5a640bcbf54013a5 \
-    --hash=sha256:34be40bde9856a88a8372493a7ca50118c064f19ecbb4dafa4894053b4e2a852 \
-    --hash=sha256:3fbe1507aa3d18b14962396eb53595289a60e99e0ed8a50fd84ecbc91ab3d846 \
-    --hash=sha256:4eaa7f9be054679fe700e9999ef13a78a1f9d8b0b5a06e3abd658b7d1c124c48 \
-    --hash=sha256:5258983cfbfe172c31053e59f21e75f9431d58826e1f7a28324f3a55904bdafc \
-    --hash=sha256:b4133e542c489eb81dc73a64dee1738d4d3b22ab59be4cbdd95c527576ee911d
+amalgam-lang==9.0.1 \
+    --hash=sha256:0d846f96c1241f871fcf626126c8793079c69a70caeb4dcdb7bb44c108a3f706 \
+    --hash=sha256:16b999c7470a6cf156fc997ccc83f88e0a6efde3dc3331ff5debea38bbe72c3d \
+    --hash=sha256:90ab58802d19e84b77956b65154e446fcbcdc6514c9bb4247ac99c5b9b036a5d \
+    --hash=sha256:a35d78e9353e7f17749ee2591646038547c4fe0b5e45fa6dbb4cc6e75091a7ff \
+    --hash=sha256:bab072d6bbcfc36d139efea8a66a96346964fd7a2d2f3b7cf15214955ce009e9 \
+    --hash=sha256:db66477a9fa117c3a315ccfc1f01e8bc771fc2b1906c253fd57da1b3d3e1525f \
+    --hash=sha256:fdfc8a8b21128b9abfc64f3417158cbed1d11c34577c6f92426eec018107067c
     # via howso-engine (pyproject.toml)
 astroid==3.1.0 \
     --hash=sha256:951798f922990137ac090c53af473db7ab4e70c770e6d7fae0cec59f74411819 \
@@ -766,9 +766,9 @@ pip==24.0 \
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==69.4.0 \
-    --hash=sha256:659e902e587e77fab8212358f5b03977b5f0d18d4724310d4a093929fee4ca1a \
-    --hash=sha256:b6df12d754b505e4ca283c61582d5578db83ae2f56a979b3bc9a8754705ae3bf
+setuptools==69.3.0 \
+    --hash=sha256:48c518e350470d98cfa2944a31edbfc897c9a7d8fa4847da66d89f0f5fb64b57 \
+    --hash=sha256:e1fd0ca7ba442e4be8a415dcca867b8018777dd5f95f4492bb4dc7d77dbc8bd8
     # via
     #   flake8-import-order
     #   howso-openapi-client

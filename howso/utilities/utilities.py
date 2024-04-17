@@ -6,19 +6,29 @@ import re
 import sys
 import threading
 from typing import (
-    Callable, Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union)
+    Callable,
+    Collection,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+)
 import uuid
 import warnings
 
 from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
 from dateutil.tz import tzoffset
-from howso.openapi.models import (
-    FeatureAttributes,
-    Trainee
-)
 import numpy as np
 import pandas as pd
+
+from howso.openapi.models import (
+    FeatureAttributes,
+    Trainee,
+)
 
 from .internals import serialize_openapi_models
 
