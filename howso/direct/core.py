@@ -306,7 +306,7 @@ class HowsoCore:
 
     def create_trainee(self, trainee_id: str) -> Union[Dict, None]:
         """
-        Create a Trainee using the Trainee Template.
+        Create a Trainee.
 
         Parameters
         ----------
@@ -495,6 +495,127 @@ class HowsoCore:
             "source_name_path": source_name_path,
             "target_id": target_id,
             "target_name_path": target_name_path
+        })
+
+    def delete_subtrainee(
+        self,
+        trainee_id: str,
+        trainee_name: str
+    ) -> None:
+        """
+        Delete a child subtrainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee whose hierarchy is to be modified.
+        trainee_name: str
+            The name of the subtrainee to be deleted.
+        """
+        return self._execute(trainee_id, "delete_subtrainee", {
+            "trainee": trainee_name,
+        })
+
+    def load_subtrainee(
+        self,
+        trainee_id: str,
+        filename: Optional[str] = None,
+        filepath: Optional[str] = None,
+        trainee_name_path: Optional[List[str]] = None,
+    ) -> Union[Dict, None]:
+        """
+        Load a persisted Trainee from disk as a subtrainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee to be modified.
+        filename : str, optional
+            The filename to load.
+        filepath : str, optional
+            The path containing the filename to load.
+        trainee_name_path: list of str, optional
+            list of strings specifying the user-friendly path of the child
+            subtrainee to load.
+
+        Returns
+        -------
+        dict
+            A dict containing the name of the trainee that was created.
+        """
+        filename = trainee_id if filename is None else filename
+        filepath = (
+            f"{self.default_save_path}/" if filepath is None else filepath)
+
+        return self._execute(trainee_id, "load_subtrainee", {
+            "trainee": trainee_name_path,
+            "filename": filename,
+            "filepath": filepath
+        })
+
+    def save_subtrainee(
+        self,
+        trainee_id: str,
+        filename: Optional[str] = None,
+        filepath: Optional[str] = None,
+        subtrainee_id: Optional[str] = None,
+        trainee_name_path: Optional[List[str]] = None
+    ) -> None:
+        """
+        Save a subtrainee to disk.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee to be modified.
+        filename : str, optional
+            The name of the file to save the Trainee to.
+        filepath : str, optional
+            The path of the file to save the Trainee to.
+        subtrainee_id: str, optional
+            Unique id for subtrainee. Must be provided if subtrainee does not
+            have one already specified.
+        trainee_name_path: list of str, optional
+            list of strings specifying the user-friendly path of the child
+            subtrainee to save.
+        """
+        filename = trainee_id if filename is None else filename
+        filepath = (
+            f"{self.default_save_path}/" if filepath is None else filepath)
+
+        return self._execute(trainee_id, "save_subtrainee", {
+            "trainee": trainee_name_path,
+            "trainee_id": subtrainee_id,
+            "filename": filename,
+            "filepath": filepath
+        })
+
+    def create_subtrainee(
+            self,
+            trainee_id: str,
+            trainee_name: str,
+            subtrainee_id: Optional[str] = None
+    ) -> Union[Dict, None]:
+        """
+        Create a subtrainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee to be modified.
+        trainee_name: str
+            Name of subtrainee to create.
+        subtrainee_id: str, optional
+            Unique id for subtrainee.
+
+        Returns
+        -------
+        dict
+            A dict containing the name of the trainee that was created.
+        """
+        return self._execute(trainee_id, "create_subtrainee", {
+            "trainee": trainee_name,
+            "trainee_id": subtrainee_id
         })
 
     def remove_series_store(self, trainee_id: str, series: Optional[str] = None
