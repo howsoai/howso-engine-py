@@ -394,7 +394,7 @@ class HowsoCore:
             False,
         )
         if not status.loaded:
-            raise ValueError("Error loading the Trainee")
+            raise HowsoError("Error loading the Trainee")
         return trainee_id
 
     def persist(
