@@ -103,6 +103,8 @@ class HowsoCore:
         else:
             self.print_log = ''
 
+        self.trace_filename = f"howso_{self.random_handle()}_execution.trace"
+
         # The parameters to pass to the Amalgam object - compiled here, so that
         # they can be merged with config file params.
         amlg_params = {
@@ -111,7 +113,7 @@ class HowsoCore:
             'sbf_datastore_enabled': sbf_datastore_enabled,
             'max_num_threads': max_num_threads,
             'trace': self.trace,
-            'execution_trace_file': f"howso_{self.random_handle()}_execution.trace",
+            'execution_trace_file': self.trace_filename,
         }
 
         if amalgam_opts := kwargs.get("amalgam", {}):
