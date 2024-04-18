@@ -45,6 +45,8 @@ iris_file_path = (
 ).joinpath("utilities/tests/data/iris.csv")
 np.random.default_rng(2018)
 
+module_client = get_configurationless_test_client(client_class=HowsoClient, verbose=True)
+
 
 def test_xdg_configuration_path(mocker):
     """Tests for expected behavior when XDG_CONFIG_HOME is set."""
@@ -135,7 +137,7 @@ class TraineeBuilder:
     def __init__(self):
         """Initialize the TraineeBuilder."""
         self.trainees = []
-        self.client = get_configurationless_test_client(client_class=HowsoClient, verbose=True)
+        self.client = module_client
         super().__init__()
 
     def __del__(self):
@@ -200,7 +202,7 @@ class TestDatetimeSerialization:
     @classmethod
     def setup_class(cls):
         """Setup a test client to use for the whole class."""
-        cls.client = get_configurationless_test_client(client_class=HowsoClient, verbose=True)
+        cls.client = module_client
 
     @pytest.fixture(autouse=True)
     def trainee(self, trainee_builder):
@@ -344,7 +346,7 @@ class TestClient:
     @classmethod
     def setup_class(cls):
         """Setup a test client to use for the whole class."""
-        cls.client = get_configurationless_test_client(client_class=HowsoClient, verbose=True)
+        cls.client = module_client
 
     @pytest.fixture(autouse=True)
     def trainee(self, trainee_builder):
@@ -819,7 +821,7 @@ class TestBaseClient:
     @classmethod
     def setup_class(cls):
         """Setup a test client to use for the whole class."""
-        cls.client = get_configurationless_test_client(client_class=HowsoClient, verbose=True)
+        cls.client = module_client
 
     @pytest.fixture(autouse=True)
     def trainee(self, trainee_builder):
