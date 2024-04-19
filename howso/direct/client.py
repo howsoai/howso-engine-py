@@ -370,12 +370,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee : str
             The ID of the Trainee that should retrieve the Howso version.
         """
-        amlg_version = self.howso.amlg.get_version_string()
-        trace_version = f"client: {CLIENT_VERSION}  amalgam: {amlg_version}"
-
         # don't need to return the output, make the call to core in order for
         # the stack version to show up in the trace file.
-        self.howso.get_trainee_version(trainee, trace_version)
+        self.howso.get_trainee_version(trainee)
 
     def check_name_valid_for_save(
         self,

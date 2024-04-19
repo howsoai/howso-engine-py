@@ -263,7 +263,6 @@ class HowsoCore:
     def get_trainee_version(
         self,
         trainee_id: str,
-        trace_version: Optional[str] = None
     ) -> str:
         """
         Return the version of the Trainee Template.
@@ -272,13 +271,8 @@ class HowsoCore:
         ----------
         trainee_id : str
             The identifier of the Trainee to get the version of.
-        trace_version : str, optional
-            A version comment to include in the trace file. Useful to capture
-            client and amalgam versions.
         """
-        return self._execute(trainee_id, "get_trainee_version", {
-            "version": trace_version,
-        })
+        return self._execute(trainee_id, "get_trainee_version", {})
 
     def create_trainee(self, trainee_id: str) -> Union[Dict, None]:
         """
