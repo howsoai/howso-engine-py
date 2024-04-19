@@ -1080,12 +1080,11 @@ class HowsoDirectClient(AbstractHowsoClient):
                 raise HowsoError(
                     "Trainees set to never persist may not have their "
                     "resources released. Delete the Trainee instead.")
+            self.trainee_cache.discard(trainee_id)
         except KeyError:
             # Trainee not cached, ignore
             pass
-        finally:
-            self.trainee_cache.discard(trainee_id)
-            self.howso.delete(trainee_id)
+        self.howso.delete(trainee_id)
 
     def persist_trainee(self, trainee_id: str):
         """
