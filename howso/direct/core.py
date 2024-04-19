@@ -1,4 +1,3 @@
-from collections.abc import MutableMapping
 import logging
 from pathlib import Path
 import platform
@@ -52,20 +51,12 @@ class HowsoCore:
         Higher is better performance but may result in higher memory usage.
     howso_path : str, default `DEFAULT_CORE_PATH`
         Directory path to the Howso caml files.
-    trainee_template_path : str, default `DEFAULT_CORE_PATH`
-        Directory path to the trainee_template caml files.
     howso_fname : str, default "howso.caml"
         Name of the Howso caml file with extension.
-    trainee_template_fname : str, default "trainee_template.caml"
-        Name of the trainee template file with extension.
-    write_log : str, optional
-        Absolute path to write log file.
-    print_log : str, optional
-        Absolute path to print log file.
     trace: bool, default False
         If true, sets debug flag for amlg operations. This will generate an
         execution trace useful in debugging with the standard name of
-        [HANDLE]_execution.trace.
+        howso_[random 6 byte hex]_execution.trace.
     sbf_datastore_enabled : bool, default True
         If true, sbf tree structures are enabled.
     max_num_threads : int, default 0
@@ -78,21 +69,15 @@ class HowsoCore:
 
     def __init__(  # noqa: C901
         self,
-        handle: Optional[str] = None,
         library_path: Optional[str] = None,
         gc_interval: int = 100,
         howso_path: Path = DEFAULT_CORE_PATH,
-        trainee_template_path: Path = DEFAULT_CORE_PATH,
         howso_fname: str = "howso.caml",
-        trainee_template_fname: str = "trainee_template.caml",
-        write_log: Optional[str] = None,
-        print_log: Optional[str] = None,
         trace: bool = False,
         sbf_datastore_enabled: bool = True,
         max_num_threads: int = 0,
         **kwargs
     ):
-        self.handle = handle if handle is not None else self.random_handle()
         if kwargs.get("amlg_debug", None) is not None:
             if trace is None:
                 trace = kwargs["amlg_debug"]
@@ -101,15 +86,7 @@ class HowsoCore:
 
         self.trace = bool(trace)
 
-        if write_log is not None:
-            self.write_log = Path(write_log).expanduser()
-        else:
-            self.write_log = ''
-
-        if print_log is not None:
-            self.print_log = Path(print_log).expanduser()
-        else:
-            self.print_log = ''
+        self.trace_filename = f"howso_{self.random_handle()}_execution.trace"
 
         # The parameters to pass to the Amalgam object - compiled here, so that
         # they can be merged with config file params.
@@ -119,7 +96,7 @@ class HowsoCore:
             'sbf_datastore_enabled': sbf_datastore_enabled,
             'max_num_threads': max_num_threads,
             'trace': self.trace,
-            'execution_trace_file': self.handle + "_execution.trace",
+            'execution_trace_file': self.trace_filename,
         }
 
         if amalgam_opts := kwargs.get("amalgam", {}):
@@ -211,22 +188,18 @@ class HowsoCore:
         if core_params.get('download', False):
             self.howso_path = Path(
                 self.download_core(core_params)).expanduser()
-            self.trainee_template_path = self.howso_path
             self.default_save_path = Path(self.howso_path, 'trainee')
 
         # If version is set, but download not, use the default download location
         elif version := core_params.get('version'):
             # Set paths, ensuring tailing slash
             self.howso_path = Path(Path.home(), core_lib_dirname, version)
-            self.trainee_template_path = self.howso_path
             self.default_save_path = Path(self.howso_path, "trainee")
 
         # .... otherwise use default locations
         else:
             # Set paths, ensuring tailing slash
             self.howso_path = Path(howso_path).expanduser()
-            self.trainee_template_path = Path(
-                trainee_template_path).expanduser()
             self.default_save_path = Path(self.howso_path, "trainee")
 
         # Allow for trainee save directory to be overridden
@@ -242,15 +215,9 @@ class HowsoCore:
         # make save dir if doesn't exist
         if not self.default_save_path.exists():
             self.default_save_path.mkdir(parents=True)
-        # make log dir(s) if they do not exist
-        if self.write_log and not self.write_log.parent.exists():
-            self.write_log.mkdir()
-        if self.print_log and not self.print_log.parent.exists():
-            self.print_log.mkdir()
 
         self.howso_fname = howso_fname
-        self.trainee_template_fname = trainee_template_fname
-        self.ext = trainee_template_fname[trainee_template_fname.rindex('.'):]
+        self.ext = howso_fname[howso_fname.rindex('.'):]
 
         self.howso_fully_qualified_path = Path(
             self.howso_path, self.howso_fname)
@@ -261,32 +228,6 @@ class HowsoCore:
         _logger.debug(
             'Using howso-core location: '
             f'{self.howso_fully_qualified_path}')
-
-        self.trainee_template_fully_qualified_path = Path(
-            self.trainee_template_path, self.trainee_template_fname)
-        if not self.trainee_template_fully_qualified_path.exists():
-            raise HowsoError(
-                'Howso core file '
-                f'{self.trainee_template_fully_qualified_path} does not exist')
-        _logger.debug('Using howso-core trainee template location: '
-                      f'{self.trainee_template_fully_qualified_path}')
-
-        if self.handle in self.get_entities():
-            self.loaded = True
-        else:
-            status = self.amlg.load_entity(
-                handle=self.handle,
-                amlg_path=str(self.howso_fully_qualified_path),
-                write_log=str(self.write_log),
-                print_log=str(self.print_log)
-            )
-            self.loaded = status.loaded
-            if not self.loaded:
-                raise HowsoError(
-                    'Howso core file '
-                    f'{self.howso_fully_qualified_path} cannot be loaded: load_status=\'{status}\''
-                    f', amalgam=\'{self.amlg.get_version_string()}\'')
-            self._set_label("filepath", f"{self.trainee_template_path}/")
 
     @staticmethod
     def random_handle() -> str:
@@ -311,36 +252,17 @@ class HowsoCore:
     def __str__(self) -> str:
         """Return a string representation of the HowsoCore object."""
         template = (
-            "Trainee template:\t %s%s\n "
             "Howso Path:\t\t %s%s\n "
-            "Save Path:\t\t %s\n "
-            "Write Log:\t\t %s\n "
-            "Print Log:\t\t %s\n "
-            "Handle:\t\t\t %s\n %s")
+            "Save Path:\t\t %s\n")
         return template % (
-            self.trainee_template_path,
-            self.trainee_template_fname,
             self.howso_path,
             self.howso_fname,
             self.default_save_path,
-            self.write_log,
-            self.print_log,
-            self.handle,
-            str(self.amlg)
         )
-
-    def version(self) -> str:
-        """Return the version of the Howso Core."""
-        if self.trainee_template_fname.split('.')[1] == 'amlg':
-            version = "9.9.9"
-        else:
-            version = self._execute("version", {})
-        return version
 
     def get_trainee_version(
         self,
         trainee_id: str,
-        trace_version: Optional[str] = None
     ) -> str:
         """
         Return the version of the Trainee Template.
@@ -349,18 +271,12 @@ class HowsoCore:
         ----------
         trainee_id : str
             The identifier of the Trainee to get the version of.
-        trace_version : str, optional
-            A version comment to include in the trace file. Useful to capture
-            client and amalgam versions.
         """
-        return self._execute("get_trainee_version", {
-            "trainee": trainee_id,
-            "version": trace_version,
-        })
+        return self._execute(trainee_id, "get_trainee_version", {})
 
     def create_trainee(self, trainee_id: str) -> Union[Dict, None]:
         """
-        Create a Trainee using the Trainee Template.
+        Create a Trainee.
 
         Parameters
         ----------
@@ -372,14 +288,21 @@ class HowsoCore:
         dict
             A dict containing the name of the trainee that was created.
         """
-        fname = self.trainee_template_fname.split('.')
-        return self._execute("create_trainee", {
-            "trainee": trainee_id,
-            "filepath": f"{self.trainee_template_path}/",
-            "trainee_template_filename": fname[0],
-            "file_extension": fname[1],
-            "trainee_id": trainee_id
+        status = self.amlg.load_entity(
+            handle=trainee_id,
+            amlg_path=str(self.howso_fully_qualified_path),
+            persist=False,
+            load_contained=True,
+            escape_filename=False,
+            escape_contained_filenames=False
+        )
+        self._execute(trainee_id, "initialize", {
+            "trainee_id": trainee_id,
+            "filepath": str(self.howso_path) + '/',
         })
+        if not status.loaded:
+            raise HowsoError("Error loading the Trainee.")
+        return {"name": trainee_id}
 
     def get_loaded_trainees(self) -> List[str]:
         """
@@ -390,7 +313,7 @@ class HowsoCore:
         list of str
             A list of trainee identifiers that are currently loaded.
         """
-        return self._execute("get_loaded_trainees", {})
+        return self.get_entities()
 
     def get_entities(self) -> List[str]:
         """
@@ -429,12 +352,17 @@ class HowsoCore:
         filename = trainee_id if filename is None else filename
         filepath = f"{self.default_save_path}/" if filepath is None else filepath
 
-        ret = self._execute("load", {
-            "trainee": trainee_id,
-            "filename": filename,
-            "filepath": filepath,
-        })
-        return ret
+        status = self.amlg.load_entity(
+            handle=trainee_id,
+            amlg_path=str(Path(filepath, filename)) + self.ext,
+            persist=False,
+            load_contained=True,
+            escape_filename=False,
+            escape_contained_filenames=False,
+        )
+        if not status.loaded:
+            raise HowsoError("Error loading the Trainee.")
+        return {"name": trainee_id}
 
     def persist(
         self,
@@ -457,12 +385,11 @@ class HowsoCore:
         filename = trainee_id if filename is None else filename
         filepath = (
             f"{self.default_save_path}/" if filepath is None else filepath)
-        return self._execute("save", {
-            "trainee": trainee_id,
-            "filename": filename,
-            "filepath": filepath,
-            "trainee_id": trainee_id
-        })
+
+        self.amlg.store_entity(
+            handle=trainee_id,
+            amlg_path=str(Path(filepath, filename)) + self.ext
+        )
 
     def delete(self, trainee_id: str) -> None:
         """
@@ -473,7 +400,7 @@ class HowsoCore:
         trainee_id : str
             The identifier of the Trainee to delete.
         """
-        return self._execute("delete", {"trainee": trainee_id})
+        return self.amlg.destroy_entity(trainee_id)
 
     def copy(self, trainee_id: str, target_trainee_id: str) -> Dict:
         """
@@ -491,10 +418,14 @@ class HowsoCore:
         dict
             A dict containing the name of the trainee that was created by copy.
         """
-        return self._execute("copy", {
-            "trainee": trainee_id,
-            "target_trainee": target_trainee_id,
-        })
+        cloned_successfully = self.amlg.clone_entity(
+            handle=trainee_id,
+            clone_handle=target_trainee_id,
+        )
+
+        if not cloned_successfully:
+            raise HowsoError("Cloning was unsuccessful.")
+        return {'name': target_trainee_id}
 
     def copy_subtrainee(
         self,
@@ -529,13 +460,135 @@ class HowsoCore:
             List of strings specifying the user-friendly path of the child
             subtrainee to copy trainee into.
         """
-        return self._execute("copy_subtrainee", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "copy_subtrainee", {
             "target_trainee": new_trainee_name,
             "source_id": source_id,
             "source_name_path": source_name_path,
             "target_id": target_id,
             "target_name_path": target_name_path
+        })
+
+    def delete_subtrainee(
+        self,
+        trainee_id: str,
+        trainee_name: str
+    ) -> None:
+        """
+        Delete a child subtrainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee whose hierarchy is to be modified.
+        trainee_name: str
+            The name of the subtrainee to be deleted.
+        """
+        return self._execute(trainee_id, "delete_subtrainee", {
+            "trainee": trainee_name,
+        })
+
+    def load_subtrainee(
+        self,
+        trainee_id: str,
+        *,
+        filename: Optional[str] = None,
+        filepath: Optional[str] = None,
+        trainee_name_path: Optional[List[str]] = None,
+    ) -> Union[Dict, None]:
+        """
+        Load a persisted Trainee from disk as a subtrainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee to be modified.
+        filename : str, optional
+            The filename to load.
+        filepath : str, optional
+            The path containing the filename to load.
+        trainee_name_path: list of str, optional
+            list of strings specifying the user-friendly path of the child
+            subtrainee to load.
+
+        Returns
+        -------
+        dict
+            A dict containing the name of the trainee that was created.
+        """
+        filename = trainee_id if filename is None else filename
+        filepath = (
+            f"{self.default_save_path}/" if filepath is None else filepath)
+
+        return self._execute(trainee_id, "load_subtrainee", {
+            "trainee": trainee_name_path,
+            "filename": filename,
+            "filepath": filepath
+        })
+
+    def save_subtrainee(
+        self,
+        trainee_id: str,
+        *,
+        filename: Optional[str] = None,
+        filepath: Optional[str] = None,
+        subtrainee_id: Optional[str] = None,
+        trainee_name_path: Optional[List[str]] = None
+    ) -> None:
+        """
+        Save a subtrainee to disk.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee to be modified.
+        filename : str, optional
+            The name of the file to save the Trainee to.
+        filepath : str, optional
+            The path of the file to save the Trainee to.
+        subtrainee_id: str, optional
+            Unique id for subtrainee. Must be provided if subtrainee does not
+            have one already specified.
+        trainee_name_path: list of str, optional
+            list of strings specifying the user-friendly path of the child
+            subtrainee to save.
+        """
+        filename = trainee_id if filename is None else filename
+        filepath = (
+            f"{self.default_save_path}/" if filepath is None else filepath)
+
+        return self._execute(trainee_id, "save_subtrainee", {
+            "trainee": trainee_name_path,
+            "trainee_id": subtrainee_id,
+            "filename": filename,
+            "filepath": filepath
+        })
+
+    def create_subtrainee(
+            self,
+            trainee_id: str,
+            trainee_name: str,
+            subtrainee_id: Optional[str] = None
+    ) -> Union[Dict, None]:
+        """
+        Create a subtrainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee to be modified.
+        trainee_name: str
+            Name of subtrainee to create.
+        subtrainee_id: str, optional
+            Unique id for subtrainee.
+
+        Returns
+        -------
+        dict
+            A dict containing the name of the subtrainee that was created.
+        """
+        return self._execute(trainee_id, "create_subtrainee", {
+            "trainee": trainee_name,
+            "trainee_id": subtrainee_id
         })
 
     def remove_series_store(self, trainee_id: str, series: Optional[str] = None
@@ -551,14 +604,13 @@ class HowsoCore:
             The ID of the series to remove from the series store.
             If None, the entire series store will be deleted.
         """
-        return self._execute("remove_series_store", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "remove_series_store", {
             "series": series,
         })
 
     def clean_data(
         self,
-        trainee_id: Optional[str],
+        trainee_id: str,
         context_features: Optional[Iterable[str]] = None,
         action_features: Optional[Iterable[str]] = None,
         remove_duplicates: Optional[bool] = None
@@ -572,7 +624,7 @@ class HowsoCore:
 
         Parameters
         ----------
-        trainee_id : str, optional
+        trainee_id : str
             The identifier of the Trainee to clean.
         context_features : list of str, optional
             Only remove cases that don't have specified context features.
@@ -581,8 +633,7 @@ class HowsoCore:
         remove_duplicates : bool, default False
             If true, will remove duplicate cases (cases with identical values).
         """
-        return self._execute("clean_data", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "clean_data", {
             "context_features": context_features,
             "action_features": action_features,
             "remove_duplicates": remove_duplicates,
@@ -604,8 +655,7 @@ class HowsoCore:
             A dictionary of feature name to value to substitution value. If the
             map is None, all substitutions will be disabled and cleared.
         """
-        return self._execute("set_substitute_feature_values", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "set_substitute_feature_values",{
             "substitution_value_map": substitution_value_map,
         })
 
@@ -623,9 +673,7 @@ class HowsoCore:
         dict
             The dictionary of feature name to value to substitution value.
         """
-        return self._execute("get_substitute_feature_values", {
-            "trainee": trainee_id
-        })
+        return self._execute(trainee_id, "get_substitute_feature_values", {})
 
     def set_session_metadata(
         self,
@@ -645,8 +693,7 @@ class HowsoCore:
         metadata : dict
             The metadata to associate to the session.
         """
-        return self._execute("set_session_metadata", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "set_session_metadata", {
             "session": session,
             "metadata": metadata,
         })
@@ -668,8 +715,7 @@ class HowsoCore:
         dict or None
             The metadata of the session. Or None if no metadata set.
         """
-        return self._execute("get_session_metadata", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_session_metadata", {
             "session": session,
         })
 
@@ -691,8 +737,7 @@ class HowsoCore:
         list of dict
             The list of Trainee sessions.
         """
-        return self._execute("get_sessions", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_sessions", {
             "attributes": attributes,
         })
 
@@ -707,8 +752,7 @@ class HowsoCore:
         session : str
             The identifier of the Trainee session.
         """
-        return self._execute("remove_session", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "remove_session",{
             "session": session,
         })
 
@@ -740,8 +784,7 @@ class HowsoCore:
             The identifier of the Trainee session to associate the feature
             removal with.
         """
-        return self._execute("remove_feature", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "remove_feature", {
             "feature": feature,
             "condition": condition,
             "session": session,
@@ -783,8 +826,7 @@ class HowsoCore:
             The identifier of the Trainee session to associate the feature
             addition with.
         """
-        return self._execute("add_feature", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "add_feature", {
             "feature": feature,
             "feature_value": feature_value,
             "overwrite": overwrite,
@@ -808,14 +850,14 @@ class HowsoCore:
         dict
             A dictionary containing the key "count".
         """
-        return self._execute("get_num_training_cases", {"trainee": trainee_id})
+        return self._execute(trainee_id, "get_num_training_cases", {})
 
     def get_auto_ablation_params(self, trainee_id: str):
         """
         Get trainee parameters for auto ablation set by :meth:`set_auto_ablation_params`.
         """
         return self._execute(
-            "get_auto_ablation_params", {"trainee": trainee_id}
+            trainee_id, "get_auto_ablation_params", {}
         )
 
     def set_auto_ablation_params(
@@ -869,9 +911,8 @@ class HowsoCore:
             The conviction value below which cases will be ablated.
         """
         return self._execute(
-            "set_auto_ablation_params",
+            trainee_id, "set_auto_ablation_params",
             {
-                "trainee": trainee_id,
                 "auto_ablation_enabled": auto_ablation_enabled,
                 "auto_ablation_weight_feature": auto_ablation_weight_feature,
                 "minimum_model_size": minimum_model_size,
@@ -918,13 +959,12 @@ class HowsoCore:
             will be cached and used during future auto-analysis.
         """
         params = {
-            "trainee": trainee_id,
             "auto_analyze_enabled": auto_analyze_enabled,
             "analyze_threshold": analyze_threshold,
             "analyze_growth_factor": analyze_growth_factor,
             "auto_analyze_limit_size": auto_analyze_limit_size,
         }
-        return self._execute("set_auto_analyze_params", {**kwargs, **params})
+        return self._execute(trainee_id, "set_auto_analyze_params", {**kwargs, **params})
 
     def auto_analyze(self, trainee_id: str) -> None:
         """
@@ -935,7 +975,7 @@ class HowsoCore:
         trainee_id : str
             The identifier of the Trainee.
         """
-        return self._execute("auto_analyze", {"trainee": trainee_id})
+        return self._execute(trainee_id, "auto_analyze", {})
 
     def compute_feature_weights(
         self,
@@ -974,89 +1014,12 @@ class HowsoCore:
         dict
             A dictionary of computed context features -> weights.
         """
-        return self._execute("compute_feature_weights", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "compute_feature_weights", {
             "action_feature": action_feature,
             "context_features": context_features,
             "robust": robust,
             "weight_feature": weight_feature,
             "use_case_weights": use_case_weights,
-        })
-
-    def set_feature_weights(
-        self,
-        trainee_id: str,
-        feature_weights: Optional[Dict[str, float]] = None,
-        action_feature: Optional[str] = None,
-        use_feature_weights: bool = True
-    ) -> None:
-        """
-        Set the weights for the features in the Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        action_feature : str, optional
-            Action feature for which to set the specified feature weights for
-        feature_weights : dict, optional
-            A dictionary of feature names -> weight values.
-            If not set, the feature weights are cleared in the model.
-        use_feature_weights : bool, default True
-            When set to true, forces the trainee to use the specified feature
-            weights.
-        """
-        return self._execute("set_feature_weights", {
-            "trainee": trainee_id,
-            "action_feature": action_feature,
-            "feature_weights_map": feature_weights,
-            "use_feature_weights": use_feature_weights,
-        })
-
-    def set_feature_weights_matrix(
-        self,
-        trainee_id: str,
-        feature_weights_matrix: Dict[str, Dict[str, float]],
-        use_feature_weights: bool = True
-    ) -> None:
-        """
-        Set the feature weights for all the features in the Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        feature_weights_matrix : dict
-            A dictionary of feature names to a dictionary of feature names to
-            weight values.
-        use_feature_weights : bool, default True
-            When set to true, forces the trainee to use the specified feature
-            weights
-        """
-        return self._execute("set_feature_weights_matrix", {
-            "trainee": trainee_id,
-            "feature_weights_matrix": feature_weights_matrix,
-            "use_feature_weights": use_feature_weights,
-        })
-
-    def get_feature_weights_matrix(self, trainee_id: str
-                                   ) -> Dict[str, Dict[str, float]]:
-        """
-        Get the full feature weights matrix.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-
-        Returns
-        -------
-        dict
-            A dictionary of action feature names to dictionary of feature names
-            to feature weight.
-        """
-        return self._execute("get_feature_weights_matrix", {
-            "trainee": trainee_id
         })
 
     def clear_conviction_thresholds(self, trainee_id: str) -> None:
@@ -1068,9 +1031,7 @@ class HowsoCore:
         trainee_id : str
             The identifier of the Trainee.
         """
-        return self._execute("clear_conviction_thresholds", {
-            "trainee": trainee_id,
-        })
+        return self._execute(trainee_id, "clear_conviction_thresholds", {})
 
     def set_conviction_lower_threshold(self, trainee_id: str, threshold: float
                                        ) -> None:
@@ -1084,8 +1045,7 @@ class HowsoCore:
         threshold : float
             The threshold value.
         """
-        return self._execute("set_conviction_lower_threshold", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "set_conviction_lower_threshold", {
             "conviction_lower_threshold": threshold,
         })
 
@@ -1101,8 +1061,7 @@ class HowsoCore:
         threshold : float
             The threshold value.
         """
-        return self._execute("set_conviction_upper_threshold", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "set_conviction_upper_threshold", {
             "conviction_upper_threshold": threshold,
         })
 
@@ -1118,8 +1077,7 @@ class HowsoCore:
         metadata : dict or None
             The metadata dictionary.
         """
-        return self._execute("set_metadata", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "set_metadata", {
             "metadata": metadata,
         })
 
@@ -1137,7 +1095,7 @@ class HowsoCore:
         dict or None
             The metadata dictionary.
         """
-        return self._execute("get_metadata", {"trainee": trainee_id})
+        return self._execute(trainee_id, "get_metadata", {})
 
     def retrieve_extreme_cases_for_feature(
         self,
@@ -1165,8 +1123,7 @@ class HowsoCore:
         dict
             A dictionary of keys 'cases' and 'features'.
         """
-        return self._execute("retrieve_extreme_cases_for_feature", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "retrieve_extreme_cases_for_feature", {
             "features": features,
             "sort_feature": sort_feature,
             "num": num,
@@ -1230,8 +1187,7 @@ class HowsoCore:
         int
             The result payload size.
         """
-        return self._execute_sized("train", {
-            "trainee": trainee_id,
+        return self._execute_sized(trainee_id, "train", {
             "input_cases": input_cases,
             "accumulate_weight_feature": accumulate_weight_feature,
             "derived_features": derived_features,
@@ -1272,8 +1228,7 @@ class HowsoCore:
         session : str, optional
             The identifier of the Trainee session to associate the edit with.
         """
-        return self._execute("impute", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "impute", {
             "features": features,
             "features_to_impute": features_to_impute,
             "session": session,
@@ -1301,8 +1256,7 @@ class HowsoCore:
         session : str, optional
             The identifier of the Trainee session to associate this edit with.
         """
-        return self._execute("clear_imputed_session", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "clear_imputed_session", {
             "session": session,
             "impute_session": impute_session,
         })
@@ -1356,8 +1310,7 @@ class HowsoCore:
         dict
             A dictionary containing keys 'features' and 'cases'.
         """
-        return self._execute("get_cases", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_cases", {
             "features": features,
             "session": session,
             "case_indices": case_indices,
@@ -1391,8 +1344,7 @@ class HowsoCore:
         context_features : iterable of str, optional
             The list of feature names for contexts.
         """
-        return self._execute("append_to_series_store", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "append_to_series_store",  {
             "context_features": context_features,
             "context_values": contexts,
             "series": series,
@@ -1533,8 +1485,7 @@ class HowsoCore:
         dict
             The react result including audit details.
         """
-        return self._execute("react", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "react", {
             "context_features": context_features,
             "context_values": context_values,
             "action_features": action_features,
@@ -1705,8 +1656,7 @@ class HowsoCore:
         int
             The result payload size.
         """
-        return self._execute_sized("batch_react", {
-            "trainee": trainee_id,
+        return self._execute_sized(trainee_id, "batch_react", {
             "context_features": context_features,
             "context_values": context_values,
             "action_features": action_features,
@@ -1904,8 +1854,7 @@ class HowsoCore:
         int
             The result payload size.
         """
-        return self._execute_sized("batch_react_series", {
-            "trainee": trainee_id,
+        return self._execute_sized(trainee_id, "batch_react_series", {
             "context_features": context_features,
             "context_values": context_values,
             "action_features": action_features,
@@ -2003,8 +1952,7 @@ class HowsoCore:
             If set to True will scale influence weights by each
             case's weight_feature weight.
         """
-        return self._execute("react_into_features", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "react_into_features", {
             "features": features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
@@ -2077,8 +2025,7 @@ class HowsoCore:
         dict
             The react response.
         """
-        return self._execute("batch_react_group", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "batch_react_group", {
             "features": features,
             "new_cases": new_cases,
             "distance_contributions": distance_contributions,
@@ -2208,8 +2155,7 @@ class HowsoCore:
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
         """
-        self._execute("react_into_trainee", {
-            "trainee": trainee_id,
+        self._execute(trainee_id, "react_into_trainee", {
             "context_features": context_features,
             "use_case_weights": use_case_weights,
             "weight_feature": weight_feature,
@@ -2279,8 +2225,7 @@ class HowsoCore:
             A dict with familiarity_conviction_addition or
             familiarity_conviction_removal.
         """
-        return self._execute("compute_conviction_of_features", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "compute_conviction_of_features", {
             "features": features,
             "action_features": action_features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
@@ -2304,8 +2249,7 @@ class HowsoCore:
         list of int
             A list of the session indices for the session.
         """
-        return self._execute("get_session_indices", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_session_indices", {
             "session": session,
         })
 
@@ -2326,8 +2270,7 @@ class HowsoCore:
         list of int
             A list of the session training indices for the session.
         """
-        return self._execute("get_session_training_indices", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_session_training_indices", {
             "session": session,
         })
 
@@ -2342,8 +2285,7 @@ class HowsoCore:
         params : dict
             A dictionary containing the internal parameters.
         """
-        return self._execute("set_internal_parameters", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "set_internal_parameters", {
             **params
         })
 
@@ -2367,8 +2309,7 @@ class HowsoCore:
         dict
             The updated feature attributes.
         """
-        return self._execute("set_feature_attributes", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "set_feature_attributes", {
             "features": feature_attributes,
         })
 
@@ -2386,7 +2327,7 @@ class HowsoCore:
         dict
             A dictionary of feature name to dictionary of feature attributes.
         """
-        return self._execute("get_feature_attributes", {"trainee": trainee_id})
+        return self._execute(trainee_id, "get_feature_attributes", {})
 
     def export_trainee(
         self,
@@ -2412,8 +2353,7 @@ class HowsoCore:
         if path_to_trainee is None:
             path_to_trainee = self.default_save_path
 
-        return self._execute("export_trainee", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "export_trainee", {
             "trainee_filepath": f"{path_to_trainee}/",
             "root_filepath": f"{self.howso_path}/",
             "decode_cases": decode_cases,
@@ -2441,8 +2381,7 @@ class HowsoCore:
         if path_to_trainee is None:
             path_to_trainee = self.default_save_path
 
-        return self._execute("upgrade_trainee", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "upgrade_trainee", {
             "trainee_filepath": f"{path_to_trainee}/",
             "root_filepath": f"{self.howso_path}/",
             "separate_files": separate_files,
@@ -2459,8 +2398,8 @@ class HowsoCore:
         kwargs : dict
             Analysis arguments.
         """
-        params = {**kwargs, "trainee": trainee_id}
-        return self._execute("analyze", params)
+        params = {**kwargs}
+        return self._execute(trainee_id, "analyze", params)
 
     def get_feature_residuals(
         self,
@@ -2476,8 +2415,7 @@ class HowsoCore:
         .. deprecated:: 1.0.0
             Use get_prediction_stats() instead.
         """
-        return self._execute("get_feature_residuals", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_feature_residuals", {
             "robust": robust,
             "action_feature": action_feature,
             "robust_hyperparameters": robust_hyperparameters,
@@ -2498,8 +2436,7 @@ class HowsoCore:
         .. deprecated:: 1.0.0
             Use get_prediction_stats() instead.
         """
-        return self._execute("get_feature_mda", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_feature_mda", {
             "robust": robust,
             "action_feature": action_feature,
             "permutation": permutation,
@@ -2520,8 +2457,7 @@ class HowsoCore:
         .. deprecated:: 1.0.0
             Use get_prediction_stats() instead.
         """
-        return self._execute("get_feature_contributions", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_feature_contributions", {
             "robust": robust,
             "action_feature": action_feature,
             "directional": directional,
@@ -2586,8 +2522,7 @@ class HowsoCore:
         dict of str to dict of str to float
             A map of feature to map of stat type to stat values.
         """
-        return self._execute("get_prediction_stats", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_prediction_stats", {
             "robust": robust,
             "action_feature": action_feature,
             "condition": condition,
@@ -2647,8 +2582,7 @@ class HowsoCore:
         dict of str to dict of str to float
             A map of feature names to map of stat type to stat values.
         """
-        return self._execute("get_marginal_stats", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_marginal_stats", {
             "condition": condition,
             "num_cases": num_cases,
             "precision": precision,
@@ -2667,8 +2601,7 @@ class HowsoCore:
         seed: int or float or str
             The random seed.
         """
-        return self._execute("set_random_seed", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "set_random_seed", {
             "seed": seed,
         })
 
@@ -2715,8 +2648,7 @@ class HowsoCore:
             parameters or only the best hyperparameters selected using the
             passed parameters.
         """
-        return self._execute("get_internal_parameters", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "get_internal_parameters", {
             "action_feature": action_feature,
             "context_features": context_features,
             "mode": mode,
@@ -2787,8 +2719,7 @@ class HowsoCore:
         dict
             A dictionary with key 'count' for the number of moved cases.
         """
-        result = self._execute("move_cases", {
-            "trainee": trainee_id,
+        result = self._execute(trainee_id, "move_cases", {
             "target_id": target_id,
             "case_indices": case_indices,
             "condition": condition,
@@ -2854,8 +2785,7 @@ class HowsoCore:
         dict
             A dictionary with key 'count' for the number of removed cases.
         """
-        result = self._execute("remove_cases", {
-            "trainee": trainee_id,
+        result = self._execute(trainee_id, "remove_cases", {
             "case_indices": case_indices,
             "condition": condition,
             "condition_session": condition_session,
@@ -2919,8 +2849,7 @@ class HowsoCore:
         dict
             A dictionary with key 'count' for the number of modified cases.
         """
-        result = self._execute("edit_cases", {
-            "trainee": trainee_id,
+        result = self._execute(trainee_id, "edit_cases", {
             "case_indices": case_indices,
             "condition": condition,
             "condition_session": condition_session,
@@ -2990,8 +2919,7 @@ class HowsoCore:
             A list of computed pairwise distances between each corresponding
             pair of cases in `from_case_indices` and `to_case_indices`.
         """
-        return self._execute("pairwise_distances", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "pairwise_distances", {
             "features": features,
             "action_feature": action_feature,
             "from_case_indices": from_case_indices,
@@ -3053,8 +2981,7 @@ class HowsoCore:
             A dictionary of keys, 'distances', 'row_case_indices' and
             'column_case_indices'.
         """
-        return self._execute("distances", {
-            "trainee": trainee_id,
+        return self._execute(trainee_id, "distances", {
             "features": features,
             "action_feature": action_feature,
             "case_indices": case_indices,
@@ -3094,9 +3021,8 @@ class HowsoCore:
             A dictionary with keys: 'evaluated' and 'aggregated'.
         """
         return self._execute(
-            "evaluate",
+            trainee_id, "evaluate",
             {
-                "trainee": trainee_id,
                 "features_to_code_map": features_to_code_map,
                 "aggregation_code": aggregation_code
             })
@@ -3111,7 +3037,7 @@ class HowsoCore:
             The identifier of the Trainee.
         """
         return self._execute(
-            "reset_parameter_defaults", {"trainee": trainee_id})
+            trainee_id, "reset_parameter_defaults", {})
 
     def get_hierarchy(self, trainee_id: str) -> Dict:
         """
@@ -3123,7 +3049,7 @@ class HowsoCore:
             Dictionary of the currently contained hierarchy as a nested dict
             with False for trainees that are stored independently.
         """
-        return self._execute("get_hierarchy", {"trainee": trainee_id})
+        return self._execute(trainee_id, "get_hierarchy", {})
 
     def rename_subtrainee(
         self,
@@ -3149,9 +3075,8 @@ class HowsoCore:
             subtrainee to rename.
         """
         return self._execute(
-            "rename_subtrainee",
+            trainee_id, "rename_subtrainee",
             {
-                "trainee": trainee_id,
                 "new_name": new_name,
                 "child_name_path": child_name_path,
                 "child_id": child_id
@@ -3201,9 +3126,8 @@ class HowsoCore:
             Whatever output the executed method returns.
         """
         return self._execute(
-            "execute_on_subtrainee",
+            trainee_id, "execute_on_subtrainee",
             {
-                "trainee": trainee_id,
                 "method": method,
                 "as_external": as_external,
                 "child_name_path": child_name_path,
@@ -3240,25 +3164,14 @@ class HowsoCore:
         except Exception:  # noqa: Deliberately broad
             raise HowsoError('Failed to deserialize the core response.')
 
-    def _get_label(self, label: str) -> Any:
-        """Get label value from core."""
-        result = self.amlg.get_json_from_label(self.handle, label)
-        return result
-
-    def _set_label(self, label: str, payload: Any) -> None:
-        """Set label value in core."""
-        payload = sanitize_for_json(payload)
-        if isinstance(payload, MutableMapping):
-            payload = self._remove_null_entries(payload)
-        self.amlg.set_json_to_label(
-            self.handle, label, json.dumps(payload))
-
-    def _execute(self, label: str, payload: Any) -> Any:
+    def _execute(self, handle: str, label: str, payload: Any) -> Any:
         """
         Execute label in core.
 
         Parameters
         ----------
+        handle : str
+            The entity handle of the Trainee
         label : str
             The label to execute.
         payload : Any
@@ -3273,7 +3186,7 @@ class HowsoCore:
         payload = self._remove_null_entries(payload)
         try:
             result = self.amlg.execute_entity_json(
-                self.handle, label, json.dumps(payload))
+                handle, label, json.dumps(payload))
         except ValueError as err:
             raise HowsoError(
                 'Invalid payload - please check for infinity or NaN '
@@ -3283,12 +3196,14 @@ class HowsoCore:
             return None
         return self._deserialize(result)
 
-    def _execute_sized(self, label: str, payload: Any) -> Tuple[Any, int, int]:
+    def _execute_sized(self, handle: str, label: str, payload: Any) -> Tuple[Any, int, int]:
         """
         Execute label in core and return payload sizes.
 
         Parameters
         ----------
+        handle : str
+            The entity handle of the Trainee
         label : str
             The label to execute.
         payload : Any
@@ -3308,7 +3223,7 @@ class HowsoCore:
         try:
             json_payload = json.dumps(payload)
             result = self.amlg.execute_entity_json(
-                self.handle, label, json_payload)
+                handle, label, json_payload)
         except ValueError as err:
             raise HowsoError(
                 'Invalid payload - please check for infinity or NaN '

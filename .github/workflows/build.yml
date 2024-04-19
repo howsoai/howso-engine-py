@@ -68,7 +68,6 @@ jobs:
         mkdir -p migrations
         mkdir -p trainee
         mv tmp/howso.caml howso.caml
-        mv tmp/trainee_template.caml trainee_template.caml
         mv tmp/migrations/migrations.caml migrations/migrations.caml
         mv tmp/version.json version.json
         rm -rf tmp

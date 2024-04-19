@@ -86,9 +86,6 @@ VERSION_CHECK_HOST = "https://version-check.howso.com"
 # Cache of trainee information shared across client instances
 _trainee_cache = TraineeCache()
 
-# Cache of core entities shared across client instances
-_core_cache = dict()
-
 
 @contextmanager
 def squelch_logs(log_level: int):
@@ -113,7 +110,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     howso_core : howso.direct.HowsoCore, optional
         A specified howso core direct interface object.
 
-        If None, an interface will be generated using the provided handle.
+        If None, a HowsoCore will be initialized.
     config_path : str or Path or None, optional
         A configuration file in yaml format that specifies Howso engine
         settings.
@@ -124,10 +121,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             - ~/.howso for howso.yml, howso.yaml, config.yml.
     debug : bool, default False
         Set debug output.
-    handle : str, optional
-        The howso core entity handle to use.
-
-        If None, :attr:`HowsoDirectClient.DEFAULT_HANDLE` will be used.
     react_initial_batch_size: int, default 10
         The default number of cases to react to in the first batch
         for calls to :meth:`HowsoDirectClient.react`.
@@ -139,9 +132,6 @@ class HowsoDirectClient(AbstractHowsoClient):
     version_check : bool, default True
         Check if the latest version of Howso engine is installed.
     """
-
-    #: The default Howso core entity handle.
-    DEFAULT_HANDLE = "howso"
 
     #: The characters which are disallowed from being a part of a Trainee name or ID.
     BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':'}
@@ -160,7 +150,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         config_path: Union[str, Path, None] = None,
         debug: bool = False,
-        handle: Optional[str] = None,
         react_initial_batch_size: int = 10,
         train_initial_batch_size: int = 100,
         verbose: bool = False,
@@ -182,7 +171,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 self.version_check_task.add_done_callback(self.report_version)
 
         super().__init__()
-        handle = str(handle or self.DEFAULT_HANDLE)
 
         # Show deprecation warnings to the user.
         warnings.filterwarnings("default", category=DeprecationWarning)
@@ -196,17 +184,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             config_path=config_path, verbose=verbose)
 
         if howso_core is None:
-            if handle not in _core_cache:
-                _core_cache[handle] = HowsoCore(
-                    self.get_unique_handle(handle),
-                    **kwargs
-                )
-            self.howso = _core_cache[handle]
+            self.howso = HowsoCore(
+                **kwargs
+            )
         elif isinstance(howso_core, HowsoCore):
             self.howso = howso_core
         else:
-            raise ValueError("The client parameter howso_core must be "
-                             "an instance of HowsoCore")
+            raise ValueError("`howso_core` must be an instance of a HowsoCore.")
+
         self.batch_scaler_class = internals.BatchScalingManager
         self._active_session = None
         self._react_generative_batch_threshold = 1
@@ -385,13 +370,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee : str
             The ID of the Trainee that should retrieve the Howso version.
         """
-        amlg_version = self.howso.amlg.get_version_string()
-        self.howso.version()
-        trace_version = f"client: {CLIENT_VERSION}  amalgam: {amlg_version}"
-
         # don't need to return the output, make the call to core in order for
         # the stack version to show up in the trace file.
-        self.howso.get_trainee_version(trainee, trace_version)
+        self.howso.get_trainee_version(trainee)
 
     def check_name_valid_for_save(
         self,
@@ -546,7 +527,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._output_version_in_trace(trainee_id)
 
         new_trainee = internals.postprocess_trainee(trainee)
-        self.trainee_cache.set(new_trainee, entity_id=self.howso.handle)
+        self.trainee_cache.set(new_trainee)
         return new_trainee
 
     def update_trainee(self, trainee: Trainee) -> Trainee:
@@ -679,14 +660,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         self._auto_resolve_trainee(trainee_id)
         trainee_version = self.howso.get_trainee_version(trainee_id)
-        core_version = self.howso.version()
         amlg_version = self.howso.amlg.get_version_string().decode()
         library_type = 'st'
         if self.howso.amlg.library_postfix:
             library_type = self.howso.amlg.library_postfix[1:]
 
         version = TraineeVersion(
-            core=core_version,
             amalgam=amlg_version,
             trainee=trainee_version
         )
@@ -900,7 +879,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'persistence': new_trainee.persistence,
             }
             self.howso.set_metadata(new_trainee_id, metadata)
-            self.trainee_cache.set(new_trainee, entity_id=self.howso.handle)
+            self.trainee_cache.set(new_trainee)
 
             return new_trainee
         else:
@@ -1020,15 +999,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if trainee_id in self.trainee_cache:
             # Trainee is already loaded
-            cache_item = self.trainee_cache.get_item(trainee_id)
-            if cache_item.get('entity_id') != self.howso.handle:
-                raise HowsoError(
-                    "Unable to acquire trainee resources for the trainee "
-                    f"'{trainee_id}'. Trainee is already loaded in another "
-                    "core entity. Use the HowsoClient instance with the "
-                    f"entity handle '{self.howso.handle}' instead or release it "
-                    "via the other client first."
-                )
             return
 
         ret = self.howso.load(trainee_id)
@@ -1037,7 +1007,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError(f"Trainee '{trainee_id}' not found.")
 
         trainee = self._get_trainee_from_core(trainee_id)
-        self.trainee_cache.set(trainee, entity_id=self.howso.handle)
+        self.trainee_cache.set(trainee)
 
     def _get_trainee_from_core(self, trainee_id: str) -> Trainee:
         """
@@ -1099,15 +1069,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         try:
             cache_item = self.trainee_cache.get_item(trainee_id)
             trainee = cache_item['trainee']
-            if cache_item.get('entity_id', self.howso.handle) == self.howso.handle:
-                if trainee.persistence in ['allow', 'always']:
-                    # Persist on unload
-                    self.howso.persist(trainee_id)
-                elif trainee.persistence == "never":
-                    raise HowsoError(
-                        "Trainees set to never persist may not have their "
-                        "resources released. Delete the Trainee instead.")
-                self.trainee_cache.discard(trainee_id)
+
+            if trainee.persistence in ['allow', 'always']:
+                # Persist on unload
+                self.howso.persist(trainee_id)
+            elif trainee.persistence == "never":
+                raise HowsoError(
+                    "Trainees set to never persist may not have their "
+                    "resources released. Delete the Trainee instead.")
+            self.trainee_cache.discard(trainee_id)
         except KeyError:
             # Trainee not cached, ignore
             pass
@@ -1160,16 +1130,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if trainee_id not in self.trainee_cache:
             self.acquire_trainee_resources(trainee_id)
-        else:
-            entity_id = self.trainee_cache.get_item(trainee_id).get('entity_id')
-            if entity_id != self.howso.handle:
-                raise HowsoError(
-                    f"Attempted to access the trainee '{trainee_id}' via a "
-                    "client using a different core entity than the entity "
-                    "where the trainee is currently loaded. Use the "
-                    "HowsoClient instance with the core entity handle "
-                    f"'{self.howso.handle}' instead to access this trainee or "
-                    "release it via the other client first.")
 
     def _auto_persist_trainee(self, trainee_id: str):
         """
@@ -5862,85 +5822,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             weight_feature, use_case_weights)
         self._auto_persist_trainee(trainee_id)
         return weights
-
-    def set_feature_weights(
-        self,
-        trainee_id: str,
-        feature_weights: Optional[Dict[str, float]] = None,
-        action_feature: Optional[str] = None,
-        use_feature_weights: bool = True
-    ):
-        """
-        Set the weights for the features in the Trainee.
-
-        If action_feature is not specified, it will set the passed in weights
-        as targetless.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee.
-        action_feature : str, optional
-            Action feature for which to set the specified feature weights for
-        feature_weights : dict, optional
-            A dictionary of feature names -> weight values.
-            Ex {"a", 1.0, "b": 0.1, "c": 0.5, ... , "z": 1.0}
-            If not set, the feature weights are cleared in the model
-        use_feature_weights : bool, default True
-            When set to true, forces the trainee to use the specified feature
-            weights
-        """
-        self._auto_resolve_trainee(trainee_id)
-        self.howso.set_feature_weights(
-            trainee_id, feature_weights, action_feature, use_feature_weights)
-        self._auto_persist_trainee(trainee_id)
-
-    def set_feature_weights_matrix(
-        self,
-        trainee_id: str,
-        feature_weights_matrix: Dict[str, Dict[str, float]],
-        use_feature_weights: bool = True
-    ):
-        """
-        Set the feature weights for all the features in the Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee.
-        feature_weights_matrix : dict
-            A dictionary of feature names to a dictionary of feature names to
-            weight values.
-            i.e. {"a" : {"a", 1.0, "b": 0.1, "c": 0.5, ... , "z": 1.0} }
-        use_feature_weights : bool, default True
-            When set to true, forces the trainee to use the specified feature
-            weights.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        self.howso.set_feature_weights_matrix(
-            trainee_id, feature_weights_matrix, use_feature_weights)
-        self._auto_persist_trainee(trainee_id)
-
-    def get_feature_weights_matrix(
-        self,
-        trainee_id: str
-    ) -> Dict[str, Dict[str, float]]:
-        """
-        Get the full feature weights matrix.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee.
-
-        Returns
-        -------
-        dict
-            A dictionary of action feature names to dictionary of feature names
-            to feature weight.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        return self.howso.get_feature_weights_matrix(trainee_id)
 
     def get_feature_attributes(self, trainee_id: str) -> Dict[str, Dict]:
         """

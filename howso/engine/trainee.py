@@ -4036,7 +4036,7 @@ def load_trainee(
     else:
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
     if isinstance(client.trainee_cache, TraineeCache):
-        client.trainee_cache.set(trainee, entity_id=client.howso.handle)
+        client.trainee_cache.set(trainee)
     if trainee:
         trainee = Trainee.from_openapi(trainee, client=client)
     else:
