@@ -54,10 +54,6 @@ class HowsoCore:
         Directory path to the Howso caml files.
     howso_fname : str, default "howso.caml"
         Name of the Howso caml file with extension.
-    write_log : str, optional
-        Absolute path to write log file.
-    print_log : str, optional
-        Absolute path to print log file.
     trace: bool, default False
         If true, sets debug flag for amlg operations. This will generate an
         execution trace useful in debugging with the standard name of
@@ -78,8 +74,6 @@ class HowsoCore:
         gc_interval: int = 100,
         howso_path: Path = DEFAULT_CORE_PATH,
         howso_fname: str = "howso.caml",
-        write_log: Optional[str] = None,
-        print_log: Optional[str] = None,
         trace: bool = False,
         sbf_datastore_enabled: bool = True,
         max_num_threads: int = 0,
@@ -92,16 +86,6 @@ class HowsoCore:
                 'The "amlg_debug" parameter is deprecated use "trace" instead.')
 
         self.trace = bool(trace)
-
-        if write_log is not None:
-            self.write_log = Path(write_log).expanduser()
-        else:
-            self.write_log = ''
-
-        if print_log is not None:
-            self.print_log = Path(print_log).expanduser()
-        else:
-            self.print_log = ''
 
         self.trace_filename = f"howso_{self.random_handle()}_execution.trace"
 
@@ -232,11 +216,6 @@ class HowsoCore:
         # make save dir if doesn't exist
         if not self.default_save_path.exists():
             self.default_save_path.mkdir(parents=True)
-        # make log dir(s) if they do not exist
-        if self.write_log and not self.write_log.parent.exists():
-            self.write_log.mkdir()
-        if self.print_log and not self.print_log.parent.exists():
-            self.print_log.mkdir()
 
         self.howso_fname = howso_fname
         self.ext = howso_fname[howso_fname.rindex('.'):]
@@ -275,15 +254,11 @@ class HowsoCore:
         """Return a string representation of the HowsoCore object."""
         template = (
             "Howso Path:\t\t %s%s\n "
-            "Save Path:\t\t %s\n "
-            "Write Log:\t\t %s\n "
-            "Print Log:\t\t %s\n ")
+            "Save Path:\t\t %s\n")
         return template % (
             self.howso_path,
             self.howso_fname,
             self.default_save_path,
-            self.write_log,
-            self.print_log,
         )
 
     def get_trainee_version(
