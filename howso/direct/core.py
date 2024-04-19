@@ -419,8 +419,8 @@ class HowsoCore:
             f"{self.default_save_path}/" if filepath is None else filepath)
 
         self.amlg.store_entity(
-            trainee_id,
-            str(Path(filepath, filename)) + self.ext
+            handle=trainee_id,
+            amlg_path=str(Path(filepath, filename)) + self.ext
         )
 
     def delete(self, trainee_id: str) -> None:
