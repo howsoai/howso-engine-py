@@ -361,7 +361,7 @@ class HowsoCore:
             escape_contained_filenames=False,
         )
         if not status.loaded:
-            raise HowsoError("Error loading the Trainee.")
+            raise HowsoError("Failed to load trainee.")
         return {"name": trainee_id}
 
     def persist(
