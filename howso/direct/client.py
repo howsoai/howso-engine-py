@@ -4405,6 +4405,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 - rmse : Root mean squared error, for continuous features only.
                 - spearman_coeff : Spearman's rank correlation coefficient,
                   for continuous features only.
+                - mcc : Matthews correlation coefficient, for nominal features only.
 
         weight_feature : str, optional
             When specified, will attempt to return stats that
@@ -4429,7 +4430,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         valid_stats = {
             "accuracy", "contribution", "confusion_matrix", "mae", "mda",
             "mda_permutation", "missing_value_accuracy", "precision", "r2",
-            "recall", "rmse", "spearman_coeff",
+            "recall", "rmse", "spearman_coeff", "mcc",
         }
 
         if stats is not None and not set(stats).issubset(valid_stats):
@@ -4611,8 +4612,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             context_features to predict the feature. When True computes and
             caches MAE (mean absolute error), R^2, RMSE (root mean squared
             error), and Spearman Coefficient for continuous features, and
-            MAE, accuracy, precision and recall for nominal features.
-            False removes cached values.
+            MAE, accuracy, precision, recall, and Matthews correlation coefficient
+            for nominal features. False removes cached values.
         residuals_robust : bool, optional
             For each context_feature, computes and caches the same stats as
             residuals but using the robust (power set/permutations) set of all
