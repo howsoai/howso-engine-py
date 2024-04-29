@@ -2355,6 +2355,7 @@ class HowsoCore:
 
         return self._execute(trainee_id, "export_trainee", {
             "trainee_filepath": f"{path_to_trainee}/",
+            "trainee": f"{trainee_id}",
             "root_filepath": f"{self.howso_path}/",
             "decode_cases": decode_cases,
             "separate_files": separate_files,
