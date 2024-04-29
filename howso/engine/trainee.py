@@ -2880,6 +2880,7 @@ class Trainee(BaseTrainee):
                 - rmse : Root mean squared error, for continuous features only.
                 - spearman_coeff : Spearman's rank correlation coefficient,
                   for continuous features only.
+                - mcc : Matthews correlation coefficient, for nominal features only.
 
         weight_feature : str, optional
             When specified, will attempt to return stats that
