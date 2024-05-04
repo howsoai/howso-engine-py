@@ -153,6 +153,9 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
         to 2 will synthesize the 3rd order derivative value, and then use
         that synthed value to derive the 2nd and 1st order.
 
+    include_sample : bool, default False
+        Set to True to include a sample of each feature's data in the output.
+
     lags : list or dict, default None
         (Optional) A list containing the specific indices of the desired lag
         features to derive for each feature (not including the series time
