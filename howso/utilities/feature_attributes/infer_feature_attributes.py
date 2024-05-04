@@ -69,32 +69,37 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
             ...         'bounds': {
             ...             'allow_null': True, 'max': 3, 'min': 2.72
             ...         },
-            ...         'type': 'continuous'
+            ...         'type': 'continuous',
+            ...         'sample': 2.86
             ...     },
             ...     'sepal-width', {
             ...         'bounds': {
             ...             'allow_null': True, 'max': 7.38905609893065,
             ...             'min': 1.0
             ...         },
-            ...         'type': 'continuous'
+            ...         'type': 'continuous',
+            ...         'sample': 4.56
             ...     },
             ...     'petal-length', {
             ...         'bounds': {
             ...             'allow_null': True, 'max': 7.38905609893065,
             ...             'min': 1.0
             ...         },
-            ...         'type': 'continuous'
+            ...         'type': 'continuous',
+            ...         'sample': 5.52
             ...     },
             ...     'petal-width', {
             ...         'bounds': {
             ...             'allow_null': True, 'max': 2.718281828459045,
             ...             'min': 0.049787068367863944
             ...         },
-            ...         'type': 'continuous'
+            ...         'type': 'continuous',
+            ...         'sample': 1.33
             ...     },
             ...     'target', {
             ...         'bounds': {'allow_null': True},
             ...         'type': 'nominal'
+            ...         'sample': 1
             ...     }
             ... }
 
