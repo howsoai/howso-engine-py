@@ -3142,13 +3142,19 @@ class HowsoCore:
         """Deserialize core response."""
         try:
             deserialized_payload = json.loads(payload)
-            if isinstance(deserialized_payload, dict):
-                if deserialized_payload.get('status') != 'ok':
+            if isinstance(deserialized_payload, list):
+                status = deserialized_payload[0]
+                deserialized_payload = deserialized_payload[1]
+                if status != 1:
                     # If result is an error, raise it
-                    errors = deserialized_payload.get('errors') or []
-                    if errors:
-                        # Raise first error
-                        raise HowsoError(errors[0].get('detail'))
+                    details = deserialized_payload.get('detail') or []
+                    if details:
+                        # details can be either a string or a list of strings
+                        if isinstance(details, list):
+                            # Raise first error
+                            raise HowsoError(details[0])
+                        else:
+                            raise HowsoError(details)
                     else:
                         # Unknown error occurred
                         raise HowsoError('An unknown error occurred while '
@@ -3156,7 +3162,7 @@ class HowsoCore:
 
                 warning_list = deserialized_payload.get('warnings') or []
                 for w in warning_list:
-                    warnings.warn(w.get('detail'), category=HowsoWarning)
+                    warnings.warn(w, category=HowsoWarning)
 
                 return deserialized_payload.get('payload')
             return deserialized_payload
