@@ -442,6 +442,86 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
         """
         return feature_name in self.unsupported
 
+    def to_dataframe(self, *, include_all: bool = False) -> pd.DataFrame:
+        """
+        Return a DataFrame of the feature attributes.
+
+        Among other reasons, this is useful for presenting feature attributes
+        in a Jupyter notebook or other medium.
+
+        Parameters
+        ----------
+        include_all: bool, default False
+            If True, also include include internal meta fields such as
+            `original_type` in the output.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame representation of the inferred feature attributes.
+        """
+        internal_meta_fields = [
+            "original_type",
+        ]
+
+        sep = '|'
+        key_order = [
+            "sample",
+            "type",
+            "date_time_format",
+            "decimal_places",
+            "bounds",
+            "data_type",
+            "non_sensitive",
+        ]
+
+        if include_all:
+            key_order.extend(internal_meta_fields)
+
+        # Ensure that these keys are available
+        all_keys = [k for a in self.values() for k in a.keys()]
+        key_order = [k for k in key_order if k in all_keys]
+
+        # Ensure we acknowledge extra keys not in the above list.
+        extra_keys = [
+            k for a in self.values() for k in a.keys()
+            if k not in key_order and k not in internal_meta_fields
+        ]
+        key_order.extend(sorted(extra_keys))
+
+        frames = []
+        for feature, attributes in self.items():
+            # Create a DataFrame from the nested dictionary
+            df = pd.json_normalize(attributes, sep=sep)
+            # Update the column names to create a MultiIndex
+            df.columns = pd.MultiIndex.from_tuples([
+                tuple(c.split(sep)) if sep in c else (c, '')
+                for c in df.columns
+            ])
+            # Set the outer key (e.g., 'f0') as the index
+            df.index = [feature]
+            frames.append(df)
+
+        # Concatenate all the DataFrames along the index
+        df = pd.concat(frames)
+
+        # Create tuples for the desired order and include sub-keys
+        desired_order_tuples = []
+        for col in key_order:
+            # Get all sub-keys for this column
+            sub_keys = df.columns.get_level_values(1)[
+                df.columns.get_level_values(0) == col].unique()
+            # Create a tuple for each potential sub-key
+            if not len(sub_keys):
+                # Just the main column key if no sub-keys
+                desired_order_tuples.append((col, ""))
+            else:
+                for sub_key in sub_keys:
+                    desired_order_tuples.append((col, sub_key))
+
+        # Reorder the columns based on the desired order tuples
+        return df.loc[:, desired_order_tuples]
+
 
 class InferFeatureAttributesBase(ABC):
     """
@@ -710,6 +790,15 @@ class InferFeatureAttributesBase(ABC):
             except ImportError:
                 warnings.warn('Cannot infer extended nominals: not supported')
 
+<<<<<<< Updated upstream
+=======
+        # Insert a ``sample`` for each feature, if possible.
+        if include_sample:
+            for feature_name in feature_attributes.keys():
+                sample = self._get_random_value(feature_name, no_nulls=True)
+                feature_attributes[feature_name]['sample'] = sample
+
+>>>>>>> Stashed changes
         # Re-insert any partial features provided as an argument
         if features:
             for feature in features.keys():

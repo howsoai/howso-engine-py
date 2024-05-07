@@ -329,6 +329,10 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
                     "measurement_amount": [ "measurement" ]
                 }
 
+    include_sample: bool, default False
+        If True, include a ``sample`` field containing a sample of the data
+        from each feature in the output feature attributes dictionary.
+
     Returns
     -------
     FeatureAttributesBase
