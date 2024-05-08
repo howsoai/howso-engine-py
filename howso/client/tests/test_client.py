@@ -211,9 +211,7 @@ class TestDatetimeSerialization:
                     'datetime': {'type': 'continuous',
                                  'date_time_format': '%Y-%m-%dT%H:%M:%S.%f'}
                     }
-        trainee = Trainee(features=features,
-                          default_action_features=['nom'],
-                          default_context_features=['datetime'])
+        trainee = Trainee(features=features)
         trainee_builder.create(trainee, overwrite_trainee=True)
         try:
             yield trainee
@@ -316,7 +314,9 @@ class TestDatetimeSerialization:
         self.client.train(trainee.id, cases=df.values.tolist(),
                           features=df.columns.tolist())
         response = self.client.react(trainee.id,
-                                     contexts=[["2020-10-12T10:10:10.333"]])
+                                     contexts=[["2020-10-12T10:10:10.333"]],
+                                     context_features=["datetime"],
+                                     action_features=["nom"])
         assert isinstance(response, Reaction)
         assert response['action']['nom'].iloc[0] == "b"
 
@@ -335,7 +335,9 @@ class TestDatetimeSerialization:
         self.client.train(trainee.id, cases=df.values.tolist(),
                           features=df.columns.tolist())
         response = self.client.react_series(trainee.id,
-                                     contexts=[["2020-10-12T10:10:10.333"]])
+                                            contexts=[["2020-10-12T10:10:10.333"]],
+                                            context_features=["datetime"],
+                                            action_features=["nom"])
         assert isinstance(response, Reaction)
         assert response['action']['nom'].iloc[0] == "b"
 
