@@ -5221,7 +5221,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
             'num_optimization_samples': 'num_analysis_samples',
             'optimization_sub_model_size': 'analysis_sub_model_size',
-            'optimize_level': 'analyze_level',
             'dwe_values': 'dt_values'
         }
 
@@ -5904,7 +5903,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         num_analysis_samples: Optional[int] = None,
         num_samples: Optional[int] = None,
         analysis_sub_model_size: Optional[int] = None,
-        analyze_level: Optional[int] = None,
         p_values: Optional[List[float]] = None,
         targeted_model: Optional[Literal["omni_targeted", "single_targeted", "targetless"]] = None,
         use_deviations: bool = None,
@@ -5940,14 +5938,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             optional list used in hyperparameter search
         dt_values : list of float
             optional list used in hyperparameter search
-        analyze_level : int
-            optional value, if specified, will analyze for the following
-            flows:
-
-                1. predictions/accuracy (hyperparameters)
-                2. data synth (cache: global residuals)
-                3. standard details
-                4. full analysis
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}
             optional, valid values as follows:
 
@@ -6003,7 +5993,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
             'num_optimization_samples': 'num_analysis_samples',
             'optimization_sub_model_size': 'analysis_sub_model_size',
-            'optimize_level': 'analyze_level',
             'dwe_values': 'dt_values'
         }
         # explicitly update parameters if old names are provided
@@ -6016,8 +6005,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                         num_analysis_samples = kwargs[old_param]
                     elif old_param == 'optimization_sub_model_size':
                         analysis_sub_model_size = kwargs[old_param]
-                    elif old_param == 'optimize_level':
-                        analyze_level = kwargs[old_param]
                     elif old_param == 'dwe_values':
                         dt_values = kwargs[old_param]
 
@@ -6041,7 +6028,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             num_analysis_samples=num_analysis_samples,
             num_samples=num_samples,
             analysis_sub_model_size=analysis_sub_model_size,
-            analyze_level=analyze_level,
             p_values=p_values,
             targeted_model=targeted_model,
             use_deviations=use_deviations,
