@@ -922,9 +922,7 @@ class TestBaseClient:
                     header[3]: {'type': 'continuous'},
                     header[4]: {'type': 'nominal'}
                     }
-        trainee = Trainee(features=features,
-                          default_action_features=header[-1:],
-                          default_context_features=header[:-1])
+        trainee = Trainee(features=features)
         trainee_builder.create(trainee, overwrite_trainee=True)
         trainee.name = 'test-update-verbose'
         updated_trainee = self.client.update_trainee(trainee)
@@ -1191,9 +1189,7 @@ class TestBaseClient:
                       "sepal_width": {'type': 'continuous'},
                       "petal_length": {'type': 'continuous'},
                       "petal_width": {'type': 'continuous'},
-                      "class": {'type': 'nominal'}},
-            default_action_features=features[-1:],
-            default_context_features=features[:-1]
+                      "class": {'type': 'nominal'}}
         )
         trainee_builder.create(other_trainee, overwrite_trainee=True)
         other_trainee = self.client.update_trainee(other_trainee)
