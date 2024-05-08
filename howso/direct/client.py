@@ -2930,7 +2930,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 and action) features locally around the prediction. The stats
                 returned  are ("r2", "rmse", "spearman_coeff", "precision",
                 "recall", "accuracy", "mcc"). Confusion matrices may also be
-                returned by setting 'confusion_matrix' to true. Uses only the
+                returned by setting 'confusion_matrices' to true. Uses only the
                 context features of the reacted case to determine that area.
                 Relies on 'robust_residuals' flag.
 
