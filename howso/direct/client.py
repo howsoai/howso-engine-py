@@ -1,7 +1,7 @@
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from http import HTTPStatus
 import importlib.metadata
 import json
@@ -34,11 +34,11 @@ from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
 from howso.openapi.models import (
-    ApiVersion,
     AnalyzeRequest,
+    ApiVersion,
     Cases,
-    Session,
     ReactGroupResponse,
+    Session,
     SetAutoAnalyzeParamsRequest,
     Trainee,
     TraineeIdentity,
@@ -1782,8 +1782,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             id=str(uuid.uuid4()),
             name=name,
             metadata=metadata or dict(),
-            created_date=datetime.utcnow(),
-            modified_date=datetime.utcnow(),
+            created_date=datetime.now(timezone.utc),
+            modified_date=datetime.now(timezone.utc),
         )
         return self._active_session
 
@@ -1917,7 +1917,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Updating session for session with id: {session_id}')
 
         updated_session = None
-        modified_date = datetime.utcnow()
+        modified_date = datetime.now(timezone.utc)
         metadata = metadata or dict()
         # We remove the trainee_id since this may have been set by the
         # get_session(s) methods and is not needed to be stored in the model.
@@ -3788,7 +3788,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if result is None:
             result = dict()
         return Cases(features=result.get('features'),
-                                   cases=result.get('cases'))
+                     cases=result.get('cases'))
 
     def react_group(
         self,
@@ -5290,9 +5290,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_persist_trainee(trainee_id)
 
     def get_auto_ablation_params(self, trainee_id: str):
-        """
-        Get parameters set by :meth:`set_auto_ablation_params`.
-        """
+        """Get parameters set by :meth:`set_auto_ablation_params`."""
         self._auto_resolve_trainee(trainee_id)
         return self.howso.get_auto_ablation_params(trainee_id)
 
@@ -6104,5 +6102,3 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
 
         return self.howso.evaluate(trainee_id, **evaluate_params)
-
-
