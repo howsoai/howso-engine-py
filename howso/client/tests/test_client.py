@@ -277,9 +277,7 @@ class TestDatetimeSerialization:
                     'datetime': {'type': 'continuous',
                                  'date_time_format': '%H %Y'}
                     }
-        trainee = Trainee(features=features,
-                          default_action_features=['date_time_format'],
-                          default_context_features=['nom'])
+        trainee = Trainee(features=features)
         trainee_builder.create(trainee, overwrite_trainee=True)
         df = pd.DataFrame(data=np.asarray([
             ['a', 'b', 'c', 'd'],
@@ -355,11 +353,8 @@ class TestClient:
             "penguin": {"type": "nominal"},
             "play": {"type": "nominal"},
         }
-        actions = ['play']
-        contexts = ['penguin']
         trainee_name = uuid.uuid4().hex
-        trainee = Trainee(trainee_name, features=feats, default_action_features=actions,
-                          default_context_features=contexts, metadata={'ttl': 600000})
+        trainee = Trainee(trainee_name, features=feats, metadata={'ttl': 600000})
         trainee_builder.create(trainee)
         try:
             yield trainee
@@ -443,7 +438,10 @@ class TestClient:
         """
         cases = [['1', '2'], ['3', '4']]
         self.client.train(trainee.id, cases, features=['penguin', 'play'])
-        react_response = self.client.react(trainee.id, contexts=[['1']])
+        react_response = self.client.react(trainee.id,
+                                           contexts=[['1']],
+                                           context_features=['penguin'],
+                                           action_features=['play'])
         assert isinstance(react_response, Reaction)
         assert react_response['action']['play'].iloc[0] == '2'
         case_response = self.client.get_cases(
@@ -721,7 +719,10 @@ class TestClient:
             ),
         ]
         for audit_detail_set, keys_to_expect in details_sets:
-            response = self.client.react(trainee.id, contexts=[['1']],
+            response = self.client.react(trainee.id,
+                                         contexts=[['1']],
+                                         context_features=['penguin'],
+                                         action_features=['play'],
                                          details=audit_detail_set)
             details = response['details']
             assert (all(details[key] is not None for key in keys_to_expect))
