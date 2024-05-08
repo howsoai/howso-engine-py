@@ -412,13 +412,9 @@ class TestClient:
             "dog": {"type": "nominal"},
             "cat": {"type": "continuous"}
         }
-        actions = ['cat']
-        contexts = ['dog']
         updated_trainee = Trainee(
             trainee.name,
             features=feats,
-            default_action_features=actions,
-            default_context_features=contexts,
             metadata={'date': 'now'}
         )
         updated_trainee = self.client.update_trainee(updated_trainee)
