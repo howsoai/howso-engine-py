@@ -56,9 +56,9 @@ class Reaction(abc.MutableMapping):
         "influential_cases_familiarity_convictions",
         "influential_cases_raw_weights", "influential_cases",
         "local_case_feature_residual_convictions", "most_similar_case_indices",
-        "most_similar_cases", "observational_errors",
-        "outlying_feature_values", "robust_influences", "robust_residuals",
-        "similarity_conviction",
+        "most_similar_cases", "observational_errors", "prediction_stats",
+        "confusion_matrices", "outlying_feature_values", "robust_influences",
+        "robust_residuals", "similarity_conviction",
     }
 
     def __init__(self,

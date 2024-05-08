@@ -2925,6 +2925,23 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'robust_residuals' parameter to determine whether to do
                 standard or robust computation.
 
+            - prediction_stats : bool, optional
+                When true outputs feature prediction stats for all (context
+                and action) features locally around the prediction. The stats
+                returned  are ("r2", "rmse", "spearman_coeff", "precision",
+                "recall", "accuracy", "mcc"). Confusion matrices may also be
+                returned by setting 'confusion_matrices' to true. Uses only the
+                context features of the reacted case to determine that area.
+                Relies on 'robust_residuals' flag.
+
+            - confusion_matrices : bool, optional
+                When true, will automatically set 'prediction_stats' to true and
+                return the confusion matrices alongside all of the other prediction
+                stats from 'prediction_stats' for all (context and action) features
+                locally around the prediction. Uses only the context features of
+                the reacted case to determine that area. Relies on 'robust_residuals'
+                flag.
+
             - feature_mda : bool, optional
                 If True outputs each context feature's mean decrease in
                 accuracy of predicting the action feature given the context.
