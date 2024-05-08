@@ -1,7 +1,7 @@
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from http import HTTPStatus
 import importlib.metadata
 import json
@@ -34,11 +34,11 @@ from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
 from howso.openapi.models import (
-    ApiVersion,
     AnalyzeRequest,
+    ApiVersion,
     Cases,
-    Session,
     ReactGroupResponse,
+    Session,
     SetAutoAnalyzeParamsRequest,
     Trainee,
     TraineeIdentity,
@@ -1782,8 +1782,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             id=str(uuid.uuid4()),
             name=name,
             metadata=metadata or dict(),
-            created_date=datetime.utcnow(),
-            modified_date=datetime.utcnow(),
+            created_date=datetime.now(timezone.utc),
+            modified_date=datetime.now(timezone.utc),
         )
         return self._active_session
 
@@ -1917,7 +1917,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Updating session for session with id: {session_id}')
 
         updated_session = None
-        modified_date = datetime.utcnow()
+        modified_date = datetime.now(timezone.utc)
         metadata = metadata or dict()
         # We remove the trainee_id since this may have been set by the
         # get_session(s) methods and is not needed to be stored in the model.
@@ -3800,7 +3800,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if result is None:
             result = dict()
         return Cases(features=result.get('features'),
-                                   cases=result.get('cases'))
+                     cases=result.get('cases'))
 
     def react_group(
         self,
@@ -5233,7 +5233,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
             'num_optimization_samples': 'num_analysis_samples',
             'optimization_sub_model_size': 'analysis_sub_model_size',
-            'optimize_level': 'analyze_level',
             'dwe_values': 'dt_values'
         }
 
@@ -5303,9 +5302,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_persist_trainee(trainee_id)
 
     def get_auto_ablation_params(self, trainee_id: str):
-        """
-        Get parameters set by :meth:`set_auto_ablation_params`.
-        """
+        """Get parameters set by :meth:`set_auto_ablation_params`."""
         self._auto_resolve_trainee(trainee_id)
         return self.howso.get_auto_ablation_params(trainee_id)
 
@@ -5918,7 +5915,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         num_analysis_samples: Optional[int] = None,
         num_samples: Optional[int] = None,
         analysis_sub_model_size: Optional[int] = None,
-        analyze_level: Optional[int] = None,
         p_values: Optional[List[float]] = None,
         targeted_model: Optional[Literal["omni_targeted", "single_targeted", "targetless"]] = None,
         use_deviations: bool = None,
@@ -5954,14 +5950,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             optional list used in hyperparameter search
         dt_values : list of float
             optional list used in hyperparameter search
-        analyze_level : int
-            optional value, if specified, will analyze for the following
-            flows:
-
-                1. predictions/accuracy (hyperparameters)
-                2. data synth (cache: global residuals)
-                3. standard details
-                4. full analysis
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}
             optional, valid values as follows:
 
@@ -6017,7 +6005,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
             'num_optimization_samples': 'num_analysis_samples',
             'optimization_sub_model_size': 'analysis_sub_model_size',
-            'optimize_level': 'analyze_level',
             'dwe_values': 'dt_values'
         }
         # explicitly update parameters if old names are provided
@@ -6030,8 +6017,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                         num_analysis_samples = kwargs[old_param]
                     elif old_param == 'optimization_sub_model_size':
                         analysis_sub_model_size = kwargs[old_param]
-                    elif old_param == 'optimize_level':
-                        analyze_level = kwargs[old_param]
                     elif old_param == 'dwe_values':
                         dt_values = kwargs[old_param]
 
@@ -6055,7 +6040,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             num_analysis_samples=num_analysis_samples,
             num_samples=num_samples,
             analysis_sub_model_size=analysis_sub_model_size,
-            analyze_level=analyze_level,
             p_values=p_values,
             targeted_model=targeted_model,
             use_deviations=use_deviations,
@@ -6130,5 +6114,3 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
 
         return self.howso.evaluate(trainee_id, **evaluate_params)
-
-

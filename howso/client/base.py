@@ -432,7 +432,6 @@ class AbstractHowsoClient(ABC):
         num_analysis_samples=None,
         num_samples=None,
         analysis_sub_model_size=None,
-        analyze_level=None,
         p_values=None,
         targeted_model=None,
         use_case_weights=None,

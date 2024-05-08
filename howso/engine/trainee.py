@@ -1004,7 +1004,6 @@ class Trainee(BaseTrainee):
         num_analysis_samples: Optional[int] = None,
         num_samples: Optional[int] = None,
         analysis_sub_model_size: Optional[int] = None,
-        analyze_level: Optional[int] = None,
         p_values: Optional[List[float]] = None,
         targeted_model: Optional[TargetedModel] = None,
         use_case_weights: Optional[bool] = None,
@@ -1045,14 +1044,6 @@ class Trainee(BaseTrainee):
         analysis_sub_model_size : int, optional
             Number of samples to use for analysis. The rest will be
             randomly held-out and not included in calculations.
-        analyze_level : int, optional
-            If specified, will analyze for the following flows:
-
-                1. Predictions/accuracy (hyperparameters)
-                2. Data synth (cache: global residuals)
-                3. Standard details
-                4. Full analysis
-
         p_values : list of float, optional
             The p value hyperparameters to analyze with.
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}, optional
@@ -1095,7 +1086,6 @@ class Trainee(BaseTrainee):
                 num_analysis_samples=num_analysis_samples,
                 num_samples=num_samples,
                 analysis_sub_model_size=analysis_sub_model_size,
-                analyze_level=analyze_level,
                 p_values=p_values,
                 targeted_model=targeted_model,
                 use_deviations=use_deviations,
