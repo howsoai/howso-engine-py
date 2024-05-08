@@ -244,9 +244,7 @@ class TestDatetimeSerialization:
                     'datetime': {'type': 'continuous',
                                  'date_time_format': '%Y-%m-%dT%H:%M:%S'}
                     }
-        trainee = Trainee(features=features,
-                          default_action_features=['nom'],
-                          default_context_features=['datetime'])
+        trainee = Trainee(features=features)
         trainee_builder.create(trainee, overwrite_trainee=True)
         df = pd.DataFrame(data=np.asarray([
             ['a', 'b', 'c', 'd'],
