@@ -297,9 +297,9 @@ flake8-import-order==0.18.2 \
     --hash=sha256:82ed59f1083b629b030ee9d3928d9e06b6213eb196fe745b3a7d4af2168130df \
     --hash=sha256:e23941f892da3e0c09d711babbb0c73bc735242e9b216b726616758a920d900e
     # via howso-engine (pyproject.toml)
-howso-openapi-client==33.0.1 \
-    --hash=sha256:bce1493d8fe6ba2beac57d96247bc2b50554fec565d63c90e0e58e59a808c78c \
-    --hash=sha256:c8bb4e778ef05ee0b5864fe2f64e243a3f21d8b254ea31a630d5e9df9d20a501
+howso-openapi-client==33.0.3 \
+    --hash=sha256:bb5612aa14c403aa2f9213c914aec816a3349f2d2f0aa214e47b5578207befcf \
+    --hash=sha256:e480ccf0abc25da04694c5fdfe5e1d51d5f4680d77ea4465ca16ba2eafa1dd64
     # via howso-engine (pyproject.toml)
 humanize==4.9.0 \
     --hash=sha256:582a265c931c683a7e9b8ed9559089dea7edcf6cc95be39a3cbc2c5d5ac2bcfa \
@@ -504,9 +504,9 @@ pip-tools==7.4.1 \
     --hash=sha256:4c690e5fbae2f21e87843e89c26191f0d9454f362d8acdbd695716493ec8b3a9 \
     --hash=sha256:864826f5073864450e24dbeeb85ce3920cdfb09848a3d69ebf537b521f14bcc9
     # via howso-engine (pyproject.toml)
-pipdeptree==2.19.1 \
-    --hash=sha256:9e68b1af1cef009e47763343fa3df795d14a367eb1b3d7c461d34a0887235d04 \
-    --hash=sha256:e342d7c13b3bb87f996607cf10514cc33da899c25b23220d7f0f0adcf48e1f67
+pipdeptree==2.20.0 \
+    --hash=sha256:8fa583060e6ee5482d5f7da00163a847c892a457ea51e720fca1b8df8fccff31 \
+    --hash=sha256:bea21daf9ccb991650a237bfa4730932c7332c3c37cce7c4b4fade43ee5a2be5
     # via howso-engine (pyproject.toml)
 platformdirs==4.2.1 \
     --hash=sha256:031cd18d4ec63ec53e82dceaac0417d218a6863f7745dfcc9efe7793b7039bdf \
@@ -724,9 +724,9 @@ threadpoolctl==3.5.0 \
     --hash=sha256:082433502dd922bf738de0d8bcc4fdcbf0979ff44c42bd40f5af8a282f6fa107 \
     --hash=sha256:56c1e26c150397e58c4926da8eeee87533b1e32bef131bd4bf6a2f45f3185467
     # via scikit-learn
-tomlkit==0.12.4 \
-    --hash=sha256:5cd82d48a3dd89dee1f9d64420aa20ae65cfbd00668d6f094d7578a78efbb77b \
-    --hash=sha256:7ca1cfc12232806517a8515047ba66a19369e71edf2439d0f5824f91032b6cc3
+tomlkit==0.12.5 \
+    --hash=sha256:af914f5a9c59ed9d0762c7b64d3b5d5df007448eb9cd2edc8a46b1eafead172f \
+    --hash=sha256:eef34fba39834d4d6b73c9ba7f3e4d1c417a4e56f89a7e96e090dd0d24b8fb3c
     # via pylint
 typing-extensions==4.11.0 \
     --hash=sha256:83f085bd5ca59c80295fc2a82ab5dac679cbe02b9f33f7d83af68e241bea51b0 \
