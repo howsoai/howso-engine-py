@@ -831,9 +831,7 @@ class TestBaseClient:
                     header[3]: {'type': 'continuous'},
                     header[4]: {'type': 'nominal'}
                     }
-        trainee = Trainee(features=features,
-                          default_action_features=header[-1:],
-                          default_context_features=header[:-1])
+        trainee = Trainee(features=features)
         trainee_builder.create(trainee, overwrite_trainee=True)
         try:
             yield trainee
