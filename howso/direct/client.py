@@ -1,7 +1,7 @@
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, UTC
 from http import HTTPStatus
 import importlib.metadata
 import json
@@ -1782,8 +1782,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             id=str(uuid.uuid4()),
             name=name,
             metadata=metadata or dict(),
-            created_date=datetime.utcnow(),
-            modified_date=datetime.utcnow(),
+            created_date=datetime.now(UTC),
+            modified_date=datetime.now(UTC),
         )
         return self._active_session
 
@@ -1917,7 +1917,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Updating session for session with id: {session_id}')
 
         updated_session = None
-        modified_date = datetime.utcnow()
+        modified_date = datetime.now(UTC)
         metadata = metadata or dict()
         # We remove the trainee_id since this may have been set by the
         # get_session(s) methods and is not needed to be stored in the model.
