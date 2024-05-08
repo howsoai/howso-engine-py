@@ -153,8 +153,6 @@ class TestHowso:
         # estimator (but using the same client for convenience).
         known_name = f'known-name-{uuid.uuid4()}'
         rogue_trainee = engine.Trainee(
-            default_action_features=['a', 'b'],
-            default_context_features=['c', 'd'],
             metadata={'fake-trainee': True},
             features={
                 'a': {'type': 'nominal'},
