@@ -832,8 +832,9 @@ def show_core_warnings(core_warnings):
 
     if isinstance(core_warnings, Iterable):
         for w in core_warnings:
-            if warning := w.get("detail"):
-                warnings.warn(warning, category=HowsoWarning)
+            msg = w.get("detail") if isinstance(w, dict) else w
+            if isinstance(msg, str):
+                warnings.warn(msg, category=HowsoWarning)
 
 
 def to_pandas_datetime_format(f):
