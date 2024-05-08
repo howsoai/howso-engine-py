@@ -113,9 +113,9 @@ faker==25.0.1 \
     --hash=sha256:6737cc6d591cd83421fdc5e494f6e2c1a6e32266214f158b745aa9fa15687c98 \
     --hash=sha256:c153505618801f1704807b258a6010ea8cabf91f66f4788939bfdba83b887e76
     # via howso-engine (pyproject.toml)
-howso-openapi-client==33.0.0 \
-    --hash=sha256:98fa8b591ce81ff9a53104b1cbff2bbe135da963ab28ef7af86c95098e8edbed \
-    --hash=sha256:e439062ba6ace6cadf4333eda04396691da8bbb540e3c91800cb65009271f2f0
+howso-openapi-client==33.0.3 \
+    --hash=sha256:bb5612aa14c403aa2f9213c914aec816a3349f2d2f0aa214e47b5578207befcf \
+    --hash=sha256:e480ccf0abc25da04694c5fdfe5e1d51d5f4680d77ea4465ca16ba2eafa1dd64
     # via howso-engine (pyproject.toml)
 humanize==4.9.0 \
     --hash=sha256:582a265c931c683a7e9b8ed9559089dea7edcf6cc95be39a3cbc2c5d5ac2bcfa \
