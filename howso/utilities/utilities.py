@@ -103,8 +103,6 @@ def trainee_from_df(df, features: Optional[Mapping[str, Mapping]] = None,
             context_features.append(fname)
 
     return Trainee(name, features=features,
-                   default_context_features=context_features,
-                   default_action_features=action_features,
                    persistence=persistence,
                    metadata=trainee_metadata)
 
