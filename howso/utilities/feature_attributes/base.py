@@ -449,22 +449,11 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
         Among other reasons, this is useful for presenting feature attributes
         in a Jupyter notebook or other medium.
 
-        Parameters
-        ----------
-        include_all: bool, default False
-            If True, also include include internal meta fields. Currently,
-            this includes `original_type` and its sub-keys but may include
-            other, internal meta keys in the future.
-
         Returns
         -------
         pandas.DataFrame
             A DataFrame representation of the inferred feature attributes.
         """
-        internal_meta_fields = [
-            "original_type",
-        ]
-
         sep = '|'
         key_order = [
             "sample",
@@ -477,18 +466,17 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
             "non_sensitive",
         ]
 
-        if include_all:
-            key_order.extend(internal_meta_fields)
-
-        # Ensure that these keys are available
-        all_keys = [k for a in self.values() for k in a.keys()]
+        # Ensure that these keys are available and reduced to an iterable of
+        # only the unique values.
+        all_keys = {k: None for a in self.values() for k in a.keys()}.keys()
         key_order = [k for k in key_order if k in all_keys]
 
-        # Ensure we include extra keys not in the above list.
-        extra_keys = [
-            k for a in self.values() for k in a.keys()
-            if k not in key_order and k not in internal_meta_fields
-        ]
+        # Ensure we include extra keys not in the above list, also maintained as
+        # only the unique values.
+        extra_keys = {
+            k: None for a in self.values() for k in a.keys()
+            if k not in key_order
+        }.keys()
         key_order.extend(sorted(extra_keys))
 
         frames = []
