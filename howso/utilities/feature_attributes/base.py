@@ -452,8 +452,9 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
         Parameters
         ----------
         include_all: bool, default False
-            If True, also include include internal meta fields such as
-            `original_type` in the output.
+            If True, also include include internal meta fields. Currently,
+            this includes `original_type` and its sub-keys but may include
+            other, internal meta keys in the future.
 
         Returns
         -------
@@ -470,6 +471,7 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
             "type",
             "date_time_format",
             "decimal_places",
+            "significant_digits",
             "bounds",
             "data_type",
             "non_sensitive",
@@ -482,7 +484,7 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
         all_keys = [k for a in self.values() for k in a.keys()]
         key_order = [k for k in key_order if k in all_keys]
 
-        # Ensure we acknowledge extra keys not in the above list.
+        # Ensure we include extra keys not in the above list.
         extra_keys = [
             k for a in self.values() for k in a.keys()
             if k not in key_order and k not in internal_meta_fields
