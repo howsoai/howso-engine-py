@@ -69,32 +69,37 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
             ...         'bounds': {
             ...             'allow_null': True, 'max': 3, 'min': 2.72
             ...         },
-            ...         'type': 'continuous'
+            ...         'type': 'continuous',
+            ...         'sample': 2.86
             ...     },
             ...     'sepal-width', {
             ...         'bounds': {
             ...             'allow_null': True, 'max': 7.38905609893065,
             ...             'min': 1.0
             ...         },
-            ...         'type': 'continuous'
+            ...         'type': 'continuous',
+            ...         'sample': 4.56
             ...     },
             ...     'petal-length', {
             ...         'bounds': {
             ...             'allow_null': True, 'max': 7.38905609893065,
             ...             'min': 1.0
             ...         },
-            ...         'type': 'continuous'
+            ...         'type': 'continuous',
+            ...         'sample': 5.52
             ...     },
             ...     'petal-width', {
             ...         'bounds': {
             ...             'allow_null': True, 'max': 2.718281828459045,
             ...             'min': 0.049787068367863944
             ...         },
-            ...         'type': 'continuous'
+            ...         'type': 'continuous',
+            ...         'sample': 1.33
             ...     },
             ...     'target', {
             ...         'bounds': {'allow_null': True},
             ...         'type': 'nominal'
+            ...         'sample': 1
             ...     }
             ... }
 
@@ -147,6 +152,9 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
         feature with a 3rd order of derivative, setting its derived_orders
         to 2 will synthesize the 3rd order derivative value, and then use
         that synthed value to derive the 2nd and 1st order.
+
+    include_sample : bool, default False
+        Set to True to include a sample of each feature's data in the output.
 
     lags : list or dict, default None
         (Optional) A list containing the specific indices of the desired lag
@@ -320,6 +328,10 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
                 {
                     "measurement_amount": [ "measurement" ]
                 }
+
+    include_sample: bool, default False
+        If True, include a ``sample`` field containing a sample of the data
+        from each feature in the output feature attributes dictionary.
 
     Returns
     -------
