@@ -558,7 +558,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 'data_type': 'number',
             }
 
-        attributes = {"type": "continuous"}
+        attributes = {"type": "continuous", "data_type": "number"}
         num_cases = self._get_num_cases()
 
         column = self.data.c[feature_name]
@@ -623,6 +623,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return {
             'type': 'continuous',
+            'data_type': 'string',
             'date_time_format': dt_format,
         }
 
@@ -639,12 +640,14 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return {
             'type': 'continuous',
+            'data_type': 'string',
             'date_time_format': ISO_8601_DATE_FORMAT,
         }
 
     def _infer_time_attributes(self, feature_name: str) -> Dict:
         return {
             'type': 'continuous',
+            'data_type': 'string',
         }
 
     def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
@@ -659,7 +662,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             }
 
         return {
-            'type': 'continuous'
+            'type': 'continuous',
+            'data_type': 'string',
         }
 
     def _infer_boolean_attributes(self, feature_name: str) -> Dict:
@@ -718,6 +722,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         else:
             attributes = {
                 'type': 'continuous',
+                'data_type': 'number',
                 'decimal_places': 0,
             }
 
@@ -740,6 +745,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             fmt = determine_iso_format(sample, feature_name)
             return {
                 'type': 'continuous',
+                'data_type': 'string',
                 'date_time_format': fmt
             }
         else:
@@ -876,9 +882,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 if format_dt is not None:
                     min_value = epoch_to_date(min_value, format_dt, min_date_tz)
                     max_value = epoch_to_date(max_value, format_dt, max_date_tz)
-                output = {'min': min_value, 'max': max_value}
-                if not allow_null:
-                    output['allow_null'] = False
+                output = {'min': min_value, 'max': max_value, 'allow_null': allow_null}
             else:
                 # If no min/max were found from the data, use min/max size of
                 # the data type.
@@ -888,8 +892,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     output = {'min': min_value, 'max': max_value}
 
         else:
-            if not allow_null:
-                output = {'allow_null': False}
+            output = {'allow_null': allow_null}
 
         if decimal_places is not None:
             if 'max' in output:

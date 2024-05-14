@@ -366,9 +366,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                                 elif actual_max_f == mode_f:
                                     max_f = actual_max_f
 
-                output = {'min': min_f, 'max': max_f}
-                if not allow_null:
-                    output['allow_null'] = False
+                output = {'min': min_f, 'max': max_f, 'allow_null': allow_null}
             else:
                 # If no min/max were found from the data, use min/max size of
                 # the data type.
@@ -378,8 +376,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     output = {'min': min_value, 'max': max_value}
 
         else:  # Ordinals
-            if not allow_null:
-                output = {'allow_null': False}
+            output = {'allow_null': allow_null}
 
         if decimal_places is not None:
             if 'max' in output:
@@ -390,7 +387,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return output
 
     def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
-        attributes: Dict[str, Any] = {"type": "continuous"}
+        attributes: Dict[str, Any] = {"type": "continuous", "data_type": "number"}
 
         n_cases = self.data[feature_name].shape[0]
 
@@ -476,23 +473,27 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     dt_format += "%z"
         return {
             'type': 'continuous',
+            'data_type': 'string',
             'date_time_format': dt_format,
         }
 
     def _infer_date_attributes(self, feature_name: str) -> Dict:
         return {
             "type": "continuous",
-            "date_time_format": ISO_8601_DATE_FORMAT
+            "data_type": "string",
+            "date_time_format": ISO_8601_DATE_FORMAT,
         }
 
     def _infer_time_attributes(self, feature_name: str) -> Dict:
         return {
-            'type': 'continuous'
+            'type': 'continuous',
+            'data_type': 'string',
         }
 
     def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
         return {
-            "type": "continuous"
+            "type": "continuous",
+            "data_type": "string",
         }
 
     def _infer_boolean_attributes(self, feature_name: str) -> Dict:
@@ -537,6 +538,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             attributes = {
                 "type": "continuous",
+                "data_type": "number",
                 "decimal_places": 0,
             }
 
@@ -551,6 +553,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 fmt = determine_iso_format(first_non_null, feature_name)
                 return {
                     "type": "continuous",
+                    "data_type": "string",
                     "date_time_format": fmt
                 }
             else:
@@ -574,5 +577,5 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
     def _infer_unknown_attributes(self, feature_name: str) -> Dict:
         return {
-            "type": "nominal"
+            "type": "nominal",
         }
