@@ -290,7 +290,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
     (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6, 6], {'min': 1, 'max': 6, 'allow_null': False}),
     (None, [2, 2, 2, 2, 4, 5, 6, 7], {'min': 2, 'max': 7, 'allow_null': False}),
     (['a'], [2, 3, 4, 5, 6, 7], {'min': 2, 'max': 7, 'allow_null': False}),
-    (['a'], [2, 3, 4, None, 6, 7], {'min': 2, 'max': 7}),
+    (['a'], [2, 3, 4, None, 6, 7], {'min': 2, 'max': 7, 'allow_null': True}),
     (
         ['a'],
         ['1905-01-01', '1904-05-03', '2020-01-15', '2000-04-26', '2000-04-24'],
@@ -371,7 +371,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
         [datetime.timedelta(days=1), datetime.timedelta(days=1),
          datetime.timedelta(seconds=5), datetime.timedelta(days=1, seconds=30),
          datetime.timedelta(minutes=50), datetime.timedelta(days=5)],
-        {'min': 5, 'max': 5 * 24 * 60 * 60}
+        {'min': 5, 'max': 5 * 24 * 60 * 60, 'allow_null': True}
     ),
     (
         None,
@@ -380,7 +380,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.timedelta(minutes=50), datetime.timedelta(days=5),
          datetime.timedelta(days=5), datetime.timedelta(days=5),
          datetime.timedelta(days=5)],
-        {'min': 2.718281828459045, 'max': 5 * 24 * 60 * 60}
+        {'min': 2.718281828459045, 'max': 5 * 24 * 60 * 60, 'allow_null': True}
     ),
     (
         None,
@@ -388,7 +388,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.time(minute=1, second=30), datetime.time(minute=10),
          datetime.time(second=15), datetime.time(second=15),
          datetime.time(second=15), datetime.time(second=15)],
-        {'min': 15, 'max': 22026.465794806718}
+        {'min': 15, 'max': 22026.465794806718, 'allow_null': True}
     ),
 ])
 def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
