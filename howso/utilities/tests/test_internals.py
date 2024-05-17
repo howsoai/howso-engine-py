@@ -228,7 +228,7 @@ def test_ignore_warnings_individual(warning_type):
         warnings.warn("Test Warning", warning_type)
         return a + b
 
-    with pytest.warns(None) as warnings_list:
+    with warnings.catch_warnings(record=True) as warnings_list:
         with internals.IgnoreWarnings(warning_type):
             c = raise_future_warning(1, 2)
 
@@ -245,7 +245,7 @@ def test_ignore_warnings_iterable(warning_type=[FutureWarning, UserWarning]):
             warnings.warn("Test Warning", warning)
         return a + b
 
-    with pytest.warns(None) as warnings_list:
+    with warnings.catch_warnings(record=True) as warnings_list:
         with internals.IgnoreWarnings(warning_type):
             c = raise_future_warning(1, 2)
 

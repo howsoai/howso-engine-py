@@ -153,10 +153,6 @@ class Trainee(BaseTrainee):
 
         self.persistence = persistence
 
-        # TODO: Remove once default features are removed from openapi client
-        self._default_action_features = None
-        self._default_context_features = None
-
         # Allow passing project id or the project instance
         if isinstance(project, BaseProject):
             self._project_id = project.id
