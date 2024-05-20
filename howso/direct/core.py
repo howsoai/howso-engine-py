@@ -2468,10 +2468,13 @@ class HowsoCore:
     def get_prediction_stats(
         self, trainee_id, *,
         action_feature=None,
-        condition=None,
-        num_cases=None,
+        action_condition=None,
+        action_condition_precision=None,
+        action_num_cases=None,
+        context_condition=None,
+        context_condition_precision=None,
+        context_precision_num_cases=None,
         num_robust_influence_samples_per_case=None,
-        precision=None,
         robust=None,
         robust_hyperparameters=None,
         stats=None,
@@ -2489,22 +2492,68 @@ class HowsoCore:
             were computed for this specified action_feature.
             Note: ".targetless" is the action feature used during targetless
             analysis.
-        condition : dict or None, optional
-            A condition map to select which cases to compute prediction stats
-            for.
-        num_cases : int, default None
+        action_condition : map of str -> any, optional
+            A condition map to select the action set, which is the dataset for which
+            the prediction stats are for. If both ``action_condition`` and ``context_condition``
+            are provided, then all of the action cases selected by the ``action_condition'``
+            will be excluded from the context set, which is the set being queried to make to
+            make predictions on the action set, effectively holding them out.
+            If only ``action_condition`` is specified, then only the single predicted case
+            will be left out.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        action_num_cases : int, default None
             The maximum amount of cases to use to calculate prediction stats.
             If not specified, the limit will be k cases if precision is
-            "similar", or 1000 cases if precision is "exact". Only used if
-            `condition` is not None.
+            "similar", or 1000 cases if precision is "exact". Works with or
+            without ``action_condition``.
+            -If ``action_condition`` is set:
+                If None, will be set to k if precision is "similar" or no limit if precision is "exact".
+            - If ``action_condition`` is not set:
+                If None, will be set to the Howso default limit of 2000.
+        action_condition_precision : {"exact", "similar"}, optional
+            The precision to use when selecting cases with the ``action_condition``.
+            If not specified "exact" will be used. Only used if ``action_condition``
+            is not None.
+        context_condition : map of str -> any, optional
+            A condition map to select the context set, which is the set being queried to make 
+            to make predictions on the action set. If both ``action_condition`` and ``context_condition``
+            are provided,  then all of the cases from the action set, which is the dataset for which the
+            prediction stats are for, will be excluded from the context set, effectively holding them out.
+            If only ``action_condition`` is specified,  then only the single predicted case will be left out.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        context_precision_num_cases : int, default None
+            Limit on the number of context cases when ``context_condition_precision`` is set to 'similar'.
+            If None, will be set to k.
+        context_condition_precision : {"exact", "similar"}, optional
+            The precision to use when selecting cases with the ``context_condition``.
+            If not specified "exact" will be used. Only used if ``context_condition``
+            is not None.
         num_robust_influence_samples_per_case : int, optional
             Specifies the number of robust samples to use for each case for
             robust contribution computations.
             Defaults to 300 + 2 * (number of features).
-        precision : str, default None
-            The precision to use when selecting cases with the condition.
-            Options are 'exact' or 'similar'. If not specified "exact" will be
-            used. Only used if `condition` is not None.
         robust : bool, optional
             When specified, will attempt to return stats that
             were computed with the specified robust or non-robust type.
@@ -2526,10 +2575,13 @@ class HowsoCore:
         return self._execute(trainee_id, "get_prediction_stats", {
             "robust": robust,
             "action_feature": action_feature,
-            "condition": condition,
-            "num_cases": num_cases,
+            "action_condition": action_condition,
+            "action_condition_precision": action_condition_precision,
+            "action_num_cases": action_num_cases,
+            "context_condition": context_condition,
+            "context_condition_precision": context_condition_precision,
+            "context_precision_num_cases": context_precision_num_cases,
             "num_robust_influence_samples_per_case": num_robust_influence_samples_per_case,
-            "precision": precision,
             "robust_hyperparameters": robust_hyperparameters,
             "stats": stats,
             "weight_feature": weight_feature,
