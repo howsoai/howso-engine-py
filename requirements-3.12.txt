@@ -4,14 +4,14 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=requirements-3.12.txt
 #
-amalgam-lang==10.2.0 \
-    --hash=sha256:0eb5da6fcd811d178c60d3ca00408df0504171402959cbb1850e0c132e2fca17 \
-    --hash=sha256:2367f8ae71c07a05688c94c05d974bb99c34540b1978b7d0eeb60a6d26401cf4 \
-    --hash=sha256:2fecd740f165c7a37d673e56115075fa70929e3b9d681fdbff4689883ec1a461 \
-    --hash=sha256:702b17a3d76a92f64ba1c4e74bf38d9c76a86cedc6ef65e2118900c16c2046ad \
-    --hash=sha256:813a442b2109244aa542f7f5600ba1940c23d0bbf690d2114ada5a5fc2dd2367 \
-    --hash=sha256:8bce220c75c397d5c5b2473b6059a520f6940a0364d0df2d22daf7a2d11da3b1 \
-    --hash=sha256:ea4320b4f9f1bd445dd84e1c4dd6c34b339e3caa6ed09b9cf13ecbbe0a496e2d
+amalgam-lang==10.2.1 \
+    --hash=sha256:03be50ba659268ab85e389e8f6046ad6859e7a572f36a16e0a4801967946a660 \
+    --hash=sha256:4e93b1311fa98003e48a230759b1601da92b4af73f7ed3a20917c385b83274f0 \
+    --hash=sha256:6c346c61804ff5a9927f8cb29822b5152a29d859c4c6a2cc42032b80bc21be26 \
+    --hash=sha256:77a7df94129906935326ae73c8e6fb9fbbe5ebeae728d46b5c129f8fb3b6481a \
+    --hash=sha256:7fecb4bb1697f268a61e9e4aafbc31d59efdb5ed883c2c27f99aca8ca497388d \
+    --hash=sha256:86fc00958817590c101be8f930ad9be21cdba3d5b9bdfe902aa53ff16d3e8f0c \
+    --hash=sha256:ca91a7eada20a8bceeb725a0fafcfd1c3d0f58cd6d2ecd534aebae8fb38ddcdf
     # via howso-engine (pyproject.toml)
 certifi==2024.2.2 \
     --hash=sha256:0569859f95fc761b18b45ef421b1290a0f65f147e92a1e5eb3e635f9a5e4e66f \
