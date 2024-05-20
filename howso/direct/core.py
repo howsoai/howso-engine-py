@@ -57,9 +57,9 @@ class HowsoCore:
         If true, sets debug flag for amlg operations. This will generate an
         execution trace useful in debugging with the standard name of
         howso_[random 6 byte hex]_execution.trace.
-    sbf_datastore_enabled : bool, default True
+    sbf_datastore_enabled : bool, default None
         If true, sbf tree structures are enabled.
-    max_num_threads : int, default 0
+    max_num_threads : int, default None
         If a multithreaded Amalgam binary is used, sets the maximum number of
         threads to the value specified. If 0, will use the number of visible
         logical cores.
@@ -74,8 +74,8 @@ class HowsoCore:
         howso_path: Path = DEFAULT_CORE_PATH,
         howso_fname: str = "howso.caml",
         trace: bool = False,
-        sbf_datastore_enabled: bool = True,
-        max_num_threads: int = 0,
+        sbf_datastore_enabled: Optional[bool] = None,
+        max_num_threads: Optional[int] = None,
         **kwargs
     ):
         if kwargs.get("amlg_debug", None) is not None:
