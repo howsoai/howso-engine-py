@@ -4359,7 +4359,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         action_condition : map of str -> any, optional
             A condition map to select the action set, which is the dataset for which
             the prediction stats are for. If both ``action_condition`` and ``context_condition``
-            are provided, then all of the action cases selected by the ``action_condition'``
+            are provided, then all of the action cases selected by the ``action_condition``
             will be excluded from the context set, which is the set being queried to make to
             make predictions on the action set, effectively holding them out.
             If only ``action_condition`` is specified, then only the single predicted case
@@ -4408,7 +4408,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                       exactly. Only applicable to nominal and string ordinal
                       features.
         context_precision_num_cases : int, default None
-            Limit on the number of context cases when ``context_condition_precision`` is set to 'similar'.
+            Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
             If None, will be set to k.
         context_condition_precision : {"exact", "similar"}, optional
             The precision to use when selecting cases with the ``context_condition``.
