@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -11,6 +13,7 @@ import operator
 import os
 from pathlib import Path
 import platform
+import typing as t
 from typing import (
     Any,
     Callable,
@@ -26,7 +29,6 @@ from typing import (
 )
 import uuid
 import warnings
-
 import certifi
 from howso import utilities as util
 from howso.client import AbstractHowsoClient, get_configuration_path
@@ -4317,13 +4319,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         *,
-        action_feature: Optional[str] = None,
-        action_condition: Optional[Dict[str, Any]] = None,
-        action_condition_precision: Optional[Literal["exact", "similar"]] = None,
-        action_num_cases: Optional[int] = None,
-        context_condition: Optional[Dict[str, Any]] = None,
-        context_condition_precision: Optional[Literal["exact", "similar"]] = None,
-        context_precision_num_cases: Optional[int] = None,
+        action_feature: t.Optional[str] = None,
+        action_condition: t.Optional[dict[str, t.Any]] = None,
+        action_condition_precision: t.Optional[t.Literal["exact", "similar"]] = None,
+        action_num_cases: t.Optional[int] = None,
+        context_condition: t.Optional[dict[str, t.Any]] = None,
+        context_condition_precision: t.Optional[t.Literal["exact", "similar"]] = None,
+        context_precision_num_cases: t.Optional[int] = None,
         num_robust_influence_samples_per_case=None,
         robust: Optional[bool] = None,
         robust_hyperparameters: Optional[bool] = None,
@@ -4376,7 +4378,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
-        action_num_cases : int, default None
+        action_num_cases : int, optional
             The maximum amount of cases to use to calculate prediction stats.
             If not specified, the limit will be k cases if precision is
             "similar", or 1000 cases if precision is "exact". Works with or
@@ -4407,7 +4409,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
-        context_precision_num_cases : int, default None
+        context_precision_num_cases : int, optional
             Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
             If None, will be set to k.
         context_condition_precision : {"exact", "similar"}, optional

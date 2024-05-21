@@ -2512,7 +2512,7 @@ class HowsoCore:
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
-        action_num_cases : int, default None
+        action_num_cases : int, optional
             The maximum amount of cases to use to calculate prediction stats.
             If not specified, the limit will be k cases if precision is
             "similar", or 1000 cases if precision is "exact". Works with or
@@ -2543,7 +2543,7 @@ class HowsoCore:
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
-        context_precision_num_cases : int, default None
+        context_precision_num_cases : int, optional
             Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
             If None, will be set to k.
         context_condition_precision : {"exact", "similar"}, optional

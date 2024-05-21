@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+import typing as t
 from typing import (
     Any,
     Callable,
@@ -2782,18 +2783,18 @@ class Trainee(BaseTrainee):
     def get_prediction_stats(
         self,
         *,
-        action_feature: Optional[str] = None,
-        action_condition: Optional[MutableMapping[str, Any]] = None,
-        action_condition_precision: Optional[Precision] = None,
-        action_num_cases: Optional[int] = None,
-        context_condition: Optional[MutableMapping[str, Any]] = None,
-        context_condition_precision: Optional[Precision] = None,
-        context_precision_num_cases: Optional[int] = None,
-        num_robust_influence_samples_per_case: Optional[int] = None,
-        robust: Optional[bool] = None,
-        robust_hyperparameters: Optional[bool] = None,
-        stats: Optional[Iterable[str]] = None,
-        weight_feature: Optional[str] = None,
+        action_feature: t.Optional[str] = None,
+        action_condition: t.Optional[t.MutableMapping[str, t.Any]] = None,
+        action_condition_precision: t.Optional[Precision] = None,
+        action_num_cases: t.Optional[int] = None,
+        context_condition: t.Optional[t.MutableMapping[str, t.Any]] = None,
+        context_condition_precision: t.Optional[Precision] = None,
+        context_precision_num_cases: t.Optional[int] = None,
+        num_robust_influence_samples_per_case: t.Optional[int] = None,
+        robust: t.Optional[bool] = None,
+        robust_hyperparameters: t.Optional[bool] = None,
+        stats: t.Optional[t.Iterable[str]] = None,
+        weight_feature: t.Optional[str] = None,
     ) -> DataFrame | dict:
         """
         Get feature prediction stats.
@@ -2839,7 +2840,7 @@ class Trainee(BaseTrainee):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
-        action_num_cases : int, default None
+        action_num_cases : int, optional
             The maximum amount of cases to use to calculate prediction stats.
             If not specified, the limit will be k cases if precision is
             "similar", or 1000 cases if precision is "exact". Works with or
@@ -2870,7 +2871,7 @@ class Trainee(BaseTrainee):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
-        context_precision_num_cases : int, default None
+        context_precision_num_cases : int, optional
             Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
             If None, will be set to k.
         context_condition_precision : {"exact", "similar"}, optional
