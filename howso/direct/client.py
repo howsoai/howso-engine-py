@@ -5447,8 +5447,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f"may or may not have an effect: {warn_params}",
                 UnsupportedArgumentWarning
             )
-            self._auto_resolve_trainee(trainee_id)
-            self.howso.reduce_data(trainee_id, **params)
+        self._auto_resolve_trainee(trainee_id)
+        self.howso.reduce_data(trainee_id, **params)
 
     def auto_analyze(self, trainee_id: str):
         """
