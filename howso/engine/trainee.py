@@ -975,7 +975,7 @@ class Trainee(BaseTrainee):
         ----------
         trainee_id : str
             The ID of the Trainee for which to reduce data.
-        context_features : list of str, optional
+        features : list of str, optional
             The features which should be used to determine which cases to remove. This defaults to all of
             the trained features (excluding internal features).
         distribute_weight_feature : str, optional
