@@ -68,8 +68,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         for name in feature_names:
             if not isinstance(name, str):
                 raise ValueError(
-                    "Unexpected DataFrame column name format, please update "
-                    "your DataFrame to use string column names.")
+                    'Unexpected DataFrame column name format, please update '
+                    'your DataFrame to use string column names.')
         return feature_names
 
     def _has_unique_constraint(self, feature_name: str) -> bool:
@@ -85,8 +85,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if feature is not None:
             if isinstance(feature, pd.DataFrame):
                 raise ValueError(
-                    "The provided DataFrame contains duplicate column names. "
-                    "All column names must be unique.")
+                    'The provided DataFrame contains duplicate column names. '
+                    'All column names must be unique.')
             dtype = feature.dtype
             if is_float_dtype(dtype):
                 typing_info = {}
@@ -137,7 +137,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             else:
                 first_non_null = self._get_first_non_null(feature_name)
                 if isinstance(first_non_null, str):
-                    # DataFrames may use "object" dtype for strings, detect
+                    # DataFrames may use 'object' dtype for strings, detect
                     # string columns by checking the type of the data
                     return FeatureType.STRING, {}
                 elif isinstance(first_non_null, bytes):
@@ -320,9 +320,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     max_date = epoch_to_date(max_f, format_dt, max_date_tz)
                     return {'min': min_date, 'max': max_date}
                 except Exception:  # noqa: Intentionally broad
-                    w_str = (f"Feature {feature_name} does not match the "
-                             "provided date time format, unable to guess "
-                             "bounds.")
+                    w_str = (f'Feature {feature_name} does not match the '
+                             'provided date time format, unable to guess '
+                             'bounds.')
                     warnings.warn(w_str)
                     max_f = np.nan
                     min_f = np.nan
@@ -387,7 +387,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return output
 
     def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
-        attributes: Dict[str, Any] = {"type": "continuous", "data_type": "number"}
+        attributes: Dict[str, Any] = {'type': 'continuous', 'data_type': 'number'}
 
         n_cases = self.data[feature_name].shape[0]
 
@@ -398,8 +398,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             # determine if nominal by checking if number of uniques <= 2
             if self.data[feature_name].nunique() <= 2 and n_cases > 10:
                 return {
-                    "type": "nominal",
-                    "data_type": "number"
+                    'type': 'nominal',
+                    'data_type': 'number'
                 }
 
             # Determine number of decimal places
@@ -462,7 +462,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         dt_format = ISO_8601_FORMAT
         if hasattr(column, 'dt') and getattr(column.dt, 'tz', None):
             # Include timezone offset in format
-            dt_format += "%z"
+            dt_format += '%z'
         elif column.dtype == object:
             first_non_null = self._get_first_non_null(feature_name)
             if isinstance(first_non_null, datetime.datetime):
@@ -470,36 +470,36 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 # be 'object'. In this case we check if the first non-null
                 # value has tzinfo and include the timezone in the format
                 if first_non_null.tzinfo is not None:
-                    dt_format += "%z"
+                    dt_format += '%z'
         return {
             'type': 'continuous',
-            'data_type': 'string',
+            'data_type': 'formatted_date_time',
             'date_time_format': dt_format,
         }
 
     def _infer_date_attributes(self, feature_name: str) -> Dict:
         return {
-            "type": "continuous",
-            "data_type": "string",
-            "date_time_format": ISO_8601_DATE_FORMAT,
+            'type': 'continuous',
+            'data_type': 'formatted_date_time',
+            'date_time_format': ISO_8601_DATE_FORMAT,
         }
 
     def _infer_time_attributes(self, feature_name: str) -> Dict:
         return {
             'type': 'continuous',
-            'data_type': 'string',
+            'data_type': 'number',
         }
 
     def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
         return {
-            "type": "continuous",
-            "data_type": "string",
+            'type': 'continuous',
+            'data_type': 'number',
         }
 
     def _infer_boolean_attributes(self, feature_name: str) -> Dict:
         return {
-            "type": "nominal",
-            "data_type": "boolean",
+            'type': 'nominal',
+            'data_type': 'boolean',
         }
 
     def _infer_integer_attributes(self, feature_name: str) -> Dict:
@@ -531,15 +531,15 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
         if guess_nominals:
             attributes = {
-                "type": "nominal",
-                "data_type": "number",
-                "decimal_places": 0,
+                'type': 'nominal',
+                'data_type': 'number',
+                'decimal_places': 0,
             }
         else:
             attributes = {
-                "type": "continuous",
-                "data_type": "number",
-                "decimal_places": 0,
+                'type': 'continuous',
+                'data_type': 'number',
+                'decimal_places': 0,
             }
 
         return attributes
@@ -552,30 +552,30 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             if first_non_null := self._get_first_non_null(feature_name):
                 fmt = determine_iso_format(first_non_null, feature_name)
                 return {
-                    "type": "continuous",
-                    "data_type": "string",
-                    "date_time_format": fmt
+                    'type': 'continuous',
+                    'data_type': 'string',
+                    'date_time_format': fmt
                 }
             else:
                 # It isn't clear how this method would be called on a feature
                 # if it has no data, but just in case...
                 return {
-                    "type": "continuous",
+                    'type': 'continuous',
                 }
         elif self._is_json_feature(feature_name):
             return {
-                "type": "continuous",
-                "data_type": "json"
+                'type': 'continuous',
+                'data_type': 'json'
             }
         elif self._is_yaml_feature(feature_name):
             return {
-                "type": "continuous",
-                "data_type": "yaml"
+                'type': 'continuous',
+                'data_type': 'yaml'
             }
         else:
             return self._infer_unknown_attributes(feature_name)
 
     def _infer_unknown_attributes(self, feature_name: str) -> Dict:
         return {
-            "type": "nominal",
+            'type': 'nominal',
         }

@@ -403,8 +403,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         """
         with session_scope(self.session_cls) as session:
             results = session.query(
-                func.min(self.data.c[feature_name]).label("min_value"),
-                func.max(self.data.c[feature_name]).label("max_value")
+                func.min(self.data.c[feature_name]).label('min_value'),
+                func.max(self.data.c[feature_name]).label('max_value')
             ).one()
 
         return results.min_value, results.max_value
@@ -558,7 +558,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 'data_type': 'number',
             }
 
-        attributes = {"type": "continuous", "data_type": "number"}
+        attributes = {'type': 'continuous', 'data_type': 'number'}
         num_cases = self._get_num_cases()
 
         column = self.data.c[feature_name]
@@ -591,7 +591,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         precision = None
         if getattr(column.type, 'precision', None) is not None:
             precision = column.type.precision
-        elif column_type in ("BINARY_FLOAT", "FLOAT", "REAL", ):
+        elif column_type in ('BINARY_FLOAT', 'FLOAT', 'REAL', ):
             precision = 24
 
         if precision and precision < 53:
@@ -608,7 +608,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 self._is_foreign_key(feature_name)
         ):
             return {
-                "type": "nominal",
+                'type': 'nominal',
             }
 
         column = self.data.c[feature_name]
@@ -617,13 +617,13 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             getattr(column.type, 'timezone', False) or
             column_type in self.column_types.tz_aware_date_time_types
         ):
-            dt_format = ISO_8601_FORMAT + "%z"
+            dt_format = ISO_8601_FORMAT + '%z'
         else:
             dt_format = ISO_8601_FORMAT
 
         return {
             'type': 'continuous',
-            'data_type': 'string',
+            'data_type': 'formatted_date_time',
             'date_time_format': dt_format,
         }
 
@@ -635,19 +635,19 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 self._is_foreign_key(feature_name)
         ):
             return {
-                "type": "nominal",
+                'type': 'nominal',
             }
 
         return {
             'type': 'continuous',
-            'data_type': 'string',
+            'data_type': 'formatted_date_time',
             'date_time_format': ISO_8601_DATE_FORMAT,
         }
 
     def _infer_time_attributes(self, feature_name: str) -> Dict:
         return {
             'type': 'continuous',
-            'data_type': 'string',
+            'data_type': 'number',
         }
 
     def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
@@ -663,7 +663,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return {
             'type': 'continuous',
-            'data_type': 'string',
+            'data_type': 'number',
         }
 
     def _infer_boolean_attributes(self, feature_name: str) -> Dict:
@@ -790,7 +790,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 else:
                     # For some reason, the feature was declared as date/time
                     # information but it is not in a datetime database column
-                    # (E.g. "01252022"). This is unfortunate because that means
+                    # (E.g. '01252022'). This is unfortunate because that means
                     # the column isn't sortable in a datetime-aware manner.
 
                     # This loop grabs all the distinct values, then converts
@@ -909,10 +909,10 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         Given a full column type string, return a simplified type string and
         its sizes. Examples:
 
-            "VARCHAR(255)" => 'VARCHAR', {'length': 255}
-            "DECIMAL(5,2)" => 'DECIMAL', {'precision': 5, 'scale': 2}
-            "FLOAT(5)"     => 'FLOAT', {'precision': 5}
-            "INTEGER(16)"  => 'INTEGER', {'length': 16}
+            'VARCHAR(255)' => 'VARCHAR', {'length': 255}
+            'DECIMAL(5,2)' => 'DECIMAL', {'precision': 5, 'scale': 2}
+            'FLOAT(5)'     => 'FLOAT', {'precision': 5}
+            'INTEGER(16)'  => 'INTEGER', {'length': 16}
 
         Parameters
         ----------
@@ -935,14 +935,14 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         if matched.group('precision') is None:
             return_dict = {}
         elif matched.group('scale') is None:
-            # Handles "VARCHAR(255)" or "INTEGER(16)", etc.
+            # Handles 'VARCHAR(255)' or 'INTEGER(16)', etc.
             # length = int/string
             # precision = float
             numeric_types = self.column_types.floating_point_types
             key = 'precision' if type_str in numeric_types else 'length'
             return_dict = {key: int(matched.group('precision'))}
         else:
-            # Handles "DECIMAL(p,s)" or "NUMERIC(p,s)", etc.
+            # Handles 'DECIMAL(p,s)' or 'NUMERIC(p,s)', etc.
             precision = int(matched.group('precision'))
             scale = int(matched.group('scale'))
             return_dict = {'precision': precision, 'scale': scale}
