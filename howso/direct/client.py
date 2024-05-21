@@ -72,7 +72,7 @@ from urllib3.util import Retry, Timeout
 
 from ._utilities import model_from_dict
 from .core import HowsoCore
-from ..utilities.exceptions import UnsupportedArgumentWarning
+from ..client.exceptions import UnsupportedArgumentWarning
 
 # Client version
 CLIENT_VERSION = importlib.metadata.version('howso-engine')

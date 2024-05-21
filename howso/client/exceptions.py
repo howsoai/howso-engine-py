@@ -172,3 +172,7 @@ class HowsoTimeoutError(HowsoError):
 
 class HowsoWarning(UserWarning):
     """A warning raised from core output."""
+
+
+class UnsupportedArgumentWarning(HowsoWarning):
+    """Warning for when unsupported arguments are supplied to an endpoint."""
