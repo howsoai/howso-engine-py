@@ -473,27 +473,27 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     dt_format += "%z"
         return {
             'type': 'continuous',
-            'data_type': 'string',
+            'data_type': 'formatted_date_time',
             'date_time_format': dt_format,
         }
 
     def _infer_date_attributes(self, feature_name: str) -> Dict:
         return {
             "type": "continuous",
-            "data_type": "string",
+            "data_type": "formatted_date_time",
             "date_time_format": ISO_8601_DATE_FORMAT,
         }
 
     def _infer_time_attributes(self, feature_name: str) -> Dict:
         return {
             'type': 'continuous',
-            'data_type': 'string',
+            'data_type': 'number',
         }
 
     def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
         return {
             "type": "continuous",
-            "data_type": "string",
+            "data_type": "number",
         }
 
     def _infer_boolean_attributes(self, feature_name: str) -> Dict:
