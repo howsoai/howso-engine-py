@@ -783,7 +783,8 @@ class InferFeatureAttributesBase(ABC):
         # Insert a ``sample`` value (as string) for each feature, if possible.
         if include_sample:
             for feature_name in feature_attributes.keys():
-                sample = str(self._get_random_value(feature_name, no_nulls=True))
+                if sample := self._get_random_value(feature_name, no_nulls=True) is not None:
+                    sample = str(sample)
                 feature_attributes[feature_name]['sample'] = sample
 
         # Re-insert any partial features provided as an argument
