@@ -553,7 +553,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 fmt = determine_iso_format(first_non_null, feature_name)
                 return {
                     'type': 'continuous',
-                    'data_type': 'string',
+                    'data_type': 'formatted_date_time',
                     'date_time_format': fmt
                 }
             else:
