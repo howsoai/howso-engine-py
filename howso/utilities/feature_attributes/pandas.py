@@ -188,7 +188,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if len(cases) < 1:
             return None
         elif len(cases) == 1:
-            return cases[0]
+            return cases.iloc[0]
         else:
             return cases.iloc[1 + np.random.randint(len(cases) - 1)]
 
