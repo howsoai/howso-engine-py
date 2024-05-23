@@ -449,6 +449,13 @@ class AbstractHowsoClient(ABC):
         """Auto-analyze the trainee model."""
 
     @abstractmethod
+    def get_auto_ablation_params(
+        self,
+        trainee_id
+    ):
+        """Get trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`."""
+
+    @abstractmethod
     def set_auto_ablation_params(
         self,
         trainee_id,
@@ -465,14 +472,18 @@ class AbstractHowsoClient(ABC):
         tolerance_prediction_threshold_map=None,
         **kwargs
     ):
-        """Set trainee parameters for auto ablation."""
+        """Set trainee parameters for auto-ablation."""
 
     @abstractmethod
-    def get_auto_ablation_params(
+    def reduce_data(
         self,
-        trainee_id
+        trainee_id,
+        features=None,
+        distribute_weight_feature=None,
+        influence_weight_entropy_threshold=None,
+        **kwargs
     ):
-        """Get trainee parameters for auto ablation set by :meth:`set_auto_ablation_params`."""
+        """Smartly reduce the amount of trained cases while accumulating case weights."""
 
     @abstractmethod
     def set_auto_analyze_params(
