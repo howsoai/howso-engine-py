@@ -5429,7 +5429,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if kwargs:
             warn_params = ", ".join(kwargs)
             warnings.warn(
-                f"The following parameter(s) are not officially supported by `reduce_data` and"
+                f"The following parameter(s) are not officially supported by `reduce_data` and "
                 f"may or may not have an effect: {warn_params}",
                 UnsupportedArgumentWarning
             )
@@ -5488,7 +5488,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if kwargs:
             warn_params = ", ".join(kwargs)
             warnings.warn(
-                f"The following parameter(s) are not officially supported by `reduce_data` and"
+                f"The following parameter(s) are not officially supported by `reduce_data` and "
                 f"may or may not have an effect: {warn_params}",
                 UnsupportedArgumentWarning
             )
