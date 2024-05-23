@@ -185,9 +185,12 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         cases = self.data[feature_name]
         if no_nulls:
             cases = cases.loc[~self.data[feature_name].isnull()]
-        if len(cases) <= 1:
+        if len(cases) < 1:
             return None
-        return cases.iloc[1 + np.random.randint(len(cases) - 1)]
+        elif len(cases) == 1:
+            return cases.iloc[0]
+        else:
+            return cases.iloc[1 + np.random.randint(len(cases) - 1)]
 
     def _infer_feature_bounds(  # noqa: C901
         self,
@@ -553,7 +556,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 fmt = determine_iso_format(first_non_null, feature_name)
                 return {
                     'type': 'continuous',
-                    'data_type': 'string',
+                    'data_type': 'formatted_date_time',
                     'date_time_format': fmt
                 }
             else:

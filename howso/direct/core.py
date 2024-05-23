@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 import platform
+import typing as t
 from typing import (
     Any,
     Dict,
@@ -655,9 +656,12 @@ class HowsoCore:
             A dictionary of feature name to value to substitution value. If the
             map is None, all substitutions will be disabled and cleared.
         """
-        return self._execute(trainee_id, "set_substitute_feature_values",{
-            "substitution_value_map": substitution_value_map,
-        })
+        return self._execute(
+            trainee_id, "set_substitute_feature_values",
+            {
+                "substitution_value_map": substitution_value_map,
+            }
+        )
 
     def get_substitute_feature_values(self, trainee_id: str) -> Dict:
         """
@@ -752,9 +756,12 @@ class HowsoCore:
         session : str
             The identifier of the Trainee session.
         """
-        return self._execute(trainee_id, "remove_session",{
-            "session": session,
-        })
+        return self._execute(
+            trainee_id, "remove_session",
+            {
+                "session": session,
+            }
+        )
 
     def remove_feature(
         self,
@@ -853,9 +860,7 @@ class HowsoCore:
         return self._execute(trainee_id, "get_num_training_cases", {})
 
     def get_auto_ablation_params(self, trainee_id: str):
-        """
-        Get trainee parameters for auto ablation set by :meth:`set_auto_ablation_params`.
-        """
+        """Get trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`."""
         return self._execute(
             trainee_id, "get_auto_ablation_params", {}
         )
@@ -877,10 +882,15 @@ class HowsoCore:
         **kwargs
     ):
         """
-        Set trainee parameters for auto ablation.
+        Set trainee parameters for auto-ablation.
 
         .. note::
-            Auto-ablation is experimental and the API may change without deprecation.
+            All ablation endpoints, including :meth:`set_auto_ablation_params` are experimental and may
+            have their API changed without deprecation.
+
+        .. seealso::
+            The params ``influence_weight_entropy_threshold`` and ``auto_ablation_weight_feature`` that are
+            set using this endpoint are used as defaults by :meth:`reduce_data`.
 
         Parameters
         ----------
@@ -923,6 +933,55 @@ class HowsoCore:
                 "relative_prediction_threshold_map": relative_prediction_threshold_map,
                 "conviction_lower_threshold": conviction_lower_threshold,
                 "conviction_upper_threshold": conviction_upper_threshold,
+            }
+        )
+
+    def reduce_data(
+        self,
+        trainee_id: str,
+        features: t.Optional[list[str]] = None,
+        distribute_weight_feature: t.Optional[str] = None,
+        influence_weight_entropy_threshold: t.Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Smartly reduce the amount of trained cases while accumulating case weights.
+
+        Determines which cases to remove by comparing the influence weight entropy of each trained
+        case to the ``influence_weight_entropy_threshold`` quantile of existing influence weight
+        entropies.
+
+        .. note::
+            All ablation endpoints, including :meth:`reduce_data` are experimental and may have their
+            API changed without deprecation.
+
+        .. seealso::
+            The default ``distribute_weight_feature`` and ``influence_weight_entropy_threshold`` are
+            pulled from the auto-ablation parameters, which can be set or retrieved with
+            :meth:`set_auto_ablation_params` and :meth:`get_auto_ablation_params`, respectively.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee for which to reduce data.
+        features : list of str, optional
+            The features which should be used to determine which cases to remove. This defaults to all of
+            the trained features (excluding internal features).
+        distribute_weight_feature : str, optional
+            The name of the weight feature to accumulate case weights to as cases are removed. This
+            defaults to the value of ``auto_ablation_weight_feature`` from :meth:`set_auto_ablation_params`,
+            which defaults to ".case_weight".
+        influence_weight_entropy_threshold : float, optional
+            The quantile of influence weight entropy above which cases will be removed. This defaults
+            to the value of ``influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
+            which defaults to 0.6.
+        """
+        return self._execute(
+            trainee_id, "reduce_data",
+            {
+                "features": features,
+                "distribute_weight_feature": distribute_weight_feature,
+                "influence_weight_entropy_threshold": influence_weight_entropy_threshold,
             }
         )
 
@@ -1344,11 +1403,14 @@ class HowsoCore:
         context_features : iterable of str, optional
             The list of feature names for contexts.
         """
-        return self._execute(trainee_id, "append_to_series_store",  {
-            "context_features": context_features,
-            "context_values": contexts,
-            "series": series,
-        })
+        return self._execute(
+            trainee_id, "append_to_series_store",
+            {
+                "context_features": context_features,
+                "context_values": contexts,
+                "series": series,
+            }
+        )
 
     def react(
         self,

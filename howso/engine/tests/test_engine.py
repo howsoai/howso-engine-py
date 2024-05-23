@@ -338,3 +338,17 @@ class TestEngine:
         )
 
         assert_frame_equal(matrix, saved_matrix)
+
+    @pytest.mark.filterwarnings("ignore:Calling get_cases*")
+    def test_reduce_data(self, trainee):
+        """Test `reduce_data`."""
+        pre_reduction_cases = trainee.get_cases()
+
+        trainee.reduce_data(influence_weight_entropy_threshold=0.5)
+
+        post_reduction_cases = trainee.get_cases(features=[".case_weight"])
+
+        assert len(pre_reduction_cases) == 150
+        assert len(post_reduction_cases) == 75
+
+        assert any(post_reduction_cases[".case_weight"] != 0)
