@@ -1905,12 +1905,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 typing_extensions
-4.11.0
+4.12.0
 Python Software Foundation License
 "Guido van Rossum, Jukka Lehtosalo, Łukasz Langa, Michael Lee" <levkivskyi@gmail.com>
 https://github.com/python/typing_extensions
 Backported and Experimental Type Hints for Python 3.8+
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/typing_extensions-4.11.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/typing_extensions-4.12.0.dist-info/LICENSE
 A. HISTORY OF THE SOFTWARE
 ==========================
 

@@ -4,14 +4,14 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=requirements-3.12.txt
 #
-amalgam-lang==10.3.0 \
-    --hash=sha256:1196f68a5c1fcf35dec4cf6c17c0ce9d3c647888e3ef1ae69d3cd7790ce3c026 \
-    --hash=sha256:17306d5716347abed8f00296fd59f3e486263504437c792adb42f3220d441ffd \
-    --hash=sha256:1f925046e46f9e8e15d3ec194849e760ecd30d1dbe7cfcf069becb47aceff46a \
-    --hash=sha256:411d1c941c950adbc919112a35713fe2cdaebd49ac37d3a3c6dfb2bb20f5bd4a \
-    --hash=sha256:5e62279455b9bb0b2fe5d226e135bf53dd29bade54f13cb27364512181f628ca \
-    --hash=sha256:7d7ed87cc740e087de2633b9149c33de8e36d28e23b4a28ca4e12046925103bf \
-    --hash=sha256:e8315d444a5cd08aa3257a74d2cfd519c83c2c0ae724827e593da88c8c29c90e
+amalgam-lang==10.3.1 \
+    --hash=sha256:123fa4eda70e764b63e9d7522c63ce6bfb88acf0212fb8cdb20fafe893a79eb9 \
+    --hash=sha256:191395e147ef973b8f0a6cd0574cd0041860b5079f5a6e33381fca50a126af70 \
+    --hash=sha256:21f1f7b4de942d35577bdcb847d9628400eab384ccbe7adf9b6c709a722c90bd \
+    --hash=sha256:aa1bd4b9f6a55180342abb634e7b614f6f74f1e1d43d581e98db9b2ebad8991a \
+    --hash=sha256:b6073b5d3fab27527245f679aab3f12687757088ced5c371218284aff720f905 \
+    --hash=sha256:c2ecee2aad6e4502545107fa66563254a96388d6adb562723889fcaaa0d06ef4 \
+    --hash=sha256:fd4ad0445255f0fb2e4c53108ba22d7c7edc99e086905cd862deba4c7e3ad746
     # via howso-engine (pyproject.toml)
 certifi==2024.2.2 \
     --hash=sha256:0569859f95fc761b18b45ef421b1290a0f65f147e92a1e5eb3e635f9a5e4e66f \
@@ -376,9 +376,9 @@ six==1.16.0 \
     # via
     #   howso-openapi-client
     #   python-dateutil
-typing-extensions==4.11.0 \
-    --hash=sha256:83f085bd5ca59c80295fc2a82ab5dac679cbe02b9f33f7d83af68e241bea51b0 \
-    --hash=sha256:c1f94d72897edaf4ce775bb7558d5b79d8126906a14ea5ed1635921406c0387a
+typing-extensions==4.12.0 \
+    --hash=sha256:8cbcdc8606ebcb0d95453ad7dc5065e6237b6aa230a31e81d0f440c30fed5fd8 \
+    --hash=sha256:b349c66bea9016ac22978d800cfff206d5f9816951f12a7d0ec5578b0a819594
     # via howso-engine (pyproject.toml)
 tzdata==2024.1 \
     --hash=sha256:2674120f8d891909751c38abcdfd386ac0a5a1127954fbc332af6b5ceae07efd \
