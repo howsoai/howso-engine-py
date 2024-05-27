@@ -1407,25 +1407,25 @@ def get_matrix_diff(matrix: pd.DataFrame) -> dict:
 
 def convert_confusion_matrix(confusion_matrix: dict) -> t.Tuple[np.ndarray, list]:
     """
-    Converts a Howso confusion matrix into the same matrix format as `sklearn.metrics.confusion_matrix`.
+    Converts a Howso dict confusion matrix into the same matrix format as `sklearn.metrics.confusion_matrix`.
 
     Parameters
     ----------
-
     confusion_matrix : dict
         Confusion matrix in dictionary form. Standard form of confusion marices returned when retrieving
         Howso's prediction stats.
 
-    returns : tup
-    
+    Returns
+    -------
+    tuple[ndarray, list]
+        Tuple containing an array of the confusion matrix values and a list of the confusion matrix row labels.
+        These labels denotes the labels of the confusion matrix going top to bottom and left to right.
     """
     row_labels = sorted(list(confusion_matrix.keys()))
 
-    # Create a array initialized with zeros
     num_labels = len(row_labels)
     confusion_matrix_array = np.zeros((num_labels, num_labels), dtype=int)
 
-    # Populate the array with values from the confusion matrix dictionary
     for i, actual_label in enumerate(row_labels):
         for j, predicted_label in enumerate(row_labels):
             confusion_matrix_array[i, j] = confusion_matrix.get(actual_label, {}).get(predicted_label, 0)
