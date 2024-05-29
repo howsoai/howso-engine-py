@@ -697,7 +697,7 @@ def test_confusion_matrix_formating_correct():
     np.testing.assert_array_equal(array_matrix, np.array([[10, 0], [2, 8]]))
 
 
-def test_confusion_matrix_formating_incorrect_empty():
+def test_confusion_matrix_formating_empty_matrix():
     """Tests that `format_confusion_matrix` works with empty matrices."""
     dict_matrix = {"a": {"a": 1, "b": 2}, "b": {}}
     array_matrix, labels = format_confusion_matrix(dict_matrix)
@@ -706,7 +706,7 @@ def test_confusion_matrix_formating_incorrect_empty():
     np.testing.assert_array_equal(array_matrix, np.array([[1, 2], [0, 0]]))
 
 
-def test_confusion_matrix_formating_incorrect_improper_warning():
+def test_confusion_matrix_formating_unseen_predicted_values_warning():
     """Tests that `format_confusion_matrix` works where predicted values don't exist and warns user."""
     dict_matrix = {"a": {"a": 10}, "b": {"c": 2}}
     with pytest.warns(UserWarning, match=r"do not exist"):
