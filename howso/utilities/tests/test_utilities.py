@@ -713,5 +713,4 @@ def test_confusion_matrix_formating_unseen_predicted_values_warning():
         array_matrix, labels = format_confusion_matrix(dict_matrix)
 
     assert labels == ["a", "b", "c"]
-    array_matrix = np.array([[10, 0, 0], [0, 0, 0], [0, 0, 2]])
-    np.testing.assert_array_equal(array_matrix, array_matrix)
+    np.testing.assert_array_equal(array_matrix, np.array([[10, 0, 0], [0, 0, 2], [0, 0, 0]]))
