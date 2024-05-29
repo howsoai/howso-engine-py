@@ -6,7 +6,13 @@ import warnings
 
 from dateutil import parser
 import howso.utilities as utils
-from howso.utilities import get_kwargs, get_matrix_diff, matrix_processing, LocaleOverride
+from howso.utilities import (
+    format_confusion_matrix,
+    get_kwargs,
+    get_matrix_diff,
+    LocaleOverride,
+    matrix_processing,
+)
 from howso.utilities.reaction import Reaction
 import numpy as np
 import pandas as pd
@@ -680,3 +686,31 @@ def test_matrix_processing_normalization_zero_division():
     }, index=['a', 'b', 'c']).T
 
     assert_frame_equal(processed_matrix, correct_matrix)
+
+
+def test_confusion_matrix_formating_correct():
+    """Tests that `format_confusion_matrix` works by converting a dict matrix to an array matrix."""
+    dict_matrix = {"a": {"a": 10}, "b": {"a": 2, "b": 8}}
+    array_matrix, labels = format_confusion_matrix(dict_matrix)
+
+    assert labels == ["a", "b"]
+    np.testing.assert_array_equal(array_matrix, np.array([[10, 0], [2, 8]]))
+
+
+def test_confusion_matrix_formating_empty_matrix():
+    """Tests that `format_confusion_matrix` works with empty matrices."""
+    dict_matrix = {"a": {"a": 1, "b": 2}, "b": {}}
+    array_matrix, labels = format_confusion_matrix(dict_matrix)
+
+    assert labels == ["a", "b"]
+    np.testing.assert_array_equal(array_matrix, np.array([[1, 2], [0, 0]]))
+
+
+def test_confusion_matrix_formating_unseen_predicted_values_warning():
+    """Tests that `format_confusion_matrix` works where predicted values don't exist and warns user."""
+    dict_matrix = {"a": {"a": 10}, "b": {"c": 2}}
+    with pytest.warns(UserWarning, match=r"do not exist"):
+        array_matrix, labels = format_confusion_matrix(dict_matrix)
+
+    assert labels == ["a", "b", "c"]
+    np.testing.assert_array_equal(array_matrix, np.array([[10, 0, 0], [0, 0, 2], [0, 0, 0]]))

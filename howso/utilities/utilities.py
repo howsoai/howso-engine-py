@@ -5,6 +5,7 @@ from math import isnan
 import re
 import sys
 import threading
+import typing as t
 from typing import (
     Callable,
     Collection,
@@ -1402,3 +1403,46 @@ def get_matrix_diff(matrix: pd.DataFrame) -> dict:
     differences_dict = {k: v for k, v in sorted(differences_dict.items(), key=lambda item: item[1], reverse=True)}
 
     return differences_dict
+
+
+def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tuple[np.ndarray, list[str]]:
+    """
+    Converts a Howso dict confusion matrix into the same format as `sklearn.metrics.confusion_matrix`.
+
+    Parameters
+    ----------
+    confusion_matrix : dict of str -> dict of str -> int
+        Confusion matrix in dictionary form. Standard form of confusion marices returned when retrieving
+        Howso's prediction stats through `howso.engine.trainee.get_prediction_stats`.
+
+    Returns
+    -------
+    ndarray
+        The array of the confusion matrix values.
+    list of str
+        List of the confusion matrix row labels. These labels denotes the labels
+        of the confusion matrix going top to bottom and left to right.
+    """
+    predicted_labels_keys = set()
+    for sub_matrix in confusion_matrix.values():
+        predicted_labels_keys.update(sub_matrix.keys())
+
+    true_labels_unique = set(confusion_matrix.keys())
+
+    # Row labels is the combination of all unique actual and predicted values
+    row_labels = sorted(list(true_labels_unique.union(predicted_labels_keys)))
+
+    # Warn if a predicted value doesn't actually exist
+    predicted_labels_diff = predicted_labels_keys.difference(true_labels_unique)
+    if len(predicted_labels_diff) > 0:
+        warnings.warn(
+            f"There are predicted values that do not exist as actual values : {predicted_labels_diff}", UserWarning
+        )
+
+    confusion_matrix_array = np.zeros((len(row_labels), len(row_labels)), dtype=int)
+
+    for i, actual_label in enumerate(row_labels):
+        for j, predicted_label in enumerate(row_labels):
+            confusion_matrix_array[i, j] = confusion_matrix.get(actual_label, {}).get(predicted_label, 0)
+
+    return confusion_matrix_array, row_labels
