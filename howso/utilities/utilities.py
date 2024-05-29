@@ -1405,26 +1405,41 @@ def get_matrix_diff(matrix: pd.DataFrame) -> dict:
     return differences_dict
 
 
-def format_confusion_matrix(confusion_matrix: dict) -> t.Tuple[np.ndarray, list]:
+def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tuple[np.ndarray, list[str]]:
     """
-    Converts a Howso dict confusion matrix into the same matrix format as `sklearn.metrics.confusion_matrix`.
+    Converts a Howso dict confusion matrix into the same format as `sklearn.metrics.confusion_matrix`.
 
     Parameters
     ----------
     confusion_matrix : dict
         Confusion matrix in dictionary form. Standard form of confusion marices returned when retrieving
-        Howso's prediction stats.
+        Howso's prediction stats through `howso.engine.trainee.get_prediction_stats`.
 
     Returns
     -------
-    tuple[ndarray, list]
-        Tuple containing an array of the confusion matrix values and a list of the confusion matrix row labels.
-        These labels denotes the labels of the confusion matrix going top to bottom and left to right.
+    ndarray
+        The array of the confusion matrix values.
+    list
+        List of the confusion matrix row labels. These labels denotes the labels
+        of the confusion matrix going top to bottom and left to right.
     """
-    row_labels = sorted(list(confusion_matrix.keys()))
+    predicted_labels_keys = set()
+    for sub_matrix in confusion_matrix.values():
+        predicted_labels_keys.update(sub_matrix.keys())
 
-    num_labels = len(row_labels)
-    confusion_matrix_array = np.zeros((num_labels, num_labels), dtype=int)
+    true_labels_unique = set(confusion_matrix.keys())
+
+    # Row labels is the combination of all unique actual and predicted values
+    row_labels = sorted(list(true_labels_unique.union(predicted_labels_keys)))
+
+    # Warn if a predicted value doesn't actually exist
+    predicted_labels_diff = predicted_labels_keys.difference(true_labels_unique)
+    if len(predicted_labels_diff) > 0:
+        warnings.warn(
+            f"There are predicted values that do not exist as actual values : {predicted_labels_diff}", UserWarning
+        )
+
+    confusion_matrix_array = np.zeros((len(row_labels), len(row_labels)), dtype=int)
 
     for i, actual_label in enumerate(row_labels):
         for j, predicted_label in enumerate(row_labels):

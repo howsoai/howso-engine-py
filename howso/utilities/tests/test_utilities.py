@@ -688,10 +688,30 @@ def test_matrix_processing_normalization_zero_division():
     assert_frame_equal(processed_matrix, correct_matrix)
 
 
-def test_confusin_matrix_formating():
+def test_confusion_matrix_formating_correct():
     """Tests that `format_confusion_matrix` works by converting a dict matrix to an array matrix."""
     dict_matrix = {"a": {"a": 10}, "b": {"a": 2, "b": 8}}
     array_matrix, labels = format_confusion_matrix(dict_matrix)
 
     assert labels == ["a", "b"]
-    assert array_matrix == np.array([[10, 0], [2, 8]])
+    np.testing.assert_array_equal(array_matrix, np.array([[10, 0], [2, 8]]))
+
+
+def test_confusion_matrix_formating_incorrect_empty():
+    """Tests that `format_confusion_matrix` works with empty matrices."""
+    dict_matrix = {"a": {"a": 1, "b": 2}, "b": {}}
+    array_matrix, labels = format_confusion_matrix(dict_matrix)
+
+    assert labels == ["a", "b"]
+    np.testing.assert_array_equal(array_matrix, np.array([[1, 2], [0, 0]]))
+
+
+def test_confusion_matrix_formating_incorrect_improper_warning():
+    """Tests that `format_confusion_matrix` works where predicted values don't exist and warns user."""
+    dict_matrix = {"a": {"a": 10}, "b": {"c": 2}}
+    with pytest.warns(UserWarning, match=r"do not exist"):
+        array_matrix, labels = format_confusion_matrix(dict_matrix)
+
+    assert labels == ["a", "b", "c"]
+    array_matrix = np.array([[10, 0, 0], [0, 0, 0], [0, 0, 2]])
+    np.testing.assert_array_equal(array_matrix, array_matrix)
