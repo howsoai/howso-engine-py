@@ -1405,7 +1405,7 @@ def get_matrix_diff(matrix: pd.DataFrame) -> dict:
     return differences_dict
 
 
-def convert_confusion_matrix(confusion_matrix: dict) -> t.Tuple[np.ndarray, list]:
+def format_confusion_matrix(confusion_matrix: dict) -> t.Tuple[np.ndarray, list]:
     """
     Converts a Howso dict confusion matrix into the same matrix format as `sklearn.metrics.confusion_matrix`.
 

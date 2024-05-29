@@ -6,7 +6,13 @@ import warnings
 
 from dateutil import parser
 import howso.utilities as utils
-from howso.utilities import get_kwargs, get_matrix_diff, matrix_processing, LocaleOverride
+from howso.utilities import (
+    format_confusion_matrix,
+    get_kwargs,
+    get_matrix_diff,
+    LocaleOverride,
+    matrix_processing,
+)
 from howso.utilities.reaction import Reaction
 import numpy as np
 import pandas as pd
@@ -680,3 +686,12 @@ def test_matrix_processing_normalization_zero_division():
     }, index=['a', 'b', 'c']).T
 
     assert_frame_equal(processed_matrix, correct_matrix)
+
+
+def test_confusin_matrix_formating():
+    """Tests that `format_confusion_matrix` works by converting a dict matrix to an array matrix."""
+    dict_matrix = {"a": {"a": 10}, "b": {"a": 2, "b": 8}}
+    array_matrix, labels = format_confusion_matrix(dict_matrix)
+
+    assert labels == ["a", "b"]
+    assert array_matrix == np.array([[10, 0], [2, 8]])
