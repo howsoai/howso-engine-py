@@ -1411,7 +1411,7 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
 
     Parameters
     ----------
-    confusion_matrix : dict
+    confusion_matrix : dict of str -> dict of str -> int
         Confusion matrix in dictionary form. Standard form of confusion marices returned when retrieving
         Howso's prediction stats through `howso.engine.trainee.get_prediction_stats`.
 
@@ -1419,7 +1419,7 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
     -------
     ndarray
         The array of the confusion matrix values.
-    list
+    list of str
         List of the confusion matrix row labels. These labels denotes the labels
         of the confusion matrix going top to bottom and left to right.
     """
