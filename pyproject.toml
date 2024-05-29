@@ -47,7 +47,7 @@ dependencies = [
    "typing-extensions~=4.0",
    "urllib3>=1.26.2,<3.0",
    "howso-openapi-client~=34.0",
-   "amalgam-lang==10.3.1", # Use exact since Engine is exact in version.json
+   "amalgam-lang==10.4.0", # Use exact since Engine is exact in version.json
 ]
 
 [project.optional-dependencies]
