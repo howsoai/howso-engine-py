@@ -4,14 +4,14 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --generate-hashes --no-emit-index-url --output-file=requirements-3.9-dev.txt
 #
-amalgam-lang==10.4.0 \
-    --hash=sha256:06f291dea754fb7ded11ed3d810465565a22cd9c264b16c0c6dea1c4ecf444ac \
-    --hash=sha256:1a4bd9d85027f9a6f7551c57997c6fef909036a077ab50ab0b841db2712fe943 \
-    --hash=sha256:257d70d7914f2bfcdd3308adba82c2d59bd51c0e6e012389f6eb96b163e784d3 \
-    --hash=sha256:2ffc5e44eca972aa4c4180f0b6d96aae1023fd135582089c489eba94a3963bc4 \
-    --hash=sha256:3fed3eecca85d3a6a9ba39825f910f9bb27a776611c20110f641512c0fed1121 \
-    --hash=sha256:812c8b4be1beb8c303a844a0457219ebe0eeadd30cade3ddf5341c3a52524f1b \
-    --hash=sha256:c1a8dc101b9bc9fcebdc56fee62aedf7b4b49317286aa4d370e44667a57ea3ab
+amalgam-lang==10.4.1 \
+    --hash=sha256:60f60e546feb8ddee1fb47c2db7755a5b34b473e894b820dc6bc18107bac1f4c \
+    --hash=sha256:83f3143fdeef88d0fe348c06c59d0d7c8a5f6a74b9a9439473dfba779449a8f1 \
+    --hash=sha256:8d6548210e62643beffe77f8147ff8118b91f12ee2c25821ae85d3f799bd81d0 \
+    --hash=sha256:a36b2f05058e8daa5a5d492bdb53ee4231a2b3d0d670ede7d64e34230837adea \
+    --hash=sha256:ad59a678860916f798bfe7b2b5d9da7a26fdda1fe2053ed7222e6d0834f6faa6 \
+    --hash=sha256:dc8caa450e5fbfb39f9991ec3232f1b5495df6f7c1aeb5b52934dc1b46e95f0e \
+    --hash=sha256:f5eb4528d788234333f9fc23b412ce1394120b3dc7695716fc7cfb5477b71f64
     # via howso-engine (pyproject.toml)
 astroid==3.2.2 \
     --hash=sha256:8ead48e31b92b2e217b6c9733a21afafe479d52d6e164dd25fb1a770c7c3cf94 \
@@ -651,9 +651,9 @@ pyyaml==6.0.1 \
     # via
     #   howso-engine (pyproject.toml)
     #   pmlb
-requests==2.32.2 \
-    --hash=sha256:dd951ff5ecf3e3b3aa26b40703ba77495dab41da839ae72ef3c8e5d8e2433289 \
-    --hash=sha256:fc06670dd0ed212426dfeb94fc1b983d917c4f9847c863f313c9dfaaffb7c23c
+requests==2.32.3 \
+    --hash=sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760 \
+    --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
     # via pmlb
 rich==13.7.1 \
     --hash=sha256:4edbae314f59eb482f54e9e30bf00d33350aaa94f4bfcd4e9e3110e64d0d7222 \
