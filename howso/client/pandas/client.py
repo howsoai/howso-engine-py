@@ -257,7 +257,7 @@ class HowsoPandasClientMixin:
         response = super().react(trainee_id, *args, **kwargs)
         columns = response['details'].get('action_features')
         if 'prediction_stats' in response['details']:
-            response['details']['prediction_stats'] = pd.DataFrame(response['details']['prediction_stats'][0])
+            response['details']['prediction_stats'] = pd.DataFrame(response['details']['prediction_stats'][0]).T
         response['action'] = deserialize_cases(response['action'], columns,
                                                feature_attributes)
         return response
