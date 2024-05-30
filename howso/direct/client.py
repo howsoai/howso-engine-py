@@ -4327,6 +4327,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         context_condition: t.Optional[dict[str, t.Any]] = None,
         context_condition_precision: t.Optional[t.Literal["exact", "similar"]] = None,
         context_precision_num_cases: t.Optional[int] = None,
+        features: t.Optional[list] = None,
         num_robust_influence_samples_per_case=None,
         robust: Optional[bool] = None,
         robust_hyperparameters: Optional[bool] = None,
@@ -4514,6 +4515,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             context_condition_precision=context_condition_precision,
             context_precision_num_cases=context_precision_num_cases,
             num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
+            features=features
         )
         return stats
 

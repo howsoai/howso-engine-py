@@ -2536,6 +2536,7 @@ class HowsoCore:
         context_condition=None,
         context_condition_precision=None,
         context_precision_num_cases=None,
+        features=None,
         num_robust_influence_samples_per_case=None,
         robust=None,
         robust_hyperparameters=None,
@@ -2612,6 +2613,10 @@ class HowsoCore:
             The precision to use when selecting cases with the ``context_condition``.
             If not specified "exact" will be used. Only used if ``context_condition``
             is not None.
+        features : list, optional
+            List of features to use when calculating prediction stats. Should contain all action and context
+            features desired. If ``action_feature`` is also provided, that feature will automatically be appended
+            to this list if it is not already in the list.
         num_robust_influence_samples_per_case : int, optional
             Specifies the number of robust samples to use for each case for
             robust contribution computations.
@@ -2643,6 +2648,7 @@ class HowsoCore:
             "context_condition": context_condition,
             "context_condition_precision": context_condition_precision,
             "context_precision_num_cases": context_precision_num_cases,
+            "features": features,
             "num_robust_influence_samples_per_case": num_robust_influence_samples_per_case,
             "robust_hyperparameters": robust_hyperparameters,
             "stats": stats,
