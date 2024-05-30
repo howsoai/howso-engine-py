@@ -1029,7 +1029,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         if metadata is None:
             raise HowsoError(f"Trainee '{trainee_id}' not found.")
 
-
         persistence = metadata.get('persistence', 'allow')
         trainee_meta = metadata.get('metadata')
         trainee_name = metadata.get('name')
@@ -5910,7 +5909,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             A dictionary of computed context features -> weights
         """
         self._auto_resolve_trainee(trainee_id)
-        cached_trainee = self.trainee_cache.get(trainee_id)
 
         weights = self.howso.compute_feature_weights(
             trainee_id, action_feature, context_features, robust,

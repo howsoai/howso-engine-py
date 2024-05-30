@@ -1083,8 +1083,8 @@ class Trainee(BaseTrainee):
     def predict(
         self,
         contexts: Optional[TabularData2D] = None,
+        action_features: Iterable[str] = None,
         *,
-        action_features: Optional[Iterable[str]] = None,
         allow_nulls: bool = False,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
@@ -1106,7 +1106,7 @@ class Trainee(BaseTrainee):
         contexts : DataFrame or 2-dimensional list of object, optional
             The context values to react to. If neither this nor ``context_values`` are
             specified then ``case_indices`` must be specified.
-        action_features : list of str, optional
+        action_features : list of str
             Feature names to treat as action features during react.
         allow_nulls : bool, default False, optional
             See parameter ``allow_nulls`` in :meth:`react`.

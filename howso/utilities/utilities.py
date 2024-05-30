@@ -50,7 +50,6 @@ SMALLEST_TIME_DELTA = 0.001
 
 
 def trainee_from_df(df, features: Optional[Mapping[str, Mapping]] = None,
-                    action_features: Optional[Iterable[str]] = None,
                     name: Optional[str] = None,
                     persistence: str = 'allow',
                     trainee_metadata: Optional[Mapping] = None,
@@ -70,11 +69,6 @@ def trainee_from_df(df, features: Optional[Mapping[str, Mapping]] = None,
     features : Optional[Mapping[str, Mapping]]
         (Optional) A dictionary of feature names to a dictionary of parameters.
 
-    action_features : List of String, Default None
-        (Optional) List of action features. Anything that's not in this list
-        will be treated as a context feature. For example, if no action feature
-        is specified the trainee won't have a target.
-
     name : str or None, defaults to None
         (Optional) The name of the trainee.
 
@@ -92,15 +86,9 @@ def trainee_from_df(df, features: Optional[Mapping[str, Mapping]] = None,
     """
     # Place this here to avoid circular imports
     from howso.utilities.feature_attributes import infer_feature_attributes
-    action_features = [] if action_features is None else list(action_features)
 
     if features is None:
         features = infer_feature_attributes(df)
-
-    context_features = []
-    for fname, _ in features.items():
-        if fname not in action_features:
-            context_features.append(fname)
 
     return Trainee(name, features=features,
                    persistence=persistence,
