@@ -751,7 +751,7 @@ class TestClient:
     def test_number_overflow(self, trainee):
         """Test an exception is raised for a number that is too large."""
         # Should not raise
-        self.client.train(trainee.id, [[1.8e307]], features=['penguin', 'play'])
+        self.client.train(trainee.id, [[1.8e307]], features=['penguin'])
 
         # Training with a number that is > 64bit should raise
         with pytest.raises(HowsoError):
