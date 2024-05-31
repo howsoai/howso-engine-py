@@ -5,7 +5,6 @@ import locale
 from typing import Any, Dict, Iterable, List, Optional, Union
 import warnings
 
-from howso.openapi.models import FeatureAttributes
 import numpy as np
 import pandas as pd
 from pandas.core.dtypes.common import (
@@ -224,7 +223,7 @@ class FeatureSerializer:
 
     @classmethod
     def format_column(cls, column: pd.Series,  # noqa: C901
-                      feature: Union[Dict, FeatureAttributes]) -> pd.Series:
+                      feature: Dict) -> pd.Series:
         """
         Format column based on feature typing information.
 
@@ -232,7 +231,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict or FeatureAttributes
+        feature : dict
             The feature attributes for the column.
 
         Returns
@@ -240,10 +239,7 @@ class FeatureSerializer:
         pandas.Series
             The formatted column.
         """
-        if isinstance(feature, FeatureAttributes):
-            feature = feature.to_dict()
-        elif feature is None:
-            feature = {}
+        feature = {} if feature is None else feature
         typing_info = cls._get_typing_info(feature)
         data_type = typing_info.get('data_type')
 
