@@ -11,6 +11,7 @@ import logging
 import multiprocessing
 import operator
 import os
+import types
 from pathlib import Path
 import platform
 import typing as t
@@ -37,7 +38,6 @@ from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
 from howso.openapi.models import (
     AnalyzeRequest,
-    ApiVersion,
     Cases,
     ReactGroupResponse,
     Session,
@@ -345,22 +345,22 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return self.howso.get_entities()
 
-    def get_version(self) -> ApiVersion:
+    def get_version(self) -> Dict:
         """
         Return the Howso version.
 
         Returns
         -------
-        howso.openapi.models.ApiVersion
+        Dict:
            A version response that contains the version data for the current
            instance of Howso.
         """
         from howso.openapi import __api_version__ as api_version
-
-        return ApiVersion(
-            api=api_version,
-            client=CLIENT_VERSION
-        )
+        version_meta = {
+            "api": api_version,
+            "client": CLIENT_VERSION
+        }
+        return types.SimpleNamespace(**version_meta)
 
     def _output_version_in_trace(self, trainee: str):
         """
