@@ -11,9 +11,9 @@ import logging
 import multiprocessing
 import operator
 import os
-import types
 from pathlib import Path
 import platform
+import types
 import typing as t
 from typing import (
     Any,
@@ -37,12 +37,11 @@ from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
 from howso.openapi.models import (
-    AnalyzeRequest,
-    Cases,
-    ReactGroupResponse,
-    Session,
-    SetAutoAnalyzeParamsRequest,
-    Trainee,
+    AnalyzeRequest, # Only referenced once and it's only references a static-empy-list in it
+    Cases, # Referenced in a few places; needs to be replaced with a DataFrame return 
+    Session, # Referenced in a number of places
+    SetAutoAnalyzeParamsRequest, # Referenced once and a static dictionary and empty list are referenced; class never instantiated otherwise
+    Trainee, # Only used in 2 specific places but likely would break backwards compatibility
     TraineeIdentity,
     TraineeInformation,
     TraineeResources,
@@ -3825,7 +3824,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         p_value_of_removal: bool = False,
         weight_feature: Optional[str] = None,
         use_case_weights: bool = False
-    ) -> ReactGroupResponse:
+    ) -> Dict:
         """
         Computes specified data for a **set** of cases.
 
