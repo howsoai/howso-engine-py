@@ -37,7 +37,6 @@ from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
 from howso.openapi.models import (
-    AnalyzeRequest, # Only referenced once and it's only references a static-empy-list in it
     Cases, # Referenced in a few places; needs to be replaced with a DataFrame return 
     Session, # Referenced in a number of places
     Trainee, # Only used in 2 specific places but likely would break backwards compatibility
@@ -6185,12 +6184,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             weight_feature=weight_feature,
         )
 
-        # Filter out non nullable parameters
-        analyze_params = {
-            k: v for k, v in analyze_params.items()
-            if v is not None or
-            k in AnalyzeRequest.nullable_attributes
-        }
         # Add experimental options
         analyze_params.update(kwargs)
 
