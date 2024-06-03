@@ -42,7 +42,6 @@ from howso.openapi.models import (
     Session, # Referenced in a number of places
     SetAutoAnalyzeParamsRequest, # Referenced once and a static dictionary and empty list are referenced; class never instantiated otherwise
     Trainee, # Only used in 2 specific places but likely would break backwards compatibility
-    TraineeVersion
 )
 from howso.utilities import (
     build_react_series_df,
@@ -655,7 +654,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         Returns
         -------
         Dict
-            The Trainee information in the schema of {"library_type": LIBRARY_TYPE, "version": VERSION}
+            The Trainee information in the schema of:
+            {
+                "library_type": LIBRARY_TYPE,
+                "version": {
+                    "amalgam": AMALGAM_VERSION,
+                    "trainee": TRAINEE_VERSION
+                }
+            }
         """
         self._auto_resolve_trainee(trainee_id)
         trainee_version = self.howso.get_trainee_version(trainee_id)
@@ -664,10 +670,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.howso.amlg.library_postfix:
             library_type = self.howso.amlg.library_postfix[1:]
 
-        version = TraineeVersion(
-            amalgam=amlg_version,
-            trainee=trainee_version
-        )
+        version = {
+            "amalgam": amlg_version,
+            "trainee": trainee_version
+        }
 
         return {
             "library_type": library_type,
