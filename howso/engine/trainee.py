@@ -46,7 +46,6 @@ from howso.openapi.models import Project as BaseProject
 from howso.openapi.models import Session as BaseSession
 from howso.openapi.models import Trainee as BaseTrainee
 from howso.openapi.models import (
-    TraineeIdentity,
     TraineeInformation,
     TraineeResources,
 )
@@ -4178,7 +4177,7 @@ def list_trainees(
     *,
     client: Optional[AbstractHowsoClient] = None,
     project: Optional[str | BaseProject] = None,
-) -> List["TraineeIdentity"]:
+) -> List["Dict"]:
     """
     Get listing of available trainees.
 
@@ -4197,7 +4196,7 @@ def list_trainees(
 
     Returns
     -------
-    list of TraineeIdentity
+    list of Dict
         The list of available trainees.
     """
     client = client or get_client()

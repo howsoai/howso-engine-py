@@ -42,7 +42,6 @@ from howso.openapi.models import (
     Session, # Referenced in a number of places
     SetAutoAnalyzeParamsRequest, # Referenced once and a static dictionary and empty list are referenced; class never instantiated otherwise
     Trainee, # Only used in 2 specific places but likely would break backwards compatibility
-    TraineeIdentity,
     TraineeInformation,
     TraineeResources,
     TraineeVersion
@@ -688,7 +687,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         raise NotImplementedError("`get_trainee_metrics` not implemented")
 
-    def get_trainees(self, search_terms: Optional[str] = None) -> List[TraineeIdentity]:
+    def get_trainees(self, search_terms: Optional[str] = None) -> List[Dict]:
         """
         Return a list of all trainees.
 
@@ -699,8 +698,8 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        list of howso.openapi.models.TraineeIdentity
-            A list of the trainee identities.
+        list of Dict
+            A list of the trainee identities with schema {"name": TRAINEE_NAME, "id": TRAINEE_ID}
         """
         trainees = list()
         filter_terms = []
@@ -720,8 +719,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         for _, instance in self.trainee_cache.trainees():
             if is_match(instance.name):
                 trainees.append(
-                    TraineeIdentity(
-                        name=instance.name, id=instance.id)
+                    {
+                        "name": instance.name,
+                        "id": instance.id
+                    }
                 )
 
         # Collect persisted trainees
@@ -736,10 +737,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 is_match(trainee_name)
             ):
                 trainees.append(
-                    TraineeIdentity(
-                        name=trainee_name,
-                        id=trainee_name
-                    ))
+                    {
+                        "name": trainee_name,
+                        "id": trainee_name
+                    })
 
         return trainees
 
