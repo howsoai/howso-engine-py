@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from howso.openapi.models import (
         Cases,
         Metrics,
-        TraineeInformation,
     )
 
 
@@ -69,7 +68,7 @@ class AbstractHowsoClient(ABC):
         """Get an existing trainee from the Howso service."""
 
     @abstractmethod
-    def get_trainee_information(self, trainee_id) -> "TraineeInformation":
+    def get_trainee_information(self, trainee_id) -> "Dict":
         """Get information about the trainee."""
 
     @abstractmethod

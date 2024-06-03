@@ -42,7 +42,6 @@ from howso.openapi.models import (
     Session, # Referenced in a number of places
     SetAutoAnalyzeParamsRequest, # Referenced once and a static dictionary and empty list are referenced; class never instantiated otherwise
     Trainee, # Only used in 2 specific places but likely would break backwards compatibility
-    TraineeInformation,
     TraineeResources,
     TraineeVersion
 )
@@ -643,7 +642,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         return self._get_trainee_from_core(trainee_id)
 
     def get_trainee_information(self, trainee_id: str
-                                ) -> TraineeInformation:
+                                ) -> Dict:
         """
         Get information about the trainee.
 
@@ -656,8 +655,8 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        howso.openapi.models.TraineeInformation
-            The Trainee information.
+        Dict
+            The Trainee information in the schema of {"library_type": LIBRARY_TYPE, "version": VERSION}
         """
         self._auto_resolve_trainee(trainee_id)
         trainee_version = self.howso.get_trainee_version(trainee_id)
@@ -671,10 +670,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             trainee=trainee_version
         )
 
-        return TraineeInformation(
-            library_type=library_type,
-            version=version
-        )
+        return {
+            "library_type": library_type,
+            "version": version
+        }
 
     def get_trainee_metrics(self, trainee_id: str) -> Never:
         """

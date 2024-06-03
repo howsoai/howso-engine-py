@@ -46,7 +46,6 @@ from howso.openapi.models import Project as BaseProject
 from howso.openapi.models import Session as BaseSession
 from howso.openapi.models import Trainee as BaseTrainee
 from howso.openapi.models import (
-    TraineeInformation,
     TraineeResources,
 )
 from howso.utilities import matrix_processing
@@ -711,13 +710,13 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'release_trainee_resources' method.")
 
-    def information(self) -> "TraineeInformation":
+    def information(self) -> "Dict":
         """
         Get detail information about the trainee.
 
         Returns
         -------
-        TraineeInformation
+        Dict
             The trainee detail information. Including trainee version and
             configuration parameters.
         """
