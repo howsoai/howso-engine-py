@@ -45,9 +45,6 @@ from howso.openapi.models import (
 from howso.openapi.models import Project as BaseProject
 from howso.openapi.models import Session as BaseSession
 from howso.openapi.models import Trainee as BaseTrainee
-from howso.openapi.models import (
-    TraineeResources,
-)
 from howso.utilities import matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 from howso.utilities.reaction import Reaction
@@ -116,7 +113,7 @@ class Trainee(BaseTrainee):
         The instance or id of the project to use for the trainee.
     metadata : dict, optional
         Any key-value pair to store as custom metadata for the trainee.
-    resources : TraineeResources or map, optional
+    resources : map, optional
         Customize the resources provisioned for the Trainee instance.
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
@@ -138,7 +135,7 @@ class Trainee(BaseTrainee):
         max_wait_time: Optional[Union[int, float]] = None,
         metadata: Optional[MutableMapping[str, Any]] = None,
         project: Optional[Union[str, BaseProject]] = None,
-        resources: Optional[Union["TraineeResources", MutableMapping[str, Any]]] = None,
+        resources: Optional[MutableMapping[str, Any]] = None,
         client: Optional[AbstractHowsoClient] = None,
     ):
         self._created: bool = False
@@ -549,7 +546,7 @@ class Trainee(BaseTrainee):
         *,
         library_type: Optional[Library] = None,
         project: Optional[str | BaseProject] = None,
-        resources: Optional["TraineeResources" | MutableMapping[str, Any]] = None,
+        resources: Optional[MutableMapping[str, Any]] = None,
     ) -> "Trainee":
         """
         Copy the trainee to another trainee.
@@ -563,7 +560,7 @@ class Trainee(BaseTrainee):
             while "mt" will use the multi-threaded library.
         project : str or Project, optional
             The instance or id of the project to use for the new trainee.
-        resources : TraineeResources or dict, optional
+        resources : dict, optional
             Customize the resources provisioned for the Trainee instance. If
             not specified, the new trainee will inherit the value from the
             original.
@@ -3700,7 +3697,7 @@ class Trainee(BaseTrainee):
         self, *,
         library_type: Optional[Library] = None,
         max_wait_time: Optional[int | float] = None,
-        resources: Optional[TraineeResources | MutableMapping[str, Any]] = None,
+        resources: Optional[MutableMapping[str, Any]] = None,
         overwrite: bool = False,
     ):
         """
@@ -3712,7 +3709,7 @@ class Trainee(BaseTrainee):
             The library type of the Trainee.
         max_wait_time : int or float, optional
             The maximum time to wait for the trainee to be created.
-        resources : TraineeResources or map of str -> any, optional
+        resources : map of str -> any, optional
             The resources to provision for the trainee.
         overwrite : bool, default False
             If True, will overwrite an existing trainee with the same name.

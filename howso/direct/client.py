@@ -42,7 +42,6 @@ from howso.openapi.models import (
     Session, # Referenced in a number of places
     SetAutoAnalyzeParamsRequest, # Referenced once and a static dictionary and empty list are referenced; class never instantiated otherwise
     Trainee, # Only used in 2 specific places but likely would break backwards compatibility
-    TraineeResources,
     TraineeVersion
 )
 from howso.utilities import (
@@ -437,7 +436,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         library_type: Optional[Literal["st", "mt"]] = None,
         max_wait_time: Optional[Union[int, float]] = None,
         overwrite_trainee: bool = False,
-        resources: Optional[Union[TraineeResources, Dict]] = None,
+        resources: Optional[Dict] = None,
     ) -> Trainee:
         """
         Create a Trainee on the Howso service.
@@ -457,7 +456,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             If True, and if a trainee with id `trainee.id`
             already exists, the given trainee will delete the old trainee and
             create the new trainee.
-        resources : howso.openapi.models.TraineeResources or dict, optional
+        resources : dict, optional
             (Not implemented) Customize the resources provisioned for the
             Trainee instance.
 
@@ -824,7 +823,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_trainee_id: Optional[str] = None,
         *,
         library_type: Optional[Literal["st", "mt"]] = None,
-        resources: Optional[Union[TraineeResources, Dict]] = None,
+        resources: Optional[Dict] = None,
     ) -> Trainee:
         """
         Copies a trainee to a new trainee id in the Howso service.
@@ -843,7 +842,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         library_type : str, optional
             (Not Implemented) The library type of the Trainee. If not specified,
             the new trainee will inherit the value from the original.
-        resources : howso.openapi.models.TraineeResources or dict, optional
+        resources : dict, optional
             (Not Implemented) Customize the resources provisioned for the
             Trainee instance. If not specified, the new trainee will inherit
             the value from the original.
