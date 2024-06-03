@@ -40,7 +40,6 @@ from howso.openapi.models import (
     AnalyzeRequest, # Only referenced once and it's only references a static-empy-list in it
     Cases, # Referenced in a few places; needs to be replaced with a DataFrame return 
     Session, # Referenced in a number of places
-    SetAutoAnalyzeParamsRequest, # Referenced once and a static dictionary and empty list are referenced; class never instantiated otherwise
     Trainee, # Only used in 2 specific places but likely would break backwards compatibility
 )
 from howso.utilities import (
@@ -5279,6 +5278,37 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         self._auto_resolve_trainee(trainee_id)
 
+        # PR-BLOCK: This map is an identity; could be changed to a list.
+        # Decide if that's the desired path. Also consider what utility having
+        # kwargs vs parameters defined really provides if kwargs can just be
+        # used directly and parameters which aren't needed can be ignored;
+        # filtering may not be necessary. Also this (and the maps below) may be
+        # better placed in a constant somewhere.
+        attribute_map = {
+            'action_features': 'action_features',
+            'context_features': 'context_features',
+            'k_folds': 'k_folds',
+            'num_samples': 'num_samples',
+            'dt_values': 'dt_values',
+            'k_values': 'k_values',
+            'p_values': 'p_values',
+            'bypass_hyperparameter_analysis': 'bypass_hyperparameter_analysis',
+            'bypass_calculate_feature_residuals': 'bypass_calculate_feature_residuals',
+            'bypass_calculate_feature_weights': 'bypass_calculate_feature_weights',
+            'targeted_model': 'targeted_model',
+            'num_analysis_samples': 'num_analysis_samples',
+            'analysis_sub_model_size': 'analysis_sub_model_size',
+            'use_deviations': 'use_deviations',
+            'inverse_residuals_as_weights': 'inverse_residuals_as_weights',
+            'use_case_weights': 'use_case_weights',
+            'weight_feature': 'weight_feature',
+            'experimental_options': 'experimental_options',
+            'auto_analyze_enabled': 'auto_analyze_enabled',
+            'auto_analyze_limit_size': 'auto_analyze_limit_size',
+            'analyze_growth_factor': 'analyze_growth_factor',
+            'analyze_threshold': 'analyze_threshold'
+        }
+
         deprecated_params = {
             'auto_optimize_enabled': 'auto_analyze_enabled',
             'optimize_threshold': 'analyze_threshold',
@@ -5330,16 +5360,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     'and targetless.')
 
         # Collect valid parameters
-        parameters = {}
-        for k in dict(kwargs).keys():
-            if k in SetAutoAnalyzeParamsRequest.attribute_map:
-                v = kwargs.pop(k)
-                if (
-                    v is not None or
-                    k in SetAutoAnalyzeParamsRequest.nullable_attributes
-                ):
-                    parameters[k] = v
-
+        parameters = { k: v for k, v in kwargs.items() if k in attribute_map }
         if kwargs:
             warn_params = ', '.join(kwargs)
             warnings.warn(
