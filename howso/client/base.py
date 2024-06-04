@@ -14,9 +14,6 @@ from pandas import DataFrame, Index
 
 if TYPE_CHECKING:
     from .configuration import HowsoConfiguration
-    from howso.openapi.models import (
-        Metrics,
-    )
 
 
 class HowsoObject(Dict):
@@ -79,7 +76,7 @@ class AbstractHowsoClient(ABC):
         """Get information about the trainee."""
 
     @abstractmethod
-    def get_trainee_metrics(self, trainee_id) -> "Metrics":
+    def get_trainee_metrics(self, trainee_id) -> "HowsoObject":
         """Get metric information for a trainee."""
 
     @abstractmethod

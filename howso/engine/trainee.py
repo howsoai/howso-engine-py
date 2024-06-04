@@ -38,9 +38,6 @@ from howso.client.protocols import (
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
-from howso.openapi.models import (
-    Metrics,
-)
 from howso.openapi.models import Project as BaseProject
 from howso.openapi.models import Session as BaseSession
 from howso.openapi.models import Trainee as BaseTrainee
@@ -721,7 +718,7 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have 'get_trainee_information' method")
 
-    def metrics(self) -> "Metrics":
+    def metrics(self) -> "HowsoObject":
         """
         Get metric information of the trainee.
 
