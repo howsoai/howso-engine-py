@@ -39,7 +39,6 @@ from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
 from howso.openapi.models import Project as BaseProject
-from howso.openapi.models import Session as BaseSession
 from howso.openapi.models import Trainee as BaseTrainee
 from howso.utilities import matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
@@ -1973,7 +1972,7 @@ class Trainee(BaseTrainee):
         *,
         case_indices: Optional[CaseIndices] = None,
         condition: Optional[MutableMapping[str, object]] = None,
-        condition_session: Optional[str | BaseSession] = None,
+        condition_session: Optional[str | HowsoObject] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Precision] = None,
         preserve_session_data: bool = False
@@ -2025,9 +2024,9 @@ class Trainee(BaseTrainee):
 
                     condition = {"feature_name": ['a', 'c', 'e']}
 
-        condition_session : str or BaseSession, optional
+        condition_session : str or HowsoObject, optional
             If specified, ignores the condition and operates on cases for
-            the specified session id or BaseSession instance. Ignored if
+            the specified session id or HowsoObject instance. Ignored if
             case_indices is specified.
         distribute_weight_feature : str, optional
             When specified, will distribute the removed cases' weights
@@ -2043,7 +2042,7 @@ class Trainee(BaseTrainee):
         int
             The number of cases removed.
         """
-        if isinstance(condition_session, BaseSession):
+        if isinstance(condition_session, HowsoObject):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
@@ -2067,7 +2066,7 @@ class Trainee(BaseTrainee):
         *,
         case_indices: Optional[CaseIndices] = None,
         condition: Optional[MutableMapping[str, object]] = None,
-        condition_session: Optional[str | BaseSession] = None,
+        condition_session: Optional[str | HowsoObject] = None,
         features: Optional[Iterable[str]] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
@@ -2102,9 +2101,9 @@ class Trainee(BaseTrainee):
                       exactly. Only applicable to nominal and string ordinal
                       features.
 
-        condition_session : str or BaseSession, optional
+        condition_session : str or HowsoObject, optional
             If specified, ignores the condition and operates on all cases for
-            the specified session id or BaseSession instance.
+            the specified session id or HowsoObject instance.
         features : list of str, optional
             The names of the features to edit. Required when ``feature_values``
             is not specified as a DataFrame.
@@ -2121,7 +2120,7 @@ class Trainee(BaseTrainee):
         int
             The number of cases modified.
         """
-        if isinstance(condition_session, BaseSession):
+        if isinstance(condition_session, HowsoObject):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
@@ -2154,16 +2153,16 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'get_sessions' method.")
 
-    def delete_session(self, session: Union[str, BaseSession]):
+    def delete_session(self, session: Union[str, HowsoObject]):
         """
         Delete a session from the trainee.
 
         Parameters
         ----------
-        session : str or BaseSession
+        session : str or HowsoObject
             The id or instance of the session to remove from the model.
         """
-        if isinstance(session, BaseSession):
+        if isinstance(session, HowsoObject):
             session_id = session.id
         else:
             session_id = session
@@ -2172,13 +2171,13 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'delete_trainee_session' method.")
 
-    def get_session_indices(self, session: Union[str, BaseSession]) -> Index | List[int]:
+    def get_session_indices(self, session: Union[str, HowsoObject]) -> Index | List[int]:
         """
         Get all session indices for a specified session.
 
         Parameters
         ----------
-        session : str or BaseSession
+        session : str or HowsoObject
             The id or instance of the session to retrieve indices for from
             the model.
 
@@ -2187,7 +2186,7 @@ class Trainee(BaseTrainee):
         Index or list of int
             An index of the session indices for the requested session.
         """
-        if isinstance(session, BaseSession):
+        if isinstance(session, HowsoObject):
             session_id = session.id
         else:
             session_id = session
@@ -2196,13 +2195,13 @@ class Trainee(BaseTrainee):
             session=session_id,
         )
 
-    def get_session_training_indices(self, session: Union[str, BaseSession]) -> Index | List[int]:
+    def get_session_training_indices(self, session: Union[str, HowsoObject]) -> Index | List[int]:
         """
         Get all session training indices for a specified session.
 
         Parameters
         ----------
-        session : str or BaseSession
+        session : str or HowsoObject
             The id or instance of the session to retrieve training indices for
             from the model.
 
@@ -2211,7 +2210,7 @@ class Trainee(BaseTrainee):
         Index or list of int
             An index of the session training indices for the requested session.
         """
-        if isinstance(session, BaseSession):
+        if isinstance(session, HowsoObject):
             session_id = session.id
         else:
             session_id = session
@@ -2226,7 +2225,7 @@ class Trainee(BaseTrainee):
         indicate_imputed: bool = False,
         case_indices: Optional[CaseIndices] = None,
         features: Optional[Iterable[str]] = None,
-        session: Optional[str | BaseSession] = None,
+        session: Optional[str | HowsoObject] = None,
         condition: Optional[MutableMapping] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
@@ -2261,7 +2260,7 @@ class Trainee(BaseTrainee):
             If True, an additional value will be appended to the cases
             indicating if the case was imputed.
 
-        session : str or BaseSession, optional
+        session : str or HowsoObject, optional
             The id or instance of the session to retrieve training indices for
             from the model.
 
@@ -2325,7 +2324,7 @@ class Trainee(BaseTrainee):
         HowsoObject or DataFrame
             The trainee's cases.
         """
-        if isinstance(session, BaseSession):
+        if isinstance(session, HowsoObject):
             session_id = session.id
         else:
             session_id = session
@@ -2398,7 +2397,7 @@ class Trainee(BaseTrainee):
         *,
         overwrite: bool = False,
         condition: Optional[MutableMapping[str, object]] = None,
-        condition_session: Optional[str | BaseSession] = None,
+        condition_session: Optional[str | HowsoObject] = None,
         feature_attributes: Optional[MutableMapping] = None,
     ):
         """
@@ -2442,13 +2441,13 @@ class Trainee(BaseTrainee):
 
                     condition = {"length": 10, "width": 10}
 
-        condition_session : str or BaseSession, optional
+        condition_session : str or HowsoObject, optional
             If specified, ignores the condition and operates on cases for the
-            specified session id or BaseSession instance.
+            specified session id or HowsoObject instance.
         overwrite : bool, default False
             If True, the feature will be over-written if it exists.
         """
-        if isinstance(condition_session, BaseSession):
+        if isinstance(condition_session, HowsoObject):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
@@ -2477,7 +2476,7 @@ class Trainee(BaseTrainee):
         feature: str,
         *,
         condition: Optional[MutableMapping[str, object]] = None,
-        condition_session: Optional[str | BaseSession] = None,
+        condition_session: Optional[str | HowsoObject] = None,
     ):
         """
         Remove a feature from the trainee.
@@ -2513,11 +2512,11 @@ class Trainee(BaseTrainee):
 
                     condition = {"length": [1, 5]}
 
-        condition_session : str or BaseSession, optional
+        condition_session : str or HowsoObject, optional
             If specified, ignores the condition and operates on cases for the
-            specified session id or BaseSession instance.
+            specified session id or HowsoObject instance.
         """
-        if isinstance(condition_session, BaseSession):
+        if isinstance(condition_session, HowsoObject):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session

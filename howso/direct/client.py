@@ -37,7 +37,6 @@ from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
 from howso.openapi.models import (
-    Session, # Referenced in a number of places
     Trainee, # Only used in 2 specific places but likely would break backwards compatibility
 )
 from howso.utilities import (
@@ -285,7 +284,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise ValueError("The initial batch size must be an integer.")
 
     @property
-    def active_session(self) -> Session:
+    def active_session(self) -> HowsoObject:
         """
         Return the active session.
 
@@ -1579,7 +1578,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
+            isinstance(condition.get('.session'), HowsoObject)
         ):
             condition['.session'] = condition['.session'].id
 
@@ -1684,7 +1683,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
+            isinstance(condition.get('.session'), HowsoObject)
         ):
             condition['.session'] = condition['.session'].id
 
@@ -1753,7 +1752,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def begin_session(
         self, name: str = "default", metadata: Optional[Dict] = None
-    ) -> Session:
+    ) -> HowsoObject:
         """
         Begin a new session.
 
@@ -1782,7 +1781,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if self.verbose:
             print('Starting new session')
-        self._active_session = Session(
+        self._active_session = HowsoObject(
             id=str(uuid.uuid4()),
             name=name,
             metadata=metadata or dict(),
@@ -1791,7 +1790,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
         return self._active_session
 
-    def get_sessions(self, search_terms: Optional[str] = None) -> List[Session]:
+    def get_sessions(self, search_terms: Optional[str] = None) -> List[HowsoObject]:
         """
         Return a list of all accessible sessions.
 
@@ -1818,7 +1817,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         for trainee_id in self.trainee_cache.ids():
             sessions = self.howso.get_sessions(
-                trainee_id, attributes=list(Session.attribute_map))
+                trainee_id, attributes=list(HowsoObject.attribute_map))
             if not sessions:
                 continue
 
@@ -1827,13 +1826,13 @@ class HowsoDirectClient(AbstractHowsoClient):
                     # Filter by search terms
                     for term in filter_terms:
                         if term.lower() in session.get('name', '').lower():
-                            instance = model_from_dict(Session, session)
+                            instance = model_from_dict(HowsoObject, session)
                             instance.metadata = instance.metadata or dict()
                             instance.metadata['trainee_id'] = trainee_id
                             filtered_sessions.append(instance)
                             break
                 else:
-                    instance = model_from_dict(Session, session)
+                    instance = model_from_dict(HowsoObject, session)
                     instance.metadata = instance.metadata or dict()
                     instance.metadata['trainee_id'] = trainee_id
                     filtered_sessions.append(instance)
@@ -1841,7 +1840,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                       key=operator.attrgetter('created_date'),
                       reverse=True)
 
-    def get_session(self, session_id: str) -> Session:
+    def get_session(self, session_id: str) -> HowsoObject:
         """
         Retrieve a session.
 
@@ -1879,7 +1878,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             except HowsoError:
                 # When session is not found, continue
                 continue
-            session = model_from_dict(Session, session_data)
+            session = model_from_dict(HowsoObject, session_data)
             # Include trainee_id in the metadata
             session.metadata = session.metadata or dict()
             session.metadata['trainee_id'] = trainee_id
@@ -1888,7 +1887,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError("Session not found")
         return session
 
-    def update_session(self, session_id: str, *, metadata: Optional[Dict] = None) -> Session:
+    def update_session(self, session_id: str, *, metadata: Optional[Dict] = None) -> HowsoObject:
         """
         Update a session.
 
@@ -1941,7 +1940,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             except HowsoError:
                 # When session is not found, continue
                 continue
-            session = model_from_dict(Session, session_data)
+            session = model_from_dict(HowsoObject, session_data)
             session = _update_session(session)
             self.howso.set_session_metadata(trainee_id, session_id, session)
             updated_session = session
@@ -4999,7 +4998,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
+            isinstance(condition.get('.session'), HowsoObject)
         ):
             condition['.session'] = condition['.session'].id
 

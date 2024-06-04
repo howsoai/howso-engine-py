@@ -1,13 +1,12 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 
-from howso.client import AbstractHowsoClient
+from howso.client import AbstractHowsoClient, HowsoObject
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
 from howso.engine.client import get_client
 from howso.openapi.models import (
-    Project as BaseProject,
-    Session as BaseSession
+    Project as BaseProject
 )
 
 if TYPE_CHECKING:
@@ -22,7 +21,7 @@ __all__ = [
 ]
 
 
-class Session(BaseSession):
+class Session(HowsoObject):
     """
     A Howso Session.
 
@@ -184,13 +183,13 @@ class Session(BaseSession):
         self._metadata = metadata
         self._update()
 
-    def _update_attributes(self, session: BaseSession) -> None:
+    def _update_attributes(self, session: HowsoObject) -> None:
         """
         Update the protected attributes of the session.
 
         Parameters
         ----------
-        session : BaseSession
+        session : HowsoObject
             The base session instance.
 
         Returns
@@ -199,7 +198,7 @@ class Session(BaseSession):
         """
         for key in self.attribute_map.keys():
             # Update the protected attributes directly since the values
-            # have already been validated by the "BaseSession" instance
+            # have already been validated by the "HowsoObject" instance
             # and to prevent triggering an API update call
             setattr(self, f'_{key}', getattr(session, key))
 
@@ -241,7 +240,7 @@ class Session(BaseSession):
 
     @classmethod
     def from_openapi(
-        cls, session: BaseSession, *,
+        cls, session: HowsoObject, *,
         client: Optional[AbstractHowsoClient] = None
     ) -> "Session":
         """
@@ -249,7 +248,7 @@ class Session(BaseSession):
 
         Parameters
         ----------
-        session : BaseSession
+        session : HowsoObject
             The base session instance.
         client : AbstractHowsoClient, optional
             The Howso client instance to use.

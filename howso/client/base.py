@@ -8,7 +8,7 @@ from typing import (
     TYPE_CHECKING,
     Union,
 )
-
+from copy import deepcopy
 from howso.utilities.reaction import Reaction
 from pandas import DataFrame, Index
 
@@ -16,12 +16,11 @@ if TYPE_CHECKING:
     from .configuration import HowsoConfiguration
 
 
-class HowsoObject(Dict):
-    def __getattribute__(self, name: str) -> any:
-        if name in self:
-            return self[name]
-        else:
-            return None
+class HowsoObject(dict):
+    __getattr__ = dict.get
+
+    def __deepcopy__(self, memo=None):
+        return HowsoObject(deepcopy(dict(self), memo=memo))
 
 
 class AbstractHowsoClient(ABC):
