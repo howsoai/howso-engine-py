@@ -25,9 +25,7 @@ from dateutil.parser import parse as dt_parse
 from dateutil.tz import tzoffset
 import numpy as np
 import pandas as pd
-
 from howso.openapi.models import (
-    FeatureAttributes,
     Trainee,
 )
 
@@ -561,7 +559,7 @@ def num_list_dimensions(lst):
     return d
 
 
-def validate_features(features: Mapping[str, Union[FeatureAttributes, Mapping]],
+def validate_features(features: Mapping[str, Union[Dict, Mapping]],
                       extended_feature_types: Optional[Iterable[str]] = None
                       ) -> None:
     """
@@ -589,7 +587,7 @@ def validate_features(features: Mapping[str, Union[FeatureAttributes, Mapping]],
         valid_feature_types += list(extended_feature_types)
 
     for f_name, f_desc in features.items():
-        if isinstance(f_desc, FeatureAttributes):
+        if isinstance(f_desc, Dict):
             f_type = f_desc.type
         else:
             f_type = f_desc.get("type")
