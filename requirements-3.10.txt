@@ -13,9 +13,9 @@ amalgam-lang==10.4.1 \
     --hash=sha256:dc8caa450e5fbfb39f9991ec3232f1b5495df6f7c1aeb5b52934dc1b46e95f0e \
     --hash=sha256:f5eb4528d788234333f9fc23b412ce1394120b3dc7695716fc7cfb5477b71f64
     # via howso-engine (pyproject.toml)
-certifi==2024.2.2 \
-    --hash=sha256:0569859f95fc761b18b45ef421b1290a0f65f147e92a1e5eb3e635f9a5e4e66f \
-    --hash=sha256:dc383c07b76109f368f6106eee2b593b04a011ea4d55f652c6ca24a754d1cdd1
+certifi==2024.6.2 \
+    --hash=sha256:3cd43f1c6fa7dedc5899d69d3ad0398fd018ad1a17fba83ddaf78aa46c747516 \
+    --hash=sha256:ddc6c8ce995e6987e7faf5e3f1b02b302836a0e5d98ece18392cb1a36c72ad56
     # via howso-engine (pyproject.toml)
 cffi==1.16.0 \
     --hash=sha256:0c9ef6ff37e974b73c25eecc13952c55bceed9112be2d9d938ded8e856138bcc \
@@ -109,9 +109,9 @@ deprecation==2.1.0 \
     --hash=sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff \
     --hash=sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a
     # via howso-engine (pyproject.toml)
-faker==25.3.0 \
-    --hash=sha256:0158d47e955b6ec22134c0a74ebb7ed34fe600896208bafbf1008db831b17f04 \
-    --hash=sha256:bcbe31eee5ef4bbf87ce36c4eba53c01e2a1d912fde2a4d3528b430d2beb784f
+faker==25.4.0 \
+    --hash=sha256:2baf32ca8a9e6870445f2248c99b210e5d0e5eadaba5936b407f6eb9d63cb96a \
+    --hash=sha256:c6c2a937c59f12ee9878434c6ad3d6eca5d429d50a9b7c5923d99aa1a7ba5fba
     # via howso-engine (pyproject.toml)
 howso-openapi-client==34.1.0 \
     --hash=sha256:4a48b8d1c44b161baf67ddc43febe788f4c7d0ea7255bee5f2a8b0718bcb6229 \
@@ -376,9 +376,9 @@ six==1.16.0 \
     # via
     #   howso-openapi-client
     #   python-dateutil
-typing-extensions==4.12.0 \
-    --hash=sha256:8cbcdc8606ebcb0d95453ad7dc5065e6237b6aa230a31e81d0f440c30fed5fd8 \
-    --hash=sha256:b349c66bea9016ac22978d800cfff206d5f9816951f12a7d0ec5578b0a819594
+typing-extensions==4.12.1 \
+    --hash=sha256:6024b58b69089e5a89c347397254e35f1bf02a907728ec7fee9bf0fe837d203a \
+    --hash=sha256:915f5e35ff76f56588223f15fdd5938f9a1cf9195c0de25130c627e4d597f6d1
     # via howso-engine (pyproject.toml)
 tzdata==2024.1 \
     --hash=sha256:2674120f8d891909751c38abcdfd386ac0a5a1127954fbc332af6b5ceae07efd \
