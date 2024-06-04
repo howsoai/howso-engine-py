@@ -32,12 +32,11 @@ import uuid
 import warnings
 import certifi
 from howso import utilities as util
-from howso.client import AbstractHowsoClient, get_configuration_path
+from howso.client import AbstractHowsoClient, get_configuration_path, HowsoObject
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
 from howso.openapi.models import (
-    Cases, # Referenced in a few places; needs to be replaced with a DataFrame return 
     Session, # Referenced in a number of places
     Trainee, # Only used in 2 specific places but likely would break backwards compatibility
 )
@@ -3692,7 +3691,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         condition: Optional[Dict] = None,
         num_cases: Optional[int] = None,
         precision: Optional[Literal["exact", "similar"]] = None
-    ) -> Cases:
+    ) -> HowsoObject:
         """
         Retrieve cases from a model given a trainee id.
 
@@ -3779,7 +3778,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        howso.openapi.models.Cases
+        howso.client.HowsoObject
             A cases object containing the feature names and cases.
         """
         # Validate case_indices if provided
@@ -3809,7 +3808,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
         if result is None:
             result = dict()
-        return Cases(features=result.get('features'),
+        return HowsoObject(features=result.get('features'),
                      cases=result.get('cases'))
 
     def react_group(
@@ -4754,7 +4753,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         num: int,
         sort_feature: str,
         features: Optional[Iterable[str]] = None
-    ) -> Cases:
+    ) -> HowsoObject:
         """
         Gets the extreme cases of a trainee for the given feature(s).
 
@@ -4771,7 +4770,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        howso.openapi.models.Cases
+        howso.client.HowsoObject
             A cases object containing the feature names and extreme cases.
         """
         self._auto_resolve_trainee(trainee_id)
@@ -4784,7 +4783,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             num=num)
         if result is None:
             result = dict()
-        return Cases(features=result.get('features'), cases=result.get('cases'))
+        return HowsoObject(features=result.get('features'), cases=result.get('cases'))
 
     def _preprocess_generate_parameters(  # noqa: C901
         self,

@@ -16,7 +16,7 @@ from the documentation.
 Examples implementations are included in the howso/examples directory.
 """
 
-from .base import AbstractHowsoClient  # noqa: F401
+from .base import AbstractHowsoClient, HowsoObject  # noqa: F401
 from .client import (  # noqa: F401
     CONFIG_FILE_ENV_VAR,
     DEFAULT_CONFIG_FILE,
@@ -38,4 +38,5 @@ __all__ = [
     "get_howso_client",
     "HowsoClient",
     "HowsoPandasClient",
+    "HowsoObject"
 ]

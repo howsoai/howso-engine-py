@@ -15,9 +15,16 @@ from pandas import DataFrame, Index
 if TYPE_CHECKING:
     from .configuration import HowsoConfiguration
     from howso.openapi.models import (
-        Cases,
         Metrics,
     )
+
+
+class HowsoObject(Dict):
+    def __getattribute__(self, name: str) -> any:
+        if name in self:
+            return self[name]
+        else:
+            return None
 
 
 class AbstractHowsoClient(ABC):
@@ -500,7 +507,7 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def get_cases(self, trainee_id, session=None, case_indices=None,
                   indicate_imputed=False, features=None, condition=None,
-                  num_cases=None, precision=None) -> Union["Cases", "DataFrame"]:
+                  num_cases=None, precision=None) -> Union["HowsoObject", "DataFrame"]:
         """Retrieve cases from a trainee."""
 
     @abstractmethod
@@ -510,7 +517,7 @@ class AbstractHowsoClient(ABC):
         num,
         sort_feature,
         features: Optional[Iterable[str]] = None
-    ) -> Union["Cases", "DataFrame"]:
+    ) -> Union["HowsoObject", "DataFrame"]:
         """Get the extreme cases of a trainee for the given feature(s)."""
 
     @abstractmethod

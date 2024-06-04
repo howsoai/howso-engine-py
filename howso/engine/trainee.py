@@ -23,7 +23,7 @@ from pandas import (
     Index,
 )
 
-from howso.client import AbstractHowsoClient
+from howso.client import AbstractHowsoClient, HowsoObject
 from howso.client.cache import TraineeCache
 from howso.client.exceptions import (
     HowsoApiError,
@@ -39,7 +39,6 @@ from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
 from howso.openapi.models import (
-    Cases,
     Metrics,
 )
 from howso.openapi.models import Project as BaseProject
@@ -2234,7 +2233,7 @@ class Trainee(BaseTrainee):
         condition: Optional[MutableMapping] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
-    ) -> Cases | DataFrame:
+    ) -> HowsoObject | DataFrame:
         """
         Get the trainee's cases.
 
@@ -2326,7 +2325,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        Cases or DataFrame
+        HowsoObject or DataFrame
             The trainee's cases.
         """
         if isinstance(session, BaseSession):
@@ -2353,7 +2352,7 @@ class Trainee(BaseTrainee):
         features: Optional[Iterable[str]] = None,
         num: int,
         sort_feature: str,
-    ) -> Cases | DataFrame:
+    ) -> HowsoObject | DataFrame:
         """
         Get the trainee's extreme cases.
 
@@ -2368,7 +2367,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        Cases or DataFrame
+        HowsoObject or DataFrame
             The trainee's extreme cases.
         """
         if self.id:
