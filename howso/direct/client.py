@@ -73,7 +73,7 @@ from urllib3.util import Retry, Timeout
 
 from ._utilities import model_from_dict
 from .core import HowsoCore
-from ..client.exceptions import UnsupportedArgumentWarning
+from howso.client.exceptions import UnsupportedArgumentWarning
 
 # Client version
 CLIENT_VERSION = importlib.metadata.version('howso-engine')
@@ -518,8 +518,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         metadata = {
             'name': trainee.name,
-            'default_context_features': trainee.default_context_features,
-            'default_action_features': trainee.default_action_features,
             'metadata': trainee.metadata,
             'persistence': trainee.persistence,
         }
@@ -562,8 +560,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee = internals.preprocess_trainee(trainee)
         metadata = {
             'name': trainee.name,
-            'default_context_features': trainee.default_context_features,
-            'default_action_features': trainee.default_action_features,
             'metadata': trainee.metadata,
             'persistence': trainee.persistence,
         }
@@ -876,8 +872,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             new_trainee.id = new_trainee_id
             metadata = {
                 'name': new_trainee.name,
-                'default_context_features': new_trainee.default_context_features,
-                'default_action_features': new_trainee.default_action_features,
                 'metadata': new_trainee.metadata,
                 'persistence': new_trainee.persistence,
             }
@@ -1035,8 +1029,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         if metadata is None:
             raise HowsoError(f"Trainee '{trainee_id}' not found.")
 
-        action_features = metadata.get("default_action_features", list())
-        context_features = metadata.get("default_context_features", list())
         persistence = metadata.get('persistence', 'allow')
         trainee_meta = metadata.get('metadata')
         trainee_name = metadata.get('name')
@@ -1048,8 +1040,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             features=features,
             persistence=persistence,
             metadata=trainee_meta,
-            default_action_features=action_features,
-            default_context_features=context_features
         )
         return internals.postprocess_trainee(loaded_trainee)
 
@@ -2639,10 +2629,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                             allow_none=False)
 
         if context_features is None:
-            default_context_features = cached_trainee.default_context_features
             context_features = internals.get_features_from_data(
                 contexts,
-                default_features=default_context_features,
                 data_parameter='contexts',
                 features_parameter='context_features'
             )
@@ -3181,7 +3169,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         if post_process_values is not None and post_process_features is None:
             post_process_features = internals.get_features_from_data(
                 post_process_values,
-                default_features=None,
                 data_parameter='post_process_values',
                 features_parameter='post_process_features')
         post_process_values = serialize_cases(
@@ -3556,24 +3543,18 @@ class HowsoDirectClient(AbstractHowsoClient):
         if contexts is not None and context_features is None:
             context_features = internals.get_features_from_data(
                 contexts,
-                default_features=trainee.default_context_features,
                 data_parameter='contexts',
                 features_parameter='context_features')
-        contexts = serialize_cases(
-            contexts, context_features or trainee.default_context_features,
-            trainee.features)
+        contexts = serialize_cases(contexts, context_features, trainee.features)
 
         # Preprocess actions
         if actions is not None and action_features is None:
             validate_list_shape(actions, 2, "actions", "object")
             action_features = internals.get_features_from_data(
                 actions,
-                default_features=trainee.default_action_features,
                 data_parameter='actions',
                 features_parameter='action_features')
-        actions = serialize_cases(
-            actions, action_features or trainee.default_action_features,
-            trainee.features)
+        actions = serialize_cases(actions, action_features, trainee.features)
 
         # validate discriminative-react only parameters
         if desired_conviction is None:
@@ -3583,12 +3564,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             if self.verbose:
                 print(f'Reacting to context on trainee with id: {trainee_id}')
-
-            if action_features is None:
-                action_features = trainee.default_action_features
-
-            if context_features is None and preserve_feature_values is None:
-                context_features = trainee.default_context_features
 
             if contexts is None:
                 # case_indices/preserve_feature_values are not necessary
@@ -5934,12 +5909,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             A dictionary of computed context features -> weights
         """
         self._auto_resolve_trainee(trainee_id)
-        cached_trainee = self.trainee_cache.get(trainee_id)
-
-        if action_feature is None and cached_trainee.default_action_features:
-            action_feature = cached_trainee.default_action_features[0]
-        if context_features is None:
-            context_features = cached_trainee.default_context_features
 
         weights = self.howso.compute_feature_weights(
             trainee_id, action_feature, context_features, robust,
@@ -6109,11 +6078,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f'Invalid value "{targeted_model}" for targeted_model. '
                 'Valid values include single_targeted, omni_targeted, '
                 'and targetless.')
-
-        if action_features is None:
-            action_features = cached_trainee.default_action_features
-        if context_features is None:
-            context_features = cached_trainee.default_context_features
 
         deprecated_params = {
             'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
