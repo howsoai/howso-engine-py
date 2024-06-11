@@ -9,8 +9,8 @@ from howso.utilities.mapping import CaseInsensitiveMap
 from .feature_flags import FeatureFlags
 
 
-class BaseConfig:
-    """Base class for Howso configuration settings."""
+class BaseOptions:
+    """Base class for Howso configuration options."""
 
     key: str = ''
     """Dot separated key path to configuration object in the yaml."""
@@ -18,12 +18,10 @@ class BaseConfig:
     required: set = set()
     """Required sub keys."""
 
-    def __init__(self, config: t.Optional[CaseInsensitiveMap]) -> None:
-        if config is None:
-            config = CaseInsensitiveMap()
+    def __init__(self, config: t.Optional[Mapping]) -> None:
         if not isinstance(config, Mapping):
             raise ValueError('Invalid configuration object.')
-        self._config = config
+        self._config = CaseInsensitiveMap(config)
         self.validate()
 
     def validate(self) -> None:
@@ -37,7 +35,7 @@ class BaseConfig:
                 raise HowsoConfigurationError(f'A value for the configuration option "{self.key}.{key}" is required.')
 
 
-class ClientConfig(BaseConfig):
+class ClientOptions(BaseOptions):
     """Representation of the Howso client user configuration options."""
 
     key = "howso"
