@@ -1,7 +1,5 @@
 import json
 
-from howso.openapi.exceptions import UnauthorizedException
-
 
 class HowsoError(Exception):
     """
@@ -131,35 +129,6 @@ class HowsoApiError(HowsoError):
         message += f"{detail}".strip()
 
         return cls(message, code, status, url)
-
-
-class HowsoAuthenticationError(HowsoApiError):
-    """An error raised when the authentication API request fails."""
-
-    @classmethod
-    def from_openapi(cls, obj):
-        """
-        Build a HowsoApiError from OpenAPI error object.
-
-        Parameters
-        ----------
-        obj : ApiException
-            The OpenAPI error.
-
-        Returns
-        -------
-        HowsoApiError
-            The constructed error instance.
-        """
-        if isinstance(obj, UnauthorizedException):
-            try:
-                body = json.loads(obj.body)
-                error = body.get('error', obj.status)
-            except Exception:
-                error = obj.status
-            return cls(f'{obj.reason}: {error}', status=obj.status)
-        else:
-            return super().from_openapi(obj)
 
 
 class HowsoNotUniqueError(HowsoError):

@@ -25,9 +25,7 @@ from dateutil.parser import parse as dt_parse
 from dateutil.tz import tzoffset
 import numpy as np
 import pandas as pd
-from howso.openapi.models import (
-    Trainee,
-)
+from howso.engine import Trainee
 
 from .internals import serialize_openapi_models
 

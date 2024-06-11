@@ -8,7 +8,7 @@ import warnings
 
 from howso.client.base import AbstractHowsoClient
 from howso.client.exceptions import HowsoConfigurationError
-from howso.utilities import deep_update, UserFriendlyExit
+import howso.utilities
 import yaml
 
 
@@ -213,7 +213,7 @@ def get_extras_configs(directory: Union[Path, str, None] = None) -> dict:
             except Exception:  # noqa: Deliberately broad
                 raise
             else:
-                extras_config = deep_update(extras_config, config_data)
+                extras_config = howso.utilities.deep_update(extras_config, config_data)
 
     return extras_config
 
@@ -248,7 +248,7 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
     config_path = kwargs.get('config_path', None)
     verbose = kwargs.get('verbose', False)
 
-    kind_exit = UserFriendlyExit(verbose=verbose)
+    kind_exit = howso.utilities.UserFriendlyExit(verbose=verbose)
     config_data = None
 
     # Attempt to load and parse config.yaml.
@@ -340,7 +340,7 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
     # Add any "Extras"
     try:
         extras_config = get_extras_configs()
-        client_extra_params = deep_update(
+        client_extra_params = howso.utilities.deep_update(
             client_extra_params,
             extras_config['howso']['client_extra_params']
         )

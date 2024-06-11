@@ -3,11 +3,9 @@ from typing import List, Optional, TYPE_CHECKING
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
 from howso.engine.client import get_client
-from howso.openapi.models import Project as BaseProject
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from howso.openapi.models import AccountIdentity
 
 __all__ = [
     'delete_project',
@@ -18,7 +16,7 @@ __all__ = [
 ]
 
 
-class Project(BaseProject):
+class Project():
     """
     A Howso Project.
 
@@ -226,13 +224,13 @@ class Project(BaseProject):
         self._created = False
         self._id = None
 
-    def _update_attributes(self, project: BaseProject) -> None:
+    def _update_attributes(self, project) -> None:
         """
         Update the protected attributes of the project.
 
         Parameters
         ----------
-        project : BaseProject
+        project : Project
             The base project instance.
 
         Returns
@@ -241,7 +239,7 @@ class Project(BaseProject):
         """
         for key in self.attribute_map.keys():
             # Update the protected attributes directly since the values
-            # have already been validated by the "BaseProject" instance
+            # have already been validated by the "Project" instance
             # and to prevent triggering an API update call
             setattr(self, f'_{key}', getattr(project, key))
 
@@ -279,30 +277,6 @@ class Project(BaseProject):
             project = self.client.create_project(name=self.name)
             self._update_attributes(project)
         self._created = True
-
-    @classmethod
-    def from_openapi(
-        cls, project: BaseProject, *,
-        client: Optional[ProjectClient] = None
-    ) -> "Project":
-        """
-        Create Project from base class.
-
-        Parameters
-        ----------
-        project : BaseProject
-            The base project instance.
-        client : ProjectClient, optional
-            The Howso client instance to use.
-
-        Returns
-        -------
-        Project
-            The project instance.
-        """
-        project_dict = project.to_dict()
-        project_dict['client'] = client
-        return cls.from_dict(project_dict)
 
     @classmethod
     def from_dict(cls, project_dict: dict) -> "Project":

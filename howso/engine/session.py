@@ -5,14 +5,10 @@ from howso.client import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
 from howso.engine.client import get_client
-from howso.openapi.models import (
-    Project as BaseProject,
-    Session as BaseSession
-)
+from howso.engine import Project
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from howso.openapi.models import AccountIdentity
 
 __all__ = [
     'get_active_session',
@@ -22,7 +18,7 @@ __all__ = [
 ]
 
 
-class Session(BaseSession):
+class Session():
     """
     A Howso Session.
 
@@ -43,6 +39,7 @@ class Session(BaseSession):
         id: Optional[str] = None,
         metadata: Optional[dict] = None,
         client: Optional[AbstractHowsoClient] = None,
+        **kwargs
     ) -> None:
         """Implement the constructor."""
         self._created: bool = False
@@ -184,13 +181,13 @@ class Session(BaseSession):
         self._metadata = metadata
         self._update()
 
-    def _update_attributes(self, session: BaseSession) -> None:
+    def _update_attributes(self, session) -> None:
         """
         Update the protected attributes of the session.
 
         Parameters
         ----------
-        session : BaseSession
+        session : Session
             The base session instance.
 
         Returns
@@ -199,7 +196,7 @@ class Session(BaseSession):
         """
         for key in self.attribute_map.keys():
             # Update the protected attributes directly since the values
-            # have already been validated by the "BaseSession" instance
+            # have already been validated by the "Session" instance
             # and to prevent triggering an API update call
             setattr(self, f'_{key}', getattr(session, key))
 
@@ -238,30 +235,6 @@ class Session(BaseSession):
                                                 metadata=self.metadata)
             self._update_attributes(session)
         self._created = True
-
-    @classmethod
-    def from_openapi(
-        cls, session: BaseSession, *,
-        client: Optional[AbstractHowsoClient] = None
-    ) -> "Session":
-        """
-        Create Session from base class.
-
-        Parameters
-        ----------
-        session : BaseSession
-            The base session instance.
-        client : AbstractHowsoClient, optional
-            The Howso client instance to use.
-
-        Returns
-        -------
-        Session
-            The session instance.
-        """
-        session_dict = session.to_dict()
-        session_dict['client'] = client
-        return cls.from_dict(session_dict)
 
     @classmethod
     def from_dict(cls, session_dict: dict) -> "Session":
@@ -340,7 +313,7 @@ def list_sessions(
     search_terms: Optional[str] = None,
     *,
     client: Optional[AbstractHowsoClient] = None,
-    project: Optional[Union[str, BaseProject]] = None
+    project: Optional[Union[str, Project]] = None
 ) -> List[Session]:
     """
     Get listing of Sessions.
@@ -366,7 +339,7 @@ def list_sessions(
 
     # Only pass project_id for platform clients
     if project is not None and isinstance(client, ProjectClient):
-        if isinstance(project, BaseProject):
+        if isinstance(project, Project):
             params["project_id"] = project.id
         else:
             params["project_id"] = project

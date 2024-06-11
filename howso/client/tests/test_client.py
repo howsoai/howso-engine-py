@@ -21,15 +21,9 @@ from howso.client.exceptions import (
     HowsoError,
     HowsoTimeoutError,
 )
+from howso.engine import Trainee
 from howso.client.protocols import ProjectClient
 from howso.direct import HowsoDirectClient
-from howso.openapi.models import (
-    AsyncActionAccepted,
-    AsyncActionStatus,
-    PlatformVersion,
-    Trainee,
-    TrainResponse,
-)
 from howso.utilities.reaction import Reaction
 from howso.utilities.testing import get_configurationless_test_client, get_test_options
 import numpy as np
@@ -851,43 +845,11 @@ class TestBaseClient:
         configuration_exception = HowsoConfigurationError(message=message)
         assert configuration_exception.message == message
 
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_batch_train_verbose(self, trainee, capsys):
-        """
-        Test that batch_train works in verbose mode.
-
-        Test the verbose output expected during the execution of batch_train.
-        """
-        df = pd.read_csv(iris_file_path)
-        data = df.values
-        test_percent = 0.2
-        data_train = data[:int(len(data) * (1 - test_percent))]
-        cases = data_train.tolist()
-        self.client.train(trainee.id, cases, features=df.columns.tolist(),
-                          batch_size=1000)
-        out, _ = capsys.readouterr()
-        assert (f'Batch training cases on trainee with '
-                f'id: {trainee.id}') in out
-
     def test_impute_verbose(self, trainee, capsys):
         """Test the verbose output expected during the execution of impute."""
         self.client.impute(trainee.id)
         out, _ = capsys.readouterr()
         assert f'Imputing trainee with id: {trainee.id}' in out
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_move_cases_exception(self, trainee):
-        """
-        Test that move_cases raises when expected.
-
-        Checks for the expected exception when num_cases=1 is passed in
-        move_cases.
-        """
-        condition = {"feature_name": None}
-        with pytest.warns(UserWarning) as warn:
-            self.client.move_cases(trainee.id, trainee.id, 1, condition=condition)
-            assert str(warn[0].message) == ("move_cases has been removed from "
-                                            "this version of Howso.")
 
     def test_remove_cases_verbose(self, trainee, capsys):
         """
@@ -899,19 +861,6 @@ class TestBaseClient:
         self.client.remove_cases(trainee.id, 1, condition=condition)
         out, _ = capsys.readouterr()
         assert f"Removing case(s) in trainee with id: {trainee.id}" in out
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_move_cases_verbose(self, trainee, capsys):
-        """
-        Test that move_cases has verbose output when enabled.
-
-        Tests for verbose output expected when move_cases is called.
-        """
-        condition = {"feature_name": None}
-        self.client.move_cases(trainee.id, trainee.id, 1, condition=condition)
-        out, _ = capsys.readouterr()
-        assert ('"move_cases" does not exist for this version of '
-                'Howso.') in out
 
     def test_update_trainee_verbose(self, trainee_builder, capsys):
         """
@@ -997,34 +946,6 @@ class TestBaseClient:
         out, _ = capsys.readouterr()
         assert f'Analyzing trainee with id: {trainee.id}' in out
         assert 'Analyzing trainee with parameters: ' in out
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_wait_for_action_exception(self, mocker):
-        """
-        Test that wait_for_action raises when expected.
-
-        Tests for expected exception to be raised when the max_wait_time
-        keyword argument is set and time runs over.
-        """
-        mock_action_accepted = AsyncActionAccepted(
-            action_id='test123',
-            operation_type='react'
-        )
-        mock_action_status = AsyncActionStatus(
-            action_id='test123',
-            status='pending',
-            operation_type='react'
-        )
-        mocker.patch(
-            'howso.openapi.api.TaskOperationsApi.get_action_output',
-            return_value=mock_action_status)
-
-        with pytest.raises(HowsoTimeoutError) as exc:
-            self.client.api_client.wait_for_action(
-                mock_action_accepted, max_wait_time=0.5)
-        expected_msg = (
-            "Operation 'react' exceeded max wait time of 0.5 seconds")
-        assert expected_msg in str(exc.value)
 
     def test_acquire_trainee_resources_verbose(self, trainee, capsys):
         """
@@ -1281,26 +1202,6 @@ class TestBaseClient:
             HowsoClient(config_path="Fake/Path", verbose=True)
         assert "Specified configuration file was not found" in str(exc)
 
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_train_analyzes(self, howso_client, trainee, mocker):
-        """
-        Test that traine analyzes when expected.
-
-        Test that auto_analyze is also called when test_train is called
-        using mocking.
-        """
-        df = pd.read_csv(iris_file_path)
-        data = df.values
-        # Ensure we don't trigger batch_train conditions...
-        data_train = data[:howso_client._train_batch_threshold]
-        return_value = TrainResponse(status="analyze")
-        howso_client._train = mocker.Mock(return_value=return_value)
-
-        spy = mocker.spy(howso_client, 'auto_analyze')
-        howso_client.train(trainee.id, cases=data_train,
-                           features=df.columns.tolist(), batch_size=None)
-        spy.assert_called_once_with(trainee.id)
-
     def test_set_get_substitute_feature_values(self, trainee, capsys):
         """
         Test that set_substitute_feature_values works as expected.
@@ -1354,39 +1255,6 @@ class TestBaseClient:
         assert (f'Getting feature attributes from trainee with '
                 f'id: {trainee.id}') in out
         assert ret == feats
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_wait_for_action(self, capsys, mocker):
-        """Test for expected exception and verbose output."""
-        max_wait_time = 1.0
-        operation_type = 'testing'
-
-        mock_action_accepted = AsyncActionAccepted(
-            action_id='test123',
-            operation_type=operation_type
-        )
-        mock_action_status = AsyncActionStatus(
-            action_id='test123',
-            status='pending',
-            operation_type=operation_type
-        )
-        mocker.patch(
-            'howso.openapi.api.TaskOperationsApi.get_action_output',
-            return_value=mock_action_status)
-
-        with pytest.raises(HowsoTimeoutError) as exc:
-            self.client.api_client.wait_for_action(
-                mock_action_accepted, max_wait_time=max_wait_time)
-        expected_msg = (f"Operation '{operation_type}' exceeded max wait time "
-                        f"of {max_wait_time} seconds")
-        assert expected_msg in str(exc.value)
-        max_wait_time = 3
-
-        with pytest.raises(HowsoTimeoutError) as exc:
-            self.client.api_client.wait_for_action(
-                mock_action_accepted, max_wait_time=max_wait_time)
-        out, _ = capsys.readouterr()
-        assert f"Operation '{operation_type}' is pending, waiting " in out
 
     def test_react_exceptions(self, trainee):
         """
@@ -1537,67 +1405,3 @@ class TestBaseClient:
         mocker.patch.object(Path, 'is_file', return_value=True)
         path = get_configuration_path()
         assert str(path) == 'howso.yml'
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    @pytest.mark.parametrize('client_api_version, api_version, outcome', (
-        ('2.0.0', '3.4.5', False),  # Client version too low
-        ('4.0.0', '3.4.5', False),  # Client version too high
-        ('4.0.0', None, None),  # Unknown version compatibility
-        ('3.0.0', '3.4.5', True),  # Valid client version
-    ))
-    def test_check_service_compatibility(self, mocker, client_api_version,
-                                         api_version, outcome):
-        """
-        Test that check_service_availablity works as expected.
-
-        Ensure that the check_service_compatibility() works for a range of
-        scenarios.
-        """
-        version_response = PlatformVersion(
-            platform='1.0.0',
-            api=api_version
-        )
-        mocker.patch('howso.client.client.client_api_version',
-                     client_api_version)
-        mocker.patch.object(self.client, 'get_version',
-                            return_value=version_response)
-
-        def _has_warning(warnings, msg):
-            return any([
-                msg in str(warning.message) for warning in warnings
-            ])
-
-        if outcome:
-            assert self.client._check_service_compatibility()
-        else:
-            with pytest.warns(UserWarning) as warning_list:
-                assert not self.client._check_service_compatibility()
-
-                if api_version is None:
-                    assert len(warning_list)
-                    assert _has_warning(warning_list, "Proceed with caution")
-                elif int(Version(client_api_version).major) < int(Version(api_version).major):
-                    assert len(warning_list)
-                    assert _has_warning(warning_list,
-                                        'Please upgrade the client software to a '
-                                        'newer version.')
-                elif int(Version(client_api_version).major) > int(Version(api_version).major):
-                    assert len(warning_list)
-                    assert _has_warning(warning_list,
-                                        'Please upgrade the server, or downgrade '
-                                        'the client, to compatible API versions.')
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_check_service_compatibility_item_not_found(self, mocker):
-        """
-        Test check_service_compatibility_item raises warnings when expected.
-
-        Test that a warning is raised if the service does not return a
-        valid version item from its "/version" endpoint.
-        """
-        version_response = PlatformVersion()
-        mocker.patch.object(
-            self.client, 'get_version', return_value=version_response)
-        with pytest.warns(UserWarning) as record:
-            assert self.client._check_service_compatibility() is None
-            assert 'Proceed with caution.' in str(record[0].message)
