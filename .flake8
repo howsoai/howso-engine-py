@@ -1,4 +1,5 @@
 [flake8]
+application_import_names = howso
 ignore = D100, D104, D203, D401, F405, W503, W504, D107
 exclude = .git, __pycache__, tests,
 max-complexity = 15
