@@ -71,7 +71,7 @@ class HowsoConfiguration(t.Generic[CO]):
     feature_flags_class: type[FeatureFlags] = FeatureFlags
     client_config_class: type[ClientOptions] = ClientOptions
 
-    def __init__(self, *, config_path: t.Optional[Path | str] = None, verbose: bool = False):
+    def __init__(self, config_path: t.Optional[Path | str] = None, *, verbose: bool = False):
         """Initialize the configuration object."""
         self.howso_config_path = config_path
         self.verbose = verbose
