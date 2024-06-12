@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 import uuid
 
 from howso import engine
-from howso.client import AbstractHowsoClient, HowsoPandasClient
+import howso.client
 from howso.client.exceptions import (
     HowsoApiError,
     HowsoError,
@@ -111,7 +111,7 @@ class HowsoEstimator(BaseEstimator):
     0.9666666666666667
     """
 
-    def __init__(self, client: Optional[AbstractHowsoClient] = None,
+    def __init__(self, client: Optional[howso.client.AbstractHowsoClient] = None,
                  features: Optional[Dict] = None, targets: Dict = None,
                  method: Optional[str] = None, verbose: bool = False,
                  debug: bool = False, ttl: int = DEFAULT_TTL,
@@ -142,7 +142,7 @@ class HowsoEstimator(BaseEstimator):
         self.client_params = client_params
 
         if client is None and client_params is None:
-            self.client = HowsoPandasClient(verbose=self.verbose, debug=self.debug)
+            self.client = howso.client.HowsoPandasClient(verbose=self.verbose, debug=self.debug)
             self.client_params = self._get_client_params()
         elif client_params:
             cls = client_params["class"]
