@@ -533,6 +533,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             id = id,
             metadata = metadata
         )
+        new_trainee = internals.preprocess_trainee(new_trainee)
         self.howso.set_metadata(trainee_id, metadata)
         self.howso.set_feature_attributes(trainee_id, features)
         features = self.howso.get_feature_attributes(trainee_id)

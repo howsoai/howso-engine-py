@@ -50,7 +50,26 @@ def postprocess_trainee(trainee):
     Trainee
         The trainee instance.
     """
-    trainee["features"] = postprocess_feature_attributes(trainee["features"])
+    trainee['features'] = postprocess_feature_attributes(trainee['features'])
+    return trainee
+
+
+def preprocess_trainee(trainee):
+    """
+    Pre-process a trainee to update its data into the expected format.
+    Should be used on trainee objects before sending to the API.
+    Does not mutate the original trainee object.
+    Parameters
+    ----------
+    trainee : Trainee
+        The trainee instance.
+    Returns
+    -------
+    Trainee
+        Updated copy of the trainee instance.
+    """
+    trainee = deepcopy(trainee)
+    trainee['features'] = preprocess_feature_attributes(trainee['features'])
     return trainee
 
 
