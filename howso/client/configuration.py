@@ -78,7 +78,7 @@ class HowsoConfiguration(t.Generic[CO]):
 
         if config_path is not None:
             try:
-                with open(config_path, 'r') as config:
+                with open(Path(config_path).expanduser(), 'r') as config:
                     self._config = CaseInsensitiveDict(yaml.safe_load(config))
             except yaml.YAMLError as yaml_exception:
                 raise HowsoConfigurationError(
