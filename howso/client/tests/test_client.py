@@ -209,9 +209,8 @@ class TestDatetimeSerialization:
             features=features,
             default_action_features=['nom'],
             default_context_features=['datetime'],
-            overwrite_trainee=True
         )
-        trainee = trainee_builder.create(**trainee)
+        trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
         try:
             yield trainee
         except Exception:
@@ -247,9 +246,8 @@ class TestDatetimeSerialization:
             features=features,
             default_action_features=['nom'],
             default_context_features=['datetime'],
-            overwrite_trainee=True
         )
-        trainee = trainee_builder.create(**trainee)
+        trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
         df = pd.DataFrame(data=np.asarray([
             ['a', 'b', 'c', 'd'],
             # missing seconds in the provided values, don't match format
@@ -285,9 +283,8 @@ class TestDatetimeSerialization:
             features=features,
             default_action_features=['date_time_format'],
             default_context_features=['nom'],
-            overwrite_trainee=True
         )
-        trainee = trainee_builder.create(**trainee)
+        trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
         df = pd.DataFrame(data=np.asarray([
             ['a', 'b', 'c', 'd'],
             # missing seconds in the provided values, don't match format
@@ -318,8 +315,10 @@ class TestDatetimeSerialization:
         ]).transpose(), columns=['nom', 'datetime'])
         self.client.train(trainee['id'], cases=df.values.tolist(),
                           features=df.columns.tolist())
-        response = self.client.react(trainee['id'],
-                                     contexts=[["2020-10-12T10:10:10.333"]])
+        response = self.client.react(trainee.id,
+                                     contexts=[["2020-10-12T10:10:10.333"]],
+                                     context_features=["datetime"],
+                                     action_features=["nom"])
         assert isinstance(response, Reaction)
         assert response['action']['nom'].iloc[0] == "b"
 
@@ -337,8 +336,10 @@ class TestDatetimeSerialization:
         ]).transpose(), columns=['nom', 'datetime'])
         self.client.train(trainee['id'], cases=df.values.tolist(),
                           features=df.columns.tolist())
-        response = self.client.react_series(trainee['id'],
-                                     contexts=[["2020-10-12T10:10:10.333"]])
+        response = self.client.react_series(trainee.id,
+                                            contexts=[["2020-10-12T10:10:10.333"]],
+                                            context_features=["datetime"],
+                                            action_features=["nom"])
         assert isinstance(response, Reaction)
         assert response['action']['nom'].iloc[0] == "b"
 
@@ -358,9 +359,9 @@ class TestClient:
             "penguin": {"type": "nominal"},
             "play": {"type": "nominal"},
         }
+        trainee_name = uuid.uuid4().hex
         actions = ['play']
         contexts = ['penguin']
-        trainee_name = uuid.uuid4().hex
         trainee = dict(
             name=trainee_name,
             features=feats,
@@ -425,12 +426,8 @@ class TestClient:
             "dog": {"type": "nominal"},
             "cat": {"type": "continuous"}
         }
-        actions = ['cat']
-        contexts = ['dog']
         updated_trainee = trainee | dict(
             features=feats,
-            default_action_features=actions,
-            default_context_features=contexts,
             metadata={'date': 'now'}
         )
         updated_trainee = self.client.update_trainee(updated_trainee)
@@ -450,7 +447,10 @@ class TestClient:
         """
         cases = [['1', '2'], ['3', '4']]
         self.client.train(trainee['id'], cases, features=['penguin', 'play'])
-        react_response = self.client.react(trainee['id'], contexts=[['1']])
+        react_response = self.client.react(trainee['id'],
+                                    contexts=[['1']],
+                                    context_features=['penguin'],
+                                    action_features=['play'])
         assert isinstance(react_response, Reaction)
         assert react_response['action']['play'].iloc[0] == '2'
         case_response = self.client.get_cases(
@@ -728,7 +728,10 @@ class TestClient:
             ),
         ]
         for audit_detail_set, keys_to_expect in details_sets:
-            response = self.client.react(trainee['id'], contexts=[['1']],
+            response = self.client.react(trainee['id'],
+                                         contexts=[['1']],
+                                         context_features=['penguin'],
+                                         action_features=['play'],
                                          details=audit_detail_set)
             details = response['details']
             assert (all(details[key] is not None for key in keys_to_expect))
@@ -845,9 +848,8 @@ class TestBaseClient:
             features=features,
             default_action_features=header[-1:],
             default_context_features=header[:-1],
-            overwrite_trainee=True
         )
-        trainee = trainee_builder.create(**trainee)
+        trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
         try:
             yield trainee
         except Exception:
@@ -895,10 +897,9 @@ class TestBaseClient:
         trainee = dict(
             features=features,
             default_action_features=header[-1:],
-            default_context_features=header[:-1],
-            overwrite_trainee=True
+            default_context_features=header[:-1]
         )
-        trainee = trainee_builder.create(**trainee)
+        trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
         trainee["name"] = 'test-update-verbose'
         updated_trainee = self.client.update_trainee(trainee)
         assert trainee["name"] == updated_trainee["name"]
@@ -1136,9 +1137,7 @@ class TestBaseClient:
                       "sepal_width": {'type': 'continuous'},
                       "petal_length": {'type': 'continuous'},
                       "petal_width": {'type': 'continuous'},
-                      "class": {'type': 'nominal'}},
-            default_action_features=features[-1:],
-            default_context_features=features[:-1]
+                      "class": {'type': 'nominal'}}
         )
         other_trainee = trainee_builder.create(**(other_trainee | dict(id=None, overwrite_trainee=True)))
         other_trainee = self.client.update_trainee(other_trainee)

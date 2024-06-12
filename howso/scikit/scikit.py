@@ -400,8 +400,6 @@ class HowsoEstimator(BaseEstimator):
 
             self.trainee = engine.Trainee(
                 features={**self.features, **self.targets},
-                default_action_features=self.target_names,
-                default_context_features=self.feature_names,
                 metadata={'scikit-trainee': True},
                 client=self.client
             )
@@ -1138,7 +1136,6 @@ class HowsoEstimator(BaseEstimator):
         value : int or float or str, optional
             The value to populate the feature with.
         """
-        # Question: update default_context_features?
         if feature is None:
             feature = self._generate_new_feature_name()
         elif feature in self.feature_names:

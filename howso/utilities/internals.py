@@ -88,7 +88,6 @@ def deserialize_to_dataframe(
 
 def get_features_from_data(
     data: Any, *,
-    default_features: Optional[List[str]] = None,
     data_parameter: Optional[str] = 'cases',
     features_parameter: Optional[str] = 'features'
 ) -> List[str]:
@@ -99,8 +98,6 @@ def get_features_from_data(
     ----------
     data : Any
         The data to inspect for feature names.
-    default_features : list of str, optional
-        Feature names to fallback to if unable to determine from DataFrame.
     data_parameter : str, optional
         The name of the data parameter to reference in the error message.
     features_parameter : str, optional
@@ -129,8 +126,6 @@ def get_features_from_data(
                 f"columns.")
         else:
             return data.columns.tolist()
-    elif default_features is not None:
-        return default_features
     else:
         raise HowsoError(
             f"A `{features_parameter}` list is required when "

@@ -84,10 +84,6 @@ class Trainee():
         The feature attributes of the trainee. Where feature ``name`` is the key
         and a sub dictionary of feature attributes is the value. If this is not
         specified in the constructor, it must be set during or before :meth:`train`.
-    default_action_features : list of str, optional
-        The default action feature names of the trainee.
-    default_context_features : list of str, optional
-        The default context feature names of the trainee.
     id : str, optional
         The unique identifier of the Trainee. The client automatically completes
         this field and the user should NOT manually use this parameter. Please use
@@ -130,8 +126,6 @@ class Trainee():
         *,
         overwrite_existing: bool = False,
         persistence: Persistence = "allow",
-        default_action_features: Optional[Iterable[str]] = None,
-        default_context_features: Optional[Iterable[str]] = None,
         id: Optional[str] = None,
         library_type: Optional[Library] = None,
         max_wait_time: Optional[Union[int, float]] = None,
@@ -156,10 +150,6 @@ class Trainee():
         self._needs_analyze: bool = False
 
         self.persistence = persistence
-        self.set_default_features(
-            action_features=default_action_features,
-            context_features=default_context_features,
-        )
 
         # Allow passing project id or the project instance
         if isinstance(project, Project):
@@ -384,38 +374,6 @@ class Trainee():
         return self._calculated_matrices
 
     @property
-    def default_action_features(self) -> List[str] | None:
-        """
-        The default action features of the trainee.
-
-        .. WARNING::
-            This returns a deep copy of the default action features. To
-            update them, use the method :meth:`set_default_features`.
-
-        Returns
-        -------
-        None or list of str
-            The default action feature names for the trainee.
-        """
-        return deepcopy(self._default_action_features)
-
-    @property
-    def default_context_features(self) -> None | List[str]:
-        """
-        The default context features of the trainee.
-
-        .. WARNING::
-            This returns a deep copy of the default context features. To
-            update them, use the method :meth:`set_default_features`.
-
-        Returns
-        -------
-        None or list of str
-            The default context feature names for the trainee.
-        """
-        return deepcopy(self._default_context_features)
-
-    @property
     def active_session(self) -> Session | None:
         """
         The active session.
@@ -511,32 +469,6 @@ class Trainee():
                 raise ValueError("Trainee ID is needed for setting feature attributes.")
         else:
             raise ValueError("Client must have the 'set_feature_attributes' method.")
-
-    def set_default_features(
-        self,
-        *,
-        action_features: Optional[Iterable[str]] = None,
-        context_features: Optional[Iterable[str]] = None,
-    ):
-        """
-        Update the trainee default features.
-
-        Parameters
-        ----------
-        action_features : iterable of str, optional
-            The default action feature names.
-        context_features : iterable of str, optional
-            The default context feature names.
-        """
-        if action_features is not None:
-            self._default_action_features = list(action_features)
-        else:
-            self._default_action_features = None
-        if context_features is not None:
-            self._default_context_features = list(context_features)
-        else:
-            self._default_context_features = None
-        self.update()
 
     def set_metadata(self, metadata: Optional[MutableMapping[str, Any]]):
         """
@@ -1157,8 +1089,8 @@ class Trainee():
     def predict(
         self,
         contexts: Optional[TabularData2D] = None,
+        action_features: Iterable[str] = None,
         *,
-        action_features: Optional[Iterable[str]] = None,
         allow_nulls: bool = False,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
@@ -1180,10 +1112,8 @@ class Trainee():
         contexts : DataFrame or 2-dimensional list of object, optional
             The context values to react to. If neither this nor ``context_values`` are
             specified then ``case_indices`` must be specified.
-        action_features : list of str, optional
-            Feature names to treat as action features during react. If no
-            ``action_features`` are specified, the ``default_action_features``
-            is used.
+        action_features : list of str
+            Feature names to treat as action features during react.
         allow_nulls : bool, default False, optional
             See parameter ``allow_nulls`` in :meth:`react`.
         case_indices : iterable of (str, int), optional
@@ -1192,9 +1122,8 @@ class Trainee():
             must be specified.
         context_features : list of str, optional
             Feature names to treat as context features during react. If no
-            ``context_features`` are specified, then the ``default_context_features``
-            are used. If the Trainee has no ``default_context_features``, then
-            this will be all of the ``features`` excluding the ``action_features``.
+            ``context_features`` are specified, then this will be all of
+            the ``features`` excluding the ``action_features``.
         derived_action_features : list of str, optional
             See parameter ``derived_action_features`` in :meth:`react`.
         derived_context_features : list of str, optional
@@ -1214,20 +1143,12 @@ class Trainee():
             DataFrame consisting of the discriminative predicted results.
         """
         if action_features is None:
-            if self.default_action_features is None:
-                raise HowsoError(
-                    "No action features specified and no default action features are present. "
-                    "Please specify the action feature or add default action features "
-                    "to the Trainee."
-                )
-            else:
-                action_features = self.default_action_features
+            raise HowsoError(
+                "No action features specified. Please specify the action feature."
+            )
 
         if context_features is None:
-            if self.default_context_features is None:
-                context_features = [key for key in self.features.keys() if key not in action_features]
-            else:
-                context_features = self.default_context_features
+            context_features = [key for key in self.features.keys() if key not in action_features]
 
         results = self.react(
             action_features=action_features,

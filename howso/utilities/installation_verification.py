@@ -428,8 +428,6 @@ def generate_dataframe(*, client: AbstractHowsoClient,
     trainee_obj = Trainee(
         f"installation_verification generated dataframe ({get_nonce()})",
         features=features,
-        default_context_features=context_features,
-        default_action_features=action_features,
         persistence="never"
     )
     trainee = client.create_trainee(trainee_obj)
@@ -980,8 +978,6 @@ def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
     trainee_obj = Trainee(
         f"installation_verification check_tzdata_installed ({get_nonce()})",
         features=features,
-        default_context_features='date',
-        default_action_features='date',
         persistence='never'
     )
     trainee = client.create_trainee(trainee_obj)
