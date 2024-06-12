@@ -412,6 +412,7 @@ class TestClient:
         trainee
         """
         returned_trainee = self.client.get_trainee(trainee['id'])
+        diff = {k: (v, returned_trainee.get(k, None)) for k, v in trainee.items() if trainee[k] != returned_trainee.get(k, None)}
         assert returned_trainee == trainee
 
     def test_update(self, trainee):
@@ -432,10 +433,10 @@ class TestClient:
         )
         updated_trainee = self.client.update_trainee(updated_trainee)
         trainee2 = self.client.get_trainee(trainee['id'])
-        assert trainee2.to_dict() == updated_trainee
+        assert trainee2 == updated_trainee
         self.client.update_trainee(trainee)
         trainee3 = self.client.get_trainee(trainee['id'])
-        assert trainee3.to_dict() == trainee
+        assert trainee3 == trainee
 
     def test_train_and_react(self, trainee):
         """
@@ -470,7 +471,7 @@ class TestClient:
         new_trainee = trainee_builder.copy(trainee['id'], trainee["name"] + "_copy")
         trainee_bob = self.client.get_trainee(new_trainee['id'])
         orig = trainee
-        copy_bob = trainee_bob.to_dict()
+        copy_bob = trainee_bob
         assert orig['features'] == copy_bob['features']
 
     def test_trainee_conviction(self, trainee, trainee_builder):
@@ -522,10 +523,10 @@ class TestClient:
             session = self.client.begin_session('impute')
             self.client.train(trainee['id'], [['15', None]], features=features)
             self.client.impute(trainee['id'], features=features, batch_size=2)
-            imputed_session = self.client.get_cases(trainee['id'], session.id,
+            imputed_session = self.client.get_cases(trainee['id'], session['id'],
                                                     indicate_imputed=True)
-            assert imputed_session.cases[0][1] is not None
-            assert '.imputed' in imputed_session.features
+            assert imputed_session['cases'][0][1] is not None
+            assert '.imputed' in imputed_session['features']
         finally:
             self.client.begin_session()  # Reset session
 
@@ -542,8 +543,8 @@ class TestClient:
         cases = self.client.get_cases(trainee['id'],
                                       features=['play', 'penguin', 'familiarity_conviction_addition'],
                                       session=self.client.active_session["id"])
-        pprint(cases.__dict__)
-        assert 'familiarity_conviction_addition' in cases.features
+        pprint(cases)
+        assert 'familiarity_conviction_addition' in cases['features']
 
     def test_save(self, trainee):
         """

@@ -3650,12 +3650,18 @@ class Trainee():
             new_trainee = None
             if isinstance(self.client, AbstractHowsoClient):
                 new_trainee = self.client.create_trainee(
+                    name = self.name,
+                    features = self.features,
+                    overwrite_trainee=overwrite,
+                    persistence=self.persistence,
+                    id = self.id,
                     library_type=library_type,
                     max_wait_time=max_wait_time,
-                    overwrite_trainee=overwrite,
-                    resources=resources
+                    project = self.project,
+                    resources=resources,
+                    client = self.client
                 )
-
+                    
             if new_trainee:
                 self._update_attributes(new_trainee)
             else:

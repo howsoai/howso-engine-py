@@ -517,27 +517,21 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f"Possible causes - Howso couldn't find core "
                 f"binaries/camls or {trainee_id} trainee already exists.")
 
-        metadata = {
-            'name': name,
-            'default_context_features': default_context_features,
-            'default_action_features': default_action_features,
-            'metadata': metadata,
-            'persistence': persistence,
-        }
+        metadata = dict(
+            name = name,
+            default_context_features = default_context_features,
+            default_action_features = default_action_features,
+            persistence = persistence,
+            **metadata
+        )
         new_trainee = dict(
             name = name,
             features = features,
-            overwrite_trainee = overwrite_trainee,
             persistence = persistence,
             default_action_features = default_action_features,
             default_context_features = default_context_features,
             id = id,
-            library_type = library_type,
-            max_wait_time = max_wait_time,
-            metadata = metadata,
-            project = project,
-            resources = resources,
-            client = client
+            metadata = metadata
         )
         self.howso.set_metadata(trainee_id, metadata)
         self.howso.set_feature_attributes(trainee_id, features)
@@ -562,7 +556,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         Dict
             The `Trainee` object that was updated.
         """
-        if trainee['id']:
+        if 'id' in trainee:
             trainee_id = trainee['id']
         else:
             trainee_id = trainee['id'] = trainee["name"]
@@ -574,14 +568,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.verbose:
             print(f'Updating trainee with id: {trainee["id"]}')
 
-        metadata = {
-            'name': trainee["name"],
-            'default_context_features': trainee["default_context_features"],
-            'default_action_features': trainee["default_action_features"],
-            'metadata': trainee["metadata"],
-            'persistence': trainee["persistence"],
-        }
+        metadata = dict(
+            name = trainee["name"],
+            default_context_features = trainee["default_context_features"],
+            default_action_features = trainee["default_action_features"],
+            metadata = trainee["metadata"],
+            persistence = trainee["persistence"],
+        )
         self.howso.set_metadata(trainee_id, metadata)
+        trainee["metadata"] = self.howso.get_metadata(trainee_id)
         self.howso.set_feature_attributes(trainee_id, trainee["features"])
         trainee["features"] = self.howso.get_feature_attributes(trainee_id)
 
@@ -1059,16 +1054,20 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError(f"Trainee '{trainee_id}' not found.")
 
         persistence = metadata.get('persistence', 'allow')
-        trainee_meta = metadata.get('metadata')
+        trainee_meta = metadata.get('metadata', {})
         trainee_name = metadata.get('name')
+        default_action_features = metadata.get('default_action_features', {})
+        default_context_features = metadata.get('default_context_features', {})
 
         features = self.howso.get_feature_attributes(trainee_id)
         loaded_trainee = dict(
-            name=trainee_name,
-            id=trainee_id,
-            features=features,
-            persistence=persistence,
-            metadata=trainee_meta,
+            name = trainee_name,
+            features = features,
+            persistence = persistence,
+            default_action_features = default_action_features,
+            default_context_features = default_context_features,
+            id = trainee_id,
+            metadata = metadata
         )
         return internals.postprocess_trainee(loaded_trainee)
 
