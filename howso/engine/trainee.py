@@ -3688,9 +3688,8 @@ class Trainee():
         Trainee
             The trainee instance.
         """
-        trainee_dict = trainee.to_dict()
-        trainee_dict["client"] = client
-        return cls.from_dict(trainee_dict)
+        trainee["client"] = client
+        return cls.from_dict(trainee)
 
     @classmethod
     def from_dict(cls, trainee_dict: dict) -> "Trainee":
@@ -3922,7 +3921,7 @@ class Trainee():
         # Stores the preprocessed matrix, useful if the user wants a different form of processing
         # after calculation.
         self._calculated_matrices['mda'] = deepcopy(matrix)
-        matrix = matrix_processing(
+        matrix = howso.utilities.matrix_processing(
             matrix,
             normalize=normalize,
             normalize_method=normalize_method,
@@ -4073,7 +4072,7 @@ def load_trainee(
         trainee = Trainee.from_openapi(trainee, client=client)
     else:
         raise ValueError("Trainee not loaded correctly.")
-    trainee["_custom_save_path"] = file_path
+    trainee._custom_save_path = file_path
 
     return trainee
 

@@ -336,7 +336,7 @@ class TestDatetimeSerialization:
         ]).transpose(), columns=['nom', 'datetime'])
         self.client.train(trainee['id'], cases=df.values.tolist(),
                           features=df.columns.tolist())
-        response = self.client.react_series(trainee.id,
+        response = self.client.react_series(trainee['id'],
                                             contexts=[["2020-10-12T10:10:10.333"]],
                                             context_features=["datetime"],
                                             action_features=["nom"])
@@ -412,7 +412,6 @@ class TestClient:
         trainee
         """
         returned_trainee = self.client.get_trainee(trainee['id'])
-        diff = {k: (v, returned_trainee.get(k, None)) for k, v in trainee.items() if trainee[k] != returned_trainee.get(k, None)}
         assert returned_trainee == trainee
 
     def test_update(self, trainee):

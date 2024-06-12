@@ -110,7 +110,7 @@ class TestEngine:
     def test_predict(self, trainee):
         """Test that predict returns the same results as react."""
         action_features = ['target']
-        context_features = [k for k in trainee["features"].keys() if k not in action_features]
+        context_features = [k for k in trainee.features.keys() if k not in action_features]
 
         test_data = [[5.5, 3.6, 1.6, 0.2], [5.2, 3.2, 1.2, 0.2]]
 
