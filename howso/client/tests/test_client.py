@@ -315,7 +315,7 @@ class TestDatetimeSerialization:
         ]).transpose(), columns=['nom', 'datetime'])
         self.client.train(trainee['id'], cases=df.values.tolist(),
                           features=df.columns.tolist())
-        response = self.client.react(trainee.id,
+        response = self.client.react(trainee['id'],
                                      contexts=[["2020-10-12T10:10:10.333"]],
                                      context_features=["datetime"],
                                      action_features=["nom"])

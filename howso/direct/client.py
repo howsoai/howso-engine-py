@@ -522,7 +522,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             default_context_features = default_context_features,
             default_action_features = default_action_features,
             persistence = persistence,
-            **metadata
+            **(metadata or {})
         )
         new_trainee = dict(
             name = name,
@@ -3571,7 +3571,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         if contexts is not None and context_features is None:
             context_features = internals.get_features_from_data(
                 contexts,
-                default_features=trainee["default_context_features"],
                 data_parameter='contexts',
                 features_parameter='context_features')
         contexts = serialize_cases(
