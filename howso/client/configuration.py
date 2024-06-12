@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 import typing as t
 
 from requests.structures import CaseInsensitiveDict
+from typing_extensions import TypeVar
 import yaml
 
 from howso.client.exceptions import HowsoConfigurationError
 from .feature_flags import FeatureFlags
+
+CO = TypeVar("CO", bound="ClientOptions", default="ClientOptions")
 
 
 class BaseOptions:
@@ -51,7 +56,7 @@ class ClientOptions(BaseOptions):
         return self._config.get('client_extra_params') or {}
 
 
-class HowsoConfiguration:
+class HowsoConfiguration(t.Generic[CO]):
     """
     Howso client configuration.
 
@@ -103,5 +108,5 @@ class HowsoConfiguration:
 
     def setup(self):
         """Setup configuration attributes."""
-        self.feature_flags = self.feature_flags_class(self._config.get('feature_flags'))
-        self.client = self.client_config_class(self._config.get('howso'))
+        self.feature_flags: FeatureFlags = self.feature_flags_class(self._config.get('feature_flags'))
+        self.client: CO = t.cast(CO, self.client_config_class(self._config.get('howso')))
