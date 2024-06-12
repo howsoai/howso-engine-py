@@ -51,11 +51,21 @@ class AbstractHowsoClient(ABC):
 
     @abstractmethod
     def create_trainee(
-        self, trainee, *,
-        library_type=None,
-        max_wait_time=None,
-        overwrite_trainee=False,
-        resources=None
+        self,
+        name = None,
+        features = None,
+        *,
+        overwrite_trainee = False,
+        persistence = "allow",
+        default_action_features = None,
+        default_context_features = None,
+        id = None,
+        library_type = None,
+        max_wait_time = None,
+        metadata = None,
+        project = None,
+        resources = None,
+        client = None
     ):
         """Create a trainee on the Howso service."""
 

@@ -3493,7 +3493,7 @@ class Trainee():
             # Update the protected attributes directly since the values
             # have already been validated by the "Trainee" instance
             # and to prevent triggering an API update call
-            setattr(self, f"_{key}", getattr(trainee, key))
+            setattr(self, f"_{key}", trainee.get(key))
 
     def update(self):
         """Update the remote trainee with local state."""
@@ -3729,7 +3729,6 @@ class Trainee():
             new_trainee = None
             if isinstance(self.client, AbstractHowsoClient):
                 new_trainee = self.client.create_trainee(
-                    trainee=self,
                     library_type=library_type,
                     max_wait_time=max_wait_time,
                     overwrite_trainee=overwrite,
