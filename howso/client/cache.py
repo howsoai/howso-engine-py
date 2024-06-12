@@ -21,11 +21,11 @@ class TraineeCache(Collection):
 
     def set(self, trainee: "Trainee", **kwargs) -> None:
         """Set trainee in cache."""
-        if trainee.id:
-            self.__dict__.setdefault(trainee.id, {
+        if trainee['id']:
+            self.__dict__.setdefault(trainee["id"], {
                 'user_defaults': {}
             })
-            self.__dict__[trainee.id].update({
+            self.__dict__[trainee["id"]].update({
                 'trainee': trainee,
                 **kwargs
             })

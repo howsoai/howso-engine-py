@@ -435,15 +435,15 @@ def generate_dataframe(*, client: AbstractHowsoClient,
     trainee = client.create_trainee(trainee_obj)
     if not isinstance(trainee, Trainee):
         raise HowsoError('Unable to create trainee.')
-    client.set_feature_attributes(trainee.id, features)
-    client.acquire_trainee_resources(trainee.id, max_wait_time=0)
+    client.set_feature_attributes(trainee["id"], features)
+    client.acquire_trainee_resources(trainee["id"], max_wait_time=0)
     if timeout:
         # Generate 1 case at a time until `timeout` has passed.
         end_time = datetime.now() + timedelta(seconds=timeout)
         cases = {"action": []}
         while datetime.now() < end_time:
             if reaction := client.react(
-                trainee.id, action_features=feature_names,
+                trainee['id'], action_features=feature_names,
                 num_cases_to_generate=1, desired_conviction=1.0,
                 generate_new_cases="no", suppress_warning=True
             ):
@@ -457,7 +457,7 @@ def generate_dataframe(*, client: AbstractHowsoClient,
     else:
         with Timer() as timer:
             cases = client.react(
-                trainee.id, action_features=feature_names,
+                trainee['id'], action_features=feature_names,
                 num_cases_to_generate=num_samples, desired_conviction=1.0,
                 generate_new_cases="no", suppress_warning=True
             ) or {"action": []}
@@ -652,7 +652,7 @@ def check_save(*, registry: InstallationCheckRegistry,
             features=features
         )
         if trainee := client.create_trainee(trainee_obj):
-            client.train(trainee.id, source_df, features=feature_names)
+            client.train(trainee["id"], source_df, features=feature_names)
             client.persist_trainee(trainee.id)
         else:
             raise HowsoError("Could not create a trainee.")
@@ -985,7 +985,7 @@ def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
         persistence='never'
     )
     trainee = client.create_trainee(trainee_obj)
-    client.train(trainee_id=trainee.id, cases=[["2001-01-01"]], features=['date'])
+    client.train(trainee_id=trainee["id"], cases=[["2001-01-01"]], features=['date'])
     result_queue.put(client.get_num_training_cases(trainee.id))
     client.delete_trainee(trainee.id)
 

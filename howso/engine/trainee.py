@@ -4147,7 +4147,7 @@ def load_trainee(
         trainee = Trainee.from_openapi(trainee, client=client)
     else:
         raise ValueError("Trainee not loaded correctly.")
-    trainee._custom_save_path = file_path
+    trainee["_custom_save_path"] = file_path
 
     return trainee
 

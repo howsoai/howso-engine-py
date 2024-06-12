@@ -22,6 +22,7 @@ from typing import (
     Iterable,
     List,
     Literal,
+    MutableMapping,
     Optional,
     Sequence,
     Sized,
@@ -36,7 +37,10 @@ from howso.client import AbstractHowsoClient, get_configuration_path
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
-from howso.engine import Session, Trainee
+from howso.engine.typing import (
+    Library,
+    Persistence
+)
 from howso.utilities import (
     build_react_series_df,
     internals,
@@ -46,6 +50,7 @@ from howso.utilities import (
     serialize_cases,
     validate_case_indices,
     validate_list_shape,
+    SingleTableFeatureAttributes
 )
 from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
@@ -282,7 +287,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise ValueError("The initial batch size must be an integer.")
 
     @property
-    def active_session(self) -> Session:
+    def active_session(self) -> Dict:
         """
         Return the active session.
 
@@ -294,7 +299,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         return deepcopy(self._active_session)
 
     @property
-    def trainee_cache(self) -> TraineeCache:
+    def trainee_cache(self) -> DictCache:
         """
         Return the trainee cache.
 
@@ -424,13 +429,21 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def create_trainee(  # noqa: C901
         self,
-        trainee: Trainee,
+        name: Optional[str] = None,
+        features: Optional[SingleTableFeatureAttributes] = None,
         *,
-        library_type: Optional[Literal["st", "mt"]] = None,
-        max_wait_time: Optional[Union[int, float]] = None,
         overwrite_trainee: bool = False,
-        resources: Optional[Dict] = None,
-    ) -> Trainee:
+        persistence: Persistence = "allow",
+        default_action_features: Optional[Iterable[str]] = None,
+        default_context_features: Optional[Iterable[str]] = None,
+        id: Optional[str] = None,
+        library_type: Optional[Library] = None,
+        max_wait_time: Optional[Union[int, float]] = None,
+        metadata: Optional[MutableMapping[str, Any]] = None,
+        project: Optional[Union[str, Dict]] = None,
+        resources: Optional[MutableMapping[str, Any]] = None,
+        client: Optional[AbstractHowsoClient] = None
+    ) -> Dict:
         """
         Create a Trainee on the Howso service.
 
@@ -438,7 +451,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Parameters
         ----------
-        trainee : Trainee
+        trainee : Dict
             A `Trainee` object defining the Trainee.
         library_type : {"st", "mt"}, optional
             (Not implemented) The library type of the Trainee.
@@ -446,7 +459,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             (Not implemented) The number of seconds to wait for a trainee to
             be created before aborting gracefully.
         overwrite_trainee : bool, default False
-            If True, and if a trainee with id `trainee.id`
+            If True, and if a trainee with id `trainee["id"]`
             already exists, the given trainee will delete the old trainee and
             create the new trainee.
         resources : dict, optional
@@ -455,25 +468,25 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        Trainee
+        Dict
             The `Trainee` object that was created.
         """
-        if not trainee.id:
+        if not id:
             # Default id to trainee name, or new uuid if no name
-            trainee.id = trainee.name or str(uuid.uuid4())
+            id = name or str(uuid.uuid4())
 
-        trainee_id = trainee.id
+        trainee_id = id
 
-        # Check that the trainee.id is usable for saving later.
-        if trainee.name:
+        # Check that the id is usable for saving later.
+        if name:
             for sequence in self.BAD_TRAINEE_NAME_CHARS:
-                if sequence in trainee.name:
+                if sequence in name:
                     success = False
                     reason = f'"{sequence}" is not permitted in trainee names'
                     break
             else:
                 success, reason = True, 'OK'
-            proposed_path: Path = self.howso.default_save_path.joinpath(trainee.name)
+            proposed_path: Path = self.howso.default_save_path.joinpath(name)
             if success:
                 success, reason = self.check_name_valid_for_save(
                     proposed_path, clobber=overwrite_trainee)
@@ -505,59 +518,72 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f"binaries/camls or {trainee_id} trainee already exists.")
 
         metadata = {
-            'name': trainee.name,
-            'default_context_features': trainee.default_context_features,
-            'default_action_features': trainee.default_action_features,
-            'metadata': trainee.metadata,
-            'persistence': trainee.persistence,
+            'name': name,
+            'default_context_features': default_context_features,
+            'default_action_features': default_action_features,
+            'metadata': metadata,
+            'persistence': persistence,
         }
+        new_trainee = dict(
+            name = name,
+            features = features,
+            overwrite_trainee = overwrite_trainee,
+            persistence = persistence,
+            default_action_features = default_action_features,
+            default_context_features = default_context_features,
+            id = id,
+            library_type = library_type,
+            max_wait_time = max_wait_time,
+            metadata = metadata,
+            project = project,
+            resources = resources,
+            client = client
+        )
         self.howso.set_metadata(trainee_id, metadata)
-        self.howso.set_feature_attributes(trainee_id, trainee.features)
-        trainee.features = self.howso.get_feature_attributes(trainee_id)
+        self.howso.set_feature_attributes(trainee_id, features)
+        features = self.howso.get_feature_attributes(trainee_id)
 
         self._output_version_in_trace(trainee_id)
 
-        new_trainee = internals.postprocess_trainee(trainee)
         self.trainee_cache.set(new_trainee)
         return new_trainee
 
-    def update_trainee(self, trainee: Trainee) -> Trainee:
+    def update_trainee(self, trainee: Dict) -> Dict:
         """
         Update an existing Trainee in the Howso service.
 
         Parameters
         ----------
-        trainee : Trainee
+        trainee : Dict
             A `Trainee` object defining the Trainee.
 
         Returns
         -------
-        Trainee
+        Dict
             The `Trainee` object that was updated.
         """
-        if trainee.id:
-            trainee_id = trainee.id
+        if trainee['id']:
+            trainee_id = trainee['id']
         else:
-            trainee_id = trainee.id = trainee.name
+            trainee_id = trainee['id'] = trainee["name"]
 
         if not trainee_id:
             raise ValueError("A trainee id is required.")
 
         self._auto_resolve_trainee(trainee_id)
         if self.verbose:
-            print(f'Updating trainee with id: {trainee.id}')
+            print(f'Updating trainee with id: {trainee["id"]}')
 
-        trainee = internals.preprocess_trainee(trainee)
         metadata = {
-            'name': trainee.name,
-            'default_context_features': trainee.default_context_features,
-            'default_action_features': trainee.default_action_features,
-            'metadata': trainee.metadata,
-            'persistence': trainee.persistence,
+            'name': trainee["name"],
+            'default_context_features': trainee["default_context_features"],
+            'default_action_features': trainee["default_action_features"],
+            'metadata': trainee["metadata"],
+            'persistence': trainee["persistence"],
         }
         self.howso.set_metadata(trainee_id, metadata)
-        self.howso.set_feature_attributes(trainee_id, trainee.features)
-        trainee.features = self.howso.get_feature_attributes(trainee_id)
+        self.howso.set_feature_attributes(trainee_id, trainee["features"])
+        trainee["features"] = self.howso.get_feature_attributes(trainee_id)
 
         updated_trainee = internals.postprocess_trainee(trainee)
         self.trainee_cache.set(updated_trainee)
@@ -624,7 +650,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        Trainee
+        Dict
             A `Trainee` object representing the Trainee.
         """
         if self.verbose:
@@ -823,7 +849,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         library_type: Optional[Literal["st", "mt"]] = None,
         resources: Optional[Dict] = None,
-    ) -> Trainee:
+    ) -> Dict:
         """
         Copies a trainee to a new trainee id in the Howso service.
 
@@ -848,7 +874,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        Trainee
+        Dict
             The `Trainee` object that was created.
 
         Raises
@@ -869,14 +895,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         if output and output.get('name') == new_trainee_id:
             # Create the copy trainee
             new_trainee = deepcopy(original_trainee)
-            new_trainee.name = new_trainee_name
-            new_trainee.id = new_trainee_id
+            new_trainee["name"] = new_trainee_name
+            new_trainee["id"] = new_trainee_id
             metadata = {
-                'name': new_trainee.name,
-                'default_context_features': new_trainee.default_context_features,
-                'default_action_features': new_trainee.default_action_features,
-                'metadata': new_trainee.metadata,
-                'persistence': new_trainee.persistence,
+                'name': new_trainee["name"],
+                'default_context_features': new_trainee["default_context_features"],
+                'default_action_features': new_trainee["default_action_features"],
+                'metadata': new_trainee["metadata"],
+                'persistence': new_trainee["persistence"],
             }
             self.howso.set_metadata(new_trainee_id, metadata)
             self.trainee_cache.set(new_trainee)
@@ -1009,7 +1035,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee = self._get_trainee_from_core(trainee_id)
         self.trainee_cache.set(trainee)
 
-    def _get_trainee_from_core(self, trainee_id: str) -> Trainee:
+    def _get_trainee_from_core(self, trainee_id: str) -> Dict:
         """
         Retrieve the core representation of a Trainee object.
 
@@ -1020,7 +1046,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        Trainee
+        Dict
             The requested Trainee.
 
         Raises
@@ -1039,7 +1065,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_name = metadata.get('name')
 
         features = self.howso.get_feature_attributes(trainee_id)
-        loaded_trainee = Trainee(
+        loaded_trainee = dict(
             name=trainee_name,
             id=trainee_id,
             features=features,
@@ -1070,10 +1096,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             cache_item = self.trainee_cache.get_item(trainee_id)
             trainee = cache_item['trainee']
 
-            if trainee.persistence in ['allow', 'always']:
+            if trainee["persistence"] in ['allow', 'always']:
                 # Persist on unload
                 self.howso.persist(trainee_id)
-            elif trainee.persistence == "never":
+            elif trainee["persistence"] == "never":
                 raise HowsoError(
                     "Trainees set to never persist may not have their "
                     "resources released. Delete the Trainee instead.")
@@ -1105,12 +1131,12 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if trainee_id in self.trainee_cache:
             trainee = self.trainee_cache.get(trainee_id)
-            if trainee.persistence == 'never':
+            if trainee["persistence"] == 'never':
                 raise AssertionError(
                     "Trainee is set to never persist. Update the trainee "
                     "persistence option to enable persistence.")
             # Enable auto persistence
-            trainee.persistence = 'always'
+            trainee["persistence"] = 'always'
 
         self.howso.persist(trainee_id)
 
@@ -1142,7 +1168,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         try:
             trainee = self.trainee_cache.get(trainee_id)
-            if trainee.persistence == 'always':
+            if trainee["persistence"] == 'always':
                 self.howso.persist(trainee_id)
         except KeyError:
             # Trainee not cached, ignore
@@ -1334,7 +1360,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             auto-analyze is enabled and the conditions are met.
         """
         self._auto_resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        feature_attributes = self.trainee_cache.get(trainee_id)["features"]
 
         # Make sure single table dicts are wrapped by SingleTableFeatureAttributes
         if isinstance(feature_attributes, Dict) and not isinstance(feature_attributes,
@@ -1403,7 +1429,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     input_cases=cases[start:end],
                     input_is_substituted=input_is_substituted,
                     series=series,
-                    session=self.active_session.id,
+                    session=self.active_session["id"],
                     skip_auto_analyze=skip_auto_analyze,
                     train_weights_only=train_weights_only,
                 )
@@ -1423,7 +1449,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Add session metadata to trainee
         self.howso.set_session_metadata(
             trainee_id,
-            self.active_session.id,
+            self.active_session["id"],
             self.active_session
         )
 
@@ -1472,7 +1498,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Imputing trainee with id: {trainee_id}')
         self.howso.impute(
             trainee_id,
-            session=self.active_session.id,
+            session=self.active_session["id"],
             features=features,
             features_to_impute=features_to_impute,
             batch_size=batch_size
@@ -1575,7 +1601,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
+            isinstance(condition.get('.session'), Dict)
         ):
             condition['.session'] = condition['.session'].id
 
@@ -1588,7 +1614,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             num_cases=num_cases,
             precision=precision,
             preserve_session_data=preserve_session_data,
-            session=self.active_session.id
+            session=self.active_session["id"]
         )
         self._auto_persist_trainee(trainee_id)
         return result.get('count', 0)
@@ -1672,7 +1698,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 features = internals.get_features_from_data(
                     feature_values, data_parameter='feature_values')
             feature_values = serialize_cases(feature_values, features,
-                                             cached_trainee.features)
+                                             cached_trainee["features"])
             if feature_values:
                 # Only a single case should be provided
                 feature_values = feature_values[0]
@@ -1680,7 +1706,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
+            isinstance(condition.get('.session'), Dict)
         ):
             condition['.session'] = condition['.session'].id
 
@@ -1695,7 +1721,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             feature_values=feature_values,
             precision=precision,
             num_cases=num_cases,
-            session=self.active_session.id
+            session=self.active_session["id"]
         )
         self._auto_persist_trainee(trainee_id)
         return result.get('count', 0)
@@ -1717,7 +1743,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Examples
         --------
-        >>> print(cl.get_trainee_sessions(trainee.id))
+        >>> print(cl.get_trainee_sessions(trainee["id"]))
         [{'id': '6c35e481-fb49-4178-a96f-fe4b5afe7af4', 'name': 'default'}]
         """
         self._auto_resolve_trainee(trainee_id)
@@ -1749,7 +1775,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def begin_session(
         self, name: str = "default", metadata: Optional[Dict] = None
-    ) -> Session:
+    ) -> Dict:
         """
         Begin a new session.
 
@@ -1762,7 +1788,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        Session
+        Dict
             The new session instance.
 
         Raises
@@ -1778,7 +1804,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if self.verbose:
             print('Starting new session')
-        self._active_session = Session(
+        self._active_session = dict(
             id=str(uuid.uuid4()),
             name=name,
             metadata=metadata or dict(),
@@ -1787,7 +1813,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
         return self._active_session
 
-    def get_sessions(self, search_terms: Optional[str] = None) -> List[Session]:
+    def get_sessions(self, search_terms: Optional[str] = None) -> List[Dict]:
         """
         Return a list of all accessible sessions.
 
@@ -1802,7 +1828,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        list of howso.openapi.models.Session
+        list of howso.openapi.models.Dict
             The listing of session instances.
         """
         if self.verbose:
@@ -1814,7 +1840,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         for trainee_id in self.trainee_cache.ids():
             sessions = self.howso.get_sessions(
-                trainee_id, attributes=list(Session.attribute_map))
+                trainee_id, attributes=list(Dict.attribute_map))
             if not sessions:
                 continue
 
@@ -1823,13 +1849,13 @@ class HowsoDirectClient(AbstractHowsoClient):
                     # Filter by search terms
                     for term in filter_terms:
                         if term.lower() in session.get('name', '').lower():
-                            instance = model_from_dict(Session, session)
+                            instance = model_from_dict(Dict, session)
                             instance.metadata = instance.metadata or dict()
                             instance.metadata['trainee_id'] = trainee_id
                             filtered_sessions.append(instance)
                             break
                 else:
-                    instance = model_from_dict(Session, session)
+                    instance = model_from_dict(Dict, session)
                     instance.metadata = instance.metadata or dict()
                     instance.metadata['trainee_id'] = trainee_id
                     filtered_sessions.append(instance)
@@ -1837,7 +1863,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                       key=operator.attrgetter('created_date'),
                       reverse=True)
 
-    def get_session(self, session_id: str) -> Session:
+    def get_session(self, session_id: str) -> Dict:
         """
         Retrieve a session.
 
@@ -1854,13 +1880,13 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        howso.openapi.models.Session
+        howso.openapi.models.Dict
             The session instance.
         """
         if self.verbose:
             print(f'Getting session with id: {session_id}')
 
-        if session_id == self.active_session.id:
+        if session_id == self.active_session["id"]:
             return self.active_session
 
         # Find session from most recently loaded trainee first
@@ -1875,7 +1901,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             except HowsoError:
                 # When session is not found, continue
                 continue
-            session = model_from_dict(Session, session_data)
+            session = model_from_dict(Dict, session_data)
             # Include trainee_id in the metadata
             session.metadata = session.metadata or dict()
             session.metadata['trainee_id'] = trainee_id
@@ -1884,7 +1910,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError("Session not found")
         return session
 
-    def update_session(self, session_id: str, *, metadata: Optional[Dict] = None) -> Session:
+    def update_session(self, session_id: str, *, metadata: Optional[Dict] = None) -> Dict:
         """
         Update a session.
 
@@ -1900,7 +1926,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        howso.openapi.models.Session
+        Dict
             The updated session instance.
 
         Raises
@@ -1937,12 +1963,12 @@ class HowsoDirectClient(AbstractHowsoClient):
             except HowsoError:
                 # When session is not found, continue
                 continue
-            session = model_from_dict(Session, session_data)
+            session = model_from_dict(Dict, session_data)
             session = _update_session(session)
             self.howso.set_session_metadata(trainee_id, session_id, session)
             updated_session = session
 
-        if self.active_session.id == session_id:
+        if self.active_session["id"] == session_id:
             # Update active session
             self._active_session = _update_session(self.active_session)
             if updated_session is None:
@@ -2194,7 +2220,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             If `num_series_to_generate` is not an integer greater than 0.
         """
         self._auto_resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        feature_attributes = self.trainee_cache.get(trainee_id)["features"]
 
         validate_list_shape(initial_features, 1, "initial_features", "str")
         validate_list_shape(initial_values, 2, "initial_values",
@@ -2636,7 +2662,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                             allow_none=False)
 
         if context_features is None:
-            default_context_features = cached_trainee.default_context_features
+            default_context_features = cached_trainee["default_context_features"]
             context_features = internals.get_features_from_data(
                 contexts,
                 default_features=default_context_features,
@@ -2649,7 +2675,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         # Preprocess contexts
         contexts = serialize_cases(
-            contexts, context_features, cached_trainee.features)
+            contexts, context_features, cached_trainee["features"])
 
         if self.verbose:
             print('Appending to series store for trainee with id: '
@@ -3183,7 +3209,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 features_parameter='post_process_features')
         post_process_values = serialize_cases(
             post_process_values, post_process_features,
-            trainee.features)
+            trainee["features"])
 
         if post_process_values is not None and contexts is not None:
             if (len(contexts) > 1 and len(post_process_values) > 1 and
@@ -3553,24 +3579,24 @@ class HowsoDirectClient(AbstractHowsoClient):
         if contexts is not None and context_features is None:
             context_features = internals.get_features_from_data(
                 contexts,
-                default_features=trainee.default_context_features,
+                default_features=trainee["default_context_features"],
                 data_parameter='contexts',
                 features_parameter='context_features')
         contexts = serialize_cases(
-            contexts, context_features or trainee.default_context_features,
-            trainee.features)
+            contexts, context_features or trainee["default_context_features"],
+            trainee["features"])
 
         # Preprocess actions
         if actions is not None and action_features is None:
             validate_list_shape(actions, 2, "actions", "object")
             action_features = internals.get_features_from_data(
                 actions,
-                default_features=trainee.default_action_features,
+                default_features=trainee["default_action_features"],
                 data_parameter='actions',
                 features_parameter='action_features')
         actions = serialize_cases(
-            actions, action_features or trainee.default_action_features,
-            trainee.features)
+            actions, action_features or trainee["default_action_features"],
+            trainee["features"])
 
         # validate discriminative-react only parameters
         if desired_conviction is None:
@@ -3582,10 +3608,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 print(f'Reacting to context on trainee with id: {trainee_id}')
 
             if action_features is None:
-                action_features = trainee.default_action_features
+                action_features = trainee["default_action_features"]
 
             if context_features is None and preserve_feature_values is None:
-                context_features = trainee.default_context_features
+                context_features = trainee["default_context_features"]
 
             if contexts is None:
                 # case_indices/preserve_feature_values are not necessary
@@ -3877,7 +3903,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The react response.
         """
         self._auto_resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        feature_attributes = self.trainee_cache.get(trainee_id)["features"]
         serialized_cases = None
 
         if num_list_dimensions(new_cases) != 3:
@@ -4054,13 +4080,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             condition_session=condition_session,
             feature_attributes=feature_attributes,
             overwrite=overwrite,
-            session=self.active_session.id
+            session=self.active_session["id"]
         )
         self._auto_persist_trainee(trainee_id)
 
         # Update trainee in cache
         updated_feature_attributes = self.get_feature_attributes(trainee_id)
-        cached_trainee.features = updated_feature_attributes
+        cached_trainee["features"] = updated_feature_attributes
 
     def remove_feature(
         self,
@@ -4121,13 +4147,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             trainee_id, feature,
             condition=condition,
             condition_session=condition_session,
-            session=self.active_session.id
+            session=self.active_session["id"]
         )
         self._auto_persist_trainee(trainee_id)
 
         # Update trainee in cache
         updated_feature_attributes = self.get_feature_attributes(trainee_id)
-        cached_trainee.features = updated_feature_attributes
+        cached_trainee["features"] = updated_feature_attributes
 
     def get_feature_residuals(
         self,
@@ -4995,7 +5021,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
+            isinstance(condition.get('.session'), Dict)
         ):
             condition['.session'] = condition['.session'].id
 
@@ -5008,7 +5034,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             num_cases=num_cases,
             precision=precision,
             preserve_session_data=preserve_session_data,
-            session=self.active_session.id,
+            session=self.active_session["id"],
             source_id=source_id,
             source_name_path=source_name_path,
             target_name_path=target_name_path
@@ -5665,7 +5691,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             pair of cases in `from_case_indices` and `to_case_indices`.
         """
         self._auto_resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        feature_attributes = self.trainee_cache.get(trainee_id)["features"]
 
         validate_list_shape(from_values, 2, 'from_values',
                             'list of list of object')
@@ -5782,7 +5808,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 }
         """
         self._auto_resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        feature_attributes = self.trainee_cache.get(trainee_id)["features"]
 
         # Validate case_indices if provided
         if case_indices is not None:
@@ -5955,10 +5981,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_resolve_trainee(trainee_id)
         cached_trainee = self.trainee_cache.get(trainee_id)
 
-        if action_feature is None and cached_trainee.default_action_features:
-            action_feature = cached_trainee.default_action_features[0]
+        if action_feature is None and cached_trainee["default_action_features"]:
+            action_feature = cached_trainee["default_action_features"][0]
         if context_features is None:
-            context_features = cached_trainee.default_context_features
+            context_features = cached_trainee["default_context_features"]
 
         weights = self.howso.compute_feature_weights(
             trainee_id, action_feature, context_features, robust,
@@ -6028,7 +6054,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         updated_feature_attributes = self.howso.get_feature_attributes(trainee_id)
         # Update trainee in cache
-        cached_trainee.features = internals.postprocess_feature_attributes(
+        cached_trainee["features"] = internals.postprocess_feature_attributes(
             updated_feature_attributes)
 
     def analyze(
@@ -6130,9 +6156,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'and targetless.')
 
         if action_features is None:
-            action_features = cached_trainee.default_action_features
+            action_features = cached_trainee["default_action_features"]
         if context_features is None:
-            context_features = cached_trainee.default_context_features
+            context_features = cached_trainee["default_context_features"]
 
         deprecated_params = {
             'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',

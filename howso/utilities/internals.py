@@ -50,7 +50,7 @@ def postprocess_trainee(trainee):
     Trainee
         The trainee instance.
     """
-    trainee.features = postprocess_feature_attributes(trainee.features)
+    trainee["features"] = postprocess_feature_attributes(trainee["features"])
     return trainee
 
 

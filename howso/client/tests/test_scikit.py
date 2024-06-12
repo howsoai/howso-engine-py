@@ -101,7 +101,7 @@ class TestHowso:
 
         if trainee_is_named:
             howso.trainee_name = str(uuid.uuid4())
-            _trainee_id = howso.trainee.id
+            _trainee_id = howso.trainee["id"]
         else:
             howso.trainee_name = None
             _trainee_id = None
@@ -163,7 +163,7 @@ class TestHowso:
                 'd': {'type': 'nominal'}
             }
         )
-        rogue_trainee.name = known_name
+        rogue_trainee["name"] = known_name
         # NOTE: This just uses the client embedded in the classifier here.
         #       This does not create a trainee for the classifier. And because
         #       of this, this test needs to explicitly delete this trainee
@@ -172,16 +172,16 @@ class TestHowso:
         # Attempt to set name to existing name
         if not isinstance(classifier.client, HowsoDirectClient):
             with pytest.raises(HowsoNotUniqueError) as exc_info:
-                rogue_trainee.name = known_name
+                rogue_trainee["name"] = known_name
             assert "Please use a unique name" in str(exc_info.value)
         else:
             # Ensure this doesn't raise
-            rogue_trainee.name = known_name
+            rogue_trainee["name"] = known_name
 
         # Explicitly delete the rogue_trainee
         rogue_trainee.delete()
         # Reset to none so it won't be saved.
-        rogue_trainee.name = None
+        rogue_trainee["name"] = None
 
     @pytest.mark.skipif('WIP' not in TEST_OPTIONS, reason='Local devs only')
     def test_pickle(self):

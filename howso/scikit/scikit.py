@@ -185,7 +185,7 @@ class HowsoEstimator(BaseEstimator):
             # If the user named the trainee, they'll want to use it again later
             # so persist the trainee, rather than delete it, if possible.
             try:
-                trainee_name = self.trainee.name
+                trainee_name = self.trainee["name"]
             except AttributeError:
                 trainee_name = None
             if trainee_name:
@@ -286,7 +286,7 @@ class HowsoEstimator(BaseEstimator):
     @property
     def trainee_name(self) -> Union[str, None]:
         """Return the trainee name (getter)."""
-        return self.trainee.name
+        return self.trainee["name"]
 
     @trainee_name.setter
     def trainee_name(self, name: str = ''):
@@ -302,12 +302,12 @@ class HowsoEstimator(BaseEstimator):
         HowsoError
             On any other issue.
         """
-        old_name = self.trainee.name
-        self.trainee.name = name
+        old_name = self.trainee["name"]
+        self.trainee["name"] = name
         try:
             self.trainee.update()
         except Exception as exc:  # noqa: Deliberately broad
-            self.trainee.name = old_name
+            self.trainee["name"] = old_name
             if (
                     isinstance(exc, HowsoApiError) and
                     getattr(exc, 'status', 0) == 409
@@ -323,7 +323,7 @@ class HowsoEstimator(BaseEstimator):
         else:
             if self.verbose:
                 print(f'The trainee name was successfully set '
-                      f'to "{self.trainee.name}".')
+                      f'to "{self.trainee["name"]}".')
 
     def get_params(self, deep=True) -> Dict[str, Any]:
         """
@@ -408,7 +408,7 @@ class HowsoEstimator(BaseEstimator):
 
             self.trainee_params = self._get_trainee_params()
 
-        self.persistence = self.trainee.persistence
+        self.persistence = self.trainee["persistence"]
 
         self._train(X, y)
 
@@ -972,7 +972,7 @@ class HowsoEstimator(BaseEstimator):
         Exception:
             if unable to persist the trainee.
         """
-        if not self.trainee.name:
+        if not self.trainee["name"]:
             # This may raise, but let it.
             self._set_random_name()
 
@@ -1018,7 +1018,7 @@ class HowsoEstimator(BaseEstimator):
         Exception:
             if unable to persist the trainee.
         """
-        if not self.trainee.name:
+        if not self.trainee["name"]:
             # This may raise, but let it.
             self._set_random_name()
 
