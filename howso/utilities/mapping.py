@@ -50,7 +50,7 @@ class CaseInsensitiveMap(MutableMapping[str, _VT]):
         if isinstance(other, Mapping):
             other = CaseInsensitiveMap(other)
         else:
-            return NotImplemented
+            return False
         # Compare insensitively
         return dict(self.lower_items()) == dict(other.lower_items())
 
