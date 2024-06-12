@@ -2,10 +2,10 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 import typing as t
 
+from requests.structures import CaseInsensitiveDict
 import yaml
 
 from howso.client.exceptions import HowsoConfigurationError
-from howso.utilities.mapping import CaseInsensitiveMap
 from .feature_flags import FeatureFlags
 
 
@@ -21,11 +21,11 @@ class BaseOptions:
     def __init__(self, config: t.Optional[Mapping]) -> None:
         if not isinstance(config, Mapping):
             raise ValueError('Invalid configuration object.')
-        self._config = CaseInsensitiveMap(config)
-        self.validate()
+        self._config = CaseInsensitiveDict(config)
+        self.post_init()
 
-    def validate(self) -> None:
-        """Validate configuration options."""
+    def post_init(self) -> None:
+        """Complete any additional setup or validation."""
         self.check_required(self.required)
 
     def check_required(self, required: Iterable[str]):
@@ -74,7 +74,7 @@ class HowsoConfiguration:
         if config_path is not None:
             try:
                 with open(config_path, 'r') as config:
-                    self._config = CaseInsensitiveMap(yaml.safe_load(config))
+                    self._config = CaseInsensitiveDict(yaml.safe_load(config))
             except yaml.YAMLError as yaml_exception:
                 raise HowsoConfigurationError(
                     'Unable to parse the configuration file located at '
@@ -88,12 +88,20 @@ class HowsoConfiguration:
                     'try again.'
                 ) from exception
         else:
-            self._config = CaseInsensitiveMap()
+            self._config = CaseInsensitiveDict()
 
         # Initialize configuration classes
         try:
-            self.feature_flags = self.feature_flags_class(self._config.get('feature_flags'))
-            self.client = self.client_config_class(self._config.get('howso'))
+            self.setup()
         except HowsoConfigurationError as ex:
-            raise HowsoConfigurationError(
-                f'See configuration file located at "{config_path}". {ex.message}', code=ex.code) from ex
+            if config_path is not None:
+                raise HowsoConfigurationError(
+                    f'See configuration file located at "{config_path}". {ex.message}', code=ex.code) from ex
+            else:
+                raise HowsoConfigurationError(
+                    f'A configuration file is required.". {ex.message}', code=ex.code) from ex
+
+    def setup(self):
+        """Setup configuration attributes."""
+        self.feature_flags = self.feature_flags_class(self._config.get('feature_flags'))
+        self.client = self.client_config_class(self._config.get('howso'))
