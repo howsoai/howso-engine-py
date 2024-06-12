@@ -33,7 +33,7 @@ import uuid
 import warnings
 import certifi
 from howso import utilities as util
-from howso.client import AbstractHowsoClient, get_configuration_path
+from howso.client import AbstractHowsoClient, get_configuration_path, ATTRIBUTE_MAP
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
@@ -65,7 +65,6 @@ from typing_extensions import Never
 import urllib3
 from urllib3.util import Retry, Timeout
 
-from ._utilities import model_from_dict
 from .core import HowsoCore
 from howso.client.exceptions import UnsupportedArgumentWarning
 
@@ -349,9 +348,7 @@ class HowsoDirectClient(AbstractHowsoClient):
            A version response that contains the version data for the current
            instance of Howso.
         """
-        from howso.openapi import __api_version__ as api_version
         version_meta = {
-            "api": api_version,
             "client": CLIENT_VERSION
         }
         return types.SimpleNamespace(**version_meta)
@@ -1825,7 +1822,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        list of howso.openapi.models.Dict
+        list of Dict
             The listing of session instances.
         """
         if self.verbose:
@@ -1837,7 +1834,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         for trainee_id in self.trainee_cache.ids():
             sessions = self.howso.get_sessions(
-                trainee_id, attributes=list(Dict.attribute_map))
+                trainee_id, attributes=list(ATTRIBUTE_MAP))
             if not sessions:
                 continue
 
@@ -1846,13 +1843,13 @@ class HowsoDirectClient(AbstractHowsoClient):
                     # Filter by search terms
                     for term in filter_terms:
                         if term.lower() in session.get('name', '').lower():
-                            instance = model_from_dict(Dict, session)
+                            instance = deepcopy(session)
                             instance.metadata = instance.metadata or dict()
                             instance.metadata['trainee_id'] = trainee_id
                             filtered_sessions.append(instance)
                             break
                 else:
-                    instance = model_from_dict(Dict, session)
+                    instance = deepcopy(session)
                     instance.metadata = instance.metadata or dict()
                     instance.metadata['trainee_id'] = trainee_id
                     filtered_sessions.append(instance)
@@ -1877,7 +1874,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        howso.openapi.models.Dict
+        Dict
             The session instance.
         """
         if self.verbose:
@@ -1898,7 +1895,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             except HowsoError:
                 # When session is not found, continue
                 continue
-            session = model_from_dict(Dict, session_data)
+            session = session_data['session']
             # Include trainee_id in the metadata
             session.metadata = session.metadata or dict()
             session.metadata['trainee_id'] = trainee_id
@@ -1960,7 +1957,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             except HowsoError:
                 # When session is not found, continue
                 continue
-            session = model_from_dict(Dict, session_data)
+            session = session_data['session']
             session = _update_session(session)
             self.howso.set_session_metadata(trainee_id, session_id, session)
             updated_session = session
@@ -5283,37 +5280,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         self._auto_resolve_trainee(trainee_id)
 
-        # PR-BLOCK: This map is an identity; could be changed to a list.
-        # Decide if that's the desired path. Also consider what utility having
-        # kwargs vs parameters defined really provides if kwargs can just be
-        # used directly and parameters which aren't needed can be ignored;
-        # filtering may not be necessary. Also this (and the maps below) may be
-        # better placed in a constant somewhere.
-        attribute_map = {
-            'action_features': 'action_features',
-            'context_features': 'context_features',
-            'k_folds': 'k_folds',
-            'num_samples': 'num_samples',
-            'dt_values': 'dt_values',
-            'k_values': 'k_values',
-            'p_values': 'p_values',
-            'bypass_hyperparameter_analysis': 'bypass_hyperparameter_analysis',
-            'bypass_calculate_feature_residuals': 'bypass_calculate_feature_residuals',
-            'bypass_calculate_feature_weights': 'bypass_calculate_feature_weights',
-            'targeted_model': 'targeted_model',
-            'num_analysis_samples': 'num_analysis_samples',
-            'analysis_sub_model_size': 'analysis_sub_model_size',
-            'use_deviations': 'use_deviations',
-            'inverse_residuals_as_weights': 'inverse_residuals_as_weights',
-            'use_case_weights': 'use_case_weights',
-            'weight_feature': 'weight_feature',
-            'experimental_options': 'experimental_options',
-            'auto_analyze_enabled': 'auto_analyze_enabled',
-            'auto_analyze_limit_size': 'auto_analyze_limit_size',
-            'analyze_growth_factor': 'analyze_growth_factor',
-            'analyze_threshold': 'analyze_threshold'
-        }
-
         deprecated_params = {
             'auto_optimize_enabled': 'auto_analyze_enabled',
             'optimize_threshold': 'analyze_threshold',
@@ -5365,7 +5331,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     'and targetless.')
 
         # Collect valid parameters
-        parameters = { k: v for k, v in kwargs.items() if k in attribute_map }
+        parameters = { k: v for k, v in kwargs.items() if k in ATTRIBUTE_MAP }
         if kwargs:
             warn_params = ', '.join(kwargs)
             warnings.warn(

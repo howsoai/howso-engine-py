@@ -61,23 +61,6 @@ class HowsoApiError(HowsoError):
         super().__init__(message, code, url)
 
     @classmethod
-    def from_openapi(cls, obj):
-        """
-        Build a HowsoApiError from OpenAPI error object.
-
-        Parameters
-        ----------
-        obj : ApiException
-            The OpenAPI error.
-
-        Returns
-        -------
-        HowsoApiError
-            The constructed error instance.
-        """
-        return cls.from_json(obj.body)
-
-    @classmethod
     def from_json(cls, obj):
         """
         Build a HowsoApiError from API response json.

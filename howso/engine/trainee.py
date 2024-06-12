@@ -155,8 +155,7 @@ class Trainee():
         if isinstance(project, Project):
             self._project_id = project.id
             if isinstance(self.client, ProjectClient):
-                self._project_instance = Project.from_openapi(
-                    project, client=self.client)  # type:ignore
+                self._project_instance = project
             else:
                 self._project_instance = None
         else:
@@ -223,8 +222,7 @@ class Trainee():
             self._project_instance.id != self.project_id
         ):
             project = self.client.get_project(self.project_id)
-            self._project_instance = Project.from_openapi(
-                project, client=self.client)
+            self._project_instance = project
 
         return self._project_instance
 
@@ -384,7 +382,7 @@ class Trainee():
             The session instance, if it exists.
         """
         if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
-            return Session.from_openapi(self.client.active_session, client=self.client)
+            return self.client.active_session
 
     def save(self, file_path: Optional[PathLike] = None):
         """
@@ -530,12 +528,13 @@ class Trainee():
             params["project_id"] = project_id
 
         if isinstance(self.client, AbstractHowsoClient):
-            copy = self.client.copy_trainee(**params)
+            trainee_data = self.client.copy_trainee(**params)
+            copy = Trainee(**trainee_data)
         else:
             copy = None
         if copy:
             if isinstance(self.client, AbstractHowsoClient):
-                return Trainee.from_openapi(copy, client=self.client)
+                return copy
             raise ValueError("Client must be an instance of 'AbstractHowsoClient'")
         else:
             raise ValueError('Trainee not correctly copied')
@@ -3670,28 +3669,6 @@ class Trainee():
         self._created = True
 
     @classmethod
-    def from_openapi(
-        cls, trainee: Trainee, *, client: Optional[AbstractHowsoClient] = None
-    ) -> "Trainee":
-        """
-        Create Trainee from base class.
-
-        Parameters
-        ----------
-        trainee : Trainee
-            The base trainee instance.
-        client : AbstractHowsoClient, optional
-            The Howso client instance to use.
-
-        Returns
-        -------
-        Trainee
-            The trainee instance.
-        """
-        trainee["client"] = client
-        return cls.from_dict(trainee)
-
-    @classmethod
     def from_dict(cls, trainee_dict: dict) -> "Trainee":
         """
         Create Trainee from dict.
@@ -4063,13 +4040,14 @@ def load_trainee(
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
 
     if isinstance(client, LocalSaveableProtocol):
-        trainee = client._get_trainee_from_core(trainee_id)
+        trainee_data = client._get_trainee_from_core(trainee_id)
+        trainee = Trainee(**trainee_data)
     else:
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
     if isinstance(client.trainee_cache, TraineeCache):
         client.trainee_cache.set(trainee)
     if trainee:
-        trainee = Trainee.from_openapi(trainee, client=client)
+        trainee = trainee
     else:
         raise ValueError("Trainee not loaded correctly.")
     trainee._custom_save_path = file_path
@@ -4100,7 +4078,7 @@ def get_trainee(
     client = client or get_client()
     trainee = client.get_trainee(str(name_or_id))
     if trainee:
-        return Trainee.from_openapi(trainee, client=client)
+        return trainee
 
 
 def list_trainees(

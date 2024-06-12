@@ -1,4 +1,5 @@
 from typing import (
+    Dict,
     List,
     Protocol,
     Optional,
@@ -8,8 +9,7 @@ from typing import (
 
 if TYPE_CHECKING:
     from howso.direct.core import HowsoCore
-    from howso.openapi.models import Trainee
-    from howso.openapi.models import Project
+    from howso.engine.project import Project
 
 __all__ = [
     "LocalSaveableProtocol",
@@ -25,7 +25,7 @@ class LocalSaveableProtocol(Protocol):
         """Howso Core API."""
         ...
 
-    def _get_trainee_from_core(self, trainee_id: str) -> "Trainee":
+    def _get_trainee_from_core(self, trainee_id: str) -> "Dict":
         """Retrieve the core representation of a Trainee object."""
         ...
 

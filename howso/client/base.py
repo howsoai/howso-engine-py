@@ -14,10 +14,37 @@ from pandas import DataFrame, Index
 
 if TYPE_CHECKING:
     from .configuration import HowsoConfiguration
-    from howso.openapi.models import (
-        Cases,
-        Metrics,
-    )
+
+# PR-BLOCK: This map is an identity; could be changed to a list.
+# Decide if that's the desired path. Also consider what utility having
+# kwargs vs parameters defined really provides if kwargs can just be
+# used directly and parameters which aren't needed can be ignored;
+# filtering may not be necessary. Also this (and the maps below) may be
+# better placed in a constant somewhere.
+ATTRIBUTE_MAP = {
+    'action_features': 'action_features',
+    'context_features': 'context_features',
+    'k_folds': 'k_folds',
+    'num_samples': 'num_samples',
+    'dt_values': 'dt_values',
+    'k_values': 'k_values',
+    'p_values': 'p_values',
+    'bypass_hyperparameter_analysis': 'bypass_hyperparameter_analysis',
+    'bypass_calculate_feature_residuals': 'bypass_calculate_feature_residuals',
+    'bypass_calculate_feature_weights': 'bypass_calculate_feature_weights',
+    'targeted_model': 'targeted_model',
+    'num_analysis_samples': 'num_analysis_samples',
+    'analysis_sub_model_size': 'analysis_sub_model_size',
+    'use_deviations': 'use_deviations',
+    'inverse_residuals_as_weights': 'inverse_residuals_as_weights',
+    'use_case_weights': 'use_case_weights',
+    'weight_feature': 'weight_feature',
+    'experimental_options': 'experimental_options',
+    'auto_analyze_enabled': 'auto_analyze_enabled',
+    'auto_analyze_limit_size': 'auto_analyze_limit_size',
+    'analyze_growth_factor': 'analyze_growth_factor',
+    'analyze_threshold': 'analyze_threshold'
+}
 
 
 class AbstractHowsoClient(ABC):
@@ -82,7 +109,7 @@ class AbstractHowsoClient(ABC):
         """Get information about the trainee."""
 
     @abstractmethod
-    def get_trainee_metrics(self, trainee_id) -> "Metrics":
+    def get_trainee_metrics(self, trainee_id) -> "Dict":
         """Get metric information for a trainee."""
 
     @abstractmethod
@@ -510,7 +537,7 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def get_cases(self, trainee_id, session=None, case_indices=None,
                   indicate_imputed=False, features=None, condition=None,
-                  num_cases=None, precision=None) -> Union["Cases", "DataFrame"]:
+                  num_cases=None, precision=None) -> Union["Dict", "DataFrame"]:
         """Retrieve cases from a trainee."""
 
     @abstractmethod
@@ -520,7 +547,7 @@ class AbstractHowsoClient(ABC):
         num,
         sort_feature,
         features: Optional[Iterable[str]] = None
-    ) -> Union["Cases", "DataFrame"]:
+    ) -> Union["Dict", "DataFrame"]:
         """Get the extreme cases of a trainee for the given feature(s)."""
 
     @abstractmethod

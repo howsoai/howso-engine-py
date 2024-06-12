@@ -15,7 +15,7 @@ import warnings
 from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
 from howso.utilities.features import FeatureType
-from howso.utilities.internals import serialize_openapi_models
+from howso.utilities.internals import serialize_models
 import numpy as np
 import pandas as pd
 import yaml
@@ -555,7 +555,7 @@ class InferFeatureAttributesBase(ABC):
             )
 
         if features:
-            feature_attributes: Dict = serialize_openapi_models(features)
+            feature_attributes: Dict = serialize_models(features)
         else:
             feature_attributes = dict()
 

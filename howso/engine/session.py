@@ -306,7 +306,7 @@ def get_session(
     """
     client = client or get_client()
     session = client.get_session(str(session_id))
-    return Session.from_openapi(session, client=client)
+    return session
 
 
 def list_sessions(
@@ -345,4 +345,4 @@ def list_sessions(
             params["project_id"] = project
 
     sessions = client.get_sessions(**params)
-    return [Session.from_openapi(s, client=client) for s in sessions]
+    return sessions

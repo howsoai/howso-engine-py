@@ -151,9 +151,9 @@ def get_features_from_data(
             f"`{data_parameter}` are not provided as a DataFrame.")
 
 
-def serialize_openapi_models(obj: Any, *, exclude_null: bool = False) -> Any:
+def serialize_models(obj: Any, *, exclude_null: bool = False) -> Any:
     """
-    Serialize OpenAPI client model instances.
+    Serialize client model instances.
 
     Parameters
     ----------
@@ -166,18 +166,18 @@ def serialize_openapi_models(obj: Any, *, exclude_null: bool = False) -> Any:
     """
     if isinstance(obj, list):
         return [
-            serialize_openapi_models(item, exclude_null=exclude_null)
+            serialize_models(item, exclude_null=exclude_null)
             for item in obj
         ]
     if isinstance(obj, OrderedDict):
         # Use OrderedDict if input is an OrderedDict, for consistency
         result = OrderedDict()
         for k, v in obj.items():
-            result[k] = serialize_openapi_models(v, exclude_null=exclude_null)
+            result[k] = serialize_models(v, exclude_null=exclude_null)
         return result
     if isinstance(obj, dict):
         return {
-            k: serialize_openapi_models(v, exclude_null=exclude_null)
+            k: serialize_models(v, exclude_null=exclude_null)
             for k, v in obj.items()
         }
     if hasattr(obj, 'to_dict'):
@@ -210,7 +210,7 @@ def postprocess_feature_attributes(features):
         return None
 
     # Serialize any OpenAPI models
-    features = deepcopy(serialize_openapi_models(features))
+    features = deepcopy(serialize_models(features))
 
     for name, feat in features.items():
         if feat is None:
@@ -258,7 +258,7 @@ def preprocess_feature_attributes(features):
         return None
 
     # Serialize any OpenAPI models
-    features = deepcopy(serialize_openapi_models(features))
+    features = deepcopy(serialize_models(features))
 
     regex = re.compile(r"%S.%f")
     for name, feat in features.items():
@@ -564,12 +564,6 @@ def sanitize_for_json(obj: Any):  # noqa: C901
     # Serialize objects to dict
     if isinstance(obj, Mapping):
         obj_dict = obj
-    elif hasattr(obj, 'openapi_types') and hasattr(obj, 'attribute_map'):
-        # Convert openapi model to dict using the attribute mapping,
-        # excluding values which are None
-        obj_dict = {obj.attribute_map[attr]: getattr(obj, attr)
-                    for attr, _ in obj.openapi_types.items()
-                    if getattr(obj, attr) is not None}
     else:
         try:
             # In some cases a pandas NAType could be present, check for it as

@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from howso.engine import Trainee
 
-from .internals import serialize_openapi_models
+from .internals import serialize_models
 
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
@@ -77,7 +77,7 @@ def trainee_from_df(df, features: Optional[Mapping[str, Mapping]] = None,
 
     Returns
     -------
-    howso.openapi.models.Trainee
+    Dict
         A trainee object
     """
     # Place this here to avoid circular imports
@@ -625,7 +625,7 @@ def serialize_datetimes(cases: List[List], columns: Iterable[str],  # noqa: C901
     """
     # Import here to avoid circular import dependencies
     from .features import FeatureType
-    features = serialize_openapi_models(features)
+    features = serialize_models(features)
     if isinstance(columns, Iterable):
         columns = list(columns)
 

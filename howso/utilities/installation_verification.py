@@ -23,7 +23,6 @@ from howso.client import (
     AbstractHowsoClient, HowsoClient
 )
 from howso.client.exceptions import HowsoConfigurationError, HowsoError
-from howso.openapi.models import Trainee
 try:
     from howso.validator import Validator  # noqa: might not be available # type: ignore
 except OSError as e:

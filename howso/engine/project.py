@@ -371,7 +371,7 @@ def get_project(
                          "Howso client.")
 
     project = client.get_project(str(project_id))
-    return Project.from_openapi(project, client=client)
+    return project
 
 
 def list_projects(
@@ -399,7 +399,7 @@ def list_projects(
         raise HowsoError("Projects are not supported by the active "
                          "Howso client.")
     projects = client.get_projects(search_terms)
-    return [Project.from_openapi(p, client=client) for p in projects]
+    return projects
 
 
 def switch_project(
@@ -427,4 +427,4 @@ def switch_project(
         raise HowsoError("Projects are not supported by the active "
                          "Howso client.")
     client.switch_project(str(project_id))
-    return Project.from_openapi(client.active_project, client=client)
+    return client.active_project

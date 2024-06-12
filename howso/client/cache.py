@@ -1,16 +1,16 @@
 from collections.abc import Collection
 import typing as t
 
-if t.TYPE_CHECKING:
-    from howso.openapi.models import Trainee
-
 
 class TraineeCacheItem(t.TypedDict):
     """Type definition for trainee cache items."""
 
-    trainee: "Trainee"
+    trainee: "t.Dict"
     user_defaults: t.Dict[str, t.Dict]
 
+
+# TODO/PR BLOCK: Had to redo trainee cache to have mixed types since engine uses its Trainee object but everything else
+# has been converted to speak in dict representations. Need to decide if TraineeCache needs to be reconfigured.
 
 class TraineeCache(Collection):
     """Cache of trainee related information."""
@@ -19,18 +19,19 @@ class TraineeCache(Collection):
 
     __marker = object()
 
-    def set(self, trainee: "Trainee", **kwargs) -> None:
+    def set(self, trainee: "t.Dict", **kwargs) -> None:
         """Set trainee in cache."""
-        if trainee['id']:
-            self.__dict__.setdefault(trainee["id"], {
+        trainee_id = trainee.get('id', None) if isinstance(trainee, t.Dict) else getattr(trainee, 'id', None)
+        if trainee_id:
+            self.__dict__.setdefault(trainee_id, {
                 'user_defaults': {}
             })
-            self.__dict__[trainee["id"]].update({
+            self.__dict__[trainee_id].update({
                 'trainee': trainee,
                 **kwargs
             })
 
-    def get(self, trainee_id: str, default=__marker) -> "Trainee":
+    def get(self, trainee_id: str, default=__marker) -> "t.Dict":
         """Get trainee instance by id."""
         try:
             return self.__dict__[trainee_id]['trainee']
@@ -72,7 +73,7 @@ class TraineeCache(Collection):
         """Return view items in cache."""
         return self.__dict__.items()
 
-    def trainees(self) -> t.Iterator[t.Tuple[str, "Trainee"]]:
+    def trainees(self) -> t.Iterator[t.Tuple[str, "t.Dict"]]:
         """Return iterator to all trainee instances in cache."""
         for key, item in self.__dict__.items():
             yield (key, item['trainee'])
