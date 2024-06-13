@@ -73,12 +73,13 @@ class HowsoConfiguration(t.Generic[CO]):
 
     def __init__(self, config_path: t.Optional[Path | str] = None, *, verbose: bool = False):
         """Initialize the configuration object."""
-        self.howso_config_path = config_path
+        self.howso_config_path = None
         self.verbose = verbose
 
         if config_path is not None:
             try:
-                with open(Path(config_path).expanduser(), 'r') as config:
+                self.howso_config_path = Path(config_path).expanduser()
+                with open(self.howso_config_path, 'r') as config:
                     self._config = CaseInsensitiveDict(yaml.safe_load(config))
             except yaml.YAMLError as yaml_exception:
                 raise HowsoConfigurationError(
