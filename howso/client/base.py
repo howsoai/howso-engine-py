@@ -257,6 +257,7 @@ class AbstractHowsoClient(ABC):
         context_condition=None,
         context_condition_precision=None,
         context_precision_num_cases=None,
+        features=None,
         num_robust_influence_samples_per_case=None,
         robust=None,
         robust_hyperparameters=None,
