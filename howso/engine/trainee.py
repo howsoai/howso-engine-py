@@ -1175,7 +1175,7 @@ class Trainee(BaseTrainee):
         post_process_features: Optional[Iterable[str]] = None,
         post_process_values: Optional[TabularData2D] = None,
         desired_conviction: Optional[float] = None,
-        details: Optional[MutableMapping[str, object]] = None,
+        # details: Optional[MutableMapping[str, object]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[MutableMapping[str, MutableMapping[str, object]]] = None,
         generate_new_cases: GenerateNewCases = "no",
@@ -1193,6 +1193,48 @@ class Trainee(BaseTrainee):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
+
+        boundary_cases: Optional[bool] = None,
+        boundary_cases_familiarity_convictions: Optional[bool] = None,
+
+        # prediction stats
+        case_contributions: Optional[bool] = None,
+        case_feature_residuals: Optional[bool] = None,
+        case_mda: Optional[bool] = None,
+        categorical_action_probabilities: Optional[bool] = None,
+        derivation_parameters: Optional[bool] = None,
+        distance_contribution: Optional[bool] = None,
+        distance_ratio: Optional[bool] = None,
+        feature_contributions: Optional[bool] = None,
+        case_feature_contributions: Optional[bool] = None,
+        feature_mda: Optional[bool] = None,
+        feature_mda_ex_post: Optional[bool] = None,
+        features: Optional[list[str]] = None,
+        feature_residuals: Optional[bool] = None,
+        global_case_feature_residual_convictions: Optional[bool] = None,
+        hypothetical_values: Optional[dict] = None,
+        influential_cases: Optional[bool] = None,
+        influential_cases_familiarity_convictions: Optional[bool] = None,
+        influential_cases_raw_weights: Optional[bool] = None,
+        local_case_feature_residual_convictions: Optional[bool] = None,
+        most_similar_cases: Optional[bool] = None,
+        num_boundary_cases: Optional[int] = None,
+        num_most_similar_cases: Optional[int] = None,
+        num_most_similar_case_indices: Optional[int] = None,
+        num_robust_influence_samples_per_case: Optional[int] = None,
+        observational_errors: Optional[bool] = None,
+        outlying_feature_values: Optional[bool] = None,
+        prediction_stats: Optional[bool] = None,
+        confusion_matrices: Optional[bool] = None,
+        similarity_conviction: Optional[bool] = None,
+
+        generate_attempts: Optional[bool] = None,
+
+        robust_residuals: Optional[bool] = None,
+        robust_influences: Optional[bool] = None,
+        robust_computation: Optional[bool] = None,
+
+
     ) -> Reaction:
         r"""
         React to the provided contexts.
@@ -2829,7 +2871,7 @@ class Trainee(BaseTrainee):
             If not specified "exact" will be used. Only used if ``action_condition``
             is not None.
         context_condition : map of str -> any, optional
-            A condition map to select the context set, which is the set being queried to make 
+            A condition map to select the context set, which is the set being queried to make
             to make predictions on the action set. If both ``action_condition`` and ``context_condition``
             are provided,  then all of the cases from the action set, which is the dataset for which the
             prediction stats are for, will be excluded from the context set, effectively holding them out.
