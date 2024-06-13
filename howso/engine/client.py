@@ -9,7 +9,7 @@ __all__ = {
 }
 
 
-def get_client() -> howso.client.AbstractHowsoClient:
+def get_client():
     """
     Get the active Howso client instance.
 
@@ -24,7 +24,7 @@ def get_client() -> howso.client.AbstractHowsoClient:
     return __client_instance
 
 
-def use_client(client: howso.client.AbstractHowsoClient) -> None:
+def use_client(client):
     """
     Set the active Howso client instance to use for the API.
 

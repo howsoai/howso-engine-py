@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Generator, Optional, Sequence, Tuple, Union
 import warnings
 
-from howso.client.base import AbstractHowsoClient
+import howso.client
 from howso.client.exceptions import HowsoConfigurationError
 import howso.utilities
 import yaml
@@ -297,7 +297,7 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
         client_class = getattr(custom_module, custom_class_name)
         # Ensure that the `client_class` is a subclass of
         # AbstractHowsoClient.
-        if not issubclass(client_class, AbstractHowsoClient):
+        if not issubclass(client_class, howso.client.AbstractHowsoClient):
             raise HowsoConfigurationError(
                 'The provided client_class must be a subclass '
                 'of AbstractHowsoClient.')

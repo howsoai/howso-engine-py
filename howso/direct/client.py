@@ -33,7 +33,7 @@ import uuid
 import warnings
 import certifi
 from howso import utilities as util
-from howso.client import AbstractHowsoClient, get_configuration_path, ATTRIBUTE_MAP
+import howso.client
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
@@ -94,7 +94,7 @@ def squelch_logs(log_level: int):
         logging.disable(_old_level)
 
 
-class HowsoDirectClient(AbstractHowsoClient):
+class HowsoDirectClient(howso.client.AbstractHowsoClient):
     """
     The direct Howso client.
 
@@ -175,7 +175,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.debug = debug
 
         # Load configuration
-        config_path = get_configuration_path(config_path, self.verbose)
+        config_path = howso.client.get_configuration_path(config_path, self.verbose)
         self.configuration = HowsoConfiguration(
             config_path=config_path, verbose=verbose)
 
@@ -439,7 +439,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         metadata: Optional[MutableMapping[str, Any]] = None,
         project: Optional[Union[str, Dict]] = None,
         resources: Optional[MutableMapping[str, Any]] = None,
-        client: Optional[AbstractHowsoClient] = None
+        client: Optional[howso.client.AbstractHowsoClient] = None
     ) -> Dict:
         """
         Create a Trainee on the Howso service.

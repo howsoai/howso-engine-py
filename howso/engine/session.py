@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 
-from howso.client import AbstractHowsoClient
+import howso.client
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
 from howso.engine.client import get_client
@@ -38,7 +38,7 @@ class Session():
         *,
         id: Optional[str] = None,
         metadata: Optional[dict] = None,
-        client: Optional[AbstractHowsoClient] = None,
+        client: Optional[howso.client.AbstractHowsoClient] = None,
         **kwargs
     ) -> None:
         """Implement the constructor."""
@@ -134,7 +134,7 @@ class Session():
         return self._modified_date
 
     @property
-    def client(self) -> AbstractHowsoClient:
+    def client(self) -> howso.client.AbstractHowsoClient:
         """
         The client instance used by the session.
 
@@ -146,7 +146,7 @@ class Session():
         return self._client
 
     @client.setter
-    def client(self, client: AbstractHowsoClient) -> None:
+    def client(self, client: howso.client.AbstractHowsoClient) -> None:
         """
         Set the client instance used by the session.
 
@@ -159,7 +159,7 @@ class Session():
         -------
         None
         """
-        if not isinstance(client, AbstractHowsoClient):
+        if not isinstance(client, howso.client.AbstractHowsoClient):
             raise HowsoError("`client` must be a subclass of "
                              "AbstractHowsoClient")
         self._client = client
@@ -265,7 +265,7 @@ class Session():
 
 
 def get_active_session(
-    *, client: Optional[AbstractHowsoClient] = None
+    *, client: Optional[howso.client.AbstractHowsoClient] = None
 ) -> Session:
     """
     Get the active session.
@@ -287,7 +287,7 @@ def get_active_session(
 def get_session(
     session_id: str,
     *,
-    client: Optional[AbstractHowsoClient] = None
+    client: Optional[howso.client.AbstractHowsoClient] = None
 ) -> Session:
     """
     Get an existing Session.
@@ -312,7 +312,7 @@ def get_session(
 def list_sessions(
     search_terms: Optional[str] = None,
     *,
-    client: Optional[AbstractHowsoClient] = None,
+    client: Optional[howso.client.AbstractHowsoClient] = None,
     project: Optional[Union[str, Project]] = None
 ) -> List[Session]:
     """
