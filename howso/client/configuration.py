@@ -18,7 +18,7 @@ class HowsoConfiguration:
 
     feature_flags_class = FeatureFlags
 
-    def __init__(self, *args, config_path=None, verbose=False, **kwargs):
+    def __init__(self, *args, config_path: str = None, verbose: bool = False, **kwargs):
         """Initialize the configuration object."""
         super().__init__(*args, **kwargs)
         self.howso_config_path = config_path
@@ -47,7 +47,7 @@ class HowsoConfiguration:
         self.feature_flags = self.feature_flags_class(
             self.user_config.get('feature_flags'))
 
-    def get_user_config_option(self, *args, default=None):
+    def get_user_config_option(self, *args, default: any = None):
         """
         Retrieve a configuration option from the user's howso.yml settings.
 

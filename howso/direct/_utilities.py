@@ -2,10 +2,10 @@ from datetime import datetime
 from importlib import metadata
 from pathlib import Path
 import sysconfig
-from typing import Union
+from typing import Type, Union
 
 
-def model_from_dict(klass, obj):
+def model_from_dict(klass: Type, obj):
     """
     Create OpenAPI model instance from dict.
 
@@ -39,7 +39,7 @@ def model_from_dict(klass, obj):
     return klass(**parameters)
 
 
-def get_file_in_distribution(file_path) -> Union[Path, None]:
+def get_file_in_distribution(file_path: str) -> Union[Path, None]:
     """
     Locate the LICENSE.txt file in the distribution of this package.
 

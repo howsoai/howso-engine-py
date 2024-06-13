@@ -8,7 +8,7 @@ import math
 import numbers
 import platform
 from typing import (
-    Any, Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union
+    Any, Collection, Dict, Iterable, List, Mapping, Optional, tuple, Union
 )
 import warnings
 
@@ -33,17 +33,17 @@ LINUX_DT_MAX = '2262-04-11'
 class FeatureAttributesBase(dict):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
-    def __init__(self, feature_attributes: Dict, params: Dict = {}, unsupported: List[str] = []):
+    def __init__(self, feature_attributes: dict, params: dict = {}, unsupported: list[str] = []):
         """
         Instantiate this FeatureAttributesBase object.
 
         Parameters
         ----------
-        feature_attributes : Dict
+        feature_attributes : dict
             The feature attributes dictionary to be wrapped by this object.
-        params : Dict
+        params : dict
             (Optional) The parameters used in the call to infer_feature_attributes.
-        unsupported : List of str
+        unsupported : list of str
             (Optional) A list of features that contain data that is unsupported by the engine.
 
         """
@@ -124,7 +124,7 @@ class FeatureAttributesBase(dict):
         ]
 
     def _validate_bounds(self, data: pd.DataFrame, feature: str,
-                         attributes: Dict) -> List[str]:  # noqa: C901
+                         attributes: dict) -> List[str]:  # noqa: C901
         """Validate the feature bounds of the provided DataFrame."""
         # Import here to avoid circular import
         from howso.utilities import date_to_epoch
@@ -238,7 +238,7 @@ class FeatureAttributesBase(dict):
         return errors
 
     @staticmethod
-    def _allows_null(attributes: Dict) -> bool:
+    def _allows_null(attributes: dict) -> bool:
         """Return whether the given attributes indicates the allowance of null values."""
         return 'bounds' in attributes and attributes['bounds'].get('allow_null', False)
 
@@ -555,7 +555,7 @@ class InferFeatureAttributesBase(ABC):
             )
 
         if features:
-            feature_attributes: Dict = serialize_openapi_models(features)
+            feature_attributes: dict = serialize_openapi_models(features)
         else:
             feature_attributes = dict()
 
@@ -876,7 +876,7 @@ class InferFeatureAttributesBase(ABC):
     @staticmethod
     def infer_loose_feature_bounds(min_bound: Union[int, float],
                                    max_bound: Union[int, float]
-                                   ) -> Tuple[float, float]:
+                                   ) -> tuple[float, float]:
         """
         Infer the loose bound values given a tight min and max bound value.
 
@@ -930,7 +930,7 @@ class InferFeatureAttributesBase(ABC):
                 return WIN_DT_MAX
         return LINUX_DT_MAX
 
-    def _check_unsupported_data(self, feature_attributes: Dict) -> None:
+    def _check_unsupported_data(self, feature_attributes: dict) -> None:
         """
         Determine whether any features contain data that is unsupported by the core.
 
@@ -940,7 +940,7 @@ class InferFeatureAttributesBase(ABC):
 
         Parameters
         ----------
-        feature_attributes : Dict
+        feature_attributes : dict
             A feature attributes dictionary.
         """
         # Avoid circular import
@@ -1145,7 +1145,7 @@ class InferFeatureAttributesBase(ABC):
     def _get_min_max_number_size_bounds(
         cls, feature_attributes: Mapping,
         feature_name: str
-    ) -> Tuple[Optional[numbers.Number], Optional[numbers.Number]]:
+    ) -> tuple[Optional[numbers.Number], Optional[numbers.Number]]:
         """
         Get the minimum and maximum size bounds for a numeric feature.
 
@@ -1210,7 +1210,7 @@ class InferFeatureAttributesBase(ABC):
 
     @abstractmethod
     def _get_feature_type(self, feature_name: str
-                          ) -> Tuple[Optional[FeatureType], Optional[Dict]]:
+                          ) -> tuple[Optional[FeatureType], Optional[Dict]]:
         """
         Return the type information for a given feature.
 

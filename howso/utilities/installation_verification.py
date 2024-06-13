@@ -11,7 +11,7 @@ from pathlib import Path
 import random
 import sys
 import traceback
-from typing import Callable, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, tuple, Union
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
@@ -381,7 +381,7 @@ def get_nonce(length=8) -> str:
 def generate_dataframe(*, client: AbstractHowsoClient,
                        num_samples: int = 150,
                        timeout: Optional[int] = None
-                       ) -> Tuple[pd.DataFrame, Union[float, int]]:
+                       ) -> tuple[pd.DataFrame, Union[float, int]]:
     """
     Use HowsoClient to create a dataframe of random data.
 

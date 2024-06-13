@@ -62,7 +62,7 @@ class FeatureSerializer:
         cls,
         data: Union[pd.DataFrame, np.ndarray, Iterable[Any]],
         columns: Iterable[str],
-        features: Dict,
+        features: dict,
         *,
         warn: bool = False
     ) -> Union[List[List[Any]], None]:
@@ -192,7 +192,7 @@ class FeatureSerializer:
         return df
 
     @classmethod
-    def format_dataframe(cls, df: pd.DataFrame, features: Dict
+    def format_dataframe(cls, df: pd.DataFrame, features: dict
                          ) -> pd.DataFrame:
         """
         Format DataFrame columns to original type using feature attributes.
@@ -205,7 +205,7 @@ class FeatureSerializer:
         ----------
         df : pandas.DataFrame
             The DataFrame to format columns of.
-        features : Dict
+        features : dict
             The dictionary of feature name to feature attributes.
 
         Returns
@@ -267,7 +267,7 @@ class FeatureSerializer:
             return cls.format_unknown_column(column, feature)
 
     @classmethod
-    def format_timedelta_column(cls, column: pd.Series, feature: Dict
+    def format_timedelta_column(cls, column: pd.Series, feature: dict
                                 ) -> pd.Series:
         """
         Format timedelta column.
@@ -305,7 +305,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_datetime_column(cls, column: pd.Series, feature: Dict  # noqa: C901
+    def format_datetime_column(cls, column: pd.Series, feature: dict  # noqa: C901
                                ) -> pd.Series:
         """
         Format datetime column.
@@ -382,7 +382,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_date_column(cls, column: pd.Series, feature: Dict
+    def format_date_column(cls, column: pd.Series, feature: dict
                            ) -> pd.Series:
         """
         Format date only column.
@@ -422,7 +422,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_time_column(cls, column: pd.Series, feature: Dict  # noqa: C901
+    def format_time_column(cls, column: pd.Series, feature: dict  # noqa: C901
                            ) -> pd.Series:
         """
         Format time only column.
@@ -460,7 +460,7 @@ class FeatureSerializer:
             return column.apply(partial(seconds_to_time, tzinfo=tz))
 
     @classmethod
-    def format_boolean_column(cls, column: pd.Series, feature: Dict
+    def format_boolean_column(cls, column: pd.Series, feature: dict
                               ) -> pd.Series:
         """
         Format boolean column.
@@ -490,7 +490,7 @@ class FeatureSerializer:
             return column
 
     @classmethod
-    def format_integer_column(cls, column: pd.Series, feature: Dict
+    def format_integer_column(cls, column: pd.Series, feature: dict
                               ) -> pd.Series:
         """
         Format integer column.
@@ -543,7 +543,7 @@ class FeatureSerializer:
             return column
 
     @classmethod
-    def format_numeric_column(cls, column: pd.Series, feature: Dict
+    def format_numeric_column(cls, column: pd.Series, feature: dict
                               ) -> pd.Series:
         """
         Format numeric column.
@@ -594,7 +594,7 @@ class FeatureSerializer:
             return column
 
     @classmethod
-    def format_string_column(cls, column: pd.Series, feature: Dict
+    def format_string_column(cls, column: pd.Series, feature: dict
                              ) -> pd.Series:
         """
         Format string column.
@@ -615,7 +615,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_unknown_column(cls, column: pd.Series, feature: Dict
+    def format_unknown_column(cls, column: pd.Series, feature: dict
                               ) -> pd.Series:
         """
         Format unknown typed column.
@@ -642,7 +642,7 @@ class FeatureSerializer:
 
         Parameters
         ----------
-        feature : Dict or None
+        feature : dict or None
             The feature attributes.
 
         Returns

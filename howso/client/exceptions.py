@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 
 from howso.openapi.exceptions import UnauthorizedException
 
@@ -21,7 +22,7 @@ class HowsoError(Exception):
     code = None
     url = None
 
-    def __init__(self, message, code=None, url=None):
+    def __init__(self, message: str, code: Optional[str] = None, url: Optional[str] = None):
         """Initialize a HowsoError."""
         if code is None:
             code = "0"
@@ -55,7 +56,8 @@ class HowsoApiError(HowsoError):
 
     status = None
 
-    def __init__(self, message, code=None, status=None, url=None):
+    def __init__(self, message: str, code: Optional[str] = None, status: Optional[int] = None,
+                 url: Optional[str] = None):
         """Initialize a HowsoApiError."""
         if status is None:
             status = -1

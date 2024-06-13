@@ -34,7 +34,7 @@ class Reaction(abc.MutableMapping):
         (Optional) A DataFrame with columns representing the requested
         features of ``react`` or ``react_series`` cases.
 
-    details : List or None
+    details : list or None
         (Optional) The details of results from ``react`` or ``react_series``
         when providing a ``details`` parameter.
     """
@@ -258,7 +258,7 @@ class Reaction(abc.MutableMapping):
             ]
 
         Parameters:
-            details : Dict of Lists
+            details : dict of Lists
 
         Returns:
             List of Dicts, one Dict per case

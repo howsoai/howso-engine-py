@@ -270,7 +270,7 @@ class Session(BaseSession):
 
         Parameters
         ----------
-        session_dict : Dict
+        session_dict : dict
             The session parameters.
 
         Returns

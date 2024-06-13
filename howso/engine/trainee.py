@@ -11,7 +11,7 @@ from typing import (
     List,
     MutableMapping,
     Optional,
-    Tuple,
+    tuple,
     Union,
 )
 import uuid
@@ -823,7 +823,7 @@ class Trainee(BaseTrainee):
         minimum_model_size: int = 1_000,
         relative_prediction_threshold_map: Optional[MutableMapping[str, float]] = None,
         residual_prediction_features: Optional[List[str]] = None,
-        tolerance_prediction_threshold_map: Optional[MutableMapping[str, Tuple[float, float]]] = None,
+        tolerance_prediction_threshold_map: Optional[MutableMapping[str, tuple[float, float]]] = None,
         **kwargs
     ):
         """

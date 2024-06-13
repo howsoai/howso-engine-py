@@ -14,7 +14,7 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Tuple,
+    tuple,
     Union,
 )
 import uuid
@@ -36,7 +36,7 @@ from .internals import serialize_openapi_models
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
 # Custom type for case_indices parameter
-CaseIndices = Iterable[Union[List[Union[str, int]], Tuple[Union[str, int]]]]
+CaseIndices = Iterable[Union[List[Union[str, int]], tuple[Union[str, int]]]]
 DATETIME_TIMEZONE_PATTERN = re.compile(r"(?<!%)(?:%%)*(%z)", re.IGNORECASE)
 DATETIME_UTC_Z_PATTERN = re.compile(r"\dZ$")
 EPOCH = dt.datetime.utcfromtimestamp(0)
@@ -607,8 +607,8 @@ def validate_datetime_iso8061(datetime_value, feature):
             f"example: '2020-10-02T12:43:39'")
 
 
-def serialize_datetimes(cases: List[List], columns: Iterable[str],  # noqa: C901
-                        features: Dict, *, warn: bool = False) -> None:
+def serialize_datetimes(cases: list[List], columns: Iterable[str],  # noqa: C901
+                        features: dict, *, warn: bool = False) -> None:
     """
     Serialize datetimes in the given list of cases, in-place.
 
@@ -1121,7 +1121,7 @@ def build_react_series_df(react_series_response, series_index=None):
 
     Parameters
     ----------
-    react_series_response : Dictionary
+    react_series_response : dictionary
         The response dictionary from a call to react_series.
     series_index : String
         The name of the series index feature, which will index each series in

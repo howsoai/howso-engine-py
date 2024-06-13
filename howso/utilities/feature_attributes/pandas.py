@@ -3,7 +3,7 @@ import decimal
 import logging
 from math import isnan
 from typing import (
-    Any, Dict, Iterable, List, Mapping, Optional, Tuple
+    Any, Dict, Iterable, List, Mapping, Optional, tuple
 )
 import warnings
 
@@ -78,7 +78,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return False
 
     def _get_feature_type(self, feature_name: str  # noqa: C901
-                          ) -> Tuple[Optional[FeatureType], Optional[Dict]]:
+                          ) -> tuple[Optional[FeatureType], Optional[Dict]]:
         # Import this here to avoid circular import
         from howso.client.exceptions import HowsoError
         feature = self.data[feature_name]
@@ -390,7 +390,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return output
 
     def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
-        attributes: Dict[str, Any] = {'type': 'continuous', 'data_type': 'number'}
+        attributes: dict[str, Any] = {'type': 'continuous', 'data_type': 'number'}
 
         n_cases = self.data[feature_name].shape[0]
 

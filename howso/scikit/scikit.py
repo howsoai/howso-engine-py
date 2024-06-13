@@ -112,7 +112,7 @@ class HowsoEstimator(BaseEstimator):
     """
 
     def __init__(self, client: Optional[AbstractHowsoClient] = None,
-                 features: Optional[Dict] = None, targets: Dict = None,
+                 features: Optional[Dict] = None, targets: dict = None,
                  method: Optional[str] = None, verbose: bool = False,
                  debug: bool = False, ttl: int = DEFAULT_TTL,
                  trainee_params: Optional[Dict] = None,
@@ -977,7 +977,7 @@ class HowsoEstimator(BaseEstimator):
         self.trainee.persist()
         return self.__dict__
 
-    def __setstate__(self, state: Dict):
+    def __setstate__(self, state: dict):
         """
         Receives the state of the object when unpickling.
 

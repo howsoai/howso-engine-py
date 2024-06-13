@@ -15,7 +15,7 @@ import math
 import random
 import re
 from typing import (
-    Any, Dict, Generator, Iterable, List, Mapping, NamedTuple, Optional, Tuple,
+    Any, Dict, Generator, Iterable, List, Mapping, Namedtuple, Optional, tuple,
     TYPE_CHECKING, Union,
 )
 import unicodedata
@@ -653,25 +653,25 @@ class BatchScalingManager:
 
     # Threshold by which batch sizes will be increased/decreased until
     # request-response time falls between these two times
-    time_threshold: Tuple[datetime.timedelta, datetime.timedelta] = (
+    time_threshold: tuple[datetime.timedelta, datetime.timedelta] = (
         datetime.timedelta(seconds=60), datetime.timedelta(seconds=75))
     # The batch size min and max (respectively)
-    size_limits: Tuple[int, Optional[int]] = (1, None)
+    size_limits: tuple[int, Optional[int]] = (1, None)
     # Limit by memory usage of request or response size (respectively)
     # In bytes, zero means no limit.
-    memory_limits: Tuple[int, int] = (10_000_000, 10_000_000)  # 10MB
+    memory_limits: tuple[int, int] = (10_000_000, 10_000_000)  # 10MB
     # Prevent raising batch size when the size of the request or response
     # (respectively) is within this range of the limit.
-    memory_limit_thresholds: Tuple[float, float] = (0.1, 0.1)  # 10%
+    memory_limit_thresholds: tuple[float, float] = (0.1, 0.1)  # 10%
     # The rate at which batches are scaled up and down (respectively)
     # See: https://en.wikipedia.org/wiki/Golden_ratio
-    size_multiplier: Tuple[float, float] = (1.618, 0.809)
+    size_multiplier: tuple[float, float] = (1.618, 0.809)
 
-    class SendOptions(NamedTuple):
+    class SendOptions(Namedtuple):
         """Options that can be passed to the generator."""
 
         tick_duration: Optional[datetime.timedelta]
-        memory_sizes: Optional[Tuple[int, int]]
+        memory_sizes: Optional[tuple[int, int]]
 
     def __init__(self, starting_size: int, progress_monitor: "ProgressTimer"):
         """Initialize a new BatchScalingManager instance."""
@@ -723,7 +723,7 @@ class BatchScalingManager:
         self,
         batch_size: int,
         batch_duration: Optional[datetime.timedelta],
-        memory_sizes: Optional[Tuple[int, int]]
+        memory_sizes: Optional[tuple[int, int]]
     ) -> int:
         """
         Scale batch size based on duration or memory size of the batch.

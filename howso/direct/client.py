@@ -17,18 +17,15 @@ import typing as t
 from typing import (
     Any,
     Callable,
-    Dict,
     Iterable,
-    List,
     Literal,
     Optional,
     Sequence,
     Sized,
-    Tuple,
-    Union,
 )
 import uuid
 import warnings
+
 import certifi
 from howso import utilities as util
 from howso.client import AbstractHowsoClient, get_configuration_path
@@ -63,7 +60,6 @@ from howso.utilities.feature_attributes.base import (
     SingleTableFeatureAttributes,
 )
 from howso.utilities.reaction import Reaction
-
 import numpy as np
 from packaging.version import parse as parse_version
 from pandas import DataFrame
@@ -151,7 +147,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         howso_core: Optional[HowsoCore] = None,
         *,
-        config_path: Union[str, Path, None] = None,
+        config_path: str | Path | None = None,
         debug: bool = False,
         react_initial_batch_size: int = 10,
         train_initial_batch_size: int = 100,
@@ -203,7 +199,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._train_initial_batch_size = train_initial_batch_size
         self.begin_session()
 
-    def check_version(self) -> Union[str, None]:
+    def check_version(self) -> str | None:
         """Check if there is a more recent version."""
         http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED',
                                    ca_certs=certifi.where(),
@@ -334,7 +330,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return f"{handle}-{HowsoCore.random_handle()}"
 
-    def get_entities(self) -> List[str]:
+    def get_entities(self) -> list[str]:
         """
         Return a list of loaded core entities.
 
@@ -379,9 +375,9 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def check_name_valid_for_save(
         self,
-        file_path: Union[Path, str],
+        file_path: Path | str,
         clobber: bool = False,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         Ensure that the given filename is a valid name for the host OS.
 
@@ -438,9 +434,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee: Trainee,
         *,
         library_type: Optional[Literal["st", "mt"]] = None,
-        max_wait_time: Optional[Union[int, float]] = None,
+        max_wait_time: Optional[int | float] = None,
         overwrite_trainee: bool = False,
-        resources: Optional[Union[TraineeResources, Dict]] = None,
+        resources: Optional[TraineeResources | dict] = None,
     ) -> Trainee:
         """
         Create a Trainee on the Howso service.
@@ -574,7 +570,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def export_trainee(
         self,
         trainee_id: str,
-        path_to_trainee: Optional[Union[Path, str]] = None,
+        path_to_trainee: Optional[Path | str] = None,
         decode_cases: bool = False,
         separate_files: bool = False
     ):
@@ -601,7 +597,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def upgrade_trainee(
         self,
         trainee_id: str,
-        path_to_trainee: Optional[Union[Path, str]] = None,
+        path_to_trainee: Optional[Path | str] = None,
         separate_files: bool = False
     ):
         """
@@ -685,13 +681,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         raise NotImplementedError("`get_trainee_metrics` not implemented")
 
-    def get_trainees(self, search_terms: Optional[str] = None) -> List[TraineeIdentity]:
+    def get_trainees(self, search_terms: Optional[str] = None) -> list[TraineeIdentity]:
         """
         Return a list of all trainees.
 
         Parameters
         ----------
-        search_terms : str
+        search_terms : str, optional
             Keywords to filter trainee list by.
 
         Returns
@@ -743,7 +739,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def delete_trainee(
         self,
         trainee_id: Optional[str] = None,
-        file_path: Optional[Union[Path, str]] = None
+        file_path: Optional[Path | str] = None
     ):
         """
         This deletes the Trainee.
@@ -821,7 +817,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_trainee_id: Optional[str] = None,
         *,
         library_type: Optional[Literal["st", "mt"]] = None,
-        resources: Optional[Union[TraineeResources, Dict]] = None,
+        resources: Optional[TraineeResources | dict] = None,
     ) -> Trainee:
         """
         Copies a trainee to a new trainee id in the Howso service.
@@ -892,9 +888,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_trainee_name: str,
         *,
         source_id: Optional[str] = None,
-        source_name_path: Optional[List[str]] = None,
+        source_name_path: Optional[list[str]] = None,
         target_id: Optional[str] = None,
-        target_name_path: Optional[List[str]] = None,
+        target_name_path: Optional[list[str]] = None,
     ) -> None:
         """
         Copy a subtrainee in trainee's hierarchy.
@@ -971,7 +967,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         *,
-        max_wait_time: Optional[Union[int, float]] = None
+        max_wait_time: Optional[int | float] = None
     ):
         """
         Acquire resources for a trainee in the Howso service.
@@ -1161,7 +1157,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.howso.remove_series_store(trainee_id, series)
 
     def set_substitute_feature_values(
-        self, trainee_id: str, substitution_value_map: Dict[str, Dict]
+        self, trainee_id: str, substitution_value_map: dict[str, dict]
     ):
         """
         Set a Trainee's substitution map for use in extended nominal generation.
@@ -1183,7 +1179,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def get_substitute_feature_values(
         self, trainee_id: str, clear_on_get: bool = True
-    ) -> Dict[str, Dict]:
+    ) -> dict[str, dict]:
         """
         Gets a substitution map for use in extended nominal generation.
 
@@ -1217,7 +1213,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             return dict()
         return ret
 
-    def set_random_seed(self, trainee_id: str, seed: Union[int, float, str]):
+    def set_random_seed(self, trainee_id: str, seed: int | float | str):
         """
         Sets the random seed for the trainee.
 
@@ -1238,7 +1234,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def train(  # noqa: C901
         self,
         trainee_id: str,
-        cases: Union[List[List[object]], DataFrame],
+        cases: list[list[object]] | DataFrame,
         features: Optional[Iterable[str]] = None,
         *,
         accumulate_weight_feature: Optional[str] = None,
@@ -1330,7 +1326,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         feature_attributes = self.trainee_cache.get(trainee_id).features
 
         # Make sure single table dicts are wrapped by SingleTableFeatureAttributes
-        if isinstance(feature_attributes, Dict) and not isinstance(feature_attributes,
+        if isinstance(feature_attributes, dict) and not isinstance(feature_attributes,
                                                                    MultiTableFeatureAttributes):
             feature_attributes = SingleTableFeatureAttributes(feature_attributes, {})
 
@@ -1477,8 +1473,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         num_cases: int,
         *,
-        case_indices: Optional[Iterable[Tuple[str, int]]] = None,
-        condition: Optional[Dict[str, object]] = None,
+        case_indices: Optional[Iterable[tuple[str, int]]] = None,
+        condition: Optional[dict[str, object]] = None,
         condition_session: Optional[str] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
@@ -1589,10 +1585,10 @@ class HowsoDirectClient(AbstractHowsoClient):
     def edit_cases(
         self,
         trainee_id: str,
-        feature_values: Union[List[object], DataFrame],
+        feature_values: list[object] | DataFrame,
         *,
-        case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-        condition: Optional[Dict[str, object]] = None,
+        case_indices: Optional[Iterable[Sequence[str | int]]] = None,
+        condition: Optional[dict[str, object]] = None,
         condition_session: Optional[str] = None,
         features: Optional[Iterable[str]] = None,
         num_cases: Optional[int] = None,
@@ -1693,7 +1689,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_persist_trainee(trainee_id)
         return result.get('count', 0)
 
-    def get_trainee_sessions(self, trainee_id: str) -> List[Dict[str, str]]:
+    def get_trainee_sessions(self, trainee_id: str) -> list[dict[str, str]]:
         """
         Get the sessions of a trainee.
 
@@ -1741,7 +1737,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_persist_trainee(trainee_id)
 
     def begin_session(
-        self, name: str = "default", metadata: Optional[Dict] = None
+        self, name: str = "default", metadata: Optional[dict] = None
     ) -> Session:
         """
         Begin a new session.
@@ -1780,7 +1776,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
         return self._active_session
 
-    def get_sessions(self, search_terms: Optional[str] = None) -> List[Session]:
+    def get_sessions(self, search_terms: Optional[str] = None) -> list[Session]:
         """
         Return a list of all accessible sessions.
 
@@ -1877,7 +1873,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError("Session not found")
         return session
 
-    def update_session(self, session_id: str, *, metadata: Optional[Dict] = None) -> Session:
+    def update_session(self, session_id: str, *, metadata: Optional[dict] = None) -> Session:
         """
         Update a session.
 
@@ -1951,29 +1947,29 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         *,
         action_features: Optional[Iterable[str]] = None,
-        actions: Optional[Union[List[List[object]], DataFrame]] = None,
+        actions: Optional[list[list[object]] | DataFrame] = None,
         batch_size: Optional[int] = None,
-        case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-        contexts: Optional[Union[List[List[object]], DataFrame]] = None,
+        case_indices: Optional[Iterable[Sequence[str | int]]] = None,
+        contexts: Optional[list[list[object]] | DataFrame] = None,
         context_features: Optional[Iterable[str]] = None,
         continue_series: Optional[bool] = False,
         continue_series_features: Optional[Iterable[str]] = None,
-        continue_series_values: Optional[Union[List[object], List[List[object]]]] = None,
+        continue_series_values: Optional[list[object] | list[list[object]]] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
-        details: Optional[Dict] = None,
+        details: Optional[dict] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
-        feature_bounds_map: Optional[Dict] = None,
-        final_time_steps: Optional[Union[List[object], List[List[object]]]] = None,
+        feature_bounds_map: Optional[dict] = None,
+        final_time_steps: Optional[list[object] | list[list[object]]] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
-        init_time_steps: Optional[Union[List[object], List[List[object]]]] = None,
+        init_time_steps: Optional[list[object] | list[list[object]]] = None,
         initial_batch_size: Optional[int] = None,
         initial_features: Optional[Iterable[str]] = None,
-        initial_values: Optional[Union[List[object], List[List[object]]]] = None,
+        initial_values: Optional[list[object] | list[list[object]]] = None,
         input_is_substituted: bool = False,
         leave_case_out: bool = False,
-        max_series_lengths: Optional[List[int]] = None,
+        max_series_lengths: Optional[list[int]] = None,
         new_case_threshold: Literal["max", "min", "most_similar"] = "min",
         num_series_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
@@ -1981,10 +1977,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         preserve_feature_values: Optional[Iterable[str]] = None,
         progress_callback: Optional[Callable] = None,
         series_context_features: Optional[Iterable[str]] = None,
-        series_context_values: Optional[Union[List[object], List[List[object]]]] = None,
+        series_context_values: Optional[list[object] | list[list[object]]] = None,
         series_id_tracking: Literal["dynamic", "fixed", "no"] = "fixed",
         series_index: Optional[str] = None,
-        series_stop_maps: Optional[List[Dict[str, Dict]]] = None,
+        series_stop_maps: Optional[list[dict[str, dict]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: bool = False,
@@ -2559,7 +2555,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         return accumulated_result
 
-    def _react_series(self, trainee_id, react_params):
+    def _react_series(self, trainee_id: str, react_params: dict):
         """
         Make a single react series request.
 
@@ -2602,7 +2598,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         series: str,
-        contexts: Union[List[List[object]], DataFrame],
+        contexts: list[list[object]] | DataFrame,
         *,
         context_features: Optional[Iterable[str]] = None
     ):
@@ -2656,18 +2652,18 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         *,
         action_features: Optional[Iterable[str]] = None,
-        actions: Optional[Union[List[List[object]], DataFrame]] = None,
+        actions: Optional[list[list[object]] | DataFrame] = None,
         allow_nulls: bool = False,
         batch_size: Optional[int] = None,
-        case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-        contexts: Optional[Union[List[List[object]], DataFrame]] = None,
+        case_indices: Optional[Iterable[Sequence[str | int]]] = None,
+        contexts: Optional[list[list[object]] | DataFrame] = None,
         context_features: Optional[Iterable[str]] = None,
         derived_action_features: Optional[Iterable[str]] = None,
         derived_context_features: Optional[Iterable[str]] = None,
         desired_conviction: Optional[float] = None,
-        details: Optional[Dict] = None,
+        details: Optional[dict] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
-        feature_bounds_map: Optional[Dict] = None,
+        feature_bounds_map: Optional[dict] = None,
         generate_new_cases: Literal["always", "attempt", "no"] = "no",
         initial_batch_size: Optional[int] = None,
         input_is_substituted: bool = False,
@@ -2677,7 +2673,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
         post_process_features: Optional[Iterable[str]] = None,
-        post_process_values: Optional[Union[List[List[object]], DataFrame]] = None,
+        post_process_values: Optional[list[list[object]] | DataFrame] = None,
         preserve_feature_values: Optional[Iterable[str]] = None,
         progress_callback: Optional[Callable] = None,
         substitute_output: bool = True,
@@ -3334,7 +3330,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def _batch_react(  # noqa: C901
         self,
         trainee_id: str,
-        react_params: Dict,
+        react_params: dict,
         *,
         batch_size: Optional[int] = None,
         initial_batch_size: Optional[int] = None,
@@ -3429,8 +3425,8 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         return accumulated_result
 
-    def _react(self, trainee_id: str, react_params: Dict
-               ) -> Tuple[Dict, int, int]:
+    def _react(self, trainee_id: str, react_params: dict
+               ) -> tuple[dict, int, int]:
         """
         Make a single react request.
 
@@ -3461,7 +3457,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         return ret, in_size, out_size
 
-    def _should_react_batch(self, react_params: Dict, total_size: int) -> bool:
+    def _should_react_batch(self, react_params: dict, total_size: int) -> bool:
         """
         Determine if given react should be batched.
 
@@ -3490,15 +3486,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         *,
         action_features: Iterable[str],
-        actions: List[object],
-        case_indices: Iterable[Sequence[Union[str, int]]],
+        actions: list[object],
+        case_indices: Iterable[Sequence[str | int]],
         context_features: Iterable[str],
-        contexts: List[object],
+        contexts: list[object],
         desired_conviction: float,
         preserve_feature_values: Iterable[str],
         trainee_id: str,
         continue_series: bool = False,
-    ) -> Tuple[List[str], List[object], List[str], List[object]]:
+    ) -> tuple[list[str], list[object], list[str], list[object]]:
         """
         Preprocess parameters for `react_` methods.
 
@@ -3582,14 +3578,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         *,
-        distance_contribution: Optional[Union[str, bool]] = False,
-        familiarity_conviction_addition: Optional[Union[str, bool]] = False,
-        familiarity_conviction_removal: Optional[Union[str, bool]] = False,
+        distance_contribution: Optional[str | bool] = False,
+        familiarity_conviction_addition: Optional[str | bool] = False,
+        familiarity_conviction_removal: Optional[str | bool] = False,
         features: Optional[Iterable[str]] = None,
-        influence_weight_entropy: Union[bool, str] = False,
-        p_value_of_addition: Optional[Union[str, bool]] = False,
-        p_value_of_removal: Optional[Union[str, bool]] = False,
-        similarity_conviction: Optional[Union[str, bool]] = False,
+        influence_weight_entropy: bool | str = False,
+        p_value_of_addition: Optional[str | bool] = False,
+        p_value_of_removal: Optional[str | bool] = False,
+        similarity_conviction: Optional[str | bool] = False,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None,
     ):
@@ -3659,10 +3655,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         session: Optional[str] = None,
-        case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
+        case_indices: Optional[Iterable[Sequence[str | int]]] = None,
         indicate_imputed: bool = False,
         features: Optional[Iterable[str]] = None,
-        condition: Optional[Dict] = None,
+        condition: Optional[dict] = None,
         num_cases: Optional[int] = None,
         precision: Optional[Literal["exact", "similar"]] = None
     ) -> Cases:
@@ -3788,7 +3784,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def react_group(
         self,
         trainee_id: str,
-        new_cases: Union[List[List[List[object]]], List[DataFrame]],
+        new_cases: list[list[list[object]]] | list[DataFrame],
         *,
         features: Optional[Iterable[str]] = None,
         distance_contributions: bool = False,
@@ -3901,7 +3897,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         familiarity_conviction_removal: bool = False,
         weight_feature: Optional[str] = None,
         use_case_weights: bool = False
-    ) -> Dict:
+    ) -> dict:
         """
         Get familiarity conviction for features in the model.
 
@@ -3958,11 +3954,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         feature: str,
-        feature_value: Optional[Union[int, float, str]] = None,
+        feature_value: Optional[int | float | str] = None,
         *,
-        condition: Optional[Dict] = None,
+        condition: Optional[dict] = None,
         condition_session: Optional[str] = None,
-        feature_attributes: Optional[Dict] = None,
+        feature_attributes: Optional[dict] = None,
         overwrite: bool = False
     ):
         """
@@ -4045,7 +4041,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         feature: str,
         *,
-        condition: Optional[Dict] = None,
+        condition: Optional[dict] = None,
         condition_session: Optional[str] = None
     ):
         """
@@ -4115,7 +4111,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         robust: Optional[bool] = None,
         robust_hyperparameters: Optional[bool] = None,
         weight_feature: Optional[str] = None,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Get cached feature residuals.
 
@@ -4178,7 +4174,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         permutation: Optional[bool] = None,
         robust: Optional[bool] = None,
         weight_feature: Optional[str] = None,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Get cached feature Mean Decrease In Accuracy (MDA).
 
@@ -4239,7 +4235,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         robust: Optional[bool] = None,
         directional: bool = False,
         weight_feature: Optional[str] = None,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Get cached feature contributions.
 
@@ -4307,7 +4303,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         robust_hyperparameters: Optional[bool] = None,
         stats: Optional[Iterable[str]] = None,
         weight_feature: Optional[str] = None,
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """
         Get feature prediction stats.
 
@@ -4368,7 +4364,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             If not specified "exact" will be used. Only used if ``action_condition``
             is not None.
         context_condition : map of str -> any, optional
-            A condition map to select the context set, which is the set being queried to make 
+            A condition map to select the context set, which is the set being queried to make
             to make predictions on the action set. If both ``action_condition`` and ``context_condition``
             are provided,  then all of the cases from the action set, which is the dataset for which the
             prediction stats are for, will be excluded from the context set, effectively holding them out.
@@ -4496,11 +4492,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         *,
-        condition: Optional[Dict[str, Any]] = None,
+        condition: Optional[dict[str, Any]] = None,
         num_cases: Optional[int] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
         weight_feature: Optional[str] = None
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """
         Get marginal stats for all features.
 
@@ -4765,11 +4761,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         action_features: Optional[Iterable[str]] = None,
         context_features: Optional[Iterable[str]] = None,
-        contexts: Optional[List[object]] = None,
+        contexts: Optional[list[object]] = None,
         desired_conviction: Optional[float] = None,
         num_cases_to_generate: Optional[int] = None,
-        case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-    ) -> Tuple[List[str], List[List[object]]]:
+        case_indices: Optional[Iterable[Sequence[str | int]]] = None,
+    ) -> tuple[list[str], list[list[object]]]:
         """
         Helper method to pre-process generative react parameters.
 
@@ -4868,14 +4864,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         num_cases: int,
         *,
-        case_indices: Optional[Iterable[Tuple[str, int]]] = None,
-        condition: Optional[Dict] = None,
+        case_indices: Optional[Iterable[tuple[str, int]]] = None,
+        condition: Optional[dict] = None,
         condition_session: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
         preserve_session_data: bool = False,
         source_id: Optional[str] = None,
-        source_name_path: Optional[List[str]] = None,
-        target_name_path: Optional[List[str]] = None,
+        source_name_path: Optional[list[str]] = None,
+        target_name_path: Optional[list[str]] = None,
         target_id: Optional[str] = None
     ) -> int:
         """
@@ -5002,7 +4998,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         context_features: Optional[Iterable[str]] = None,
         mode: Optional[Literal["robust", "full"]] = None,
         weight_feature: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get the parameters used by the Trainee.
 
@@ -5049,7 +5045,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
 
     def get_trainee_session_indices(self, trainee_id: str, session: str
-                                    ) -> List[int]:
+                                    ) -> list[int]:
         """
         Get list of all session indices for a specified session.
 
@@ -5072,7 +5068,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         session: str
-    ) -> List[int]:
+    ) -> list[int]:
         """
         Get list of all session training indices for a specified session.
 
@@ -5094,7 +5090,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             return []
         return result
 
-    def get_hierarchy(self, trainee_id: str) -> Dict:
+    def get_hierarchy(self, trainee_id: str) -> dict:
         """
         Output the hierarchy for a trainee.
 
@@ -5118,7 +5114,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_name: str,
         *,
         child_id: Optional[str] = None,
-        child_name_path: Optional[List[str]] = None
+        child_name_path: Optional[list[str]] = None
     ) -> None:
         """
         Renames a contained child trainee in the hierarchy.
@@ -5143,7 +5139,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             child_name_path=child_name_path
         )
 
-    def set_params(self, trainee_id: str, params: Dict):
+    def set_params(self, trainee_id: str, params: dict):
         """
         Sets specific hyperparameters in the trainee.
 
@@ -5341,12 +5337,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         auto_ablation_weight_feature: str = ".case_weight",
         conviction_lower_threshold: Optional[float] = None,
         conviction_upper_threshold: Optional[float] = None,
-        exact_prediction_features: Optional[List[str]] = None,
+        exact_prediction_features: Optional[list[str]] = None,
         influence_weight_entropy_threshold: float = 0.6,
         minimum_model_size: int = 1_000,
-        relative_prediction_threshold_map: Optional[Dict[str, float]] = None,
-        residual_prediction_features: Optional[List[str]] = None,
-        tolerance_prediction_threshold_map: Optional[Dict[str, Tuple[float, float]]] = None,
+        relative_prediction_threshold_map: Optional[dict[str, float]] = None,
+        residual_prediction_features: Optional[list[str]] = None,
+        tolerance_prediction_threshold_map: Optional[dict[str, tuple[float, float]]] = None,
         **kwargs
     ):
         """
@@ -5377,7 +5373,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         residual_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
-        tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
+        tolerance_prediction_threshold_map : Optional[Dict[str, tuple[float, float]]], optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
         relative_prediction_threshold_map : Optional[Dict[str, float]], optional
@@ -5558,13 +5554,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         features: Optional[Iterable[str]] = None,
         *,
         action_feature: Optional[str] = None,
-        from_case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-        from_values: Optional[Union[List[List[object]], DataFrame]] = None,
-        to_case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-        to_values: Optional[Union[List[List[object]], DataFrame]] = None,
+        from_case_indices: Optional[Iterable[Sequence[str | int]]] = None,
+        from_values: Optional[list[list[object]] | DataFrame] = None,
+        to_case_indices: Optional[Iterable[Sequence[str | int]]] = None,
+        to_values: Optional[list[list[object]] | DataFrame] = None,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None
-    ) -> List[float]:
+    ) -> list[float]:
         """
         Compute pairwise distances between specified cases.
 
@@ -5685,11 +5681,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         features: Optional[Iterable[str]] = None,
         *,
         action_feature: Optional[str] = None,
-        case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-        feature_values: Optional[Union[List[object], DataFrame]] = None,
+        case_indices: Optional[Iterable[Sequence[str | int]]] = None,
+        feature_values: Optional[list[object] | DataFrame] = None,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None
-    ) -> Dict:
+    ) -> dict[str, list[tuple[str, int] | list[float]]]:
         """
         Compute distances matrix for specified cases.
 
@@ -5879,7 +5875,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         robust: bool = False,
         weight_feature: Optional[str] = None,
         use_case_weights: bool = False
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Compute and set feature weights for specified context and action features.
 
@@ -5916,7 +5912,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_persist_trainee(trainee_id)
         return weights
 
-    def get_feature_attributes(self, trainee_id: str) -> Dict[str, Dict]:
+    def get_feature_attributes(self, trainee_id: str) -> dict[str, dict]:
         """
         Get stored feature attributes.
 
@@ -5940,7 +5936,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def set_feature_attributes(
         self,
         trainee_id: str,
-        feature_attributes: Dict[str, Dict],
+        feature_attributes: dict[str, dict],
     ):
         """
         Sets feature attributes for a Trainee.
@@ -5990,15 +5986,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         bypass_calculate_feature_residuals: bool = None,
         bypass_calculate_feature_weights: bool = None,
         bypass_hyperparameter_analysis: bool = None,
-        dt_values: Optional[List[float]] = None,
+        dt_values: Optional[list[float]] = None,
         use_case_weights: bool = None,
         inverse_residuals_as_weights: bool = None,
         k_folds: Optional[int] = None,
-        k_values: Optional[List[int]] = None,
+        k_values: Optional[list[int]] = None,
         num_analysis_samples: Optional[int] = None,
         num_samples: Optional[int] = None,
         analysis_sub_model_size: Optional[int] = None,
-        p_values: Optional[List[float]] = None,
+        p_values: Optional[list[float]] = None,
         targeted_model: Optional[Literal["omni_targeted", "single_targeted", "targetless"]] = None,
         use_deviations: bool = None,
         weight_feature: Optional[str] = None,
@@ -6150,10 +6146,10 @@ class HowsoDirectClient(AbstractHowsoClient):
     def evaluate(
         self,
         trainee_id: str,
-        features_to_code_map: Dict[str, str],
+        features_to_code_map: dict[str, str],
         *,
         aggregation_code: Optional[str] = None
-    ) -> Dict[str, Dict[str, object]]:
+    ) -> dict[str, dict[str, object]]:
         """
         Evaluate custom code on feature values of all cases in the trainee.
 

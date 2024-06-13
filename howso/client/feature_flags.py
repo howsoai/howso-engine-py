@@ -55,7 +55,7 @@ class FeatureFlags:
         """Parse the flag name."""
         return flag.replace('-', '_').lower()
 
-    def __iter__(self) -> t.Generator[t.Tuple[str, bool], None, None]:
+    def __iter__(self) -> t.Generator[t.tuple[str, bool], None, None]:
         """Iterate over flags."""
         return ((key, value) for key, value in self._store.items())
 

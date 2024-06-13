@@ -1,14 +1,12 @@
+from __future__ import annotations
+
 from typing import (
-    Dict,
     Iterable,
-    List,
     Optional,
-    Union,
 )
 
 from howso.client.client import get_howso_client_class
 from howso.utilities import (
-    build_react_series_df,
     deserialize_cases,
     format_dataframe,
 )
@@ -238,10 +236,14 @@ class HowsoPandasClientMixin:
 
         return response
 
-    def react(self, trainee_id, *args, **kwargs) -> Reaction:
+    def react(self, trainee_id: str, *args, **kwargs) -> Reaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react`.
 
+        Parameters
+        ----------
+        trainee_id : str
+            The trainee id.
         Returns
         -------
         Reaction:
@@ -262,7 +264,7 @@ class HowsoPandasClientMixin:
                                                feature_attributes)
         return response
 
-    def get_distances(self, *args, **kwargs) -> Dict[str, Union[DataFrame, List]]:
+    def get_distances(self, *args, **kwargs) -> dict[str, DataFrame | list]:
         """
         base: :func:`howso.client.AbstractHowsoClient.get_distances`.
 

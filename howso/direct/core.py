@@ -10,7 +10,7 @@ from typing import (
     Literal,
     Optional,
     Sequence,
-    Tuple,
+    tuple,
     Union,
 )
 import uuid
@@ -878,7 +878,7 @@ class HowsoCore:
         minimum_model_size: int = 1_000,
         relative_prediction_threshold_map: Optional[Dict[str, float]] = None,
         residual_prediction_features: Optional[List[str]] = None,
-        tolerance_prediction_threshold_map: Optional[Dict[str, Tuple[float, float]]] = None,
+        tolerance_prediction_threshold_map: Optional[Dict[str, tuple[float, float]]] = None,
         **kwargs
     ):
         """
@@ -909,7 +909,7 @@ class HowsoCore:
         residual_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
-        tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
+        tolerance_prediction_threshold_map : Optional[Dict[str, tuple[float, float]]], optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
         relative_prediction_threshold_map : Optional[Dict[str, float]], optional
@@ -1191,7 +1191,7 @@ class HowsoCore:
     def train(
         self,
         trainee_id: str,
-        input_cases: List[List[Any]],
+        input_cases: list[List[Any]],
         features: Optional[Iterable[str]] = None,
         *,
         accumulate_weight_feature: Optional[str] = None,
@@ -1201,7 +1201,7 @@ class HowsoCore:
         session: Optional[str] = None,
         skip_auto_analyze: bool = False,
         train_weights_only: bool = False,
-    ) -> Tuple[Dict, int, int]:
+    ) -> tuple[Dict, int, int]:
         """
         Train one or more cases into a trainee (model).
 
@@ -1383,7 +1383,7 @@ class HowsoCore:
         self,
         trainee_id: str,
         series: str,
-        contexts: List[List[Any]],
+        contexts: list[List[Any]],
         *,
         context_features: Optional[Iterable[str]] = None
     ) -> None:
@@ -1607,7 +1607,7 @@ class HowsoCore:
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
-    ) -> Tuple[Dict, int, int]:
+    ) -> tuple[Dict, int, int]:
         """
         Multiple case react.
 
@@ -1788,7 +1788,7 @@ class HowsoCore:
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
-    ) -> Tuple[Dict, int, int]:
+    ) -> tuple[Dict, int, int]:
         """
         React in a series until a series_stop_map condition is met.
 
@@ -2030,7 +2030,7 @@ class HowsoCore:
     def batch_react_group(
         self,
         trainee_id: str,
-        new_cases: List[List[List[object]]],
+        new_cases: list[List[List[object]]],
         *,
         features: Optional[Iterable[str]] = None,
         distance_contributions: bool = False,
@@ -2336,7 +2336,7 @@ class HowsoCore:
             "session": session,
         })
 
-    def set_internal_parameters(self, trainee_id: str, params: Dict) -> None:
+    def set_internal_parameters(self, trainee_id: str, params: dict) -> None:
         """
         Sets specific model parameters in the Trainee.
 
@@ -2354,7 +2354,7 @@ class HowsoCore:
     def set_feature_attributes(
         self,
         trainee_id: str,
-        feature_attributes: Dict[str, Dict]
+        feature_attributes: dict[str, Dict]
     ) -> Dict[str, Dict]:
         """
         Sets feature attributes for a Trainee.
@@ -2775,7 +2775,7 @@ class HowsoCore:
         trainee_id: str,
         num_cases: int = 1,
         *,
-        case_indices: Optional[Iterable[Tuple[str, int]]] = None,
+        case_indices: Optional[Iterable[tuple[str, int]]] = None,
         condition: Optional[Dict] = None,
         condition_session: Optional[str] = None,
         distribute_weight_feature: Optional[str] = None,
@@ -2857,7 +2857,7 @@ class HowsoCore:
         trainee_id: str,
         num_cases: int = 1,
         *,
-        case_indices: Optional[Iterable[Tuple[str, int]]] = None,
+        case_indices: Optional[Iterable[tuple[str, int]]] = None,
         condition: Optional[Dict[str, Any]] = None,
         condition_session: Optional[str] = None,
         distribute_weight_feature: Optional[str] = None,
@@ -2919,7 +2919,7 @@ class HowsoCore:
         trainee_id: str,
         feature_values: Optional[Iterable[Any]] = None,
         *,
-        case_indices: Optional[Iterable[Tuple[str, int]]] = None,
+        case_indices: Optional[Iterable[tuple[str, int]]] = None,
         condition: Optional[Dict[str, Any]] = None,
         condition_session: Optional[str] = None,
         features: Optional[Iterable[str]] = None,
@@ -3112,7 +3112,7 @@ class HowsoCore:
     def evaluate(
         self,
         trainee_id: str,
-        features_to_code_map: Dict[str, str],
+        features_to_code_map: dict[str, str],
         *,
         aggregation_code: Optional[str] = None
     ) -> Dict:
@@ -3317,7 +3317,7 @@ class HowsoCore:
             return None
         return self._deserialize(result)
 
-    def _execute_sized(self, handle: str, label: str, payload: Any) -> Tuple[Any, int, int]:
+    def _execute_sized(self, handle: str, label: str, payload: Any) -> tuple[Any, int, int]:
         """
         Execute label in core and return payload sizes.
 

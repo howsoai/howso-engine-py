@@ -68,11 +68,11 @@ class TraineeCache(Collection):
         """Return view of ids in cache."""
         return self.__dict__.keys()
 
-    def items(self) -> t.Iterable[t.Tuple[str, TraineeCacheItem]]:
+    def items(self) -> t.Iterable[t.tuple[str, TraineeCacheItem]]:
         """Return view items in cache."""
         return self.__dict__.items()
 
-    def trainees(self) -> t.Iterator[t.Tuple[str, "Trainee"]]:
+    def trainees(self) -> t.Iterator[t.tuple[str, "Trainee"]]:
         """Return iterator to all trainee instances in cache."""
         for key, item in self.__dict__.items():
             yield (key, item['trainee'])

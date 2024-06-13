@@ -221,7 +221,7 @@ class InferFeatureAttributesTimeSeries:
 
         return features
 
-    def _set_rate_delta_bounds(self, btype: str, bounds: Dict, features: Dict):
+    def _set_rate_delta_bounds(self, btype: str, bounds: dict, features: dict):
         """Set optinally-specified rate/delta bounds in the features dict."""
         for feature in bounds.keys():
             # Check for any problems

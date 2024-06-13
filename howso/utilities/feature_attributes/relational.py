@@ -6,7 +6,7 @@ import logging
 from math import ceil, isnan, log
 import re
 from typing import (
-    Any, Dict, Iterable, List, Mapping, Optional, Tuple
+    Any, Dict, Iterable, List, Mapping, Optional, tuple
 )
 import warnings
 
@@ -393,11 +393,11 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         else:
             return value
 
-    def _get_min_max_values(self, feature_name: str) -> Tuple[Any, Any]:
+    def _get_min_max_values(self, feature_name: str) -> tuple[Any, Any]:
         """
         Get the smallest and largest values for the given table column.
 
-        The return type within the Tuple is determined by the column type.
+        The return type within the tuple is determined by the column type.
         Smallness and largeness is determined by the SQLAlchemy functions
         `min()` and `max()`.
         """
@@ -409,7 +409,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return results.min_value, results.max_value
 
-    def _get_mode(self, feature_name: str) -> List[Tuple[Any, int]]:
+    def _get_mode(self, feature_name: str) -> List[tuple[Any, int]]:
         """
         Get the most common value in the given feature/column.
 
@@ -454,7 +454,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         return [c.name for c in self.data.columns]
 
     def _get_feature_type(self, feature_name: str  # noqa: C901
-                          ) -> Tuple[Optional[FeatureType], Optional[Dict]]:
+                          ) -> tuple[Optional[FeatureType], Optional[Dict]]:
         # Place here to avoid circular import
         from howso.client.exceptions import HowsoError
         for column in self.data.columns:
@@ -902,7 +902,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return output
 
-    def _parse_column_type(self, full_type_str: str) -> Tuple[str, dict]:
+    def _parse_column_type(self, full_type_str: str) -> tuple[str, dict]:
         """
         Determine column type from schema description of column.
 

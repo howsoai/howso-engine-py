@@ -7,7 +7,7 @@ from typing import (
     Iterable,
     List,
     Literal,
-    Tuple,
+    tuple,
     Union,
 )
 
@@ -15,7 +15,7 @@ from pandas import DataFrame
 from typing_extensions import TypeAlias
 
 #: Type alias for case indices.
-CaseIndices: TypeAlias = Iterable[Tuple[str, int]]
+CaseIndices: TypeAlias = Iterable[tuple[str, int]]
 #: Type alias for the valid values for ``generate_new_cases`` parameters.
 GenerateNewCases: TypeAlias = Literal["always", "attempt", "no"]
 #: Type alias for the valid values for ``library`` parameters.

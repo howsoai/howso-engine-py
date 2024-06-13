@@ -3,7 +3,7 @@ from importlib import import_module
 from os import environ
 from os.path import expandvars
 from pathlib import Path
-from typing import Generator, Optional, Sequence, Tuple, Union
+from typing import Generator, Optional, Sequence, tuple, Union
 import warnings
 
 from howso.client.base import AbstractHowsoClient
@@ -218,7 +218,7 @@ def get_extras_configs(directory: Union[Path, str, None] = None) -> dict:
     return extras_config
 
 
-def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
+def get_howso_client_class(**kwargs) -> tuple[type, dict]:  # noqa: C901
     """
     Return the appropriate AbstractHowsoClient subclass based on config.
 

@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from typing import (
-    Any, Dict, Generator, Iterable, List, Optional, Protocol, runtime_checkable, Tuple, Union
+    Any, Dict, Generator, Iterable, List, Optional, Protocol, runtime_checkable, tuple, Union
 )
 
 import pandas as pd
@@ -16,8 +16,8 @@ class TableNameProtocol(Protocol):
 class SQLTableProtocol(Protocol):
     """Protocol for a SQL table object."""
 
-    c: Dict
-    columns: Dict
+    c: dict
+    columns: dict
     name: str
     schema: str
 
@@ -96,9 +96,9 @@ class RelationshipProtocol(Protocol):
     """Protocol for an object representing a relationship in a database."""
 
     source: TableNameProtocol
-    source_columns: Tuple[str]
+    source_columns: tuple[str]
     destination: TableNameProtocol
-    destination_columns: Tuple[str]
+    destination_columns: tuple[str]
 
 
 class ComponentProtocol(Protocol):
@@ -113,7 +113,7 @@ class DatastoreProtocol(Protocol):
     """Protocol for a datastore object."""
 
     @abstractmethod
-    def items(self) -> Generator[Tuple[TableNameProtocol, AbstractDataProtocol], None, None]:
+    def items(self) -> Generator[tuple[TableNameProtocol, AbstractDataProtocol], None, None]:
         """Get items in the datastore."""
         raise NotImplementedError
 
@@ -181,7 +181,7 @@ class DatastoreProtocol(Protocol):
                        primary_key_columns: Union[List[str], str],
                        primary_key_values: Union[List[Any], Any],
                        column_name: str,
-                       replace_values: List[Any],
+                       replace_values: list[Any],
                        return_old: bool = False
                        ) -> Optional[List[Any]]:
         """Replace the column values in a specified table."""

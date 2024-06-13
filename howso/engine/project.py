@@ -311,7 +311,7 @@ class Project(BaseProject):
 
         Parameters
         ----------
-        project_dict : Dict
+        project_dict : dict
             The Project parameters.
 
         Returns
