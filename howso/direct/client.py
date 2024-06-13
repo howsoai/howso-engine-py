@@ -4302,6 +4302,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         context_condition: t.Optional[dict[str, t.Any]] = None,
         context_condition_precision: t.Optional[t.Literal["exact", "similar"]] = None,
         context_precision_num_cases: t.Optional[int] = None,
+        features: t.Optional[list] = None,
         num_robust_influence_samples_per_case=None,
         robust: Optional[bool] = None,
         robust_hyperparameters: Optional[bool] = None,
@@ -4392,6 +4393,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             The precision to use when selecting cases with the ``context_condition``.
             If not specified "exact" will be used. Only used if ``context_condition``
             is not None.
+        features : list, optional
+            List of features to use when calculating conditional prediction stats. Should contain all action and
+            context features desired. If ``action_feature`` is also provided, that feature will automatically be
+            appended to this list if it is not already in the list.
         num_robust_influence_samples_per_case : int, optional
             Specifies the number of robust samples to use for each case for
             robust contribution computations.
@@ -4489,6 +4494,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             context_condition_precision=context_condition_precision,
             context_precision_num_cases=context_precision_num_cases,
             num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
+            features=features
         )
         return stats
 
