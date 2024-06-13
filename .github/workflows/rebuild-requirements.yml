@@ -17,7 +17,7 @@ on:
         description: A whitespace-separated list of Python "extras" that should be installed into requirements-<version>-dev.txt (e.g., "dev scikit")
         type: string
         required: false
-        default: "dev"
+        default: "dev scikit"
 
 defaults:
   run:
