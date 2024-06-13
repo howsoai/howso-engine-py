@@ -3,7 +3,8 @@ import os
 from typing import Callable, Union
 from unittest.mock import patch
 
-import howso.client
+from howso.client import HowsoClient
+from howso.client.base import AbstractHowsoClient
 from howso.direct import HowsoDirectClient
 
 
@@ -32,9 +33,9 @@ def get_test_options():
 
 
 def get_configurationless_test_client(
-    client_class: Union[howso.client.AbstractHowsoClient, Callable] = HowsoDirectClient,
+    client_class: Union[AbstractHowsoClient, Callable] = HowsoDirectClient,
     **kwargs
-) -> howso.client.HowsoClient:
+) -> HowsoClient:
     """
     Return a client for use within testing.
 

@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 import uuid
 
 from howso import engine
-import howso.client
+from howso.client.base import AbstractHowsoClient
 from howso.client.exceptions import (
     HowsoApiError,
     HowsoError,
@@ -111,7 +111,7 @@ class HowsoEstimator(BaseEstimator):
     0.9666666666666667
     """
 
-    def __init__(self, client: Optional[howso.client.AbstractHowsoClient] = None,
+    def __init__(self, client: Optional[AbstractHowsoClient] = None,
                  features: Optional[Dict] = None, targets: Dict = None,
                  method: Optional[str] = None, verbose: bool = False,
                  debug: bool = False, ttl: int = DEFAULT_TTL,

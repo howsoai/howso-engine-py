@@ -6,7 +6,7 @@ from typing import (
     Union,
 )
 
-from howso.client.client import get_howso_client_class
+import howso.client.client
 import howso.utilities as utilities
 import howso.utilities.internals as internals
 import howso.utilities.reaction as reaction
@@ -302,7 +302,7 @@ def get_howso_pandas_client(**kwargs):
         An instantiated subclass of AbstractHowsoClient constructed with
         the HowsoPandasClientMixin.
     """
-    client_class, client_params = get_howso_client_class(**kwargs)
+    client_class, client_params = howso.client.client.get_howso_client_class(**kwargs)
 
     # Construct the client class from the requested base client class and
     # the pandas mixin

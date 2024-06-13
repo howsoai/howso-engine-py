@@ -16,7 +16,6 @@ from the documentation.
 Examples implementations are included in the howso/examples directory.
 """
 
-from .base import AbstractHowsoClient, ATTRIBUTE_MAP  # noqa: F401
 from .client import (  # noqa: F401
     CONFIG_FILE_ENV_VAR,
     DEFAULT_CONFIG_FILE,
@@ -30,7 +29,6 @@ from .pandas.client import (  # noqa: F401
 )
 
 __all__ = [
-    "AbstractHowsoClient",
     "CONFIG_FILE_ENV_VAR",
     "DEFAULT_CONFIG_FILE_ALT",
     "DEFAULT_CONFIG_FILE",

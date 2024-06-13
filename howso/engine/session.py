@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 
-import howso.client
+from howso.client.base import AbstractHowsoClient, ATTRIBUTE_MAP
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
 from howso.engine.client import get_client
@@ -38,7 +38,7 @@ class Session():
         *,
         id: Optional[str] = None,
         metadata: Optional[dict] = None,
-        client: Optional[howso.client.AbstractHowsoClient] = None,
+        client: Optional[AbstractHowsoClient] = None,
         **kwargs
     ) -> None:
         """Implement the constructor."""
@@ -134,7 +134,7 @@ class Session():
         return self._modified_date
 
     @property
-    def client(self) -> howso.client.AbstractHowsoClient:
+    def client(self) -> AbstractHowsoClient:
         """
         The client instance used by the session.
 
@@ -146,7 +146,7 @@ class Session():
         return self._client
 
     @client.setter
-    def client(self, client: howso.client.AbstractHowsoClient) -> None:
+    def client(self, client: AbstractHowsoClient) -> None:
         """
         Set the client instance used by the session.
 
@@ -159,7 +159,7 @@ class Session():
         -------
         None
         """
-        if not isinstance(client, howso.client.AbstractHowsoClient):
+        if not isinstance(client, AbstractHowsoClient):
             raise HowsoError("`client` must be a subclass of "
                              "AbstractHowsoClient")
         self._client = client
@@ -194,7 +194,7 @@ class Session():
         -------
         None
         """
-        for key in self.attribute_map.keys():
+        for key in ATTRIBUTE_MAP.keys():
             # Update the protected attributes directly since the values
             # have already been validated by the "Session" instance
             # and to prevent triggering an API update call
@@ -258,14 +258,14 @@ class Session():
             'client': session_dict.get('client')
         }
         instance = cls(**parameters)
-        for key in cls.attribute_map.keys():
+        for key in ATTRIBUTE_MAP.keys():
             if key in session_dict:
                 setattr(instance, f'_{key}', session_dict[key])
         return instance
 
 
 def get_active_session(
-    *, client: Optional[howso.client.AbstractHowsoClient] = None
+    *, client: Optional[AbstractHowsoClient] = None
 ) -> Session:
     """
     Get the active session.
@@ -287,7 +287,7 @@ def get_active_session(
 def get_session(
     session_id: str,
     *,
-    client: Optional[howso.client.AbstractHowsoClient] = None
+    client: Optional[AbstractHowsoClient] = None
 ) -> Session:
     """
     Get an existing Session.
@@ -312,7 +312,7 @@ def get_session(
 def list_sessions(
     search_terms: Optional[str] = None,
     *,
-    client: Optional[howso.client.AbstractHowsoClient] = None,
+    client: Optional[AbstractHowsoClient] = None,
     project: Optional[Union[str, Project]] = None
 ) -> List[Session]:
     """

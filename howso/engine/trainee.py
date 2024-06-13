@@ -23,7 +23,7 @@ from pandas import (
     Index,
 )
 
-import howso.client
+from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.exceptions import (
     HowsoApiError,
@@ -104,7 +104,7 @@ class Trainee():
         Any key-value pair to store as custom metadata for the trainee.
     resources : map, optional
         Customize the resources provisioned for the Trainee instance.
-    client : howso.client.AbstractHowsoClient, optional
+    client : AbstractHowsoClient, optional
         The Howso client instance to use.
     overwrite_existing : bool, default False
         Overwrite existing trainee with the same name (if exists).
@@ -132,7 +132,7 @@ class Trainee():
         metadata: Optional[MutableMapping[str, Any]] = None,
         project: Optional[Union[str, Project]] = None,
         resources: Optional[MutableMapping[str, Any]] = None,
-        client: Optional[howso.client.AbstractHowsoClient] = None,
+        client: Optional[AbstractHowsoClient] = None,
         **kwargs
     ):
         self._created: bool = False
@@ -381,7 +381,7 @@ class Trainee():
         Session or None
             The session instance, if it exists.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient) and self.client.active_session:
+        if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
             return self.client.active_session
 
     def save(self, file_path: Optional[PathLike] = None):
@@ -454,7 +454,7 @@ class Trainee():
             The feature attributes of the trainee. Where feature ``name`` is the
             key and a sub dictionary of feature attributes is the value.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.set_feature_attributes(
                 trainee_id=self.id, feature_attributes=feature_attributes
             )
@@ -527,13 +527,13 @@ class Trainee():
         if isinstance(self.client, ProjectClient):
             params["project_id"] = project_id
 
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             trainee_data = self.client.copy_trainee(**params)
             copy = Trainee(**trainee_data)
         else:
             copy = None
         if copy:
-            if isinstance(self.client, howso.client.AbstractHowsoClient):
+            if isinstance(self.client, AbstractHowsoClient):
                 return copy
             raise ValueError("Client must be an instance of 'AbstractHowsoClient'")
         else:
@@ -587,7 +587,7 @@ class Trainee():
         -------
         None
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.persist_trainee(self.id)
             self._was_saved = True
 
@@ -597,7 +597,7 @@ class Trainee():
 
         If trying to delete a trainee from another location, see :func:`delete_trainee`.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             if isinstance(self.client, LocalSaveableProtocol) and self._custom_save_path is not None:
                 self.client.delete_trainee(trainee_id=self.id, file_path=self._custom_save_path)
             else:
@@ -635,7 +635,7 @@ class Trainee():
             the system-configured maximum for sufficient resources to become
             available, which is typically 20 minutes.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.acquire_trainee_resources(self.id, max_wait_time=max_wait_time)
         else:
             raise ValueError("Client must have the 'acquire_trainee_resources' method.")
@@ -644,7 +644,7 @@ class Trainee():
         """Release a trainee's resources from the Howso service."""
         if not self.id:
             return
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.release_trainee_resources(self.id)
         else:
             raise ValueError("Client must have the 'release_trainee_resources' method.")
@@ -659,7 +659,7 @@ class Trainee():
             The trainee detail information. Including trainee version and
             configuration parameters.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_trainee_information(self.id)
         else:
             raise ValueError("Client must have 'get_trainee_information' method")
@@ -673,7 +673,7 @@ class Trainee():
         Metrics
             The trainee metric information. Including cpu and memory.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_trainee_metrics(self.id)
         else:
             raise ValueError("Client must have 'get_trainee_metrics' method")
@@ -687,7 +687,7 @@ class Trainee():
         seed : int or float or str
             The random seed.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.set_random_seed(trainee_id=self.id, seed=seed)
 
     def train(
@@ -768,7 +768,7 @@ class Trainee():
             attributes. Issues warnings if there are any discrepancies between
             the data and the features dictionary.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self._needs_analyze = False
             needs_analyze = self.client.train(
                 trainee_id=self.id,
@@ -797,7 +797,7 @@ class Trainee():
         the user has called :meth:`analyze` before. If not, it will default to a
         robust and versatile analysis.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.auto_analyze(self.id)
         else:
             raise ValueError("Client must have the 'auto_analyze' method.")
@@ -811,7 +811,7 @@ class Trainee():
         dict of str -> any
             A dictionary mapping parameter names to parameter values.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_auto_ablation_params(self.id)
         else:
             raise ValueError("Client must have the 'get_auto_ablation_params' method.")
@@ -868,7 +868,7 @@ class Trainee():
         conviction_upper_threshold : float, optional
             The conviction value below which cases will be ablated.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.set_auto_ablation_params(
                 trainee_id=self.id,
                 auto_ablation_enabled=auto_ablation_enabled,
@@ -924,7 +924,7 @@ class Trainee():
             to the value of ``influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
             which defaults to 0.6.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.reduce_data(
                 trainee_id=self.id,
                 features=features,
@@ -969,7 +969,7 @@ class Trainee():
         **kwargs: dict, optional
             Accepts any of the keyword arguments in :meth:`analyze`.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.set_auto_analyze_params(
                 trainee_id=self.id,
                 auto_analyze_enabled=auto_analyze_enabled,
@@ -1062,7 +1062,7 @@ class Trainee():
         **kwargs : dict, optional
             Additional experimental analyze parameters.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.analyze(
                 trainee_id=self.id,
                 action_features=action_features,
@@ -1892,7 +1892,7 @@ class Trainee():
             A list of feature names to impute. If not specified, features
             will be used.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.impute(
                 trainee_id=self.id,
                 batch_size=batch_size,
@@ -1982,7 +1982,7 @@ class Trainee():
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.remove_cases(
                 trainee_id=self.id,
                 num_cases=num_cases,
@@ -2060,7 +2060,7 @@ class Trainee():
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.edit_cases(
                 trainee_id=self.id,
                 case_indices=case_indices,
@@ -2084,7 +2084,7 @@ class Trainee():
             A list of dicts with keys "id" and "name" for each session
             in the model.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_trainee_sessions(self.id)
         else:
             raise ValueError("Client must have the 'get_sessions' method.")
@@ -2102,7 +2102,7 @@ class Trainee():
             session_id = session.id
         else:
             session_id = session
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.delete_trainee_session(trainee_id=self.id, session=session_id)
         else:
             raise ValueError("Client must have the 'delete_trainee_session' method.")
@@ -2321,7 +2321,7 @@ class Trainee():
         int
             The number of trained cases.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_num_training_cases(self.id)
         else:
             raise ValueError("Client must have the 'get_num_training_cases' method.")
@@ -2387,7 +2387,7 @@ class Trainee():
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             if self.id:
                 self.client.add_feature(
                     trainee_id=self.id,
@@ -2456,7 +2456,7 @@ class Trainee():
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             if self.id:
                 self.client.remove_feature(
                     trainee_id=self.id,
@@ -2483,7 +2483,7 @@ class Trainee():
             Series id to clear. If not provided, clears the entire
             series store for the trainee.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.remove_series_store(trainee_id=self.id, series=series)
         else:
             raise ValueError("Client must have the 'remove_series_store' method.")
@@ -2509,7 +2509,7 @@ class Trainee():
         context_features : iterable of str, optional
             The list of feature names for contexts.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.append_to_series_store(
                 trainee_id=self.id,
                 series=series,
@@ -2536,7 +2536,7 @@ class Trainee():
             features mapping to ``None`` or ``{}``, substitution values will
             immediately be generated.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.set_substitute_feature_values(
                 trainee_id=self.id, substitution_value_map=substitution_value_map
             )
@@ -2567,7 +2567,7 @@ class Trainee():
             A dictionary of feature name to a dictionary of feature value to
             substitute feature value.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_substitute_feature_values(
                 trainee_id=self.id, clear_on_get=clear_on_get
             )
@@ -3040,7 +3040,7 @@ class Trainee():
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.react_into_features(
                 trainee_id=self.id,
                 distance_contribution=distance_contribution,
@@ -3165,7 +3165,7 @@ class Trainee():
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.react_into_trainee(
                 trainee_id=self.id,
                 action_feature=action_feature,
@@ -3324,7 +3324,7 @@ class Trainee():
             parameters or only the best hyperparameters selected using the
             passed parameters.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_params(
                 self.id,
                 action_feature=action_feature,
@@ -3364,37 +3364,37 @@ class Trainee():
                     "auto_analyze_limit_size": 100000
                 }
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             self.client.set_params(self.id, params=params)
         else:
             raise ValueError("Client must have the 'set_params' method.")
 
     @property
-    def client(self) -> howso.client.AbstractHowsoClient | HowsoPandasClientMixin:
+    def client(self) -> AbstractHowsoClient | HowsoPandasClientMixin:
         """
         The client instance used by the trainee.
 
         Returns
         -------
-        howso.client.AbstractHowsoClient
+        AbstractHowsoClient
             The client instance.
         """
         return self._client
 
     @client.setter
-    def client(self, client: howso.client.AbstractHowsoClient):
+    def client(self, client: AbstractHowsoClient):
         """
         Set the client instance used by the trainee.
 
         Parameters
         ----------
-        client : howso.client.AbstractHowsoClient
+        client : AbstractHowsoClient
             The client instance. Must be a subclass of :class:`AbstractHowsoClient`
             and :class:`HowsoPandasClientMixin`.
         """
-        if not isinstance(client, howso.client.AbstractHowsoClient):
+        if not isinstance(client, AbstractHowsoClient):
             raise HowsoError(
-                "``client`` must be a subclass of howso.client.AbstractHowsoClient"
+                "``client`` must be a subclass of AbstractHowsoClient"
             )
         if not isinstance(client, HowsoPandasClientMixin):
             raise HowsoError("``client`` must be a HowsoPandasClient")
@@ -3426,7 +3426,7 @@ class Trainee():
             try:
                 self._updating = True
                 trainee = Trainee(**self.to_dict())
-                if isinstance(self.client, howso.client.AbstractHowsoClient):
+                if isinstance(self.client, AbstractHowsoClient):
                     updated_trainee = self.client.update_trainee(trainee)
                 else:
                     raise ValueError("Client must have the 'update_trainee' method.")
@@ -3500,7 +3500,7 @@ class Trainee():
             A list of computed pairwise distances between each corresponding
             pair of cases in ``from_case_indices`` and ``to_case_indices``.
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_pairwise_distances(
                 self.id,
                 features=features,
@@ -3615,7 +3615,7 @@ class Trainee():
             'aggregated' is None if no aggregation_code is given, it otherwise
             holds the output of the custom 'aggregation_code'
         """
-        if isinstance(self.client, howso.client.AbstractHowsoClient):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.evaluate(
                 self.id,
                 features_to_code_map=features_to_code_map,
@@ -3647,7 +3647,7 @@ class Trainee():
         """
         if not self.id:
             new_trainee = None
-            if isinstance(self.client, howso.client.AbstractHowsoClient):
+            if isinstance(self.client, AbstractHowsoClient):
                 new_trainee = self.client.create_trainee(
                     name = self.name,
                     features = self.features,
@@ -3943,7 +3943,7 @@ def delete_trainee(
 
         If ``file_path`` is just a filename, then the absolute path will be computed
         appending the filename to the CWD.
-    client : howso.client.AbstractHowsoClient, optional
+    client : AbstractHowsoClient, optional
         The Howso client instance to use.
     """
     client = client or get_client()
@@ -3992,7 +3992,7 @@ def load_trainee(
         If ``file_path`` is just a filename, then the absolute path will be computed
         appending the filename to the CWD.
 
-    client : howso.client.AbstractHowsoClient, optional
+    client : AbstractHowsoClient, optional
         The Howso client instance to use. Must have local disk access.
 
     Returns
@@ -4067,7 +4067,7 @@ def get_trainee(
     ----------
     name_or_id : str
         The name or id of the trainee.
-    client : howso.client.AbstractHowsoClient, optional
+    client : AbstractHowsoClient, optional
         The Howso client instance to use.
 
     Returns
@@ -4098,7 +4098,7 @@ def list_trainees(
     ----------
     search_terms : str, optional
         Terms to filter results by.
-    client : howso.client.AbstractHowsoClient, optional
+    client : AbstractHowsoClient, optional
         The Howso client instance to use.
     project : str or Project, optional
         The instance or id of a project to filter by.
