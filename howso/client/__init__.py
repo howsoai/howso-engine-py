@@ -23,6 +23,7 @@ from .client import (  # noqa: F401
     get_configuration_path,
     get_howso_client,
     HowsoClient,
+    AbstractHowsoClient
 )
 from .pandas.client import (  # noqa: F401
     HowsoPandasClient,
@@ -36,4 +37,5 @@ __all__ = [
     "get_howso_client",
     "HowsoClient",
     "HowsoPandasClient",
+    "AbstractHowsoClient"
 ]
