@@ -432,8 +432,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         overwrite_trainee: bool = False,
         persistence: Persistence = "allow",
-        default_action_features: Optional[Iterable[str]] = None,
-        default_context_features: Optional[Iterable[str]] = None,
         id: Optional[str] = None,
         library_type: Optional[Library] = None,
         max_wait_time: Optional[Union[int, float]] = None,
@@ -516,20 +514,16 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f"binaries/camls or {trainee_id} trainee already exists.")
 
         metadata = dict(
-            name = name,
-            default_context_features = default_context_features,
-            default_action_features = default_action_features,
-            persistence = persistence,
+            name=name,
+            persistence=persistence,
             **(metadata or {})
         )
         new_trainee = dict(
-            name = name,
-            features = features,
-            persistence = persistence,
-            default_action_features = default_action_features,
-            default_context_features = default_context_features,
-            id = id,
-            metadata = metadata
+            name=name,
+            features=features,
+            persistence=persistence,
+            id=id,
+            metadata=metadata
         )
         new_trainee = internals.preprocess_trainee(new_trainee)
         self.howso.set_metadata(trainee_id, metadata)
@@ -570,8 +564,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         metadata = dict(
             name=trainee["name"],
-            default_context_features=trainee["default_context_features"],
-            default_action_features=trainee["default_action_features"],
             metadata=trainee["metadata"],
             persistence=trainee["persistence"],
         )
@@ -894,8 +886,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             new_trainee["id"] = new_trainee_id
             metadata = {
                 'name': new_trainee["name"],
-                'default_context_features': new_trainee["default_context_features"],
-                'default_action_features': new_trainee["default_action_features"],
                 'metadata': new_trainee["metadata"],
                 'persistence': new_trainee["persistence"],
             }
@@ -1056,18 +1046,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         persistence = metadata.get('persistence', 'allow')
         trainee_meta = metadata.get('metadata', {})
         trainee_name = metadata.get('name')
-        default_action_features = metadata.get('default_action_features', {})
-        default_context_features = metadata.get('default_context_features', {})
 
         features = self.howso.get_feature_attributes(trainee_id)
         loaded_trainee = dict(
-            name = trainee_name,
-            features = features,
-            persistence = persistence,
-            default_action_features = default_action_features,
-            default_context_features = default_context_features,
-            id = trainee_id,
-            metadata = metadata
+            name=trainee_name,
+            features=features,
+            persistence=persistence,
+            id=trainee_id,
+            metadata=metadata
         )
         return internals.postprocess_trainee(loaded_trainee)
 

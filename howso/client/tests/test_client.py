@@ -206,9 +206,7 @@ class TestDatetimeSerialization:
                                  'date_time_format': '%Y-%m-%dT%H:%M:%S.%f'}
                     }
         trainee = dict(
-            features=features,
-            default_action_features=['nom'],
-            default_context_features=['datetime'],
+            features=features
         )
         trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
         try:
@@ -243,9 +241,7 @@ class TestDatetimeSerialization:
                                  'date_time_format': '%Y-%m-%dT%H:%M:%S'}
                     }
         trainee = dict(
-            features=features,
-            default_action_features=['nom'],
-            default_context_features=['datetime'],
+            features=features
         )
         trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
         df = pd.DataFrame(data=np.asarray([
@@ -280,9 +276,7 @@ class TestDatetimeSerialization:
                                  'date_time_format': '%H %Y'}
                     }
         trainee = dict(
-            features=features,
-            default_action_features=['date_time_format'],
-            default_context_features=['nom'],
+            features=features
         )
         trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
         df = pd.DataFrame(data=np.asarray([
@@ -365,8 +359,6 @@ class TestClient:
         trainee = dict(
             name=trainee_name,
             features=feats,
-            default_action_features=actions,
-            default_context_features=contexts,
             metadata={'ttl': 600000}
         )
         trainee = trainee_builder.create(**trainee)
@@ -844,9 +836,7 @@ class TestBaseClient:
                     header[4]: {'type': 'nominal'}
                     }
         trainee = dict(
-            features=features,
-            default_action_features=header[-1:],
-            default_context_features=header[:-1],
+            features=features
         )
         trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
         try:
@@ -894,9 +884,7 @@ class TestBaseClient:
                     header[4]: {'type': 'nominal'}
                     }
         trainee = dict(
-            features=features,
-            default_action_features=header[-1:],
-            default_context_features=header[:-1]
+            features=features
         )
         trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
         trainee["name"] = 'test-update-verbose'

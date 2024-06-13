@@ -84,8 +84,6 @@ class AbstractHowsoClient(ABC):
         *,
         overwrite_trainee = False,
         persistence = "allow",
-        default_action_features = None,
-        default_context_features = None,
         id = None,
         library_type = None,
         max_wait_time = None,
