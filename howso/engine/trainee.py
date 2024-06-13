@@ -135,6 +135,7 @@ class Trainee():
         client: Optional[AbstractHowsoClient] = None,
         **kwargs
     ):
+
         self._created: bool = False
         self._updating: bool = False
         self._was_saved: bool = False
@@ -3415,6 +3416,16 @@ class Trainee():
             # and to prevent triggering an API update call
             setattr(self, f"_{key}", trainee.get(key))
 
+    def to_dict(self):
+        return dict(
+            name=self.name,
+            features=self.features,
+            persistence=self.persistence,
+            project_id=self.project_id,
+            id=self.id,
+            metadata=self.metadata
+        )
+
     def update(self):
         """Update the remote trainee with local state."""
         if (
@@ -3425,7 +3436,7 @@ class Trainee():
             # Only update for trainees that have been created
             try:
                 self._updating = True
-                trainee = Trainee(**self.to_dict())
+                trainee = self.to_dict()
                 if isinstance(self.client, AbstractHowsoClient):
                     updated_trainee = self.client.update_trainee(trainee)
                 else:
@@ -3566,7 +3577,7 @@ class Trainee():
 
                 {
                     'case_indices': [ session-indices ],
-                    'distances': DataFrame( distances )
+                    distances=DataFrame( distances )
                 }
         """
         return self.client.get_distances(
@@ -3747,8 +3758,8 @@ class Trainee():
             be processed sequentially.
 
             Default Methods:
-            - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
-            - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
+            - relative=normalizes each row by dividing each value by the maximum absolute value in the row.
+            - fractional=normalizes each row by dividing each value by the sum of absolute values in the row.
             - 'feature_count': normalizes each row by dividing by the feature count.
 
             Custom Callable:
@@ -3846,8 +3857,8 @@ class Trainee():
             be processed sequentially.
 
             Default Methods:
-            - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
-            - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
+            - relative=normalizes each row by dividing each value by the maximum absolute value in the row.
+            - fractional=normalizes each row by dividing each value by the sum of absolute values in the row.
             - 'feature_count': normalizes each row by dividing by the feature count.
 
             Custom Callable:

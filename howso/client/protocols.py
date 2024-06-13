@@ -9,7 +9,6 @@ from typing import (
 
 if TYPE_CHECKING:
     from howso.direct.core import HowsoCore
-    from howso.engine.project import Project
 
 __all__ = [
     "LocalSaveableProtocol",
@@ -34,17 +33,17 @@ class LocalSaveableProtocol(Protocol):
 class ProjectClient(Protocol):
     """Protocol to define a Howso client that supports projects."""
 
-    active_project: Optional["Project"]
+    active_project: Optional["Dict"]
 
-    def switch_project(self, project_id: str) -> "Project":
+    def switch_project(self, project_id: str) -> "Dict":
         """Switch active project."""
         ...
 
-    def create_project(self, name: str) -> "Project":
+    def create_project(self, name: str) -> "Dict":
         """Create new project."""
         ...
 
-    def update_project(self, project_id: str) -> "Project":
+    def update_project(self, project_id: str) -> "Dict":
         """Update existing project."""
         ...
 
@@ -52,10 +51,10 @@ class ProjectClient(Protocol):
         """Delete a project."""
         ...
 
-    def get_project(self, project_id: str) -> "Project":
+    def get_project(self, project_id: str) -> "Dict":
         """Get existing project."""
         ...
 
-    def get_projects(self, search_terms: Optional[str]) -> List["Project"]:
+    def get_projects(self, search_terms: Optional[str]) -> List["Dict"]:
         """Search and list projects."""
         ...

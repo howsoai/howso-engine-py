@@ -569,11 +569,11 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Updating trainee with id: {trainee["id"]}')
 
         metadata = dict(
-            name = trainee["name"],
-            default_context_features = trainee["default_context_features"],
-            default_action_features = trainee["default_action_features"],
-            metadata = trainee["metadata"],
-            persistence = trainee["persistence"],
+            name=trainee["name"],
+            default_context_features=trainee["default_context_features"],
+            default_action_features=trainee["default_action_features"],
+            metadata=trainee["metadata"],
+            persistence=trainee["persistence"],
         )
         self.howso.set_metadata(trainee_id, metadata)
         trainee["metadata"] = self.howso.get_metadata(trainee_id)
@@ -5332,7 +5332,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     'and targetless.')
 
         # Collect valid parameters
-        parameters = { k: v for k, v in kwargs.items() if k in ATTRIBUTE_MAP }
+        parameters = { k: v for k, v in kwargs.items() if k in ATTRIBUTE_MAP}
         if kwargs:
             warn_params = ', '.join(kwargs)
             warnings.warn(

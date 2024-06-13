@@ -9,13 +9,13 @@ from typing import (
     Union,
 )
 
-from howso.utilities.reaction import Reaction
 from pandas import DataFrame, Index
 
 if TYPE_CHECKING:
+    from howso.utilities.reaction import Reaction
     from .configuration import HowsoConfiguration
 
-# PR-BLOCK: This map is an identity; could be changed to a list.
+# TODO/PR BLOCK: This map is an identity; could be changed to a list.
 # Decide if that's the desired path. Also consider what utility having
 # kwargs vs parameters defined really provides if kwargs can just be
 # used directly and parameters which aren't needed can be ignored;
@@ -354,7 +354,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> Reaction:
+    ) -> "Reaction":
         """React in a series until a stop condition is met."""
 
     @abstractmethod
@@ -447,7 +447,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> Reaction:
+    ) -> "Reaction":
         """Send a `react` to the Howso engine."""
 
     @abstractmethod
