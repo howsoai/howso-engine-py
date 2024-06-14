@@ -96,6 +96,10 @@ class Trainee(BaseTrainee):
         The feature attributes of the trainee. Where feature ``name`` is the key
         and a sub dictionary of feature attributes is the value. If this is not
         specified in the constructor, it must be set during or before :meth:`train`.
+    default_action_features : list of str, optional
+        The default action feature names of the trainee.
+    default_context_features : list of str, optional
+        The default context feature names of the trainee.
     id : str, optional
         The unique identifier of the Trainee. The client automatically completes
         this field and the user should NOT manually use this parameter. Please use
@@ -129,6 +133,8 @@ class Trainee(BaseTrainee):
         *,
         overwrite_existing: bool = False,
         persistence: Persistence = "allow",
+        default_action_features: Optional[Iterable[str]] = None,
+        default_context_features: Optional[Iterable[str]] = None,
         id: Optional[str] = None,
         library_type: Optional[Library] = None,
         max_wait_time: Optional[Union[int, float]] = None,
@@ -152,6 +158,10 @@ class Trainee(BaseTrainee):
         self._needs_analyze: bool = False
 
         self.persistence = persistence
+        self.set_default_features(
+            action_features=default_action_features,
+            context_features=default_context_features,
+        )
 
         # Allow passing project id or the project instance
         if isinstance(project, BaseProject):
@@ -368,6 +378,38 @@ class Trainee(BaseTrainee):
         return self._calculated_matrices
 
     @property
+    def default_action_features(self) -> List[str] | None:
+        """
+        The default action features of the trainee.
+
+        .. WARNING::
+            This returns a deep copy of the default action features. To
+            update them, use the method :meth:`set_default_features`.
+
+        Returns
+        -------
+        None or list of str
+            The default action feature names for the trainee.
+        """
+        return deepcopy(self._default_action_features)
+
+    @property
+    def default_context_features(self) -> None | List[str]:
+        """
+        The default context features of the trainee.
+
+        .. WARNING::
+            This returns a deep copy of the default context features. To
+            update them, use the method :meth:`set_default_features`.
+
+        Returns
+        -------
+        None or list of str
+            The default context feature names for the trainee.
+        """
+        return deepcopy(self._default_context_features)
+
+    @property
     def active_session(self) -> Session | None:
         """
         The active session.
@@ -463,6 +505,32 @@ class Trainee(BaseTrainee):
                 raise ValueError("Trainee ID is needed for setting feature attributes.")
         else:
             raise ValueError("Client must have the 'set_feature_attributes' method.")
+
+    def set_default_features(
+        self,
+        *,
+        action_features: Optional[Iterable[str]] = None,
+        context_features: Optional[Iterable[str]] = None,
+    ):
+        """
+        Update the trainee default features.
+
+        Parameters
+        ----------
+        action_features : iterable of str, optional
+            The default action feature names.
+        context_features : iterable of str, optional
+            The default context feature names.
+        """
+        if action_features is not None:
+            self._default_action_features = list(action_features)
+        else:
+            self._default_action_features = None
+        if context_features is not None:
+            self._default_context_features = list(context_features)
+        else:
+            self._default_context_features = None
+        self.update()
 
     def set_metadata(self, metadata: Optional[MutableMapping[str, Any]]):
         """
@@ -1083,8 +1151,8 @@ class Trainee(BaseTrainee):
     def predict(
         self,
         contexts: Optional[TabularData2D] = None,
-        action_features: Iterable[str] = None,
         *,
+        action_features: Optional[Iterable[str]] = None,
         allow_nulls: bool = False,
         case_indices: Optional[CaseIndices] = None,
         context_features: Optional[Iterable[str]] = None,
@@ -1106,8 +1174,10 @@ class Trainee(BaseTrainee):
         contexts : DataFrame or 2-dimensional list of object, optional
             The context values to react to. If neither this nor ``context_values`` are
             specified then ``case_indices`` must be specified.
-        action_features : list of str
-            Feature names to treat as action features during react.
+        action_features : list of str, optional
+            Feature names to treat as action features during react. If no
+            ``action_features`` are specified, the ``default_action_features``
+            is used.
         allow_nulls : bool, default False, optional
             See parameter ``allow_nulls`` in :meth:`react`.
         case_indices : iterable of (str, int), optional
@@ -1116,8 +1186,9 @@ class Trainee(BaseTrainee):
             must be specified.
         context_features : list of str, optional
             Feature names to treat as context features during react. If no
-            ``context_features`` are specified, then this will be all of
-            the ``features`` excluding the ``action_features``.
+            ``context_features`` are specified, then the ``default_context_features``
+            are used. If the Trainee has no ``default_context_features``, then
+            this will be all of the ``features`` excluding the ``action_features``.
         derived_action_features : list of str, optional
             See parameter ``derived_action_features`` in :meth:`react`.
         derived_context_features : list of str, optional
@@ -1137,12 +1208,20 @@ class Trainee(BaseTrainee):
             DataFrame consisting of the discriminative predicted results.
         """
         if action_features is None:
-            raise HowsoError(
-                "No action features specified. Please specify the action feature."
-            )
+            if self.default_action_features is None:
+                raise HowsoError(
+                    "No action features specified and no default action features are present. "
+                    "Please specify the action feature or add default action features "
+                    "to the Trainee."
+                )
+            else:
+                action_features = self.default_action_features
 
         if context_features is None:
-            context_features = [key for key in self.features.keys() if key not in action_features]
+            if self.default_context_features is None:
+                context_features = [key for key in self.features.keys() if key not in action_features]
+            else:
+                context_features = self.default_context_features
 
         results = self.react(
             action_features=action_features,
@@ -1175,7 +1254,7 @@ class Trainee(BaseTrainee):
         post_process_features: Optional[Iterable[str]] = None,
         post_process_values: Optional[TabularData2D] = None,
         desired_conviction: Optional[float] = None,
-        # details: Optional[MutableMapping[str, object]] = None,
+        details: Optional[MutableMapping[str, object]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: Optional[MutableMapping[str, MutableMapping[str, object]]] = None,
         generate_new_cases: GenerateNewCases = "no",
@@ -1193,48 +1272,6 @@ class Trainee(BaseTrainee):
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-
-        boundary_cases: Optional[bool] = None,
-        boundary_cases_familiarity_convictions: Optional[bool] = None,
-
-        # prediction stats
-        case_contributions: Optional[bool] = None,
-        case_feature_residuals: Optional[bool] = None,
-        case_mda: Optional[bool] = None,
-        categorical_action_probabilities: Optional[bool] = None,
-        derivation_parameters: Optional[bool] = None,
-        distance_contribution: Optional[bool] = None,
-        distance_ratio: Optional[bool] = None,
-        feature_contributions: Optional[bool] = None,
-        case_feature_contributions: Optional[bool] = None,
-        feature_mda: Optional[bool] = None,
-        feature_mda_ex_post: Optional[bool] = None,
-        features: Optional[list[str]] = None,
-        feature_residuals: Optional[bool] = None,
-        global_case_feature_residual_convictions: Optional[bool] = None,
-        hypothetical_values: Optional[dict] = None,
-        influential_cases: Optional[bool] = None,
-        influential_cases_familiarity_convictions: Optional[bool] = None,
-        influential_cases_raw_weights: Optional[bool] = None,
-        local_case_feature_residual_convictions: Optional[bool] = None,
-        most_similar_cases: Optional[bool] = None,
-        num_boundary_cases: Optional[int] = None,
-        num_most_similar_cases: Optional[int] = None,
-        num_most_similar_case_indices: Optional[int] = None,
-        num_robust_influence_samples_per_case: Optional[int] = None,
-        observational_errors: Optional[bool] = None,
-        outlying_feature_values: Optional[bool] = None,
-        prediction_stats: Optional[bool] = None,
-        confusion_matrices: Optional[bool] = None,
-        similarity_conviction: Optional[bool] = None,
-
-        generate_attempts: Optional[bool] = None,
-
-        robust_residuals: Optional[bool] = None,
-        robust_influences: Optional[bool] = None,
-        robust_computation: Optional[bool] = None,
-
-
     ) -> Reaction:
         r"""
         React to the provided contexts.
@@ -2807,7 +2844,6 @@ class Trainee(BaseTrainee):
         context_condition: t.Optional[t.MutableMapping[str, t.Any]] = None,
         context_condition_precision: t.Optional[Precision] = None,
         context_precision_num_cases: t.Optional[int] = None,
-        features: t.Optional[list] = None,
         num_robust_influence_samples_per_case: t.Optional[int] = None,
         robust: t.Optional[bool] = None,
         robust_hyperparameters: t.Optional[bool] = None,
@@ -2896,10 +2932,6 @@ class Trainee(BaseTrainee):
             The precision to use when selecting cases with the ``context_condition``.
             If not specified "exact" will be used. Only used if ``context_condition``
             is not None.
-        features : list, optional
-            List of features to use when calculating conditional prediction stats. Should contain all action and
-            context features desired. If ``action_feature`` is also provided, that feature will automatically be
-            appended to this list if it is not already in the list.
         num_robust_influence_samples_per_case : int, optional
             Specifies the number of robust samples to use for each case for
             robust contribution computations.
@@ -2959,19 +2991,18 @@ class Trainee(BaseTrainee):
         """
         return self.client.get_prediction_stats(
             trainee_id=self.id,
-            action_condition=action_condition,
-            action_condition_precision=action_condition_precision,
             action_feature=action_feature,
-            action_num_cases=action_num_cases,
-            context_condition=context_condition,
-            context_precision_num_cases=context_precision_num_cases,
-            context_condition_precision=context_condition_precision,
-            features=features,
-            num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
             robust=robust,
             robust_hyperparameters=robust_hyperparameters,
-            weight_feature=weight_feature,
             stats=stats,
+            weight_feature=weight_feature,
+            action_condition=action_condition,
+            action_condition_precision=action_condition_precision,
+            action_num_cases=action_num_cases,
+            context_condition=context_condition,
+            context_condition_precision=context_condition_precision,
+            context_precision_num_cases=context_precision_num_cases,
+            num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
         )
 
     def get_marginal_stats(
@@ -3100,15 +3131,22 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'react_into_features' method.")
 
-    def react_into_trainee(
+    def react_aggregate(
         self,
         *,
         use_case_weights: bool = False,
+        weight_feature: Optional[str] = None,
+
         action_feature: Optional[str] = None,
         context_features: Optional[Iterable[str]] = None,
+        sample_model_fraction: Optional[float] = None,
+        sub_model_size: Optional[int] = None,
+        hyperparameter_param_path: Optional[Iterable[str]] = None,
+
+        details: Optional[dict] = None,
+
         contributions: Optional[bool] = None,
         contributions_robust: Optional[bool] = None,
-        hyperparameter_param_path: Optional[Iterable[str]] = None,
         mda: Optional[bool] = None,
         mda_permutation: Optional[bool] = None,
         mda_robust: Optional[bool] = None,
@@ -3119,10 +3157,20 @@ class Trainee(BaseTrainee):
         num_samples: Optional[int] = None,
         residuals: Optional[bool] = None,
         residuals_robust: Optional[bool] = None,
-        sample_model_fraction: Optional[float] = None,
-        sub_model_size: Optional[int] = None,
-        weight_feature: Optional[str] = None,
-    ):
+
+        # action_feature: t.Optional[str] = None,
+        action_condition: t.Optional[t.MutableMapping[str, t.Any]] = None,
+        action_condition_precision: t.Optional[Precision] = None,
+        action_num_cases: t.Optional[int] = None,
+        context_condition: t.Optional[t.MutableMapping[str, t.Any]] = None,
+        context_condition_precision: t.Optional[Precision] = None,
+        context_precision_num_cases: t.Optional[int] = None,
+        # num_robust_influence_samples_per_case: t.Optional[int] = None,
+        robust: t.Optional[bool] = None,
+        robust_hyperparameters: t.Optional[bool] = None,
+        selected_prediction_stats: t.Optional[t.Iterable[str]] = None,
+        # weight_feature: t.Optional[str] = None,
+    ) -> DataFrame | dict:
         """
         Compute and cache specified feature interpretations.
 
