@@ -301,9 +301,9 @@ flake8-import-order==0.18.2 \
     --hash=sha256:82ed59f1083b629b030ee9d3928d9e06b6213eb196fe745b3a7d4af2168130df \
     --hash=sha256:e23941f892da3e0c09d711babbb0c73bc735242e9b216b726616758a920d900e
     # via howso-engine (pyproject.toml)
-howso-openapi-client==34.1.2 \
-    --hash=sha256:08bc5d0158ca70527c4f1cb0d173708b9a66d34a14fbe0a4ada5fb0f439d3e00 \
-    --hash=sha256:5a5906b9e6f95ef6f58cc570807a9fe6bd9657c8a1ed35aec6d85a5292c87907
+howso-openapi-client==35.0.0 \
+    --hash=sha256:5b5039a5626e39622121afb9b23072b79e1ddcb4cac02ccc77fd6f9cb526ff89 \
+    --hash=sha256:e2b8d2fe57db434d85893a4ad988bbbdd21288d8dab51f22a748c118a54dc369
     # via howso-engine (pyproject.toml)
 humanize==4.9.0 \
     --hash=sha256:582a265c931c683a7e9b8ed9559089dea7edcf6cc95be39a3cbc2c5d5ac2bcfa \
@@ -756,9 +756,9 @@ tzdata==2024.1 \
     --hash=sha256:2674120f8d891909751c38abcdfd386ac0a5a1127954fbc332af6b5ceae07efd \
     --hash=sha256:9068bc196136463f5245e51efda838afa15aaeca9903f49050dfa2679db4d252
     # via pandas
-urllib3==2.2.1 \
-    --hash=sha256:450b20ec296a467077128bff42b73080516e71b56ff59a60a02bef2232c4fa9d \
-    --hash=sha256:d0570876c61ab9e520d776c38acbbb5b05a776d3f9ff98a5c8fd5162a444cf19
+urllib3==2.2.2 \
+    --hash=sha256:a448b2f64d686155468037e1ace9f2d2199776e17f0a46610480d311f73e3472 \
+    --hash=sha256:dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168
     # via
     #   howso-engine (pyproject.toml)
     #   howso-openapi-client
