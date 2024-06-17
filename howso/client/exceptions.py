@@ -1,6 +1,23 @@
-import json
+from collections.abc import Generator, Mapping
+import typing as t
 
-from howso.openapi.exceptions import UnauthorizedException
+from requests import JSONDecodeError as RequestsJSONDecodeError, Response
+from typing_extensions import TypeAliasType
+
+
+class ValidationErrorDetail(t.TypedDict):
+    """Representation of a single validation error object."""
+
+    message: str
+    field: t.NotRequired[list[str]]
+    code: t.NotRequired[str | None]
+
+
+ValidationErrorCollection = TypeAliasType(
+    "ValidationErrorCollection",
+    list[ValidationErrorDetail] | dict[str, "ValidationErrorCollection"]
+)
+"""A collection of validation error objects."""
 
 
 class HowsoError(Exception):
@@ -21,7 +38,7 @@ class HowsoError(Exception):
     code = None
     url = None
 
-    def __init__(self, message, code=None, url=None):
+    def __init__(self, message: str, code: t.Optional[str] = None, url: t.Optional[str] = None):
         """Initialize a HowsoError."""
         if code is None:
             code = "0"
@@ -37,6 +54,51 @@ class HowsoConfigurationError(HowsoError):
     """An error raised when the howso.yml options are misconfigured."""
 
 
+class HowsoValidationError(HowsoError):
+    """
+    An error raised when parameters are invalid.
+
+    Parameters
+    ----------
+    message : str
+        The error message.
+    code : str, optional
+        The error code.
+    errors : Mapping of ValidationErrorCollection, optional
+        Map of parameters to error messages.
+    url : str, optional
+        An absolute URI that identifies the problem type.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: t.Optional[str] = None,
+        errors: t.Optional[Mapping[str, ValidationErrorCollection]] = None,
+        url: t.Optional[str] = None,
+    ):
+        self.errors = errors
+        super().__init__(message, code=code, url=url)
+
+    def iter_errors(self) -> Generator[ValidationErrorDetail]:
+        """Iterate over field error messages."""
+        def _traverse(path: list[str], collection: Mapping | list):
+            if isinstance(collection, Mapping):
+                for key, item in collection.items():
+                    yield from _traverse([*path, key], item)
+            elif isinstance(collection, list):
+                for item in collection:
+                    yield ValidationErrorDetail(
+                        message=item.get("message") or 'An unknown error occurred.',
+                        code=item.get("code"),
+                        field=path
+                    )
+
+        if self.errors is not None:
+            yield from _traverse([], self.errors)
+
+
 class HowsoApiError(HowsoError):
     """
     An error raised by the Howso rest API.
@@ -47,6 +109,8 @@ class HowsoApiError(HowsoError):
         The error message.
     code : str, optional
         The problem type code.
+    errors : Mapping of ValidationErrorCollection, optional
+        Map of parameters to error messages.
     status : int, optional
         The HTTP status code.
     url : str, optional
@@ -55,55 +119,30 @@ class HowsoApiError(HowsoError):
 
     status = None
 
-    def __init__(self, message, code=None, status=None, url=None):
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: t.Optional[str] = None,
+        errors: t.Optional[Mapping[str, ValidationErrorCollection]] = None,
+        status: t.Optional[int] = None,
+        url: t.Optional[str] = None,
+    ):
         """Initialize a HowsoApiError."""
         if status is None:
             status = -1
         self.status = status
-        super().__init__(message, code, url)
+        self.errors = errors
+        super().__init__(message, code=code, url=url)
 
     @classmethod
-    def from_openapi(cls, obj):
-        """
-        Build a HowsoApiError from OpenAPI error object.
-
-        Parameters
-        ----------
-        obj : ApiException
-            The OpenAPI error.
-
-        Returns
-        -------
-        HowsoApiError
-            The constructed error instance.
-        """
-        return cls.from_json(obj.body)
-
-    @classmethod
-    def from_json(cls, obj):
-        """
-        Build a HowsoApiError from API response json.
-
-        Parameters
-        ----------
-        obj : str
-            A json string.
-
-        Returns
-        -------
-        HowsoApiError
-            The constructed error instance.
-        """
-        return cls.from_dict(json.loads(obj))
-
-    @classmethod
-    def from_dict(cls, obj):
+    def from_dict(cls, obj: Mapping | None):
         """
         Build a HowsoApiError from API response.
 
         Parameters
         ----------
-        obj : dict
+        obj : Mapping
             The error information.
 
         Returns
@@ -114,52 +153,60 @@ class HowsoApiError(HowsoError):
         if obj is None:
             obj = {}
 
-        title = obj.get('title', '')
-        detail = obj.get('detail', '')
+        default_msg = 'An unknown error occurred.'
+        detail = obj.get('detail') or default_msg
         status = obj.get('status')
         code = obj.get('code')
         url = obj.get('type')
+        errors = obj.get('errors')
 
-        # Build message string
-        if not title and not detail:
-            title = 'An unknown error occurred.'
-        message = f"{title}".strip()
-        if title and detail:
-            if message[-1] not in [':', '.', ',', ';']:
-                message += ":"
-            message += " "
-        message += f"{detail}".strip()
+        if isinstance(detail, list):
+            # This helper can only process a single message at a time, use the first value
+            detail = detail[0] if len(detail) > 0 else default_msg
 
-        return cls(message, code, status, url)
+        return cls(detail, code=code, status=status, url=url, errors=errors)
+
+    @classmethod
+    def from_response(cls, obj: Response):
+        """Build HowsoApiError from Response object."""
+        status = obj.status_code
+        default_msg = 'An unknown error occurred.'
+        try:
+            data = obj.json()
+            message = data.get('detail') or default_msg
+            code = data.get('code')
+            url = data.get('type')
+            errors = data.get('errors')
+        except (RequestsJSONDecodeError, TypeError, AttributeError):
+            message = default_msg
+            code = None
+            url = None
+            errors = None
+
+        if isinstance(message, list):
+            # This helper can only process a single message at a time, use the first value
+            message = message[0] if len(message) > 0 else default_msg
+
+        return cls(message, code=code, status=status, url=url, errors=errors)
+
+
+class HowsoApiValidationError(HowsoValidationError, HowsoApiError):
+    """An error raised when parameters are invalid."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: t.Optional[str] = None,
+        errors: t.Optional[Mapping[str, ValidationErrorCollection]] = None,
+        status: t.Optional[int] = 400,
+        url: t.Optional[str] = None,
+    ):
+        super(HowsoValidationError, self).__init__(message=message, code=code, status=status, errors=errors, url=url)
 
 
 class HowsoAuthenticationError(HowsoApiError):
     """An error raised when the authentication API request fails."""
-
-    @classmethod
-    def from_openapi(cls, obj):
-        """
-        Build a HowsoApiError from OpenAPI error object.
-
-        Parameters
-        ----------
-        obj : ApiException
-            The OpenAPI error.
-
-        Returns
-        -------
-        HowsoApiError
-            The constructed error instance.
-        """
-        if isinstance(obj, UnauthorizedException):
-            try:
-                body = json.loads(obj.body)
-                error = body.get('error', obj.status)
-            except Exception:
-                error = obj.status
-            return cls(f'{obj.reason}: {error}', status=obj.status)
-        else:
-            return super().from_openapi(obj)
 
 
 class HowsoNotUniqueError(HowsoError):
