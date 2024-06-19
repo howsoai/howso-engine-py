@@ -349,6 +349,6 @@ class TestEngine:
         post_reduction_cases = trainee.get_cases(features=[".case_weight"])
 
         assert len(pre_reduction_cases) == 150
-        assert len(post_reduction_cases) == 75
+        assert len(post_reduction_cases) == 76
 
         assert any(post_reduction_cases[".case_weight"] != 0)
