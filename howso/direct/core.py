@@ -2868,8 +2868,6 @@ class HowsoCore:
         condition_session: Optional[str] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
-        preserve_session_data: bool = False,
-        session: Optional[str] = None
     ) -> Dict:
         """
         Removes cases from a Trainee.
@@ -2896,10 +2894,6 @@ class HowsoCore:
         precision : {"exact", "similar"}, optional
             The precision to use when moving the cases, defaults to "exact".
             Ignored if case_indices is specified.
-        preserve_session_data : bool, default False
-            When True, will remove cases without cleaning up session data.
-        session : str, optional
-            The identifier of the Trainee session to associate the removal with.
 
         Returns
         -------
@@ -2912,8 +2906,6 @@ class HowsoCore:
             "condition_session": condition_session,
             "precision": precision,
             "num_cases": num_cases,
-            "preserve_session_data": preserve_session_data,
-            "session": session,
             "distribute_weight_feature": distribute_weight_feature,
         })
         if not result:
