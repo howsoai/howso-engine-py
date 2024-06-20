@@ -254,6 +254,7 @@ class AbstractHowsoClient(ABC):
         action_condition=None,
         action_condition_precision=None,
         action_num_cases=None,
+        confusion_matrix_min_count=None,
         context_condition=None,
         context_condition_precision=None,
         context_precision_num_cases=None,
@@ -342,6 +343,7 @@ class AbstractHowsoClient(ABC):
     def react_into_trainee(
         self, trainee_id, *,
         action_feature=None,
+        confusion_matrix_min_count=None,
         context_features=None,
         contributions=None,
         contributions_robust=None,

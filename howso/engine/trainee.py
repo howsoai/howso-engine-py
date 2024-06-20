@@ -2762,6 +2762,7 @@ class Trainee(BaseTrainee):
         action_condition: t.Optional[t.MutableMapping[str, t.Any]] = None,
         action_condition_precision: t.Optional[Precision] = None,
         action_num_cases: t.Optional[int] = None,
+        confusion_matrix_min_count: t.Optional[int] = None,
         context_condition: t.Optional[t.MutableMapping[str, t.Any]] = None,
         context_condition_precision: t.Optional[Precision] = None,
         context_precision_num_cases: t.Optional[int] = None,
@@ -2829,8 +2830,14 @@ class Trainee(BaseTrainee):
             The precision to use when selecting cases with the ``action_condition``.
             If not specified "exact" will be used. Only used if ``action_condition``
             is not None.
+        confusion_matrix_min_count : int, optional
+            The number of predictions a class should have (value of a cell in the matrix)
+            for it to remain in the confusion matrix. If the count is less than this value,
+            it will be accumulated into a single value of all insignificant predictions
+            for the class and removed from the confusion matrix. Defaults to 10,
+            applicable only to confusion matrices.
         context_condition : map of str -> any, optional
-            A condition map to select the context set, which is the set being queried to make 
+            A condition map to select the context set, which is the set being queried to make
             to make predictions on the action set. If both ``action_condition`` and ``context_condition``
             are provided,  then all of the cases from the action set, which is the dataset for which the
             prediction stats are for, will be excluded from the context set, effectively holding them out.
@@ -2921,6 +2928,7 @@ class Trainee(BaseTrainee):
             action_condition_precision=action_condition_precision,
             action_feature=action_feature,
             action_num_cases=action_num_cases,
+            confusion_matrix_min_count=confusion_matrix_min_count,
             context_condition=context_condition,
             context_precision_num_cases=context_precision_num_cases,
             context_condition_precision=context_condition_precision,
@@ -3063,6 +3071,7 @@ class Trainee(BaseTrainee):
         *,
         use_case_weights: bool = False,
         action_feature: Optional[str] = None,
+        confusion_matrix_min_count: Optional[int] = None,
         context_features: Optional[Iterable[str]] = None,
         contributions: Optional[bool] = None,
         contributions_robust: Optional[bool] = None,
@@ -3091,6 +3100,13 @@ class Trainee(BaseTrainee):
             whatever the model was analyzed for, e.g., action feature for MDA
             and contributions, or ".targetless" if analyzed for targetless.
             This parameter is required for MDA or contributions computations.
+        confusion_matrix_min_count : int, optional
+            The number of predictions a class should have (value of a cell in the
+            matrix) for it to remain in the confusion matrix. If the count is
+            less than this value, it will be accumulated into a single value of
+            all insignificant predictions for the class and removed from the
+            confusion matrix. Defaults to 10, applicable only to confusion
+            matrices when computing residuals.
         context_features : iterable of str, optional
             List of features names to use as contexts for
             computations. Default is all trained non-unique features if
@@ -3185,6 +3201,7 @@ class Trainee(BaseTrainee):
                 residuals=residuals,
                 residuals_robust=residuals_robust,
                 sample_model_fraction=sample_model_fraction,
+                confusion_matrix_min_count=confusion_matrix_min_count,
                 sub_model_size=sub_model_size,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
