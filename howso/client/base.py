@@ -138,8 +138,9 @@ class AbstractHowsoClient(ABC):
 
     @abstractmethod
     def remove_cases(self, trainee_id, num_cases, *,
-                     case_indices=None, condition_session=None,
-                     distribute_weight_feature=None, precision=None) -> int:
+                     case_indices=None, condition=None,
+                     condition_session=None, distribute_weight_feature=None,
+                     precision=None) -> int:
         """Remove training cases from a trainee."""
 
     @abstractmethod
