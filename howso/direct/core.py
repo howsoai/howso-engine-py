@@ -2121,7 +2121,7 @@ class HowsoCore:
         residuals: Optional[bool] = None,
         residuals_robust: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
-        smallest_count_threshold: Optional[int] = None,
+        confusion_matrix_min_count: Optional[int] = None,
         sub_model_size: Optional[int] = None,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None
@@ -2208,7 +2208,7 @@ class HowsoCore:
             (using sampling without replacement). Applicable only to non-robust
             computation. Ignored if num_samples is specified.
             Higher values provide better accuracy at the cost of compute time.
-        smallest_count_threshold : int, optional
+        confusion_matrix_min_count : int, optional
             The number of predictions a class should have (value of a cell in the
             matrix) for it to remain in the confusion matrix. If the count is
             less than this value, it will be accumulated into a single value of
@@ -2243,7 +2243,7 @@ class HowsoCore:
                 num_robust_influence_samples_per_case,
             "hyperparameter_param_path": hyperparameter_param_path,
             "sample_model_fraction": sample_model_fraction,
-            "smallest_count_threshold": smallest_count_threshold,
+            "confusion_matrix_min_count": confusion_matrix_min_count,
             "sub_model_size": sub_model_size,
             "action_feature": action_feature
         })
@@ -2549,7 +2549,7 @@ class HowsoCore:
         robust=None,
         robust_hyperparameters=None,
         stats=None,
-        smallest_count_threshold=None,
+        confusion_matrix_min_count=None,
         weight_feature=None,
     ) -> Dict:
         """
@@ -2639,7 +2639,7 @@ class HowsoCore:
             non-robust type.
         stats : iterable of str, optional
             List of stats to output. When unspecified, returns all.
-        smallest_count_threshold : int, optional
+        confusion_matrix_min_count : int, optional
             The number of predictions a class should have (value of a cell in the matrix)
             for it to remain in the confusion matrix. If the count is less than this value,
             it will be accumulated into a single value of all insignificant predictions
@@ -2667,7 +2667,7 @@ class HowsoCore:
             "num_robust_influence_samples_per_case": num_robust_influence_samples_per_case,
             "robust_hyperparameters": robust_hyperparameters,
             "stats": stats,
-            "smallest_count_threshold": smallest_count_threshold,
+            "confusion_matrix_min_count": confusion_matrix_min_count,
             "weight_feature": weight_feature,
         })
 

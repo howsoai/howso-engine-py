@@ -261,7 +261,7 @@ class AbstractHowsoClient(ABC):
         num_robust_influence_samples_per_case=None,
         robust=None,
         robust_hyperparameters=None,
-        smallest_count_threshold=None,
+        confusion_matrix_min_count=None,
         stats=None,
         weight_feature=None,
     ) -> Union["DataFrame", Dict]:
@@ -358,7 +358,7 @@ class AbstractHowsoClient(ABC):
         residuals=None,
         residuals_robust=None,
         sample_model_fraction=None,
-        smallest_count_threshold=None,
+        confusion_matrix_min_count=None,
         sub_model_size=None,
         use_case_weights=False,
         weight_feature=None,
