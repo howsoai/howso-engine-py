@@ -2106,6 +2106,7 @@ class HowsoCore:
         trainee_id: str,
         *,
         action_feature: Optional[str] = None,
+        confusion_matrix_min_count: Optional[int] = None,
         context_features: Optional[Iterable[str]] = None,
         contributions: Optional[bool] = None,
         contributions_robust: Optional[bool] = None,
@@ -2121,7 +2122,6 @@ class HowsoCore:
         residuals: Optional[bool] = None,
         residuals_robust: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
-        confusion_matrix_min_count: Optional[int] = None,
         sub_model_size: Optional[int] = None,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None
@@ -2138,6 +2138,13 @@ class HowsoCore:
             whatever the model was analyzed for, e.g., action feature for MDA
             and contributions, or ".targetless" if analyzed for targetless.
             This parameter is required for MDA or contributions computations.
+        confusion_matrix_min_count : int, optional
+            The number of predictions a class should have (value of a cell in the
+            matrix) for it to remain in the confusion matrix. If the count is
+            less than this value, it will be accumulated into a single value of
+            all insignificant predictions for the class and removed from the
+            confusion matrix. Defaults to 10, applicable only to confusion
+            matrices when computing residuals.
         context_features : iterable of str, optional
             List of features names to use as contexts for
             computations. Default is all trained non-unique features if
@@ -2208,12 +2215,6 @@ class HowsoCore:
             (using sampling without replacement). Applicable only to non-robust
             computation. Ignored if num_samples is specified.
             Higher values provide better accuracy at the cost of compute time.
-        confusion_matrix_min_count : int, optional
-            The number of predictions a class should have (value of a cell in the
-            matrix) for it to remain in the confusion matrix. If the count is
-            less than this value, it will be accumulated into a single value of
-            all insignificant predictions for the class and removed from the
-            confusion matrix. Defaults to 10, applicable only to confusion matrices.
         sub_model_size : int, optional
             Subset of model to use for calculations. Applicable only
             to models > 1000 cases.
@@ -2541,6 +2542,7 @@ class HowsoCore:
         action_condition=None,
         action_condition_precision=None,
         action_num_cases=None,
+        confusion_matrix_min_count=None,
         context_condition=None,
         context_condition_precision=None,
         context_precision_num_cases=None,
@@ -2549,7 +2551,6 @@ class HowsoCore:
         robust=None,
         robust_hyperparameters=None,
         stats=None,
-        confusion_matrix_min_count=None,
         weight_feature=None,
     ) -> Dict:
         """
@@ -2597,6 +2598,12 @@ class HowsoCore:
             The precision to use when selecting cases with the ``action_condition``.
             If not specified "exact" will be used. Only used if ``action_condition``
             is not None.
+        confusion_matrix_min_count : int, optional
+            The number of predictions a class should have (value of a cell in the matrix)
+            for it to remain in the confusion matrix. If the count is less than this value,
+            it will be accumulated into a single value of all insignificant predictions
+            for the class and removed from the confusion matrix. Defaults to 10,
+            applicable only to confusion matrices.
         context_condition : map of str -> any, optional
             A condition map to select the context set, which is the set being queried to make
             to make predictions on the action set. If both ``action_condition`` and ``context_condition``
@@ -2639,12 +2646,6 @@ class HowsoCore:
             non-robust type.
         stats : iterable of str, optional
             List of stats to output. When unspecified, returns all.
-        confusion_matrix_min_count : int, optional
-            The number of predictions a class should have (value of a cell in the matrix)
-            for it to remain in the confusion matrix. If the count is less than this value,
-            it will be accumulated into a single value of all insignificant predictions
-            for the class and removed from the confusion matrix. Defaults to 10,
-            applicable only to confusion matrices.
         weight_feature : str, optional
             When specified, will attempt to return stats that
             were computed using this weight_feature.

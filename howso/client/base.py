@@ -254,6 +254,7 @@ class AbstractHowsoClient(ABC):
         action_condition=None,
         action_condition_precision=None,
         action_num_cases=None,
+        confusion_matrix_min_count=None,
         context_condition=None,
         context_condition_precision=None,
         context_precision_num_cases=None,
@@ -261,7 +262,6 @@ class AbstractHowsoClient(ABC):
         num_robust_influence_samples_per_case=None,
         robust=None,
         robust_hyperparameters=None,
-        confusion_matrix_min_count=None,
         stats=None,
         weight_feature=None,
     ) -> Union["DataFrame", Dict]:
@@ -343,6 +343,7 @@ class AbstractHowsoClient(ABC):
     def react_into_trainee(
         self, trainee_id, *,
         action_feature=None,
+        confusion_matrix_min_count=None,
         context_features=None,
         contributions=None,
         contributions_robust=None,
@@ -358,7 +359,6 @@ class AbstractHowsoClient(ABC):
         residuals=None,
         residuals_robust=None,
         sample_model_fraction=None,
-        confusion_matrix_min_count=None,
         sub_model_size=None,
         use_case_weights=False,
         weight_feature=None,
