@@ -1906,7 +1906,6 @@ class Trainee(BaseTrainee):
         condition_session: Optional[str | BaseSession] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Precision] = None,
-        preserve_session_data: bool = False
     ) -> int:
         """
         Remove training cases from the trainee.
@@ -1965,8 +1964,6 @@ class Trainee(BaseTrainee):
         precision : {"exact", "similar"}, optional
             The precision to use when removing the cases.If not specified
             "exact" will be used. Ignored if case_indices is specified.
-        preserve_session_data : bool, default False
-            When True, will remove cases without cleaning up session data.
 
         Returns
         -------
@@ -1986,7 +1983,6 @@ class Trainee(BaseTrainee):
                 condition_session=condition_session_id,
                 distribute_weight_feature=distribute_weight_feature,
                 precision=precision,
-                preserve_session_data=preserve_session_data,
             )
         else:
             raise ValueError("Client must have 'remove_cases' method")

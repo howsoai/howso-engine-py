@@ -1482,7 +1482,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         condition_session: Optional[str] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
-        preserve_session_data: bool = False
     ) -> int:
         """
         Removes training cases from a Trainee.
@@ -1542,8 +1541,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         precision : {"exact", "similar"}, optional
             The precision to use when moving the cases, defaults to "exact".
             Ignored if case_indices is specified.
-        preserve_session_data : bool, default False
-            When True, will remove cases without cleaning up session data.
 
         Returns
         -------
@@ -1580,8 +1577,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             distribute_weight_feature=distribute_weight_feature,
             num_cases=num_cases,
             precision=precision,
-            preserve_session_data=preserve_session_data,
-            session=self.active_session.id
         )
         self._auto_persist_trainee(trainee_id)
         return result.get('count', 0)
