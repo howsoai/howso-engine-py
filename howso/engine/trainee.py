@@ -2770,6 +2770,7 @@ class Trainee(BaseTrainee):
         robust: t.Optional[bool] = None,
         robust_hyperparameters: t.Optional[bool] = None,
         stats: t.Optional[t.Iterable[str]] = None,
+        smallest_count_threshold: t.Optional[int] = None,
         weight_feature: t.Optional[str] = None,
     ) -> DataFrame | dict:
         """
@@ -2830,7 +2831,7 @@ class Trainee(BaseTrainee):
             If not specified "exact" will be used. Only used if ``action_condition``
             is not None.
         context_condition : map of str -> any, optional
-            A condition map to select the context set, which is the set being queried to make 
+            A condition map to select the context set, which is the set being queried to make
             to make predictions on the action set. If both ``action_condition`` and ``context_condition``
             are provided,  then all of the cases from the action set, which is the dataset for which the
             prediction stats are for, will be excluded from the context set, effectively holding them out.
@@ -2905,6 +2906,12 @@ class Trainee(BaseTrainee):
                   for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
 
+        smallest_count_threshold : int, optional
+            The number of predictions a class should have (value of a cell in the matrix)
+            for it to remain in the confusion matrix. If the count is less than this value,
+            it will be accumulated into a single value of all insignificant predictions
+            for the class and removed from the confusion matrix. Defaults to 10,
+            applicable only to confusion matrices.
         weight_feature : str, optional
             When specified, will attempt to return stats that
             were computed using this weight_feature.
@@ -2930,6 +2937,7 @@ class Trainee(BaseTrainee):
             robust_hyperparameters=robust_hyperparameters,
             weight_feature=weight_feature,
             stats=stats,
+            smallest_count_threshold=smallest_count_threshold
         )
 
     def get_marginal_stats(
@@ -3078,6 +3086,7 @@ class Trainee(BaseTrainee):
         residuals: Optional[bool] = None,
         residuals_robust: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
+        smallest_count_threshold: Optional[int] = None,
         sub_model_size: Optional[int] = None,
         weight_feature: Optional[str] = None,
     ):
@@ -3156,6 +3165,12 @@ class Trainee(BaseTrainee):
             (using sampling without replacement). Applicable only to non-robust
             computation. Ignored if num_samples is specified.
             Higher values provide better accuracy at the cost of compute time.
+        smallest_count_threshold : int, optional
+            The number of predictions a class should have (value of a cell in the
+            matrix) for it to remain in the confusion matrix. If the count is
+            less than this value, it will be accumulated into a single value of
+            all insignificant predictions for the class and removed from the
+            confusion matrix. Defaults to 10, applicable only to confusion matrices.
         sub_model_size : int, optional
             Subset of model to use for calculations. Applicable only
             to models > 1000 cases.
@@ -3185,6 +3200,7 @@ class Trainee(BaseTrainee):
                 residuals=residuals,
                 residuals_robust=residuals_robust,
                 sample_model_fraction=sample_model_fraction,
+                smallest_count_threshold=smallest_count_threshold,
                 sub_model_size=sub_model_size,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
