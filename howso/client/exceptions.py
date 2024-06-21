@@ -81,6 +81,16 @@ class HowsoValidationError(HowsoError):
         self.errors = errors
         super().__init__(message, code=code, url=url)
 
+    def messages(self) -> list[str]:
+        """Get validation error messages for each field."""
+        messages = []
+        for error in self.iter_errors():
+            msg = error['message']
+            if field := error.get('field'):
+                msg = f"{'.'.join(field)}: {msg}"
+            messages.append(msg)
+        return messages
+
     def iter_errors(self) -> Generator[ValidationErrorDetail]:
         """Iterate over field error messages."""
         def _traverse(path: list[str], collection: Mapping | list):
