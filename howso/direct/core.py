@@ -1081,49 +1081,6 @@ class HowsoCore:
             "use_case_weights": use_case_weights,
         })
 
-    def clear_conviction_thresholds(self, trainee_id: str) -> None:
-        """
-        Set the conviction thresholds to null.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        """
-        return self._execute(trainee_id, "clear_conviction_thresholds", {})
-
-    def set_conviction_lower_threshold(self, trainee_id: str, threshold: float
-                                       ) -> None:
-        """
-        Set the conviction lower threshold.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        threshold : float
-            The threshold value.
-        """
-        return self._execute(trainee_id, "set_conviction_lower_threshold", {
-            "conviction_lower_threshold": threshold,
-        })
-
-    def set_conviction_upper_threshold(self, trainee_id: str, threshold: float
-                                       ) -> None:
-        """
-        Set the conviction upper threshold.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        threshold : float
-            The threshold value.
-        """
-        return self._execute(trainee_id, "set_conviction_upper_threshold", {
-            "conviction_upper_threshold": threshold,
-        })
-
     def set_metadata(self, trainee_id: str, metadata: Union[Dict, None]
                      ) -> None:
         """
