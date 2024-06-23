@@ -974,7 +974,7 @@ def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
         A queue to put the results.
     """
     client = HowsoClient()
-    features = {'date': {'type': 'continous', 'date_time_format': '%Y-%m-%d'}}
+    features = {'date': {'type': 'continuous', 'date_time_format': '%Y-%m-%d'}}
     trainee_obj = Trainee(
         f"installation_verification check_tzdata_installed ({get_nonce()})",
         features=features,
