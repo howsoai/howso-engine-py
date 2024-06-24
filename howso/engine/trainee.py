@@ -885,6 +885,7 @@ class Trainee(BaseTrainee):
         features: t.Optional[list[str]] = None,
         distribute_weight_feature: t.Optional[str] = None,
         influence_weight_entropy_threshold: t.Optional[float] = None,
+        skip_auto_analyze: bool = False,
         **kwargs,
     ):
         """
@@ -918,6 +919,8 @@ class Trainee(BaseTrainee):
             The quantile of influence weight entropy above which cases will be removed. This defaults
             to the value of ``influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
             which defaults to 0.6.
+        skip_auto_analyze : bool, default False
+            Whether to skip auto-analyzing as cases are removed.
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.reduce_data(
@@ -925,6 +928,7 @@ class Trainee(BaseTrainee):
                 features=features,
                 distribute_weight_feature=distribute_weight_feature,
                 influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+                skip_auto_analyze=skip_auto_analyze,
             )
         else:
             raise ValueError("Client must have the 'reduce_data' method.")
