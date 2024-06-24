@@ -238,16 +238,6 @@ class AbstractHowsoClient(ABC):
         """Renames a contained child trainee in the hierarchy."""
 
     @abstractmethod
-    def get_feature_residuals(
-        self, trainee_id, *,
-        action_feature=None,
-        robust=None,
-        robust_hyperparameters=None,
-        weight_feature=None,
-    ):
-        """Get cached feature residuals."""
-
-    @abstractmethod
     def get_marginal_stats(
         self, trainee_id, *,
         condition=None,

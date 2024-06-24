@@ -2175,11 +2175,11 @@ class HowsoCore:
                         Compute MDA by dropping each feature and using the
                         robust (power set/permutations) set of remaining context features
                         for each prediction. False removes cached values.
-                    - mda_permutation : bool, optional
+                    - feature_mda_permutation_full : bool, optional
                         Compute MDA by scrambling each feature and using the
                         full set of remaining context features for each prediction.
                         False removes cached values.
-                    - mda_robust_permutation : bool, optional
+                    - feature_mda_permutation_robust : bool, optional
                         Compute MDA by scrambling each feature and using the
                         robust (power set/permutations) set of remaining context features
                         for each prediction. False removes cached values.
@@ -2268,7 +2268,7 @@ class HowsoCore:
                         for each class for the action feature.
                         - mda : Mean decrease in accuracy when each feature is dropped
                         from the model, applies to all features.
-                        - mda_permutation : Mean decrease in accuracy that used
+                        - feature_mda_permutation_full : Mean decrease in accuracy that used
                         scrambling of feature values instead of dropping each
                         feature, applies to all features.
                         - precision : Precision (positive predictive) value for nominal

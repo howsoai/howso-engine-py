@@ -4247,11 +4247,11 @@ class HowsoDirectClient(AbstractHowsoClient):
                         Compute MDA by dropping each feature and using the
                         robust (power set/permutations) set of remaining context features
                         for each prediction. False removes cached values.
-                    - mda_permutation : bool, optional
+                    - feature_mda_permutation_full : bool, optional
                         Compute MDA by scrambling each feature and using the
                         full set of remaining context features for each prediction.
                         False removes cached values.
-                    - mda_robust_permutation : bool, optional
+                    - feature_mda_permutation_robust : bool, optional
                         Compute MDA by scrambling each feature and using the
                         robust (power set/permutations) set of remaining context features
                         for each prediction. False removes cached values.
@@ -4314,16 +4314,18 @@ class HowsoDirectClient(AbstractHowsoClient):
                         If not specified "exact" will be used. Only used if ``context_condition``
                         is not None.
                     - prediction_stats_features : list, optional
-                        List of features to use when calculating conditional prediction stats. Should contain all action and
-                        context features desired. If ``action_feature`` is also provided, that feature will automatically be
-                        appended to this list if it is not already in the list.
+                        List of features to use when calculating conditional prediction stats. Should contain all
+                        action and context features desired. If ``action_feature`` is also provided, that feature
+                        will automatically be  appended to this list if it is not already in the list.
                          stats : list of str, optional
                     - missing_value_accuracy_full : bool, optional
                         The number of cases with missing values predicted to have missing values divided by the number
-                        of cases with missing values, applies to all features that contain missing values. Uses full calculations.
+                        of cases with missing values, applies to all features that contain missing values. Uses full
+                        calculations.
                     - missing_value_accuracy_robust : bool, optional
                         The number of cases with missing values predicted to have missing values divided by the number
-                        of cases with missing values, applies to all features that contain missing values. Uses robust calculations.
+                        of cases with missing values, applies to all features that contain missing values. Uses robust
+                        calculations.
                     - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
                         returns all except the confusion matrix. Allowed values:
 
@@ -4340,7 +4342,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                         for each class for the action feature.
                         - mda : Mean decrease in accuracy when each feature is dropped
                         from the model, applies to all features.
-                        - mda_permutation : Mean decrease in accuracy that used
+                        - feature_mda_permutation_full : Mean decrease in accuracy that used
                         scrambling of feature values instead of dropping each
                         feature, applies to all features.
                         - precision : Precision (positive predictive) value for nominal

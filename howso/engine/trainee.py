@@ -2872,15 +2872,15 @@ class Trainee(BaseTrainee):
                     different audit details. Omitted keys, values set to None, or False
                     values for Booleans will not be included in the data returned.
 
-                    - prediction_stats : bool, optional. If true outputs full feature prediction
-                        stats for all (context and action) features locally around the prediction.
-                        The predictioned stats returned are set by the `selected_prediction_stats`
-                        parameter. Uses full calculations, which uses leave-one-out for features
-                        for computations. False removes cached values. If "prediction_stats_robust" is also
-                        True, then only the full "prediction_stats" are returned.
-                    - prediction_stats_robust: bool, optional. If true outputs robust feature
-                        prediction stats for all (context and action) features. The prediction
-                        stats returned are set by the `selected_prediction_stats` parameter.
+                    - prediction_stats : bool, optional. If True outputs full feature prediction
+                        stats for all (context and action) features. The predictioned stats returned are set
+                        by the "selected_prediction_stats" parameter in the `details` parameter. Uses full
+                        calculations, which uses leave-one-out for featuresvfor computations. False removes
+                        cached values. If "prediction_stats_robust" is also True, then only the full
+                        "prediction_stats" are returned.
+                    - prediction_stats_robust: bool, optional. If True outputs full feature prediction
+                        stats for all (context and action) features. The predictioned stats returned are set
+                        by the "selected_prediction_stats" parameter in the `details` parameter.
                         Uses robust calculations, which uses uniform sampling from the power
                         set of all combinations of features. False removes cached values.
                         If "prediction_stats_robust" is also True, then only the full "prediction_stats"
@@ -2888,27 +2888,27 @@ class Trainee(BaseTrainee):
                     - feature_contributions_full : bool, optional
                         For each context_feature, use the full set of all other
                         context_features to compute the mean absolute delta between
-                        prediction of action_feature with and without the context_feature
+                        prediction of action feature with and without the context features
                         in the model. False removes cached values.
                     - feature_contributions_robust : bool, optional
                         For each context_feature, use the robust (power set/permutation)
                         set of all other context_features to compute the mean absolute
-                        delta between prediction of action_feature with and without the
-                        context_feature in the model. False removes cached values.
+                        delta between prediction of the action feature with and without the
+                        context features in the model. False removes cached values.
                     - feature_mda_full : bool, optional
                         When True will compute Mean Decrease in Accuracy (MDA)
-                        for each context feature at predicting mda_action_features. Drop
+                        for each context feature at predicting the action feature. Drop
                         each feature and use the full set of remaining context features
                         for each prediction. False removes cached values.
                     - feature_mda_robust : bool, optional
-                        Compute MDA by dropping each feature and using the
+                        Compute Mean Decrease in Accuracy MDA by dropping each feature and using the
                         robust (power set/permutations) set of remaining context features
                         for each prediction. False removes cached values.
-                    - mda_permutation : bool, optional
+                    - feature_feature_mda_permutation_full : bool, optional
                         Compute MDA by scrambling each feature and using the
                         full set of remaining context features for each prediction.
                         False removes cached values.
-                    - mda_robust_permutation : bool, optional
+                    - feature_feature_mda_permutation_robust : bool, optional
                         Compute MDA by scrambling each feature and using the
                         robust (power set/permutations) set of remaining context features
                         for each prediction. False removes cached values.
@@ -2997,7 +2997,7 @@ class Trainee(BaseTrainee):
                         for each class for the action feature.
                         - mda : Mean decrease in accuracy when each feature is dropped
                         from the model, applies to all features.
-                        - mda_permutation : Mean decrease in accuracy that used
+                        - feature_mda_permutation_full : Mean decrease in accuracy that used
                         scrambling of feature values instead of dropping each
                         feature, applies to all features.
                         - precision : Precision (positive predictive) value for nominal
