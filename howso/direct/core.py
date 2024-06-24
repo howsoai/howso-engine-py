@@ -2101,37 +2101,33 @@ class HowsoCore:
             "use_case_weights": use_case_weights,
         })
 
-    def react_into_trainee(
+    def react_aggregate(
         self,
         trainee_id: str,
         *,
         action_feature: Optional[str] = None,
         context_features: Optional[Iterable[str]] = None,
-        contributions: Optional[bool] = None,
-        contributions_robust: Optional[bool] = None,
+        details: Optional[dict] = None,
+        feature_residuals_full: Optional[bool] = None,
+        feature_residuals_robust: Optional[bool] = None,
         hyperparameter_param_path: Optional[Iterable[str]] = None,
-        mda: Optional[bool] = None,
-        mda_permutation: Optional[bool] = None,
-        mda_robust: Optional[bool] = None,
-        mda_robust_permutation: Optional[bool] = None,
         num_robust_influence_samples: Optional[int] = None,
         num_robust_residual_samples: Optional[int] = None,
         num_robust_influence_samples_per_case: Optional[int] = None,
         num_samples: Optional[int] = None,
-        residuals: Optional[bool] = None,
-        residuals_robust: Optional[bool] = None,
+        robust_hyperparameters: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
         sub_model_size: Optional[int] = None,
         use_case_weights: bool = False,
-        weight_feature: Optional[str] = None
-    ) -> None:
+        weight_feature: Optional[str] = None,
+    ) -> dict | None:
         """
-        Compute and cache specified feature prediction stats.
+        Reacts into the trained cases in the Trainee.
+
+        Calculates, caches, and/or returns the requested details and prediction stats.
 
         Parameters
         ----------
-        trainee_id : str
-            The identifier of the Trainee.
         action_feature : str, optional
             Name of target feature for which to do computations. Default is
             whatever the model was analyzed for, e.g., action feature for MDA
@@ -2141,38 +2137,154 @@ class HowsoCore:
             List of features names to use as contexts for
             computations. Default is all trained non-unique features if
             unspecified.
-        contributions: bool, optional
-            For each context_feature, use the full set of all other
-            context_features to compute the mean absolute delta between
-            prediction of action_feature with and without the context_feature
-            in the model. False removes cached values.
-        contributions_robust: bool, optional
-            For each context_feature, use the robust (power set/permutation)
-            set of all other context_features to compute the mean absolute
-            delta between prediction of action_feature with and without the
-            context_feature in the model. False removes cached values.
-        hyperparameter_param_path: iterable of str, optional.
+        details : map of str -> object, optional
+                    If details are specified, the response will contain the requested
+                    explanation data.. Below are the valid keys and data types for the
+                    different audit details. Omitted keys, values set to None, or False
+                    values for Booleans will not be included in the data returned.
+
+                    - prediction_stats : bool, optional. If true outputs full feature prediction
+                        stats for all (context and action) features locally around the prediction.
+                        The predictioned stats returned are set by the `selected_prediction_stats`
+                        parameter. Uses full calculations, which uses leave-one-out for features
+                        for computations. False removes cached values. If "prediction_stats_robust" is also
+                        True, then only the full "prediction_stats" are returned.
+                    - prediction_stats_robust: bool, optional. If true outputs robust feature
+                        prediction stats for all (context and action) features. The prediction
+                        stats returned are set by the `selected_prediction_stats` parameter.
+                        Uses robust calculations, which uses uniform sampling from the power
+                        set of all combinations of features. False removes cached values.
+                        If "prediction_stats_robust" is also True, then only the full "prediction_stats"
+                        are returned.
+                    - feature_contributions_full : bool, optional
+                        For each context_feature, use the full set of all other
+                        context_features to compute the mean absolute delta between
+                        prediction of action_feature with and without the context_feature
+                        in the model. False removes cached values.
+                    - feature_contributions_robust : bool, optional
+                        For each context_feature, use the robust (power set/permutation)
+                        set of all other context_features to compute the mean absolute
+                        delta between prediction of action_feature with and without the
+                        context_feature in the model. False removes cached values.
+                    - feature_mda_full : bool, optional
+                        When True will compute Mean Decrease in Accuracy (MDA)
+                        for each context feature at predicting mda_action_features. Drop
+                        each feature and use the full set of remaining context features
+                        for each prediction. False removes cached values.
+                    - feature_mda_robust : bool, optional
+                        Compute MDA by dropping each feature and using the
+                        robust (power set/permutations) set of remaining context features
+                        for each prediction. False removes cached values.
+                    - mda_permutation : bool, optional
+                        Compute MDA by scrambling each feature and using the
+                        full set of remaining context features for each prediction.
+                        False removes cached values.
+                    - mda_robust_permutation : bool, optional
+                        Compute MDA by scrambling each feature and using the
+                        robust (power set/permutations) set of remaining context features
+                        for each prediction. False removes cached values.
+                    - action_condition : map of str -> any, optional
+                        A condition map to select the action set, which is the dataset for which
+                        the prediction stats are for. If both ``action_condition`` and ``context_condition``
+                        are provided, then all of the action cases selected by the ``action_condition``
+                        will be excluded from the context set, which is the set being queried to make to
+                        make predictions on the action set, effectively holding them out.
+                        If only ``action_condition`` is specified, then only the single predicted case
+                        will be left out.
+
+                        .. NOTE::
+                            The dictionary keys are the feature name and values are one of:
+
+                                - None
+                                - A value, must match exactly.
+                                - An array of two numeric values, specifying an inclusive
+                                range. Only applicable to continuous and numeric ordinal
+                                features.
+                                - An array of string values, must match any of these values
+                                exactly. Only applicable to nominal and string ordinal
+                                features.
+                    - action_num_cases : int, optional
+                        The maximum amount of cases to use to calculate prediction stats.
+                        If not specified, the limit will be k cases if precision is
+                        "similar", or 1000 cases if precision is "exact". Works with or
+                        without ``action_condition``.
+                        -If ``action_condition`` is set:
+                            If None, will be set to k if precision is "similar" or no limit if precision is "exact".
+                        - If ``action_condition`` is not set:
+                            If None, will be set to the Howso default limit of 2000.
+                    - action_condition_precision : {"exact", "similar"}, optional
+                        The precision to use when selecting cases with the ``action_condition``.
+                        If not specified "exact" will be used. Only used if ``action_condition``
+                        is not None.
+                    - context_condition : map of str -> any, optional
+                        A condition map to select the context set, which is the set being queried to make
+                        to make predictions on the action set. If both ``action_condition`` and ``context_condition``
+                        are provided,  then all of the cases from the action set, which is the dataset for which the
+                        prediction stats are for, will be excluded from the context set, effectively holding them out.
+                        If only ``action_condition`` is specified,  then only the single predicted case will be left out.
+
+                        .. NOTE::
+                            The dictionary keys are the feature name and values are one of:
+
+                                - None
+                                - A value, must match exactly.
+                                - An array of two numeric values, specifying an inclusive
+                                range. Only applicable to continuous and numeric ordinal
+                                features.
+                                - An array of string values, must match any of these values
+                                exactly. Only applicable to nominal and string ordinal
+                                features.
+                    - context_precision_num_cases : int, optional
+                        Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
+                        If None, will be set to k.
+                    - context_condition_precision : {"exact", "similar"}, optional
+                        The precision to use when selecting cases with the ``context_condition``.
+                        If not specified "exact" will be used. Only used if ``context_condition``
+                        is not None.
+                    - prediction_stats_features : list, optional
+                        List of features to use when calculating conditional prediction stats. Should contain all action and
+                        context features desired. If ``action_feature`` is also provided, that feature will automatically be
+                        appended to this list if it is not already in the list.
+                         stats : list of str, optional
+                    - missing_value_accuracy_full : bool, optional
+                        The number of cases with missing values predicted to have missing values divided by the number
+                        of cases with missing values, applies to all features that contain missing values. Uses full calculations.
+                    - missing_value_accuracy_robust : bool, optional
+                        The number of cases with missing values predicted to have missing values divided by the number
+                        of cases with missing values, applies to all features that contain missing values. Uses robust calculations.
+                    - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
+                        returns all except the confusion matrix. Allowed values:
+
+                        - all : Returns all the the available prediction stats, including the confusion matrix.
+                        - accuracy : The number of correct predictions divided by the
+                        total number of predictions.
+                        - confusion_matrix : A sparse map of actual feature value to a map of
+                        predicted feature value to counts.
+                        - mae : Mean absolute error. For continuous features, this is
+                        calculated as the mean of absolute values of the difference
+                        between the actual and predicted values. For nominal features,
+                        this is 1 - the average categorical action probability of each case's
+                        correct classes. Categorical action probabilities are the probabilities
+                        for each class for the action feature.
+                        - mda : Mean decrease in accuracy when each feature is dropped
+                        from the model, applies to all features.
+                        - mda_permutation : Mean decrease in accuracy that used
+                        scrambling of feature values instead of dropping each
+                        feature, applies to all features.
+                        - precision : Precision (positive predictive) value for nominal
+                        features only.
+                        - r2 : The r-squared coefficient of determination, for
+                        continuous features only.
+                        - recall : Recall (sensitivity) value for nominal features only.
+                        - rmse : Root mean squared error, for continuous features only.
+                        - spearman_coeff : Spearman's rank correlation coefficient,
+                        for continuous features only.
+                        - mcc : Matthews correlation coefficient, for nominal features only.
+        hyperparameter_param_path : iterable of str, optional.
             Full path for hyperparameters to use for computation. If specified
-            for any residual computations, takes precedence over action_feature
+            for any residual computations, takes precendence over action_feature
             parameter.  Can be set to a 'paramPath' value from the results of
             'get_params()' for a specific set of hyperparameters.
-        mda : bool, optional
-            When True will compute Mean Decrease in Accuracy (MDA)
-            for each context feature at predicting the action_feature. Drop
-            each feature and use the full set of remaining context features
-            for each prediction. False removes cached values.
-        mda_permutation : bool, optional
-            Compute MDA by scrambling each feature and using the
-            full set of remaining context features for each prediction.
-            False removes cached values.
-        mda_robust : bool, optional
-            Compute MDA by dropping each feature and using the
-            robust (power set/permutations) set of remaining context features
-            for each prediction. False removes cached values.
-        mda_robust_permutation : bool, optional
-            Compute MDA by scrambling each feature and using the
-            robust (power set/permutations) set of remaining context features
-            for each prediction. False removes cached values.
         num_robust_influence_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             for robust contribution computation. Defaults to 300.
@@ -2180,8 +2292,7 @@ class HowsoCore:
             Total sample size of model to use (using sampling with replacement)
             for robust mda and residual computation.
             Defaults to 1000 * (1 + log(number of features)).  Note: robust mda
-            will be updated to use num_robust_influence_samples in a future
-            release.
+            will be updated to use num_robust_influence_samples in a future release.
         num_robust_influence_samples_per_case : int, optional
             Specifies the number of robust samples to use for each case for
             robust contribution computations.
@@ -2190,18 +2301,22 @@ class HowsoCore:
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
             If specified overrides sample_model_fraction.```
-        residuals : bool, optional
-            For each context_feature, use the full set of all other
-            context_features to predict the feature. When True computes and
-            caches MAE (mean absolute error), R^2, RMSE (root mean squared
-            error), and Spearman Coefficient for continuous features, and
-            MAE, accuracy, precision, recall, and Matthews correlation coefficient
-            for nominal features. False removes cached values.
-        residuals_robust : bool, optional
-            For each context_feature, computes and caches the same stats as
-            residuals but using the robust (power set/permutations) set of all
-            other context_features to predict the feature.
-            False removes cached values.
+        feature_residuals_full : bool, optional
+            For each context_feature, use the full
+            set of all other context_features to predict the feature.
+            False removes cached values. When `prediction_stats`
+            in the `details` parameter is true, will automatically set this
+            parameter to `True`. This only caches the values, please retrieve the
+            feature residuals by setting `prediction_stats` in the `details` parameter
+            to `True`. The residuals are stored as the "mae" prediction statistic.
+        feature_residuals_robust : bool, optional
+            For each context_feature, use the robust (power
+            set/permutations) set of all other context_features to predict the
+            feature.  False removes cached values. When `prediction_stats_robust`
+            in the `details` parameter is true, will automatically set this
+            parameter to `True`. This only caches the values, please retrieve the
+            feature residuals by setting `prediction_stats_robust` to `True`.
+            The residuals are stored as the "mae" prediction statistic.
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
@@ -2216,28 +2331,28 @@ class HowsoCore:
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
+
+        Returns
+        -------
+        dict of str to dict of str to float or None
+            If specified, a map of feature to map of stat type to stat values is returned.
         """
-        self._execute(trainee_id, "react_into_trainee", {
+        self._execute(trainee_id, "react_aggregate", {
+            "action_feature": action_feature,
             "context_features": context_features,
-            "use_case_weights": use_case_weights,
-            "weight_feature": weight_feature,
-            "num_samples": num_samples,
-            "residuals": residuals,
-            "residuals_robust": residuals_robust,
-            "contributions": contributions,
-            "contributions_robust": contributions_robust,
-            "mda": mda,
-            "mda_permutation": mda_permutation,
-            "mda_robust": mda_robust,
-            "mda_robust_permutation": mda_robust_permutation,
+            "details": details,
+            "feature_residuals_full": feature_residuals_full,
+            "feature_residuals_robust": feature_residuals_robust,
+            "hyperparameter_param_path": hyperparameter_param_path,
             "num_robust_influence_samples": num_robust_influence_samples,
             "num_robust_residual_samples": num_robust_residual_samples,
-            "num_robust_influence_samples_per_case":
-                num_robust_influence_samples_per_case,
-            "hyperparameter_param_path": hyperparameter_param_path,
+            "num_robust_influence_samples_per_case": num_robust_influence_samples_per_case,
+            "num_samples": num_samples,
+            "robust_hyperparameters": robust_hyperparameters,
             "sample_model_fraction": sample_model_fraction,
             "sub_model_size": sub_model_size,
-            "action_feature": action_feature
+            "use_case_weights": use_case_weights,
+            "weight_feature": weight_feature,
         })
 
     def compute_conviction_of_features(
@@ -2463,197 +2578,6 @@ class HowsoCore:
         """
         params = {**kwargs}
         return self._execute(trainee_id, "analyze", params)
-
-    def get_feature_residuals(
-        self,
-        trainee_id: str,
-        action_feature: Optional[str] = None,
-        robust: Optional[bool] = None,
-        robust_hyperparameters: Optional[bool] = None,
-        weight_feature: Optional[str] = None,
-    ) -> Dict:
-        """
-        Get cached feature residuals.
-
-        .. deprecated:: 1.0.0
-            Use get_prediction_stats() instead.
-        """
-        return self._execute(trainee_id, "get_feature_residuals", {
-            "robust": robust,
-            "action_feature": action_feature,
-            "robust_hyperparameters": robust_hyperparameters,
-            "weight_feature": weight_feature,
-        })
-
-    def get_feature_mda(
-        self,
-        trainee_id: str,
-        action_feature: str,
-        permutation: Optional[bool] = None,
-        robust: Optional[bool] = None,
-        weight_feature: Optional[str] = None,
-    ) -> Dict:
-        """
-        Get cached feature Mean Decrease In Accuracy (MDA).
-
-        .. deprecated:: 1.0.0
-            Use get_prediction_stats() instead.
-        """
-        return self._execute(trainee_id, "get_feature_mda", {
-            "robust": robust,
-            "action_feature": action_feature,
-            "permutation": permutation,
-            "weight_feature": weight_feature,
-        })
-
-    def get_feature_contributions(
-        self,
-        trainee_id: str,
-        action_feature: str,
-        robust: Optional[bool] = None,
-        directional: bool = False,
-        weight_feature: Optional[str] = None,
-    ) -> Dict:
-        """
-        Get cached feature contributions.
-
-        .. deprecated:: 1.0.0
-            Use get_prediction_stats() instead.
-        """
-        return self._execute(trainee_id, "get_feature_contributions", {
-            "robust": robust,
-            "action_feature": action_feature,
-            "directional": directional,
-            "weight_feature": weight_feature,
-        })
-
-    def get_prediction_stats(
-        self, trainee_id, *,
-        action_feature=None,
-        action_condition=None,
-        action_condition_precision=None,
-        action_num_cases=None,
-        context_condition=None,
-        context_condition_precision=None,
-        context_precision_num_cases=None,
-        features=None,
-        num_robust_influence_samples_per_case=None,
-        robust=None,
-        robust_hyperparameters=None,
-        stats=None,
-        weight_feature=None,
-    ) -> Dict:
-        """
-        Get feature prediction stats.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The id or name of the trainee.
-        action_feature : str, optional
-            When specified, will attempt to return stats that
-            were computed for this specified action_feature.
-            Note: ".targetless" is the action feature used during targetless
-            analysis.
-        action_condition : map of str -> any, optional
-            A condition map to select the action set, which is the dataset for which
-            the prediction stats are for. If both ``action_condition`` and ``context_condition``
-            are provided, then all of the action cases selected by the ``action_condition``
-            will be excluded from the context set, which is the set being queried to make to
-            make predictions on the action set, effectively holding them out.
-            If only ``action_condition`` is specified, then only the single predicted case
-            will be left out.
-
-            .. NOTE::
-                The dictionary keys are the feature name and values are one of:
-
-                    - None
-                    - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
-                    - An array of string values, must match any of these values
-                      exactly. Only applicable to nominal and string ordinal
-                      features.
-        action_num_cases : int, optional
-            The maximum amount of cases to use to calculate prediction stats.
-            If not specified, the limit will be k cases if precision is
-            "similar", or 1000 cases if precision is "exact". Works with or
-            without ``action_condition``.
-            -If ``action_condition`` is set:
-                If None, will be set to k if precision is "similar" or no limit if precision is "exact".
-            - If ``action_condition`` is not set:
-                If None, will be set to the Howso default limit of 2000.
-        action_condition_precision : {"exact", "similar"}, optional
-            The precision to use when selecting cases with the ``action_condition``.
-            If not specified "exact" will be used. Only used if ``action_condition``
-            is not None.
-        context_condition : map of str -> any, optional
-            A condition map to select the context set, which is the set being queried to make
-            to make predictions on the action set. If both ``action_condition`` and ``context_condition``
-            are provided,  then all of the cases from the action set, which is the dataset for which the
-            prediction stats are for, will be excluded from the context set, effectively holding them out.
-            If only ``action_condition`` is specified,  then only the single predicted case will be left out.
-
-            .. NOTE::
-                The dictionary keys are the feature name and values are one of:
-
-                    - None
-                    - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
-                    - An array of string values, must match any of these values
-                      exactly. Only applicable to nominal and string ordinal
-                      features.
-        context_precision_num_cases : int, optional
-            Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
-            If None, will be set to k.
-        context_condition_precision : {"exact", "similar"}, optional
-            The precision to use when selecting cases with the ``context_condition``.
-            If not specified "exact" will be used. Only used if ``context_condition``
-            is not None.
-        features : list, optional
-            List of features to use when calculating conditional prediction stats. Should contain all action and
-            context features desired. If ``action_feature`` is also provided, that feature will automatically be
-            appended to this list if it is not already in the list.
-        num_robust_influence_samples_per_case : int, optional
-            Specifies the number of robust samples to use for each case for
-            robust contribution computations.
-            Defaults to 300 + 2 * (number of features).
-        robust : bool, optional
-            When specified, will attempt to return stats that
-            were computed with the specified robust or non-robust type.
-        robust_hyperparameters : bool, optional
-            When specified, will attempt to return stats that were
-            computed using hyperparameters with the specified robust or
-            non-robust type.
-        stats : iterable of str, optional
-            List of stats to output. When unspecified, returns all.
-        weight_feature : str, optional
-            When specified, will attempt to return stats that
-            were computed using this weight_feature.
-
-        Returns
-        -------
-        dict of str to dict of str to float
-            A map of feature to map of stat type to stat values.
-        """
-        return self._execute(trainee_id, "get_prediction_stats", {
-            "robust": robust,
-            "action_feature": action_feature,
-            "action_condition": action_condition,
-            "action_condition_precision": action_condition_precision,
-            "action_num_cases": action_num_cases,
-            "context_condition": context_condition,
-            "context_condition_precision": context_condition_precision,
-            "context_precision_num_cases": context_precision_num_cases,
-            "features": features,
-            "num_robust_influence_samples_per_case": num_robust_influence_samples_per_case,
-            "robust_hyperparameters": robust_hyperparameters,
-            "stats": stats,
-            "weight_feature": weight_feature,
-        })
 
     def get_marginal_stats(
         self,

@@ -1233,7 +1233,7 @@ def matrix_processing( # noqa
     normalize : bool, default False
         Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
     normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
-        The normalization method. The method may either one of the strings below that correspond to a 
+        The normalization method. The method may either one of the strings below that correspond to a
         default method or a custom Callable.
 
         These methods may be passed in as an individual string or in a iterable where they will
@@ -1399,7 +1399,7 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
     ----------
     confusion_matrix : dict of str -> dict of str -> int
         Confusion matrix in dictionary form. Standard form of confusion marices returned when retrieving
-        Howso's prediction stats through `howso.engine.trainee.get_prediction_stats`.
+        Howso's prediction stats through `howso.engine.trainee.react_aggregate`.
 
     Returns
     -------

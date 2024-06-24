@@ -248,25 +248,6 @@ class AbstractHowsoClient(ABC):
         """Get cached feature residuals."""
 
     @abstractmethod
-    def get_prediction_stats(
-        self, trainee_id, *,
-        action_feature=None,
-        action_condition=None,
-        action_condition_precision=None,
-        action_num_cases=None,
-        context_condition=None,
-        context_condition_precision=None,
-        context_precision_num_cases=None,
-        features=None,
-        num_robust_influence_samples_per_case=None,
-        robust=None,
-        robust_hyperparameters=None,
-        stats=None,
-        weight_feature=None,
-    ) -> Union["DataFrame", Dict]:
-        """Get cached feature prediction stats."""
-
-    @abstractmethod
     def get_marginal_stats(
         self, trainee_id, *,
         condition=None,
@@ -339,29 +320,25 @@ class AbstractHowsoClient(ABC):
         """Calculate conviction and other data for the specified feature(s)."""
 
     @abstractmethod
-    def react_into_trainee(
+    def react_aggregate(
         self, trainee_id, *,
         action_feature=None,
         context_features=None,
-        contributions=None,
-        contributions_robust=None,
+        details=None,
+        feature_residuals_full=None,
+        feature_residuals_robust=None,
         hyperparameter_param_path=None,
-        mda=None,
-        mda_permutation=None,
-        mda_robust=None,
-        mda_robust_permutation=None,
+        num_samples=None,
         num_robust_influence_samples=None,
         num_robust_residual_samples=None,
         num_robust_influence_samples_per_case=None,
-        num_samples=None,
-        residuals=None,
-        residuals_robust=None,
+        robust_hyperparameters=None,
         sample_model_fraction=None,
         sub_model_size=None,
-        use_case_weights=False,
+        use_case_weights=None,
         weight_feature=None,
-    ):
-        """Compute and cache specified feature interpretations."""
+    ) -> Union["DataFrame", dict, None]:
+        """Computes, caches, and/or returns specified feature interpretations."""
 
     @abstractmethod
     def react_group(

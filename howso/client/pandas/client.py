@@ -177,16 +177,16 @@ class HowsoPandasClientMixin:
         response = super().get_feature_contributions(*args, **kwargs)
         return deserialize_to_dataframe([response])
 
-    def get_prediction_stats(self, *args, **kwargs) -> DataFrame:
+    def react_aggregate(self, *args, **kwargs) -> DataFrame:
         """
-        Base: :func:`howso.client.AbstractHowsoClient.get_prediction_stats`.
+        Base: :func:`howso.client.AbstractHowsoClient.react_aggregate`.
 
         Returns
         -------
         DataFrame
             A DataFrame of feature name columns to statistic value rows.
         """
-        response = super().get_prediction_stats(*args, **kwargs)
+        response = super().react_aggregate(*args, **kwargs)
         return pd.DataFrame(response)
 
     def get_marginal_stats(self, *args, **kwargs) -> DataFrame:
