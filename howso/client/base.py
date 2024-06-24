@@ -483,6 +483,7 @@ class AbstractHowsoClient(ABC):
         features=None,
         distribute_weight_feature=None,
         influence_weight_entropy_threshold=None,
+        skip_auto_analyze=False,
         **kwargs
     ):
         """Smartly reduce the amount of trained cases while accumulating case weights."""
