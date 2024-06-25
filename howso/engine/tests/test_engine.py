@@ -344,11 +344,12 @@ class TestEngine:
         """Test `reduce_data`."""
         pre_reduction_cases = trainee.get_cases()
 
+        trainee.set_auto_ablation_params(minimum_model_size=50)
         trainee.reduce_data(influence_weight_entropy_threshold=0.5)
 
         post_reduction_cases = trainee.get_cases(features=[".case_weight"])
 
         assert len(pre_reduction_cases) == 150
-        assert len(post_reduction_cases) == 75
+        assert len(post_reduction_cases) == 36
 
         assert any(post_reduction_cases[".case_weight"] != 0)

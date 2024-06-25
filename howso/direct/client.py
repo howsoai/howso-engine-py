@@ -1482,7 +1482,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         condition_session: Optional[str] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
-        preserve_session_data: bool = False
     ) -> int:
         """
         Removes training cases from a Trainee.
@@ -1542,8 +1541,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         precision : {"exact", "similar"}, optional
             The precision to use when moving the cases, defaults to "exact".
             Ignored if case_indices is specified.
-        preserve_session_data : bool, default False
-            When True, will remove cases without cleaning up session data.
 
         Returns
         -------
@@ -1580,8 +1577,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             distribute_weight_feature=distribute_weight_feature,
             num_cases=num_cases,
             precision=precision,
-            preserve_session_data=preserve_session_data,
-            session=self.active_session.id
         )
         self._auto_persist_trainee(trainee_id)
         return result.get('count', 0)
@@ -4299,6 +4294,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         action_condition: t.Optional[dict[str, t.Any]] = None,
         action_condition_precision: t.Optional[t.Literal["exact", "similar"]] = None,
         action_num_cases: t.Optional[int] = None,
+        confusion_matrix_min_count: t.Optional[int] = None,
         context_condition: t.Optional[dict[str, t.Any]] = None,
         context_condition_precision: t.Optional[t.Literal["exact", "similar"]] = None,
         context_precision_num_cases: t.Optional[int] = None,
@@ -4368,8 +4364,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             The precision to use when selecting cases with the ``action_condition``.
             If not specified "exact" will be used. Only used if ``action_condition``
             is not None.
+        confusion_matrix_min_count : int, optional
+            The number of predictions a class should have (value of a cell in the matrix)
+            for it to remain in the confusion matrix. If the count is less than this value,
+            it will be accumulated into a single value of all insignificant predictions
+            for the class and removed from the confusion matrix. Defaults to 10,
+            applicable only to confusion matrices.
         context_condition : map of str -> any, optional
-            A condition map to select the context set, which is the set being queried to make 
+            A condition map to select the context set, which is the set being queried to make
             to make predictions on the action set. If both ``action_condition`` and ``context_condition``
             are provided,  then all of the cases from the action set, which is the dataset for which the
             prediction stats are for, will be excluded from the context set, effectively holding them out.
@@ -4486,6 +4488,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             robust=robust,
             robust_hyperparameters=robust_hyperparameters,
             stats=stats,
+            confusion_matrix_min_count=confusion_matrix_min_count,
             weight_feature=weight_feature,
             action_condition=action_condition,
             action_condition_precision=action_condition_precision,
@@ -4569,6 +4572,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         *,
         action_feature: Optional[str] = None,
+        confusion_matrix_min_count: Optional[int] = None,
         context_features: Optional[Iterable[str]] = None,
         contributions: Optional[bool] = None,
         contributions_robust: Optional[bool] = None,
@@ -4600,6 +4604,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             whatever the model was analyzed for, e.g., action feature for MDA
             and contributions, or ".targetless" if analyzed for targetless.
             This parameter is required for MDA or contributions computations.
+        confusion_matrix_min_count : int, optional
+            The number of predictions a class should have (value of a cell in the
+            matrix) for it to remain in the confusion matrix. If the count is
+            less than this value, it will be accumulated into a single value of
+            all insignificant predictions for the class and removed from the
+            confusion matrix. Defaults to 10, applicable only to confusion
+            matrices when computing residuals.
         context_features : iterable of str, optional
             List of features names to use as contexts for
             computations. Default is all trained non-unique features if
@@ -4722,6 +4733,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
             hyperparameter_param_path=hyperparameter_param_path,
             sample_model_fraction=sample_model_fraction,
+            confusion_matrix_min_count=confusion_matrix_min_count,
             sub_model_size=sub_model_size,
             action_feature=action_feature)
 
@@ -5425,6 +5437,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         features: t.Optional[list[str]] = None,
         distribute_weight_feature: t.Optional[str] = None,
         influence_weight_entropy_threshold: t.Optional[float] = None,
+        skip_auto_analyze: bool = False,
         **kwargs,
     ):
         """
@@ -5458,11 +5471,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             The quantile of influence weight entropy above which cases will be removed. This defaults
             to the value of ``influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
             which defaults to 0.6.
+        skip_auto_analyze : bool, default False
+            Whether to skip auto-analyzing as cases are removed.
         """
         params = dict(
             features=features,
             distribute_weight_feature=distribute_weight_feature,
             influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+            skip_auto_analyze=skip_auto_analyze,
         )
 
         params.update(kwargs)
