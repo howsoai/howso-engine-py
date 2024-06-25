@@ -3156,7 +3156,7 @@ class Trainee(BaseTrainee):
             by the stat or detail type. The return type depends on the underlying client.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.react_aggregate(
+            return self.client.react_aggregate(
                 trainee_id=self.id,
                 action_feature=action_feature,
                 context_features=context_features,

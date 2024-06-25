@@ -4473,7 +4473,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.verbose:
             print(f'Reacting into trainee for trainee with id: {trainee_id}')
 
-        self.howso.react_aggregate(
+        stats = self.howso.react_aggregate(
             trainee_id,
             action_feature=action_feature,
             context_features=context_features,
@@ -4494,6 +4494,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
 
         self._auto_persist_trainee(trainee_id)
+
+        return stats
 
     def get_extreme_cases(
         self,
