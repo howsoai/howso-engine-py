@@ -2340,7 +2340,7 @@ class HowsoCore:
         dict of str to dict of str to float or None
             If specified, a map of feature to map of stat type to stat values is returned.
         """
-        self._execute(trainee_id, "react_aggregate", {
+        return self._execute(trainee_id, "react_aggregate", {
             "action_feature": action_feature,
             "context_features": context_features,
             "confusion_matrix_min_count": confusion_matrix_min_count,
