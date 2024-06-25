@@ -150,6 +150,7 @@ class HowsoPandasClientMixin:
             A DataFrame of feature name columns to statistic value rows.
         """
         response = super().react_aggregate(*args, **kwargs)
+        a=1
         return pd.DataFrame(response)
 
     def get_marginal_stats(self, *args, **kwargs) -> DataFrame:

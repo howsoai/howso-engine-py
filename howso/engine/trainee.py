@@ -3695,15 +3695,15 @@ class Trainee(BaseTrainee):
                     category=HowsoWarning
                 )
                 if robust:
-                    selected_prediction_stats = ['feature_contributions_robust']
+                    feature_contribution_matrix[feature] = self.react_aggregate(
+                        action_feature=feature,
+                        details={"feature_contributions_robust": True}
+                    )
                 else:
-                    selected_prediction_stats = ['feature_contributions_full']
-                if robust:
                     feature_contribution_matrix[feature] = self.react_aggregate(
                         action_feature=feature,
                         details={
-                            "prediction_stats": True,
-                            "selected_prediction_stats": selected_prediction_stats
+                            "feature_contributions_full": True
                         }
                     )
 
