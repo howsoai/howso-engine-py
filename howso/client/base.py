@@ -314,6 +314,7 @@ class AbstractHowsoClient(ABC):
         self, trainee_id, *,
         action_feature=None,
         context_features=None,
+        confusion_matrix_min_count=None,
         details=None,
         feature_residuals_full=None,
         feature_residuals_robust=None,
@@ -511,24 +512,6 @@ class AbstractHowsoClient(ABC):
     def remove_feature(self, trainee_id, feature, *, condition=None,
                        condition_session=None):
         """Remove a feature from a trainee."""
-
-    @abstractmethod
-    def get_feature_mda(
-        self, trainee_id, action_feature, *,
-        permutation=None,
-        robust=None,
-        weight_feature=None,
-    ) -> "DataFrame":
-        """Get cached feature Mean Decrease In Accuracy (MDA)."""
-
-    @abstractmethod
-    def get_feature_contributions(
-        self, trainee_id, action_feature, *,
-        robust=None,
-        directional=False,
-        weight_feature=None,
-    ) -> "DataFrame":
-        """Get cached feature contributions."""
 
     @abstractmethod
     def get_pairwise_distances(self, trainee_id, features=None, *,

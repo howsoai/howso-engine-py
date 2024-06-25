@@ -2107,6 +2107,7 @@ class HowsoCore:
         *,
         action_feature: Optional[str] = None,
         context_features: Optional[Iterable[str]] = None,
+        confusion_matrix_min_count: Optional[int] = None,
         details: Optional[dict] = None,
         feature_residuals_full: Optional[bool] = None,
         feature_residuals_robust: Optional[bool] = None,
@@ -2242,16 +2243,10 @@ class HowsoCore:
                         If not specified "exact" will be used. Only used if ``context_condition``
                         is not None.
                     - prediction_stats_features : list, optional
-                        List of features to use when calculating conditional prediction stats. Should contain all action and
-                        context features desired. If ``action_feature`` is also provided, that feature will automatically be
-                        appended to this list if it is not already in the list.
+                        List of features to use when calculating conditional prediction stats. Should contain all
+                        action and context features desired. If ``action_feature`` is also provided, that feature
+                        will automatically be  appended to this list if it is not already in the list.
                          stats : list of str, optional
-                    - missing_value_accuracy_full : bool, optional
-                        The number of cases with missing values predicted to have missing values divided by the number
-                        of cases with missing values, applies to all features that contain missing values. Uses full calculations.
-                    - missing_value_accuracy_robust : bool, optional
-                        The number of cases with missing values predicted to have missing values divided by the number
-                        of cases with missing values, applies to all features that contain missing values. Uses robust calculations.
                     - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
                         returns all except the confusion matrix. Allowed values:
 
@@ -2280,6 +2275,9 @@ class HowsoCore:
                         - spearman_coeff : Spearman's rank correlation coefficient,
                         for continuous features only.
                         - mcc : Matthews correlation coefficient, for nominal features only.
+                        - missing_value_accuracy: The number of cases with missing values predicted to
+                            have missing values divided by the number of cases with missing values,
+                            applies to all features that contain missing values.
         hyperparameter_param_path : iterable of str, optional.
             Full path for hyperparameters to use for computation. If specified
             for any residual computations, takes precendence over action_feature
@@ -2300,10 +2298,16 @@ class HowsoCore:
         num_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
-            If specified overrides sample_model_fraction.```
+            If specified overrides sample_model_fraction.
+        confusion_matrix_min_count : int, optional
+            The number of predictions a class should have (value of a cell in the matrix)
+            for it to remain in the confusion matrix. If the count is less than this value,
+            it will be accumulated into a single value of all insignificant predictions
+            for the class and removed from the confusion matrix. Defaults to 10,
+            applicable only to confusion matrices.
         feature_residuals_full : bool, optional
             For each context_feature, use the full
-            set of all other context_features to predict the feature.
+            set of all other context_features to predict the feature and calculate the residuals.
             False removes cached values. When `prediction_stats`
             in the `details` parameter is true, will automatically set this
             parameter to `True`. This only caches the values, please retrieve the
@@ -2312,7 +2316,7 @@ class HowsoCore:
         feature_residuals_robust : bool, optional
             For each context_feature, use the robust (power
             set/permutations) set of all other context_features to predict the
-            feature.  False removes cached values. When `prediction_stats_robust`
+            feature and calculate the residuals.  False removes cached values. When `prediction_stats_robust`
             in the `details` parameter is true, will automatically set this
             parameter to `True`. This only caches the values, please retrieve the
             feature residuals by setting `prediction_stats_robust` to `True`.
@@ -2331,7 +2335,6 @@ class HowsoCore:
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-
         Returns
         -------
         dict of str to dict of str to float or None
@@ -2340,6 +2343,7 @@ class HowsoCore:
         self._execute(trainee_id, "react_aggregate", {
             "action_feature": action_feature,
             "context_features": context_features,
+            "confusion_matrix_min_count": confusion_matrix_min_count,
             "details": details,
             "feature_residuals_full": feature_residuals_full,
             "feature_residuals_robust": feature_residuals_robust,
