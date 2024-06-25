@@ -402,10 +402,10 @@ def generate_dataframe(*, client: AbstractHowsoClient,
     """
     continuous_feature = {
         "type": "continuous",
+        "decimal_places": 2,
         "bounds": {
             "min": 0.0,
             "max": 100.0,
-            "decimal_places": 2,
             "allow_null": False,
         }
     }
