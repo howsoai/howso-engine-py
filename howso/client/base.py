@@ -138,10 +138,9 @@ class AbstractHowsoClient(ABC):
 
     @abstractmethod
     def remove_cases(self, trainee_id, num_cases, *,
-                     case_indices=None,
-                     condition=None, condition_session=None,
-                     distribute_weight_feature=None, precision=None,
-                     preserve_session_data=False) -> int:
+                     case_indices=None, condition=None,
+                     condition_session=None, distribute_weight_feature=None,
+                     precision=None) -> int:
         """Remove training cases from a trainee."""
 
     @abstractmethod
@@ -313,6 +312,7 @@ class AbstractHowsoClient(ABC):
     def react_aggregate(
         self, trainee_id, *,
         action_feature=None,
+        confusion_matrix_min_count=None,
         context_features=None,
         confusion_matrix_min_count=None,
         details=None,
@@ -450,6 +450,7 @@ class AbstractHowsoClient(ABC):
         features=None,
         distribute_weight_feature=None,
         influence_weight_entropy_threshold=None,
+        skip_auto_analyze=False,
         **kwargs
     ):
         """Smartly reduce the amount of trained cases while accumulating case weights."""

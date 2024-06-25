@@ -885,6 +885,7 @@ class Trainee(BaseTrainee):
         features: t.Optional[list[str]] = None,
         distribute_weight_feature: t.Optional[str] = None,
         influence_weight_entropy_threshold: t.Optional[float] = None,
+        skip_auto_analyze: bool = False,
         **kwargs,
     ):
         """
@@ -918,6 +919,8 @@ class Trainee(BaseTrainee):
             The quantile of influence weight entropy above which cases will be removed. This defaults
             to the value of ``influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
             which defaults to 0.6.
+        skip_auto_analyze : bool, default False
+            Whether to skip auto-analyzing as cases are removed.
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.reduce_data(
@@ -925,6 +928,7 @@ class Trainee(BaseTrainee):
                 features=features,
                 distribute_weight_feature=distribute_weight_feature,
                 influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+                skip_auto_analyze=skip_auto_analyze,
             )
         else:
             raise ValueError("Client must have the 'reduce_data' method.")
@@ -1992,7 +1996,6 @@ class Trainee(BaseTrainee):
         condition_session: Optional[str | BaseSession] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Precision] = None,
-        preserve_session_data: bool = False
     ) -> int:
         """
         Remove training cases from the trainee.
@@ -2051,8 +2054,6 @@ class Trainee(BaseTrainee):
         precision : {"exact", "similar"}, optional
             The precision to use when removing the cases.If not specified
             "exact" will be used. Ignored if case_indices is specified.
-        preserve_session_data : bool, default False
-            When True, will remove cases without cleaning up session data.
 
         Returns
         -------
@@ -2072,7 +2073,6 @@ class Trainee(BaseTrainee):
                 condition_session=condition_session_id,
                 distribute_weight_feature=distribute_weight_feature,
                 precision=precision,
-                preserve_session_data=preserve_session_data,
             )
         else:
             raise ValueError("Client must have 'remove_cases' method")
@@ -2921,6 +2921,7 @@ class Trainee(BaseTrainee):
         self,
         *,
         action_feature: Optional[str] = None,
+        confusion_matrix_min_count: Optional[int] = None,
         context_features: Optional[Iterable[str]] = None,
         confusion_matrix_min_count: Optional[int] = None,
         details: Optional[dict] = None,
@@ -2949,6 +2950,13 @@ class Trainee(BaseTrainee):
             whatever the model was analyzed for, e.g., action feature for MDA
             and contributions, or ".targetless" if analyzed for targetless.
             This parameter is required for MDA or contributions computations.
+        confusion_matrix_min_count : int, optional
+            The number of predictions a class should have (value of a cell in the
+            matrix) for it to remain in the confusion matrix. If the count is
+            less than this value, it will be accumulated into a single value of
+            all insignificant predictions for the class and removed from the
+            confusion matrix. Defaults to 10, applicable only to confusion
+            matrices when computing residuals.
         context_features : iterable of str, optional
             List of features names to use as contexts for
             computations. Default is all trained non-unique features if
@@ -3171,6 +3179,7 @@ class Trainee(BaseTrainee):
                 feature_residuals_full=feature_residuals_full,
                 feature_residuals_robust=feature_residuals_robust,
                 sample_model_fraction=sample_model_fraction,
+                confusion_matrix_min_count=confusion_matrix_min_count,
                 sub_model_size=sub_model_size,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,

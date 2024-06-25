@@ -942,6 +942,7 @@ class HowsoCore:
         features: t.Optional[list[str]] = None,
         distribute_weight_feature: t.Optional[str] = None,
         influence_weight_entropy_threshold: t.Optional[float] = None,
+        skip_auto_analyze: bool = False,
         **kwargs,
     ):
         """
@@ -975,6 +976,8 @@ class HowsoCore:
             The quantile of influence weight entropy above which cases will be removed. This defaults
             to the value of ``influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
             which defaults to 0.6.
+        skip_auto_analyze : bool, default False
+            Whether to skip auto-analyzing as cases are removed.
         """
         return self._execute(
             trainee_id, "reduce_data",
@@ -982,6 +985,7 @@ class HowsoCore:
                 "features": features,
                 "distribute_weight_feature": distribute_weight_feature,
                 "influence_weight_entropy_threshold": influence_weight_entropy_threshold,
+                "skip_auto_analyze": skip_auto_analyze,
             }
         )
 
@@ -1079,49 +1083,6 @@ class HowsoCore:
             "robust": robust,
             "weight_feature": weight_feature,
             "use_case_weights": use_case_weights,
-        })
-
-    def clear_conviction_thresholds(self, trainee_id: str) -> None:
-        """
-        Set the conviction thresholds to null.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        """
-        return self._execute(trainee_id, "clear_conviction_thresholds", {})
-
-    def set_conviction_lower_threshold(self, trainee_id: str, threshold: float
-                                       ) -> None:
-        """
-        Set the conviction lower threshold.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        threshold : float
-            The threshold value.
-        """
-        return self._execute(trainee_id, "set_conviction_lower_threshold", {
-            "conviction_lower_threshold": threshold,
-        })
-
-    def set_conviction_upper_threshold(self, trainee_id: str, threshold: float
-                                       ) -> None:
-        """
-        Set the conviction upper threshold.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        threshold : float
-            The threshold value.
-        """
-        return self._execute(trainee_id, "set_conviction_upper_threshold", {
-            "conviction_upper_threshold": threshold,
         })
 
     def set_metadata(self, trainee_id: str, metadata: Union[Dict, None]
@@ -2106,6 +2067,7 @@ class HowsoCore:
         trainee_id: str,
         *,
         action_feature: Optional[str] = None,
+        confusion_matrix_min_count: Optional[int] = None,
         context_features: Optional[Iterable[str]] = None,
         confusion_matrix_min_count: Optional[int] = None,
         details: Optional[dict] = None,
@@ -2134,6 +2096,13 @@ class HowsoCore:
             whatever the model was analyzed for, e.g., action feature for MDA
             and contributions, or ".targetless" if analyzed for targetless.
             This parameter is required for MDA or contributions computations.
+        confusion_matrix_min_count : int, optional
+            The number of predictions a class should have (value of a cell in the
+            matrix) for it to remain in the confusion matrix. If the count is
+            less than this value, it will be accumulated into a single value of
+            all insignificant predictions for the class and removed from the
+            confusion matrix. Defaults to 10, applicable only to confusion
+            matrices when computing residuals.
         context_features : iterable of str, optional
             List of features names to use as contexts for
             computations. Default is all trained non-unique features if
@@ -2354,6 +2323,7 @@ class HowsoCore:
             "num_samples": num_samples,
             "robust_hyperparameters": robust_hyperparameters,
             "sample_model_fraction": sample_model_fraction,
+            "confusion_matrix_min_count": confusion_matrix_min_count,
             "sub_model_size": sub_model_size,
             "use_case_weights": use_case_weights,
             "weight_feature": weight_feature,
@@ -2796,8 +2766,6 @@ class HowsoCore:
         condition_session: Optional[str] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
-        preserve_session_data: bool = False,
-        session: Optional[str] = None
     ) -> Dict:
         """
         Removes cases from a Trainee.
@@ -2824,10 +2792,6 @@ class HowsoCore:
         precision : {"exact", "similar"}, optional
             The precision to use when moving the cases, defaults to "exact".
             Ignored if case_indices is specified.
-        preserve_session_data : bool, default False
-            When True, will remove cases without cleaning up session data.
-        session : str, optional
-            The identifier of the Trainee session to associate the removal with.
 
         Returns
         -------
@@ -2840,8 +2804,6 @@ class HowsoCore:
             "condition_session": condition_session,
             "precision": precision,
             "num_cases": num_cases,
-            "preserve_session_data": preserve_session_data,
-            "session": session,
             "distribute_weight_feature": distribute_weight_feature,
         })
         if not result:

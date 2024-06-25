@@ -1482,7 +1482,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         condition_session: Optional[str] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Literal["exact", "similar"]] = None,
-        preserve_session_data: bool = False
     ) -> int:
         """
         Removes training cases from a Trainee.
@@ -1542,8 +1541,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         precision : {"exact", "similar"}, optional
             The precision to use when moving the cases, defaults to "exact".
             Ignored if case_indices is specified.
-        preserve_session_data : bool, default False
-            When True, will remove cases without cleaning up session data.
 
         Returns
         -------
@@ -1580,8 +1577,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             distribute_weight_feature=distribute_weight_feature,
             num_cases=num_cases,
             precision=precision,
-            preserve_session_data=preserve_session_data,
-            session=self.active_session.id
         )
         self._auto_persist_trainee(trainee_id)
         return result.get('count', 0)
@@ -4488,6 +4483,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
             robust_hyperparameters=robust_hyperparameters,
             sample_model_fraction=sample_model_fraction,
+            confusion_matrix_min_count=confusion_matrix_min_count,
             sub_model_size=sub_model_size,
             use_case_weights=use_case_weights,
             weight_feature=weight_feature,
@@ -5195,6 +5191,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         features: t.Optional[list[str]] = None,
         distribute_weight_feature: t.Optional[str] = None,
         influence_weight_entropy_threshold: t.Optional[float] = None,
+        skip_auto_analyze: bool = False,
         **kwargs,
     ):
         """
@@ -5228,11 +5225,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             The quantile of influence weight entropy above which cases will be removed. This defaults
             to the value of ``influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
             which defaults to 0.6.
+        skip_auto_analyze : bool, default False
+            Whether to skip auto-analyzing as cases are removed.
         """
         params = dict(
             features=features,
             distribute_weight_feature=distribute_weight_feature,
             influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+            skip_auto_analyze=skip_auto_analyze,
         )
 
         params.update(kwargs)

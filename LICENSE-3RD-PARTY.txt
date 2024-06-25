@@ -1,10 +1,10 @@
 Faker
-25.8.0
+25.9.1
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-25.8.0.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-25.9.1.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -615,13 +615,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-1.26.4
+2.0.0
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/numpy-1.26.4.dist-info/LICENSE.txt
-Copyright (c) 2005-2023, NumPy Developers.
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/numpy-2.0.0.dist-info/LICENSE.txt
+Copyright (c) 2005-2024, NumPy Developers.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -662,20 +662,15 @@ Files: numpy/linalg/lapack_lite/*
 License: BSD-3-Clause
   For details, see numpy/linalg/lapack_lite/LICENSE.txt
 
-Name: tempita
-Files: tools/npy_tempita/*
-License: MIT
-  For details, see tools/npy_tempita/license.txt
-
 Name: dragon4
-Files: numpy/core/src/multiarray/dragon4.c
+Files: numpy/_core/src/multiarray/dragon4.c
 License: MIT
-  For license text, see numpy/core/src/multiarray/dragon4.c
+  For license text, see numpy/_core/src/multiarray/dragon4.c
 
 Name: libdivide
-Files: numpy/core/include/numpy/libdivide/*
+Files: numpy/_core/include/numpy/libdivide/*
 License: Zlib
-  For license text, see numpy/core/include/numpy/libdivide/LICENSE.txt
+  For license text, see numpy/_core/include/numpy/libdivide/LICENSE.txt
 
 
 Note that the following files are vendored in the repository and sdist but not
@@ -2217,12 +2212,12 @@ limitations under the License.
 
 
 urllib3
-2.2.1
+2.2.2
 MIT License
 Andrey Petrov <andrey.petrov@shazow.net>
 https://github.com/urllib3/urllib3/blob/main/CHANGES.rst
 HTTP library with thread-safe connection pooling, file post, and more.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/urllib3-2.2.1.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/urllib3-2.2.2.dist-info/licenses/LICENSE.txt
 MIT License
 
 Copyright (c) 2008-2020 Andrey Petrov and contributors.

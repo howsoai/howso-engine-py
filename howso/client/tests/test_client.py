@@ -698,7 +698,7 @@ class TestClient:
                 ['influential_cases', ]
             ),
             (
-                {'num_boundary_cases': 1, 'boundary_cases_familiarity_conviction': True, },
+                {'num_boundary_cases': 1, 'boundary_cases_familiarity_convictions': True, },
                 ['boundary_cases', ]
             ),
             (
