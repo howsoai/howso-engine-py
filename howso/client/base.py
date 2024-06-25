@@ -89,8 +89,7 @@ class AbstractHowsoClient(ABC):
         max_wait_time = None,
         metadata = None,
         project = None,
-        resources = None,
-        client = None
+        resources = None
     ):
         """Create a trainee on the Howso service."""
 

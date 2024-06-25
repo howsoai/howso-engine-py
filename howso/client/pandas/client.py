@@ -128,10 +128,10 @@ class HowsoPandasClientMixin:
         response = super().get_feature_conviction(*args, **kwargs)
         index = []
         rows = []
-        if  response['get']('familiarity_conviction_addition'):
+        if  response.get('familiarity_conviction_addition'):
             index.append('familiarity_conviction_addition')
             rows.append(response['familiarity_conviction_addition'])
-        if  response['get']('familiarity_conviction_removal'):
+        if  response.get('familiarity_conviction_removal'):
             index.append('familiarity_conviction_removal')
             rows.append(response['familiarity_conviction_removal'])
         return internals.deserialize_to_dataframe(rows, index=index)

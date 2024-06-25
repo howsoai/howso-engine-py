@@ -31,10 +31,6 @@ class HowsoError(Exception):
         super().__init__((message, code, url))
 
 
-class HowsoConfigurationError(HowsoError):
-    """An error raised when the howso.yml options are misconfigured."""
-
-
 class HowsoApiError(HowsoError):
     """
     An error raised by the Howso rest API.
@@ -112,6 +108,14 @@ class HowsoApiError(HowsoError):
         message += f"{detail}".strip()
 
         return cls(message, code, status, url)
+
+
+class HowsoAuthenticationError(HowsoApiError):
+    """An error raised due to an authentication failure."""
+
+
+class HowsoConfigurationError(HowsoError):
+    """An error raised when the howso.yml options are misconfigured."""
 
 
 class HowsoNotUniqueError(HowsoError):

@@ -516,7 +516,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         metadata = dict(
             name=name,
             persistence=persistence,
-            **(metadata or {})
+            metadata=(metadata or {})
         )
         new_trainee = dict(
             name=name,

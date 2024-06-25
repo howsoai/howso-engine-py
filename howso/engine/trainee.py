@@ -186,10 +186,6 @@ class Trainee():
         """
         return self._id
 
-    @id.setter
-    def id(self, id: str) -> None:
-        self._id = id
-
     @property
     def project_id(self) -> str | None:
         """
@@ -383,7 +379,7 @@ class Trainee():
             The session instance, if it exists.
         """
         if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
-            return self.client.active_session
+            return Session(self.client.active_session, client=self.client)
 
     def save(self, file_path: Optional[PathLike] = None):
         """
@@ -530,7 +526,7 @@ class Trainee():
 
         if isinstance(self.client, AbstractHowsoClient):
             trainee_data = self.client.copy_trainee(**params)
-            copy = Trainee(**trainee_data)
+            copy = Trainee.from_dict(trainee_data)
         else:
             copy = None
         if copy:

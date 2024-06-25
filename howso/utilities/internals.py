@@ -26,6 +26,7 @@ from humanize import precisedelta
 import numpy as np
 import pandas as pd
 from semantic_version import Version
+from howso.client.base import ATTRIBUTE_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -564,6 +565,12 @@ def sanitize_for_json(obj: Any):  # noqa: C901
     # Serialize objects to dict
     if isinstance(obj, Mapping):
         obj_dict = obj
+    elif hasattr(obj, 'openapi_types') and hasattr(obj, 'attribute_map'):
+        # Convert openapi model to dict using the attribute mapping,
+        # excluding values which are None
+        obj_dict = {ATTRIBUTE_MAP[attr]: getattr(obj, attr)
+                    for attr, _ in ATTRIBUTE_MAP.items()
+                    if getattr(obj, attr) is not None}
     else:
         try:
             # In some cases a pandas NAType could be present, check for it as

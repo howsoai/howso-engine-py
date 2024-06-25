@@ -543,7 +543,7 @@ def num_list_dimensions(lst):
     return d
 
 
-def validate_features(features: Mapping[str, Union[Dict, Mapping]],
+def validate_features(features: Mapping[str, Mapping],
                       extended_feature_types: Optional[Iterable[str]] = None
                       ) -> None:
     """
@@ -574,7 +574,10 @@ def validate_features(features: Mapping[str, Union[Dict, Mapping]],
         if isinstance(f_desc, Dict):
             f_type = f_desc.type
         else:
-            f_type = f_desc.get("type")
+            if isinstance(f_desc, Dict):
+                f_type = f_desc.type
+            else:
+                f_type = f_desc.get("type")
         if f_type not in valid_feature_types:
             raise ValueError(f"The feature name '{f_name}' has invalid "
                              f"feature type - '{f_type}'")
