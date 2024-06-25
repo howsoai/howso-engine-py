@@ -2069,7 +2069,6 @@ class HowsoCore:
         action_feature: Optional[str] = None,
         confusion_matrix_min_count: Optional[int] = None,
         context_features: Optional[Iterable[str]] = None,
-        confusion_matrix_min_count: Optional[int] = None,
         details: Optional[dict] = None,
         feature_residuals_full: Optional[bool] = None,
         feature_residuals_robust: Optional[bool] = None,
@@ -2268,12 +2267,6 @@ class HowsoCore:
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
             If specified overrides sample_model_fraction.
-        confusion_matrix_min_count : int, optional
-            The number of predictions a class should have (value of a cell in the matrix)
-            for it to remain in the confusion matrix. If the count is less than this value,
-            it will be accumulated into a single value of all insignificant predictions
-            for the class and removed from the confusion matrix. Defaults to 10,
-            applicable only to confusion matrices.
         feature_residuals_full : bool, optional
             For each context_feature, use the full
             set of all other context_features to predict the feature and calculate the residuals.
@@ -2323,7 +2316,6 @@ class HowsoCore:
             "num_samples": num_samples,
             "robust_hyperparameters": robust_hyperparameters,
             "sample_model_fraction": sample_model_fraction,
-            "confusion_matrix_min_count": confusion_matrix_min_count,
             "sub_model_size": sub_model_size,
             "use_case_weights": use_case_weights,
             "weight_feature": weight_feature,

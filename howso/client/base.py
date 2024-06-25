@@ -314,7 +314,6 @@ class AbstractHowsoClient(ABC):
         action_feature=None,
         confusion_matrix_min_count=None,
         context_features=None,
-        confusion_matrix_min_count=None,
         details=None,
         feature_residuals_full=None,
         feature_residuals_robust=None,

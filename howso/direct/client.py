@@ -4483,7 +4483,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
             robust_hyperparameters=robust_hyperparameters,
             sample_model_fraction=sample_model_fraction,
-            confusion_matrix_min_count=confusion_matrix_min_count,
             sub_model_size=sub_model_size,
             use_case_weights=use_case_weights,
             weight_feature=weight_feature,
