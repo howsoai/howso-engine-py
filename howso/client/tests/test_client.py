@@ -269,10 +269,7 @@ class TestDatetimeSerialization:
                     'datetime': {'type': 'continuous',
                                  'date_time_format': '%H %Y'}
                     }
-        trainee = dict(
-            features=features
-        )
-        trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
+        trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         df = pd.DataFrame(data=np.asarray([
             ['a', 'b', 'c', 'd'],
             # missing seconds in the provided values, don't match format
@@ -348,12 +345,11 @@ class TestClient:
             "play": {"type": "nominal"},
         }
         trainee_name = uuid.uuid4().hex
-        trainee = dict(
+        trainee = trainee_builder.create(
             name=trainee_name,
             features=feats,
             metadata={'ttl': 600000}
         )
-        trainee = trainee_builder.create(**trainee)
         try:
             yield trainee
         except Exception:
@@ -827,10 +823,7 @@ class TestBaseClient:
                     header[3]: {'type': 'continuous'},
                     header[4]: {'type': 'nominal'}
                     }
-        trainee = dict(
-            features=features
-        )
-        trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
+        trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         try:
             yield trainee
         except Exception:
@@ -875,10 +868,7 @@ class TestBaseClient:
                     header[3]: {'type': 'continuous'},
                     header[4]: {'type': 'nominal'}
                     }
-        trainee = dict(
-            features=features
-        )
-        trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
+        trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         trainee["name"] = 'test-update-verbose'
         updated_trainee = self.client.update_trainee(trainee)
         assert trainee["name"] == updated_trainee["name"]
@@ -1111,14 +1101,15 @@ class TestBaseClient:
         )['action']['petal_length'].iloc[0]
 
         # create another trainee
-        other_trainee = dict(
+        other_trainee = trainee_builder.create(
             features={"sepal_length": {'type': 'continuous'},
                       "sepal_width": {'type': 'continuous'},
                       "petal_length": {'type': 'continuous'},
                       "petal_width": {'type': 'continuous'},
-                      "class": {'type': 'nominal'}}
+                      "class": {'type': 'nominal'}},
+            id=None,
+            overwrite_trainee=True
         )
-        other_trainee = trainee_builder.create(**(other_trainee | dict(id=None, overwrite_trainee=True)))
         other_trainee = self.client.update_trainee(other_trainee)
         self.client.train(other_trainee['id'], new_cases, features=features)
 
