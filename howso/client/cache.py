@@ -9,9 +9,6 @@ class TraineeCacheItem(t.TypedDict):
     user_defaults: t.Dict[str, t.Dict]
 
 
-# TODO/PR BLOCK: Had to redo trainee cache to have mixed types since engine uses its Trainee object but everything else
-# has been converted to speak in dict representations. Need to decide if TraineeCache needs to be reconfigured.
-
 class TraineeCache(Collection):
     """Cache of trainee related information."""
 
