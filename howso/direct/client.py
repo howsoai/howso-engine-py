@@ -523,7 +523,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             features=features,
             persistence=persistence,
             id=id,
-            metadata=trainee_metadata
+            metadata=metadata
         )
         new_trainee = internals.preprocess_trainee(new_trainee)
         self.howso.set_metadata(trainee_id, trainee_metadata)
@@ -568,7 +568,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             persistence=trainee["persistence"]
         )
         self.howso.set_metadata(trainee_id, metadata)
-        trainee["metadata"] = self.howso.get_metadata(trainee_id)
         self.howso.set_feature_attributes(trainee_id, trainee["features"])
         trainee["features"] = self.howso.get_feature_attributes(trainee_id)
 
@@ -1053,7 +1052,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             features=features,
             persistence=persistence,
             id=trainee_id,
-            metadata=metadata
+            metadata=trainee_meta
         )
         return internals.postprocess_trainee(loaded_trainee)
 
