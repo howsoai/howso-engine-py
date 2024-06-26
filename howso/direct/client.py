@@ -5265,6 +5265,23 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         auto_analyze_limit_size: Optional[int] = None,
         analyze_growth_factor: Optional[float] = None,
+        action_features: Optional[Iterable[str]] = None,
+        context_features: Optional[Iterable[str]] = None,
+        k_folds: Optional[int] = None,
+        num_samples: Optional[int] = None,
+        dt_values: Optional[Iterable[float]] = None,
+        k_values: Optional[Iterable[int]] = None,
+        p_values: Optional[Iterable[float]] = None,
+        bypass_hyperparameter_analysis: Optional[bool] = None,
+        bypass_calculate_feature_residuals: Optional[bool] = None,
+        bypass_calculate_feature_weights: Optional[bool] = None,
+        targeted_model: Optional[Literal["omni_targeted", "single_targeted", "targetless"]] = None,
+        num_analysis_samples: Optional[int] = None,
+        analysis_sub_model_size: Optional[int] = None,
+        use_deviations: Optional[bool] = None,
+        inverse_residuals_as_weights: Optional[bool] = None,
+        use_case_weights: Optional[bool] = None,
+        weight_feature: Optional[str] = None,
         **kwargs
     ):
         """
@@ -5289,6 +5306,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         kwargs : dict, optional
             Parameters specific for analyze() may be passed in via kwargs, and
             will be cached and used during future auto-analysis.
+        TODO/PR BLOCK write docstring for added parameters
         """
         self._auto_resolve_trainee(trainee_id)
 
@@ -5303,31 +5321,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             'num_optimization_samples': 'num_analysis_samples',
             'optimization_sub_model_size': 'analysis_sub_model_size',
             'dwe_values': 'dt_values'
-        }
-        
-        attribute_map = {
-            'action_features': 'action_features',
-            'context_features': 'context_features',
-            'k_folds': 'k_folds',
-            'num_samples': 'num_samples',
-            'dt_values': 'dt_values',
-            'k_values': 'k_values',
-            'p_values': 'p_values',
-            'bypass_hyperparameter_analysis': 'bypass_hyperparameter_analysis',
-            'bypass_calculate_feature_residuals': 'bypass_calculate_feature_residuals',
-            'bypass_calculate_feature_weights': 'bypass_calculate_feature_weights',
-            'targeted_model': 'targeted_model',
-            'num_analysis_samples': 'num_analysis_samples',
-            'analysis_sub_model_size': 'analysis_sub_model_size',
-            'use_deviations': 'use_deviations',
-            'inverse_residuals_as_weights': 'inverse_residuals_as_weights',
-            'use_case_weights': 'use_case_weights',
-            'weight_feature': 'weight_feature',
-            'experimental_options': 'experimental_options',
-            'auto_analyze_enabled': 'auto_analyze_enabled',
-            'auto_analyze_limit_size': 'auto_analyze_limit_size',
-            'analyze_growth_factor': 'analyze_growth_factor',
-            'analyze_threshold': 'analyze_threshold'
         }
 
         # explicitly update parameters if old names are provided
@@ -5368,7 +5361,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                     'and targetless.')
 
         # Collect valid parameters
-        parameters = {k: v for k, v in kwargs.items() if k in attribute_map}
         if kwargs:
             warn_params = ', '.join(kwargs)
             warnings.warn(
@@ -5381,7 +5373,23 @@ class HowsoDirectClient(AbstractHowsoClient):
             analyze_threshold=analyze_threshold,
             auto_analyze_limit_size=auto_analyze_limit_size,
             analyze_growth_factor=analyze_growth_factor,
-            **parameters,
+            action_features=action_features,
+            context_features=context_features,
+            k_folds=k_folds,
+            num_samples=num_samples,
+            dt_values=dt_values,
+            k_values=k_values,
+            p_values=p_values,
+            bypass_hyperparameter_analysis=bypass_hyperparameter_analysis,
+            bypass_calculate_feature_residuals=bypass_calculate_feature_residuals,
+            bypass_calculate_feature_weights=bypass_calculate_feature_weights,
+            targeted_model=targeted_model,
+            num_analysis_samples=num_analysis_samples,
+            analysis_sub_model_size=analysis_sub_model_size,
+            use_deviations=use_deviations,
+            inverse_residuals_as_weights=inverse_residuals_as_weights,
+            use_case_weights=use_case_weights,
+            weight_feature=weight_feature,
             **kwargs
         )
         self._auto_persist_trainee(trainee_id)
