@@ -574,10 +574,7 @@ def validate_features(features: Mapping[str, Mapping],
         if isinstance(f_desc, Dict):
             f_type = f_desc.type
         else:
-            if isinstance(f_desc, Dict):
-                f_type = f_desc.type
-            else:
-                f_type = f_desc.get("type")
+            f_type = f_desc.get("type")
         if f_type not in valid_feature_types:
             raise ValueError(f"The feature name '{f_name}' has invalid "
                              f"feature type - '{f_type}'")
