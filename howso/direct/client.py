@@ -31,6 +31,7 @@ from typing import (
 )
 import uuid
 import warnings
+
 import certifi
 from howso import utilities as util
 from howso.client import get_configuration_path
@@ -50,8 +51,7 @@ from howso.utilities import (
     replace_doublemax_with_infinity,
     serialize_cases,
     validate_case_indices,
-    validate_list_shape,
-    SingleTableFeatureAttributes
+    validate_list_shape
 )
 from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
@@ -60,6 +60,7 @@ from howso.utilities.feature_attributes.base import (
 from howso.utilities.reaction import Reaction
 
 import numpy as np
+
 from packaging.version import parse as parse_version
 from pandas import DataFrame
 from typing_extensions import Never
@@ -299,7 +300,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         return deepcopy(self._active_session)
 
     @property
-    def trainee_cache(self) -> DictCache:
+    def trainee_cache(self) -> TraineeCache:
         """
         Return the trainee cache.
 
@@ -3801,7 +3802,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if result is None:
             result = dict()
         return dict(features=result.get('features'),
-                     cases=result.get('cases'))
+                    cases=result.get('cases'))
 
     def react_group(
         self,
@@ -6184,7 +6185,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             Additional experimental analyze parameters.
         """
         self._auto_resolve_trainee(trainee_id)
-        cached_trainee = self.trainee_cache.get(trainee_id)
 
         validate_list_shape(context_features, 1, "context_features", "str")
         validate_list_shape(action_features, 1, "action_features", "str")

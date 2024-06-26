@@ -17,12 +17,6 @@ from typing import (
 import uuid
 import warnings
 
-from pandas import (
-    concat,
-    DataFrame,
-    Index,
-)
-
 from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.exceptions import (
@@ -41,6 +35,12 @@ from howso.engine.session import Session
 import howso.utilities
 import howso.utilities.feature_attributes.base as feature_attributes
 import howso.utilities.reaction as reaction
+
+from pandas import (
+    concat,
+    DataFrame,
+    Index,
+)
 
 from .typing import (
     CaseIndices,
@@ -661,13 +661,13 @@ class Trainee():
         else:
             raise ValueError("Client must have 'get_trainee_information' method")
 
-    def metrics(self) -> "Metrics":
+    def metrics(self) -> "Dict":
         """
         Get metric information of the trainee.
 
         Returns
         -------
-        Metrics
+        Dict
             The trainee metric information. Including cpu and memory.
         """
         if isinstance(self.client, AbstractHowsoClient):
@@ -2162,7 +2162,7 @@ class Trainee():
         condition: Optional[MutableMapping] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
-    ) -> Cases | DataFrame:
+    ) -> Dict | DataFrame:
         """
         Get the trainee's cases.
 
@@ -2254,7 +2254,7 @@ class Trainee():
 
         Returns
         -------
-        Cases or DataFrame
+        Dict or DataFrame
             The trainee's cases.
         """
         if isinstance(session, Session):
@@ -2281,7 +2281,7 @@ class Trainee():
         features: Optional[Iterable[str]] = None,
         num: int,
         sort_feature: str,
-    ) -> Cases | DataFrame:
+    ) -> Dict | DataFrame:
         """
         Get the trainee's extreme cases.
 
@@ -2296,7 +2296,7 @@ class Trainee():
 
         Returns
         -------
-        Cases or DataFrame
+        Dict or DataFrame
             The trainee's extreme cases.
         """
         if self.id:
@@ -3435,7 +3435,15 @@ class Trainee():
             # and to prevent triggering an API update call
             setattr(self, f"_{key}", trainee.get(key))
 
-    def to_dict(self):
+    def to_dict(self) -> Dict:
+        """
+        Returns a dict representation of the trainee.
+
+        Returns
+        -------
+        Dict
+            A dict representation of the trainee.
+        """
         return dict(
             name=self.name,
             features=self.features,
@@ -3679,18 +3687,18 @@ class Trainee():
             new_trainee = None
             if isinstance(self.client, AbstractHowsoClient):
                 new_trainee = self.client.create_trainee(
-                    name = self.name,
-                    features = self.features,
+                    name=self.name,
+                    features=self.features,
                     overwrite_trainee=overwrite,
                     persistence=self.persistence,
-                    id = self.id,
+                    id=self.id,
                     library_type=library_type,
                     max_wait_time=max_wait_time,
-                    project = self.project,
+                    project=self.project,
                     resources=resources,
-                    client = self.client
+                    client=self.client
                 )
-                    
+
             if new_trainee:
                 self._update_attributes(new_trainee)
             else:

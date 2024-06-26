@@ -19,6 +19,7 @@ __all__ = [
 @runtime_checkable
 class LocalSaveableProtocol(Protocol):
     """Protocol to define a Howso client that has direct disk read/write access."""
+
     @property
     def howso(self) -> "HowsoCore":
         """Howso Core API."""

@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 from howso.client.base import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
-from howso.engine.client import get_client
 from howso.engine import Project
+from howso.engine.client import get_client
 
 if TYPE_CHECKING:
     from datetime import datetime

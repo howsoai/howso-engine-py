@@ -79,8 +79,11 @@ class HowsoPandasClientMixin:
         trainee_id = self._resolve_trainee_id(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id)["features"]
         response = super().get_cases(trainee_id, *args, **kwargs)
-        return utilities.deserialize_cases(response['cases'], response['features'],
-                                 feature_attributes)
+        return utilities.deserialize_cases(
+            response['cases'],
+            response['features'],
+            feature_attributes
+        )
 
     def get_extreme_cases(
         self,
@@ -112,8 +115,11 @@ class HowsoPandasClientMixin:
         feature_attributes = self.trainee_cache.get(trainee_id)["features"]
         response = super().get_extreme_cases(trainee_id, num, sort_feature,
                                              features)
-        return utilities.deserialize_cases( response['cases'],  response['features'],
-                                 feature_attributes)
+        return utilities.deserialize_cases(
+            response['cases'],
+            response['features'],
+            feature_attributes
+        )
 
     def get_feature_conviction(self, *args, **kwargs) -> DataFrame:
         """
@@ -128,10 +134,10 @@ class HowsoPandasClientMixin:
         response = super().get_feature_conviction(*args, **kwargs)
         index = []
         rows = []
-        if  response.get('familiarity_conviction_addition'):
+        if response.get('familiarity_conviction_addition'):
             index.append('familiarity_conviction_addition')
             rows.append(response['familiarity_conviction_addition'])
-        if  response.get('familiarity_conviction_removal'):
+        if response.get('familiarity_conviction_removal'):
             index.append('familiarity_conviction_removal')
             rows.append(response['familiarity_conviction_removal'])
         return internals.deserialize_to_dataframe(rows, index=index)
@@ -230,7 +236,10 @@ class HowsoPandasClientMixin:
         feature_attributes = self.trainee_cache.get(trainee_id)["features"]
         response = super().react_series(trainee_id, *args, series_index=series_index, **kwargs)
 
-        response['action'] = utilities.format_dataframe( response['get']("action"), feature_attributes)
+        response['action'] = utilities.format_dataframe(
+            response['get']("action"),
+            feature_attributes
+        )
 
         return response
 
@@ -254,8 +263,11 @@ class HowsoPandasClientMixin:
         columns = response['details'].get('action_features')
         if 'prediction_stats' in response['details']:
             response['details']['prediction_stats'] = pd.DataFrame(response['details']['prediction_stats'][0]).T
-        response['action'] = utilities.deserialize_cases(response['action'], columns,
-                                               feature_attributes)
+        response['action'] = utilities.deserialize_cases(
+            response['action'],
+            columns,
+            feature_attributes
+        )
         return response
 
     def get_distances(self, *args, **kwargs) -> Dict[str, Union[DataFrame, List]]:

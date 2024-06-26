@@ -59,6 +59,7 @@ def preprocess_trainee(trainee):
     Pre-process a trainee to update its data into the expected format.
     Should be used on trainee objects before sending to the API.
     Does not mutate the original trainee object.
+
     Parameters
     ----------
     trainee : Trainee
@@ -230,7 +231,7 @@ def postprocess_feature_attributes(features):
                     feat['original_format']['python']['date_time_format'])
             except (TypeError, KeyError):
                 pass
-        
+
         features[name] = feat
 
     return features
@@ -289,7 +290,7 @@ def preprocess_feature_attributes(features):
                                                      feat['date_time_format'])
         except (KeyError, TypeError, ValueError):
             pass
-        
+
         features[name] = feat
 
     return features
