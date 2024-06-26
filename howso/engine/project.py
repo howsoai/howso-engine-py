@@ -410,7 +410,7 @@ def list_projects(
         raise HowsoError("Projects are not supported by the active "
                          "Howso client.")
     projects = client.get_projects(search_terms)
-    return projects
+    return [Project.from_dict(project) for project in projects]
 
 
 def switch_project(

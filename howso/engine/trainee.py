@@ -4071,15 +4071,11 @@ def load_trainee(
 
     if isinstance(client, LocalSaveableProtocol):
         trainee_data = client._get_trainee_from_core(trainee_id)
-        trainee = Trainee(**trainee_data)
     else:
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
     if isinstance(client.trainee_cache, TraineeCache):
-        client.trainee_cache.set(trainee)
-    if trainee:
-        trainee = trainee
-    else:
-        raise ValueError("Trainee not loaded correctly.")
+        client.trainee_cache.set(trainee_data)
+    trainee = Trainee.from_dict(trainee_data)
     trainee._custom_save_path = file_path
 
     return trainee
