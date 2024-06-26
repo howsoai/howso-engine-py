@@ -3429,7 +3429,7 @@ class Trainee():
         trainee : Trainee
             The base trainee instance.
         """
-        for key in self.attribute_map.keys():
+        for key in Trainee.attribute_map.keys():
             # Update the protected attributes directly since the values
             # have already been validated by the "Trainee" instance
             # and to prevent triggering an API update call

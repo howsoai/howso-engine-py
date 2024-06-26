@@ -15,37 +15,6 @@ if TYPE_CHECKING:
     from howso.utilities.reaction import Reaction
     from .configuration import HowsoConfiguration
 
-# TODO/PR BLOCK: This map is an identity; could be changed to a list.
-# Decide if that's the desired path. Also consider what utility having
-# kwargs vs parameters defined really provides if kwargs can just be
-# used directly and parameters which aren't needed can be ignored;
-# filtering may not be necessary. Also this (and the maps below) may be
-# better placed in a constant somewhere.
-ATTRIBUTE_MAP = {
-    'action_features': 'action_features',
-    'context_features': 'context_features',
-    'k_folds': 'k_folds',
-    'num_samples': 'num_samples',
-    'dt_values': 'dt_values',
-    'k_values': 'k_values',
-    'p_values': 'p_values',
-    'bypass_hyperparameter_analysis': 'bypass_hyperparameter_analysis',
-    'bypass_calculate_feature_residuals': 'bypass_calculate_feature_residuals',
-    'bypass_calculate_feature_weights': 'bypass_calculate_feature_weights',
-    'targeted_model': 'targeted_model',
-    'num_analysis_samples': 'num_analysis_samples',
-    'analysis_sub_model_size': 'analysis_sub_model_size',
-    'use_deviations': 'use_deviations',
-    'inverse_residuals_as_weights': 'inverse_residuals_as_weights',
-    'use_case_weights': 'use_case_weights',
-    'weight_feature': 'weight_feature',
-    'experimental_options': 'experimental_options',
-    'auto_analyze_enabled': 'auto_analyze_enabled',
-    'auto_analyze_limit_size': 'auto_analyze_limit_size',
-    'analyze_growth_factor': 'analyze_growth_factor',
-    'analyze_threshold': 'analyze_threshold'
-}
-
 
 class AbstractHowsoClient(ABC):
     """The base definition of the Howso client interface."""
@@ -79,17 +48,17 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def create_trainee(
         self,
-        name = None,
-        features = None,
+        name=None,
+        features=None,
         *,
-        overwrite_trainee = False,
-        persistence = "allow",
-        id = None,
-        library_type = None,
-        max_wait_time = None,
-        metadata = None,
-        project = None,
-        resources = None
+        overwrite_trainee=False,
+        persistence="allow",
+        id=None,
+        library_type=None,
+        max_wait_time=None,
+        metadata=None,
+        project=None,
+        resources=None
     ):
         """Create a trainee on the Howso service."""
 

@@ -32,6 +32,17 @@ class Project():
         The Howso client instance to use. Must support the project API.
     """
 
+    attribute_map = {
+        'id': 'id',
+        'name': 'name',
+        'is_private': 'is_private',
+        'is_default': 'is_default',
+        'created_by': 'created_by',
+        'created_date': 'created_date',
+        'modified_date': 'modified_date',
+        'permissions': 'permissions'
+    }
+
     def __init__(
         self,
         name: str = None,
@@ -237,7 +248,7 @@ class Project():
         -------
         None
         """
-        for key in self.attribute_map.keys():
+        for key in Project.attribute_map.keys():
             # Update the protected attributes directly since the values
             # have already been validated by the "Project" instance
             # and to prevent triggering an API update call

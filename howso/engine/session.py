@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 
-from howso.client.base import AbstractHowsoClient, ATTRIBUTE_MAP
+from howso.client.base import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
 from howso.engine.client import get_client
@@ -31,6 +31,15 @@ class Session():
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
     """
+
+    attribute_map = {
+        'id': 'id',
+        'name': 'name',
+        'user': 'user',
+        'metadata': 'metadata',
+        'created_date': 'created_date',
+        'modified_date': 'modified_date'
+    }
 
     def __init__(
         self,
@@ -194,7 +203,7 @@ class Session():
         -------
         None
         """
-        for key in ATTRIBUTE_MAP.keys():
+        for key in Session.attribute_map.keys():
             # Update the protected attributes directly since the values
             # have already been validated by the "Session" instance
             # and to prevent triggering an API update call
@@ -258,7 +267,7 @@ class Session():
             'client': session_dict.get('client')
         }
         instance = cls(**parameters)
-        for key in ATTRIBUTE_MAP.keys():
+        for key in cls.attribute_map.keys():
             if key in session_dict:
                 setattr(instance, f'_{key}', session_dict[key])
         return instance

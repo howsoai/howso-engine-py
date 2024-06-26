@@ -34,7 +34,7 @@ import warnings
 import certifi
 from howso import utilities as util
 from howso.client import get_configuration_path
-from howso.client.base import AbstractHowsoClient, ATTRIBUTE_MAP
+from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError
@@ -1816,7 +1816,14 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         for trainee_id in self.trainee_cache.ids():
             sessions = self.howso.get_sessions(
-                trainee_id, attributes=list(ATTRIBUTE_MAP))
+                trainee_id, attributes=[
+                    'id',
+                    'name',
+                    'user',
+                    'metadata',
+                    'created_date',
+                    'modified_date'
+                ])
             if not sessions:
                 continue
 
@@ -5297,6 +5304,31 @@ class HowsoDirectClient(AbstractHowsoClient):
             'optimization_sub_model_size': 'analysis_sub_model_size',
             'dwe_values': 'dt_values'
         }
+        
+        attribute_map = {
+            'action_features': 'action_features',
+            'context_features': 'context_features',
+            'k_folds': 'k_folds',
+            'num_samples': 'num_samples',
+            'dt_values': 'dt_values',
+            'k_values': 'k_values',
+            'p_values': 'p_values',
+            'bypass_hyperparameter_analysis': 'bypass_hyperparameter_analysis',
+            'bypass_calculate_feature_residuals': 'bypass_calculate_feature_residuals',
+            'bypass_calculate_feature_weights': 'bypass_calculate_feature_weights',
+            'targeted_model': 'targeted_model',
+            'num_analysis_samples': 'num_analysis_samples',
+            'analysis_sub_model_size': 'analysis_sub_model_size',
+            'use_deviations': 'use_deviations',
+            'inverse_residuals_as_weights': 'inverse_residuals_as_weights',
+            'use_case_weights': 'use_case_weights',
+            'weight_feature': 'weight_feature',
+            'experimental_options': 'experimental_options',
+            'auto_analyze_enabled': 'auto_analyze_enabled',
+            'auto_analyze_limit_size': 'auto_analyze_limit_size',
+            'analyze_growth_factor': 'analyze_growth_factor',
+            'analyze_threshold': 'analyze_threshold'
+        }
 
         # explicitly update parameters if old names are provided
         if kwargs:
@@ -5336,7 +5368,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     'and targetless.')
 
         # Collect valid parameters
-        parameters = { k: v for k, v in kwargs.items() if k in ATTRIBUTE_MAP}
+        parameters = {k: v for k, v in kwargs.items() if k in attribute_map}
         if kwargs:
             warn_params = ', '.join(kwargs)
             warnings.warn(
