@@ -5303,10 +5303,60 @@ class HowsoDirectClient(AbstractHowsoClient):
         analyze_growth_factor : float, optional
             The factor by which to increase the analyze threshold every time
             the model grows to the current threshold size.
+        action_features : Iterable[str], optional
+            The action features to analyze for.
+        context_features : Iterable[str], optional
+            The context features to analyze for.
+        k_folds : int, optional
+            The number of cross validation folds to do. A value of 1 does
+            hold-one-out instead of k-fold.
+        num_samples : int, optional
+            Number of samples used in calculating feature residuals.
+        dt_values : Iterable[float], optional
+            The dt value hyperparameters to analyze with.
+        k_values : Iterable[int], optional
+            The number of cross validation folds to do. A value of 1 does
+            hold-one-out instead of k-fold.
+        p_values : Iterable[float], optional
+            The p value hyperparameters to analyze with.
+        bypass_calculate_feature_residuals : bool, optional
+            When True, bypasses calculation of feature residuals.
+        bypass_calculate_feature_weights : bool, optional
+            When True, bypasses calculation of feature weights.
+        bypass_hyperparameter_analysis : bool, optional
+            When True, bypasses hyperparameter analysis.
+        targeted_model : Literal["omni_targeted", "single_targeted", "targetless"], optional
+            Type of hyperparameter targeting.
+            Valid options include:
+
+                - **single_targeted**: Analyze hyperparameters for the
+                  specified action_features.
+                - **omni_targeted**: Analyze hyperparameters for each context
+                  feature as an action feature, ignores action_features
+                  parameter.
+                - **targetless**: Analyze hyperparameters for all context
+                  features as possible action features, ignores
+                  action_features parameter.
+        num_analysis_samples : int, optional
+            Specifies the number of observations to be considered for
+            analysis.
+        analysis_sub_model_size : int, optional
+            Number of samples to use for analysis. The rest will be
+            randomly held-out and not included in calculations.
+        use_deviations : bool, optional
+            When True, uses deviations for LK metric in queries.
+        inverse_residuals_as_weights : bool, optional
+            When True, will compute and use inverse of residuals as feature
+            weights.
+        use_case_weights : bool, optional
+            When True will scale influence weights by each
+            case's weight_feature weight.
+        weight_feature : str
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
         kwargs : dict, optional
             Parameters specific for analyze() may be passed in via kwargs, and
             will be cached and used during future auto-analysis.
-        TODO/PR BLOCK write docstring for added parameters
         """
         self._auto_resolve_trainee(trainee_id)
 
