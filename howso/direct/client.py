@@ -3580,7 +3580,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             validate_list_shape(actions, 2, "actions", "object")
             action_features = internals.get_features_from_data(
                 actions,
-                default_features=trainee["default_action_features"],
                 data_parameter='actions',
                 features_parameter='action_features')
         actions = serialize_cases(actions, action_features, trainee["features"])
