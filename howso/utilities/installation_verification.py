@@ -29,6 +29,19 @@ from typing import (
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
+import pandas as pd
+try:
+    from requests.exceptions import ConnectionError
+except ImportError:
+    ConnectionError = None
+from rich import print
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 try:
     from howso import engine
@@ -42,7 +55,6 @@ from howso.client.exceptions import (
     HowsoConfigurationError,
     HowsoError
 )
-
 try:
     from howso.validator import Validator  # noqa: might not be available # type: ignore
 except OSError as e:
@@ -50,13 +62,10 @@ except OSError as e:
 except ImportError:
     Validator = None
 from howso.utilities import infer_feature_attributes
-
 try:
     from howso.synthesizer import Synthesizer  # noqa: might not be available # type: ignore
 except ImportError:
     Synthesizer = None
-import pandas as pd
-
 from howso.utilities import (
     StopExecution,
     Timer,
@@ -65,19 +74,6 @@ from howso.utilities.locale import get_default_locale
 from howso.utilities.posix import (
     PlatformError,
     sysctl_by_name,
-)
-
-try:
-    from requests.exceptions import ConnectionError
-except ImportError:
-    ConnectionError = None
-from rich import print
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
 )
 
 logger = logging.getLogger(__name__)

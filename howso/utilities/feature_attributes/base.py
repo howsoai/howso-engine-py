@@ -14,11 +14,12 @@ import warnings
 
 from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
-from howso.utilities.features import FeatureType
-from howso.utilities.internals import serialize_models
 import numpy as np
 import pandas as pd
 import yaml
+
+from howso.utilities.features import FeatureType
+from howso.utilities.internals import serialize_models
 
 logger = logging.getLogger(__name__)
 

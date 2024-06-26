@@ -2,6 +2,11 @@ import inspect
 from typing import Any, Dict, List, Optional, Union
 import uuid
 
+import numpy as np
+import pandas as pd
+from sklearn.base import BaseEstimator
+from sklearn.metrics import accuracy_score, r2_score
+
 from howso import engine
 import howso.client
 from howso.client.base import AbstractHowsoClient
@@ -12,10 +17,6 @@ from howso.client.exceptions import (
 )
 import howso.utilities as utils
 from howso.utilities.feature_attributes import infer_feature_attributes
-import numpy as np
-import pandas as pd
-from sklearn.base import BaseEstimator
-from sklearn.metrics import accuracy_score, r2_score
 
 CLASSIFICATION = 'classification'
 REGRESSION = 'regression'

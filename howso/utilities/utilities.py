@@ -26,7 +26,6 @@ import numpy as np
 import pandas as pd
 
 from howso.engine import Trainee
-
 from .internals import serialize_models
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]

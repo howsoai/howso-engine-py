@@ -6,12 +6,13 @@ from typing import (
     Union,
 )
 
+import pandas as pd
+from pandas import DataFrame, Index
+
 import howso.client.client
 import howso.utilities as utilities
 import howso.utilities.internals as internals
 import howso.utilities.reaction as reaction
-import pandas as pd
-from pandas import DataFrame, Index
 
 
 class HowsoPandasClientMixin:

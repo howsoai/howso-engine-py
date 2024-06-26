@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 import platform
 import types
+import typing as t
 from typing import (
     Any,
     Callable,
@@ -34,7 +35,6 @@ from typing import (
     Tuple,
     Union,
 )
-import typing as t
 import uuid
 import warnings
 
@@ -77,7 +77,6 @@ from howso.utilities.feature_attributes.base import (
     SingleTableFeatureAttributes,
 )
 from howso.utilities.reaction import Reaction
-
 from .core import HowsoCore
 
 # Client version
