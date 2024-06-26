@@ -1,7 +1,13 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import (
+    datetime,
+    timedelta
+)
 from enum import IntEnum
-from functools import cached_property, partial
+from functools import (
+    cached_property,
+    partial
+)
 import inspect
 from io import StringIO
 import logging
@@ -11,18 +17,32 @@ from pathlib import Path
 import random
 import sys
 import traceback
-from typing import Callable, Iterable, List, Optional, Tuple, Union, Dict
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union
+)
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
+
 try:
     from howso import engine
 except ImportError:
     engine = None
 from howso.client import (
-    AbstractHowsoClient, HowsoClient
+    AbstractHowsoClient,
+    HowsoClient
 )
-from howso.client.exceptions import HowsoConfigurationError, HowsoError
+from howso.client.exceptions import (
+    HowsoConfigurationError,
+    HowsoError
+)
+
 try:
     from howso.validator import Validator  # noqa: might not be available # type: ignore
 except OSError as e:
@@ -30,14 +50,23 @@ except OSError as e:
 except ImportError:
     Validator = None
 from howso.utilities import infer_feature_attributes
+
 try:
     from howso.synthesizer import Synthesizer  # noqa: might not be available # type: ignore
 except ImportError:
     Synthesizer = None
-from howso.utilities import StopExecution, Timer
-from howso.utilities.locale import get_default_locale
-from howso.utilities.posix import PlatformError, sysctl_by_name
 import pandas as pd
+
+from howso.utilities import (
+    StopExecution,
+    Timer,
+)
+from howso.utilities.locale import get_default_locale
+from howso.utilities.posix import (
+    PlatformError,
+    sysctl_by_name,
+)
+
 try:
     from requests.exceptions import ConnectionError
 except ImportError:

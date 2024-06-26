@@ -17,17 +17,15 @@ Examples implementations are included in the howso/examples directory.
 """
 
 from .client import (  # noqa: F401
+    AbstractHowsoClient,
     CONFIG_FILE_ENV_VAR,
     DEFAULT_CONFIG_FILE,
     DEFAULT_CONFIG_FILE_ALT,
     get_configuration_path,
     get_howso_client,
-    HowsoClient,
-    AbstractHowsoClient
+    HowsoClient
 )
-from .pandas.client import (  # noqa: F401
-    HowsoPandasClient,
-)
+from .pandas.client import HowsoPandasClient  # noqa: F401
 
 __all__ = [
     "CONFIG_FILE_ENV_VAR",

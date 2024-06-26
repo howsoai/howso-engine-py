@@ -57,6 +57,7 @@ def postprocess_trainee(trainee):
 def preprocess_trainee(trainee):
     """
     Pre-process a trainee to update its data into the expected format.
+
     Should be used on trainee objects before sending to the API.
     Does not mutate the original trainee object.
 

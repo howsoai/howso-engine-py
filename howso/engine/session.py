@@ -91,13 +91,13 @@ class Session():
         return self._name
 
     @property
-    def user(self) -> Optional["AccountIdentity"]:
+    def user(self) -> Optional["Dict"]:
         """
         The user account that the session belongs to.
 
         Returns
         -------
-        AccountIdentity
+        Dict
             The user account information.
         """
         return self._user

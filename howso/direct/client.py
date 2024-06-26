@@ -1,9 +1,15 @@
 from __future__ import annotations
 
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import (
+    Future,
+    ThreadPoolExecutor
+)
 from contextlib import contextmanager
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import (
+    datetime,
+    timezone
+)
 from http import HTTPStatus
 import importlib.metadata
 import json
@@ -14,7 +20,6 @@ import os
 from pathlib import Path
 import platform
 import types
-import typing as t
 from typing import (
     Any,
     Callable,
@@ -29,16 +34,30 @@ from typing import (
     Tuple,
     Union,
 )
+import typing as t
 import uuid
 import warnings
 
 import certifi
+import numpy as np
+from packaging.version import parse as parse_version
+from pandas import DataFrame
+from typing_extensions import Never
+import urllib3
+from urllib3.util import (
+    Retry,
+    Timeout
+)
+
 from howso import utilities as util
 from howso.client import get_configuration_path
 from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
-from howso.client.exceptions import HowsoError
+from howso.client.exceptions import (
+    HowsoError,
+    UnsupportedArgumentWarning
+)
 from howso.engine.typing import (
     Library,
     Persistence
@@ -59,16 +78,7 @@ from howso.utilities.feature_attributes.base import (
 )
 from howso.utilities.reaction import Reaction
 
-import numpy as np
-
-from packaging.version import parse as parse_version
-from pandas import DataFrame
-from typing_extensions import Never
-import urllib3
-from urllib3.util import Retry, Timeout
-
 from .core import HowsoCore
-from howso.client.exceptions import UnsupportedArgumentWarning
 
 # Client version
 CLIENT_VERSION = importlib.metadata.version('howso-engine')

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
-import typing as t
 from typing import (
     Any,
     Callable,
@@ -14,8 +13,15 @@ from typing import (
     Tuple,
     Union,
 )
+import typing as t
 import uuid
 import warnings
+
+from pandas import (
+    concat,
+    DataFrame,
+    Index
+)
 
 from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
@@ -35,12 +41,6 @@ from howso.engine.session import Session
 import howso.utilities
 import howso.utilities.feature_attributes.base as feature_attributes
 import howso.utilities.reaction as reaction
-
-from pandas import (
-    concat,
-    DataFrame,
-    Index,
-)
 
 from .typing import (
     CaseIndices,

@@ -1,4 +1,9 @@
-from typing import List, Optional, TYPE_CHECKING
+from typing import (
+    Dict,
+    List,
+    Optional,
+    TYPE_CHECKING
+)
 
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
@@ -141,13 +146,13 @@ class Project():
         return self._is_default
 
     @property
-    def created_by(self) -> Optional["AccountIdentity"]:
+    def created_by(self) -> Optional["Dict"]:
         """
         The user account that created this project.
 
         Returns
         -------
-        AccountIdentity
+        Dict
             The user account information.
         """
         return self._created_by

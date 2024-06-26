@@ -5,7 +5,6 @@ from math import isnan
 import re
 import sys
 import threading
-import typing as t
 from typing import (
     Callable,
     Collection,
@@ -17,6 +16,7 @@ from typing import (
     Tuple,
     Union,
 )
+import typing as t
 import uuid
 import warnings
 
@@ -25,10 +25,10 @@ from dateutil.parser import parse as dt_parse
 from dateutil.tz import tzoffset
 import numpy as np
 import pandas as pd
+
 from howso.engine import Trainee
 
 from .internals import serialize_models
-
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
 # Custom type for case_indices parameter

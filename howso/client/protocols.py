@@ -1,8 +1,8 @@
 from typing import (
     Dict,
     List,
-    Protocol,
     Optional,
+    Protocol,
     runtime_checkable,
     TYPE_CHECKING
 )
