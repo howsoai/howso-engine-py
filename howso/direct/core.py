@@ -2067,6 +2067,7 @@ class HowsoCore:
         trainee_id: str,
         *,
         action_feature: Optional[str] = None,
+        residuals_hyperparameter_feature: Optional[str] = None,
         confusion_matrix_min_count: Optional[int] = None,
         context_features: Optional[Iterable[str]] = None,
         details: Optional[dict] = None,
@@ -2246,6 +2247,22 @@ class HowsoCore:
                         - missing_value_accuracy: The number of cases with missing values predicted to
                             have missing values divided by the number of cases with missing values,
                             applies to all features that contain missing values.
+        feature_residuals_full : bool, optional
+            For each context_feature, use the full
+            set of all other context_features to predict the feature and calculate the residuals.
+            False removes cached values. When `prediction_stats`
+            in the `details` parameter is true, will automatically set this
+            parameter to `True`. This only caches the values, please retrieve the
+            feature residuals by setting `prediction_stats` in the `details` parameter
+            to `True`. The residuals are stored as the "mae" prediction statistic.
+        feature_residuals_robust : bool, optional
+            For each context_feature, use the robust (power
+            set/permutations) set of all other context_features to predict the
+            feature and calculate the residuals.  False removes cached values. When `prediction_stats_robust`
+            in the `details` parameter is true, will automatically set this
+            parameter to `True`. This only caches the values, please retrieve the
+            feature residuals by setting `prediction_stats_robust` to `True`.
+            The residuals are stored as the "mae" prediction statistic.
         hyperparameter_param_path : iterable of str, optional.
             Full path for hyperparameters to use for computation. If specified
             for any residual computations, takes precendence over action_feature
@@ -2267,22 +2284,11 @@ class HowsoCore:
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
             If specified overrides sample_model_fraction.
-        feature_residuals_full : bool, optional
-            For each context_feature, use the full
-            set of all other context_features to predict the feature and calculate the residuals.
-            False removes cached values. When `prediction_stats`
-            in the `details` parameter is true, will automatically set this
-            parameter to `True`. This only caches the values, please retrieve the
-            feature residuals by setting `prediction_stats` in the `details` parameter
-            to `True`. The residuals are stored as the "mae" prediction statistic.
-        feature_residuals_robust : bool, optional
-            For each context_feature, use the robust (power
-            set/permutations) set of all other context_features to predict the
-            feature and calculate the residuals.  False removes cached values. When `prediction_stats_robust`
-            in the `details` parameter is true, will automatically set this
-            parameter to `True`. This only caches the values, please retrieve the
-            feature residuals by setting `prediction_stats_robust` to `True`.
-            The residuals are stored as the "mae" prediction statistic.
+        residuals_hyperparameter_feature : string, optional
+            When calculating residuals and prediction stats, uses this target
+            features's hyperparameters. The trainee must have been analyzed with
+            this feature as the action feature first. If not provided, by default
+            residuals and prediction stats uses ".targetless" hyperparameters.
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
@@ -2304,6 +2310,7 @@ class HowsoCore:
         """
         return self._execute(trainee_id, "react_aggregate", {
             "action_feature": action_feature,
+            "residuals_hyperparameter_feature": residuals_hyperparameter_feature,
             "context_features": context_features,
             "confusion_matrix_min_count": confusion_matrix_min_count,
             "details": details,
