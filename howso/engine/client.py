@@ -1,5 +1,5 @@
-import howso.client
-import howso.client.pandas
+from howso.client import AbstractHowsoClient, HowsoPandasClient
+from howso.client.pandas import HowsoPandasClientMixin
 
 __client_instance = None
 
@@ -9,7 +9,7 @@ __all__ = {
 }
 
 
-def get_client():
+def get_client() -> AbstractHowsoClient:
     """
     Get the active Howso client instance.
 
@@ -20,7 +20,7 @@ def get_client():
     """
     global __client_instance
     if __client_instance is None:
-        __client_instance = howso.client.pandas.HowsoPandasClient()
+        __client_instance = HowsoPandasClient()
     return __client_instance
 
 
@@ -43,9 +43,9 @@ def use_client(client):
         When the client is not an instance of AbstractHowsoClient.
     """
     global __client_instance
-    if not isinstance(client, howso.client.AbstractHowsoClient):
+    if not isinstance(client, AbstractHowsoClient):
         raise ValueError("`client` must be a subclass of "
                          "AbstractHowsoClient")
-    if not isinstance(client, howso.client.pandas.HowsoPandasClientMixin):
+    if not isinstance(client, HowsoPandasClientMixin):
         raise ValueError("`client` must be a HowsoPandasClient")
     __client_instance = client

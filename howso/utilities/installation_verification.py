@@ -666,11 +666,10 @@ def check_save(*, registry: InstallationCheckRegistry,
             source_df, _ = generate_dataframe(client=client)
         features = infer_feature_attributes(source_df)
         feature_names = list(features.keys())
-        trainee = dict(
+        if trainee := client.create_trainee(
             name=f"installation_verification check save ({get_nonce()})",
             features=features
-        )
-        if trainee := client.create_trainee(**trainee):
+        ):
             client.train(trainee["id"], source_df, features=feature_names)
             client.persist_trainee(trainee['id'])
         else:
@@ -929,7 +928,7 @@ def check_engine_operation(
     finally:
         try:
             if engine and trainee:
-                engine.delete_trainee(trainee['id'])
+                engine.delete_trainee(trainee.id)
         except Exception:  # noqa: Deliberately broad
             pass
 
@@ -996,12 +995,11 @@ def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
     """
     client = HowsoClient()
     features = {'date': {'type': 'continous', 'date_time_format': '%Y-%m-%d'}}
-    trainee = dict(
+    trainee = client.create_trainee(
         name=f"installation_verification check_tzdata_installed ({get_nonce()})",
         features=features,
         persistence='never'
     )
-    trainee = client.create_trainee(**trainee)
     client.train(trainee_id=trainee["id"], cases=[["2001-01-01"]], features=['date'])
     result_queue.put(client.get_num_training_cases(trainee['id']))
     client.delete_trainee(trainee['id'])

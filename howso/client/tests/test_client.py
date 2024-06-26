@@ -205,10 +205,7 @@ class TestDatetimeSerialization:
                     'datetime': {'type': 'continuous',
                                  'date_time_format': '%Y-%m-%dT%H:%M:%S.%f'}
                     }
-        trainee = dict(
-            features=features
-        )
-        trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
+        trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         try:
             yield trainee
         except Exception:
@@ -240,10 +237,7 @@ class TestDatetimeSerialization:
                     'datetime': {'type': 'continuous',
                                  'date_time_format': '%Y-%m-%dT%H:%M:%S'}
                     }
-        trainee = dict(
-            features=features
-        )
-        trainee = trainee_builder.create(**trainee, overwrite_trainee=True)
+        trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         df = pd.DataFrame(data=np.asarray([
             ['a', 'b', 'c', 'd'],
             # missing seconds in the provided values, don't match format
@@ -354,8 +348,6 @@ class TestClient:
             "play": {"type": "nominal"},
         }
         trainee_name = uuid.uuid4().hex
-        actions = ['play']
-        contexts = ['penguin']
         trainee = dict(
             name=trainee_name,
             features=feats,

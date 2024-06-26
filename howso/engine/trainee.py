@@ -378,7 +378,7 @@ class Trainee():
             The session instance, if it exists.
         """
         if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
-            return Session.from_dict(self.client.active_session)
+            return Session.from_dict(self.client.active_session, client=self.client)
 
     def save(self, file_path: Optional[PathLike] = None):
         """

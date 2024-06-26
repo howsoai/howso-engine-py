@@ -25,7 +25,6 @@ from dateutil.tz import tzoffset
 import numpy as np
 import pandas as pd
 
-from howso.engine import Trainee
 from .internals import serialize_models
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
@@ -47,7 +46,7 @@ def trainee_from_df(df, features: Optional[Mapping[str, Mapping]] = None,
                     name: Optional[str] = None,
                     persistence: str = 'allow',
                     trainee_metadata: Optional[Mapping] = None,
-                    ) -> Trainee:
+                    ) -> Dict:
     """
     Create a Trainee from a dataframe.
 
@@ -84,9 +83,12 @@ def trainee_from_df(df, features: Optional[Mapping[str, Mapping]] = None,
     if features is None:
         features = infer_feature_attributes(df)
 
-    return Trainee(name, features=features,
-                   persistence=persistence,
-                   metadata=trainee_metadata)
+    return dict(
+        name=name,
+        features=features,
+        persistence=persistence,
+        metadata=trainee_metadata
+    )
 
 
 def date_to_epoch(
@@ -569,10 +571,7 @@ def validate_features(features: Mapping[str, Mapping],
         valid_feature_types += list(extended_feature_types)
 
     for f_name, f_desc in features.items():
-        if isinstance(f_desc, Dict):
-            f_type = f_desc.get("type")
-        else:
-            f_type = f_desc.type
+        f_type = f_desc.get("type")
         if f_type not in valid_feature_types:
             raise ValueError(f"The feature name '{f_name}' has invalid "
                              f"feature type - '{f_type}'")

@@ -51,12 +51,12 @@ class AbstractHowsoClient(ABC):
         name=None,
         features=None,
         *,
-        overwrite_trainee=False,
-        persistence="allow",
         id=None,
         library_type=None,
         max_wait_time=None,
         metadata=None,
+        overwrite_trainee=False,
+        persistence="allow",
         project=None,
         resources=None
     ):

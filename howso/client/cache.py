@@ -5,7 +5,7 @@ import typing as t
 class TraineeCacheItem(t.TypedDict):
     """Type definition for trainee cache items."""
 
-    trainee: "t.Dict"
+    trainee: t.Dict
     user_defaults: t.Dict[str, t.Dict]
 
 
@@ -16,7 +16,7 @@ class TraineeCache(Collection):
 
     __marker = object()
 
-    def set(self, trainee: "t.Dict", **kwargs) -> None:
+    def set(self, trainee: t.Dict, **kwargs) -> None:
         """Set trainee in cache."""
         trainee_id = trainee.get('id', None) if isinstance(trainee, t.Dict) else getattr(trainee, 'id', None)
         if trainee_id:
@@ -28,7 +28,7 @@ class TraineeCache(Collection):
                 **kwargs
             })
 
-    def get(self, trainee_id: str, default=__marker) -> "t.Dict":
+    def get(self, trainee_id: str, default=__marker) -> t.Dict:
         """Get trainee instance by id."""
         try:
             return self.__dict__[trainee_id]['trainee']
@@ -70,7 +70,7 @@ class TraineeCache(Collection):
         """Return view items in cache."""
         return self.__dict__.items()
 
-    def trainees(self) -> t.Iterator[t.Tuple[str, "t.Dict"]]:
+    def trainees(self) -> t.Iterator[t.Tuple[str, t.Dict]]:
         """Return iterator to all trainee instances in cache."""
         for key, item in self.__dict__.items():
             yield (key, item['trainee'])

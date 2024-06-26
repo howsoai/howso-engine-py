@@ -8,8 +8,7 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, r2_score
 
 from howso import engine
-import howso.client
-from howso.client.base import AbstractHowsoClient
+from howso.client import AbstractHowsoClient, HowsoPandasClient
 from howso.client.exceptions import (
     HowsoApiError,
     HowsoError,
@@ -144,7 +143,7 @@ class HowsoEstimator(BaseEstimator):
         self.client_params = client_params
 
         if client is None and client_params is None:
-            self.client = howso.client.HowsoPandasClient(verbose=self.verbose, debug=self.debug)
+            self.client = HowsoPandasClient(verbose=self.verbose, debug=self.debug)
             self.client_params = self._get_client_params()
         elif client_params:
             cls = client_params["class"]

@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 
-from howso.client.base import AbstractHowsoClient
+from howso.client import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
 from howso.engine import Project
@@ -47,8 +47,7 @@ class Session():
         *,
         id: Optional[str] = None,
         metadata: Optional[dict] = None,
-        client: Optional[AbstractHowsoClient] = None,
-        **kwargs
+        client: Optional[AbstractHowsoClient] = None
     ) -> None:
         """Implement the constructor."""
         self._created: bool = False
@@ -246,14 +245,20 @@ class Session():
         self._created = True
 
     @classmethod
-    def from_dict(cls, session_dict: dict) -> "Session":
+    def from_dict(
+        cls,
+        session_dict: dict,
+        client: Optional[AbstractHowsoClient] = None
+    ) -> "Session":
         """
         Create Session from dict.
 
         Parameters
         ----------
-        session_dict : Dict
-            The session parameters.
+        project_dict : Dict
+            The Project parameters.
+        client : AbstractHowsoClient, optional
+            The Howso client instance to use.
 
         Returns
         -------
@@ -270,6 +275,7 @@ class Session():
         for key in cls.attribute_map.keys():
             if key in session_dict:
                 setattr(instance, f'_{key}', session_dict[key])
+        instance.client = client
         return instance
 
 
@@ -290,7 +296,7 @@ def get_active_session(
         The session instance.
     """
     client = client or get_client()
-    return Session.from_dict(client.active_session)
+    return Session.from_dict(client.active_session, client=client)
 
 
 def get_session(
@@ -315,7 +321,7 @@ def get_session(
     """
     client = client or get_client()
     session = client.get_session(str(session_id))
-    return Session.from_dict(session)
+    return Session.from_dict(session, client=client)
 
 
 def list_sessions(
@@ -354,4 +360,4 @@ def list_sessions(
             params["project_id"] = project
 
     sessions = client.get_sessions(**params)
-    return [Session.from_dict(session) for session in sessions]
+    return [Session.from_dict(session, client=client) for session in sessions]

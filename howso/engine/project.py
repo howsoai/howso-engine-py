@@ -5,6 +5,7 @@ from typing import (
     TYPE_CHECKING
 )
 
+from howso.client import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
 from howso.engine.client import get_client
@@ -240,24 +241,24 @@ class Project():
         self._created = False
         self._id = None
 
-    def _update_attributes(self, project) -> None:
+    def _update_attributes(self, project: Dict) -> None:
         """
         Update the protected attributes of the project.
 
         Parameters
         ----------
-        project : Project
+        project : Dict
             The base project instance.
 
         Returns
         -------
         None
         """
-        for key in Project.attribute_map.keys():
+        for key in Project.attribute_map:
             # Update the protected attributes directly since the values
             # have already been validated by the "Project" instance
             # and to prevent triggering an API update call
-            setattr(self, f'_{key}', getattr(project, key))
+            setattr(self, f'_{key}', project.get(key))
 
     def _update(self) -> None:
         """
@@ -295,7 +296,11 @@ class Project():
         self._created = True
 
     @classmethod
-    def from_dict(cls, project_dict: dict) -> "Project":
+    def from_dict(
+        cls,
+        project_dict: dict,
+        client: Optional[AbstractHowsoClient] = None
+    ) -> "Project":
         """
         Create Project from dict.
 
@@ -303,6 +308,8 @@ class Project():
         ----------
         project_dict : Dict
             The Project parameters.
+        client : AbstractHowsoClient, optional
+            The Howso client instance to use.
 
         Returns
         -------
@@ -320,6 +327,7 @@ class Project():
         for key in cls.attribute_map.keys():
             if key in project_dict:
                 setattr(instance, f'_{key}', project_dict[key])
+        instance.client = client
         return instance
 
     def __enter__(self) -> "Project":
@@ -387,7 +395,7 @@ def get_project(
                          "Howso client.")
 
     project = client.get_project(str(project_id))
-    return Project.from_dict(project)
+    return Project.from_dict(project, client=client)
 
 
 def list_projects(
@@ -415,7 +423,7 @@ def list_projects(
         raise HowsoError("Projects are not supported by the active "
                          "Howso client.")
     projects = client.get_projects(search_terms)
-    return [Project.from_dict(project) for project in projects]
+    return [Project.from_dict(project, client=client) for project in projects]
 
 
 def switch_project(
@@ -443,4 +451,4 @@ def switch_project(
         raise HowsoError("Projects are not supported by the active "
                          "Howso client.")
     client.switch_project(str(project_id))
-    return Project.from_dict(client.active_project)
+    return Project.from_dict(client.active_project, client=client)
