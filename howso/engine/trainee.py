@@ -525,7 +525,10 @@ class Trainee():
 
         if isinstance(self.client, AbstractHowsoClient):
             trainee_data = self.client.copy_trainee(**params)
-            copy = Trainee.from_dict(trainee_data)
+            copy = Trainee.from_dict(
+                trainee_data,
+                client=self.client
+            )
         else:
             copy = None
         if copy:
@@ -3706,7 +3709,11 @@ class Trainee():
         self._created = True
 
     @classmethod
-    def from_dict(cls, trainee_dict: dict) -> "Trainee":
+    def from_dict(
+        cls,
+        trainee_dict: dict,
+        client: Optional[AbstractHowsoClient] = None
+    ) -> "Trainee":
         """
         Create Trainee from dict.
 
@@ -3729,8 +3736,9 @@ class Trainee():
                     parameters["project"] = trainee_dict[key]
                 else:
                     parameters[key] = trainee_dict[key]
-
-        return cls(**parameters)  # type: ignore
+        instance = cls(**parameters)  # type: ignore
+        instance.client = client
+        return instance
 
     def __enter__(self) -> "Trainee":
         """Support context managers."""
@@ -4082,7 +4090,10 @@ def load_trainee(
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
     if isinstance(client.trainee_cache, TraineeCache):
         client.trainee_cache.set(trainee_data)
-    trainee = Trainee.from_dict(trainee_data)
+    trainee = Trainee.from_dict(
+        trainee_data,
+        client=client
+    )
     trainee._custom_save_path = file_path
 
     return trainee
