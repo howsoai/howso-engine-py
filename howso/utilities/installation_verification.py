@@ -422,12 +422,11 @@ def generate_dataframe(*, client: AbstractHowsoClient,
     }
     feature_names = list(features.keys())
 
-    trainee = dict(
+    trainee = client.create_trainee(
         name=f"installation_verification generated dataframe ({get_nonce()})",
         features=features,
         persistence="never"
     )
-    trainee = client.create_trainee(**trainee)
     if not isinstance(trainee, Dict):
         raise HowsoError('Unable to create trainee.')
     client.set_feature_attributes(trainee["id"], features)
