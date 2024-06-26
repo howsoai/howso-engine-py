@@ -513,7 +513,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f"Possible causes - Howso couldn't find core "
                 f"binaries/camls or {trainee_id} trainee already exists.")
 
-        metadata = dict(
+        trainee_metadata = dict(
             name=name,
             persistence=persistence,
             metadata=(metadata or {})
@@ -523,10 +523,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             features=features,
             persistence=persistence,
             id=id,
-            metadata=metadata
+            metadata=trainee_metadata
         )
         new_trainee = internals.preprocess_trainee(new_trainee)
-        self.howso.set_metadata(trainee_id, metadata)
+        self.howso.set_metadata(trainee_id, trainee_metadata)
         self.howso.set_feature_attributes(trainee_id, new_trainee['features'])
         new_trainee['features'] = self.howso.get_feature_attributes(trainee_id)
         new_trainee = internals.postprocess_trainee(new_trainee)
@@ -565,7 +565,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         metadata = dict(
             name=trainee["name"],
             metadata=trainee["metadata"],
-            persistence=trainee["persistence"],
+            persistence=trainee["persistence"]
         )
         self.howso.set_metadata(trainee_id, metadata)
         trainee["metadata"] = self.howso.get_metadata(trainee_id)
