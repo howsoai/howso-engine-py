@@ -382,7 +382,7 @@ def get_project(
                          "Howso client.")
 
     project = client.get_project(str(project_id))
-    return project
+    return Project.from_dict(project)
 
 
 def list_projects(
@@ -438,4 +438,4 @@ def switch_project(
         raise HowsoError("Projects are not supported by the active "
                          "Howso client.")
     client.switch_project(str(project_id))
-    return client.active_project
+    return Project.from_dict(client.active_project)

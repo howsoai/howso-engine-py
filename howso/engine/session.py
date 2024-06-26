@@ -290,7 +290,7 @@ def get_active_session(
         The session instance.
     """
     client = client or get_client()
-    return client.active_session
+    return Session.from_dict(client.active_session)
 
 
 def get_session(
@@ -315,7 +315,7 @@ def get_session(
     """
     client = client or get_client()
     session = client.get_session(str(session_id))
-    return session
+    return Session.from_dict(session)
 
 
 def list_sessions(
@@ -354,4 +354,4 @@ def list_sessions(
             params["project_id"] = project
 
     sessions = client.get_sessions(**params)
-    return sessions
+    return [Session.from_dict(session) for session in sessions]
