@@ -46,7 +46,6 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError, UnsupportedArgumentWarning
-from howso.engine import Session
 from howso.engine.typing import Library, Persistence
 from howso.utilities import (
     build_react_series_df,
@@ -1571,12 +1570,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
-        ):
-            condition['.session'] = condition['.session'].id
-        elif (
-            isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Dict)
+            isinstance(condition.get('.session'), dict)
         ):
             condition['.session'] = condition['.session']['id']
 
@@ -1679,12 +1673,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
-        ):
-            condition['.session'] = condition['.session'].id
-        elif (
-            isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Dict)
+            isinstance(condition.get('.session'), dict)
         ):
             condition['.session'] = condition['.session']['id']
 
@@ -5018,12 +5007,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
-        ):
-            condition['.session'] = condition['.session'].id
-        elif (
-            isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Dict)
+            isinstance(condition.get('.session'), dict)
         ):
             condition['.session'] = condition['.session']['id']
 

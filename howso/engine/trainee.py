@@ -1956,6 +1956,12 @@ class Trainee():
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
+        # Convert session instance to id
+        if (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.remove_cases(
                 trainee_id=self.id,
@@ -2033,6 +2039,12 @@ class Trainee():
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
+        # Convert session instance to id
+        if (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.edit_cases(
                 trainee_id=self.id,
