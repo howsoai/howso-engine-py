@@ -4217,16 +4217,16 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         *,
         action_feature: Optional[str] = None,
-        context_features: Optional[Iterable[str]] = None,
         confusion_matrix_min_count: Optional[int] = None,
+        context_features: Optional[Iterable[str]] = None,
         details: Optional[dict] = None,
-        feature_residuals_full: Optional[bool] = None,
-        feature_residuals_robust: Optional[bool] = None,
+        feature_influences_action_feature: Optional[str] = None,
         hyperparameter_param_path: Optional[Iterable[str]] = None,
         num_robust_influence_samples: Optional[int] = None,
         num_robust_residual_samples: Optional[int] = None,
         num_robust_influence_samples_per_case: Optional[int] = None,
         num_samples: Optional[int] = None,
+        prediction_stats_action_feature: Optional[str] = None,
         residuals_hyperparameter_feature: Optional[str] = None,
         robust_hyperparameters: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
@@ -4235,17 +4235,24 @@ class HowsoDirectClient(AbstractHowsoClient):
         weight_feature: Optional[str] = None,
     ) -> dict[str, dict[str, float]] | None:
         """
-        Reacts into the trained cases in the Trainee.
+        Reacts into the aggregate trained cases in the Trainee.
 
-        Calculates, caches, and/or returns the requested details and prediction stats.
+        Calculates, caches, and/or returns the requested influences and prediction stats.
 
         Parameters
         ----------
         action_feature : str, optional
-            Name of target feature for which to do computations. Default is
-            whatever the model was analyzed for, e.g., action feature for MDA
-            and contributions, or ".targetless" if analyzed for targetless.
-            This parameter is required for MDA or contributions computations.
+            Name of target feature for which to do computations. If ``prediction_stats_action_feature``
+            and ``feature_influences_action_feature`` are not provided, they will default to this value.
+            If ``feature_influences_action_feature`` is not provided and feature influences ``details`` are
+            selected, this feature must be provided.
+        confusion_matrix_min_count : int, optional
+            The number of predictions a class should have (value of a cell in the
+            matrix) for it to remain in the confusion matrix. If the count is
+            less than this value, it will be accumulated into a single value of
+            all insignificant predictions for the class and removed from the
+            confusion matrix. Defaults to 10, applicable only to confusion
+            matrices when computing residuals.
         context_features : iterable of str, optional
             List of features names to use as contexts for
             computations. Default is all trained non-unique features if
@@ -4256,43 +4263,51 @@ class HowsoDirectClient(AbstractHowsoClient):
                     different audit details. Omitted keys, values set to None, or False
                     values for Booleans will not be included in the data returned.
 
-                    - prediction_stats : bool, optional. If true outputs full feature prediction
-                        stats for all (context and action) features locally around the prediction.
-                        The predictioned stats returned are set by the `selected_prediction_stats`
-                        parameter. Uses full calculations, which uses leave-one-out for features
-                        for computations. False removes cached values. If "prediction_stats_robust" is also
-                        True, then only the full "prediction_stats" are returned.
-                    - prediction_stats_robust: bool, optional. If true outputs robust feature
-                        prediction stats for all (context and action) features. The prediction
-                        stats returned are set by the `selected_prediction_stats` parameter.
+                    - prediction_stats : bool, optional. If True outputs full feature prediction
+                        stats for all (context and action) features. The predictioned stats returned are set
+                        by the "selected_prediction_stats" parameter in the `details` parameter. Uses full
+                        calculations, which uses leave-one-out for featuresvfor computations. False removes
+                        cached values. If "prediction_stats_robust" is also True, then only the full
+                        "prediction_stats" are returned.
+                    - prediction_stats_robust: bool, optional. If True outputs full feature prediction
+                        stats for all (context and action) features. The predictioned stats returned are set
+                        by the "selected_prediction_stats" parameter in the `details` parameter.
                         Uses robust calculations, which uses uniform sampling from the power
                         set of all combinations of features. False removes cached values.
                         If "prediction_stats_robust" is also True, then only the full "prediction_stats"
                         are returned.
+                    - feature_residuals_full : bool, optional
+                        For each context_feature, use the full set of all other context_features to predict
+                        the feature. False removes cached values. When ``prediction_stats``
+                        in the ``details`` parameter is true, the Trainee will also calculate and cache the
+                        full feature residuals.
+                    - feature_residuals_robust : bool, optional
+                        For each context_feature, use the robust (power set/permutations) set of all other
+                        context_features to predict the feature. False removes cached values.
                     - feature_contributions_full : bool, optional
                         For each context_feature, use the full set of all other
                         context_features to compute the mean absolute delta between
-                        prediction of action_feature with and without the context_feature
+                        prediction of action feature with and without the context features
                         in the model. False removes cached values.
                     - feature_contributions_robust : bool, optional
                         For each context_feature, use the robust (power set/permutation)
                         set of all other context_features to compute the mean absolute
-                        delta between prediction of action_feature with and without the
-                        context_feature in the model. False removes cached values.
+                        delta between prediction of the action feature with and without the
+                        context features in the model. False removes cached values.
                     - feature_mda_full : bool, optional
                         When True will compute Mean Decrease in Accuracy (MDA)
-                        for each context feature at predicting mda_action_features. Drop
+                        for each context feature at predicting the action feature. Drop
                         each feature and use the full set of remaining context features
                         for each prediction. False removes cached values.
                     - feature_mda_robust : bool, optional
-                        Compute MDA by dropping each feature and using the
+                        Compute Mean Decrease in Accuracy MDA by dropping each feature and using the
                         robust (power set/permutations) set of remaining context features
                         for each prediction. False removes cached values.
-                    - feature_mda_permutation_full : bool, optional
+                    - feature_feature_mda_permutation_full : bool, optional
                         Compute MDA by scrambling each feature and using the
                         full set of remaining context features for each prediction.
                         False removes cached values.
-                    - feature_mda_permutation_robust : bool, optional
+                    - feature_feature_mda_permutation_robust : bool, optional
                         Compute MDA by scrambling each feature and using the
                         robust (power set/permutations) set of remaining context features
                         for each prediction. False removes cached values.
@@ -4355,10 +4370,16 @@ class HowsoDirectClient(AbstractHowsoClient):
                         If not specified "exact" will be used. Only used if ``context_condition``
                         is not None.
                     - prediction_stats_features : list, optional
-                        List of features to use when calculating conditional prediction stats. Should contain all
-                        action and context features desired. If ``action_feature`` is also provided, that feature
-                        will automatically be  appended to this list if it is not already in the list.
+                        List of features to use when calculating conditional prediction stats. Should contain all action and
+                        context features desired. If ``action_feature`` is also provided, that feature will automatically be
+                        appended to this list if it is not already in the list.
                          stats : list of str, optional
+                    - missing_value_accuracy_full : bool, optional
+                        The number of cases with missing values predicted to have missing values divided by the number
+                        of cases with missing values, applies to all features that contain missing values. Uses full calculations.
+                    - missing_value_accuracy_robust : bool, optional
+                        The number of cases with missing values predicted to have missing values divided by the number
+                        of cases with missing values, applies to all features that contain missing values. Uses robust calculations.
                     - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
                         returns all except the confusion matrix. Allowed values:
 
@@ -4387,25 +4408,11 @@ class HowsoDirectClient(AbstractHowsoClient):
                         - spearman_coeff : Spearman's rank correlation coefficient,
                         for continuous features only.
                         - mcc : Matthews correlation coefficient, for nominal features only.
-                        - missing_value_accuracy: The number of cases with missing values predicted to
-                            have missing values divided by the number of cases with missing values,
-                            applies to all features that contain missing values.
-        feature_residuals_full : bool, optional
-            For each context_feature, use the full
-            set of all other context_features to predict the feature and calculate the residuals.
-            False removes cached values. When `prediction_stats`
-            in the `details` parameter is true, will automatically set this
-            parameter to `True`. This only caches the values, please retrieve the
-            feature residuals by setting `prediction_stats` in the `details` parameter
-            to `True`. The residuals are stored as the "mae" prediction statistic.
-        feature_residuals_robust : bool, optional
-            For each context_feature, use the robust (power
-            set/permutations) set of all other context_features to predict the
-            feature and calculate the residuals.  False removes cached values. When `prediction_stats_robust`
-            in the `details` parameter is true, will automatically set this
-            parameter to `True`. This only caches the values, please retrieve the
-            feature residuals by setting `prediction_stats_robust` to `True`.
-            The residuals are stored as the "mae" prediction statistic.
+        feature_influences_action_feature : str, optional
+            When feature influences such as contributions and mda, use this feature as
+            the action feature.  If not provided, will default to the ``action_feature`` if provided.
+            If ``action_feature`` is not provided and feature influences ``details`` are
+            selected, this feature must be provided.
         hyperparameter_param_path : iterable of str, optional.
             Full path for hyperparameters to use for computation. If specified
             for any residual computations, takes precendence over action_feature
@@ -4426,18 +4433,19 @@ class HowsoDirectClient(AbstractHowsoClient):
         num_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
-            If specified overrides sample_model_fraction.
-        confusion_matrix_min_count : int, optional
-            The number of predictions a class should have (value of a cell in the matrix)
-            for it to remain in the confusion matrix. If the count is less than this value,
-            it will be accumulated into a single value of all insignificant predictions
-            for the class and removed from the confusion matrix. Defaults to 10,
-            applicable only to confusion matrices.
+            If specified overrides sample_model_fraction.```
         residuals_hyperparameter_feature : string, optional
             When calculating residuals and prediction stats, uses this target
             features's hyperparameters. The trainee must have been analyzed with
             this feature as the action feature first. If not provided, by default
             residuals and prediction stats uses ".targetless" hyperparameters.
+        prediction_stats_action_feature : str, optional
+            When calculating residuals and prediction stats, uses this target features's
+            hyperparameters. The trainee must have been analyzed with this feature as the
+            action feature first. If both ``prediction_stats_action_feature`` and
+            ``action_feature`` are not provided, by default residuals and prediction
+            stats uses ".targetless" hyperparameters. If "action_feature" is provided,
+            and this value is not provided, will default to ``action_feature``.
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
@@ -4481,13 +4489,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             context_features=context_features,
             confusion_matrix_min_count=confusion_matrix_min_count,
             details=details,
-            feature_residuals_full=feature_residuals_full,
-            feature_residuals_robust=feature_residuals_robust,
+            feature_influences_action_feature=feature_influences_action_feature,
             hyperparameter_param_path=hyperparameter_param_path,
             num_samples=num_samples,
             num_robust_influence_samples=num_robust_influence_samples,
             num_robust_residual_samples=num_robust_residual_samples,
             num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
+            prediction_stats_action_feature=prediction_stats_action_feature,
             robust_hyperparameters=robust_hyperparameters,
             sample_model_fraction=sample_model_fraction,
             sub_model_size=sub_model_size,

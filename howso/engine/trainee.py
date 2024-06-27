@@ -2924,32 +2924,32 @@ class Trainee(BaseTrainee):
         confusion_matrix_min_count: Optional[int] = None,
         context_features: Optional[Iterable[str]] = None,
         details: Optional[dict] = None,
-        feature_residuals_full: Optional[bool] = None,
-        feature_residuals_robust: Optional[bool] = None,
+        feature_influences_action_feature: Optional[str] = None,
         hyperparameter_param_path: Optional[Iterable[str]] = None,
         num_robust_influence_samples: Optional[int] = None,
         num_robust_residual_samples: Optional[int] = None,
         num_robust_influence_samples_per_case: Optional[int] = None,
         num_samples: Optional[int] = None,
+        prediction_stats_action_feature: Optional[str] = None,
         residuals_hyperparameter_feature: Optional[str] = None,
-        robust_hyperparameters: t.Optional[bool] = None,
+        robust_hyperparameters: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
         sub_model_size: Optional[int] = None,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None,
     ) -> DataFrame | dict | None:
         """
-        Reacts into the trained cases in the Trainee.
+        Reacts into the aggregate trained cases in the Trainee.
 
-        Calculates, caches, and/or returns the requested details and prediction stats.
+        Calculates, caches, and/or returns the requested influences and prediction stats.
 
         Parameters
         ----------
         action_feature : str, optional
-            Name of target feature for which to do computations. Default is
-            whatever the model was analyzed for, e.g., action feature for MDA
-            and contributions, or ".targetless" if analyzed for targetless.
-            This parameter is required for MDA or contributions computations.
+            Name of target feature for which to do computations. If ``prediction_stats_action_feature``
+            and ``feature_influences_action_feature`` are not provided, they will default to this value.
+            If ``feature_influences_action_feature`` is not provided and feature influences ``details`` are
+            selected, this feature must be provided.
         confusion_matrix_min_count : int, optional
             The number of predictions a class should have (value of a cell in the
             matrix) for it to remain in the confusion matrix. If the count is
@@ -2980,6 +2980,14 @@ class Trainee(BaseTrainee):
                         set of all combinations of features. False removes cached values.
                         If "prediction_stats_robust" is also True, then only the full "prediction_stats"
                         are returned.
+                    - feature_residuals_full : bool, optional
+                        For each context_feature, use the full set of all other context_features to predict
+                        the feature. False removes cached values. When ``prediction_stats``
+                        in the ``details`` parameter is true, the Trainee will also calculate and cache the
+                        full feature residuals.
+                    - feature_residuals_robust : bool, optional
+                        For each context_feature, use the robust (power set/permutations) set of all other
+                        context_features to predict the feature. False removes cached values.
                     - feature_contributions_full : bool, optional
                         For each context_feature, use the full set of all other
                         context_features to compute the mean absolute delta between
@@ -3104,22 +3112,11 @@ class Trainee(BaseTrainee):
                         - spearman_coeff : Spearman's rank correlation coefficient,
                         for continuous features only.
                         - mcc : Matthews correlation coefficient, for nominal features only.
-        feature_residuals_full : bool, optional
-            For each context_feature, use the full
-            set of all other context_features to predict the feature.
-            False removes cached values. When `prediction_stats`
-            in the `details` parameter is true, will automatically set this
-            parameter to `True`. This only caches the values, please retrieve the
-            feature residuals by setting `prediction_stats` in the `details` parameter
-            to `True`. The residuals are stored as the "mae" prediction statistic.
-        feature_residuals_robust : bool, optional
-            For each context_feature, use the robust (power
-            set/permutations) set of all other context_features to predict the
-            feature.  False removes cached values. When `prediction_stats_robust`
-            in the `details` parameter is true, will automatically set this
-            parameter to `True`. This only caches the values, please retrieve the
-            feature residuals by setting `prediction_stats_robust` to `True`.
-            The residuals are stored as the "mae" prediction statistic.
+        feature_influences_action_feature : str, optional
+            When feature influences such as contributions and mda, use this feature as
+            the action feature.  If not provided, will default to the ``action_feature`` if provided.
+            If ``action_feature`` is not provided and feature influences ``details`` are
+            selected, this feature must be provided.
         hyperparameter_param_path : iterable of str, optional.
             Full path for hyperparameters to use for computation. If specified
             for any residual computations, takes precendence over action_feature
@@ -3146,6 +3143,13 @@ class Trainee(BaseTrainee):
             features's hyperparameters. The trainee must have been analyzed with
             this feature as the action feature first. If not provided, by default
             residuals and prediction stats uses ".targetless" hyperparameters.
+        prediction_stats_action_feature : str, optional
+            When calculating residuals and prediction stats, uses this target features's
+            hyperparameters. The trainee must have been analyzed with this feature as the
+            action feature first. If both ``prediction_stats_action_feature`` and
+            ``action_feature`` are not provided, by default residuals and prediction
+            stats uses ".targetless" hyperparameters. If "action_feature" is provided,
+            and this value is not provided, will default to ``action_feature``.
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
@@ -3172,18 +3176,18 @@ class Trainee(BaseTrainee):
             return self.client.react_aggregate(
                 trainee_id=self.id,
                 action_feature=action_feature,
-                residuals_hyperparameter_feature=residuals_hyperparameter_feature,
                 context_features=context_features,
                 confusion_matrix_min_count=confusion_matrix_min_count,
                 details=details,
+                feature_influences_action_feature=feature_influences_action_feature,
                 hyperparameter_param_path=hyperparameter_param_path,
                 num_robust_influence_samples=num_robust_influence_samples,
                 num_robust_residual_samples=num_robust_residual_samples,
                 num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
                 num_samples=num_samples,
+                prediction_stats_action_feature=prediction_stats_action_feature,
+                residuals_hyperparameter_feature=residuals_hyperparameter_feature,
                 robust_hyperparameters=robust_hyperparameters,
-                feature_residuals_full=feature_residuals_full,
-                feature_residuals_robust=feature_residuals_robust,
                 sample_model_fraction=sample_model_fraction,
                 sub_model_size=sub_model_size,
                 use_case_weights=use_case_weights,
@@ -3810,16 +3814,14 @@ class Trainee(BaseTrainee):
                     category=HowsoWarning
                 )
                 if robust:
-                    selected_prediction_stats = ['feature_mda_robust']
-                else:
-                    selected_prediction_stats = ['feature_mda_full']
-                if robust:
                     mda_matrix[feature] = self.react_aggregate(
                         action_feature=feature,
-                        details={
-                            "prediction_stats": True,
-                            "selected_prediction_stats": selected_prediction_stats
-                        }
+                        details={"feature_mda_robust": True}
+                    )
+                else:
+                    mda_matrix[feature] = self.react_aggregate(
+                        action_feature=feature,
+                        details={"feature_mda_full": True}
                     )
 
         matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
