@@ -154,9 +154,8 @@ def test_integer_nominality(feature, nominality):
     # Integer
     (pd.DataFrame([[1], [None]], dtype='Int8', columns=['a']),
      {'data_type': str(FeatureType.INTEGER), 'size': 1}),
-    # https://github.com/numpy/numpy/issues/9464
     (pd.DataFrame([[1], [16]], dtype='int', columns=['a']),
-     {'data_type': str(FeatureType.INTEGER), 'size': 4 if platform.system() == 'Windows' else 8}),
+     {'data_type': str(FeatureType.INTEGER), 'size': 8}),
     # Float
     (pd.DataFrame([[1.0], [4.4]], dtype='float', columns=['a']),
      {'data_type': str(FeatureType.NUMERIC), 'size': 8}),
