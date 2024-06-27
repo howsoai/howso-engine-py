@@ -4233,7 +4233,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         sub_model_size: Optional[int] = None,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None,
-    ) -> dict[str, dict[str, float]] | None:
+    ) -> dict[str, dict[str, float]]:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -4463,7 +4463,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        dict of str to dict of str to float or None
+        dict of str to dict of str to float
             If specified, a map of feature to map of stat type to stat values is returned.
         """
         self._auto_resolve_trainee(trainee_id)

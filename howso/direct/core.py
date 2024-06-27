@@ -2083,7 +2083,7 @@ class HowsoCore:
         sub_model_size: Optional[int] = None,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None,
-    ) -> dict | None:
+    ) -> dict:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -2313,7 +2313,7 @@ class HowsoCore:
 
         Returns
         -------
-        dict of str to dict of str to float or None
+        dict of str to dict of str to float
             If specified, a map of feature to map of stat type to stat values is returned.
         """
         return self._execute(trainee_id, "react_aggregate", {

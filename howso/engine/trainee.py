@@ -2937,7 +2937,7 @@ class Trainee(BaseTrainee):
         sub_model_size: Optional[int] = None,
         use_case_weights: bool = False,
         weight_feature: Optional[str] = None,
-    ) -> DataFrame | dict | None:
+    ) -> DataFrame | dict:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -3168,7 +3168,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame or dict or None
+        DataFrame or dict
             If specified, a DataFrame or dict of feature name columns to stat value rows. Indexed
             by the stat or detail type. The return type depends on the underlying client.
         """

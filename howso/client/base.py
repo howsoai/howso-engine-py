@@ -328,7 +328,7 @@ class AbstractHowsoClient(ABC):
         sub_model_size=None,
         use_case_weights=None,
         weight_feature=None,
-    ) -> Union["DataFrame", dict, None]:
+    ) -> Union["DataFrame", dict]:
         """Computes, caches, and/or returns specified feature interpretations."""
 
     @abstractmethod
