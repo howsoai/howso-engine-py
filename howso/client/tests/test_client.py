@@ -710,8 +710,8 @@ class TestClient:
                 ['similarity_conviction', ]
             ),
             (
-                {'robust_residuals': True, 'feature_residuals': True, },
-                ['feature_residuals', ]
+                {'feature_residuals_robust': True, },
+                ['feature_residuals_robust', ]
             ),
         ]
         for audit_detail_set, keys_to_expect in details_sets:
