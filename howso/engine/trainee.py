@@ -110,8 +110,7 @@ class Trainee():
         metadata: Optional[MutableMapping[str, Any]] = None,
         project: Optional[Union[str, Project]] = None,
         resources: Optional[MutableMapping[str, Any]] = None,
-        client: Optional[AbstractHowsoClient] = None,
-        **kwargs
+        client: Optional[AbstractHowsoClient] = None
     ):
 
         self._created: bool = False
@@ -301,10 +300,6 @@ class Trainee():
             return feature_attributes.SingleTableFeatureAttributes(deepcopy(self._features))
         else:
             return feature_attributes.SingleTableFeatureAttributes({})
-
-    @features.setter
-    def features(self, features: feature_attributes.SingleTableFeatureAttributes) -> None:
-        self._features = features
 
     @property
     def metadata(self) -> Dict[str, Any] | None:
@@ -3401,13 +3396,13 @@ class Trainee():
             raise HowsoError("``client`` must be a HowsoPandasClient")
         self._client = client
 
-    def _update_attributes(self, trainee: Trainee):
+    def _update_attributes(self, trainee: Dict):
         """
         Update the protected attributes of the trainee.
 
         Parameters
         ----------
-        trainee : Trainee
+        trainee : Dict
             The base trainee instance.
         """
         for key in Trainee.attribute_map.keys():
@@ -3585,7 +3580,7 @@ class Trainee():
 
                 {
                     'case_indices': [ session-indices ],
-                    distances=DataFrame( distances )
+                    'distances': DataFrame( distances )
                 }
         """
         return self.client.get_distances(
@@ -3676,8 +3671,7 @@ class Trainee():
                     library_type=library_type,
                     max_wait_time=max_wait_time,
                     project=self.project,
-                    resources=resources,
-                    client=self.client
+                    resources=resources
                 )
 
             if new_trainee:
