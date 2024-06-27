@@ -46,6 +46,7 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError, UnsupportedArgumentWarning
+from howso.engine import Session
 from howso.engine.typing import Library, Persistence
 from howso.utilities import (
     build_react_series_df,
@@ -430,7 +431,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         metadata: Optional[MutableMapping[str, Any]] = None,
         project: Optional[Union[str, Dict]] = None,
         resources: Optional[MutableMapping[str, Any]] = None,
-        client: Optional[AbstractHowsoClient] = None
     ) -> Dict:
         """
         Create a Trainee on the Howso service.
@@ -721,8 +721,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             if is_match(instance.name):
                 trainees.append(
                     {
-                        "name": instance.name,
-                        "id": instance.id
+                        "name": instance.get("name"),
+                        "id": instance["id"]  # Should never be null
                     }
                 )
 
@@ -1570,9 +1570,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Dict)
+            isinstance(condition.get('.session'), Session)
         ):
             condition['.session'] = condition['.session'].id
+        elif (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), Dict)
+        ):
+            condition['.session'] = condition['.session']['id']
 
         result = self.howso.remove_cases(
             trainee_id,
@@ -1673,9 +1678,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Dict)
+            isinstance(condition.get('.session'), Session)
         ):
             condition['.session'] = condition['.session'].id
+        elif (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), Dict)
+        ):
+            condition['.session'] = condition['.session']['id']
 
         if self.verbose:
             print(f'Editing case(s) in trainee with id: {trainee_id}')
@@ -5005,9 +5015,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Dict)
+            isinstance(condition.get('.session'), Session)
         ):
             condition['.session'] = condition['.session'].id
+        elif (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), Dict)
+        ):
+            condition['.session'] = condition['.session']['id']
 
         result = self.howso.move_cases(
             trainee_id,

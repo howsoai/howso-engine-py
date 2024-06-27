@@ -196,7 +196,7 @@ class Trainee():
             self._project_instance.id != self.project_id
         ):
             project = self.client.get_project(self.project_id)
-            self._project_instance = project
+            self._project_instance = Project.from_dict(project, client=self.client)
 
         return self._project_instance
 
