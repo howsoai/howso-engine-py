@@ -60,6 +60,7 @@ from howso.utilities import (
 )
 from howso.utilities.feature_attributes.base import MultiTableFeatureAttributes, SingleTableFeatureAttributes
 from howso.utilities.reaction import Reaction
+from ._utilities import session_convert_datetime
 from .core import HowsoCore
 
 # Client version
@@ -718,7 +719,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         # Collect in memory trainees
         for _, instance in self.trainee_cache.trainees():
-            if is_match(instance.name):
+            if is_match(instance.get('name')):
                 trainees.append(
                     {
                         "name": instance.get("name"),
@@ -1833,15 +1834,15 @@ class HowsoDirectClient(AbstractHowsoClient):
                     # Filter by search terms
                     for term in filter_terms:
                         if term.lower() in session.get('name', '').lower():
-                            instance = deepcopy(session)
-                            instance.metadata = instance.metadata or dict()
-                            instance.metadata['trainee_id'] = trainee_id
+                            instance = session_convert_datetime(session)
+                            instance['metadata'] = instance.get("metadata") or dict()
+                            instance['metadata']['trainee_id'] = trainee_id
                             filtered_sessions.append(instance)
                             break
                 else:
-                    instance = deepcopy(session)
-                    instance.metadata = instance.metadata or dict()
-                    instance.metadata['trainee_id'] = trainee_id
+                    instance = session_convert_datetime(session)
+                    instance['metadata'] = instance.get('metadata') or dict()
+                    instance['metadata']['trainee_id'] = trainee_id
                     filtered_sessions.append(instance)
         return sorted(filtered_sessions,
                       key=operator.attrgetter('created_date'),
@@ -1885,10 +1886,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             except HowsoError:
                 # When session is not found, continue
                 continue
-            session = session_data['session']
+            session = session_convert_datetime(session_data)
             # Include trainee_id in the metadata
-            session.metadata = session.metadata or dict()
-            session.metadata['trainee_id'] = trainee_id
+            session['metadata'] = session.get('metadata') or dict()
+            session['metadata']['trainee_id'] = trainee_id
             break
         if session is None:
             raise HowsoError("Session not found")
@@ -1934,9 +1935,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         metadata.pop('trainee_id', None)
 
         def _update_session(instance):
-            instance.metadata = instance.metadata or dict()
-            instance.metadata = metadata or dict()
-            instance.modified_date = modified_date
+            if metadata is not None:
+                instance['metadata'] = metadata
+            else:
+                instance['metadata'] = instance.get('metadata') or dict()
+            instance['modified_date'] = modified_date
             return instance
 
         # Update session across all loaded trainees
@@ -1947,7 +1950,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             except HowsoError:
                 # When session is not found, continue
                 continue
-            session = session_data['session']
+            session = session_convert_datetime(session_data)
             session = _update_session(session)
             self.howso.set_session_metadata(trainee_id, session_id, session)
             updated_session = session
