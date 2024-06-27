@@ -3670,7 +3670,7 @@ class Trainee():
                     id=self.id,
                     library_type=library_type,
                     max_wait_time=max_wait_time,
-                    project=self.project,
+                    project=self.project_id,
                     resources=resources
                 )
 
@@ -3764,8 +3764,8 @@ class Trainee():
             be processed sequentially.
 
             Default Methods:
-            - relative=normalizes each row by dividing each value by the maximum absolute value in the row.
-            - fractional=normalizes each row by dividing each value by the sum of absolute values in the row.
+            - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
+            - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
             - 'feature_count': normalizes each row by dividing by the feature count.
 
             Custom Callable:
@@ -3863,8 +3863,8 @@ class Trainee():
             be processed sequentially.
 
             Default Methods:
-            - relative=normalizes each row by dividing each value by the maximum absolute value in the row.
-            - fractional=normalizes each row by dividing each value by the sum of absolute values in the row.
+            - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
+            - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
             - 'feature_count': normalizes each row by dividing by the feature count.
 
             Custom Callable:
@@ -4094,7 +4094,7 @@ def get_trainee(
     client = client or get_client()
     trainee = client.get_trainee(str(name_or_id))
     if trainee:
-        return trainee
+        return Trainee.from_dict(trainee)
 
 
 def list_trainees(
