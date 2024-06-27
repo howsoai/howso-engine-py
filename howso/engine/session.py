@@ -206,7 +206,7 @@ class Session():
             # Update the protected attributes directly since the values
             # have already been validated by the "Session" instance
             # and to prevent triggering an API update call
-            setattr(self, f'_{key}', getattr(session, key))
+            setattr(self, f'_{key}', getattr(key))
 
     def _update(self) -> None:
         """
