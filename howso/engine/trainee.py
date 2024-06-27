@@ -3715,7 +3715,7 @@ class Trainee():
         """
         if not isinstance(trainee_dict, dict):
             raise ValueError("``trainee_dict`` parameter is not a dict")
-        parameters = {"client": trainee_dict.get("client")}
+        parameters = {"client": client or trainee_dict.get("client")}
         for key in cls.attribute_map.keys():
             if key in trainee_dict:
                 if key == "project_id":
@@ -3723,7 +3723,6 @@ class Trainee():
                 else:
                     parameters[key] = trainee_dict[key]
         instance = cls(**parameters)  # type: ignore
-        instance.client = client
         return instance
 
     def __enter__(self) -> "Trainee":

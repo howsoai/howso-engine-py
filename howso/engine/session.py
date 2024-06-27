@@ -269,13 +269,12 @@ class Session():
             raise ValueError('`session_dict` parameter is not a dict')
         parameters = {
             'id': session_dict.get('id'),
-            'client': session_dict.get('client')
+            'client': client or session_dict.get('client')
         }
         instance = cls(**parameters)
         for key in cls.attribute_map.keys():
             if key in session_dict:
                 setattr(instance, f'_{key}', session_dict[key])
-        instance.client = client
         return instance
 
 

@@ -316,13 +316,12 @@ class Project():
         parameters = {
             'id': project_dict.get('id'),
             'name': project_dict.get('name'),
-            'client': project_dict.get('client')
+            'client': client or project_dict.get('client')
         }
         instance = cls(**parameters)
         for key in cls.attribute_map.keys():
             if key in project_dict:
                 setattr(instance, f'_{key}', project_dict[key])
-        instance.client = client
         return instance
 
     def __enter__(self) -> "Project":
