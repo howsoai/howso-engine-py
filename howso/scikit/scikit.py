@@ -9,11 +9,7 @@ from sklearn.metrics import accuracy_score, r2_score
 
 from howso import engine
 from howso.client import AbstractHowsoClient, HowsoPandasClient
-from howso.client.exceptions import (
-    HowsoApiError,
-    HowsoError,
-    HowsoNotUniqueError,
-)
+from howso.client.exceptions import HowsoApiError, HowsoError, HowsoNotUniqueError
 import howso.utilities as utils
 from howso.utilities.feature_attributes import infer_feature_attributes
 

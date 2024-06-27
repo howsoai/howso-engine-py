@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-from concurrent.futures import (
-    Future,
-    ThreadPoolExecutor
-)
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
-from datetime import (
-    datetime,
-    timezone
-)
+from datetime import datetime, timezone
 from http import HTTPStatus
 import importlib.metadata
 import json
@@ -44,24 +38,15 @@ from packaging.version import parse as parse_version
 from pandas import DataFrame
 from typing_extensions import Never
 import urllib3
-from urllib3.util import (
-    Retry,
-    Timeout
-)
+from urllib3.util import Retry, Timeout
 
 from howso import utilities as util
 from howso.client import get_configuration_path
 from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
-from howso.client.exceptions import (
-    HowsoError,
-    UnsupportedArgumentWarning
-)
-from howso.engine.typing import (
-    Library,
-    Persistence
-)
+from howso.client.exceptions import HowsoError, UnsupportedArgumentWarning
+from howso.engine.typing import Library, Persistence
 from howso.utilities import (
     build_react_series_df,
     internals,
@@ -72,10 +57,7 @@ from howso.utilities import (
     validate_case_indices,
     validate_list_shape
 )
-from howso.utilities.feature_attributes.base import (
-    MultiTableFeatureAttributes,
-    SingleTableFeatureAttributes,
-)
+from howso.utilities.feature_attributes.base import MultiTableFeatureAttributes, SingleTableFeatureAttributes
 from howso.utilities.reaction import Reaction
 from .core import HowsoCore
 

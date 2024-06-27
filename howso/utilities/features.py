@@ -7,23 +7,11 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from pandas.core.dtypes.common import (
-    is_datetime64_any_dtype,
-    is_timedelta64_dtype,
-)
+from pandas.core.dtypes.common import is_datetime64_any_dtype, is_timedelta64_dtype
 import pytz
 
-from .internals import (
-    deserialize_to_dataframe,
-    IgnoreWarnings,
-    to_pandas_datetime_format
-)
-from .utilities import (
-    DATETIME_TIMEZONE_PATTERN,
-    LocaleOverride,
-    seconds_to_time,
-    serialize_datetimes,
-)
+from .internals import deserialize_to_dataframe, IgnoreWarnings, to_pandas_datetime_format
+from .utilities import DATETIME_TIMEZONE_PATTERN, LocaleOverride, seconds_to_time, serialize_datetimes
 
 
 __all__ = [

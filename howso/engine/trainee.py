@@ -3,25 +3,11 @@ from __future__ import annotations
 from copy import deepcopy
 from pathlib import Path
 import typing as t
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    MutableMapping,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional, Tuple, Union
 import uuid
 import warnings
 
-from pandas import (
-    concat,
-    DataFrame,
-    Index
-)
+from pandas import concat, DataFrame, Index
 
 from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache

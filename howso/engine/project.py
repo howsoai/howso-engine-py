@@ -1,9 +1,4 @@
-from typing import (
-    Dict,
-    List,
-    Optional,
-    TYPE_CHECKING
-)
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 from howso.client import AbstractHowsoClient
 from howso.client.exceptions import HowsoError

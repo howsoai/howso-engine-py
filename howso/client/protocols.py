@@ -1,11 +1,4 @@
-from typing import (
-    Dict,
-    List,
-    Optional,
-    Protocol,
-    runtime_checkable,
-    TYPE_CHECKING
-)
+from typing import Dict, List, Optional, Protocol, runtime_checkable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from howso.direct.core import HowsoCore

@@ -1,10 +1,4 @@
-from typing import (
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Union,
-)
+from typing import Dict, Iterable, List, Optional, Union
 
 import pandas as pd
 from pandas import DataFrame, Index

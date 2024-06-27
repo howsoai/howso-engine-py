@@ -5,17 +5,7 @@ from math import isnan
 import re
 import sys
 import threading
-from typing import (
-    Callable,
-    Collection,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Callable, Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union
 import uuid
 import warnings
 

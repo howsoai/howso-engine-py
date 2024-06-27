@@ -7,29 +7,18 @@ from pprint import pprint
 import sys
 import uuid
 
+import numpy as np
+import pandas as pd
+import pytest
+
 import howso
 from howso.client import HowsoClient
-from howso.client.client import (
-    _check_isfile,
-    LEGACY_CONFIG_FILENAMES,
-    get_configuration_path,
-    get_howso_client_class,
-)
-from howso.client.exceptions import (
-    HowsoApiError,
-    HowsoConfigurationError,
-    HowsoError,
-    HowsoTimeoutError,
-)
+from howso.client.client import _check_isfile, get_configuration_path, get_howso_client_class, LEGACY_CONFIG_FILENAMES
+from howso.client.exceptions import HowsoApiError, HowsoConfigurationError, HowsoError
 from howso.client.protocols import ProjectClient
 from howso.direct import HowsoDirectClient
 from howso.utilities.reaction import Reaction
 from howso.utilities.testing import get_configurationless_test_client, get_test_options
-import numpy as np
-import pandas as pd
-import pytest
-from semantic_version import Version
-
 
 TEST_OPTIONS = get_test_options()
 

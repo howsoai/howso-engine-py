@@ -14,10 +14,7 @@ import logging
 import math
 import random
 import re
-from typing import (
-    Any, Dict, Generator, Iterable, List, Mapping, NamedTuple, Optional, Tuple,
-    TYPE_CHECKING, Union,
-)
+from typing import Any, Dict, Generator, List, Mapping, NamedTuple, Optional, Tuple, TYPE_CHECKING, Union
 import unicodedata
 import uuid
 import warnings

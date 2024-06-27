@@ -1,13 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    TYPE_CHECKING,
-    Union,
-)
+from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
 
 from pandas import DataFrame, Index
 
