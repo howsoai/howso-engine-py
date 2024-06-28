@@ -3006,14 +3006,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
                 computations.
-            - prediction_stats_robust : bool, optional
-                When true outputs feature prediction stats for all (context
-                and action) features locally around the prediction. The stats
-                returned  are ("r2", "rmse", "spearman_coeff", "precision",
-                "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
-                Uses only the context features of the reacted case to determine that area.
-                Uses robust calculations, which uses uniform sampling from the power set
-                of features as the contexts for predictions.
             - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
                 returns all except the confusion matrix. Allowed values:
 
