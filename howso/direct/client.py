@@ -4441,6 +4441,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             features's hyperparameters. The trainee must have been analyzed with
             this feature as the action feature first. If not provided, by default
             residuals and prediction stats uses ".targetless" hyperparameters.
+        robust_hyperparameters : bool, optional
+            When specified, will attempt to return residuals that were
+            computed using hyperpparameters with the specified robust or
+            non-robust type.
         prediction_stats_action_feature : str, optional
             When calculating residuals and prediction stats, uses this target features's
             hyperparameters. The trainee must have been analyzed with this feature as the

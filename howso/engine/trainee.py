@@ -3138,6 +3138,10 @@ class Trainee(BaseTrainee):
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
             If specified overrides sample_model_fraction.```
+        robust_hyperparameters : bool, optional
+            When specified, will attempt to return residuals that were
+            computed using hyperpparameters with the specified robust or
+            non-robust type.
         residuals_hyperparameter_feature : string, optional
             When calculating residuals and prediction stats, uses this target
             features's hyperparameters. The trainee must have been analyzed with
