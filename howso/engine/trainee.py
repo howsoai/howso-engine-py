@@ -3681,6 +3681,7 @@ class Trainee():
                 new_trainee = self.client.create_trainee(
                     name=self.name,
                     features=self.features,
+                    metadata=self.metadata,
                     overwrite_trainee=overwrite,
                     persistence=self.persistence,
                     library_type=library_type,

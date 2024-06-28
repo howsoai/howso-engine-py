@@ -13,7 +13,7 @@ import operator
 import os
 from pathlib import Path
 import platform
-import types
+from types import SimpleNamespace
 import typing as t
 from typing import (
     Any,
@@ -332,20 +332,17 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return self.howso.get_entities()
 
-    def get_version(self) -> Dict:
+    def get_version(self) -> SimpleNamespace:
         """
         Return the Howso version.
 
         Returns
         -------
-        Dict:
+        SimpleNamespace
            A version response that contains the version data for the current
            instance of Howso.
         """
-        version_meta = {
-            "client": CLIENT_VERSION
-        }
-        return types.SimpleNamespace(**version_meta)
+        return SimpleNamespace(client=CLIENT_VERSION)
 
     def _output_version_in_trace(self, trainee: str):
         """
@@ -423,12 +420,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         name: Optional[str] = None,
         features: Optional[SingleTableFeatureAttributes] = None,
         *,
-        overwrite_trainee: bool = False,
-        persistence: Persistence = "allow",
-        id: Optional[str] = None,
+        id: Optional[Union[str, uuid.UUID]] = None,
         library_type: Optional[Library] = None,
         max_wait_time: Optional[Union[int, float]] = None,
         metadata: Optional[MutableMapping[str, Any]] = None,
+        overwrite_trainee: bool = False,
+        persistence: Persistence = "allow",
         project: Optional[Union[str, Dict]] = None,
         resources: Optional[MutableMapping[str, Any]] = None,
     ) -> Dict:
@@ -439,20 +436,29 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Parameters
         ----------
-        trainee : Dict
-            A `Trainee` object defining the Trainee.
+        name : str, optional
+            A name to use for the Trainee.
+        features : dict, optional
+            The Trainee feature attributes.
+        id : str or UUID, optional
+            A custom unique identifier to use with the Trainee. If not specified
+            the name will be used, or a new UUID if no name was provided.
         library_type : {"st", "mt"}, optional
-            (Not implemented) The library type of the Trainee.
-        max_wait_time : int or float, default 30
-            (Not implemented) The number of seconds to wait for a trainee to
-            be created before aborting gracefully.
+            (Not implemented in this client)
+        max_wait_time : int or float, optional
+            (Not implemented in this client)
+        metadata : dict, optional
+            Arbitrary jsonifiable data to store along with the Trainee.
         overwrite_trainee : bool, default False
             If True, and if a trainee with id `trainee["id"]`
             already exists, the given trainee will delete the old trainee and
             create the new trainee.
+        persistence : {"allow", "always", "never"}, default "allow"
+            The requested persistence state of the Trainee.
+        project : str or dict, optional
+            (Not implemented in this client)
         resources : dict, optional
-            (Not implemented) Customize the resources provisioned for the
-            Trainee instance.
+            (Not implemented in this client)
 
         Returns
         -------
@@ -461,9 +467,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if not id:
             # Default id to trainee name, or new uuid if no name
-            id = name or str(uuid.uuid4())
+            id = name or uuid.uuid4()
 
-        trainee_id = id
+        trainee_id = str(id)
 
         # Check that the id is usable for saving later.
         if name:
@@ -508,13 +514,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_metadata = dict(
             name=name,
             persistence=persistence,
-            metadata=(metadata or {})
+            metadata=metadata
         )
         new_trainee = dict(
             name=name,
             features=features,
             persistence=persistence,
-            id=id,
+            id=trainee_id,
             metadata=metadata
         )
         new_trainee = internals.preprocess_trainee(new_trainee)
@@ -554,10 +560,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.verbose:
             print(f'Updating trainee with id: {trainee["id"]}')
 
+        trainee = internals.preprocess_trainee(trainee)
         metadata = dict(
-            name=trainee["name"],
-            metadata=trainee["metadata"],
-            persistence=trainee["persistence"]
+            name=trainee.get("name"),
+            metadata=trainee.get("metadata"),
+            persistence=trainee.get("persistence")
         )
         self.howso.set_metadata(trainee_id, metadata)
         self.howso.set_feature_attributes(trainee_id, trainee["features"])
@@ -717,12 +724,12 @@ class HowsoDirectClient(AbstractHowsoClient):
             return True
 
         # Collect in memory trainees
-        for _, instance in self.trainee_cache.trainees():
-            if is_match(instance.get('name')):
+        for _, obj in self.trainee_cache.trainees():
+            if is_match(obj.get('name')):
                 trainees.append(
                     {
-                        "name": instance.get("name"),
-                        "id": instance["id"]  # Should never be null
+                        "name": obj.get("name"),
+                        "id": obj["id"]  # Should never be null
                     }
                 )
 
@@ -1035,16 +1042,16 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError(f"Trainee '{trainee_id}' not found.")
 
         persistence = metadata.get('persistence', 'allow')
-        trainee_meta = metadata.get('metadata', {})
+        trainee_meta = metadata.get('metadata')
         trainee_name = metadata.get('name')
 
         features = self.howso.get_feature_attributes(trainee_id)
         loaded_trainee = dict(
             name=trainee_name,
+            id=trainee_id,
             features=features,
             persistence=persistence,
-            id=trainee_id,
-            metadata=trainee_meta
+            metadata=trainee_meta,
         )
         return internals.postprocess_trainee(loaded_trainee)
 
@@ -1918,10 +1925,10 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         updated_session = None
         modified_date = datetime.now(timezone.utc)
-        metadata = metadata or dict()
         # We remove the trainee_id since this may have been set by the
         # get_session(s) methods and is not needed to be stored in the model.
-        metadata.pop('trainee_id', None)
+        if metadata is not None:
+            metadata.pop('trainee_id', None)
 
         def _update_session(instance):
             if metadata is not None:
@@ -3554,9 +3561,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 contexts,
                 data_parameter='contexts',
                 features_parameter='context_features')
-        contexts = serialize_cases(
-            contexts, context_features,
-            trainee["features"])
+        contexts = serialize_cases(contexts, context_features, trainee["features"])
 
         # Preprocess actions
         if actions is not None and action_features is None:
