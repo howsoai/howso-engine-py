@@ -828,7 +828,7 @@ class HowsoEstimator(BaseEstimator):
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
                 returned  are ("r2", "rmse", "spearman_coeff", "precision",
-                "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accury").
+                "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
                 computations.
@@ -836,7 +836,7 @@ class HowsoEstimator(BaseEstimator):
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
                 returned  are ("r2", "rmse", "spearman_coeff", "precision",
-                "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accury").
+                "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses robust calculations, which uses uniform sampling from the power set
                 of features as the contexts for predictions.

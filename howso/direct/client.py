@@ -3002,7 +3002,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
                 returned  are ("r2", "rmse", "spearman_coeff", "precision",
-                "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accury").
+                "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
                 computations.
@@ -3010,7 +3010,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
                 returned  are ("r2", "rmse", "spearman_coeff", "precision",
-                "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accury").
+                "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses robust calculations, which uses uniform sampling from the power set
                 of features as the contexts for predictions.
@@ -4264,13 +4264,13 @@ class HowsoDirectClient(AbstractHowsoClient):
                     values for Booleans will not be included in the data returned.
 
                     - prediction_stats : bool, optional. If True outputs full feature prediction
-                        stats for all (context and action) features. The predictioned stats returned are set
+                        stats for all (context and action) features. The prediction stats returned are set
                         by the "selected_prediction_stats" parameter in the `details` parameter. Uses full
-                        calculations, which uses leave-one-out for featuresvfor computations. False removes
+                        calculations, which uses leave-one-out for features for computations. False removes
                         cached values. If "prediction_stats_robust" is also True, then only the full
                         "prediction_stats" are returned.
                     - prediction_stats_robust: bool, optional. If True outputs full feature prediction
-                        stats for all (context and action) features. The predictioned stats returned are set
+                        stats for all (context and action) features. The prediction stats returned are set
                         by the "selected_prediction_stats" parameter in the `details` parameter.
                         Uses robust calculations, which uses uniform sampling from the power
                         set of all combinations of features. False removes cached values.
@@ -4415,7 +4415,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             selected, this feature must be provided.
         hyperparameter_param_path : iterable of str, optional.
             Full path for hyperparameters to use for computation. If specified
-            for any residual computations, takes precendence over action_feature
+            for any residual computations, takes precedence over action_feature
             parameter.  Can be set to a 'paramPath' value from the results of
             'get_params()' for a specific set of hyperparameters.
         num_robust_influence_samples : int, optional
@@ -5934,6 +5934,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Analyzing trainee with id: {trainee_id}')
             print(f'Analyzing trainee with parameters: {analyze_params}')
 
+        # self.howso.analyze(trainee_id)
         self.howso.analyze(trainee_id, **analyze_params)
         self._auto_persist_trainee(trainee_id)
 
