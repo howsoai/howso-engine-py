@@ -2962,156 +2962,156 @@ class Trainee(BaseTrainee):
             computations. Default is all trained non-unique features if
             unspecified.
         details : map of str -> object, optional
-                    If details are specified, the response will contain the requested
-                    explanation data.. Below are the valid keys and data types for the
-                    different audit details. Omitted keys, values set to None, or False
-                    values for Booleans will not be included in the data returned.
+            If details are specified, the response will contain the requested
+            explanation data.. Below are the valid keys and data types for the
+            different audit details. Omitted keys, values set to None, or False
+            values for Booleans will not be included in the data returned.
 
-                    - prediction_stats : bool, optional. If True outputs full feature prediction
-                        stats for all (context and action) features. The prediction stats returned are set
-                        by the "selected_prediction_stats" parameter in the `details` parameter. Uses full
-                        calculations, which uses leave-one-out for features for computations. False removes
-                        cached values. If "prediction_stats_robust" is also True, then only the full
-                        "prediction_stats" are returned.
-                    - prediction_stats_robust: bool, optional. If True outputs full feature prediction
-                        stats for all (context and action) features. The prediction stats returned are set
-                        by the "selected_prediction_stats" parameter in the `details` parameter.
-                        Uses robust calculations, which uses uniform sampling from the power
-                        set of all combinations of features. False removes cached values.
-                        If "prediction_stats_robust" is also True, then only the full "prediction_stats"
-                        are returned.
-                    - feature_residuals_full : bool, optional
-                        For each context_feature, use the full set of all other context_features to predict
-                        the feature. False removes cached values. When ``prediction_stats``
-                        in the ``details`` parameter is true, the Trainee will also calculate and cache the
-                        full feature residuals.
-                    - feature_residuals_robust : bool, optional
-                        For each context_feature, use the robust (power set/permutations) set of all other
-                        context_features to predict the feature. False removes cached values.
-                    - feature_contributions_full : bool, optional
-                        For each context_feature, use the full set of all other
-                        context_features to compute the mean absolute delta between
-                        prediction of action feature with and without the context features
-                        in the model. False removes cached values.
-                    - feature_contributions_robust : bool, optional
-                        For each context_feature, use the robust (power set/permutation)
-                        set of all other context_features to compute the mean absolute
-                        delta between prediction of the action feature with and without the
-                        context features in the model. False removes cached values.
-                    - feature_mda_full : bool, optional
-                        When True will compute Mean Decrease in Accuracy (MDA)
-                        for each context feature at predicting the action feature. Drop
-                        each feature and use the full set of remaining context features
-                        for each prediction. False removes cached values.
-                    - feature_mda_robust : bool, optional
-                        Compute Mean Decrease in Accuracy MDA by dropping each feature and using the
-                        robust (power set/permutations) set of remaining context features
-                        for each prediction. False removes cached values.
-                    - feature_feature_mda_permutation_full : bool, optional
-                        Compute MDA by scrambling each feature and using the
-                        full set of remaining context features for each prediction.
-                        False removes cached values.
-                    - feature_feature_mda_permutation_robust : bool, optional
-                        Compute MDA by scrambling each feature and using the
-                        robust (power set/permutations) set of remaining context features
-                        for each prediction. False removes cached values.
-                    - action_condition : map of str -> any, optional
-                        A condition map to select the action set, which is the dataset for which
-                        the prediction stats are for. If both ``action_condition`` and ``context_condition``
-                        are provided, then all of the action cases selected by the ``action_condition``
-                        will be excluded from the context set, which is the set being queried to make to
-                        make predictions on the action set, effectively holding them out.
-                        If only ``action_condition`` is specified, then only the single predicted case
-                        will be left out.
+            - prediction_stats : bool, optional. If True outputs full feature prediction
+                stats for all (context and action) features. The prediction stats returned are set
+                by the "selected_prediction_stats" parameter in the `details` parameter. Uses full
+                calculations, which uses leave-one-out for features for computations. False removes
+                cached values. If "prediction_stats_robust" is also True, then only the full
+                "prediction_stats" are returned.
+            - prediction_stats_robust: bool, optional. If True outputs full feature prediction
+                stats for all (context and action) features. The prediction stats returned are set
+                by the "selected_prediction_stats" parameter in the `details` parameter.
+                Uses robust calculations, which uses uniform sampling from the power
+                set of all combinations of features. False removes cached values.
+                If "prediction_stats_robust" is also True, then only the full "prediction_stats"
+                are returned.
+            - feature_residuals_full : bool, optional
+                For each context_feature, use the full set of all other context_features to predict
+                the feature. False removes cached values. When ``prediction_stats``
+                in the ``details`` parameter is true, the Trainee will also calculate and cache the
+                full feature residuals.
+            - feature_residuals_robust : bool, optional
+                For each context_feature, use the robust (power set/permutations) set of all other
+                context_features to predict the feature. False removes cached values.
+            - feature_contributions_full : bool, optional
+                For each context_feature, use the full set of all other
+                context_features to compute the mean absolute delta between
+                prediction of action feature with and without the context features
+                in the model. False removes cached values.
+            - feature_contributions_robust : bool, optional
+                For each context_feature, use the robust (power set/permutation)
+                set of all other context_features to compute the mean absolute
+                delta between prediction of the action feature with and without the
+                context features in the model. False removes cached values.
+            - feature_mda_full : bool, optional
+                When True will compute Mean Decrease in Accuracy (MDA)
+                for each context feature at predicting the action feature. Drop
+                each feature and use the full set of remaining context features
+                for each prediction. False removes cached values.
+            - feature_mda_robust : bool, optional
+                Compute Mean Decrease in Accuracy MDA by dropping each feature and using the
+                robust (power set/permutations) set of remaining context features
+                for each prediction. False removes cached values.
+            - feature_feature_mda_permutation_full : bool, optional
+                Compute MDA by scrambling each feature and using the
+                full set of remaining context features for each prediction.
+                False removes cached values.
+            - feature_feature_mda_permutation_robust : bool, optional
+                Compute MDA by scrambling each feature and using the
+                robust (power set/permutations) set of remaining context features
+                for each prediction. False removes cached values.
+            - action_condition : map of str -> any, optional
+                A condition map to select the action set, which is the dataset for which
+                the prediction stats are for. If both ``action_condition`` and ``context_condition``
+                are provided, then all of the action cases selected by the ``action_condition``
+                will be excluded from the context set, which is the set being queried to make to
+                make predictions on the action set, effectively holding them out.
+                If only ``action_condition`` is specified, then only the single predicted case
+                will be left out.
 
-                        .. NOTE::
-                            The dictionary keys are the feature name and values are one of:
+                .. NOTE::
+                    The dictionary keys are the feature name and values are one of:
 
-                                - None
-                                - A value, must match exactly.
-                                - An array of two numeric values, specifying an inclusive
-                                range. Only applicable to continuous and numeric ordinal
-                                features.
-                                - An array of string values, must match any of these values
-                                exactly. Only applicable to nominal and string ordinal
-                                features.
-                    - action_num_cases : int, optional
-                        The maximum amount of cases to use to calculate prediction stats.
-                        If not specified, the limit will be k cases if precision is
-                        "similar", or 1000 cases if precision is "exact". Works with or
-                        without ``action_condition``.
-                        -If ``action_condition`` is set:
-                            If None, will be set to k if precision is "similar" or no limit if precision is "exact".
-                        - If ``action_condition`` is not set:
-                            If None, will be set to the Howso default limit of 2000.
-                    - action_condition_precision : {"exact", "similar"}, optional
-                        The precision to use when selecting cases with the ``action_condition``.
-                        If not specified "exact" will be used. Only used if ``action_condition``
-                        is not None.
-                    - context_condition : map of str -> any, optional
-                        A condition map to select the context set, which is the set being queried to make
-                        to make predictions on the action set. If both ``action_condition`` and ``context_condition``
-                        are provided,  then all of the cases from the action set, which is the dataset for which the
-                        prediction stats are for, will be excluded from the context set, effectively holding them out.
-                        If only ``action_condition`` is specified,  then only the single predicted case will be left out.
+                        - None
+                        - A value, must match exactly.
+                        - An array of two numeric values, specifying an inclusive
+                        range. Only applicable to continuous and numeric ordinal
+                        features.
+                        - An array of string values, must match any of these values
+                        exactly. Only applicable to nominal and string ordinal
+                        features.
+            - action_num_cases : int, optional
+                The maximum amount of cases to use to calculate prediction stats.
+                If not specified, the limit will be k cases if precision is
+                "similar", or 1000 cases if precision is "exact". Works with or
+                without ``action_condition``.
+                -If ``action_condition`` is set:
+                    If None, will be set to k if precision is "similar" or no limit if precision is "exact".
+                - If ``action_condition`` is not set:
+                    If None, will be set to the Howso default limit of 2000.
+            - action_condition_precision : {"exact", "similar"}, optional
+                The precision to use when selecting cases with the ``action_condition``.
+                If not specified "exact" will be used. Only used if ``action_condition``
+                is not None.
+            - context_condition : map of str -> any, optional
+                A condition map to select the context set, which is the set being queried to make
+                to make predictions on the action set. If both ``action_condition`` and ``context_condition``
+                are provided,  then all of the cases from the action set, which is the dataset for which the
+                prediction stats are for, will be excluded from the context set, effectively holding them out.
+                If only ``action_condition`` is specified,  then only the single predicted case will be left out.
 
-                        .. NOTE::
-                            The dictionary keys are the feature name and values are one of:
+                .. NOTE::
+                    The dictionary keys are the feature name and values are one of:
 
-                                - None
-                                - A value, must match exactly.
-                                - An array of two numeric values, specifying an inclusive
-                                range. Only applicable to continuous and numeric ordinal
-                                features.
-                                - An array of string values, must match any of these values
-                                exactly. Only applicable to nominal and string ordinal
-                                features.
-                    - context_precision_num_cases : int, optional
-                        Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
-                        If None, will be set to k.
-                    - context_condition_precision : {"exact", "similar"}, optional
-                        The precision to use when selecting cases with the ``context_condition``.
-                        If not specified "exact" will be used. Only used if ``context_condition``
-                        is not None.
-                    - prediction_stats_features : list, optional
-                        List of features to use when calculating conditional prediction stats. Should contain all action and
-                        context features desired. If ``action_feature`` is also provided, that feature will automatically be
-                        appended to this list if it is not already in the list.
-                         stats : list of str, optional
-                    - missing_value_accuracy_full : bool, optional
-                        The number of cases with missing values predicted to have missing values divided by the number
-                        of cases with missing values, applies to all features that contain missing values. Uses full calculations.
-                    - missing_value_accuracy_robust : bool, optional
-                        The number of cases with missing values predicted to have missing values divided by the number
-                        of cases with missing values, applies to all features that contain missing values. Uses robust calculations.
-                    - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
-                        returns all except the confusion matrix. Allowed values:
+                        - None
+                        - A value, must match exactly.
+                        - An array of two numeric values, specifying an inclusive
+                        range. Only applicable to continuous and numeric ordinal
+                        features.
+                        - An array of string values, must match any of these values
+                        exactly. Only applicable to nominal and string ordinal
+                        features.
+            - context_precision_num_cases : int, optional
+                Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
+                If None, will be set to k.
+            - context_condition_precision : {"exact", "similar"}, optional
+                The precision to use when selecting cases with the ``context_condition``.
+                If not specified "exact" will be used. Only used if ``context_condition``
+                is not None.
+            - prediction_stats_features : list, optional
+                List of features to use when calculating conditional prediction stats. Should contain all action and
+                context features desired. If ``action_feature`` is also provided, that feature will automatically be
+                appended to this list if it is not already in the list.
+                    stats : list of str, optional
+            - missing_value_accuracy_full : bool, optional
+                The number of cases with missing values predicted to have missing values divided by the number
+                of cases with missing values, applies to all features that contain missing values. Uses full calculations.
+            - missing_value_accuracy_robust : bool, optional
+                The number of cases with missing values predicted to have missing values divided by the number
+                of cases with missing values, applies to all features that contain missing values. Uses robust calculations.
+            - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
+                returns all except the confusion matrix. Allowed values:
 
-                        - all : Returns all the the available prediction stats, including the confusion matrix.
-                        - accuracy : The number of correct predictions divided by the
-                        total number of predictions.
-                        - confusion_matrix : A sparse map of actual feature value to a map of
-                        predicted feature value to counts.
-                        - mae : Mean absolute error. For continuous features, this is
-                        calculated as the mean of absolute values of the difference
-                        between the actual and predicted values. For nominal features,
-                        this is 1 - the average categorical action probability of each case's
-                        correct classes. Categorical action probabilities are the probabilities
-                        for each class for the action feature.
-                        - mda : Mean decrease in accuracy when each feature is dropped
-                        from the model, applies to all features.
-                        - feature_mda_permutation_full : Mean decrease in accuracy that used
-                        scrambling of feature values instead of dropping each
-                        feature, applies to all features.
-                        - precision : Precision (positive predictive) value for nominal
-                        features only.
-                        - r2 : The r-squared coefficient of determination, for
-                        continuous features only.
-                        - recall : Recall (sensitivity) value for nominal features only.
-                        - rmse : Root mean squared error, for continuous features only.
-                        - spearman_coeff : Spearman's rank correlation coefficient,
-                        for continuous features only.
-                        - mcc : Matthews correlation coefficient, for nominal features only.
+                - all : Returns all the the available prediction stats, including the confusion matrix.
+                - accuracy : The number of correct predictions divided by the
+                total number of predictions.
+                - confusion_matrix : A sparse map of actual feature value to a map of
+                predicted feature value to counts.
+                - mae : Mean absolute error. For continuous features, this is
+                calculated as the mean of absolute values of the difference
+                between the actual and predicted values. For nominal features,
+                this is 1 - the average categorical action probability of each case's
+                correct classes. Categorical action probabilities are the probabilities
+                for each class for the action feature.
+                - mda : Mean decrease in accuracy when each feature is dropped
+                from the model, applies to all features.
+                - feature_mda_permutation_full : Mean decrease in accuracy that used
+                scrambling of feature values instead of dropping each
+                feature, applies to all features.
+                - precision : Precision (positive predictive) value for nominal
+                features only.
+                - r2 : The r-squared coefficient of determination, for
+                continuous features only.
+                - recall : Recall (sensitivity) value for nominal features only.
+                - rmse : Root mean squared error, for continuous features only.
+                - spearman_coeff : Spearman's rank correlation coefficient,
+                for continuous features only.
+                - mcc : Matthews correlation coefficient, for nominal features only.
         feature_influences_action_feature : str, optional
             When feature influences such as contributions and mda, use this feature as
             the action feature.  If not provided, will default to the ``action_feature`` if provided.
