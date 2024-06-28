@@ -18,7 +18,7 @@ class TraineeCache(Collection):
 
     def set(self, trainee: t.Dict, **kwargs) -> None:
         """Set trainee in cache."""
-        trainee_id = trainee.get('id', None) if isinstance(trainee, t.Dict) else getattr(trainee, 'id', None)
+        trainee_id = trainee.get('id', None) if isinstance(trainee, dict) else getattr(trainee, 'id', None)
         if trainee_id:
             self.__dict__.setdefault(trainee_id, {
                 'user_defaults': {}

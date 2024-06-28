@@ -11,7 +11,7 @@ from pathlib import Path
 import random
 import sys
 import traceback
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
@@ -420,7 +420,7 @@ def generate_dataframe(*, client: AbstractHowsoClient,
         features=features,
         persistence="never"
     )
-    if not isinstance(trainee, Dict):
+    if not isinstance(trainee, dict):
         raise HowsoError('Unable to create trainee.')
     client.set_feature_attributes(trainee["id"], features)
     client.acquire_trainee_resources(trainee["id"], max_wait_time=0)

@@ -3,10 +3,10 @@ from typing import Dict, Iterable, List, Optional, Union
 import pandas as pd
 from pandas import DataFrame, Index
 
-import howso.client.client
-import howso.utilities as utilities
-import howso.utilities.internals as internals
-import howso.utilities.reaction as reaction
+from howso.client.client import get_howso_client_class
+from howso.utilities import deserialize_cases, format_dataframe
+from howso.utilities.internals import deserialize_to_dataframe
+from howso.utilities.reaction import Reaction
 
 
 class HowsoPandasClientMixin:
@@ -55,7 +55,7 @@ class HowsoPandasClientMixin:
             cases rows.
         """
         cases = super().react_group(*args, **kwargs)
-        return internals.deserialize_to_dataframe(cases)
+        return deserialize_to_dataframe(cases)
 
     def get_cases(self, trainee_id: str, *args, **kwargs) -> DataFrame:
         """
@@ -74,7 +74,7 @@ class HowsoPandasClientMixin:
         trainee_id = self._resolve_trainee_id(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id)["features"]
         response = super().get_cases(trainee_id, *args, **kwargs)
-        return utilities.deserialize_cases(
+        return deserialize_cases(
             response['cases'],
             response['features'],
             feature_attributes
@@ -110,7 +110,7 @@ class HowsoPandasClientMixin:
         feature_attributes = self.trainee_cache.get(trainee_id)["features"]
         response = super().get_extreme_cases(trainee_id, num, sort_feature,
                                              features)
-        return utilities.deserialize_cases(
+        return deserialize_cases(
             response['cases'],
             response['features'],
             feature_attributes
@@ -135,7 +135,7 @@ class HowsoPandasClientMixin:
         if response.get('familiarity_conviction_removal'):
             index.append('familiarity_conviction_removal')
             rows.append(response['familiarity_conviction_removal'])
-        return internals.deserialize_to_dataframe(rows, index=index)
+        return deserialize_to_dataframe(rows, index=index)
 
     def get_feature_residuals(self, *args, **kwargs) -> DataFrame:
         """
@@ -147,7 +147,7 @@ class HowsoPandasClientMixin:
             A DataFrame of feature name columns to residual value rows.
         """
         response = super().get_feature_residuals(*args, **kwargs)
-        return internals.deserialize_to_dataframe([response])
+        return deserialize_to_dataframe([response])
 
     def get_feature_mda(self, *args, **kwargs):
         """
@@ -160,7 +160,7 @@ class HowsoPandasClientMixin:
             accuracy value rows.
         """
         response = super().get_feature_mda(*args, **kwargs)
-        return internals.deserialize_to_dataframe([response])
+        return deserialize_to_dataframe([response])
 
     def get_feature_contributions(self, *args, **kwargs) -> DataFrame:
         """
@@ -172,7 +172,7 @@ class HowsoPandasClientMixin:
             A DataFrame of context feature columns to contribution value rows.
         """
         response = super().get_feature_contributions(*args, **kwargs)
-        return internals.deserialize_to_dataframe([response])
+        return deserialize_to_dataframe([response])
 
     def get_prediction_stats(self, *args, **kwargs) -> DataFrame:
         """
@@ -204,7 +204,7 @@ class HowsoPandasClientMixin:
         *args,
         series_index: str = '.series',
         **kwargs
-    ) -> reaction.Reaction:
+    ) -> Reaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_series`.
 
@@ -231,14 +231,11 @@ class HowsoPandasClientMixin:
         feature_attributes = self.trainee_cache.get(trainee_id)["features"]
         response = super().react_series(trainee_id, *args, series_index=series_index, **kwargs)
 
-        response['action'] = utilities.format_dataframe(
-            response['get']("action"),
-            feature_attributes
-        )
+        response['action'] = format_dataframe(response.get("action"), feature_attributes)
 
         return response
 
-    def react(self, trainee_id, *args, **kwargs) -> reaction.Reaction:
+    def react(self, trainee_id, *args, **kwargs) -> Reaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react`.
 
@@ -258,11 +255,7 @@ class HowsoPandasClientMixin:
         columns = response['details'].get('action_features')
         if 'prediction_stats' in response['details']:
             response['details']['prediction_stats'] = pd.DataFrame(response['details']['prediction_stats'][0]).T
-        response['action'] = utilities.deserialize_cases(
-            response['action'],
-            columns,
-            feature_attributes
-        )
+        response['action'] = deserialize_cases(response['action'], columns, feature_attributes)
         return response
 
     def get_distances(self, *args, **kwargs) -> Dict[str, Union[DataFrame, List]]:
@@ -281,7 +274,7 @@ class HowsoPandasClientMixin:
                 }
         """
         response = super().get_distances(*args, **kwargs)
-        response['distances'] = internals.deserialize_to_dataframe(response['distances'])
+        response['distances'] = deserialize_to_dataframe(response['distances'])
         return response
 
 
@@ -309,7 +302,7 @@ def get_howso_pandas_client(**kwargs):
         An instantiated subclass of AbstractHowsoClient constructed with
         the HowsoPandasClientMixin.
     """
-    client_class, client_params = howso.client.client.get_howso_client_class(**kwargs)
+    client_class, client_params = get_howso_client_class(**kwargs)
 
     # Construct the client class from the requested base client class and
     # the pandas mixin

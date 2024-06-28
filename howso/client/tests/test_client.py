@@ -128,9 +128,7 @@ class TraineeBuilder:
 
     def create(self, **kwargs):
         """Create a new trainee."""
-        new_trainee = self.client.create_trainee(
-            **kwargs
-        )
+        new_trainee = self.client.create_trainee(**kwargs)
         self.trainees.append(new_trainee)
         return new_trainee
 
@@ -416,10 +414,11 @@ class TestClient:
         """
         cases = [['1', '2'], ['3', '4']]
         self.client.train(trainee['id'], cases, features=['penguin', 'play'])
-        react_response = self.client.react(trainee['id'],
-                                    contexts=[['1']],
-                                    context_features=['penguin'],
-                                    action_features=['play'])
+        react_response = self.client.react(
+            trainee['id'],
+            contexts=[['1']],
+            context_features=['penguin'],
+            action_features=['play'])
         assert isinstance(react_response, Reaction)
         assert react_response['action']['play'].iloc[0] == '2'
         case_response = self.client.get_cases(

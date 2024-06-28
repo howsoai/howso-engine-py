@@ -47,7 +47,7 @@ class Session():
         *,
         id: Optional[str] = None,
         metadata: Optional[dict] = None,
-        client: Optional[AbstractHowsoClient] = None
+        client: Optional[AbstractHowsoClient] = None,
     ) -> None:
         """Implement the constructor."""
         self._created: bool = False
@@ -189,24 +189,24 @@ class Session():
         self._metadata = metadata
         self._update()
 
-    def _update_attributes(self, session) -> None:
+    def _update_attributes(self, session: dict) -> None:
         """
         Update the protected attributes of the session.
 
         Parameters
         ----------
-        session : Session
-            The base session instance.
+        session : dict
+            The session details.
 
         Returns
         -------
         None
         """
-        for key in Session.attribute_map.keys():
+        for key in self.attribute_map:
             # Update the protected attributes directly since the values
-            # have already been validated by the "Session" instance
-            # and to prevent triggering an API update call
-            setattr(self, f'_{key}', getattr(key))
+            # are provided from the client and to prevent triggering an
+            # API update call.
+            setattr(self, f'_{key}', session.get(key))
 
     def _update(self) -> None:
         """
@@ -248,6 +248,7 @@ class Session():
     def from_dict(
         cls,
         session_dict: dict,
+        *,
         client: Optional[AbstractHowsoClient] = None
     ) -> "Session":
         """

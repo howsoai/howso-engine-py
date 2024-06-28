@@ -152,5 +152,5 @@ setup.cfg
 /requirements.txt
 /dev-requirements.txt
 
-# Local How So configuration file
+# Local Howso configuration file
 howso.yml

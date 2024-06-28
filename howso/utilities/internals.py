@@ -211,7 +211,7 @@ def postprocess_feature_attributes(features):
     # Serialize any OpenAPI models
     features = deepcopy(serialize_models(features))
 
-    for name, feat in features.items():
+    for feat in features.values():
         if feat is None:
             continue
 
@@ -229,8 +229,6 @@ def postprocess_feature_attributes(features):
                     feat['original_format']['python']['date_time_format'])
             except (TypeError, KeyError):
                 pass
-
-        features[name] = feat
 
     return features
 
@@ -260,7 +258,7 @@ def preprocess_feature_attributes(features):
     features = deepcopy(serialize_models(features))
 
     regex = re.compile(r"%S.%f")
-    for name, feat in features.items():
+    for feat in features.values():
         if feat is None:
             continue
 
@@ -288,8 +286,6 @@ def preprocess_feature_attributes(features):
                                                      feat['date_time_format'])
         except (KeyError, TypeError, ValueError):
             pass
-
-        features[name] = feat
 
     return features
 

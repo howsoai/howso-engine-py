@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from importlib import metadata
 from pathlib import Path
 import sysconfig

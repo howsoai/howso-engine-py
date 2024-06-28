@@ -242,17 +242,17 @@ class Project():
 
         Parameters
         ----------
-        project : Dict
-            The base project instance.
+        project : dict
+            The project details.
 
         Returns
         -------
         None
         """
-        for key in Project.attribute_map:
+        for key in self.attribute_map:
             # Update the protected attributes directly since the values
-            # have already been validated by the "Project" instance
-            # and to prevent triggering an API update call
+            # are provided from the client and to prevent triggering an
+            # API update call.
             setattr(self, f'_{key}', project.get(key))
 
     def _update(self) -> None:
@@ -294,6 +294,7 @@ class Project():
     def from_dict(
         cls,
         project_dict: dict,
+        *,
         client: Optional[AbstractHowsoClient] = None
     ) -> "Project":
         """

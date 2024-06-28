@@ -3,10 +3,10 @@ from howso.client.pandas import HowsoPandasClientMixin
 
 __client_instance = None
 
-__all__ = {
+__all__ = [
     'get_client',
     'use_client',
-}
+]
 
 
 def get_client() -> AbstractHowsoClient:
@@ -24,7 +24,7 @@ def get_client() -> AbstractHowsoClient:
     return __client_instance
 
 
-def use_client(client):
+def use_client(client: AbstractHowsoClient) -> None:
     """
     Set the active Howso client instance to use for the API.
 

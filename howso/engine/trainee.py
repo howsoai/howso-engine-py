@@ -17,9 +17,9 @@ from howso.client.protocols import LocalSaveableProtocol, ProjectClient
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
-import howso.utilities
-import howso.utilities.feature_attributes.base as feature_attributes
-import howso.utilities.reaction as reaction
+from howso.utilities import matrix_processing
+from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
+from howso.utilities.reaction import Reaction
 from .typing import (
     CaseIndices,
     GenerateNewCases,
@@ -100,7 +100,7 @@ class Trainee():
     def __init__(
         self,
         name: Optional[str] = None,
-        features: Optional[feature_attributes.SingleTableFeatureAttributes] = None,
+        features: Optional[Union[dict, SingleTableFeatureAttributes]] = None,
         *,
         overwrite_existing: bool = False,
         persistence: Persistence = "allow",
@@ -282,7 +282,7 @@ class Trainee():
         self.update()
 
     @property
-    def features(self) -> feature_attributes.SingleTableFeatureAttributes:
+    def features(self) -> SingleTableFeatureAttributes:
         """
         The trainee feature attributes.
 
@@ -297,9 +297,9 @@ class Trainee():
             The feature attributes of the trainee.
         """
         if self._features:
-            return feature_attributes.SingleTableFeatureAttributes(deepcopy(self._features))
+            return SingleTableFeatureAttributes(deepcopy(self._features))
         else:
-            return feature_attributes.SingleTableFeatureAttributes({})
+            return SingleTableFeatureAttributes({})
 
     @property
     def metadata(self) -> Dict[str, Any] | None:
@@ -414,7 +414,7 @@ class Trainee():
         else:
             raise ValueError("Trainee ID is needed for saving.")
 
-    def set_feature_attributes(self, feature_attributes: feature_attributes.SingleTableFeatureAttributes):
+    def set_feature_attributes(self, feature_attributes: SingleTableFeatureAttributes):
         """
         Update the trainee feature attributes.
 
@@ -498,17 +498,11 @@ class Trainee():
             params["project_id"] = project_id
 
         if isinstance(self.client, AbstractHowsoClient):
-            trainee_data = self.client.copy_trainee(**params)
-            copy = Trainee.from_dict(
-                trainee_data,
-                client=self.client
-            )
+            copy = self.client.copy_trainee(**params)
         else:
-            copy = None
-        if copy:
-            if isinstance(self.client, AbstractHowsoClient):
-                return copy
             raise ValueError("Client must be an instance of 'AbstractHowsoClient'")
+        if isinstance(copy, dict):
+            return Trainee.from_dict(copy, client=self.client)
         else:
             raise ValueError('Trainee not correctly copied')
 
@@ -622,7 +616,7 @@ class Trainee():
         else:
             raise ValueError("Client must have the 'release_trainee_resources' method.")
 
-    def information(self) -> "Dict":
+    def information(self) -> Dict:
         """
         Get detail information about the trainee.
 
@@ -637,7 +631,7 @@ class Trainee():
         else:
             raise ValueError("Client must have 'get_trainee_information' method")
 
-    def metrics(self) -> "Dict":
+    def metrics(self) -> Dict:
         """
         Get metric information of the trainee.
 
@@ -1175,7 +1169,7 @@ class Trainee():
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> reaction.Reaction:
+    ) -> Reaction:
         r"""
         React to the provided contexts.
 
@@ -1629,7 +1623,7 @@ class Trainee():
         use_case_weights: bool = False,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
-    ) -> reaction.Reaction:
+    ) -> Reaction:
         """
         React to the trainee in a series until a stop condition is met.
 
@@ -2372,6 +2366,11 @@ class Trainee():
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
+        if (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
             if self.id:
                 self.client.add_feature(
@@ -2441,6 +2440,11 @@ class Trainee():
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
+        if (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
             if self.id:
                 self.client.remove_feature(
@@ -3415,22 +3419,22 @@ class Trainee():
         Parameters
         ----------
         trainee : Dict
-            The base trainee instance.
+            The trainee details.
         """
-        for key in Trainee.attribute_map.keys():
+        for key in self.attribute_map:
             # Update the protected attributes directly since the values
-            # have already been validated by the "Trainee" instance
-            # and to prevent triggering an API update call
+            # are provided from the client and to prevent triggering an
+            # API update call.
             setattr(self, f"_{key}", trainee.get(key))
 
     def to_dict(self) -> Dict:
         """
-        Returns a dict representation of the trainee.
+        Returns a dict representation of the Trainee.
 
         Returns
         -------
         Dict
-            A dict representation of the trainee.
+            A dict representation of the Trainee.
         """
         return dict(
             name=self.name,
@@ -3679,7 +3683,6 @@ class Trainee():
                     features=self.features,
                     overwrite_trainee=overwrite,
                     persistence=self.persistence,
-                    id=self.id,
                     library_type=library_type,
                     max_wait_time=max_wait_time,
                     project=self.project_id,
@@ -3697,6 +3700,7 @@ class Trainee():
     def from_dict(
         cls,
         trainee_dict: dict,
+        *,
         client: Optional[AbstractHowsoClient] = None
     ) -> "Trainee":
         """
@@ -3714,15 +3718,14 @@ class Trainee():
         """
         if not isinstance(trainee_dict, dict):
             raise ValueError("``trainee_dict`` parameter is not a dict")
-        parameters = {"client": client or trainee_dict.get("client")}
+        parameters: dict = {"client": client or trainee_dict.get("client")}
         for key in cls.attribute_map.keys():
             if key in trainee_dict:
                 if key == "project_id":
                     parameters["project"] = trainee_dict[key]
                 else:
                     parameters[key] = trainee_dict[key]
-        instance = cls(**parameters)  # type: ignore
-        return instance
+        return cls(**parameters)
 
     def __enter__(self) -> "Trainee":
         """Support context managers."""
@@ -3828,7 +3831,7 @@ class Trainee():
         # Stores the preprocessed matrix, useful if the user wants a different form of processing
         # after calculation.
         self._calculated_matrices['contribution'] = deepcopy(matrix)
-        matrix = howso.utilities.matrix_processing(
+        matrix = matrix_processing(
             matrix,
             normalize=normalize,
             normalize_method=normalize_method,
@@ -3927,7 +3930,7 @@ class Trainee():
         # Stores the preprocessed matrix, useful if the user wants a different form of processing
         # after calculation.
         self._calculated_matrices['mda'] = deepcopy(matrix)
-        matrix = howso.utilities.matrix_processing(
+        matrix = matrix_processing(
             matrix,
             normalize=normalize,
             normalize_method=normalize_method,
@@ -4106,7 +4109,7 @@ def get_trainee(
     client = client or get_client()
     trainee = client.get_trainee(str(name_or_id))
     if trainee:
-        return Trainee.from_dict(trainee)
+        return Trainee.from_dict(trainee, client=client)
 
 
 def list_trainees(
@@ -4133,7 +4136,7 @@ def list_trainees(
 
     Returns
     -------
-    list of Dict
+    list of dict
         The list of available trainees.
     """
     client = client or get_client()
