@@ -4370,16 +4370,18 @@ class HowsoDirectClient(AbstractHowsoClient):
                         If not specified "exact" will be used. Only used if ``context_condition``
                         is not None.
                     - prediction_stats_features : list, optional
-                        List of features to use when calculating conditional prediction stats. Should contain all action and
-                        context features desired. If ``action_feature`` is also provided, that feature will automatically be
-                        appended to this list if it is not already in the list.
+                        List of features to use when calculating conditional prediction stats. Should contain all
+                        action and context features desired. If ``action_feature`` is also provided, that feature will
+                        automatically be appended to this list if it is not already in the list.
                          stats : list of str, optional
                     - missing_value_accuracy_full : bool, optional
                         The number of cases with missing values predicted to have missing values divided by the number
-                        of cases with missing values, applies to all features that contain missing values. Uses full calculations.
+                        of cases with missing values, applies to all features that contain missing values. Uses full
+                        calculations.
                     - missing_value_accuracy_robust : bool, optional
                         The number of cases with missing values predicted to have missing values divided by the number
-                        of cases with missing values, applies to all features that contain missing values. Uses robust calculations.
+                        of cases with missing values, applies to all features that contain missing values. Uses robust
+                        calculations.
                     - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
                         returns all except the confusion matrix. Allowed values:
 
@@ -5934,7 +5936,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Analyzing trainee with id: {trainee_id}')
             print(f'Analyzing trainee with parameters: {analyze_params}')
 
-        # self.howso.analyze(trainee_id)
         self.howso.analyze(trainee_id, **analyze_params)
         self._auto_persist_trainee(trainee_id)
 
