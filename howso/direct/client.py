@@ -4434,7 +4434,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
             If specified overrides sample_model_fraction.```
-        residuals_hyperparameter_feature : string, optional
+        residuals_hyperparameter_feature : str, optional
             When calculating residuals and prediction stats, uses this target
             features's hyperparameters. The trainee must have been analyzed with
             this feature as the action feature first. If not provided, by default
