@@ -4263,19 +4263,11 @@ class HowsoDirectClient(AbstractHowsoClient):
             different audit details. Omitted keys, values set to None, or False
             values for Booleans will not be included in the data returned.
 
-            - prediction_stats : bool, optional. If True outputs full feature prediction
-                stats for all (context and action) features. The prediction stats returned are set
-                by the "selected_prediction_stats" parameter in the `details` parameter. Uses full
-                calculations, which uses leave-one-out for features for computations. False removes
-                cached values. If "prediction_stats_robust" is also True, then only the full
-                "prediction_stats" are returned.
-            - prediction_stats_robust: bool, optional. If True outputs full feature prediction
-                stats for all (context and action) features. The prediction stats returned are set
-                by the "selected_prediction_stats" parameter in the `details` parameter.
-                Uses robust calculations, which uses uniform sampling from the power
-                set of all combinations of features. False removes cached values.
-                If "prediction_stats_robust" is also True, then only the full "prediction_stats"
-                are returned.
+            - prediction_stats : bool, optional
+                If True outputs full feature prediction stats for all (context and action) features.
+                The prediction stats returned are set by the "selected_prediction_stats" parameter
+                in the `details` parameter. Uses full calculations, which uses leave-one-out for
+                features for computations. False removes cached values.
             - feature_residuals_full : bool, optional
                 For each context_feature, use the full set of all other context_features to predict
                 the feature. False removes cached values. When ``prediction_stats``
@@ -4382,8 +4374,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 The number of cases with missing values predicted to have missing values divided by the number
                 of cases with missing values, applies to all features that contain missing values. Uses robust
                 calculations.
-            - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
-                returns all except the confusion matrix. Allowed values:
+            - selected_prediction_stats : list, optional
+                List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
                 - all : Returns all the the available prediction stats, including the confusion matrix.
                 - accuracy : The number of correct predictions divided by the

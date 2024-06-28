@@ -2967,19 +2967,11 @@ class Trainee(BaseTrainee):
             different audit details. Omitted keys, values set to None, or False
             values for Booleans will not be included in the data returned.
 
-            - prediction_stats : bool, optional. If True outputs full feature prediction
-                stats for all (context and action) features. The prediction stats returned are set
-                by the "selected_prediction_stats" parameter in the `details` parameter. Uses full
-                calculations, which uses leave-one-out for features for computations. False removes
-                cached values. If "prediction_stats_robust" is also True, then only the full
-                "prediction_stats" are returned.
-            - prediction_stats_robust: bool, optional. If True outputs full feature prediction
-                stats for all (context and action) features. The prediction stats returned are set
-                by the "selected_prediction_stats" parameter in the `details` parameter.
-                Uses robust calculations, which uses uniform sampling from the power
-                set of all combinations of features. False removes cached values.
-                If "prediction_stats_robust" is also True, then only the full "prediction_stats"
-                are returned.
+            - prediction_stats : bool, optional
+                If True outputs full feature prediction stats for all (context and action) features.
+                The prediction stats returned are set by the "selected_prediction_stats" parameter
+                in the `details` parameter. Uses full calculations, which uses leave-one-out for
+                features for computations. False removes cached values.
             - feature_residuals_full : bool, optional
                 For each context_feature, use the full set of all other context_features to predict
                 the feature. False removes cached values. When ``prediction_stats``
@@ -3074,18 +3066,20 @@ class Trainee(BaseTrainee):
                 If not specified "exact" will be used. Only used if ``context_condition``
                 is not None.
             - prediction_stats_features : list, optional
-                List of features to use when calculating conditional prediction stats. Should contain all action and
-                context features desired. If ``action_feature`` is also provided, that feature will automatically be
-                appended to this list if it is not already in the list.
+                List of features to use when calculating conditional prediction stats. Should contain all
+                action and context features desired. If ``action_feature`` is also provided, that feature will
+                automatically be appended to this list if it is not already in the list.
                     stats : list of str, optional
             - missing_value_accuracy_full : bool, optional
                 The number of cases with missing values predicted to have missing values divided by the number
-                of cases with missing values, applies to all features that contain missing values. Uses full calculations.
+                of cases with missing values, applies to all features that contain missing values. Uses full
+                calculations.
             - missing_value_accuracy_robust : bool, optional
                 The number of cases with missing values predicted to have missing values divided by the number
-                of cases with missing values, applies to all features that contain missing values. Uses robust calculations.
-            - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
-                returns all except the confusion matrix. Allowed values:
+                of cases with missing values, applies to all features that contain missing values. Uses robust
+                calculations.
+            - selected_prediction_stats : list, optional
+                List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
                 - all : Returns all the the available prediction stats, including the confusion matrix.
                 - accuracy : The number of correct predictions divided by the
@@ -3138,15 +3132,15 @@ class Trainee(BaseTrainee):
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
             If specified overrides sample_model_fraction.```
-        robust_hyperparameters : bool, optional
-            When specified, will attempt to return residuals that were
-            computed using hyperparameters with the specified robust or
-            non-robust type.
-        residuals_hyperparameter_feature : string, optional
+        residuals_hyperparameter_feature : str, optional
             When calculating residuals and prediction stats, uses this target
             features's hyperparameters. The trainee must have been analyzed with
             this feature as the action feature first. If not provided, by default
             residuals and prediction stats uses ".targetless" hyperparameters.
+        robust_hyperparameters : bool, optional
+            When specified, will attempt to return residuals that were
+            computed using hyperparameters with the specified robust or
+            non-robust type.
         prediction_stats_action_feature : str, optional
             When calculating residuals and prediction stats, uses this target features's
             hyperparameters. The trainee must have been analyzed with this feature as the
