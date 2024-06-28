@@ -3140,7 +3140,7 @@ class Trainee(BaseTrainee):
             If specified overrides sample_model_fraction.```
         robust_hyperparameters : bool, optional
             When specified, will attempt to return residuals that were
-            computed using hyperpparameters with the specified robust or
+            computed using hyperparameters with the specified robust or
             non-robust type.
         residuals_hyperparameter_feature : string, optional
             When calculating residuals and prediction stats, uses this target
