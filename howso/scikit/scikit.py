@@ -845,28 +845,28 @@ class HowsoEstimator(BaseEstimator):
 
                 - all : Returns all the the available prediction stats, including the confusion matrix.
                 - accuracy : The number of correct predictions divided by the
-                total number of predictions.
+                  total number of predictions.
                 - confusion_matrix : A sparse map of actual feature value to a map of
-                predicted feature value to counts.
+                  predicted feature value to counts.
                 - mae : Mean absolute error. For continuous features, this is
-                calculated as the mean of absolute values of the difference
-                between the actual and predicted values. For nominal features,
-                this is 1 - the average categorical action probability of each case's
-                correct classes. Categorical action probabilities are the probabilities
-                for each class for the action feature.
+                  calculated as the mean of absolute values of the difference
+                  between the actual and predicted values. For nominal features,
+                  this is 1 - the average categorical action probability of each case's
+                  correct classes. Categorical action probabilities are the probabilities
+                  for each class for the action feature.
                 - mda : Mean decrease in accuracy when each feature is dropped
-                from the model, applies to all features.
+                  from the model, applies to all features.
                 - feature_mda_permutation_full : Mean decrease in accuracy that used
-                scrambling of feature values instead of dropping each
-                feature, applies to all features.
+                  scrambling of feature values instead of dropping each
+                  feature, applies to all features.
                 - precision : Precision (positive predictive) value for nominal
-                features only.
+                  features only.
                 - r2 : The r-squared coefficient of determination, for
-                continuous features only.
+                  continuous features only.
                 - recall : Recall (sensitivity) value for nominal features only.
                 - rmse : Root mean squared error, for continuous features only.
                 - spearman_coeff : Spearman's rank correlation coefficient,
-                for continuous features only.
+                  for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
             - similarity_conviction : bool, optional
                 If True, outputs similarity conviction for the reacted case.
