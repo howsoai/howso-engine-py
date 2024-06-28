@@ -1311,15 +1311,15 @@ class Trainee(BaseTrainee):
                 accuracy of predicting the action feature in the local model
                 area, as if each individual case were included versus not
                 included. Uses only the context features of the reacted case to
-                determine that area. Relies on 'robust_influences' parameter
-                to determine whether to do standard or robust computation.
+                determine that area. Uses robust calculations, which uses
+                uniform sampling from the power set of all combinations of cases.
             - case_mda_full : bool, optional
                 If True, outputs each influential case's mean decrease in
                 accuracy of predicting the action feature in the local model
                 area, as if each individual case were included versus not
                 included. Uses only the context features of the reacted case to
-                determine that area. Relies on 'robust_influences' parameter
-                to determine whether to do standard or robust computation.
+                determine that area. Uses full calculations, which uses
+                leave-one-out for cases for  computations.
             - categorical_action_probabilities : bool, optional
                 If True, outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
