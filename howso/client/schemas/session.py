@@ -66,6 +66,9 @@ class Session(BaseSchema[SessionDict]):
         modified_date: t.Optional[str | datetime] = None,
     ):
         """Initialize the Session instance."""
+        if id is None:
+            raise ValueError("An `id` is required to create a Session object.")
+
         self.name = name
         self.metadata = metadata
 

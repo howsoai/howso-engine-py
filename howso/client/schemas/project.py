@@ -74,6 +74,9 @@ class Project(BaseSchema[ProjectDict]):
         permissions: t.Optional[list[str]] = None,
     ):
         """Initialize the Project instance."""
+        if id is None:
+            raise ValueError("An `id` is required to create a Project object.")
+
         self.name = name
 
         self._created_by = created_by

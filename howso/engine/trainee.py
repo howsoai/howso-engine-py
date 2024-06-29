@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from copy import deepcopy
 from pathlib import Path
 import typing as t
-from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 import uuid
 import warnings
 
@@ -14,7 +15,7 @@ from howso.client.cache import TraineeCache
 from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import LocalSaveableProtocol, ProjectClient
-from howso.client.schemas import Trainee as BaseTrainee
+from howso.client.schemas import Session as BaseSession, Project as BaseProject, Trainee as BaseTrainee
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
@@ -45,7 +46,7 @@ __all__ = [
 ]
 
 
-class Trainee():
+class Trainee(BaseTrainee):
     """
     A Howso Trainee.
 
@@ -89,15 +90,6 @@ class Trainee():
         Overwrite existing trainee with the same name (if exists).
     """
 
-    attribute_map = {
-        'name': 'name',
-        'features': 'features',
-        'persistence': 'persistence',
-        'project_id': 'project_id',
-        'id': 'id',
-        'metadata': 'metadata'
-    }
-
     def __init__(
         self,
         name: Optional[str] = None,
@@ -109,7 +101,7 @@ class Trainee():
         library_type: Optional[Library] = None,
         max_wait_time: Optional[Union[int, float]] = None,
         metadata: Optional[MutableMapping[str, Any]] = None,
-        project: Optional[Union[str, Project]] = None,
+        project: Optional[Union[str, BaseProject]] = None,
         resources: Optional[MutableMapping[str, Any]] = None,
         client: Optional[AbstractHowsoClient] = None
     ):
@@ -131,10 +123,10 @@ class Trainee():
         self.persistence = persistence
 
         # Allow passing project id or the project instance
-        if isinstance(project, Project):
+        if isinstance(project, BaseProject):
             self._project_id = project.id
             if isinstance(self.client, ProjectClient):
-                self._project_instance = project
+                self._project_instance = Project.from_dict(project.to_dict(), client=client)
             else:
                 self._project_instance = None
         else:
@@ -197,7 +189,7 @@ class Trainee():
             self._project_instance.id != self.project_id
         ):
             project = self.client.get_project(self.project_id)
-            self._project_instance = Project.from_dict(project, client=self.client)
+            self._project_instance = Project.from_dict(project.to_dict(), client=self.client)
 
         return self._project_instance
 
@@ -353,7 +345,7 @@ class Trainee():
             The session instance, if it exists.
         """
         if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
-            return Session.from_dict(self.client.active_session, client=self.client)
+            return Session.from_dict(self.client.active_session.to_dict(), client=self.client)
 
     def save(self, file_path: Optional[PathLike] = None):
         """
@@ -457,7 +449,7 @@ class Trainee():
         name: Optional[str] = None,
         *,
         library_type: Optional[Library] = None,
-        project: Optional[str | Project] = None,
+        project: Optional[str | BaseProject] = None,
         resources: Optional[MutableMapping[str, Any]] = None,
     ) -> "Trainee":
         """
@@ -482,7 +474,7 @@ class Trainee():
         Trainee
             The new trainee copy.
         """
-        if isinstance(project, Project):
+        if isinstance(project, BaseProject):
             project_id = project.id
         else:
             project_id = project or self.project_id
@@ -502,8 +494,8 @@ class Trainee():
             copy = self.client.copy_trainee(**params)
         else:
             raise ValueError("Client must be an instance of 'AbstractHowsoClient'")
-        if isinstance(copy, dict):
-            return Trainee.from_dict(copy, client=self.client)
+        if isinstance(copy, BaseTrainee):
+            return Trainee.from_dict(copy.to_dict(), client=self.client)
         else:
             raise ValueError('Trainee not correctly copied')
 
@@ -796,7 +788,7 @@ class Trainee():
         minimum_model_size: int = 1_000,
         relative_prediction_threshold_map: Optional[MutableMapping[str, float]] = None,
         residual_prediction_features: Optional[List[str]] = None,
-        tolerance_prediction_threshold_map: Optional[MutableMapping[str, Tuple[float, float]]] = None,
+        tolerance_prediction_threshold_map: Optional[MutableMapping[str, tuple[float, float]]] = None,
         **kwargs
     ):
         """
@@ -1880,7 +1872,7 @@ class Trainee():
         *,
         case_indices: Optional[CaseIndices] = None,
         condition: Optional[MutableMapping[str, object]] = None,
-        condition_session: Optional[str | Session] = None,
+        condition_session: Optional[str | BaseSession] = None,
         distribute_weight_feature: Optional[str] = None,
         precision: Optional[Precision] = None,
     ) -> int:
@@ -1947,14 +1939,14 @@ class Trainee():
         int
             The number of cases removed.
         """
-        if isinstance(condition_session, Session):
+        if isinstance(condition_session, BaseSession):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
+            isinstance(condition.get('.session'), BaseSession)
         ):
             condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
@@ -1976,7 +1968,7 @@ class Trainee():
         *,
         case_indices: Optional[CaseIndices] = None,
         condition: Optional[MutableMapping[str, object]] = None,
-        condition_session: Optional[str | Session] = None,
+        condition_session: Optional[str | BaseSession] = None,
         features: Optional[Iterable[str]] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
@@ -2030,14 +2022,14 @@ class Trainee():
         int
             The number of cases modified.
         """
-        if isinstance(condition_session, Session):
+        if isinstance(condition_session, BaseSession):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
         # Convert session instance to id
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
+            isinstance(condition.get('.session'), BaseSession)
         ):
             condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
@@ -2069,7 +2061,7 @@ class Trainee():
         else:
             raise ValueError("Client must have the 'get_sessions' method.")
 
-    def delete_session(self, session: Union[str, Session]):
+    def delete_session(self, session: Union[str, BaseSession]):
         """
         Delete a session from the trainee.
 
@@ -2078,7 +2070,7 @@ class Trainee():
         session : str or Session
             The id or instance of the session to remove from the model.
         """
-        if isinstance(session, Session):
+        if isinstance(session, BaseSession):
             session_id = session.id
         else:
             session_id = session
@@ -2087,7 +2079,7 @@ class Trainee():
         else:
             raise ValueError("Client must have the 'delete_trainee_session' method.")
 
-    def get_session_indices(self, session: Union[str, Session]) -> Index | List[int]:
+    def get_session_indices(self, session: Union[str, BaseSession]) -> Index | List[int]:
         """
         Get all session indices for a specified session.
 
@@ -2102,7 +2094,7 @@ class Trainee():
         Index or list of int
             An index of the session indices for the requested session.
         """
-        if isinstance(session, Session):
+        if isinstance(session, BaseSession):
             session_id = session.id
         else:
             session_id = session
@@ -2111,7 +2103,7 @@ class Trainee():
             session=session_id,
         )
 
-    def get_session_training_indices(self, session: Union[str, Session]) -> Index | List[int]:
+    def get_session_training_indices(self, session: Union[str, BaseSession]) -> Index | List[int]:
         """
         Get all session training indices for a specified session.
 
@@ -2126,7 +2118,7 @@ class Trainee():
         Index or list of int
             An index of the session training indices for the requested session.
         """
-        if isinstance(session, Session):
+        if isinstance(session, BaseSession):
             session_id = session.id
         else:
             session_id = session
@@ -2141,11 +2133,11 @@ class Trainee():
         indicate_imputed: bool = False,
         case_indices: Optional[CaseIndices] = None,
         features: Optional[Iterable[str]] = None,
-        session: Optional[str | Session] = None,
+        session: Optional[str | BaseSession] = None,
         condition: Optional[MutableMapping] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
-    ) -> Dict | DataFrame:
+    ) -> DataFrame:
         """
         Get the trainee's cases.
 
@@ -2237,10 +2229,10 @@ class Trainee():
 
         Returns
         -------
-        Dict or DataFrame
+        DataFrame
             The trainee's cases.
         """
-        if isinstance(session, Session):
+        if isinstance(session, BaseSession):
             session_id = session.id
         else:
             session_id = session
@@ -2264,7 +2256,7 @@ class Trainee():
         features: Optional[Iterable[str]] = None,
         num: int,
         sort_feature: str,
-    ) -> Dict | DataFrame:
+    ) -> DataFrame:
         """
         Get the trainee's extreme cases.
 
@@ -2279,7 +2271,7 @@ class Trainee():
 
         Returns
         -------
-        Dict or DataFrame
+        DataFrame
             The trainee's extreme cases.
         """
         if self.id:
@@ -2313,7 +2305,7 @@ class Trainee():
         *,
         overwrite: bool = False,
         condition: Optional[MutableMapping[str, object]] = None,
-        condition_session: Optional[str | Session] = None,
+        condition_session: Optional[str | BaseSession] = None,
         feature_attributes: Optional[MutableMapping] = None,
     ):
         """
@@ -2363,13 +2355,13 @@ class Trainee():
         overwrite : bool, default False
             If True, the feature will be over-written if it exists.
         """
-        if isinstance(condition_session, Session):
+        if isinstance(condition_session, BaseSession):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
+            isinstance(condition.get('.session'), BaseSession)
         ):
             condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
@@ -2397,7 +2389,7 @@ class Trainee():
         feature: str,
         *,
         condition: Optional[MutableMapping[str, object]] = None,
-        condition_session: Optional[str | Session] = None,
+        condition_session: Optional[str | BaseSession] = None,
     ):
         """
         Remove a feature from the trainee.
@@ -2437,13 +2429,13 @@ class Trainee():
             If specified, ignores the condition and operates on cases for the
             specified session id or Session instance.
         """
-        if isinstance(condition_session, Session):
+        if isinstance(condition_session, BaseSession):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
         if (
             isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
+            isinstance(condition.get('.session'), BaseSession)
         ):
             condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
@@ -3413,38 +3405,20 @@ class Trainee():
             raise HowsoError("``client`` must be a HowsoPandasClient")
         self._client = client
 
-    def _update_attributes(self, trainee: Dict):
+    def _update_attributes(self, trainee: BaseTrainee):
         """
         Update the protected attributes of the trainee.
 
         Parameters
         ----------
-        trainee : Dict
-            The trainee details.
+        trainee : BaseTrainee
+            The base trainee instance.
         """
         for key in self.attribute_map:
             # Update the protected attributes directly since the values
-            # are provided from the client and to prevent triggering an
-            # API update call.
-            setattr(self, f"_{key}", trainee.get(key))
-
-    def to_dict(self) -> Dict:
-        """
-        Returns a dict representation of the Trainee.
-
-        Returns
-        -------
-        Dict
-            A dict representation of the Trainee.
-        """
-        return dict(
-            name=self.name,
-            features=self.features,
-            persistence=self.persistence,
-            project_id=self.project_id,
-            id=self.id,
-            metadata=self.metadata
-        )
+            # have already been validated by the "BaseTrainee" instance
+            # and to prevent triggering an API update call
+            setattr(self, f"_{key}", getattr(trainee, key))
 
     def update(self):
         """Update the remote trainee with local state."""
@@ -3701,16 +3675,16 @@ class Trainee():
     @classmethod
     def from_dict(
         cls,
-        trainee_dict: dict,
+        schema: Mapping,
         *,
         client: Optional[AbstractHowsoClient] = None
     ) -> "Trainee":
         """
-        Create Trainee from dict.
+        Create Trainee from Mapping.
 
         Parameters
         ----------
-        trainee_dict : dict
+        schema : Mapping
             The Trainee parameters.
 
         Returns
@@ -3718,15 +3692,15 @@ class Trainee():
         Trainee
             The trainee instance.
         """
-        if not isinstance(trainee_dict, dict):
-            raise ValueError("``trainee_dict`` parameter is not a dict")
-        parameters: dict = {"client": client or trainee_dict.get("client")}
-        for key in cls.attribute_map.keys():
-            if key in trainee_dict:
+        if not isinstance(schema, Mapping):
+            raise ValueError("``schema`` parameter is not a Mapping")
+        parameters: dict = {"client": client or schema.get("client")}
+        for key in cls.attribute_map:
+            if key in schema:
                 if key == "project_id":
-                    parameters["project"] = trainee_dict[key]
+                    parameters["project"] = schema[key]
                 else:
-                    parameters[key] = trainee_dict[key]
+                    parameters[key] = schema[key]
         return cls(**parameters)
 
     def __enter__(self) -> "Trainee":
@@ -4074,13 +4048,13 @@ def load_trainee(
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
 
     if isinstance(client, LocalSaveableProtocol):
-        trainee_data = client._get_trainee_from_core(trainee_id)
+        base_trainee = client._get_trainee_from_core(trainee_id)
     else:
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
     if isinstance(client.trainee_cache, TraineeCache):
-        client.trainee_cache.set(trainee_data)
+        client.trainee_cache.set(base_trainee)
     trainee = Trainee.from_dict(
-        trainee_data,
+        base_trainee.to_dict(),
         client=client
     )
     trainee._custom_save_path = file_path
@@ -4111,14 +4085,14 @@ def get_trainee(
     client = client or get_client()
     trainee = client.get_trainee(str(name_or_id))
     if trainee:
-        return Trainee.from_dict(trainee, client=client)
+        return Trainee.from_dict(trainee.to_dict(), client=client)
 
 
 def list_trainees(
     search_terms: Optional[str] = None,
     *,
     client: Optional[AbstractHowsoClient] = None,
-    project: Optional[str | Project] = None,
+    project: Optional[str | BaseProject] = None,
 ) -> List["Dict"]:
     """
     Get listing of available trainees.
@@ -4147,7 +4121,7 @@ def list_trainees(
 
     # Only pass project_id for platform clients
     if project is not None and isinstance(client, ProjectClient):
-        if isinstance(project, Project):
+        if isinstance(project, BaseProject):
             params["project_id"] = project.id
         else:
             params["project_id"] = project
