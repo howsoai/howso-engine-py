@@ -1,12 +1,12 @@
-from typing import Dict, List, Optional, TYPE_CHECKING
+from collections.abc import Mapping
+from typing import Optional
 
 from howso.client import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
+from howso.client.schemas import Project as BaseProject
 from howso.engine.client import get_client
 
-if TYPE_CHECKING:
-    from datetime import datetime
 
 __all__ = [
     'delete_project',
@@ -17,7 +17,7 @@ __all__ = [
 ]
 
 
-class Project():
+class Project(BaseProject):
     """
     A Howso Project.
 
@@ -33,20 +33,9 @@ class Project():
         The Howso client instance to use. Must support the project API.
     """
 
-    attribute_map = {
-        'id': 'id',
-        'name': 'name',
-        'is_private': 'is_private',
-        'is_default': 'is_default',
-        'created_by': 'created_by',
-        'created_date': 'created_date',
-        'modified_date': 'modified_date',
-        'permissions': 'permissions'
-    }
-
     def __init__(
         self,
-        name: str = None,
+        name: str,
         *,
         id: Optional[str] = None,
         client: Optional[ProjectClient] = None
@@ -71,123 +60,19 @@ class Project():
         # Create the project at the API
         self._create()
 
-    @property
-    def id(self) -> str:
-        """
-        The unique identifier of the project.
-
-        Returns
-        -------
-        str
-            The project ID.
-        """
-        return self._id
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the project.
-
-        Returns
-        -------
-        str
-            The project name.
-        """
-        return self._name
-
-    @name.setter
+    @BaseProject.name.setter
     def name(self, name: str) -> None:
         """
-        Set the name of the project.
+        Set the name of the Project.
 
         Parameters
         ----------
         name : str
-            The name of the project.
-
-        Returns
-        -------
-        None
+            The name of the Project.
         """
-        if name is None:
-            raise ValueError("Invalid value for `name`, must not be `None`")
-        if len(name) > 128:
-            raise ValueError("Invalid value for `name`, length must be less "
-                             "than or equal to `128`")
-        self._name = name
-        self._update()
-
-    @property
-    def is_private(self) -> bool:
-        """
-        Designates if the project is not publicly visible.
-
-        Returns
-        -------
-        bool
-            True, when the project not public.
-        """
-        return self._is_private
-
-    @property
-    def is_default(self) -> bool:
-        """
-        If this project is the current user's default project.
-
-        Returns
-        -------
-        bool
-            True, when the project is the user's default.
-        """
-        return self._is_default
-
-    @property
-    def created_by(self) -> Optional["Dict"]:
-        """
-        The user account that created this project.
-
-        Returns
-        -------
-        Dict
-            The user account information.
-        """
-        return self._created_by
-
-    @property
-    def created_date(self) -> Optional["datetime"]:
-        """
-        The timestamp of when the project was originally created.
-
-        Returns
-        -------
-        datetime
-            The creation timestamp.
-        """
-        return self._created_date
-
-    @property
-    def modified_date(self) -> Optional["datetime"]:
-        """
-        The timestamp of when the project was last modified.
-
-        Returns
-        -------
-        datetime
-            The modified timestamp.
-        """
-        return self._modified_date
-
-    @property
-    def permissions(self) -> Optional[List[str]]:
-        """
-        Permissions types the user has in this project.
-
-        Returns
-        -------
-        list of str
-            The list of permission types.
-        """
-        return self._permissions
+        if BaseProject.name.fset:
+            BaseProject.name.fset(self, name)
+            self._update()
 
     @property
     def client(self) -> ProjectClient:
@@ -236,14 +121,14 @@ class Project():
         self._created = False
         self._id = None
 
-    def _update_attributes(self, project: Dict) -> None:
+    def _update_attributes(self, project: BaseProject) -> None:
         """
         Update the protected attributes of the project.
 
         Parameters
         ----------
-        project : dict
-            The project details.
+        project : BaseProject
+            The base project instance.
 
         Returns
         -------
@@ -251,9 +136,9 @@ class Project():
         """
         for key in self.attribute_map:
             # Update the protected attributes directly since the values
-            # are provided from the client and to prevent triggering an
-            # API update call.
-            setattr(self, f'_{key}', project.get(key))
+            # have already been validated by the "BaseProject" instance
+            # and to prevent triggering an API update call
+            setattr(self, f'_{key}', getattr(project, key))
 
     def _update(self) -> None:
         """
@@ -293,7 +178,7 @@ class Project():
     @classmethod
     def from_dict(
         cls,
-        project_dict: dict,
+        schema: Mapping,
         *,
         client: Optional[AbstractHowsoClient] = None
     ) -> "Project":
@@ -302,7 +187,7 @@ class Project():
 
         Parameters
         ----------
-        project_dict : Dict
+        schema : dict
             The Project parameters.
         client : AbstractHowsoClient, optional
             The Howso client instance to use.
@@ -312,18 +197,11 @@ class Project():
         Project
             The project instance.
         """
-        if not isinstance(project_dict, dict):
-            raise ValueError('`project_dict` parameter is not a dict')
-        parameters = {
-            'id': project_dict.get('id'),
-            'name': project_dict.get('name'),
-            'client': client or project_dict.get('client')
-        }
-        instance = cls(**parameters)
-        for key in cls.attribute_map.keys():
-            if key in project_dict:
-                setattr(instance, f'_{key}', project_dict[key])
-        return instance
+        if not isinstance(schema, dict):
+            raise ValueError('`schema` parameter is not a dict')
+        parameters: dict = {k: schema[k] for k in cls.attribute_map if k in schema}
+        parameters['client'] = client or schema.get('client')
+        return cls(**parameters)
 
     def __enter__(self) -> "Project":
         """Support context managers."""
@@ -390,14 +268,14 @@ def get_project(
                          "Howso client.")
 
     project = client.get_project(str(project_id))
-    return Project.from_dict(project, client=client)
+    return Project.from_dict(project.to_dict(), client=client)
 
 
 def list_projects(
     search_terms: Optional[str] = None,
     *,
     client: Optional[ProjectClient] = None
-) -> List[Project]:
+) -> list[Project]:
     """
     Get listing of projects.
 
@@ -418,7 +296,7 @@ def list_projects(
         raise HowsoError("Projects are not supported by the active "
                          "Howso client.")
     projects = client.get_projects(search_terms)
-    return [Project.from_dict(project, client=client) for project in projects]
+    return [Project.from_dict(project.to_dict(), client=client) for project in projects]
 
 
 def switch_project(
@@ -445,5 +323,5 @@ def switch_project(
     if not isinstance(client, ProjectClient):
         raise HowsoError("Projects are not supported by the active "
                          "Howso client.")
-    client.switch_project(str(project_id))
-    return Project.from_dict(client.active_project, client=client)
+    project = client.switch_project(str(project_id))
+    return Project.from_dict(project.to_dict(), client=client)

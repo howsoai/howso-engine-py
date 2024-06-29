@@ -1,11 +1,14 @@
 from collections.abc import Collection
 import typing as t
 
+if t.TYPE_CHECKING:
+    from howso.client.schemas import Trainee
+
 
 class TraineeCacheItem(t.TypedDict):
     """Type definition for trainee cache items."""
 
-    trainee: t.Dict
+    trainee: "Trainee"
     user_defaults: t.Dict[str, t.Dict]
 
 
@@ -16,19 +19,18 @@ class TraineeCache(Collection):
 
     __marker = object()
 
-    def set(self, trainee: t.Dict, **kwargs) -> None:
+    def set(self, trainee: "Trainee", **kwargs) -> None:
         """Set trainee in cache."""
-        trainee_id = trainee.get('id', None) if isinstance(trainee, dict) else getattr(trainee, 'id', None)
-        if trainee_id:
-            self.__dict__.setdefault(trainee_id, {
+        if trainee.id:
+            self.__dict__.setdefault(trainee.id, {
                 'user_defaults': {}
             })
-            self.__dict__[trainee_id].update({
+            self.__dict__[trainee.id].update({
                 'trainee': trainee,
                 **kwargs
             })
 
-    def get(self, trainee_id: str, default=__marker) -> t.Dict:
+    def get(self, trainee_id: str, default=__marker) -> "Trainee":
         """Get trainee instance by id."""
         try:
             return self.__dict__[trainee_id]['trainee']
@@ -70,7 +72,7 @@ class TraineeCache(Collection):
         """Return view items in cache."""
         return self.__dict__.items()
 
-    def trainees(self) -> t.Iterator[t.Tuple[str, t.Dict]]:
+    def trainees(self) -> t.Iterator[t.Tuple[str, "Trainee"]]:
         """Return iterator to all trainee instances in cache."""
         for key, item in self.__dict__.items():
             yield (key, item['trainee'])

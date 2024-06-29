@@ -1,35 +1,7 @@
-from datetime import datetime
 from importlib import metadata
 from pathlib import Path
 import sysconfig
 from typing import Union
-
-
-def session_convert_datetime(obj):
-    """
-    Converts datetime attributes stored as strings to datetime objects.
-
-    Parameters
-    ----------
-    obj : dict or None
-        The dict containing the class attributes.
-
-    Returns
-    -------
-    Dict
-        The session object.
-    """
-    date_attributes = ['created_date', 'modified_date']
-
-    if obj is None:
-        return None
-    if not isinstance(obj, dict):
-        raise ValueError('`obj` parameter is not a dict')
-    # Only use known attributes for class instantiation
-    for key in obj.keys():
-        if key in date_attributes and isinstance(obj[key], str):
-            obj[key] = datetime.fromisoformat(obj[key])
-    return obj
 
 
 def get_file_in_distribution(file_path) -> Union[Path, None]:

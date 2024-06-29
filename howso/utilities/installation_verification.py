@@ -29,6 +29,7 @@ except ImportError:
     engine = None
 from howso.client import AbstractHowsoClient, HowsoClient
 from howso.client.exceptions import HowsoConfigurationError, HowsoError
+from howso.client.schemas import Trainee
 try:
     from howso.validator import Validator  # noqa: might not be available # type: ignore
 except OSError as e:
@@ -420,17 +421,17 @@ def generate_dataframe(*, client: AbstractHowsoClient,
         features=features,
         persistence="never"
     )
-    if not isinstance(trainee, dict):
+    if not isinstance(trainee, Trainee):
         raise HowsoError('Unable to create trainee.')
-    client.set_feature_attributes(trainee["id"], features)
-    client.acquire_trainee_resources(trainee["id"], max_wait_time=0)
+    client.set_feature_attributes(trainee.id, features)
+    client.acquire_trainee_resources(trainee.id, max_wait_time=0)
     if timeout:
         # Generate 1 case at a time until `timeout` has passed.
         end_time = datetime.now() + timedelta(seconds=timeout)
         cases = {"action": []}
         while datetime.now() < end_time:
             if reaction := client.react(
-                trainee['id'], action_features=feature_names,
+                trainee.id, action_features=feature_names,
                 num_cases_to_generate=1, desired_conviction=1.0,
                 generate_new_cases="no", suppress_warning=True
             ):
@@ -444,12 +445,12 @@ def generate_dataframe(*, client: AbstractHowsoClient,
     else:
         with Timer() as timer:
             cases = client.react(
-                trainee['id'], action_features=feature_names,
+                trainee.id, action_features=feature_names,
                 num_cases_to_generate=num_samples, desired_conviction=1.0,
                 generate_new_cases="no", suppress_warning=True
             ) or {"action": []}
         elapsed_time = timer.seconds or math.nan
-    client.delete_trainee(trainee['id'])
+    client.delete_trainee(trainee.id)
     df = pd.DataFrame(cases["action"], columns=feature_names)
     return df, elapsed_time
 
@@ -638,8 +639,8 @@ def check_save(*, registry: InstallationCheckRegistry,
             name=f"installation_verification check save ({get_nonce()})",
             features=features
         ):
-            client.train(trainee["id"], source_df, features=feature_names)
-            client.persist_trainee(trainee['id'])
+            client.train(trainee.id, source_df, features=feature_names)
+            client.persist_trainee(trainee.id)
         else:
             raise HowsoError("Could not create a trainee.")
     except Exception:  # noqa: Deliberately broad
@@ -651,7 +652,7 @@ def check_save(*, registry: InstallationCheckRegistry,
     finally:
         try:
             if client and trainee:
-                client.delete_trainee(trainee['id'])
+                client.delete_trainee(trainee.id)
         except Exception as e:  # noqa: Deliberately broad
             pass
 
@@ -686,7 +687,7 @@ def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
         s = Synthesizer(client=registry.client, privacy_override=True)
 
         s.train(source_df[:50], features)
-        n = s.cl.get_num_training_cases(s.trainee['id'])
+        n = s.cl.get_num_training_cases(s.trainee.id)
         if n != 50:
             return (Status.ERROR,
                     f"Training did not produce the correct number of "
@@ -694,7 +695,7 @@ def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
                     "installed correctly. "
                     "Try: `pip install --upgrade howso-synthesizer`.")
 
-        s.cl.delete_trainee(s.trainee['id'])
+        s.cl.delete_trainee(s.trainee.id)
     except Exception:  # noqa: Deliberately broad
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
@@ -705,7 +706,7 @@ def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
     finally:
         try:
             if s:
-                s.cl.delete_trainee(s.trainee['id'])
+                s.cl.delete_trainee(s.trainee.id)
         except Exception:  # noqa: Deliberately broad
             pass
 
@@ -968,9 +969,9 @@ def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
         features=features,
         persistence='never'
     )
-    client.train(trainee_id=trainee["id"], cases=[["2001-01-01"]], features=['date'])
-    result_queue.put(client.get_num_training_cases(trainee['id']))
-    client.delete_trainee(trainee['id'])
+    client.train(trainee_id=trainee.id, cases=[["2001-01-01"]], features=['date'])
+    result_queue.put(client.get_num_training_cases(trainee.id))
+    client.delete_trainee(trainee.id)
 
 
 def check_tzdata_installed(*, registry: InstallationCheckRegistry):

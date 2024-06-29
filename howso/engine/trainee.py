@@ -14,6 +14,7 @@ from howso.client.cache import TraineeCache
 from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import LocalSaveableProtocol, ProjectClient
+from howso.client.schemas import Trainee as BaseTrainee
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session

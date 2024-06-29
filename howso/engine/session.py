@@ -1,14 +1,12 @@
+from collections.abc import Mapping
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
+from typing import Optional, Union
 
 from howso.client import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
-from howso.engine import Project
+from howso.client.schemas import Project as BaseProject, Session as BaseSession
 from howso.engine.client import get_client
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 __all__ = [
     'get_active_session',
@@ -18,7 +16,7 @@ __all__ = [
 ]
 
 
-class Session():
+class Session(BaseSession):
     """
     A Howso Session.
 
@@ -31,15 +29,6 @@ class Session():
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
     """
-
-    attribute_map = {
-        'id': 'id',
-        'name': 'name',
-        'user': 'user',
-        'metadata': 'metadata',
-        'created_date': 'created_date',
-        'modified_date': 'modified_date'
-    }
 
     def __init__(
         self,
@@ -66,45 +55,9 @@ class Session():
         self._create()
 
     @property
-    def id(self) -> str:
+    def metadata(self) -> Union[dict, None]:
         """
-        The unique identifier of the session.
-
-        Returns
-        -------
-        str
-            The session ID.
-        """
-        return self._id
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the session.
-
-        Returns
-        -------
-        str
-            The session name.
-        """
-        return self._name
-
-    @property
-    def user(self) -> Optional["Dict"]:
-        """
-        The user account that the session belongs to.
-
-        Returns
-        -------
-        Dict
-            The user account information.
-        """
-        return self._user
-
-    @property
-    def metadata(self) -> Optional[Dict[str, Any]]:
-        """
-        The session metadata.
+        The Session metadata.
 
         .. WARNING::
             This returns a deep `copy` of the metadata. To update the
@@ -113,33 +66,9 @@ class Session():
         Returns
         -------
         dict
-            The metadata of the session.
+            The metadata of the Session.
         """
         return deepcopy(self._metadata)
-
-    @property
-    def created_date(self) -> Optional["datetime"]:
-        """
-        The timestamp of when the session was originally created.
-
-        Returns
-        -------
-        datetime
-            The creation timestamp.
-        """
-        return self._created_date
-
-    @property
-    def modified_date(self) -> Optional["datetime"]:
-        """
-        The timestamp of when the session was last modified.
-
-        Returns
-        -------
-        datetime
-            The modified timestamp.
-        """
-        return self._modified_date
 
     @property
     def client(self) -> AbstractHowsoClient:
@@ -172,7 +101,7 @@ class Session():
                              "AbstractHowsoClient")
         self._client = client
 
-    def set_metadata(self, metadata: Optional[Dict[str, Any]]) -> None:
+    def set_metadata(self, metadata: Optional[dict]) -> None:
         """
         Update the session metadata.
 
@@ -189,14 +118,14 @@ class Session():
         self._metadata = metadata
         self._update()
 
-    def _update_attributes(self, session: dict) -> None:
+    def _update_attributes(self, session: BaseSession) -> None:
         """
         Update the protected attributes of the session.
 
         Parameters
         ----------
-        session : dict
-            The session details.
+        session : BaseSession
+            The base session instance.
 
         Returns
         -------
@@ -206,7 +135,7 @@ class Session():
             # Update the protected attributes directly since the values
             # are provided from the client and to prevent triggering an
             # API update call.
-            setattr(self, f'_{key}', session.get(key))
+            setattr(self, f'_{key}', getattr(session, key))
 
     def _update(self) -> None:
         """
@@ -247,17 +176,17 @@ class Session():
     @classmethod
     def from_dict(
         cls,
-        session_dict: dict,
+        schema: Mapping,
         *,
-        client: Optional[AbstractHowsoClient] = None
+        client: Optional[AbstractHowsoClient] = None,
     ) -> "Session":
         """
         Create Session from dict.
 
         Parameters
         ----------
-        project_dict : Dict
-            The Project parameters.
+        schema : dict
+            The session parameters.
         client : AbstractHowsoClient, optional
             The Howso client instance to use.
 
@@ -266,17 +195,11 @@ class Session():
         Session
             The session instance.
         """
-        if not isinstance(session_dict, dict):
-            raise ValueError('`session_dict` parameter is not a dict')
-        parameters = {
-            'id': session_dict.get('id'),
-            'client': client or session_dict.get('client')
-        }
-        instance = cls(**parameters)
-        for key in cls.attribute_map.keys():
-            if key in session_dict:
-                setattr(instance, f'_{key}', session_dict[key])
-        return instance
+        if not isinstance(schema, dict):
+            raise ValueError('`schema` parameter is not a dict')
+        parameters: dict = {k: schema[k] for k in cls.attribute_map if k in schema}
+        parameters['client'] = client or schema.get('client')
+        return cls(**parameters)
 
 
 def get_active_session(
@@ -296,7 +219,9 @@ def get_active_session(
         The session instance.
     """
     client = client or get_client()
-    return Session.from_dict(client.active_session, client=client)
+    if not client.active_session:
+        raise ValueError("No session is active.")
+    return Session.from_dict(client.active_session.to_dict(), client=client)
 
 
 def get_session(
@@ -321,15 +246,15 @@ def get_session(
     """
     client = client or get_client()
     session = client.get_session(str(session_id))
-    return Session.from_dict(session, client=client)
+    return Session.from_dict(session.to_dict(), client=client)
 
 
 def list_sessions(
     search_terms: Optional[str] = None,
     *,
     client: Optional[AbstractHowsoClient] = None,
-    project: Optional[Union[str, Project]] = None
-) -> List[Session]:
+    project: Optional[Union[str, BaseProject]] = None
+) -> list[Session]:
     """
     Get listing of Sessions.
 
@@ -354,10 +279,10 @@ def list_sessions(
 
     # Only pass project_id for platform clients
     if project is not None and isinstance(client, ProjectClient):
-        if isinstance(project, Project):
+        if isinstance(project, BaseProject):
             params["project_id"] = project.id
         else:
             params["project_id"] = project
 
     sessions = client.get_sessions(**params)
-    return [Session.from_dict(session, client=client) for session in sessions]
+    return [Session.from_dict(s.to_dict(), client=client) for s in sessions]

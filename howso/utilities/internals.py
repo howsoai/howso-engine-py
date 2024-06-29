@@ -27,10 +27,11 @@ from semantic_version import Version
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from howso.client.schemas import Trainee
     from .monitors import ProgressTimer
 
 
-def postprocess_trainee(trainee):
+def postprocess_trainee(trainee: "Trainee") -> "Trainee":
     """
     Post-process a trainee to update its data into the expected format.
 
@@ -47,11 +48,11 @@ def postprocess_trainee(trainee):
     Trainee
         The trainee instance.
     """
-    trainee['features'] = postprocess_feature_attributes(trainee['features'])
+    trainee.features = postprocess_feature_attributes(trainee.features)
     return trainee
 
 
-def preprocess_trainee(trainee):
+def preprocess_trainee(trainee: "Trainee") -> "Trainee":
     """
     Pre-process a trainee to update its data into the expected format.
 
@@ -62,13 +63,14 @@ def preprocess_trainee(trainee):
     ----------
     trainee : Trainee
         The trainee instance.
+
     Returns
     -------
     Trainee
         Updated copy of the trainee instance.
     """
     trainee = deepcopy(trainee)
-    trainee['features'] = preprocess_feature_attributes(trainee['features'])
+    trainee.features = preprocess_feature_attributes(trainee.features)
     return trainee
 
 

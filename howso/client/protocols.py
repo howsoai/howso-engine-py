@@ -2,6 +2,7 @@ from typing import Optional, Protocol, runtime_checkable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from howso.direct.core import HowsoCore
+    from howso.client.schemas import Project, Trainee
 
 __all__ = [
     "LocalSaveableProtocol",
@@ -18,7 +19,7 @@ class LocalSaveableProtocol(Protocol):
         """Howso Core API."""
         ...
 
-    def _get_trainee_from_core(self, trainee_id: str) -> dict:
+    def _get_trainee_from_core(self, trainee_id: str) -> "Trainee":
         """Retrieve the core representation of a Trainee object."""
         ...
 
@@ -27,17 +28,17 @@ class LocalSaveableProtocol(Protocol):
 class ProjectClient(Protocol):
     """Protocol to define a Howso client that supports projects."""
 
-    active_project: Optional[dict]
+    active_project: Optional["Project"]
 
-    def switch_project(self, project_id: str) -> dict:
+    def switch_project(self, project_id: str) -> "Project":
         """Switch active project."""
         ...
 
-    def create_project(self, name: str) -> dict:
+    def create_project(self, name: str) -> "Project":
         """Create new project."""
         ...
 
-    def update_project(self, project_id: str) -> dict:
+    def update_project(self, project_id: str, *, name: Optional[str] = None) -> "Project":
         """Update existing project."""
         ...
 
@@ -45,10 +46,10 @@ class ProjectClient(Protocol):
         """Delete a project."""
         ...
 
-    def get_project(self, project_id: str) -> dict:
+    def get_project(self, project_id: str) -> "Project":
         """Get existing project."""
         ...
 
-    def get_projects(self, search_terms: Optional[str]) -> list[dict]:
+    def get_projects(self, search_terms: Optional[str]) -> list["Project"]:
         """Search and list projects."""
         ...

@@ -146,7 +146,7 @@ class TraineeBuilder:
         """Delete a single trainee created by the builder."""
         if trainee in self.trainees:
             try:
-                self.client.delete_trainee(trainee['id'])
+                self.client.delete_trainee(trainee.id)
                 self.trainees.remove(trainee)
             except HowsoApiError as err:
                 if err.status == 404:
@@ -162,7 +162,7 @@ class TraineeBuilder:
     def unload_all(self):
         """Unload all trainees created by the builder."""
         for trainee in self.trainees:
-            self.client.release_trainee_resources(trainee['id'])
+            self.client.release_trainee_resources(trainee.id)
 
 
 @pytest.fixture(name='trainee_builder', scope='module')
@@ -207,10 +207,10 @@ class TestDatetimeSerialization:
             ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.123', '2020-12-12T12:12:12.123',
              '2020-10-11T11:11:11.123']
         ]).transpose(), columns=['nom', 'datetime'])
-        self.client.train(trainee['id'], cases=df.values.tolist(),
+        self.client.train(trainee.id, cases=df.values.tolist(),
                           features=df.columns.tolist())
         case_response = self.client.get_cases(
-            trainee['id'], session=self.client.active_session["id"],
+            trainee.id, session=self.client.active_session.id,
             features=['nom', 'datetime'])
         for case in case_response["cases"]:
             print(case)
@@ -232,7 +232,7 @@ class TestDatetimeSerialization:
              '2020-10-11T11:11']
         ]).transpose(), columns=['nom', 'datetime'])
         with pytest.warns(UserWarning) as warning_list:
-            self.client.train(trainee['id'], cases=df.values.tolist(),
+            self.client.train(trainee.id, cases=df.values.tolist(),
                               features=df.columns.tolist())
             # There might be other UserWarnings but assert that at least one
             # of them has the correct message.
@@ -242,7 +242,7 @@ class TestDatetimeSerialization:
                 for warning in warning_list])
 
         case_response = self.client.get_cases(
-            trainee['id'], session=self.client.active_session["id"],
+            trainee.id, session=self.client.active_session.id,
             features=['nom', 'datetime'])
         for case in case_response["cases"]:
             print(case)
@@ -264,14 +264,14 @@ class TestDatetimeSerialization:
              '2020-10-11T11:11']
         ]).transpose(), columns=['nom', 'datetime'])
         with pytest.warns(UserWarning) as warning_list:
-            self.client.train(trainee['id'], df.values.tolist(), df.columns.tolist())
+            self.client.train(trainee.id, df.values.tolist(), df.columns.tolist())
             assert any([str(warning.message) == (
                 "datetime has values with incorrect datetime format, should "
                 "be %H %Y. This feature may not work properly.")
                 for warning in warning_list])
 
         case_response = self.client.get_cases(
-            trainee['id'], session=self.client.active_session["id"])
+            trainee.id, session=self.client.active_session.id)
         for case in case_response["cases"]:
             print(case)
         assert len(case_response["cases"]) == 4
@@ -285,16 +285,16 @@ class TestDatetimeSerialization:
             ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
              '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
         ]).transpose(), columns=['nom', 'datetime'])
-        self.client.train(trainee['id'], cases=df.values.tolist(),
+        self.client.train(trainee.id, cases=df.values.tolist(),
                           features=df.columns.tolist())
-        response = self.client.react(trainee['id'],
+        response = self.client.react(trainee.id,
                                      contexts=[["2020-10-12T10:10:10.333"]],
                                      context_features=["datetime"],
                                      action_features=["nom"])
         assert isinstance(response, Reaction)
         assert response['action']['nom'].iloc[0] == "b"
 
-        response = self.client.react(trainee['id'], contexts=[["b"]],
+        response = self.client.react(trainee.id, contexts=[["b"]],
                                      context_features=["nom"],
                                      action_features=["datetime"])
         assert "2020-10-12T10:10:10.333000" in response['action']['datetime'].iloc[0]
@@ -306,9 +306,9 @@ class TestDatetimeSerialization:
             ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
              '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
         ]).transpose(), columns=['nom', 'datetime'])
-        self.client.train(trainee['id'], cases=df.values.tolist(),
+        self.client.train(trainee.id, cases=df.values.tolist(),
                           features=df.columns.tolist())
-        response = self.client.react_series(trainee['id'],
+        response = self.client.react_series(trainee.id,
                                             contexts=[["2020-10-12T10:10:10.333"]],
                                             context_features=["datetime"],
                                             action_features=["nom"])
@@ -364,7 +364,7 @@ class TestClient:
                  ['21', '22'],
                  ['23', '24'],
                  ['25', '26']]
-        self.client.train(trainee['id'], cases, features=['penguin', 'play'])
+        self.client.train(trainee.id, cases, features=['penguin', 'play'])
 
     def test_constructor(self):
         """Test that the client instantiates without issue."""
@@ -378,7 +378,7 @@ class TestClient:
         ----------
         trainee
         """
-        returned_trainee = self.client.get_trainee(trainee['id'])
+        returned_trainee = self.client.get_trainee(trainee.id)
         assert returned_trainee == trainee
 
     def test_update(self, trainee):
@@ -393,15 +393,15 @@ class TestClient:
             "dog": {"type": "nominal"},
             "cat": {"type": "continuous"}
         }
-        updated_trainee = trainee | dict(
+        updated_trainee = trainee.to_dict() | dict(
             features=feats,
             metadata={'date': 'now'}
         )
         updated_trainee = self.client.update_trainee(updated_trainee)
-        trainee2 = self.client.get_trainee(trainee['id'])
+        trainee2 = self.client.get_trainee(trainee.id)
         assert trainee2 == updated_trainee
         self.client.update_trainee(trainee)
-        trainee3 = self.client.get_trainee(trainee['id'])
+        trainee3 = self.client.get_trainee(trainee.id)
         assert trainee3 == trainee
 
     def test_train_and_react(self, trainee):
@@ -413,16 +413,16 @@ class TestClient:
         trainee
         """
         cases = [['1', '2'], ['3', '4']]
-        self.client.train(trainee['id'], cases, features=['penguin', 'play'])
+        self.client.train(trainee.id, cases, features=['penguin', 'play'])
         react_response = self.client.react(
-            trainee['id'],
+            trainee.id,
             contexts=[['1']],
             context_features=['penguin'],
             action_features=['play'])
         assert isinstance(react_response, Reaction)
         assert react_response['action']['play'].iloc[0] == '2'
         case_response = self.client.get_cases(
-            trainee['id'], session=self.client.active_session["id"])
+            trainee.id, session=self.client.active_session.id)
         for case in case_response["cases"]:
             print(case)
         assert len(case_response["cases"]) == 2
@@ -435,10 +435,10 @@ class TestClient:
         ----------
         trainee
         """
-        new_trainee = trainee_builder.copy(trainee['id'], trainee["name"] + "_copy")
-        trainee_bob = self.client.get_trainee(new_trainee['id'])
-        orig = trainee
-        copy_bob = trainee_bob
+        new_trainee = trainee_builder.copy(trainee.id, trainee.name + "_copy")
+        trainee_bob = self.client.get_trainee(new_trainee.id)
+        orig = trainee.to_dict()
+        copy_bob = trainee_bob.to_dict()
         assert orig['features'] == copy_bob['features']
 
     def test_trainee_conviction(self, trainee, trainee_builder):
@@ -460,7 +460,7 @@ class TestClient:
                  ['21', '22'],
                  ['23', '24'],
                  ['25', '26']]
-        self.client.train(trainee['id'], cases, features=['penguin', 'play'])
+        self.client.train(trainee.id, cases, features=['penguin', 'play'])
         cases2 = [['5', '6'],
                   ['7', '8'],
                   ['9', '10'],
@@ -473,7 +473,7 @@ class TestClient:
                   ['23', '24'],
                   ['25', '26'],
                   ['27', '28']]
-        conviction = self.client.react_group(trainee['id'], new_cases=[cases2], features=['penguin', 'play'])
+        conviction = self.client.react_group(trainee.id, new_cases=[cases2], features=['penguin', 'play'])
         assert conviction is not None
 
     def test_impute(self, trainee):
@@ -488,9 +488,9 @@ class TestClient:
         features = ['penguin', 'play']
         try:
             session = self.client.begin_session('impute')
-            self.client.train(trainee['id'], [['15', None]], features=features)
-            self.client.impute(trainee['id'], features=features, batch_size=2)
-            imputed_session = self.client.get_cases(trainee['id'], session['id'],
+            self.client.train(trainee.id, [['15', None]], features=features)
+            self.client.impute(trainee.id, features=features, batch_size=2)
+            imputed_session = self.client.get_cases(trainee.id, session.id,
                                                     indicate_imputed=True)
             assert imputed_session['cases'][0][1] is not None
             assert '.imputed' in imputed_session['features']
@@ -506,10 +506,10 @@ class TestClient:
         trainee
         """
         self._train(trainee)
-        self.client.react_into_features(trainee['id'], familiarity_conviction_addition=True)
-        cases = self.client.get_cases(trainee['id'],
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
+        cases = self.client.get_cases(trainee.id,
                                       features=['play', 'penguin', 'familiarity_conviction_addition'],
-                                      session=self.client.active_session["id"])
+                                      session=self.client.active_session.id)
         pprint(cases)
         assert 'familiarity_conviction_addition' in cases['features']
 
@@ -521,7 +521,7 @@ class TestClient:
         ----------
         trainee
         """
-        self.client.persist_trainee(trainee['id'])
+        self.client.persist_trainee(trainee.id)
 
     def test_hierarchy(self, trainee):
         """
@@ -533,7 +533,7 @@ class TestClient:
         """
         self._train(trainee)
         response = self.client.howso.create_subtrainee(
-            trainee['id'],
+            trainee.id,
             trainee_name="child",
             subtrainee_id=str(uuid.uuid4())
         )
@@ -543,7 +543,7 @@ class TestClient:
         child_id = response['id']
 
         response = self.client.howso.execute_on_subtrainee(
-            trainee['id'],
+            trainee.id,
             method="create_subtrainee",
             # create under child by id instead of by path name
             child_id=child_id,
@@ -553,51 +553,51 @@ class TestClient:
         assert('grandchild1' in response['name'])
 
         response = self.client.move_cases(
-            trainee['id'],
+            trainee.id,
             num_cases=2,
             target_name_path=["child", "grandchild1"]
         )
         assert(response == 2)
 
         response = self.client.howso.execute_on_subtrainee(
-            trainee['id'],
+            trainee.id,
             method="get_num_training_cases",
             child_name_path=["child", "grandchild1"]
         )
         assert(response['count'] == 2)
 
         self.client.copy_subtrainee(
-            trainee['id'],
+            trainee.id,
             new_trainee_name="grandchild2",
             source_name_path=["child", "grandchild1"],
             target_name_path=["child"]
         )
 
         response = self.client.howso.execute_on_subtrainee(
-            trainee['id'],
+            trainee.id,
             method="get_num_training_cases",
             child_name_path=["child", "grandchild2"]
         )
         assert(response['count'] == 2)
 
         self.client.rename_subtrainee(
-            trainee['id'],
+            trainee.id,
             child_name_path=["child", "grandchild2"],
             new_name="grandchild_two",
         )
 
-        response = self.client.get_hierarchy(trainee['id'])
+        response = self.client.get_hierarchy(trainee.id)
         assert(response == {'child': {'grandchild1': {}, 'grandchild_two': {}}})
 
         response = self.client.howso.execute_on_subtrainee(
-            trainee['id'],
+            trainee.id,
             method='get_cases',
             child_name_path=["child", "grandchild_two"]
         )
         assert len(response['cases']) == 2
 
         response = self.client.howso.execute_on_subtrainee(
-            trainee['id'],
+            trainee.id,
             method='react',
             child_name_path=["child", "grandchild_two"],
             payload={
@@ -611,7 +611,7 @@ class TestClient:
         assert len(response['most_similar_cases']) == 2
 
         response = self.client.howso.execute_on_subtrainee(
-            trainee['id'],
+            trainee.id,
             method='batch_react',
             child_name_path=["child", "grandchild_two"],
             payload={
@@ -624,7 +624,7 @@ class TestClient:
         assert response['action_values'][1][0] == 7
 
         response = self.client.howso.execute_on_subtrainee(
-            trainee['id'],
+            trainee.id,
             method='react_series',
             child_name_path=["child", "grandchild_two"],
             payload={
@@ -663,7 +663,7 @@ class TestClient:
                  ['21', '22'],
                  ['23', '24'],
                  ['25', '26']]
-        self.client.train(trainee['id'], cases, features=['penguin', 'play'])
+        self.client.train(trainee.id, cases, features=['penguin', 'play'])
 
         details_sets = [
             (
@@ -696,7 +696,7 @@ class TestClient:
             ),
         ]
         for audit_detail_set, keys_to_expect in details_sets:
-            response = self.client.react(trainee['id'],
+            response = self.client.react(trainee.id,
                                          contexts=[['1']],
                                          context_features=['penguin'],
                                          action_features=['play'],
@@ -728,11 +728,11 @@ class TestClient:
     def test_number_overflow(self, trainee):
         """Test an exception is raised for a number that is too large."""
         # Should not raise
-        self.client.train(trainee['id'], [[1.8e307]], features=['penguin'])
+        self.client.train(trainee.id, [[1.8e307]], features=['penguin'])
 
         # Training with a number that is > 64bit should raise
         with pytest.raises(HowsoError):
-            self.client.train(trainee['id'], [[1.8e309, 2]],
+            self.client.train(trainee.id, [[1.8e309, 2]],
                               features=['penguin', 'play'])
 
     def test_get_feature_mda(self, trainee, capsys):
@@ -744,22 +744,22 @@ class TestClient:
         """
         self._train(trainee)
         self.client.react_into_trainee(
-            trainee['id'],
+            trainee.id,
             mda=True,
             action_feature='play'
         )
         ret = self.client.get_feature_mda(
-            trainee['id'],
+            trainee.id,
             action_feature='play')
         out, _ = capsys.readouterr()
         assert (f'Getting mean decrease in accuracy for trainee with '
-                f'id: {trainee["id"]}') in out
+                f'id: {trainee.id}') in out
         assert isinstance(ret, dict)
         assert len(ret) > 0
 
         with pytest.raises(HowsoError, match="Feature MDA for the"):
             ret = self.client.get_feature_mda(
-                trainee['id'],
+                trainee.id,
                 action_feature='invalid')
 
     def test_get_feature_residuals(self, trainee, capsys):
@@ -773,23 +773,23 @@ class TestClient:
         """
         self._train(trainee)
         self.client.react_into_trainee(
-            trainee_id=trainee['id'],
+            trainee_id=trainee.id,
             residuals=True,
             context_features=['penguin'],
             sample_model_fraction=1.0
         )
-        ret = self.client.get_feature_residuals(trainee['id'])
+        ret = self.client.get_feature_residuals(trainee.id)
         assert (len(list(ret)) == 1)
         self.client.react_into_trainee(
-            trainee_id=trainee['id'],
+            trainee_id=trainee.id,
             residuals=True,
             context_features=['penguin', 'play'],
             sample_model_fraction=1.0
         )
-        ret = self.client.get_feature_residuals(trainee['id'])
+        ret = self.client.get_feature_residuals(trainee.id)
         assert len(list(ret)) == 2
         out, _ = capsys.readouterr()
-        assert f'Getting feature residuals for trainee with id: {trainee["id"]}' in out
+        assert f'Getting feature residuals for trainee with id: {trainee.id}' in out
 
 
 class TestBaseClient:
@@ -827,9 +827,9 @@ class TestBaseClient:
 
     def test_impute_verbose(self, trainee, capsys):
         """Test the verbose output expected during the execution of impute."""
-        self.client.impute(trainee['id'])
+        self.client.impute(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Imputing trainee with id: {trainee["id"]}' in out
+        assert f'Imputing trainee with id: {trainee.id}' in out
 
     def test_remove_cases_verbose(self, trainee, capsys):
         """
@@ -838,9 +838,9 @@ class TestBaseClient:
         Test for verbose output expected when remove_cases is called with.
         """
         condition = {"feature_name": None}
-        self.client.remove_cases(trainee['id'], 1, condition=condition)
+        self.client.remove_cases(trainee.id, 1, condition=condition)
         out, _ = capsys.readouterr()
-        assert f"Removing case(s) in trainee with id: {trainee['id']}" in out
+        assert f"Removing case(s) in trainee with id: {trainee.id}" in out
 
     def test_update_trainee_verbose(self, trainee_builder, capsys):
         """
@@ -857,12 +857,12 @@ class TestBaseClient:
                     header[4]: {'type': 'nominal'}
                     }
         trainee = trainee_builder.create(features=features, overwrite_trainee=True)
-        trainee["name"] = 'test-update-verbose'
+        trainee.name = 'test-update-verbose'
         updated_trainee = self.client.update_trainee(trainee)
-        assert trainee["name"] == updated_trainee["name"]
-        assert updated_trainee["name"] == 'test-update-verbose'
+        assert trainee.name == updated_trainee.name
+        assert updated_trainee.name == 'test-update-verbose'
         out, _ = capsys.readouterr()
-        assert f'Updating trainee with id: {trainee["id"]}' in out
+        assert f'Updating trainee with id: {trainee.id}' in out
 
     def test_get_trainee_verbose(self, trainee, capsys):
         """
@@ -870,9 +870,9 @@ class TestBaseClient:
 
         Test for verbose output expected when get_trainee is called.
         """
-        self.client.get_trainee(trainee['id'])
+        self.client.get_trainee(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Getting trainee with id: {trainee["id"]}' in out
+        assert f'Getting trainee with id: {trainee.id}' in out
 
     def test_set_feature_attributes(self, trainee, capsys):
         """Test that set_feature_attributes works as expected."""
@@ -882,11 +882,11 @@ class TestBaseClient:
             "degrees": {"type": "continuous", "cycle_length": 360},
             "class": {"type": "nominal"}
         }
-        self.client.set_feature_attributes(trainee['id'],
+        self.client.set_feature_attributes(trainee.id,
                                            feature_attributes=attributes)
         out, _ = capsys.readouterr()
         assert (f'Setting feature attributes for trainee '
-                f'with id: {trainee["id"]}') in out
+                f'with id: {trainee.id}') in out
 
     def test_get_feature_attributes(self, trainee, capsys):
         """Test get_feature attributes returns the expected output."""
@@ -897,12 +897,12 @@ class TestBaseClient:
             "class": {"type": "nominal"}
         }
 
-        self.client.set_feature_attributes(trainee['id'],
+        self.client.set_feature_attributes(trainee.id,
                                            feature_attributes=attributes)
-        output = self.client.get_feature_attributes(trainee['id'])
+        output = self.client.get_feature_attributes(trainee.id)
         out, _ = capsys.readouterr()
         assert (f'Getting feature attributes from trainee '
-                f'with id: {trainee["id"]}') in out
+                f'with id: {trainee.id}') in out
         assert output == attributes
 
     def test_get_trainee_sessions_verbose(self, trainee, capsys):
@@ -911,17 +911,17 @@ class TestBaseClient:
 
         Test for verbose output expected when get_trainee_sessions is called.
         """
-        self.client.get_trainee_sessions(trainee['id'])
+        self.client.get_trainee_sessions(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Getting sessions from trainee with id: {trainee["id"]}' in out
+        assert f'Getting sessions from trainee with id: {trainee.id}' in out
 
     def test_analyze_verbose(self, trainee, capsys):
         """Test for verbose output expected when analyze is called."""
         context_features = ['class']
-        self.client.train(trainee['id'], [['iris-setosa']], context_features)
-        self.client.analyze(trainee['id'], context_features)
+        self.client.train(trainee.id, [['iris-setosa']], context_features)
+        self.client.analyze(trainee.id, context_features)
         out, _ = capsys.readouterr()
-        assert f'Analyzing trainee with id: {trainee["id"]}' in out
+        assert f'Analyzing trainee with id: {trainee.id}' in out
         assert 'Analyzing trainee with parameters: ' in out
 
     def test_acquire_trainee_resources_verbose(self, trainee, capsys):
@@ -930,10 +930,10 @@ class TestBaseClient:
 
         Test for the verbose output expected when acquiring trainee resources.
         """
-        self.client.persist_trainee(trainee['id'])
-        self.client.acquire_trainee_resources(trainee['id'])
+        self.client.persist_trainee(trainee.id)
+        self.client.acquire_trainee_resources(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Acquiring resources for trainee with id: {trainee["id"]}' in out
+        assert f'Acquiring resources for trainee with id: {trainee.id}' in out
 
     def test_save_trainee_verbose(self, trainee, capsys):
         """
@@ -941,9 +941,9 @@ class TestBaseClient:
 
         Test for the verbose output expected when persist_trainee is called.
         """
-        self.client.persist_trainee(trainee['id'])
+        self.client.persist_trainee(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Saving trainee with id: {trainee["id"]}' in out
+        assert f'Saving trainee with id: {trainee.id}' in out
 
     def test_release_trainee_resources_verbose(self, trainee, capsys):
         """
@@ -951,9 +951,9 @@ class TestBaseClient:
 
         Test for the verbose output expected when releasing trainee resources.
         """
-        self.client.release_trainee_resources(trainee['id'])
+        self.client.release_trainee_resources(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Releasing resources for trainee with id: {trainee["id"]}' in out
+        assert f'Releasing resources for trainee with id: {trainee.id}' in out
 
     def copy_trainee_verbose(self, trainee, trainee_builder, capsys):
         """
@@ -961,9 +961,9 @@ class TestBaseClient:
 
         Test for the verbose output expected when copy_trainee is called.
         """
-        trainee_builder.copy(trainee['id'], f'new_{trainee["id"]}')
+        trainee_builder.copy(trainee.id, f'new_{trainee.id}')
         out, _ = capsys.readouterr()
-        assert f'Copying trainee {trainee["id"]} to new_{trainee["id"]}' in out
+        assert f'Copying trainee {trainee.id} to new_{trainee.id}' in out
 
     def test_delete_trainee_verbose(self, trainee, capsys):
         """
@@ -971,7 +971,7 @@ class TestBaseClient:
 
         Test for the verbose output expected when delete_trainee is called.
         """
-        self.client.delete_trainee(trainee['id'])
+        self.client.delete_trainee(trainee.id)
         out, _ = capsys.readouterr()
         assert 'Deleting trainee' in out
 
@@ -984,7 +984,7 @@ class TestBaseClient:
         """
         condition = {"feature_name": None}
         with pytest.raises(ValueError) as exc:
-            self.client.remove_cases(trainee['id'], 0, condition=condition)
+            self.client.remove_cases(trainee.id, 0, condition=condition)
         assert str(exc.value) == 'num_cases must be a value greater than 0'
 
     def test_react_exception(self, trainee):
@@ -995,14 +995,14 @@ class TestBaseClient:
         specified when calling react.
         """
         with pytest.raises((ValueError, HowsoApiError)) as exc:
-            self.client.react(trainee['id'], desired_conviction=None, contexts=None)
+            self.client.react(trainee.id, desired_conviction=None, contexts=None)
         msg = ("If `contexts` are not specified, both `case_indices` and "
                "`preserve_feature_values` must be specified.")
         assert msg in str(exc.value)
 
     def test_get_num_training_cases(self, trainee):
         """Test the that output is the expected type: int."""
-        number_cases = self.client.get_num_training_cases(trainee['id'])
+        number_cases = self.client.get_num_training_cases(trainee.id)
         assert isinstance(number_cases, int)
 
     def test_react_into_features_verbose(self, trainee, capsys):
@@ -1011,7 +1011,7 @@ class TestBaseClient:
 
         Test the verbose output expected when react_into_features is called.
         """
-        self.client.react_into_features(trainee['id'], familiarity_conviction_addition=True)
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
         out, _ = capsys.readouterr()
         assert ('Reacting into features on trainee with id') in out
 
@@ -1022,7 +1022,7 @@ class TestBaseClient:
         Test for the verbose output expected when get_feature_conviction
         is called.
         """
-        self.client.get_feature_conviction(trainee['id'])
+        self.client.get_feature_conviction(trainee.id)
         out, _ = capsys.readouterr()
         assert 'Getting conviction of features for trainee with id' in out
 
@@ -1032,10 +1032,10 @@ class TestBaseClient:
 
         Test for the verbose output expected when get_params is called.
         """
-        self.client.get_params(trainee['id'])
+        self.client.get_params(trainee.id)
         out, _ = capsys.readouterr()
         assert (f'Getting model attributes from trainee with '
-                f'id: {trainee["id"]}') in out
+                f'id: {trainee.id}') in out
 
     @pytest.mark.parametrize('params', (
         {"hyperparameter_map": {
@@ -1052,10 +1052,10 @@ class TestBaseClient:
     ))
     def test_set_params_verbose(self, trainee, capsys, params):
         """Test for the verbose output expected when set_params is called."""
-        self.client.set_params(trainee['id'], params)
+        self.client.set_params(trainee.id, params)
         out, _ = capsys.readouterr()
         assert (f'Setting model attributes for trainee with '
-                f'id: {trainee["id"]}') in out
+                f'id: {trainee.id}') in out
 
     def test_set_and_get_params(self, trainee, trainee_builder):
         """Test for set_params and get_params functionality."""
@@ -1077,12 +1077,12 @@ class TestBaseClient:
         features = ['sepal_length', 'sepal_width', 'petal_length',
                     'petal_width', 'class']
 
-        self.client.train(trainee['id'], new_cases, features=features)
-        self.client.set_params(trainee['id'], param_map)
+        self.client.train(trainee.id, new_cases, features=features)
+        self.client.set_params(trainee.id, param_map)
 
         # get a prediction with the set parameters
         first_pred = self.client.react(
-            trainee['id'],
+            trainee.id,
             contexts=[2, 2],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
@@ -1095,15 +1095,14 @@ class TestBaseClient:
                       "petal_length": {'type': 'continuous'},
                       "petal_width": {'type': 'continuous'},
                       "class": {'type': 'nominal'}},
-            id=None,
             overwrite_trainee=True
         )
         other_trainee = self.client.update_trainee(other_trainee)
-        self.client.train(other_trainee['id'], new_cases, features=features)
+        self.client.train(other_trainee.id, new_cases, features=features)
 
         # make a prediction on the same case, prediction should be different
         second_pred = self.client.react(
-            other_trainee['id'],
+            other_trainee.id,
             contexts=[2, 2],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
@@ -1111,9 +1110,9 @@ class TestBaseClient:
         assert first_pred != second_pred
 
         # align parameters, make another prediction that should be the same
-        self.client.set_params(other_trainee['id'], param_map)
+        self.client.set_params(other_trainee.id, param_map)
         third_pred = self.client.react(
-            other_trainee['id'],
+            other_trainee.id,
             contexts=[2, 2],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
@@ -1121,8 +1120,8 @@ class TestBaseClient:
         assert first_pred == third_pred
 
         # verify that both trainees have the same hyperparameter_map now
-        first_params = self.client.get_params(trainee['id'])
-        second_params = self.client.get_params(other_trainee['id'])
+        first_params = self.client.get_params(trainee.id)
+        second_params = self.client.get_params(other_trainee.id)
         assert first_params['hyperparameter_map'] == second_params['hyperparameter_map']
 
     def test_get_specific_hyperparameters(self, trainee):
@@ -1148,12 +1147,12 @@ class TestBaseClient:
             }
         }}
 
-        self.client.set_params(trainee['id'], param_map)
+        self.client.set_params(trainee.id, param_map)
 
-        params = self.client.get_params(trainee['id'], action_feature='.targetless')
+        params = self.client.get_params(trainee.id, action_feature='.targetless')
         assert params['hyperparameter_map'] == {"dt": -1, "p": .5, "k": 3}
 
-        params = self.client.get_params(trainee['id'], action_feature='petal_length')
+        params = self.client.get_params(trainee.id, action_feature='petal_length')
         assert params['hyperparameter_map'] == {"dt": -1, "p": .1, "k": 2}
 
     def test_get_configuration_path_exceptions(self):
@@ -1194,16 +1193,16 @@ class TestBaseClient:
                                   header[4]: {'type': 'nominal'}
                                   }
         self.client.set_substitute_feature_values(
-            trainee['id'], substitution_value_map)
+            trainee.id, substitution_value_map)
         out, _ = capsys.readouterr()
         assert (f'Setting substitute feature values for '
-                f'trainee with id: {trainee["id"]}') in out
-        ret = self.client.get_substitute_feature_values(trainee['id'])
+                f'trainee with id: {trainee.id}') in out
+        ret = self.client.get_substitute_feature_values(trainee.id)
         out, _ = capsys.readouterr()
         assert (f'Getting substitute feature values from trainee with '
-                f'id: {trainee["id"]}') in out
+                f'id: {trainee.id}') in out
         assert ret == substitution_value_map
-        ret = self.client.get_substitute_feature_values(trainee['id'])
+        ret = self.client.get_substitute_feature_values(trainee.id)
         assert ret == {}
 
     def test_set_get_feature_attributes(self, trainee, capsys):
@@ -1221,15 +1220,15 @@ class TestBaseClient:
             "class": {"type": "nominal"}
         }
 
-        self.client.set_feature_attributes(trainee['id'], feature_attributes=feats)
+        self.client.set_feature_attributes(trainee.id, feature_attributes=feats)
         out, _ = capsys.readouterr()
         assert (f'Setting feature attributes for trainee '
-                f'with id: {trainee["id"]}') in out
+                f'with id: {trainee.id}') in out
 
-        ret = self.client.get_feature_attributes(trainee['id'])
+        ret = self.client.get_feature_attributes(trainee.id)
         out, _ = capsys.readouterr()
         assert (f'Getting feature attributes from trainee with '
-                f'id: {trainee["id"]}') in out
+                f'id: {trainee.id}') in out
         assert ret == feats
 
     def test_react_exceptions(self, trainee):
@@ -1243,7 +1242,7 @@ class TestBaseClient:
         features = list(df.columns)
         num_cases_to_generate = 10
         with pytest.raises(HowsoError) as exc:
-            self.client.react(trainee['id'],
+            self.client.react(trainee.id,
                               desired_conviction=1.0,
                               preserve_feature_values=features,
                               case_indices=[('test', 1), ('test', 2)],
@@ -1254,7 +1253,7 @@ class TestBaseClient:
         ) in str(exc.value)
         num_cases_to_generate = 1
         with pytest.raises(HowsoError) as exc:
-            self.client.react(trainee['id'],
+            self.client.react(trainee.id,
                               desired_conviction=1.0,
                               preserve_feature_values=features,
                               num_cases_to_generate=num_cases_to_generate,
@@ -1273,7 +1272,7 @@ class TestBaseClient:
         expected_message = ('Calling get_cases without session id does '
                             'not guarantee case order.')
         with pytest.warns(Warning, match=expected_message):
-            self.client.get_cases(trainee['id'])
+            self.client.get_cases(trainee.id)
             out, _ = capsys.readouterr()
             assert 'Retrieving cases.' in out
 
@@ -1291,14 +1290,14 @@ class TestBaseClient:
         features = ['sepal_length', 'sepal_width', 'petal_length',
                     'petal_width', 'class']
         ret = self.client.react_group(
-            trainee['id'], new_cases=new_cases, features=features)
+            trainee.id, new_cases=new_cases, features=features)
         out, _ = capsys.readouterr()
         assert type(ret) == dict
 
         df = pd.DataFrame([[1, 2, 4, 4, 4]], columns=features)
         new_cases = [df]
         ret = self.client.react_group(
-            trainee['id'], new_cases=new_cases, features=features)
+            trainee.id, new_cases=new_cases, features=features)
         out, _ = capsys.readouterr()
         assert isinstance(ret, dict)
 
@@ -1308,7 +1307,7 @@ class TestBaseClient:
                      [7, 8, 9, 10, 11]]
         with pytest.raises(ValueError) as exc:
             ret = self.client.react_group(
-                trainee['id'], new_cases=new_cases, features=features)
+                trainee.id, new_cases=new_cases, features=features)
         assert (
             "Improper shape of `new_cases` values passed. "
             "`new_cases` must be a 3d list of object."
@@ -1322,15 +1321,15 @@ class TestBaseClient:
                      [1, 2, 3, 4, 2]]
         features = ['sepal_length', 'sepal_width', 'petal_length',
                     'petal_width', 'class']
-        self.client.train(trainee['id'], new_cases, features=features)
+        self.client.train(trainee.id, new_cases, features=features)
 
-        marginal_stats = self.client.get_marginal_stats(trainee['id'])
+        marginal_stats = self.client.get_marginal_stats(trainee.id)
         assert marginal_stats['sepal_length']['mean'] == 3.0
         assert marginal_stats['sepal_width']['mean'] == 4.5
         assert marginal_stats['sepal_width']['count'] == 4
 
         conditional_marginal_stats = self.client.get_marginal_stats(
-            trainee['id'],
+            trainee.id,
             condition={"class": '1'},
         )
         assert conditional_marginal_stats['class']['count'] == 2
@@ -1339,10 +1338,10 @@ class TestBaseClient:
     def test_remove_feature_verbose(self, trainee, capsys):
         """Test for expected verbose output when remove_feature is called."""
         feature = 'test'
-        self.client.remove_feature(trainee['id'], feature=feature)
+        self.client.remove_feature(trainee.id, feature=feature)
         out, _ = capsys.readouterr()
         assert (f'Removing feature "{feature}" for trainee with id: '
-                f'{trainee["id"]}') in out
+                f'{trainee.id}') in out
 
     @pytest.mark.parametrize(
         'json_map, expected_output',
