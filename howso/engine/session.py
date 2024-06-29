@@ -195,8 +195,8 @@ class Session(BaseSession):
         Session
             The session instance.
         """
-        if not isinstance(schema, dict):
-            raise ValueError('`schema` parameter is not a dict')
+        if not isinstance(schema, Mapping):
+            raise ValueError('`schema` parameter is not a Mapping')
         parameters: dict = {k: schema[k] for k in cls.attribute_map if k in schema}
         parameters['client'] = client or schema.get('client')
         return cls(**parameters)
