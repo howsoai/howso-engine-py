@@ -297,9 +297,9 @@ flake8-import-order==0.18.2 \
     --hash=sha256:82ed59f1083b629b030ee9d3928d9e06b6213eb196fe745b3a7d4af2168130df \
     --hash=sha256:e23941f892da3e0c09d711babbb0c73bc735242e9b216b726616758a920d900e
     # via howso-engine (pyproject.toml)
-howso-openapi-client==36.1.1 \
-    --hash=sha256:592248ff982ac5a35f1f148a197aa8bb0af720906199694f29cd46f4b76a888d \
-    --hash=sha256:f1d64688abbdb8ea4c58fe1eb074ba1aa3a22438b8f6869c57f500d08fceab1d
+howso-openapi-client==37.0.0 \
+    --hash=sha256:7ba03820e187df44dfe157a6f36cec5dde95f2be9b1550816517ce8fc25c0bc2 \
+    --hash=sha256:c22a62454740147a59fab17fd5a79f9e2e1f1f5a549f5609ba8aad4cf88753a0
     # via howso-engine (pyproject.toml)
 humanize==4.9.0 \
     --hash=sha256:582a265c931c683a7e9b8ed9559089dea7edcf6cc95be39a3cbc2c5d5ac2bcfa \
