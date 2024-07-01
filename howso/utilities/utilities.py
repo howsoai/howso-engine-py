@@ -1382,7 +1382,7 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
     ----------
     confusion_matrix : dict of str -> dict of str -> int
         Confusion matrix in dictionary form. Standard form of confusion marices returned when retrieving
-        Howso's prediction stats through `howso.engine.trainee.get_prediction_stats`.
+        Howso's prediction stats through :meth:`howso.engine.Trainee.react_aggregate`.
 
     Returns
     -------

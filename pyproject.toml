@@ -46,7 +46,7 @@ dependencies = [
    "semantic-version~=2.0",
    "typing-extensions~=4.0",
    "urllib3>=1.26.2,<3.0",
-   "amalgam-lang==11.0.0", # Use exact since Engine is exact in version.json
+   "amalgam-lang==12.0.0", # Use exact since Engine is exact in version.json
 ]
 
 [project.optional-dependencies]
@@ -69,7 +69,7 @@ no-telemetry = [
     "howso-engine-no-telemetry",
 ]
 scikit = [
-    "scikit-learn~=1.3,<1.4"
+    "scikit-learn~=1.5"
 ]
 
 [project.urls]

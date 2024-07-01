@@ -4,14 +4,14 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=requirements-3.9.txt
 #
-amalgam-lang==11.0.0 \
-    --hash=sha256:1a35a75baa0614cda154a7c81be8881cddb8ae1e0d8a719aa1aa3c69a755e77f \
-    --hash=sha256:31b39d1852ca0d047be81d30835b8af86287837b2cabd50174b50a732aa09163 \
-    --hash=sha256:401cfd78b6c86a573c1adfb182e30359db9e25ddf90b105deee95a5f45cc8051 \
-    --hash=sha256:8e79c7b23627259ceec984d34a79c17d48ef02cdcfdff813035e43ce8f393cd0 \
-    --hash=sha256:a5d7a48e7bcf0c14ca23561dbea173d47d70e02180b143fc72abe19de302966b \
-    --hash=sha256:c819a087bdaf546783ce50325dd2c3c566ff444d8961c1e0614a17d0ebcba2f1 \
-    --hash=sha256:ffae3ee319ecf0cb716b736f6531521ecde3b7338f888659f354cefee6bb2484
+amalgam-lang==12.0.0 \
+    --hash=sha256:1d123c77af372c747f0be1a6f3aadb130605d061e18728196f434fd795b3d993 \
+    --hash=sha256:6b20d0aefe247f182b588e9667a90033f75a3b3cbe8f82cf611ec9340117cd18 \
+    --hash=sha256:8dc3ce4f89d8c4bc87a30184eab3396817d78f35da72546be6588618d0f61295 \
+    --hash=sha256:8eb119d7a7342a4fbbbdc6c25e835b33695c48486303ef61a35db2d682520da8 \
+    --hash=sha256:917f8d3baf2c2948bd2d521cf010fb676eda77fe807be52fcf3a5011754ed12a \
+    --hash=sha256:cf1001eb032cfcc627b76b7de182bc668e210a38ced8308beafa5c96cbfa312c \
+    --hash=sha256:dd5ca8b361a77a27e2c68ac841643140fdff1eac12f438bf0c46c979b440b1aa
     # via howso-engine (pyproject.toml)
 certifi==2024.6.2 \
     --hash=sha256:3cd43f1c6fa7dedc5899d69d3ad0398fd018ad1a17fba83ddaf78aa46c747516 \
@@ -389,4 +389,12 @@ tzdata==2024.1 \
 urllib3==2.2.2 \
     --hash=sha256:a448b2f64d686155468037e1ace9f2d2199776e17f0a46610480d311f73e3472 \
     --hash=sha256:dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168
-    # via howso-engine (pyproject.toml)
+    # via
+    #   howso-engine (pyproject.toml)
+    #   howso-openapi-client
+
+# The following packages are considered to be unsafe in a requirements file:
+setuptools==70.2.0 \
+    --hash=sha256:b8b8060bb426838fbe942479c90296ce976249451118ef566a5a0b7d8b78fb05 \
+    --hash=sha256:bd63e505105011b25c3c11f753f7e3b8465ea739efddaccef8f0efac2137bac1
+    # via howso-openapi-client

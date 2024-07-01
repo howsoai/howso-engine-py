@@ -232,36 +232,6 @@ class AbstractHowsoClient(ABC):
         """Renames a contained child trainee in the hierarchy."""
 
     @abstractmethod
-    def get_feature_residuals(
-        self, trainee_id, *,
-        action_feature=None,
-        robust=None,
-        robust_hyperparameters=None,
-        weight_feature=None,
-    ):
-        """Get cached feature residuals."""
-
-    @abstractmethod
-    def get_prediction_stats(
-        self, trainee_id, *,
-        action_feature=None,
-        action_condition=None,
-        action_condition_precision=None,
-        action_num_cases=None,
-        confusion_matrix_min_count=None,
-        context_condition=None,
-        context_condition_precision=None,
-        context_precision_num_cases=None,
-        features=None,
-        num_robust_influence_samples_per_case=None,
-        robust=None,
-        robust_hyperparameters=None,
-        stats=None,
-        weight_feature=None,
-    ) -> Union["DataFrame", Dict]:
-        """Get cached feature prediction stats."""
-
-    @abstractmethod
     def get_marginal_stats(
         self, trainee_id, *,
         condition=None,
@@ -334,30 +304,27 @@ class AbstractHowsoClient(ABC):
         """Calculate conviction and other data for the specified feature(s)."""
 
     @abstractmethod
-    def react_into_trainee(
+    def react_aggregate(
         self, trainee_id, *,
         action_feature=None,
         confusion_matrix_min_count=None,
         context_features=None,
-        contributions=None,
-        contributions_robust=None,
+        details=None,
+        feature_influences_action_feature=None,
         hyperparameter_param_path=None,
-        mda=None,
-        mda_permutation=None,
-        mda_robust=None,
-        mda_robust_permutation=None,
+        num_samples=None,
         num_robust_influence_samples=None,
         num_robust_residual_samples=None,
         num_robust_influence_samples_per_case=None,
-        num_samples=None,
-        residuals=None,
-        residuals_robust=None,
+        prediction_stats_action_feature=None,
+        residuals_hyperparameter_feature=None,
+        robust_hyperparameters=None,
         sample_model_fraction=None,
         sub_model_size=None,
-        use_case_weights=False,
+        use_case_weights=None,
         weight_feature=None,
-    ):
-        """Compute and cache specified feature interpretations."""
+    ) -> Union[DataFrame, dict]:
+        """Computes, caches, and/or returns specified feature interpretations."""
 
     @abstractmethod
     def react_group(
@@ -541,24 +508,6 @@ class AbstractHowsoClient(ABC):
     def remove_feature(self, trainee_id, feature, *, condition=None,
                        condition_session=None):
         """Remove a feature from a trainee."""
-
-    @abstractmethod
-    def get_feature_mda(
-        self, trainee_id, action_feature, *,
-        permutation=None,
-        robust=None,
-        weight_feature=None,
-    ) -> "DataFrame":
-        """Get cached feature Mean Decrease In Accuracy (MDA)."""
-
-    @abstractmethod
-    def get_feature_contributions(
-        self, trainee_id, action_feature, *,
-        robust=None,
-        directional=False,
-        weight_feature=None,
-    ) -> "DataFrame":
-        """Get cached feature contributions."""
 
     @abstractmethod
     def get_pairwise_distances(self, trainee_id, features=None, *,
