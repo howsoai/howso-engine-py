@@ -32,9 +32,9 @@ class Project(BaseSchema[ProjectDict]):
 
     Parameters
     ----------
-    id : str or UUID, optional
+    id : str or UUID
         The unique identifier of the Project.
-    name : str, optional
+    name : str
         The name of the Project.
     created_by : dict, optional
         The user account that created this Project.
@@ -68,8 +68,8 @@ class Project(BaseSchema[ProjectDict]):
         *,
         created_by: t.Optional[Mapping] = None,
         created_date: t.Optional[str | datetime] = None,
-        is_default: t.Optional[bool] = None,
-        is_private: t.Optional[bool] = None,
+        is_default: bool = False,
+        is_private: bool = True,
         modified_date: t.Optional[str | datetime] = None,
         permissions: t.Optional[list[str]] = None,
     ):
@@ -77,23 +77,15 @@ class Project(BaseSchema[ProjectDict]):
         if id is None:
             raise ValueError("An `id` is required to create a Project object.")
 
-        self.name = name
-
+        self._id = str(id)
         self._created_by = created_by
         self._is_default = is_default
         self._is_private = is_private
         self._permissions = permissions
-        self._id = str(id)
+        self._created_date = created_date
+        self._modified_date = modified_date
 
-        if isinstance(created_date, str):
-            self._created_date = datetime.fromisoformat(created_date)
-        else:
-            self._created_date = created_date
-
-        if isinstance(modified_date, str):
-            self._modified_date = datetime.fromisoformat(modified_date)
-        else:
-            self._modified_date = modified_date
+        self.name = name
 
     @property
     def id(self) -> str:
@@ -130,9 +122,9 @@ class Project(BaseSchema[ProjectDict]):
             The name of the Project.
         """
         if name is None:
-            raise ValueError("Invalid value for `name`, must not be `None`")
+            raise ValueError("Invalid value for `name`, must not be `None`.")
         if len(name) > 128:
-            raise ValueError('Invalid value for `name`, length must be less than or equal to `128`')
+            raise ValueError('Invalid value for `name`, length must be less than or equal to `128`.')
         self._name = name
 
     @property
@@ -143,9 +135,9 @@ class Project(BaseSchema[ProjectDict]):
         Returns
         -------
         bool
-            True, when the project not public.
+            True, when the Project not public.
         """
-        return bool(self._is_private)
+        return self._is_private
 
     @property
     def is_default(self) -> bool:
@@ -157,7 +149,7 @@ class Project(BaseSchema[ProjectDict]):
         bool
             True, when the Project is the user's default.
         """
-        return bool(self._is_default)
+        return self._is_default
 
     @property
     def created_by(self) -> Mapping | None:
@@ -166,7 +158,7 @@ class Project(BaseSchema[ProjectDict]):
 
         Returns
         -------
-        Dict
+        Mapping
             The user account information.
         """
         return self._created_by
@@ -181,6 +173,9 @@ class Project(BaseSchema[ProjectDict]):
         datetime
             The creation timestamp.
         """
+        if isinstance(self._created_date, str):
+            # Lazily resolve str datetimes
+            self._created_date = datetime.fromisoformat(self._created_date)
         return self._created_date
 
     @property
@@ -193,6 +188,9 @@ class Project(BaseSchema[ProjectDict]):
         datetime
             The modified timestamp.
         """
+        if isinstance(self._modified_date, str):
+            # Lazily resolve str datetimes
+            self._modified_date = datetime.fromisoformat(self._modified_date)
         return self._modified_date
 
     @property

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime
 import typing as t
 from uuid import UUID
 
@@ -30,19 +30,19 @@ class Session(BaseSchema[SessionDict]):
 
     Parameters
     ----------
-    id : str or UUID, optional
-        The unique identifier of the session.
+    id : str or UUID
+        The unique identifier of the Session.
     name : str, optional
-        A name given to the session.
+        A name given to the Session.
     user : Mapping, optional
-        The details of the user who created the session.
+        The details of the user who created the Session.
     metadata : Mapping, optional
-        Arbitrary user metadata to store with the session.
+        Any key-value pair to store as custom metadata for the Session.
     created_date : str or datetime, optional
-        The datetime of when the session was created. When specified as a string, the value should be an
+        The datetime of when the Session was created. When specified as a string, the value should be an
         ISO 8601 timestamp.
     modified_date : str or datetime, optional
-        The datetime of when the session details were last modified. When specified as a string, the value should
+        The datetime of when the Session details were last modified. When specified as a string, the value should
         be an ISO 8601 timestamp.
     """
 
@@ -54,6 +54,7 @@ class Session(BaseSchema[SessionDict]):
         'created_date': 'created_date',
         'modified_date': 'modified_date',
     }
+    nullable_attributes = {'name'}
 
     def __init__(
         self,
@@ -68,26 +69,15 @@ class Session(BaseSchema[SessionDict]):
         """Initialize the Session instance."""
         if id is None:
             raise ValueError("An `id` is required to create a Session object.")
+        if name is not None and len(name) > 128:
+            raise ValueError('Invalid value for `name`, length must be less than or equal to `128`.')
 
-        self.name = name
-        self.metadata = metadata
-
-        self._user = user
         self._id = str(id)
-
-        if isinstance(created_date, str):
-            self._created_date = datetime.fromisoformat(created_date)
-        else:
-            self._created_date = created_date
-
-        if isinstance(modified_date, str):
-            self._modified_date = datetime.fromisoformat(modified_date)
-        else:
-            self._modified_date = modified_date
-
-    def _touch(self) -> None:
-        """Update modified date."""
-        self._modified_date = datetime.now(timezone.utc)
+        self._name = name
+        self._user = user
+        self._metadata = metadata
+        self._created_date = created_date
+        self._modified_date = modified_date
 
     @property
     def id(self) -> str:
@@ -113,21 +103,6 @@ class Session(BaseSchema[SessionDict]):
         """
         return self._name
 
-    @name.setter
-    def name(self, name: str | None) -> None:
-        """
-        Set the name of the Session.
-
-        Parameters
-        ----------
-        name : str
-            The name of the Session.
-        """
-        if name is not None and len(name) > 128:
-            raise ValueError('Invalid value for `name`, length must be less than or equal to `128`')
-        self._name = name
-        self._touch()
-
     @property
     def user(self) -> Mapping | None:
         """
@@ -152,19 +127,6 @@ class Session(BaseSchema[SessionDict]):
         """
         return self._metadata
 
-    @metadata.setter
-    def metadata(self, metadata: Mapping | None) -> None:
-        """
-        Set the Session metadata.
-
-        Parameters
-        ----------
-        metadata : Mapping, optional
-            The new metadata of the Session.
-        """
-        self._metadata = metadata
-        self._touch()
-
     @property
     def created_date(self) -> datetime | None:
         """
@@ -175,6 +137,9 @@ class Session(BaseSchema[SessionDict]):
         datetime
             The creation timestamp.
         """
+        if isinstance(self._created_date, str):
+            # Lazily resolve str datetimes
+            self._created_date = datetime.fromisoformat(self._created_date)
         return self._created_date
 
     @property
@@ -187,4 +152,7 @@ class Session(BaseSchema[SessionDict]):
         datetime
             The modified timestamp.
         """
+        if isinstance(self._modified_date, str):
+            # Lazily resolve str datetimes
+            self._modified_date = datetime.fromisoformat(self._modified_date)
         return self._modified_date

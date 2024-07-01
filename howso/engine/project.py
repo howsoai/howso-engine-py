@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import Optional
+from uuid import UUID
 
-from howso.client import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
-from howso.client.schemas import Project as BaseProject
+from howso.client.schemas import BaseSchema, Project as BaseProject
 from howso.engine.client import get_client
 
 
@@ -30,7 +32,7 @@ class Project(BaseProject):
     name : str
         The name of the project.
     client : ProjectClient, optional
-        The Howso client instance to use. Must support the project API.
+        The Howso client instance to use. Must support the Project API.
     """
 
     def __init__(
@@ -43,19 +45,11 @@ class Project(BaseProject):
         """Implement the constructor."""
         self._created: bool = False
         self._updating: bool = False
-        self.client = client or get_client()
+        self.client = client or get_client()  # type: ignore
 
-        # Set the project properties
-        self._id = id
-        self._name = None
-        self._is_private = True
-        self._is_default = False
-        self._created_by = None
-        self._created_date = None
-        self._modified_date = None
-        self._permissions = None
-
-        self.name = name
+        # Initialize the project properties
+        # The id will be initialized by _create
+        super().__init__(id=id or '', name=name)
 
         # Create the project at the API
         self._create()
@@ -70,9 +64,11 @@ class Project(BaseProject):
         name : str
             The name of the Project.
         """
-        if BaseProject.name.fset:
-            BaseProject.name.fset(self, name)
-            self._update()
+        if BaseProject.name.fset is None:
+            raise AttributeError("Project.name has no setter")
+        # Call super class setter
+        BaseProject.name.fset(self, name)
+        self._update()
 
     @property
     def client(self) -> ProjectClient:
@@ -101,8 +97,7 @@ class Project(BaseProject):
         None
         """
         if not isinstance(client, ProjectClient):
-            raise HowsoError("Projects are not supported by the active "
-                             "Howso client.")
+            raise HowsoError("Projects are not supported by the active Howso client.")
         self._client = client
 
     def delete(self) -> None:
@@ -176,32 +171,48 @@ class Project(BaseProject):
         self._created = True
 
     @classmethod
-    def from_dict(
+    def from_schema(
         cls,
-        schema: Mapping,
+        schema: BaseSchema,
         *,
-        client: Optional[AbstractHowsoClient] = None
+        client: Optional[ProjectClient] = None
     ) -> "Project":
         """
-        Create Project from dict.
+        Create Project from base class.
 
         Parameters
         ----------
-        schema : dict
-            The Project parameters.
-        client : AbstractHowsoClient, optional
+        schema : howso.client.schemas.Project
+            The base Project object.
+        client : ProjectClient, optional
             The Howso client instance to use.
 
         Returns
         -------
         Project
-            The project instance.
+            The Project instance.
         """
+        if isinstance(schema, cls) and client is None:
+            return schema
+        project_dict = schema.to_dict()
+        project_dict['client'] = client
+        return cls.from_dict(project_dict)
+
+    @classmethod
+    def from_dict(cls, schema: Mapping):
+        """Returns a new Project using properties from dict."""
         if not isinstance(schema, Mapping):
             raise ValueError('`schema` parameter is not a Mapping')
-        parameters: dict = {k: schema[k] for k in cls.attribute_map if k in schema}
-        parameters['client'] = client or schema.get('client')
-        return cls(**parameters)
+        parameters: dict = {
+            'id': schema.get('id'),
+            'name': schema.get('name'),
+            'client': schema.get('client'),
+        }
+        instance = cls(**parameters)
+        for key in cls.attribute_map:
+            if key in schema and key not in parameters:
+                setattr(instance, f'_{key}', schema[key])
+        return instance
 
     def __enter__(self) -> "Project":
         """Support context managers."""
@@ -218,7 +229,7 @@ class Project(BaseProject):
 
 
 def delete_project(
-    project_id: str,
+    project_id: str | UUID,
     *,
     client: Optional[ProjectClient] = None
 ) -> None:
@@ -229,7 +240,7 @@ def delete_project(
 
     Parameters
     ----------
-    project_id : str
+    project_id : str or UUID
         The id of the project.
     client : ProjectClient, optional
         The Howso client instance to use.
@@ -238,12 +249,14 @@ def delete_project(
     -------
     None
     """
-    client = client or get_client()
-    client.delete_project(str(project_id))
+    cl = client or get_client()
+    if not isinstance(cl, ProjectClient):
+        raise HowsoError("Projects are not supported by the active Howso client.")
+    cl.delete_project(str(project_id))
 
 
 def get_project(
-    project_id: str,
+    project_id: str | UUID,
     *,
     client: Optional[ProjectClient] = None
 ) -> Project:
@@ -252,7 +265,7 @@ def get_project(
 
     Parameters
     ----------
-    project_id : str
+    project_id : str or UUID
         The id of the project.
     client : ProjectClient, optional
         The Howso client instance to use.
@@ -262,13 +275,11 @@ def get_project(
     Project
         The project instance.
     """
-    client = client or get_client()
-    if not isinstance(client, ProjectClient):
-        raise HowsoError("Projects are not supported by the active "
-                         "Howso client.")
-
-    project = client.get_project(str(project_id))
-    return Project.from_dict(project.to_dict(), client=client)
+    cl = client or get_client()
+    if not isinstance(cl, ProjectClient):
+        raise HowsoError("Projects are not supported by the active Howso client.")
+    project = cl.get_project(str(project_id))
+    return Project.from_schema(project, client=cl)
 
 
 def list_projects(
@@ -291,16 +302,15 @@ def list_projects(
     list of Project
         The list of project instances.
     """
-    client = client or get_client()
-    if not isinstance(client, ProjectClient):
-        raise HowsoError("Projects are not supported by the active "
-                         "Howso client.")
-    projects = client.get_projects(search_terms)
-    return [Project.from_dict(project.to_dict(), client=client) for project in projects]
+    cl = client or get_client()
+    if not isinstance(cl, ProjectClient):
+        raise HowsoError("Projects are not supported by the active Howso client.")
+    projects = cl.get_projects(search_terms)
+    return [Project.from_schema(project, client=cl) for project in projects]
 
 
 def switch_project(
-    project_id: str,
+    project_id: str | UUID,
     *,
     client: Optional[ProjectClient] = None
 ) -> Project:
@@ -309,7 +319,7 @@ def switch_project(
 
     Parameters
     ----------
-    project_id : str
+    project_id : str or UUID
         The id of the project.
     client : ProjectClient, optional
         The Howso client instance to use.
@@ -319,9 +329,8 @@ def switch_project(
     Project
         The newly active project instance.
     """
-    client = client or get_client()
-    if not isinstance(client, ProjectClient):
-        raise HowsoError("Projects are not supported by the active "
-                         "Howso client.")
-    project = client.switch_project(str(project_id))
-    return Project.from_dict(project.to_dict(), client=client)
+    cl = client or get_client()
+    if not isinstance(cl, ProjectClient):
+        raise HowsoError("Projects are not supported by the active Howso client.")
+    project = cl.switch_project(str(project_id))
+    return Project.from_schema(project, client=cl)

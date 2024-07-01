@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from copy import deepcopy
-from typing import Optional, Union
+from typing import Optional
+from uuid import UUID
 
 from howso.client import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
@@ -34,7 +37,7 @@ class Session(BaseSession):
         self,
         name: Optional[str] = None,
         *,
-        id: Optional[str] = None,
+        id: Optional[str | UUID] = None,
         metadata: Optional[dict] = None,
         client: Optional[AbstractHowsoClient] = None,
     ) -> None:
@@ -43,19 +46,15 @@ class Session(BaseSession):
         self._updating: bool = False
         self.client = client or get_client()
 
-        # Set the session properties
-        self._metadata = metadata
-        self._name = name
-        self._user = None
-        self._created_date = None
-        self._modified_date = None
-        self._id = id
+        # Initialize the session properties
+        # The id will be initialized by _create
+        super().__init__(id=id or '', name=name, metadata=metadata)
 
         # Create the session at the API
         self._create()
 
     @property
-    def metadata(self) -> Union[dict, None]:
+    def metadata(self) -> dict | None:
         """
         The Session metadata.
 
@@ -65,7 +64,7 @@ class Session(BaseSession):
 
         Returns
         -------
-        dict
+        dict or None
             The metadata of the Session.
         """
         return deepcopy(self._metadata)
@@ -174,32 +173,48 @@ class Session(BaseSession):
         self._created = True
 
     @classmethod
-    def from_dict(
+    def from_schema(
         cls,
-        schema: Mapping,
+        schema: BaseSession,
         *,
         client: Optional[AbstractHowsoClient] = None,
     ) -> "Session":
         """
-        Create Session from dict.
+        Create Session from base class.
 
         Parameters
         ----------
-        schema : dict
-            The session parameters.
+        schema : howso.client.schemas.Session
+            The base Session object.
         client : AbstractHowsoClient, optional
             The Howso client instance to use.
 
         Returns
         -------
         Session
-            The session instance.
+            The Session instance.
         """
+        if isinstance(schema, cls) and client is None:
+            return schema
+        session_dict = schema.to_dict()
+        session_dict['client'] = client
+        return cls.from_dict(session_dict)
+
+    @classmethod
+    def from_dict(cls, schema: Mapping):
+        """Returns a new Session using properties from dict."""
         if not isinstance(schema, Mapping):
             raise ValueError('`schema` parameter is not a Mapping')
-        parameters: dict = {k: schema[k] for k in cls.attribute_map if k in schema}
-        parameters['client'] = client or schema.get('client')
-        return cls(**parameters)
+        parameters: dict = {
+            'id': schema.get('id'),
+            'name': schema.get('name'),
+            'client': schema.get('client'),
+        }
+        instance = cls(**parameters)
+        for key in cls.attribute_map:
+            if key in schema and key not in parameters:
+                setattr(instance, f'_{key}', schema[key])
+        return instance
 
 
 def get_active_session(
@@ -221,11 +236,11 @@ def get_active_session(
     client = client or get_client()
     if not client.active_session:
         raise ValueError("No session is active.")
-    return Session.from_dict(client.active_session.to_dict(), client=client)
+    return Session.from_schema(client.active_session, client=client)
 
 
 def get_session(
-    session_id: str,
+    session_id: str | UUID,
     *,
     client: Optional[AbstractHowsoClient] = None
 ) -> Session:
@@ -234,7 +249,7 @@ def get_session(
 
     Parameters
     ----------
-    session_id : str
+    session_id : str or UUID
         The id of the session.
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
@@ -246,14 +261,14 @@ def get_session(
     """
     client = client or get_client()
     session = client.get_session(str(session_id))
-    return Session.from_dict(session.to_dict(), client=client)
+    return Session.from_schema(session, client=client)
 
 
 def list_sessions(
     search_terms: Optional[str] = None,
     *,
     client: Optional[AbstractHowsoClient] = None,
-    project: Optional[Union[str, BaseProject]] = None
+    project: Optional[str | BaseProject] = None
 ) -> list[Session]:
     """
     Get listing of Sessions.
@@ -285,4 +300,4 @@ def list_sessions(
             params["project_id"] = project
 
     sessions = client.get_sessions(**params)
-    return [Session.from_dict(s.to_dict(), client=client) for s in sessions]
+    return [Session.from_schema(s, client=client) for s in sessions]

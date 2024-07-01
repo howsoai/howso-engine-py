@@ -1,5 +1,5 @@
 from abc import ABC
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 import typing as t
 
 from typing_extensions import TypeVar
@@ -10,16 +10,26 @@ DT = TypeVar("DT", bound=Mapping[str, t.Any])
 class BaseSchema(ABC, t.Generic[DT]):
     """Base class for engine type schemas."""
 
-    attribute_map = {}
-    nullable_attributes = []
+    attribute_map: Mapping = {}
+    nullable_attributes: Iterable = []
 
-    def to_dict(self, *, exclude_null: bool = False) -> DT:
-        """Returns the schema's properties as a dict."""
+    def to_dict(self, *, exclude_null: bool = False, serialize: bool = False) -> DT:
+        """
+        Returns the schema's properties as a dict.
+
+        Parameters
+        ----------
+        exclude_null : bool, default False
+            Exclude nullable attribute values when they are None.
+            Non-nullable attributes are always excluded.
+        serialize : bool, default False
+            Translate keys based on attribute map.
+        """
         result = {}
 
         for attr in self.attribute_map:
             value = getattr(self, attr)
-            attr = self.attribute_map.get(attr, attr)
+            attr = self.attribute_map.get(attr, attr) if serialize else attr
             if value is None and (exclude_null or attr not in self.nullable_attributes):
                 continue
             else:
@@ -29,6 +39,8 @@ class BaseSchema(ABC, t.Generic[DT]):
     @classmethod
     def from_dict(cls, schema: Mapping):
         """Returns a new schema using properties from dict."""
+        if not isinstance(schema, Mapping):
+            raise ValueError('`schema` parameter is not a Mapping')
         parameters = {k: schema[k] for k in cls.attribute_map if k in schema}
         return cls(**parameters)
 

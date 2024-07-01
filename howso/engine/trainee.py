@@ -15,7 +15,7 @@ from howso.client.cache import TraineeCache
 from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import LocalSaveableProtocol, ProjectClient
-from howso.client.schemas import Session as BaseSession, Project as BaseProject, Trainee as BaseTrainee
+from howso.client.schemas import Project as BaseProject, Session as BaseSession, Trainee as BaseTrainee
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
@@ -105,33 +105,36 @@ class Trainee(BaseTrainee):
         resources: Optional[MutableMapping[str, Any]] = None,
         client: Optional[AbstractHowsoClient] = None
     ):
-
+        """Initialize the Trainee object."""
         self._created: bool = False
         self._updating: bool = False
         self._was_saved: bool = False
         self.client = client or get_client()
 
-        # Set the trainee properties
-        self._features = features
-        self._metadata = metadata
-        self.name = name
-        self._id = id
         self._custom_save_path = None
         self._calculated_matrices = {}
         self._needs_analyze: bool = False
 
-        self.persistence = persistence
-
         # Allow passing project id or the project instance
         if isinstance(project, BaseProject):
-            self._project_id = project.id
+            project_id = project.id
             if isinstance(self.client, ProjectClient):
-                self._project_instance = Project.from_dict(project.to_dict(), client=client)
+                self._project_instance = Project.from_schema(project, client=client)
             else:
                 self._project_instance = None
         else:
-            self._project_id = project
+            project_id = project
             self._project_instance = None  # lazy loaded
+
+        # Initialize the Trainee properties
+        super().__init__(
+            id=id or '',  # The id will be initialized by _create
+            name=name,
+            features=features,
+            metadata=metadata,
+            persistence=persistence,
+            project_id=project_id,
+        )
 
         # Create the trainee at the API
         self._create(
@@ -140,33 +143,6 @@ class Trainee(BaseTrainee):
             overwrite=overwrite_existing,
             resources=resources
         )
-
-    @property
-    def id(self) -> str | None:
-        """
-        The unique identifier of the trainee.
-
-        If a identifier is not provided and a name is provided , the identifier
-        will be the name.
-
-        Returns
-        -------
-        str or None
-            The trainee's ID.
-        """
-        return self._id
-
-    @property
-    def project_id(self) -> str | None:
-        """
-        The unique identifier of the trainee's project.
-
-        Returns
-        -------
-        str or None
-            The trainee's project ID.
-        """
-        return self._project_id
 
     @property
     def project(self) -> Project | None:
@@ -189,7 +165,7 @@ class Trainee(BaseTrainee):
             self._project_instance.id != self.project_id
         ):
             project = self.client.get_project(self.project_id)
-            self._project_instance = Project.from_dict(project.to_dict(), client=self.client)
+            self._project_instance = Project.from_schema(project, client=self.client)
 
         return self._project_instance
 
@@ -213,65 +189,35 @@ class Trainee(BaseTrainee):
             else:
                 return None
 
-    @property
-    def name(self) -> str | None:
-        """
-        The name of the trainee.
-
-        Returns
-        -------
-        str or None
-            The name.
-        """
-        return self._name
-
-    @name.setter
+    @BaseTrainee.name.setter
     def name(self, name: str | None):
         """
-        Set the name of the trainee.
+        Set the name of the Trainee.
 
         Parameters
         ----------
         name : str or None
-            The name.
+            The new name.
         """
-        if name is not None and len(name) > 128:
-            raise ValueError(
-                "Invalid value for `name`, length must be less "
-                "than or equal to 128"
-            )
-        self._name = name
+        if BaseTrainee.name.fset is None:
+            raise AttributeError("Trainee.name has no setter")
+        # Call super class setter
+        BaseTrainee.name.fset(self, name)
         self.update()
 
-    @property
-    def persistence(self) -> str:
-        """
-        The persistence state of the trainee.
-
-        Returns
-        -------
-        str
-            The trainee's persistence value.
-        """
-        return self._persistence
-
-    @persistence.setter
+    @BaseTrainee.persistence.setter
     def persistence(self, persistence: Persistence):
         """
-        Set the persistence state of the trainee.
+        Set the persistence state of the Trainee.
 
         Parameters
         ----------
         persistence : {"allow", "always", "never"}
-            The persistence value.
+            The new persistence value.
         """
-        allowed_values = {"allow", "always", "never"}
-        if persistence not in allowed_values:
-            raise ValueError(
-                f"Invalid value for ``persistence`` ({persistence}), must be"
-                f"one of {allowed_values}"
-            )
-        self._persistence = persistence
+        if BaseTrainee.persistence.fset is None:
+            raise AttributeError("Trainee.persistence has no setter")
+        BaseTrainee.persistence.fset(self, persistence)
         self.update()
 
     @property
@@ -345,7 +291,7 @@ class Trainee(BaseTrainee):
             The session instance, if it exists.
         """
         if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
-            return Session.from_dict(self.client.active_session.to_dict(), client=self.client)
+            return Session.from_schema(self.client.active_session, client=self.client)
 
     def save(self, file_path: Optional[PathLike] = None):
         """
@@ -495,7 +441,7 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must be an instance of 'AbstractHowsoClient'")
         if isinstance(copy, BaseTrainee):
-            return Trainee.from_dict(copy.to_dict(), client=self.client)
+            return Trainee.from_schema(copy, client=self.client)
         else:
             raise ValueError('Trainee not correctly copied')
 
@@ -3673,12 +3619,35 @@ class Trainee(BaseTrainee):
         self._created = True
 
     @classmethod
-    def from_dict(
+    def from_schema(
         cls,
-        schema: Mapping,
+        schema: BaseTrainee,
         *,
-        client: Optional[AbstractHowsoClient] = None
+        client: Optional[AbstractHowsoClient] = None,
     ) -> "Trainee":
+        """
+        Create Trainee from base class.
+
+        Parameters
+        ----------
+        schema : howso.client.schemas.Trainee
+            The base Trainee object.
+        client : AbstractHowsoClient, optional
+            The Howso client instance to use.
+
+        Returns
+        -------
+        Trainee
+            The Trainee instance.
+        """
+        if isinstance(schema, cls) and client is None:
+            return schema
+        trainee_dict = schema.to_dict()
+        trainee_dict['client'] = client
+        return cls.from_dict(trainee_dict)
+
+    @classmethod
+    def from_dict(cls, schema: Mapping) -> "Trainee":
         """
         Create Trainee from Mapping.
 
@@ -3694,7 +3663,7 @@ class Trainee(BaseTrainee):
         """
         if not isinstance(schema, Mapping):
             raise ValueError("``schema`` parameter is not a Mapping")
-        parameters: dict = {"client": client or schema.get("client")}
+        parameters = {}
         for key in cls.attribute_map:
             if key in schema:
                 if key == "project_id":
@@ -4053,10 +4022,7 @@ def load_trainee(
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
     if isinstance(client.trainee_cache, TraineeCache):
         client.trainee_cache.set(base_trainee)
-    trainee = Trainee.from_dict(
-        base_trainee.to_dict(),
-        client=client
-    )
+    trainee = Trainee.from_schema(base_trainee, client=client)
     trainee._custom_save_path = file_path
 
     return trainee
@@ -4085,7 +4051,7 @@ def get_trainee(
     client = client or get_client()
     trainee = client.get_trainee(str(name_or_id))
     if trainee:
-        return Trainee.from_dict(trainee.to_dict(), client=client)
+        return Trainee.from_schema(trainee, client=client)
 
 
 def list_trainees(
