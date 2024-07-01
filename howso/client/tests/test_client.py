@@ -710,8 +710,8 @@ class TestClient:
                 ['similarity_conviction', ]
             ),
             (
-                {'robust_residuals': True, 'feature_residuals': True, },
-                ['feature_residuals', ]
+                {'feature_residuals_robust': True, },
+                ['feature_residuals_robust', ]
             ),
         ]
         for audit_detail_set, keys_to_expect in details_sets:
@@ -754,62 +754,6 @@ class TestClient:
         with pytest.raises(HowsoError):
             self.client.train(trainee.id, [[1.8e309, 2]],
                               features=['penguin', 'play'])
-
-    def test_get_feature_mda(self, trainee, capsys):
-        """
-        Test get_feature_mda.
-
-        Test for expected verbose output and expected return type when
-        get_feature_mda is called.
-        """
-        self._train(trainee)
-        self.client.react_into_trainee(
-            trainee.id,
-            mda=True,
-            action_feature='play'
-        )
-        ret = self.client.get_feature_mda(
-            trainee.id,
-            action_feature='play')
-        out, _ = capsys.readouterr()
-        assert (f'Getting mean decrease in accuracy for trainee with '
-                f'id: {trainee.id}') in out
-        assert isinstance(ret, dict)
-        assert len(ret) > 0
-
-        with pytest.raises(HowsoError, match="Feature MDA for the"):
-            ret = self.client.get_feature_mda(
-                trainee.id,
-                action_feature='invalid')
-
-    def test_get_feature_residuals(self, trainee, capsys):
-        """
-        Test the /feature/residual endpoint in the python client.
-
-        Parameters
-        ----------
-        trainee : Trainee
-            A trainee object used or testing.
-        """
-        self._train(trainee)
-        self.client.react_into_trainee(
-            trainee_id=trainee.id,
-            residuals=True,
-            context_features=['penguin'],
-            sample_model_fraction=1.0
-        )
-        ret = self.client.get_feature_residuals(trainee.id)
-        assert (len(list(ret)) == 1)
-        self.client.react_into_trainee(
-            trainee_id=trainee.id,
-            residuals=True,
-            context_features=['penguin', 'play'],
-            sample_model_fraction=1.0
-        )
-        ret = self.client.get_feature_residuals(trainee.id)
-        assert len(list(ret)) == 2
-        out, _ = capsys.readouterr()
-        assert f'Getting feature residuals for trainee with id: {trainee.id}' in out
 
 
 class TestBaseClient:
