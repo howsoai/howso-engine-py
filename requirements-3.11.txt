@@ -113,9 +113,9 @@ faker==26.0.0 \
     --hash=sha256:0f60978314973de02c00474c2ae899785a42b2cf4f41b7987e93c132a2b8a4a9 \
     --hash=sha256:886ee28219be96949cd21ecc96c4c742ee1680e77f687b095202c8def1a08f06
     # via howso-engine (pyproject.toml)
-howso-openapi-client==37.0.0 \
-    --hash=sha256:7ba03820e187df44dfe157a6f36cec5dde95f2be9b1550816517ce8fc25c0bc2 \
-    --hash=sha256:c22a62454740147a59fab17fd5a79f9e2e1f1f5a549f5609ba8aad4cf88753a0
+howso-openapi-client==37.0.1 \
+    --hash=sha256:2f03b30f07431d538573eaa3352f02f543d3ba660e40a8a64a1c9d63aea75332 \
+    --hash=sha256:d9fec8e1611978f2a0e4a8db04080b9f22f5b9671cd01d7e8c954a51bd33f8a2
     # via howso-engine (pyproject.toml)
 humanize==4.9.0 \
     --hash=sha256:582a265c931c683a7e9b8ed9559089dea7edcf6cc95be39a3cbc2c5d5ac2bcfa \
@@ -401,7 +401,7 @@ urllib3==2.2.2 \
     #   howso-openapi-client
 
 # The following packages are considered to be unsafe in a requirements file:
-setuptools==70.1.1 \
-    --hash=sha256:937a48c7cdb7a21eb53cd7f9b59e525503aa8abaf3584c730dc5f7a5bec3a650 \
-    --hash=sha256:a58a8fde0541dab0419750bcc521fbdf8585f6e5cb41909df3a472ef7b81ca95
+setuptools==70.2.0 \
+    --hash=sha256:b8b8060bb426838fbe942479c90296ce976249451118ef566a5a0b7d8b78fb05 \
+    --hash=sha256:bd63e505105011b25c3c11f753f7e3b8465ea739efddaccef8f0efac2137bac1
     # via howso-openapi-client
