@@ -127,6 +127,18 @@ class Session(BaseSchema[SessionDict]):
         """
         return self._metadata
 
+    @metadata.setter
+    def metadata(self, metadata: Mapping | None) -> None:
+        """
+        Set the Session metadata.
+
+        Parameters
+        ----------
+        metadata : Mapping, optional
+            The new metadata for the Session.
+        """
+        self._metadata = metadata
+
     @property
     def created_date(self) -> datetime | None:
         """

@@ -1869,8 +1869,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         session = None
         for trainee_id in loaded_trainees:
             try:
-                session_data = self.howso.get_session_metadata(
-                    trainee_id, session_id)
+                session_data = self.howso.get_session_metadata(trainee_id, session_id)
+                if session_data is None:
+                    continue  # Not found
             except HowsoError:
                 # When session is not found, continue
                 continue
@@ -1917,33 +1918,30 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Updating session for session with id: {session_id}')
 
         updated_session = None
+        modified_date = datetime.now(timezone.utc)
         # We remove the trainee_id since this may have been set by the
         # get_session(s) methods and is not needed to be stored in the model.
         if metadata is not None:
             metadata.pop('trainee_id', None)
 
-        def _update_session(instance: Session):
-            if metadata is not None:
-                instance.metadata = metadata
-            instance._touch()  # type: ignore
-            return instance
-
         # Update session across all loaded trainees
         for trainee_id in self.trainee_cache.ids():
             try:
-                session_data = self.howso.get_session_metadata(
-                    trainee_id, session_id)
+                session_data = self.howso.get_session_metadata(trainee_id, session_id)
+                if session_data is None:
+                    continue  # Not found
             except HowsoError:
                 # When session is not found, continue
                 continue
-            session = Session.from_dict(session_data)
-            session = _update_session(session)
-            self.howso.set_session_metadata(trainee_id, session_id, session.to_dict())
-            updated_session = session
+            session_data['metadata'] = metadata
+            session_data['modified_date'] = modified_date
+            self.howso.set_session_metadata(trainee_id, session_id, session_data)
+            updated_session = Session.from_dict(session_data)
 
         if self.active_session.id == session_id:
             # Update active session
-            self._active_session = _update_session(self.active_session)
+            self._active_session.metadata = metadata
+            self._active_session._modified_date = modified_date  # type: ignore
             if updated_session is None:
                 updated_session = self.active_session
         elif updated_session is None:
