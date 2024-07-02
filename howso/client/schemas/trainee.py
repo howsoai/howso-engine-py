@@ -83,7 +83,14 @@ class Trainee(BaseSchema[TraineeDict]):
 
     @property
     def id(self) -> str:
-        """Get the id of this Trainee."""
+        """
+        The unique identifier of the Trainee.
+
+        Returns
+        -------
+        str
+            The Trainee ID.
+        """
         return self._id
 
     @property

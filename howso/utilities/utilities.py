@@ -32,55 +32,6 @@ NON_THOROUGH_NUM = 100
 SMALLEST_TIME_DELTA = 0.001
 
 
-def trainee_from_df(df, features: Optional[Mapping[str, Mapping]] = None,
-                    name: Optional[str] = None,
-                    persistence: str = 'allow',
-                    trainee_metadata: Optional[Mapping] = None,
-                    ) -> Dict:
-    """
-    Create a Trainee from a dataframe.
-
-    Assumes floats are continuous and all other values are nominal.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        A pandas Dataframe with column names corresponding to feature
-        names.Features that are considered to be continuous should have a dtype
-        of float.
-
-    features : Optional[Mapping[str, Mapping]]
-        (Optional) A dictionary of feature names to a dictionary of parameters.
-
-    name : str or None, defaults to None
-        (Optional) The name of the trainee.
-
-    persistence : str: default "allow"
-        The persistence setting to use for the trainee. Valid values:
-        "always", "allow", "never".
-
-    trainee_metadata : Mapping, optional
-        (Optional) mapping of key/value pairs of metadata for trainee.
-
-    Returns
-    -------
-    Dict
-        A trainee object
-    """
-    # Place this here to avoid circular imports
-    from howso.utilities.feature_attributes import infer_feature_attributes
-
-    if features is None:
-        features = infer_feature_attributes(df)
-
-    return dict(
-        name=name,
-        features=features,
-        persistence=persistence,
-        metadata=trainee_metadata
-    )
-
-
 def date_to_epoch(
     date_obj: Union[dt.date, dt.datetime, dt.time, str],
     time_format: str
