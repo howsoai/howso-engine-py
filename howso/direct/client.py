@@ -878,7 +878,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             # Create the copy trainee
             new_trainee = deepcopy(original_trainee)
             new_trainee.name = new_trainee_name
-            new_trainee._id = new_trainee_id
+            new_trainee._id = new_trainee_id  # type: ignore
             metadata = {
                 'name': new_trainee.name,
                 'metadata': new_trainee.metadata,

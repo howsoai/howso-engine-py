@@ -119,7 +119,7 @@ class Trainee(BaseTrainee):
         if isinstance(project, BaseProject):
             project_id = project.id
             if isinstance(self.client, ProjectClient):
-                self._project_instance = Project.from_schema(project, client=client)
+                self._project_instance = Project.from_schema(project, client=self.client)
             else:
                 self._project_instance = None
         else:
