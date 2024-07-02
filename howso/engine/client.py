@@ -3,10 +3,10 @@ from howso.client.pandas import HowsoPandasClientMixin
 
 __client_instance = None
 
-__all__ = {
+__all__ = [
     'get_client',
     'use_client',
-}
+]
 
 
 def get_client() -> AbstractHowsoClient:

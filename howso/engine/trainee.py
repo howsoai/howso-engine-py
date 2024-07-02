@@ -1,59 +1,27 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from copy import deepcopy
 from pathlib import Path
 import typing as t
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    MutableMapping,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, Dict, List, Optional, Union
 import uuid
 import warnings
 
-from pandas import (
-    concat,
-    DataFrame,
-    Index,
-)
+from pandas import concat, DataFrame, Index
 
-from howso.client import AbstractHowsoClient
+from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
-from howso.client.exceptions import (
-    HowsoApiError,
-    HowsoError,
-    HowsoWarning,
-)
+from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
-from howso.client.protocols import (
-    LocalSaveableProtocol,
-    ProjectClient,
-)
+from howso.client.protocols import LocalSaveableProtocol, ProjectClient
+from howso.client.schemas import Project as BaseProject, Session as BaseSession, Trainee as BaseTrainee
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
-from howso.openapi.models import (
-    Cases,
-    Metrics,
-)
-from howso.openapi.models import Project as BaseProject
-from howso.openapi.models import Session as BaseSession
-from howso.openapi.models import Trainee as BaseTrainee
-from howso.openapi.models import (
-    TraineeIdentity,
-    TraineeInformation,
-    TraineeResources,
-)
 from howso.utilities import matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 from howso.utilities.reaction import Reaction
-
 from .typing import (
     CaseIndices,
     GenerateNewCases,
@@ -114,7 +82,7 @@ class Trainee(BaseTrainee):
         The instance or id of the project to use for the trainee.
     metadata : dict, optional
         Any key-value pair to store as custom metadata for the trainee.
-    resources : TraineeResources or map, optional
+    resources : map, optional
         Customize the resources provisioned for the Trainee instance.
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
@@ -125,7 +93,7 @@ class Trainee(BaseTrainee):
     def __init__(
         self,
         name: Optional[str] = None,
-        features: Optional[SingleTableFeatureAttributes] = None,
+        features: Optional[Union[dict, SingleTableFeatureAttributes]] = None,
         *,
         overwrite_existing: bool = False,
         persistence: Persistence = "allow",
@@ -134,36 +102,39 @@ class Trainee(BaseTrainee):
         max_wait_time: Optional[Union[int, float]] = None,
         metadata: Optional[MutableMapping[str, Any]] = None,
         project: Optional[Union[str, BaseProject]] = None,
-        resources: Optional[Union["TraineeResources", MutableMapping[str, Any]]] = None,
-        client: Optional[AbstractHowsoClient] = None,
+        resources: Optional[MutableMapping[str, Any]] = None,
+        client: Optional[AbstractHowsoClient] = None
     ):
+        """Initialize the Trainee object."""
         self._created: bool = False
         self._updating: bool = False
         self._was_saved: bool = False
         self.client = client or get_client()
 
-        # Set the trainee properties
-        self._features = features
-        self._metadata = metadata
-        self.name = name
-        self._id = id
         self._custom_save_path = None
         self._calculated_matrices = {}
         self._needs_analyze: bool = False
 
-        self.persistence = persistence
-
         # Allow passing project id or the project instance
         if isinstance(project, BaseProject):
-            self._project_id = project.id
+            project_id = project.id
             if isinstance(self.client, ProjectClient):
-                self._project_instance = Project.from_openapi(
-                    project, client=self.client)  # type:ignore
+                self._project_instance = Project.from_schema(project, client=self.client)
             else:
                 self._project_instance = None
         else:
-            self._project_id = project
+            project_id = project
             self._project_instance = None  # lazy loaded
+
+        # Initialize the Trainee properties
+        super().__init__(
+            id=id or '',  # The id will be initialized by _create
+            name=name,
+            features=features,
+            metadata=metadata,
+            persistence=persistence,
+            project_id=project_id,
+        )
 
         # Create the trainee at the API
         self._create(
@@ -172,33 +143,6 @@ class Trainee(BaseTrainee):
             overwrite=overwrite_existing,
             resources=resources
         )
-
-    @property
-    def id(self) -> str | None:
-        """
-        The unique identifier of the trainee.
-
-        If a identifier is not provided and a name is provided , the identifier
-        will be the name.
-
-        Returns
-        -------
-        str or None
-            The trainee's ID.
-        """
-        return self._id
-
-    @property
-    def project_id(self) -> str | None:
-        """
-        The unique identifier of the trainee's project.
-
-        Returns
-        -------
-        str or None
-            The trainee's project ID.
-        """
-        return self._project_id
 
     @property
     def project(self) -> Project | None:
@@ -221,8 +165,7 @@ class Trainee(BaseTrainee):
             self._project_instance.id != self.project_id
         ):
             project = self.client.get_project(self.project_id)
-            self._project_instance = Project.from_openapi(
-                project, client=self.client)
+            self._project_instance = Project.from_schema(project, client=self.client)
 
         return self._project_instance
 
@@ -246,65 +189,35 @@ class Trainee(BaseTrainee):
             else:
                 return None
 
-    @property
-    def name(self) -> str | None:
-        """
-        The name of the trainee.
-
-        Returns
-        -------
-        str or None
-            The name.
-        """
-        return self._name
-
-    @name.setter
+    @BaseTrainee.name.setter
     def name(self, name: str | None):
         """
-        Set the name of the trainee.
+        Set the name of the Trainee.
 
         Parameters
         ----------
         name : str or None
-            The name.
+            The new name.
         """
-        if name is not None and len(name) > 128:
-            raise ValueError(
-                "Invalid value for `name`, length must be less "
-                "than or equal to 128"
-            )
-        self._name = name
+        if BaseTrainee.name.fset is None:
+            raise AttributeError("Trainee.name has no setter")
+        # Call super class setter
+        BaseTrainee.name.fset(self, name)
         self.update()
 
-    @property
-    def persistence(self) -> str:
-        """
-        The persistence state of the trainee.
-
-        Returns
-        -------
-        str
-            The trainee's persistence value.
-        """
-        return self._persistence
-
-    @persistence.setter
+    @BaseTrainee.persistence.setter
     def persistence(self, persistence: Persistence):
         """
-        Set the persistence state of the trainee.
+        Set the persistence state of the Trainee.
 
         Parameters
         ----------
         persistence : {"allow", "always", "never"}
-            The persistence value.
+            The new persistence value.
         """
-        allowed_values = {"allow", "always", "never"}
-        if persistence not in allowed_values:
-            raise ValueError(
-                f"Invalid value for ``persistence`` ({persistence}), must be"
-                f"one of {allowed_values}"
-            )
-        self._persistence = persistence
+        if BaseTrainee.persistence.fset is None:
+            raise AttributeError("Trainee.persistence has no setter")
+        BaseTrainee.persistence.fset(self, persistence)
         self.update()
 
     @property
@@ -378,7 +291,7 @@ class Trainee(BaseTrainee):
             The session instance, if it exists.
         """
         if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
-            return Session.from_openapi(self.client.active_session, client=self.client)
+            return Session.from_schema(self.client.active_session, client=self.client)
 
     def save(self, file_path: Optional[PathLike] = None):
         """
@@ -483,7 +396,7 @@ class Trainee(BaseTrainee):
         *,
         library_type: Optional[Library] = None,
         project: Optional[str | BaseProject] = None,
-        resources: Optional["TraineeResources" | MutableMapping[str, Any]] = None,
+        resources: Optional[MutableMapping[str, Any]] = None,
     ) -> "Trainee":
         """
         Copy the trainee to another trainee.
@@ -497,7 +410,7 @@ class Trainee(BaseTrainee):
             while "mt" will use the multi-threaded library.
         project : str or Project, optional
             The instance or id of the project to use for the new trainee.
-        resources : TraineeResources or dict, optional
+        resources : dict, optional
             Customize the resources provisioned for the Trainee instance. If
             not specified, the new trainee will inherit the value from the
             original.
@@ -526,11 +439,9 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             copy = self.client.copy_trainee(**params)
         else:
-            copy = None
-        if copy:
-            if isinstance(self.client, AbstractHowsoClient):
-                return Trainee.from_openapi(copy, client=self.client)
             raise ValueError("Client must be an instance of 'AbstractHowsoClient'")
+        if isinstance(copy, BaseTrainee):
+            return Trainee.from_schema(copy, client=self.client)
         else:
             raise ValueError('Trainee not correctly copied')
 
@@ -644,13 +555,13 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have the 'release_trainee_resources' method.")
 
-    def information(self) -> "TraineeInformation":
+    def information(self) -> Dict:
         """
         Get detail information about the trainee.
 
         Returns
         -------
-        TraineeInformation
+        Dict
             The trainee detail information. Including trainee version and
             configuration parameters.
         """
@@ -659,13 +570,13 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have 'get_trainee_information' method")
 
-    def metrics(self) -> "Metrics":
+    def metrics(self) -> Dict:
         """
         Get metric information of the trainee.
 
         Returns
         -------
-        Metrics
+        Dict
             The trainee metric information. Including cpu and memory.
         """
         if isinstance(self.client, AbstractHowsoClient):
@@ -823,7 +734,7 @@ class Trainee(BaseTrainee):
         minimum_model_size: int = 1_000,
         relative_prediction_threshold_map: Optional[MutableMapping[str, float]] = None,
         residual_prediction_features: Optional[List[str]] = None,
-        tolerance_prediction_threshold_map: Optional[MutableMapping[str, Tuple[float, float]]] = None,
+        tolerance_prediction_threshold_map: Optional[MutableMapping[str, tuple[float, float]]] = None,
         **kwargs
     ):
         """
@@ -2036,9 +1947,9 @@ class Trainee(BaseTrainee):
 
                     condition = {"feature_name": ['a', 'c', 'e']}
 
-        condition_session : str or BaseSession, optional
+        condition_session : str or Session, optional
             If specified, ignores the condition and operates on cases for
-            the specified session id or BaseSession instance. Ignored if
+            the specified session id or Session instance. Ignored if
             case_indices is specified.
         distribute_weight_feature : str, optional
             When specified, will distribute the removed cases' weights
@@ -2056,6 +1967,12 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
+        # Convert session instance to id
+        if (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), BaseSession)
+        ):
+            condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.remove_cases(
                 trainee_id=self.id,
@@ -2110,9 +2027,9 @@ class Trainee(BaseTrainee):
                       exactly. Only applicable to nominal and string ordinal
                       features.
 
-        condition_session : str or BaseSession, optional
+        condition_session : str or Session, optional
             If specified, ignores the condition and operates on all cases for
-            the specified session id or BaseSession instance.
+            the specified session id or Session instance.
         features : list of str, optional
             The names of the features to edit. Required when ``feature_values``
             is not specified as a DataFrame.
@@ -2133,6 +2050,12 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
+        # Convert session instance to id
+        if (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), BaseSession)
+        ):
+            condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.edit_cases(
                 trainee_id=self.id,
@@ -2168,7 +2091,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        session : str or BaseSession
+        session : str or Session
             The id or instance of the session to remove from the model.
         """
         if isinstance(session, BaseSession):
@@ -2186,7 +2109,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        session : str or BaseSession
+        session : str or Session
             The id or instance of the session to retrieve indices for from
             the model.
 
@@ -2210,7 +2133,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        session : str or BaseSession
+        session : str or Session
             The id or instance of the session to retrieve training indices for
             from the model.
 
@@ -2238,7 +2161,7 @@ class Trainee(BaseTrainee):
         condition: Optional[MutableMapping] = None,
         num_cases: Optional[int] = None,
         precision: Optional[str] = None
-    ) -> Cases | DataFrame:
+    ) -> DataFrame:
         """
         Get the trainee's cases.
 
@@ -2269,7 +2192,7 @@ class Trainee(BaseTrainee):
             If True, an additional value will be appended to the cases
             indicating if the case was imputed.
 
-        session : str or BaseSession, optional
+        session : str or Session, optional
             The id or instance of the session to retrieve training indices for
             from the model.
 
@@ -2330,7 +2253,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        Cases or DataFrame
+        DataFrame
             The trainee's cases.
         """
         if isinstance(session, BaseSession):
@@ -2357,7 +2280,7 @@ class Trainee(BaseTrainee):
         features: Optional[Iterable[str]] = None,
         num: int,
         sort_feature: str,
-    ) -> Cases | DataFrame:
+    ) -> DataFrame:
         """
         Get the trainee's extreme cases.
 
@@ -2372,7 +2295,7 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        Cases or DataFrame
+        DataFrame
             The trainee's extreme cases.
         """
         if self.id:
@@ -2450,9 +2373,9 @@ class Trainee(BaseTrainee):
 
                     condition = {"length": 10, "width": 10}
 
-        condition_session : str or BaseSession, optional
+        condition_session : str or Session, optional
             If specified, ignores the condition and operates on cases for the
-            specified session id or BaseSession instance.
+            specified session id or Session instance.
         overwrite : bool, default False
             If True, the feature will be over-written if it exists.
         """
@@ -2460,6 +2383,11 @@ class Trainee(BaseTrainee):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
+        if (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), BaseSession)
+        ):
+            condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
             if self.id:
                 self.client.add_feature(
@@ -2521,14 +2449,19 @@ class Trainee(BaseTrainee):
 
                     condition = {"length": [1, 5]}
 
-        condition_session : str or BaseSession, optional
+        condition_session : str or Session, optional
             If specified, ignores the condition and operates on cases for the
-            specified session id or BaseSession instance.
+            specified session id or Session instance.
         """
         if isinstance(condition_session, BaseSession):
             condition_session_id = condition_session.id
         else:
             condition_session_id = condition_session
+        if (
+            isinstance(condition, dict) and
+            isinstance(condition.get('.session'), BaseSession)
+        ):
+            condition['.session'] = condition['.session'].id
         if isinstance(self.client, AbstractHowsoClient):
             if self.id:
                 self.client.remove_feature(
@@ -3309,7 +3242,7 @@ class Trainee(BaseTrainee):
         trainee : BaseTrainee
             The base trainee instance.
         """
-        for key in self.attribute_map.keys():
+        for key in self.attribute_map:
             # Update the protected attributes directly since the values
             # have already been validated by the "BaseTrainee" instance
             # and to prevent triggering an API update call
@@ -3325,7 +3258,7 @@ class Trainee(BaseTrainee):
             # Only update for trainees that have been created
             try:
                 self._updating = True
-                trainee = BaseTrainee(**self.to_dict())
+                trainee = self.to_dict()
                 if isinstance(self.client, AbstractHowsoClient):
                     updated_trainee = self.client.update_trainee(trainee)
                 else:
@@ -3528,7 +3461,7 @@ class Trainee(BaseTrainee):
         self, *,
         library_type: Optional[Library] = None,
         max_wait_time: Optional[int | float] = None,
-        resources: Optional[TraineeResources | MutableMapping[str, Any]] = None,
+        resources: Optional[MutableMapping[str, Any]] = None,
         overwrite: bool = False,
     ):
         """
@@ -3540,20 +3473,23 @@ class Trainee(BaseTrainee):
             The library type of the Trainee.
         max_wait_time : int or float, optional
             The maximum time to wait for the trainee to be created.
-        resources : TraineeResources or map of str -> any, optional
+        resources : map of str -> any, optional
             The resources to provision for the trainee.
         overwrite : bool, default False
             If True, will overwrite an existing trainee with the same name.
         """
         if not self.id:
-            trainee = BaseTrainee(**self.to_dict())
             new_trainee = None
             if isinstance(self.client, AbstractHowsoClient):
                 new_trainee = self.client.create_trainee(
-                    trainee=trainee,
+                    name=self.name,
+                    features=self.features,
+                    metadata=self.metadata,
+                    overwrite_trainee=overwrite,
+                    persistence=self.persistence,
                     library_type=library_type,
                     max_wait_time=max_wait_time,
-                    overwrite_trainee=overwrite,
+                    project=self.project_id,
                     resources=resources
                 )
 
@@ -3565,36 +3501,41 @@ class Trainee(BaseTrainee):
         self._created = True
 
     @classmethod
-    def from_openapi(
-        cls, trainee: BaseTrainee, *, client: Optional[AbstractHowsoClient] = None
+    def from_schema(
+        cls,
+        schema: BaseTrainee,
+        *,
+        client: Optional[AbstractHowsoClient] = None,
     ) -> "Trainee":
         """
         Create Trainee from base class.
 
         Parameters
         ----------
-        trainee : BaseTrainee
-            The base trainee instance.
+        schema : howso.client.schemas.Trainee
+            The base Trainee object.
         client : AbstractHowsoClient, optional
             The Howso client instance to use.
 
         Returns
         -------
         Trainee
-            The trainee instance.
+            The Trainee instance.
         """
-        trainee_dict = trainee.to_dict()
-        trainee_dict["client"] = client
+        if isinstance(schema, cls) and client is None:
+            return schema
+        trainee_dict = schema.to_dict()
+        trainee_dict['client'] = client
         return cls.from_dict(trainee_dict)
 
     @classmethod
-    def from_dict(cls, trainee_dict: dict) -> "Trainee":
+    def from_dict(cls, schema: Mapping) -> "Trainee":
         """
-        Create Trainee from dict.
+        Create Trainee from Mapping.
 
         Parameters
         ----------
-        trainee_dict : dict
+        schema : Mapping
             The Trainee parameters.
 
         Returns
@@ -3602,17 +3543,16 @@ class Trainee(BaseTrainee):
         Trainee
             The trainee instance.
         """
-        if not isinstance(trainee_dict, dict):
-            raise ValueError("``trainee_dict`` parameter is not a dict")
-        parameters = {"client": trainee_dict.get("client")}
-        for key in cls.attribute_map.keys():
-            if key in trainee_dict:
+        if not isinstance(schema, Mapping):
+            raise ValueError("``schema`` parameter is not a Mapping")
+        parameters = {}
+        for key in cls.attribute_map:
+            if key in schema:
                 if key == "project_id":
-                    parameters["project"] = trainee_dict[key]
+                    parameters["project"] = schema[key]
                 else:
-                    parameters[key] = trainee_dict[key]
-
-        return cls(**parameters)  # type: ignore
+                    parameters[key] = schema[key]
+        return cls(**parameters)
 
     def __enter__(self) -> "Trainee":
         """Support context managers."""
@@ -3961,15 +3901,12 @@ def load_trainee(
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
 
     if isinstance(client, LocalSaveableProtocol):
-        trainee = client._get_trainee_from_core(trainee_id)
+        base_trainee = client._get_trainee_from_core(trainee_id)
     else:
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
     if isinstance(client.trainee_cache, TraineeCache):
-        client.trainee_cache.set(trainee)
-    if trainee:
-        trainee = Trainee.from_openapi(trainee, client=client)
-    else:
-        raise ValueError("Trainee not loaded correctly.")
+        client.trainee_cache.set(base_trainee)
+    trainee = Trainee.from_schema(base_trainee, client=client)
     trainee._custom_save_path = file_path
 
     return trainee
@@ -3998,7 +3935,7 @@ def get_trainee(
     client = client or get_client()
     trainee = client.get_trainee(str(name_or_id))
     if trainee:
-        return Trainee.from_openapi(trainee, client=client)
+        return Trainee.from_schema(trainee, client=client)
 
 
 def list_trainees(
@@ -4006,7 +3943,7 @@ def list_trainees(
     *,
     client: Optional[AbstractHowsoClient] = None,
     project: Optional[str | BaseProject] = None,
-) -> List["TraineeIdentity"]:
+) -> List["Dict"]:
     """
     Get listing of available trainees.
 
@@ -4025,7 +3962,7 @@ def list_trainees(
 
     Returns
     -------
-    list of TraineeIdentity
+    list of dict
         The list of available trainees.
     """
     client = client or get_client()

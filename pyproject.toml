@@ -46,7 +46,6 @@ dependencies = [
    "semantic-version~=2.0",
    "typing-extensions~=4.0",
    "urllib3>=1.26.2,<3.0",
-   "howso-openapi-client~=37.0",
    "amalgam-lang==12.0.0", # Use exact since Engine is exact in version.json
 ]
 

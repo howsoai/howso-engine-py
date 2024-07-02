@@ -1,24 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    TYPE_CHECKING,
-    Union,
-)
+from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
 
-from howso.utilities.reaction import Reaction
 from pandas import DataFrame, Index
 
 if TYPE_CHECKING:
+    from howso.client.schemas import Session, Trainee
+    from howso.utilities.reaction import Reaction
     from .configuration import HowsoConfiguration
-    from howso.openapi.models import (
-        Cases,
-        Metrics,
-        TraineeInformation,
-    )
 
 
 class AbstractHowsoClient(ABC):
@@ -33,7 +21,7 @@ class AbstractHowsoClient(ABC):
 
     @property
     @abstractmethod
-    def active_session(self):
+    def active_session(self) -> Union["Session", None]:
         """Return the active session."""
 
     @property
@@ -52,28 +40,35 @@ class AbstractHowsoClient(ABC):
 
     @abstractmethod
     def create_trainee(
-        self, trainee, *,
+        self,
+        name=None,
+        features=None,
+        *,
+        id=None,
         library_type=None,
         max_wait_time=None,
+        metadata=None,
         overwrite_trainee=False,
+        persistence="allow",
+        project=None,
         resources=None
-    ):
+    ) -> "Trainee":
         """Create a trainee on the Howso service."""
 
     @abstractmethod
-    def update_trainee(self, trainee):
+    def update_trainee(self, trainee) -> "Trainee":
         """Update an existing trainee in the Howso service."""
 
     @abstractmethod
-    def get_trainee(self, trainee_id):
+    def get_trainee(self, trainee_id) -> "Trainee":
         """Get an existing trainee from the Howso service."""
 
     @abstractmethod
-    def get_trainee_information(self, trainee_id) -> "TraineeInformation":
+    def get_trainee_information(self, trainee_id) -> Dict:
         """Get information about the trainee."""
 
     @abstractmethod
-    def get_trainee_metrics(self, trainee_id) -> "Metrics":
+    def get_trainee_metrics(self, trainee_id) -> Dict:
         """Get metric information for a trainee."""
 
     @abstractmethod
@@ -81,7 +76,7 @@ class AbstractHowsoClient(ABC):
         """Return a list of all accessible trainees."""
 
     @abstractmethod
-    def delete_trainee(self, trainee_id, file_path=None):
+    def delete_trainee(self, trainee_id, file_path=None) -> None:
         """Delete a trainee in the Howso service."""
 
     @abstractmethod
@@ -89,7 +84,7 @@ class AbstractHowsoClient(ABC):
         self, trainee_id, new_trainee_name=None, *,
         library_type=None,
         resources=None,
-    ):
+    ) -> "Trainee":
         """Copy a trainee in the Howso service."""
 
     @abstractmethod
@@ -190,19 +185,19 @@ class AbstractHowsoClient(ABC):
         """Get a dict of feature attributes."""
 
     @abstractmethod
-    def get_sessions(self, search_terms=None):
+    def get_sessions(self, search_terms=None) -> List["Session"]:
         """Get list of all accessible sessions."""
 
     @abstractmethod
-    def get_session(self, session_id):
+    def get_session(self, session_id) -> "Session":
         """Get session details."""
 
     @abstractmethod
-    def update_session(self, session_id, *, metadata=None):
+    def update_session(self, session_id, *, metadata=None) -> "Session":
         """Update a session."""
 
     @abstractmethod
-    def begin_session(self, name='default', metadata=None):
+    def begin_session(self, name='default', metadata=None) -> "Session":
         """Begin a new session."""
 
     @abstractmethod
@@ -289,7 +284,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> Reaction:
+    ) -> "Reaction":
         """React in a series until a stop condition is met."""
 
     @abstractmethod
@@ -380,7 +375,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> Reaction:
+    ) -> "Reaction":
         """Send a `react` to the Howso engine."""
 
     @abstractmethod
@@ -471,7 +466,7 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def get_cases(self, trainee_id, session=None, case_indices=None,
                   indicate_imputed=False, features=None, condition=None,
-                  num_cases=None, precision=None) -> Union["Cases", "DataFrame"]:
+                  num_cases=None, precision=None) -> Union[Dict, "DataFrame"]:
         """Retrieve cases from a trainee."""
 
     @abstractmethod
@@ -481,7 +476,7 @@ class AbstractHowsoClient(ABC):
         num,
         sort_feature,
         features: Optional[Iterable[str]] = None
-    ) -> Union["Cases", "DataFrame"]:
+    ) -> Union[Dict, "DataFrame"]:
         """Get the extreme cases of a trainee for the given feature(s)."""
 
     @abstractmethod

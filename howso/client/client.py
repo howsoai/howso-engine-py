@@ -6,10 +6,11 @@ from pathlib import Path
 from typing import Generator, Optional, Sequence, Tuple, Union
 import warnings
 
+import yaml
+
 from howso.client.base import AbstractHowsoClient
 from howso.client.exceptions import HowsoConfigurationError
 from howso.utilities import deep_update, UserFriendlyExit
-import yaml
 
 
 DEFAULT_CONFIG_FILE = "howso.yml"

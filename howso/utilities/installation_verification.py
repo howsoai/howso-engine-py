@@ -15,15 +15,21 @@ from typing import Callable, Iterable, List, Optional, Tuple, Union
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
+import pandas as pd
+try:
+    from requests.exceptions import ConnectionError
+except ImportError:
+    ConnectionError = None
+from rich import print
+from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
+
 try:
     from howso import engine
 except ImportError:
     engine = None
-from howso.client import (
-    AbstractHowsoClient, HowsoClient
-)
+from howso.client import AbstractHowsoClient, HowsoClient
 from howso.client.exceptions import HowsoConfigurationError, HowsoError
-from howso.openapi.models import Trainee
+from howso.client.schemas import Trainee
 try:
     from howso.validator import Validator  # noqa: might not be available # type: ignore
 except OSError as e:
@@ -38,19 +44,6 @@ except ImportError:
 from howso.utilities import StopExecution, Timer
 from howso.utilities.locale import get_default_locale
 from howso.utilities.posix import PlatformError, sysctl_by_name
-import pandas as pd
-try:
-    from requests.exceptions import ConnectionError
-except ImportError:
-    ConnectionError = None
-from rich import print
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -422,15 +415,12 @@ def generate_dataframe(*, client: AbstractHowsoClient,
         }
     }
     feature_names = list(features.keys())
-    context_features = list(feature_names)[:-1]
-    action_features = [list(feature_names)[-1]]
 
-    trainee_obj = Trainee(
-        f"installation_verification generated dataframe ({get_nonce()})",
+    trainee = client.create_trainee(
+        name=f"installation_verification generated dataframe ({get_nonce()})",
         features=features,
         persistence="never"
     )
-    trainee = client.create_trainee(trainee_obj)
     if not isinstance(trainee, Trainee):
         raise HowsoError('Unable to create trainee.')
     client.set_feature_attributes(trainee.id, features)
@@ -645,11 +635,10 @@ def check_save(*, registry: InstallationCheckRegistry,
             source_df, _ = generate_dataframe(client=client)
         features = infer_feature_attributes(source_df)
         feature_names = list(features.keys())
-        trainee_obj = Trainee(
-            f"installation_verification check save ({get_nonce()})",
+        if trainee := client.create_trainee(
+            name=f"installation_verification check save ({get_nonce()})",
             features=features
-        )
-        if trainee := client.create_trainee(trainee_obj):
+        ):
             client.train(trainee.id, source_df, features=feature_names)
             client.persist_trainee(trainee.id)
         else:
@@ -975,12 +964,11 @@ def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
     """
     client = HowsoClient()
     features = {'date': {'type': 'continuous', 'date_time_format': '%Y-%m-%d'}}
-    trainee_obj = Trainee(
-        f"installation_verification check_tzdata_installed ({get_nonce()})",
+    trainee = client.create_trainee(
+        name=f"installation_verification check_tzdata_installed ({get_nonce()})",
         features=features,
         persistence='never'
     )
-    trainee = client.create_trainee(trainee_obj)
     client.train(trainee_id=trainee.id, cases=[["2001-01-01"]], features=['date'])
     result_queue.put(client.get_num_training_cases(trainee.id))
     client.delete_trainee(trainee.id)

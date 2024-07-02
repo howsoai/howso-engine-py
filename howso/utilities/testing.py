@@ -3,7 +3,8 @@ import os
 from typing import Callable, Union
 from unittest.mock import patch
 
-from howso.client import AbstractHowsoClient, HowsoClient
+from howso.client import HowsoClient
+from howso.client.base import AbstractHowsoClient
 from howso.direct import HowsoDirectClient
 
 

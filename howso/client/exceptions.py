@@ -1,7 +1,5 @@
 import json
 
-from howso.openapi.exceptions import UnauthorizedException
-
 
 class HowsoError(Exception):
     """
@@ -33,10 +31,6 @@ class HowsoError(Exception):
         super().__init__((message, code, url))
 
 
-class HowsoConfigurationError(HowsoError):
-    """An error raised when the howso.yml options are misconfigured."""
-
-
 class HowsoApiError(HowsoError):
     """
     An error raised by the Howso rest API.
@@ -61,23 +55,6 @@ class HowsoApiError(HowsoError):
             status = -1
         self.status = status
         super().__init__(message, code, url)
-
-    @classmethod
-    def from_openapi(cls, obj):
-        """
-        Build a HowsoApiError from OpenAPI error object.
-
-        Parameters
-        ----------
-        obj : ApiException
-            The OpenAPI error.
-
-        Returns
-        -------
-        HowsoApiError
-            The constructed error instance.
-        """
-        return cls.from_json(obj.body)
 
     @classmethod
     def from_json(cls, obj):
@@ -134,32 +111,11 @@ class HowsoApiError(HowsoError):
 
 
 class HowsoAuthenticationError(HowsoApiError):
-    """An error raised when the authentication API request fails."""
+    """An error raised due to an authentication failure."""
 
-    @classmethod
-    def from_openapi(cls, obj):
-        """
-        Build a HowsoApiError from OpenAPI error object.
 
-        Parameters
-        ----------
-        obj : ApiException
-            The OpenAPI error.
-
-        Returns
-        -------
-        HowsoApiError
-            The constructed error instance.
-        """
-        if isinstance(obj, UnauthorizedException):
-            try:
-                body = json.loads(obj.body)
-                error = body.get('error', obj.status)
-            except Exception:
-                error = obj.status
-            return cls(f'{obj.reason}: {error}', status=obj.status)
-        else:
-            return super().from_openapi(obj)
+class HowsoConfigurationError(HowsoError):
+    """An error raised when the howso.yml options are misconfigured."""
 
 
 class HowsoNotUniqueError(HowsoError):

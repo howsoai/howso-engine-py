@@ -1,21 +1,12 @@
-from typing import (
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Union,
-)
+from typing import Dict, Iterable, List, Optional, Union
 
-from howso.client.client import get_howso_client_class
-from howso.utilities import (
-    build_react_series_df,
-    deserialize_cases,
-    format_dataframe,
-)
-from howso.utilities.internals import deserialize_to_dataframe
-from howso.utilities.reaction import Reaction
 import pandas as pd
 from pandas import DataFrame, Index
+
+from howso.client.client import get_howso_client_class
+from howso.utilities import deserialize_cases, format_dataframe
+from howso.utilities.internals import deserialize_to_dataframe
+from howso.utilities.reaction import Reaction
 
 
 class HowsoPandasClientMixin:
@@ -83,8 +74,11 @@ class HowsoPandasClientMixin:
         trainee_id = self._resolve_trainee_id(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
         response = super().get_cases(trainee_id, *args, **kwargs)
-        return deserialize_cases(response.cases, response.features,
-                                 feature_attributes)
+        return deserialize_cases(
+            response['cases'],
+            response['features'],
+            feature_attributes
+        )
 
     def get_extreme_cases(
         self,
@@ -116,8 +110,11 @@ class HowsoPandasClientMixin:
         feature_attributes = self.trainee_cache.get(trainee_id).features
         response = super().get_extreme_cases(trainee_id, num, sort_feature,
                                              features)
-        return deserialize_cases(response.cases, response.features,
-                                 feature_attributes)
+        return deserialize_cases(
+            response['cases'],
+            response['features'],
+            feature_attributes
+        )
 
     def get_feature_conviction(self, *args, **kwargs) -> DataFrame:
         """
@@ -221,8 +218,7 @@ class HowsoPandasClientMixin:
         columns = response['details'].get('action_features')
         if 'prediction_stats' in response['details']:
             response['details']['prediction_stats'] = pd.DataFrame(response['details']['prediction_stats'][0]).T
-        response['action'] = deserialize_cases(response['action'], columns,
-                                               feature_attributes)
+        response['action'] = deserialize_cases(response['action'], columns, feature_attributes)
         return response
 
     def get_distances(self, *args, **kwargs) -> Dict[str, Union[DataFrame, List]]:

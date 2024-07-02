@@ -17,7 +17,6 @@ def test_direct_client(client):
     assert isinstance(client.howso, HowsoCore)
     assert isinstance(client.howso.amlg, Amalgam)
     version = client.get_version()
-    assert version.api is not None
     assert version.client is not None
 
 

@@ -5,18 +5,7 @@ from math import isnan
 import re
 import sys
 import threading
-import typing as t
-from typing import (
-    Callable,
-    Collection,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Callable, Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union
 import uuid
 import warnings
 
@@ -26,13 +15,7 @@ from dateutil.tz import tzoffset
 import numpy as np
 import pandas as pd
 
-from howso.openapi.models import (
-    FeatureAttributes,
-    Trainee,
-)
-
-from .internals import serialize_openapi_models
-
+from .internals import serialize_models
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
 # Custom type for case_indices parameter
@@ -47,52 +30,6 @@ ISO_8601_FORMAT_FRACTIONAL = "%Y-%m-%dT%H:%M:%S.%f"
 NON_THOROUGH_NUM = 100
 # Match unescaped timezone character in datetime format strings
 SMALLEST_TIME_DELTA = 0.001
-
-
-def trainee_from_df(df, features: Optional[Mapping[str, Mapping]] = None,
-                    name: Optional[str] = None,
-                    persistence: str = 'allow',
-                    trainee_metadata: Optional[Mapping] = None,
-                    ) -> Trainee:
-    """
-    Create a Trainee from a dataframe.
-
-    Assumes floats are continuous and all other values are nominal.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        A pandas Dataframe with column names corresponding to feature
-        names.Features that are considered to be continuous should have a dtype
-        of float.
-
-    features : Optional[Mapping[str, Mapping]]
-        (Optional) A dictionary of feature names to a dictionary of parameters.
-
-    name : str or None, defaults to None
-        (Optional) The name of the trainee.
-
-    persistence : str: default "allow"
-        The persistence setting to use for the trainee. Valid values:
-        "always", "allow", "never".
-
-    trainee_metadata : Mapping, optional
-        (Optional) mapping of key/value pairs of metadata for trainee.
-
-    Returns
-    -------
-    howso.openapi.models.Trainee
-        A trainee object
-    """
-    # Place this here to avoid circular imports
-    from howso.utilities.feature_attributes import infer_feature_attributes
-
-    if features is None:
-        features = infer_feature_attributes(df)
-
-    return Trainee(name, features=features,
-                   persistence=persistence,
-                   metadata=trainee_metadata)
 
 
 def date_to_epoch(
@@ -547,7 +484,7 @@ def num_list_dimensions(lst):
     return d
 
 
-def validate_features(features: Mapping[str, Union[FeatureAttributes, Mapping]],
+def validate_features(features: Mapping[str, Mapping],
                       extended_feature_types: Optional[Iterable[str]] = None
                       ) -> None:
     """
@@ -575,10 +512,7 @@ def validate_features(features: Mapping[str, Union[FeatureAttributes, Mapping]],
         valid_feature_types += list(extended_feature_types)
 
     for f_name, f_desc in features.items():
-        if isinstance(f_desc, FeatureAttributes):
-            f_type = f_desc.type
-        else:
-            f_type = f_desc.get("type")
+        f_type = f_desc.get("type")
         if f_type not in valid_feature_types:
             raise ValueError(f"The feature name '{f_name}' has invalid "
                              f"feature type - '{f_type}'")
@@ -629,7 +563,7 @@ def serialize_datetimes(cases: List[List], columns: Iterable[str],  # noqa: C901
     """
     # Import here to avoid circular import dependencies
     from .features import FeatureType
-    features = serialize_openapi_models(features)
+    features = serialize_models(features)
     if isinstance(columns, Iterable):
         columns = list(columns)
 

@@ -3,13 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import (
-    Iterable,
-    List,
-    Literal,
-    Tuple,
-    Union,
-)
+from typing import Iterable, List, Literal, Tuple, Union
 
 from pandas import DataFrame
 from typing_extensions import TypeAlias
