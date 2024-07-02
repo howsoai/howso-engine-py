@@ -16,8 +16,8 @@ from howso.client import HowsoClient
 from howso.client.client import _check_isfile, get_configuration_path, get_howso_client_class, LEGACY_CONFIG_FILENAMES
 from howso.client.exceptions import HowsoApiError, HowsoConfigurationError, HowsoError
 from howso.client.protocols import ProjectClient
+from howso.client.schemas.reaction import Reaction
 from howso.direct import HowsoDirectClient
-from howso.utilities.reaction import Reaction
 from howso.utilities.testing import get_configurationless_test_client, get_test_options
 
 TEST_OPTIONS = get_test_options()

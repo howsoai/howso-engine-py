@@ -4,8 +4,7 @@ from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
 from pandas import DataFrame, Index
 
 if TYPE_CHECKING:
-    from howso.client.schemas import Session, Trainee
-    from howso.utilities.reaction import Reaction
+    from howso.client.schemas import Reaction, Session, Trainee
     from .configuration import HowsoConfiguration
 
 
