@@ -576,7 +576,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         path_to_trainee: Optional[Union[Path, str]] = None,
         decode_cases: bool = False,
-        separate_files: bool = False
     ):
         """
         Export a saved Trainee's data to json files for migration.
@@ -589,14 +588,11 @@ class HowsoDirectClient(AbstractHowsoClient):
             The path to where the saved trainee file is located.
         decoded_cases : bool, default False.
             Whether to export decoded cases.
-        separate_files : bool, default False
-            Whether to load each case from its individual file.
         """
         if self.verbose:
             print(f'Export trainee with id: {trainee_id}')
 
-        self.howso.export_trainee(trainee_id, path_to_trainee, decode_cases,
-                                  separate_files)
+        self.howso.export_trainee(trainee_id, path_to_trainee, decode_cases)
 
     def upgrade_trainee(
         self,
