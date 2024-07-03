@@ -46,8 +46,7 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError, UnsupportedArgumentWarning
-from howso.client.schemas import Reaction, Session, Trainee
-from howso.engine.typing import Library, Persistence
+from howso.client.schemas import HowsoVersion, Reaction, Session, Trainee, TraineePersistence
 from howso.utilities import (
     build_react_series_df,
     internals,
@@ -330,17 +329,17 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return self.howso.get_entities()
 
-    def get_version(self) -> SimpleNamespace:
+    def get_version(self) -> HowsoVersion:
         """
         Return the Howso version.
 
         Returns
         -------
-        SimpleNamespace
+        HowsoVersion
            A version response that contains the version data for the current
            instance of Howso.
         """
-        return SimpleNamespace(client=CLIENT_VERSION)
+        return HowsoVersion(client=CLIENT_VERSION)
 
     def _output_version_in_trace(self, trainee: str):
         """
@@ -419,11 +418,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         features: Optional[Mapping[str, Mapping]] = None,
         *,
         id: Optional[Union[str, uuid.UUID]] = None,
-        library_type: Optional[Library] = None,
+        library_type: Optional[Literal["st", "mt"]] = None,
         max_wait_time: Optional[Union[int, float]] = None,
         metadata: Optional[MutableMapping[str, Any]] = None,
         overwrite_trainee: bool = False,
-        persistence: Persistence = "allow",
+        persistence: TraineePersistence = "allow",
         project: Optional[Union[str, Dict]] = None,
         resources: Optional[MutableMapping[str, Any]] = None,
     ) -> Trainee:

@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 import os
-from typing import Iterable, List, Literal, Tuple, Union
+from typing import Literal, Union
 
 from pandas import DataFrame
 from typing_extensions import TypeAlias
 
 #: Type alias for case indices.
-CaseIndices: TypeAlias = Iterable[Tuple[str, int]]
+CaseIndices: TypeAlias = Iterable[tuple[str, int]]
 #: Type alias for the valid values for ``generate_new_cases`` parameters.
 GenerateNewCases: TypeAlias = Literal["always", "attempt", "no"]
 #: Type alias for the valid values for ``library`` parameters.
@@ -29,8 +30,8 @@ Precision: TypeAlias = Literal["exact", "similar"]
 #: Type alias for the valid values for ``series_id_tracking`` parameters.
 SeriesIDTracking: TypeAlias = Literal["fixed", "dynamic", "no"]
 #: Type alias for 2-dimensional tabular data.
-TabularData2D = Union[DataFrame, List[List[object]]]
+TabularData2D = Union[DataFrame, list[list[object]]]
 #: Type alias for 3-dimensional tabular (i.e., time-series) data.
-TabularData3D = Union[List[DataFrame], List[List[List[object]]]]
+TabularData3D = Union[list[DataFrame], list[list[list[object]]]]
 #: Type alias for the valid values for ``targeted_model`` parameters.
 TargetedModel: TypeAlias = Literal["single_targeted", "omni_targeted", "targetless"]
