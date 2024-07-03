@@ -7,7 +7,7 @@ import typing as t
 from pandas import DataFrame, Index
 
 if t.TYPE_CHECKING:
-    from howso.client.schemas import Session, Trainee
+    from howso.client.schemas import HowsoVersion, Session, Trainee
     from howso.utilities.reaction import Reaction
     from .configuration import HowsoConfiguration
 
@@ -38,7 +38,7 @@ class AbstractHowsoClient(ABC):
         """The default number of cases in the first react batch."""
 
     @abstractmethod
-    def get_version(self):
+    def get_version(self) -> HowsoVersion:
         """Get Howso version."""
 
     @abstractmethod

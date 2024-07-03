@@ -707,7 +707,7 @@ class TestClient:
     def test_get_version(self):
         """Test get_version()."""
         version = self.client.get_version()
-        assert version.client == importlib.metadata.version('howso-engine')
+        assert version['client'] == importlib.metadata.version('howso-engine')
 
     def test_doublemax_to_infinity_translation(self):
         """Test the translation from Double.MAX_VALUE to Infinity."""
