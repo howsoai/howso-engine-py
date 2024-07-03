@@ -1,9 +1,7 @@
-
 from collections import abc
 from functools import singledispatchmethod
 from pprint import pformat
 import typing as t
-
 import warnings
 
 import numpy as np
