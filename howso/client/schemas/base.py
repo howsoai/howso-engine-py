@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC
 from collections.abc import Iterable, Mapping
 import typing as t
@@ -24,6 +26,11 @@ class BaseSchema(ABC, t.Generic[DT]):
             Non-nullable attributes are always excluded.
         serialize : bool, default False
             Translate keys based on attribute map.
+
+        Returns
+        -------
+        dict
+            The schema's properties.
         """
         result = {}
 
@@ -53,9 +60,3 @@ class BaseSchema(ABC, t.Generic[DT]):
         if not isinstance(other, BaseSchema):
             return False
         return self.to_dict() == other.to_dict()
-
-    def __ne__(self, other: t.Any) -> bool:
-        """Returns true if both objects are not equal."""
-        if not isinstance(other, BaseSchema):
-            return True
-        return self.to_dict() != other.to_dict()

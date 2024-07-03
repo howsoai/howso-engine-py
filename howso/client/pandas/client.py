@@ -1,4 +1,7 @@
-from typing import Dict, Iterable, List, Optional, Union
+from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import Optional
 
 import pandas as pd
 from pandas import DataFrame, Index
@@ -187,7 +190,7 @@ class HowsoPandasClientMixin:
                 action -> pandas.DataFrame
                     A data frame of action values.
 
-                details -> Dict or List
+                details -> dict or list
                     An aggregated list of any requested details.
         """
         trainee_id = self._resolve_trainee_id(trainee_id)
@@ -209,7 +212,7 @@ class HowsoPandasClientMixin:
                 action -> pandas.DataFrame
                     A data frame of action values.
 
-                details -> Dict or List
+                details -> dict or list
                     An aggregated list of any requested details.
         """
         trainee_id = self._resolve_trainee_id(trainee_id)
@@ -221,7 +224,7 @@ class HowsoPandasClientMixin:
         response['action'] = deserialize_cases(response['action'], columns, feature_attributes)
         return response
 
-    def get_distances(self, *args, **kwargs) -> Dict[str, Union[DataFrame, List]]:
+    def get_distances(self, *args, **kwargs) -> dict[str, DataFrame | list]:
         """
         base: :func:`howso.client.AbstractHowsoClient.get_distances`.
 
