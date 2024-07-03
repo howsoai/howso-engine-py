@@ -14,10 +14,7 @@ import logging
 import math
 import random
 import re
-from typing import (
-    Any, Dict, Generator, Iterable, List, Mapping, NamedTuple, Optional, Tuple,
-    TYPE_CHECKING, Union,
-)
+from typing import Any, Dict, Generator, List, Mapping, NamedTuple, Optional, Tuple, TYPE_CHECKING, Union
 import unicodedata
 import uuid
 import warnings
@@ -30,10 +27,11 @@ from semantic_version import Version
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from howso.client.schemas import Trainee
     from .monitors import ProgressTimer
 
 
-def postprocess_trainee(trainee):
+def postprocess_trainee(trainee: "Trainee") -> "Trainee":
     """
     Post-process a trainee to update its data into the expected format.
 
@@ -54,7 +52,7 @@ def postprocess_trainee(trainee):
     return trainee
 
 
-def preprocess_trainee(trainee):
+def preprocess_trainee(trainee: "Trainee") -> "Trainee":
     """
     Pre-process a trainee to update its data into the expected format.
 
@@ -154,9 +152,9 @@ def get_features_from_data(
             f"`{data_parameter}` are not provided as a DataFrame.")
 
 
-def serialize_openapi_models(obj: Any, *, exclude_null: bool = False) -> Any:
+def serialize_models(obj: Any, *, exclude_null: bool = False) -> Any:
     """
-    Serialize OpenAPI client model instances.
+    Serialize client model instances.
 
     Parameters
     ----------
@@ -169,18 +167,18 @@ def serialize_openapi_models(obj: Any, *, exclude_null: bool = False) -> Any:
     """
     if isinstance(obj, list):
         return [
-            serialize_openapi_models(item, exclude_null=exclude_null)
+            serialize_models(item, exclude_null=exclude_null)
             for item in obj
         ]
     if isinstance(obj, OrderedDict):
         # Use OrderedDict if input is an OrderedDict, for consistency
         result = OrderedDict()
         for k, v in obj.items():
-            result[k] = serialize_openapi_models(v, exclude_null=exclude_null)
+            result[k] = serialize_models(v, exclude_null=exclude_null)
         return result
     if isinstance(obj, dict):
         return {
-            k: serialize_openapi_models(v, exclude_null=exclude_null)
+            k: serialize_models(v, exclude_null=exclude_null)
             for k, v in obj.items()
         }
     if hasattr(obj, 'to_dict'):
@@ -213,7 +211,7 @@ def postprocess_feature_attributes(features):
         return None
 
     # Serialize any OpenAPI models
-    features = deepcopy(serialize_openapi_models(features))
+    features = deepcopy(serialize_models(features))
 
     for feat in features.values():
         if feat is None:
@@ -259,7 +257,7 @@ def preprocess_feature_attributes(features):
         return None
 
     # Serialize any OpenAPI models
-    features = deepcopy(serialize_openapi_models(features))
+    features = deepcopy(serialize_models(features))
 
     regex = re.compile(r"%S.%f")
     for feat in features.values():

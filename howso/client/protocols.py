@@ -1,15 +1,15 @@
+from __future__ import annotations
+
 from typing import (
-    List,
-    Protocol,
     Optional,
+    Protocol,
     runtime_checkable,
     TYPE_CHECKING
 )
 
 if TYPE_CHECKING:
     from howso.direct.core import HowsoCore
-    from howso.openapi.models import Trainee
-    from howso.openapi.models import Project
+    from howso.client.schemas import Project, Trainee
 
 __all__ = [
     "LocalSaveableProtocol",
@@ -20,12 +20,13 @@ __all__ = [
 @runtime_checkable
 class LocalSaveableProtocol(Protocol):
     """Protocol to define a Howso client that has direct disk read/write access."""
+
     @property
-    def howso(self) -> "HowsoCore":
+    def howso(self) -> HowsoCore:
         """Howso Core API."""
         ...
 
-    def _get_trainee_from_core(self, trainee_id: str) -> "Trainee":
+    def _get_trainee_from_core(self, trainee_id: str) -> Trainee:
         """Retrieve the core representation of a Trainee object."""
         ...
 
@@ -34,17 +35,17 @@ class LocalSaveableProtocol(Protocol):
 class ProjectClient(Protocol):
     """Protocol to define a Howso client that supports projects."""
 
-    active_project: Optional["Project"]
+    active_project: Optional[Project]
 
-    def switch_project(self, project_id: str) -> "Project":
+    def switch_project(self, project_id: str) -> Project:
         """Switch active project."""
         ...
 
-    def create_project(self, name: str) -> "Project":
+    def create_project(self, name: str) -> Project:
         """Create new project."""
         ...
 
-    def update_project(self, project_id: str) -> "Project":
+    def update_project(self, project_id: str, *, name: Optional[str] = None) -> Project:
         """Update existing project."""
         ...
 
@@ -52,10 +53,10 @@ class ProjectClient(Protocol):
         """Delete a project."""
         ...
 
-    def get_project(self, project_id: str) -> "Project":
+    def get_project(self, project_id: str) -> Project:
         """Get existing project."""
         ...
 
-    def get_projects(self, search_terms: Optional[str]) -> List["Project"]:
+    def get_projects(self, search_terms: Optional[str]) -> list[Project]:
         """Search and list projects."""
         ...
