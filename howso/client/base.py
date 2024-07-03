@@ -79,7 +79,7 @@ class AbstractHowsoClient(ABC):
         """Return a list of all accessible trainees."""
 
     @abstractmethod
-    def delete_trainee(self, trainee_id, file_path=None) -> None:
+    def delete_trainee(self, trainee_id, file_path=None):
         """Delete a trainee in the Howso service."""
 
     @abstractmethod
@@ -287,7 +287,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> "Reaction":
+    ) -> Reaction:
         """React in a series until a stop condition is met."""
 
     @abstractmethod
@@ -378,7 +378,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> "Reaction":
+    ) -> Reaction:
         """Send a `react` to the Howso engine."""
 
     @abstractmethod

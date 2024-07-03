@@ -14,7 +14,6 @@ import operator
 import os
 from pathlib import Path
 import platform
-from types import SimpleNamespace
 import typing as t
 from typing import (
     Any,
@@ -544,7 +543,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        Dict
+        Trainee
             The `Trainee` object that was updated.
         """
         instance = Trainee.from_dict(trainee) if isinstance(trainee, dict) else trainee
