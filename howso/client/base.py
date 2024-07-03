@@ -8,7 +8,6 @@ from pandas import DataFrame, Index
 
 if t.TYPE_CHECKING:
     from howso.client.schemas import HowsoVersion, Reaction, Session, Trainee
-    from howso.utilities.reaction import Reaction
     from .configuration import HowsoConfiguration
 
 
