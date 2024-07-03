@@ -546,7 +546,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        Dict
+        Trainee
             The `Trainee` object that was updated.
         """
         instance = Trainee.from_dict(trainee) if isinstance(trainee, dict) else trainee
