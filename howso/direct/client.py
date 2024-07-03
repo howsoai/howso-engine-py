@@ -45,7 +45,7 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError, UnsupportedArgumentWarning
-from howso.client.schemas import HowsoVersion, Session, Trainee, TraineePersistence
+from howso.client.schemas import HowsoVersion, Reaction, Session, Trainee, TraineePersistence
 from howso.utilities import (
     build_react_series_df,
     internals,
@@ -57,7 +57,6 @@ from howso.utilities import (
     validate_list_shape
 )
 from howso.utilities.feature_attributes.base import MultiTableFeatureAttributes, SingleTableFeatureAttributes
-from howso.utilities.reaction import Reaction
 from .core import HowsoCore
 
 # Client version

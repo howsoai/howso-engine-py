@@ -7,9 +7,9 @@ import pandas as pd
 from pandas import DataFrame, Index
 
 from howso.client.client import get_howso_client_class
+from howso.client.schemas.reaction import Reaction
 from howso.utilities import deserialize_cases, format_dataframe
 from howso.utilities.internals import deserialize_to_dataframe
-from howso.utilities.reaction import Reaction
 
 
 class HowsoPandasClientMixin:

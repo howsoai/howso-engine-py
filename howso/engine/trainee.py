@@ -15,13 +15,12 @@ from howso.client.cache import TraineeCache
 from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import LocalSaveableProtocol, ProjectClient
-from howso.client.schemas import Project as BaseProject, Session as BaseSession, Trainee as BaseTrainee
+from howso.client.schemas import Project as BaseProject, Reaction, Session as BaseSession, Trainee as BaseTrainee
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
 from howso.utilities import matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
-from howso.utilities.reaction import Reaction
 from .typing import (
     CaseIndices,
     GenerateNewCases,
