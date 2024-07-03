@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING, Union
+from collections.abc import Iterable
+import typing as t
 
 from pandas import DataFrame, Index
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from howso.client.schemas import Session, Trainee
     from howso.utilities.reaction import Reaction
     from .configuration import HowsoConfiguration
@@ -21,7 +24,7 @@ class AbstractHowsoClient(ABC):
 
     @property
     @abstractmethod
-    def active_session(self) -> Union["Session", None]:
+    def active_session(self) -> Session | None:
         """Return the active session."""
 
     @property
@@ -52,31 +55,31 @@ class AbstractHowsoClient(ABC):
         persistence="allow",
         project=None,
         resources=None
-    ) -> "Trainee":
+    ) -> Trainee:
         """Create a trainee on the Howso service."""
 
     @abstractmethod
-    def update_trainee(self, trainee) -> "Trainee":
+    def update_trainee(self, trainee) -> Trainee:
         """Update an existing trainee in the Howso service."""
 
     @abstractmethod
-    def get_trainee(self, trainee_id) -> "Trainee":
+    def get_trainee(self, trainee_id) -> Trainee:
         """Get an existing trainee from the Howso service."""
 
     @abstractmethod
-    def get_trainee_information(self, trainee_id) -> Dict:
+    def get_trainee_information(self, trainee_id) -> dict:
         """Get information about the trainee."""
 
     @abstractmethod
-    def get_trainee_metrics(self, trainee_id) -> Dict:
+    def get_trainee_metrics(self, trainee_id) -> dict:
         """Get metric information for a trainee."""
 
     @abstractmethod
-    def get_trainees(self, search_terms=None) -> List:
+    def get_trainees(self, search_terms=None) -> list[dict]:
         """Return a list of all accessible trainees."""
 
     @abstractmethod
-    def delete_trainee(self, trainee_id, file_path=None) -> None:
+    def delete_trainee(self, trainee_id, file_path=None):
         """Delete a trainee in the Howso service."""
 
     @abstractmethod
@@ -84,7 +87,7 @@ class AbstractHowsoClient(ABC):
         self, trainee_id, new_trainee_name=None, *,
         library_type=None,
         resources=None,
-    ) -> "Trainee":
+    ) -> Trainee:
         """Copy a trainee in the Howso service."""
 
     @abstractmethod
@@ -173,7 +176,7 @@ class AbstractHowsoClient(ABC):
         """Set a substitution map for use in extended nominal generation."""
 
     @abstractmethod
-    def get_substitute_feature_values(self, trainee_id, clear_on_get=True) -> Dict:
+    def get_substitute_feature_values(self, trainee_id, clear_on_get=True) -> dict:
         """Get a substitution map for use in extended nominal generation."""
 
     @abstractmethod
@@ -185,23 +188,23 @@ class AbstractHowsoClient(ABC):
         """Get a dict of feature attributes."""
 
     @abstractmethod
-    def get_sessions(self, search_terms=None) -> List["Session"]:
+    def get_sessions(self, search_terms=None) -> list[Session]:
         """Get list of all accessible sessions."""
 
     @abstractmethod
-    def get_session(self, session_id) -> "Session":
+    def get_session(self, session_id) -> Session:
         """Get session details."""
 
     @abstractmethod
-    def update_session(self, session_id, *, metadata=None) -> "Session":
+    def update_session(self, session_id, *, metadata=None) -> Session:
         """Update a session."""
 
     @abstractmethod
-    def begin_session(self, name='default', metadata=None) -> "Session":
+    def begin_session(self, name='default', metadata=None) -> Session:
         """Begin a new session."""
 
     @abstractmethod
-    def get_trainee_sessions(self, trainee_id) -> List[Dict[str, str]]:
+    def get_trainee_sessions(self, trainee_id) -> list[dict[str, str]]:
         """Get the session ids of a trainee."""
 
     @abstractmethod
@@ -209,15 +212,15 @@ class AbstractHowsoClient(ABC):
         """Delete a session from a trainee."""
 
     @abstractmethod
-    def get_trainee_session_indices(self, trainee_id, session) -> Union[Index, List[int]]:
+    def get_trainee_session_indices(self, trainee_id, session) -> Index | list[int]:
         """Get list of all session indices for a specified session."""
 
     @abstractmethod
-    def get_trainee_session_training_indices(self, trainee_id, session) -> Union[Index, List[int]]:
+    def get_trainee_session_training_indices(self, trainee_id, session) -> Index | list[int]:
         """Get list of all session training indices for a specified session."""
 
     @abstractmethod
-    def get_hierarchy(self, trainee_id) -> Dict:
+    def get_hierarchy(self, trainee_id) -> dict:
         """Output the hierarchy for a trainee."""
 
     @abstractmethod
@@ -238,7 +241,7 @@ class AbstractHowsoClient(ABC):
         num_cases=None,
         precision=None,
         weight_feature=None,
-    ) -> Union["DataFrame", Dict]:
+    ) -> DataFrame | dict:
         """Get marginal stats for all features."""
 
     @abstractmethod
@@ -284,21 +287,21 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> "Reaction":
+    ) -> Reaction:
         """React in a series until a stop condition is met."""
 
     @abstractmethod
     def react_into_features(
         self, trainee_id, *,
-        distance_contribution: Union[bool, str] = False,
-        familiarity_conviction_addition: Union[bool, str] = False,
-        familiarity_conviction_removal: Union[bool, str] = False,
+        distance_contribution: bool | str = False,
+        familiarity_conviction_addition: bool | str = False,
+        familiarity_conviction_removal: bool | str = False,
         features=None,
-        influence_weight_entropy: Union[bool, str] = False,
-        p_value_of_addition: Union[bool, str] = False,
-        p_value_of_removal: Union[bool, str] = False,
-        similarity_conviction: Union[bool, str] = False,
-        use_case_weights: Union[bool, str] = False,
+        influence_weight_entropy: bool | str = False,
+        p_value_of_addition: bool | str = False,
+        p_value_of_removal: bool | str = False,
+        similarity_conviction: bool | str = False,
+        use_case_weights: bool | str = False,
         weight_feature=None
     ):
         """Calculate conviction and other data for the specified feature(s)."""
@@ -323,7 +326,7 @@ class AbstractHowsoClient(ABC):
         sub_model_size=None,
         use_case_weights=None,
         weight_feature=None,
-    ) -> Union[DataFrame, dict]:
+    ) -> DataFrame | dict:
         """Computes, caches, and/or returns specified feature interpretations."""
 
     @abstractmethod
@@ -339,7 +342,7 @@ class AbstractHowsoClient(ABC):
         p_value_of_removal=False,
         use_case_weights=False,
         weight_feature=None
-    ) -> Union["DataFrame", Dict]:
+    ) -> DataFrame | dict:
         """Compute specified data for a **set** of cases."""
 
     @abstractmethod
@@ -375,11 +378,11 @@ class AbstractHowsoClient(ABC):
         use_case_weights=False,
         use_regional_model_residuals=True,
         weight_feature=None
-    ) -> "Reaction":
+    ) -> Reaction:
         """Send a `react` to the Howso engine."""
 
     @abstractmethod
-    def evaluate(self, trainee_id, features_to_code_map, *, aggregation_code=None) -> Dict:
+    def evaluate(self, trainee_id, features_to_code_map, *, aggregation_code=None) -> dict:
         """Evaluate custom code on case values within the trainee."""
 
     @abstractmethod
@@ -466,7 +469,7 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def get_cases(self, trainee_id, session=None, case_indices=None,
                   indicate_imputed=False, features=None, condition=None,
-                  num_cases=None, precision=None) -> Union[Dict, "DataFrame"]:
+                  num_cases=None, precision=None) -> dict | DataFrame:
         """Retrieve cases from a trainee."""
 
     @abstractmethod
@@ -475,8 +478,8 @@ class AbstractHowsoClient(ABC):
         trainee_id,
         num,
         sort_feature,
-        features: Optional[Iterable[str]] = None
-    ) -> Union[Dict, "DataFrame"]:
+        features: t.Optional[Iterable[str]] = None
+    ) -> dict | DataFrame:
         """Get the extreme cases of a trainee for the given feature(s)."""
 
     @abstractmethod
@@ -489,13 +492,13 @@ class AbstractHowsoClient(ABC):
         trainee_id,
         *,
 
-        familiarity_conviction_addition: Union[bool, str] = True,
-        familiarity_conviction_removal: Union[bool, str] = False,
+        familiarity_conviction_addition: bool | str = True,
+        familiarity_conviction_removal: bool | str = False,
         use_case_weights: bool = False,
         features=None,
         action_features=None,
         weight_feature=None
-    ) -> Union[Dict, "DataFrame"]:
+    ) -> dict | DataFrame:
         """Get familiarity conviction for features in the model."""
 
     @abstractmethod
@@ -514,19 +517,19 @@ class AbstractHowsoClient(ABC):
                                action_feature=None, from_case_indices=None,
                                from_values=None, to_case_indices=None,
                                to_values=None, use_case_weights=False,
-                               weight_feature=None) -> List[float]:
+                               weight_feature=None) -> list[float]:
         """Compute pairwise distances between specified cases."""
 
     @abstractmethod
     def get_distances(self, trainee_id, features=None, *,
                       action_feature=None, case_indices=None,
                       feature_values=None, use_case_weights=False,
-                      weight_feature=None) -> Dict:
+                      weight_feature=None) -> dict:
         """Compute distances matrix for specified cases."""
 
     @abstractmethod
     def get_params(self, trainee_id, *, action_feature=None,
-                   context_features=None, mode=None, weight_feature=None) -> Dict[str, Any]:
+                   context_features=None, mode=None, weight_feature=None) -> dict[str, t.Any]:
         """Get parameters used by the system."""
 
     @abstractmethod
