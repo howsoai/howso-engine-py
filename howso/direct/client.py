@@ -1225,24 +1225,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             return dict()
         return ret
 
-    def set_random_seed(self, trainee_id: str, seed: Union[int, float, str]):
-        """
-        Sets the random seed for the trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to set the random seed for.
-        seed: int or float or str
-            The random seed.
-            Ex: ``7998``, ``"bobtherandomseed"``
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print(f'Setting random seed for trainee with id: {trainee_id}')
-        self.howso.set_random_seed(trainee_id, seed)
-        self._auto_persist_trainee(trainee_id)
-
     def train(  # noqa: C901
         self,
         trainee_id: str,
