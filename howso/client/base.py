@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Mapping, MutableMapping
+from collections.abc import Collection, Iterable, Mapping, MutableMapping
 import typing as t
 from uuid import UUID
 import warnings
@@ -532,7 +532,7 @@ class AbstractHowsoClient(ABC):
     def edit_cases(
         self,
         trainee_id: str,
-        feature_values: list[t.Any] | DataFrame,
+        feature_values: Iterable[t.Any] | DataFrame,
         *,
         case_indices: t.Optional[CaseIndices] = None,
         condition: t.Optional[Mapping] = None,
