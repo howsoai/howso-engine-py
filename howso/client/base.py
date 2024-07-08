@@ -62,14 +62,19 @@ class AbstractHowsoClient(ABC):
         """The default number of cases in the first react batch."""
 
     @abstractmethod
-    def _auto_resolve_trainee(self, trainee_id: str):
+    def _resolve_trainee(self, trainee_id: str, **kwargs) -> str:
         """
-        Resolve a Trainee and acquire its resources.
+        Resolve a Trainee resource.
 
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee to persist.
+            The identifier of the Trainee to resolve.
+
+        Returns
+        -------
+        str
+            The normalized Trainee unique identifier.
         """
 
     @abstractmethod
@@ -80,7 +85,7 @@ class AbstractHowsoClient(ABC):
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee to persist.
+            The identifier of the Trainee to persist.
         """
 
     @abstractmethod
@@ -126,10 +131,6 @@ class AbstractHowsoClient(ABC):
         int
             The response payload size.
         """
-
-    def _resolve_trainee_id(self, trainee_id: str, *args, **kwargs):
-        """Resolve trainee identifier."""
-        return trainee_id
 
     @abstractmethod
     def get_version(self) -> HowsoVersion:
@@ -212,11 +213,11 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to set the random seed for.
-        seed: int or float or str
+        seed : int or float or str
             The random seed.
             Ex: ``7998``, ``"myrandomseed"``
         """
-        self._auto_resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id)
         if self.configuration.verbose:
             print(f'Setting random seed for Trainee with id: {trainee_id}')
         self._execute(trainee_id, "set_random_seed", {"seed": seed})
@@ -269,6 +270,7 @@ class AbstractHowsoClient(ABC):
             might be slower. Higher values should improve performance but may
             decrease accuracy of results.
         """
+        trainee_id = self._resolve_trainee(trainee_id)
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
         util.validate_list_shape(features, 1, "features", "str")
@@ -276,7 +278,6 @@ class AbstractHowsoClient(ABC):
 
         if self.configuration.verbose:
             print(f'Imputing Trainee with id: {trainee_id}')
-        self._auto_resolve_trainee(trainee_id)
         self._execute(trainee_id, "impute", {
             "features": features,
             "features_to_impute": features_to_impute,
@@ -365,6 +366,7 @@ class AbstractHowsoClient(ABC):
         ValueError
             If `num_cases` is not at least 1.
         """
+        trainee_id = self._resolve_trainee(trainee_id)
         if num_cases < 1:
             raise ValueError('num_cases must be a value greater than 0')
 
@@ -381,7 +383,6 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Removing case(s) from Trainee with id: {trainee_id}')
 
-        self._auto_resolve_trainee(trainee_id)
         result = self._execute(trainee_id, "remove_cases", {
             "case_indices": case_indices,
             "condition": condition,
@@ -490,6 +491,7 @@ class AbstractHowsoClient(ABC):
         int
             The number of cases moved.
         """
+        trainee_id = self._resolve_trainee(trainee_id)
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
 
@@ -509,7 +511,6 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Moving case(s) from Trainee with id: {trainee_id}')
 
-        self._auto_resolve_trainee(trainee_id)
         result = self._execute(trainee_id, "move_cases", {
             "target_id": target_id,
             "case_indices": case_indices,
@@ -590,6 +591,7 @@ class AbstractHowsoClient(ABC):
         int
             The number of cases modified.
         """
+        trainee_id = self._resolve_trainee(trainee_id)
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
 
@@ -599,7 +601,6 @@ class AbstractHowsoClient(ABC):
         if case_indices is not None:
             util.validate_case_indices(case_indices)
 
-        self._auto_resolve_trainee(trainee_id)
         cached_trainee = self.trainee_cache.get(trainee_id)
 
         # Serialize feature_values
@@ -1044,6 +1045,7 @@ class AbstractHowsoClient(ABC):
         dict
             A cases object containing the feature names and cases.
         """
+        trainee_id = self._resolve_trainee(trainee_id)
         if case_indices is not None:
             util.validate_case_indices(case_indices)
 
@@ -1056,7 +1058,6 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Retrieving cases for Trainee with id {trainee_id}.')
 
-        self._auto_resolve_trainee(trainee_id)
         result = self._execute(trainee_id, "get_cases", {
             "features": features,
             "session": session,
@@ -1099,9 +1100,9 @@ class AbstractHowsoClient(ABC):
         dict
             A cases object containing the feature names and extreme cases.
         """
+        trainee_id = self._resolve_trainee(trainee_id)
         util.validate_list_shape(features, 1, "features", "str")
 
-        self._auto_resolve_trainee(trainee_id)
         if self.configuration.verbose:
             print(f'Getting extreme cases for trainee with id: {trainee_id}')
         result = self._execute(trainee_id, "get_extreme_cases", {
@@ -1130,7 +1131,7 @@ class AbstractHowsoClient(ABC):
         int
             The number of cases in the model
         """
-        self._auto_resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id)
         ret = self._execute(trainee_id, "get_num_training_cases", {})
         if isinstance(ret, dict):
             return ret.get('count', 0)

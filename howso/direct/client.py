@@ -1109,14 +1109,19 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.howso.persist(trainee_id)
 
-    def _auto_resolve_trainee(self, trainee_id: str):
+    def _resolve_trainee(self, trainee_id: str, **kwargs) -> str:
         """
         Resolve a Trainee and acquire its resources.
 
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee to persist.
+            The identifier of the Trainee to resolve.
+
+        Returns
+        -------
+        str
+            The normalized Trainee unique identifier.
 
         Raises
         ------
@@ -1125,6 +1130,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if trainee_id not in self.trainee_cache:
             self.acquire_trainee_resources(trainee_id)
+        return trainee_id
 
     def _auto_persist_trainee(self, trainee_id: str):
         """
@@ -3304,8 +3310,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if case_indices is not None:
             validate_case_indices(case_indices)
 
-        # Get default features
-        self._auto_resolve_trainee(trainee_id)
+        # Get cached trainee
         trainee = self.trainee_cache.get(trainee_id)
 
         # Preprocess contexts
