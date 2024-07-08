@@ -2275,7 +2275,7 @@ class Trainee(BaseTrainee):
     def get_extreme_cases(
         self,
         *,
-        features: Optional[Iterable[str]] = None,
+        features: Optional[Collection[str]] = None,
         num: int,
         sort_feature: str,
     ) -> DataFrame:
@@ -2284,7 +2284,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        features : list of str, optional
+        features : Collection of str, optional
             The features to include in the case data.
         num : int
             The number of cases to get.
