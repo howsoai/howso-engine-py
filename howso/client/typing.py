@@ -26,5 +26,8 @@ class Evaluation(TypedDict):
 CaseIndices: TypeAlias = Sequence[tuple[str, int]]
 """Type alias for ``case_indices`` parameters."""
 
+Mode: TypeAlias = Literal["robust", "full"]
+"""Type alias for the valid values for ``mode`` parameters."""
+
 Precision: TypeAlias = Literal["exact", "similar"]
 """Type alias for the valid values of ``precision`` parameters."""

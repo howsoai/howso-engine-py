@@ -13,7 +13,7 @@ from howso.utilities import internals
 from howso.utilities import utilities as util
 from howso.utilities.features import serialize_cases
 from .exceptions import HowsoError
-from .typing import CaseIndices, Cases, Evaluation, Precision
+from .typing import CaseIndices, Cases, Evaluation, Mode, Precision
 
 if t.TYPE_CHECKING:
     from .cache import TraineeCache
@@ -1265,11 +1265,107 @@ class AbstractHowsoClient(ABC):
                       weight_feature=None) -> dict:
         """Compute distances matrix for specified cases."""
 
-    @abstractmethod
-    def get_params(self, trainee_id, *, action_feature=None,
-                   context_features=None, mode=None, weight_feature=None) -> dict[str, t.Any]:
-        """Get parameters used by the system."""
+    def get_params(
+        self,
+        trainee_id: str,
+        *,
+        action_feature: t.Optional[str] = None,
+        context_features: t.Optional[Iterable[str]] = None,
+        mode: t.Optional[Mode] = None,
+        weight_feature: t.Optional[str] = None,
+    ) -> dict[str, t.Any]:
+        """
+        Get the parameters used by the Trainee.
 
-    @abstractmethod
-    def set_params(self, trainee_id, params):
-        """Set specific hyperparameters in the trainee."""
+        If 'action_feature',
+        'context_features', 'mode', or 'weight_feature' are specified, then
+        the best hyperparameters analyzed in the Trainee are the value of the
+        'hyperparameter_map' key, otherwise this value will be the dictionary
+        containing all the hyperparameter sets in the Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee get parameters from.
+        action_feature : str, optional
+            If specified will return the best analyzed hyperparameters to
+            target this feature.
+        context_features : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            to use with these context features.
+        mode : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            that were computed in this mode.
+        weight_feature : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            that were analyzed using this weight feature.
+
+        Returns
+        -------
+        dict
+            A dict including the either all of the Trainee's internal
+            parameters or only the best hyperparameters selected using the
+            passed parameters.
+        """
+        self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Getting model attributes from Trainee with id: {trainee_id}')
+        return self._execute(trainee_id, "get_params", {
+            "action_feature": action_feature,
+            "context_features": context_features,
+            "mode": mode,
+            "weight_feature": weight_feature,
+        })
+
+    def set_params(self, trainee_id: str, params: Mapping):
+        """
+        Sets specific hyperparameters in the Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee set hyperparameters.
+
+        params : dict
+            A dictionary in the following format containing the hyperparameter
+            information, which is required, and other parameters which are
+            all optional.
+
+            Example::
+
+                {
+                    "hyperparameter_map": {
+                        ".targetless": {
+                            "robust": {
+                                ".none": {
+                                    "dt": -1, "p": .1, "k": 8
+                                }
+                            }
+                        }
+                    },
+                }
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Setting model attributes for Trainee with id: {trainee_id}')
+
+        parameters = dict(params)
+        deprecated_params = {
+            'auto_optimize_enabled': 'auto_analyze_enabled',
+            'optimize_threshold': 'analyze_threshold',
+            'optimize_growth_factor': 'analyze_growth_factor',
+            'auto_optimize_limit_size': 'auto_analyze_limit_size',
+        }
+
+        # replace any old params with new params and remove old param
+        for old_param, new_param in deprecated_params.items():
+            if old_param in parameters:
+                parameters[new_param] = parameters[old_param]
+                del parameters[old_param]
+                warnings.warn(
+                    f'The `{old_param}` parameter has been renamed to '
+                    f'`{new_param}`, please use the new parameter '
+                    'instead.', UserWarning)
+
+        self._execute(trainee_id, "set_params", parameters)
+        self._auto_persist_trainee(trainee_id)

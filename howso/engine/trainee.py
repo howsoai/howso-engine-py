@@ -16,7 +16,7 @@ from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import LocalSaveableProtocol, ProjectClient
 from howso.client.schemas import Project as BaseProject, Reaction, Session as BaseSession, Trainee as BaseTrainee
-from howso.client.typing import CaseIndices, Precision
+from howso.client.typing import CaseIndices, Mode, Precision
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
@@ -25,7 +25,6 @@ from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 from .typing import (
     GenerateNewCases,
     Library,
-    Mode,
     NewCaseThreshold,
     NormalizeMethod,
     PathLike,

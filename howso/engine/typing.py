@@ -12,8 +12,6 @@ from typing_extensions import TypeAlias
 GenerateNewCases: TypeAlias = Literal["always", "attempt", "no"]
 #: Type alias for the valid values for ``library`` parameters.
 Library: TypeAlias = Literal["st", "mt"]
-#: Type alias for the valid values for ``mode`` parameters.
-Mode: TypeAlias = Literal["robust", "full"]
 #: Type alias for the valid values for ``new_case_threshold`` parameters.
 NewCaseThreshold: TypeAlias = Literal["max", "min", "most_similar"]
 #: Type alias for the valid values for ``normalize_method`` parameters.

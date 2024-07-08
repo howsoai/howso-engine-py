@@ -4133,60 +4133,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 )
         return context_features, contexts
 
-    def get_params(
-        self,
-        trainee_id: str,
-        *,
-        action_feature: Optional[str] = None,
-        context_features: Optional[Iterable[str]] = None,
-        mode: Optional[Literal["robust", "full"]] = None,
-        weight_feature: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """
-        Get the parameters used by the Trainee.
-
-        If 'action_feature',
-        'context_features', 'mode', or 'weight_feature' are specified, then
-        the best hyperparameters analyzed in the Trainee are the value of the
-        'hyperparameter_map' key, otherwise this value will be the dictionary
-        containing all the hyperparameter sets in the Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee get parameters from.
-        action_feature : str, optional
-            If specified will return the best analyzed hyperparameters to
-            target this feature.
-        context_features : str, optional
-            If specified, will find and return the best analyzed hyperparameters
-            to use with these context features.
-        mode : str, optional
-            If specified, will find and return the best analyzed hyperparameters
-            that were computed in this mode.
-        weight_feature : str, optional
-            If specified, will find and return the best analyzed hyperparameters
-            that were analyzed using this weight feaure.
-
-        Returns
-        -------
-        dict
-            A dict including the either all of the Trainee's internal
-            parameters or only the best hyperparameters selected using the
-            passed parameters.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print(f'Getting model attributes from trainee with id: '
-                  f'{trainee_id}')
-        return self.howso.get_internal_parameters(
-            trainee_id,
-            action_feature=action_feature,
-            context_features=context_features,
-            mode=mode,
-            weight_feature=weight_feature,
-        )
-
     def get_trainee_session_indices(self, trainee_id: str, session: str
                                     ) -> List[int]:
         """
@@ -4281,58 +4227,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             child_id=child_id,
             child_name_path=child_name_path
         )
-
-    def set_params(self, trainee_id: str, params: Dict):
-        """
-        Sets specific hyperparameters in the trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee set hyperparameters.
-
-        params : dict
-            A dictionary in the following format containing the hyperparameter
-            information, which is required, and other parameters which are
-            all optional.
-
-            Example::
-
-                {
-                    "hyperparameter_map": {
-                        ".targetless": {
-                            "robust": {
-                                ".none": {
-                                    "dt": -1, "p": .1, "k": 8
-                                }
-                            }
-                        }
-                    },
-                }
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print(f'Setting model attributes for trainee with id: {trainee_id}')
-
-        deprecated_params = {
-            'auto_optimize_enabled': 'auto_analyze_enabled',
-            'optimize_threshold': 'analyze_threshold',
-            'optimize_growth_factor': 'analyze_growth_factor',
-            'auto_optimize_limit_size': 'auto_analyze_limit_size',
-        }
-
-        # replace any old params with new params and remove old param
-        for old_param, new_param in deprecated_params.items():
-            if old_param in params:
-                params[new_param] = params[old_param]
-                del params[old_param]
-                warnings.warn(
-                    f'The `{old_param}` parameter has been renamed to '
-                    f'`{new_param}`, please use the new parameter '
-                    'instead.', UserWarning)
-
-        self.howso.set_internal_parameters(trainee_id, params)
-        self._auto_persist_trainee(trainee_id)
 
     def set_auto_analyze_params(  # noqa: C901
         self,
