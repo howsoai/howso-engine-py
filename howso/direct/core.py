@@ -2490,7 +2490,6 @@ class HowsoCore:
         trainee_id: str,
         path_to_trainee: Optional[Union[Path, str]] = None,
         decode_cases: bool = False,
-        separate_files: bool = False
     ) -> None:
         """
         Export a saved Trainee's data to json files for migration.
@@ -2503,8 +2502,6 @@ class HowsoCore:
             The path to where the saved trainee file is located.
         decoded_cases : bool, default False.
             Whether to export decoded cases.
-        separate_files : bool, default False
-            Whether to load each case from its individual file.
         """
         if path_to_trainee is None:
             path_to_trainee = self.default_save_path
@@ -2514,7 +2511,6 @@ class HowsoCore:
             "trainee": f"{trainee_id}",
             "root_filepath": f"{self.howso_path}/",
             "decode_cases": decode_cases,
-            "separate_files": separate_files,
         })
 
     def upgrade_trainee(
