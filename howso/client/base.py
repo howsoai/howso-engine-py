@@ -1196,11 +1196,11 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The id of the trainee.
-        features : iterable of str, optional
+        features : Collection of str, optional
             An iterable of feature names to calculate convictions. At least 2
             features are required to get familiarity conviction. If not
             specified all features will be used.
-        action_features : iterable of str, optional
+        action_features : Collection of str, optional
             An iterable of feature names to be treated as action features
             during conviction calculation in order to determine the conviction
             of each feature against the set of action_features. If not
