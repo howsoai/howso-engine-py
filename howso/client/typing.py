@@ -13,6 +13,16 @@ class Cases(TypedDict):
     """The feature column names."""
 
 
+class Evaluation(TypedDict):
+    """Representation of an Evaluate result."""
+
+    aggregated: Any
+    """The aggregated evaluation output."""
+
+    evaluated: dict[str, list[Any]]
+    """A mapping of feature names to lists of values."""
+
+
 CaseIndices: TypeAlias = Sequence[tuple[str, int]]
 """Type alias for ``case_indices`` parameters."""
 

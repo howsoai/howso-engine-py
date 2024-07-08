@@ -8,16 +8,16 @@ import warnings
 
 from pandas import DataFrame, Index
 
+from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee, TraineePersistence
 from howso.utilities import internals
 from howso.utilities import utilities as util
 from howso.utilities.features import serialize_cases
 from .exceptions import HowsoError
+from .typing import CaseIndices, Cases, Evaluation, Precision
 
 if t.TYPE_CHECKING:
-    from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee, TraineePersistence
     from .cache import TraineeCache
     from .configuration import HowsoConfiguration
-    from .typing import CaseIndices, Cases, Precision
 
 
 class AbstractHowsoClient(ABC):
@@ -864,9 +864,50 @@ class AbstractHowsoClient(ABC):
     ) -> Reaction:
         """Send a `react` to the Howso engine."""
 
-    @abstractmethod
-    def evaluate(self, trainee_id, features_to_code_map, *, aggregation_code=None) -> dict:
-        """Evaluate custom code on case values within the trainee."""
+    def evaluate(
+        self,
+        trainee_id: str,
+        features_to_code_map: Mapping[str, str],
+        *,
+        aggregation_code: t.Optional[str] = None
+    ) -> Evaluation:
+        """
+        Evaluate custom code on feature values of all cases in the trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+        features_to_code_map : dict of str to str
+            A dictionary with feature name keys and custom Amalgam code string values.
+
+            The custom code can use "#feature_name 0" to reference the value
+            of that feature for each case.
+        aggregation_code : str, optional
+            A string of custom Amalgam code that can access the list of values
+            derived form the custom code in features_to_code_map.
+            The custom code can use "#feature_name 0" to reference the list of
+            values derived from using the custom code in features_to_code_map.
+
+        Returns
+        -------
+        dict
+            A dictionary with keys: 'evaluated' and 'aggregated'
+
+            'evaluated' is a dictionary with feature name
+            keys and lists of values derived from the features_to_code_map
+            custom code.
+
+            'aggregated' is None if no aggregation_code is given, it otherwise
+            holds the output of the custom 'aggregation_code'
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Evaluating on Trainee with id: {trainee_id}')
+        return self._execute(trainee_id, "evaluate", {
+            "features_to_code_map": features_to_code_map,
+            "aggregation_code": aggregation_code
+        })
 
     @abstractmethod
     def analyze(
@@ -1137,20 +1178,66 @@ class AbstractHowsoClient(ABC):
             return ret.get('count', 0)
         return 0
 
-    @abstractmethod
     def get_feature_conviction(
         self,
-        trainee_id,
+        trainee_id: str,
         *,
-
-        familiarity_conviction_addition: bool | str = True,
-        familiarity_conviction_removal: bool | str = False,
+        action_features: t.Optional[Collection[str]] = None,
+        features: t.Optional[Collection[str]] = None,
+        familiarity_conviction_addition: bool = True,
+        familiarity_conviction_removal: bool = False,
         use_case_weights: bool = False,
-        features=None,
-        action_features=None,
-        weight_feature=None
-    ) -> dict | DataFrame:
-        """Get familiarity conviction for features in the model."""
+        weight_feature: t.Optional[str] = None
+    ) -> dict:
+        """
+        Get familiarity conviction for features in the model.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee.
+        features : iterable of str, optional
+            An iterable of feature names to calculate convictions. At least 2
+            features are required to get familiarity conviction. If not
+            specified all features will be used.
+        action_features : iterable of str, optional
+            An iterable of feature names to be treated as action features
+            during conviction calculation in order to determine the conviction
+            of each feature against the set of action_features. If not
+            specified, conviction is computed for each feature against the rest
+            of the features as a whole.
+        familiarity_conviction_addition : bool, default True
+            Calculate and output familiarity conviction of adding the
+            specified features in the output.
+        familiarity_conviction_removal : bool, default False
+            Calculate and output familiarity conviction of removing
+            the specified features in the output.
+        weight_feature : str, optional
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+        use_case_weights : bool, default False
+            If set to True will scale influence weights by each
+            case's weight_feature weight.
+
+        Returns
+        -------
+        dict
+            A dict with familiarity_conviction_addition or
+            familiarity_conviction_removal
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        util.validate_list_shape(features, 1, "features", "str")
+        util.validate_list_shape(action_features, 1, "action_features", "str")
+        if self.configuration.verbose:
+            print(f'Getting conviction of features for Trainee with id: {trainee_id}')
+        return self._execute(trainee_id, "get_feature_conviction", {
+            "features": features,
+            "action_features": action_features,
+            "familiarity_conviction_addition": familiarity_conviction_addition,
+            "familiarity_conviction_removal": familiarity_conviction_removal,
+            "weight_feature": weight_feature,
+            "use_case_weights": use_case_weights,
+        })
 
     @abstractmethod
     def add_feature(self, trainee_id, feature, feature_value=None, *,

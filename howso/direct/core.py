@@ -2191,62 +2191,6 @@ class HowsoCore:
             "weight_feature": weight_feature,
         })
 
-    def compute_conviction_of_features(
-        self,
-        trainee_id: str,
-        *,
-        features: Optional[Iterable[str]] = None,
-        action_features: Optional[Iterable[str]] = None,
-        familiarity_conviction_addition: bool = True,
-        familiarity_conviction_removal: bool = False,
-        weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
-    ) -> Dict:
-        """
-        Get familiarity conviction for features in the model.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The id of the trainee.
-        features : iterable of str, optional
-            An iterable of feature names to calculate convictions. At least 2
-            features are required to get familiarity conviction. If not
-            specified all features will be used.
-        action_features : iterable of str, optional
-            An iterable of feature names to be treated as action features
-            during conviction calculation in order to determine the conviction
-            of each feature against the set of action_features. If not
-            specified, conviction is computed for each feature against the rest
-            of the features as a whole.
-        familiarity_conviction_addition : bool, default True
-            Calculate and output familiarity conviction of adding the
-            specified features in the output.
-        familiarity_conviction_removal : bool, default False
-            Calculate and output familiarity conviction of removing
-            the specified features in the output.
-        weight_feature : str, optional
-            Name of feature whose values to use as case weights.
-            When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
-            If set to True will scale influence weights by each
-            case's weight_feature weight.
-
-        Returns
-        -------
-        dict
-            A dict with familiarity_conviction_addition or
-            familiarity_conviction_removal.
-        """
-        return self._execute(trainee_id, "compute_conviction_of_features", {
-            "features": features,
-            "action_features": action_features,
-            "familiarity_conviction_addition": familiarity_conviction_addition,
-            "familiarity_conviction_removal": familiarity_conviction_removal,
-            "weight_feature": weight_feature,
-            "use_case_weights": use_case_weights,
-        })
-
     def get_session_indices(self, trainee_id: str, session: str) -> List[int]:
         """
         Get list of all session indices for a specified session.
@@ -2646,39 +2590,6 @@ class HowsoCore:
             "column_offset": column_offset,
             "column_count": column_count,
         })
-
-    def evaluate(
-        self,
-        trainee_id: str,
-        features_to_code_map: Dict[str, str],
-        *,
-        aggregation_code: Optional[str] = None
-    ) -> Dict:
-        """
-        Evaluate custom code on feature values of all cases in the trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        features_to_code_map : dict of str to str
-            A dictionary with feature name keys and custom Amalgam code string
-            values.
-        aggregation_code : str, optional
-            A string of custom Amalgam code that can access the list of values
-            derived form the custom code in features_to_code_map.
-
-        Returns
-        -------
-        dict
-            A dictionary with keys: 'evaluated' and 'aggregated'.
-        """
-        return self._execute(
-            trainee_id, "evaluate",
-            {
-                "features_to_code_map": features_to_code_map,
-                "aggregation_code": aggregation_code
-            })
 
     def reset_parameter_defaults(self, trainee_id: str) -> None:
         """
