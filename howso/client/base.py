@@ -1,30 +1,54 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable, Mapping, MutableMapping
 import typing as t
+from uuid import UUID
+import warnings
 
 from pandas import DataFrame, Index
 
+from howso.utilities import utilities as util
+from howso.utilities import internals
+from .exceptions import HowsoError
+
 if t.TYPE_CHECKING:
-    from howso.client.schemas import HowsoVersion, Reaction, Session, Trainee
+    from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee, TraineePersistence
+    from .cache import TraineeCache
     from .configuration import HowsoConfiguration
+    from .typing import CaseIndices, Cases
 
 
 class AbstractHowsoClient(ABC):
     """The base definition of the Howso client interface."""
 
     configuration: "HowsoConfiguration"
+    """The client configuration options."""
+
+    ERROR_MESSAGES = {
+        "missing_session": "There is currently no active session. Begin a new session to continue."
+    }
+    """Mapping of error code to default error message."""
+
+    WARNING_MESSAGES = {
+        "invalid_precision": (
+            'Supported values for `precision` are "exact" and "similar". The operation will be completed as '
+            'if the value of `precision` is "exact".')
+    }
+    """Mapping of warning type to default warning message."""
+
+    SUPPORTED_PRECISION_VALUES = ["exact", "similar"]
+    """Allowed values for precision."""
 
     @property
     @abstractmethod
-    def trainee_cache(self):
-        """Return the trainee cache."""
+    def trainee_cache(self) -> TraineeCache:
+        """Return the Trainee cache."""
 
     @property
     @abstractmethod
     def active_session(self) -> Session | None:
-        """Return the active session."""
+        """Return the active Session."""
 
     @property
     @abstractmethod
@@ -37,40 +61,106 @@ class AbstractHowsoClient(ABC):
         """The default number of cases in the first react batch."""
 
     @abstractmethod
+    def _auto_resolve_trainee(self, trainee_id: str):
+        """
+        Resolve a Trainee and acquire its resources.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to persist.
+        """
+
+    @abstractmethod
+    def _auto_persist_trainee(self, trainee_id: str):
+        """
+        Automatically persists the Trainee if the persistence state allows.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to persist.
+        """
+
+    @abstractmethod
+    def _execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:
+        """
+        Execute a label in Howso engine.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The entity handle of the Trainee.
+        label : str
+            The label to execute.
+        payload : Any
+            The payload to send to label.
+
+        Returns
+        -------
+        Any
+            The label's response.
+        """
+
+    @abstractmethod
+    def _execute_sized(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> tuple[t.Any, int, int]:
+        """
+        Execute a label in Howso engine and return the request and response sizes.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The entity handle of the Trainee.
+        label : str
+            The label to execute.
+        payload : Any
+            The payload to send to label.
+
+        Returns
+        -------
+        Any
+            The label's response.
+        int
+            The request payload size.
+        int
+            The response payload size.
+        """
+
+    @abstractmethod
     def get_version(self) -> HowsoVersion:
         """Get Howso version."""
 
     @abstractmethod
     def create_trainee(
         self,
-        name=None,
-        features=None,
+        name: t.Optional[str] = None,
+        features: t.Optional[Mapping[str, Mapping]] = None,
         *,
-        id=None,
-        library_type=None,
-        max_wait_time=None,
-        metadata=None,
-        overwrite_trainee=False,
-        persistence="allow",
-        project=None,
-        resources=None
+        id: t.Optional[str | UUID] = None,
+        library_type: t.Optional[t.Literal["st", "mt"]] = None,
+        max_wait_time: t.Optional[int | float] = None,
+        metadata: t.Optional[MutableMapping[str, t.Any]] = None,
+        overwrite_trainee: bool = False,
+        persistence: TraineePersistence = "allow",
+        project: t.Optional[str | Project] = None,
+        resources: t.Optional[Mapping[str, t.Any]] = None
     ) -> Trainee:
-        """Create a trainee on the Howso service."""
+        """Create a Trainee in the Howso service."""
 
     @abstractmethod
-    def update_trainee(self, trainee) -> Trainee:
+    def update_trainee(self, trainee: Trainee) -> Trainee:
         """Update an existing trainee in the Howso service."""
 
     @abstractmethod
-    def get_trainee(self, trainee_id) -> Trainee:
+    def get_trainee(self, trainee_id: str) -> Trainee:
         """Get an existing trainee from the Howso service."""
 
     @abstractmethod
-    def get_trainee_information(self, trainee_id) -> dict:
+    def get_trainee_information(self, trainee_id: str) -> dict:
         """Get information about the trainee."""
 
     @abstractmethod
-    def get_trainee_metrics(self, trainee_id) -> dict:
+    def get_trainee_metrics(self, trainee_id: str) -> dict:
         """Get metric information for a trainee."""
 
     @abstractmethod
@@ -98,22 +188,35 @@ class AbstractHowsoClient(ABC):
         """Copy a subtrainee in trainee's hierarchy."""
 
     @abstractmethod
-    def acquire_trainee_resources(self, trainee_id, *, max_wait_time=None):
-        """Acquire resources for a trainee in the Howso service."""
+    def acquire_trainee_resources(self, trainee_id: str, *, max_wait_time: t.Optional[int | float] = None):
+        """Acquire resources for a Trainee in the Howso service."""
 
     @abstractmethod
-    def release_trainee_resources(self, trainee_id):
-        """Release a trainee's resources from the Howso service."""
+    def release_trainee_resources(self, trainee_id: str):
+        """Release a Trainee's resources from the Howso service."""
 
     @abstractmethod
-    def persist_trainee(self, trainee_id):
+    def persist_trainee(self, trainee_id: str):
         """Persist a trainee in the Howso service."""
 
-    @abstractmethod
-    def set_random_seed(self, trainee_id, seed):
-        """Set the random seed for the trainee."""
+    def set_random_seed(self, trainee_id: str, seed: int | float | str):
+        """
+        Sets the random seed for the Trainee.
 
-    @abstractmethod
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to set the random seed for.
+        seed: int or float or str
+            The random seed.
+            Ex: ``7998``, ``"myrandomseed"``
+        """
+        self._auto_resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Setting random seed for Trainee with id: {trainee_id}')
+        self._execute(trainee_id, "set_random_seed", {"seed": seed})
+        self._auto_persist_trainee(trainee_id)
+
     def train(
         self, trainee_id, cases, features=None, *,
         accumulate_weight_feature=None,
@@ -128,10 +231,53 @@ class AbstractHowsoClient(ABC):
     ):
         """Train a trainee with sessions containing training cases."""
 
-    @abstractmethod
-    def impute(self, trainee_id, features=None, features_to_impute=None,
-               batch_size=1):
-        """Impute the missing values for the specified features_to_impute."""
+    def impute(
+        self,
+        trainee_id: str,
+        features: t.Optional[Collection[str]] = None,
+        features_to_impute: t.Optional[Collection[str]] = None,
+        batch_size: int = 1
+    ):
+        """
+        Impute, or fill in the missing values, for the specified features.
+
+        If no 'features' are specified, will use all features in the trainee
+        for imputation. If no 'features_to_impute' are specified, will impute
+        all features specified by 'features'.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to impute.
+        features : Collection of str, optional
+            A list of feature names to use for imputation.
+            If not specified, all features will be used imputed.
+        features_to_impute : Collection of str, optional
+            A list of feature names to impute.
+            If not specified, features will be used (see above)
+        batch_size : int, default 1
+            Larger batch size will increase accuracy and decrease speed.
+            Batch size indicates how many rows to fill before recomputing
+            conviction.
+
+            The default value (which is 1) should return the best accuracy but
+            might be slower. Higher values should improve performance but may
+            decrease accuracy of results.
+        """
+        self._auto_resolve_trainee(trainee_id)
+        if not self.active_session:
+            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+        util.validate_list_shape(features, 1, "features", "str")
+        util.validate_list_shape(features_to_impute, 1, "features_to_impute", "str")
+        if self.configuration.verbose:
+            print(f'Imputing Trainee with id: {trainee_id}')
+        self._execute(trainee_id, "impute", {
+            "features": features,
+            "features_to_impute": features_to_impute,
+            "session": self.active_session.id,
+            "batch_size": batch_size,
+        })
+        self._auto_persist_trainee(trainee_id)
 
     @abstractmethod
     def remove_cases(self, trainee_id, num_cases, *,
@@ -465,21 +611,174 @@ class AbstractHowsoClient(ABC):
     ):
         """Set trainee parameters for auto analysis."""
 
-    @abstractmethod
-    def get_cases(self, trainee_id, session=None, case_indices=None,
-                  indicate_imputed=False, features=None, condition=None,
-                  num_cases=None, precision=None) -> dict | DataFrame:
-        """Retrieve cases from a trainee."""
+    def get_cases(
+        self,
+        trainee_id: str,
+        session: t.Optional[str] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        indicate_imputed: bool = False,
+        features: t.Optional[Collection[str]] = None,
+        condition: t.Optional[Mapping] = None,
+        num_cases: t.Optional[int] = None,
+        precision: t.Optional[t.Literal["exact", "similar"]] = None
+    ) -> Cases:
+        """
+        Retrieve cases from a model given a Trainee id.
 
-    @abstractmethod
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee retrieve cases from.
+        session : str, optional
+            The session ID to retrieve cases for, in their trained order.
+
+            .. NOTE::
+                If a session is not provided, retrieves all feature values
+                for cases for all (unordered) sessions in the order they
+                were trained within each session.
+
+        case_indices : Sequence of tuple of {str, int}, optional
+            Iterable of Sequences, of session id and index, where index is the
+            original 0-based index of the case as it was trained into the
+            session. If specified, returns only these cases and ignores the
+            session parameter.
+        indicate_imputed : bool, default False
+            If set, an additional value will be appended to the cases
+            indicating if the case was imputed.
+        features : Collection of str, optional
+            A list of feature names to return values for in leu of all
+            default features.
+
+            Built-in features that are available for retrieval:
+
+                | **.session** - The session id the case was trained under.
+                | **.session_training_index** - 0-based original index of the
+                  case, ordered by training during the session; is never
+                  changed.
+        condition : dict, optional
+            The condition map to select the cases to retrieve that meet all the
+            provided conditions.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+
+            .. TIP::
+                Example 1 - Retrieve all values belonging to `feature_name`::
+
+                    criteria = {"feature_name": None}
+
+                Example 2 - Retrieve cases that have the value 10::
+
+                    criteria = {"feature_name": 10}
+
+                Example 3 - Retrieve cases that have a value in range [10, 20]::
+
+                    criteria = {"feature_name": [10, 20]}
+
+                Example 4 - Retrieve cases that match one of ['a', 'c', 'e']::
+
+                    condition = {"feature_name": ['a', 'c', 'e']}
+
+                Example 5 - Retrieve cases using session name and index::
+
+                    criteria = {'.session':'your_session_name',
+                                '.session_training_index': 1}
+
+        num_cases : int, default None
+            The maximum amount of cases to retrieve. If not specified, the limit
+            will be k cases if precision is "similar", or no limit if precision
+            is "exact".
+        precision : {"exact", "similar}, optional
+            The precision to use when retrieving the cases via condition.
+            Options are "exact" or "similar". If not provided, "exact" will
+            be used.
+
+        Returns
+        -------
+        dict
+            A cases object containing the feature names and cases.
+        """
+        if case_indices is not None:
+            util.validate_case_indices(case_indices)
+
+        if isinstance(precision, str):
+            if precision not in self.SUPPORTED_PRECISION_VALUES:
+                warnings.warn(self.WARNING_MESSAGES["invalid_precision"])
+
+        util.validate_list_shape(features, 1, "features", "str")
+        if session is None and case_indices is None:
+            warnings.warn("Calling get_cases without a session id does not guarantee case order.")
+        if self.configuration.verbose:
+            print(f'Retrieving cases for Trainee with id {trainee_id}.')
+
+        self._auto_resolve_trainee(trainee_id)
+        result = self._execute(trainee_id, "get_cases", {
+            "features": features,
+            "session": session,
+            "case_indices": case_indices,
+            "indicate_imputed": indicate_imputed,
+            "condition": condition,
+            "num_cases": num_cases,
+            "precision": precision,
+        })
+        if result is None:
+            result = dict()
+        return Cases(
+            features=result.get('features') or [],
+            cases=result.get('cases') or [],
+        )
+
     def get_extreme_cases(
         self,
-        trainee_id,
-        num,
-        sort_feature,
-        features: t.Optional[Iterable[str]] = None
-    ) -> dict | DataFrame:
-        """Get the extreme cases of a trainee for the given feature(s)."""
+        trainee_id: str,
+        num: int,
+        sort_feature: str,
+        features: t.Optional[Collection[str]] = None
+    ) -> Cases:
+        """
+        Gets the extreme cases of a Trainee for the given feature(s).
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to retrieve extreme cases from.
+        num : int
+            The number of cases to get.
+        sort_feature : str
+            The feature name by which extreme cases are sorted by.
+        features: Collection of str, optional
+            The feature names to use when getting extreme cases.
+
+        Returns
+        -------
+        dict
+            A cases object containing the feature names and extreme cases.
+        """
+        util.validate_list_shape(features, 1, "features", "str")
+
+        self._auto_resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Getting extreme cases for trainee with id: {trainee_id}')
+        result = self._execute(trainee_id, "get_extreme_cases", {
+            "features": features,
+            "sort_feature": sort_feature,
+            "num": num,
+        })
+        if result is None:
+            result = dict()
+        return Cases(
+            features=result.get('features') or [],
+            cases=result.get('cases') or [],
+        )
 
     @abstractmethod
     def get_num_training_cases(self, trainee_id) -> int:

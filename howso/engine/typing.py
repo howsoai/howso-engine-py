@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 import os
 from typing import Literal, Union
 
 from pandas import DataFrame
 from typing_extensions import TypeAlias
 
-#: Type alias for case indices.
-CaseIndices: TypeAlias = Iterable[tuple[str, int]]
 #: Type alias for the valid values for ``generate_new_cases`` parameters.
 GenerateNewCases: TypeAlias = Literal["always", "attempt", "no"]
 #: Type alias for the valid values for ``library`` parameters.
@@ -25,8 +22,6 @@ NormalizeMethod: TypeAlias = Literal["feature_count", "fractional", "relative"]
 PathLike: TypeAlias = Union[str, bytes, os.PathLike]
 #: Type alias for the valid values for ``persistence`` parameters.
 Persistence: TypeAlias = Literal["allow", "always", "never"]
-#: Type alias for the valid values for ``precision`` parameters.
-Precision: TypeAlias = Literal["exact", "similar"]
 #: Type alias for the valid values for ``series_id_tracking`` parameters.
 SeriesIDTracking: TypeAlias = Literal["fixed", "dynamic", "no"]
 #: Type alias for 2-dimensional tabular data.

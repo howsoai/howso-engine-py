@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import IntEnum
@@ -11,7 +13,7 @@ from pathlib import Path
 import random
 import sys
 import traceback
-from typing import Callable, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, TYPE_CHECKING, Union
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
@@ -27,7 +29,7 @@ try:
     from howso import engine
 except ImportError:
     engine = None
-from howso.client import AbstractHowsoClient, HowsoClient
+from howso.client.client import HowsoClient
 from howso.client.exceptions import HowsoConfigurationError, HowsoError
 from howso.client.schemas import Trainee
 try:
@@ -48,6 +50,9 @@ from howso.utilities.posix import PlatformError, sysctl_by_name
 logger = logging.getLogger(__name__)
 
 LOG_FILE = "howso_stacktrace.txt"
+
+if TYPE_CHECKING:
+    from howso.client.base import AbstractHowsoClient
 
 
 class Status(IntEnum):

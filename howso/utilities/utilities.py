@@ -1,3 +1,4 @@
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 import datetime as dt
 import inspect
 import locale as python_locale
@@ -5,7 +6,7 @@ from math import isnan
 import re
 import sys
 import threading
-from typing import Callable, Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 import uuid
 import warnings
 
@@ -18,8 +19,6 @@ import pandas as pd
 from .internals import serialize_models
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
-# Custom type for case_indices parameter
-CaseIndices = Iterable[Union[List[Union[str, int]], Tuple[Union[str, int]]]]
 DATETIME_TIMEZONE_PATTERN = re.compile(r"(?<!%)(?:%%)*(%z)", re.IGNORECASE)
 DATETIME_UTC_Z_PATTERN = re.compile(r"\dZ$")
 EPOCH = dt.datetime.fromtimestamp(0, dt.timezone.utc)
@@ -422,7 +421,7 @@ def validate_list_shape(values: Union[Collection, None], dimensions: int,
             f"`{variable_name}` must be a {dimensions}d list of {var_types}.")
 
 
-def validate_case_indices(case_indices: CaseIndices, thorough=False) -> None:
+def validate_case_indices(case_indices: Sequence[Sequence[Union[str, int]]], thorough=False) -> None:
     """
     Validate the case_indices parameter to the react() method of a Howso client.
 
@@ -431,7 +430,7 @@ def validate_case_indices(case_indices: CaseIndices, thorough=False) -> None:
 
     Parameters
     ----------
-    case_indices : Iterable of Sequence[str, int]
+    case_indices : Sequence of Sequence of str or int
         The case_indices argument to validate.
     thorough : bool, default False
         Whether to verify the data types in all sequences or only some (for performance)

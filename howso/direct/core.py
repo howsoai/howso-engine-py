@@ -1117,38 +1117,6 @@ class HowsoCore:
         """
         return self._execute(trainee_id, "get_metadata", {})
 
-    def retrieve_extreme_cases_for_feature(
-        self,
-        trainee_id: str,
-        num: int,
-        sort_feature: str,
-        features: Optional[Iterable[str]] = None
-    ) -> Dict:
-        """
-        Gets the extreme cases of a Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        num : int
-            The number of cases to get.
-        sort_feature : str
-            The feature name by which extreme cases are sorted by.
-        features: iterable of str, optional
-            An iterable of feature names to use when getting extreme cases.
-
-        Returns
-        -------
-        dict
-            A dictionary of keys 'cases' and 'features'.
-        """
-        return self._execute(trainee_id, "retrieve_extreme_cases_for_feature", {
-            "features": features,
-            "sort_feature": sort_feature,
-            "num": num,
-        })
-
     def train(
         self,
         trainee_id: str,
@@ -1219,42 +1187,6 @@ class HowsoCore:
             "train_weights_only": train_weights_only,
         })
 
-    def impute(
-        self,
-        trainee_id: str,
-        *,
-        batch_size: int = 1,
-        features: Optional[Iterable[str]] = None,
-        features_to_impute: Optional[Iterable[str]] = None,
-        session: Optional[str] = None
-    ) -> None:
-        """
-        Impute, or fill in the missing values, for the specified features.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        batch_size : int, default 1
-            Larger batch size will increase accuracy and decrease speed.
-            Batch size indicates how many rows to fill before recomputing
-            conviction.
-        features : iterable of str, optional
-            An iterable of feature names to use for imputation. If not
-            specified, all features will be used imputed.
-        features_to_impute : iterable of str, optional
-            An iterable of feature names to impute. If not specified, features
-            will be used (see above).
-        session : str, optional
-            The identifier of the Trainee session to associate the edit with.
-        """
-        return self._execute(trainee_id, "impute", {
-            "features": features,
-            "features_to_impute": features_to_impute,
-            "session": session,
-            "batch_size": batch_size,
-        })
-
     def clear_imputed_session(
         self,
         trainee_id: str,
@@ -1279,65 +1211,6 @@ class HowsoCore:
         return self._execute(trainee_id, "clear_imputed_session", {
             "session": session,
             "impute_session": impute_session,
-        })
-
-    def get_cases(
-        self,
-        trainee_id: str,
-        session: Optional[str] = None,
-        *,
-        case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-        indicate_imputed: bool = False,
-        features: Optional[Iterable[str]] = None,
-        condition: Optional[Dict] = None,
-        num_cases: Optional[int] = None,
-        precision: Optional[Literal["exact", "similar"]] = None
-    ) -> Dict:
-        """
-        Retrieve cases from a Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        session : str, optional
-            The session identifier to retrieve cases for, in their trained
-            order.
-        case_indices : iterable of sequence of str, int, optional
-            Iterable of Sequences, of session id and index, where index is the
-            original 0-based index of the case as it was trained into the
-            session. If specified, returns only these cases and ignores the
-            session parameter.
-        indicate_imputed : bool, default False
-            If set, an additional value will be appended to the cases
-            indicating if the case was imputed.
-        features : iterable of str, optional
-            A list of feature names to return values for in leu of all
-            default features.
-        condition : dict, optional
-            The condition map to select the cases to retrieve that meet all the
-            provided conditions.
-        num_cases : int, default None
-            The maximum amount of cases to retrieve. If not specified, the limit
-            will be k cases if precision is "similar", or no limit if precision
-            is "exact".
-        precision : {"exact", "similar}, optional
-            The precision to use when retrieving the cases via condition.
-            If not provided, "exact" will be used.
-
-        Returns
-        -------
-        dict
-            A dictionary containing keys 'features' and 'cases'.
-        """
-        return self._execute(trainee_id, "get_cases", {
-            "features": features,
-            "session": session,
-            "case_indices": case_indices,
-            "indicate_imputed": indicate_imputed,
-            "condition": condition,
-            "num_cases": num_cases,
-            "precision": precision,
         })
 
     def append_to_series_store(
@@ -2611,22 +2484,6 @@ class HowsoCore:
             "num_cases": num_cases,
             "precision": precision,
             "weight_feature": weight_feature,
-        })
-
-    def set_random_seed(self, trainee_id: str, seed: Union[int, float, str]
-                        ) -> None:
-        """
-        Sets the random seed for the Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        seed: int or float or str
-            The random seed.
-        """
-        return self._execute(trainee_id, "set_random_seed", {
-            "seed": seed,
         })
 
     def get_internal_parameters(

@@ -45,7 +45,7 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError, UnsupportedArgumentWarning
-from howso.client.schemas import HowsoVersion, Reaction, Session, Trainee, TraineePersistence
+from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee, TraineePersistence
 from howso.utilities import (
     build_react_series_df,
     internals,
@@ -416,14 +416,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         name: Optional[str] = None,
         features: Optional[Mapping[str, Mapping]] = None,
         *,
-        id: Optional[Union[str, uuid.UUID]] = None,
+        id: Optional[str | uuid.UUID] = None,
         library_type: Optional[Literal["st", "mt"]] = None,
-        max_wait_time: Optional[Union[int, float]] = None,
+        max_wait_time: Optional[int | float] = None,
         metadata: Optional[MutableMapping[str, Any]] = None,
         overwrite_trainee: bool = False,
         persistence: TraineePersistence = "allow",
-        project: Optional[Union[str, Dict]] = None,
-        resources: Optional[MutableMapping[str, Any]] = None,
+        project: Optional[str | Project] = None,
+        resources: Optional[Mapping[str, Any]] = None,
     ) -> Trainee:
         """
         Create a Trainee on the Howso service.
@@ -1429,54 +1429,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_persist_trainee(trainee_id)
 
         return needs_analyze
-
-    def impute(
-        self,
-        trainee_id: str,
-        features: Optional[Iterable[str]] = None,
-        features_to_impute: Optional[Iterable[str]] = None,
-        batch_size: int = 1
-    ):
-        """
-        Impute, or fill in the missing values, for the specified features.
-
-        If no 'features' are specified, will use all features in the trainee
-        for imputation. If no 'features_to_impute' are specified, will impute
-        all features specified by 'features'.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to impute.
-        features: iterable of str, optional
-            An iterable of feature names to use for imputation.
-
-            If not specified, all features will be used imputed.
-        features_to_impute: iterable of str, optional
-            An iterable of feature names to impute
-            If not specified, features will be used (see above)
-        batch_size: int, default 1
-            Larger batch size will increase accuracy and decrease speed.
-            Batch size indicates how many rows to fill before recomputing
-            conviction.
-
-            The default value (which is 1) should return the best accuracy but
-            might be slower. Higher values should improve performance but may
-            decrease accuracy of results.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        validate_list_shape(features, 1, "features", "str")
-        validate_list_shape(features_to_impute, 1, "features_to_impute", "str")
-        if self.verbose:
-            print(f'Imputing trainee with id: {trainee_id}')
-        self.howso.impute(
-            trainee_id,
-            session=self.active_session.id,
-            features=features,
-            features_to_impute=features_to_impute,
-            batch_size=batch_size
-        )
-        self._auto_persist_trainee(trainee_id)
 
     def remove_cases(
         self,
@@ -3692,136 +3644,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             use_case_weights=use_case_weights)
         self._auto_persist_trainee(trainee_id)
 
-    def get_cases(
-        self,
-        trainee_id: str,
-        session: Optional[str] = None,
-        case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-        indicate_imputed: bool = False,
-        features: Optional[Iterable[str]] = None,
-        condition: Optional[Dict] = None,
-        num_cases: Optional[int] = None,
-        precision: Optional[Literal["exact", "similar"]] = None
-    ) -> Dict:
-        """
-        Retrieve cases from a model given a trainee id.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee retrieve cases from.
-
-        session : str, optional
-            The session ID to retrieve cases for, in their trained order.
-
-            NOTE: If a session is not provided, retrieves all feature values
-                  for cases for all (unordered) sessions in the order they
-                  were trained within each session.
-
-        case_indices : iterable of sequence of str, int, optional
-            Iterable of Sequences, of session id and index, where index is the
-            original 0-based index of the case as it was trained into the
-            session. If specified, returns only these cases and ignores the
-            session parameter.
-
-        indicate_imputed : bool, default False
-            If set, an additional value will be appended to the cases
-            indicating if the case was imputed.
-
-        features : iterable of str, optional
-            A list of feature names to return values for in leu of all
-            default features.
-
-            Built-in features that are available for retrieval:
-
-                | **.session** - The session id the case was trained under.
-                | **.session_training_index** - 0-based original index of the
-                  case, ordered by training during the session; is never
-                  changed.
-
-        condition : dict, optional
-            The condition map to select the cases to retrieve that meet all the
-            provided conditions.
-
-            .. NOTE::
-                The dictionary keys are the feature name and values are one of:
-
-                    - None
-                    - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
-                    - An array of string values, must match any of these values
-                      exactly. Only applicable to nominal and string ordinal
-                      features.
-
-            .. TIP::
-                Example 1 - Retrieve all values belonging to `feature_name`::
-
-                    criteria = {"feature_name": None}
-
-                Example 2 - Retrieve cases that have the value 10::
-
-                    criteria = {"feature_name": 10}
-
-                Example 3 - Retrieve cases that have a value in range [10, 20]::
-
-                    criteria = {"feature_name": [10, 20]}
-
-                Example 4 - Retrieve cases that match one of ['a', 'c', 'e']::
-
-                    condition = {"feature_name": ['a', 'c', 'e']}
-
-                Example 5 - Retrieve cases using session name and index::
-
-                    criteria = {'.session':'your_session_name',
-                                '.session_training_index': 1}
-
-        num_cases : int, default None
-            The maximum amount of cases to retrieve. If not specified, the limit
-            will be k cases if precision is "similar", or no limit if precision
-            is "exact".
-
-        precision : {"exact", "similar}, optional
-            The precision to use when retrieving the cases via condition.
-            Options are "exact" or "similar". If not provided, "exact" will
-            be used.
-
-        Returns
-        -------
-        Dict
-            A cases object containing the feature names and cases.
-        """
-        # Validate case_indices if provided
-        if case_indices is not None:
-            validate_case_indices(case_indices)
-
-        if isinstance(precision, str):
-            if precision not in self.SUPPORTED_PRECISION_VALUES:
-                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
-
-        self._auto_resolve_trainee(trainee_id)
-        validate_list_shape(features, 1, "features", "str")
-        if session is None and case_indices is None:
-            warnings.warn("Calling get_cases without session id does not "
-                          "guarantee case order.")
-        if self.verbose:
-            print('Retrieving cases.')
-        result = self.howso.get_cases(
-            trainee_id,
-            features=features,
-            session=session,
-            case_indices=case_indices,
-            indicate_imputed=1 if indicate_imputed else 0,
-            condition=condition,
-            num_cases=num_cases,
-            precision=precision
-        )
-        if result is None:
-            result = dict()
-        return dict(features=result.get('features'),
-                    cases=result.get('cases'))
-
     def react_group(
         self,
         trainee_id: str,
@@ -4502,44 +4324,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_persist_trainee(trainee_id)
 
         return stats
-
-    def get_extreme_cases(
-        self,
-        trainee_id: str,
-        num: int,
-        sort_feature: str,
-        features: Optional[Iterable[str]] = None
-    ) -> Dict:
-        """
-        Gets the extreme cases of a trainee for the given feature(s).
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to retrieve extreme cases from.
-        num : int
-            The number of cases to get.
-        sort_feature : str
-            The feature name by which extreme cases are sorted by.
-        features: iterable of str, optional
-            An iterable of feature names to use when getting extreme cases.
-
-        Returns
-        -------
-        Dict
-            A cases object containing the feature names and extreme cases.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print(f'Getting extreme cases for trainee with id: {trainee_id}')
-        result = self.howso.retrieve_extreme_cases_for_feature(
-            trainee_id,
-            features=features,
-            sort_feature=sort_feature,
-            num=num)
-        if result is None:
-            result = dict()
-        return dict(features=result.get('features'), cases=result.get('cases'))
 
     def _preprocess_generate_parameters(  # noqa: C901
         self,

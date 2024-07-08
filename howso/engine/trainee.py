@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping, MutableMapping
+from collections.abc import Callable, Collection, Iterable, Mapping, MutableMapping
 from copy import deepcopy
 from pathlib import Path
 import typing as t
@@ -16,13 +16,13 @@ from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import LocalSaveableProtocol, ProjectClient
 from howso.client.schemas import Project as BaseProject, Reaction, Session as BaseSession, Trainee as BaseTrainee
+from howso.client.typing import CaseIndices, Precision
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
 from howso.utilities import matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 from .typing import (
-    CaseIndices,
     GenerateNewCases,
     Library,
     Mode,
@@ -30,7 +30,6 @@ from .typing import (
     NormalizeMethod,
     PathLike,
     Persistence,
-    Precision,
     SeriesIDTracking,
     TabularData2D,
     TabularData3D,
@@ -2155,11 +2154,11 @@ class Trainee(BaseTrainee):
         *,
         indicate_imputed: bool = False,
         case_indices: Optional[CaseIndices] = None,
-        features: Optional[Iterable[str]] = None,
+        features: Optional[Collection[str]] = None,
         session: Optional[str | BaseSession] = None,
         condition: Optional[MutableMapping] = None,
         num_cases: Optional[int] = None,
-        precision: Optional[str] = None
+        precision: Optional[Precision] = None
     ) -> DataFrame:
         """
         Get the trainee's cases.
