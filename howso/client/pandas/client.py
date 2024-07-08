@@ -74,7 +74,7 @@ class HowsoPandasClientMixin:
         DataFrame
             A DataFrame of feature name columns and case rows.
         """
-        trainee_id = self._resolve_trainee_id(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
         response = super().get_cases(trainee_id, *args, **kwargs)
         return deserialize_cases(
@@ -109,7 +109,7 @@ class HowsoPandasClientMixin:
         DataFrame
             A DataFrame of feature name columns and extreme case rows.
         """
-        trainee_id = self._resolve_trainee_id(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
         response = super().get_extreme_cases(trainee_id, num, sort_feature,
                                              features)
@@ -193,7 +193,7 @@ class HowsoPandasClientMixin:
                 details -> dict or list
                     An aggregated list of any requested details.
         """
-        trainee_id = self._resolve_trainee_id(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
         response = super().react_series(trainee_id, *args, series_index=series_index, **kwargs)
 
@@ -215,7 +215,7 @@ class HowsoPandasClientMixin:
                 details -> dict or list
                     An aggregated list of any requested details.
         """
-        trainee_id = self._resolve_trainee_id(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id)
         feature_attributes = self.trainee_cache.get(trainee_id).features
         response = super().react(trainee_id, *args, **kwargs)
         columns = response['details'].get('action_features')

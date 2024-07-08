@@ -872,7 +872,7 @@ class IgnoreWarnings:
 
     def __init__(
         self,
-        warning_types: Union[Warning, Iterable[Warning]]
+        warning_types: Union[type[Warning], Iterable[type[Warning]]]
     ):
         """Initialize a new `catch_warnings` instance."""
         self._catch_warnings = warnings.catch_warnings()

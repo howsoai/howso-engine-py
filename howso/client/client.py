@@ -8,9 +8,9 @@ import warnings
 
 import yaml
 
-from howso.client.base import AbstractHowsoClient
+import howso.client.base
 from howso.client.exceptions import HowsoConfigurationError
-from howso.utilities import deep_update, UserFriendlyExit
+from howso.utilities.utilities import deep_update, UserFriendlyExit
 
 
 DEFAULT_CONFIG_FILE = "howso.yml"
@@ -298,7 +298,7 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
         client_class = getattr(custom_module, custom_class_name)
         # Ensure that the `client_class` is a subclass of
         # AbstractHowsoClient.
-        if not issubclass(client_class, AbstractHowsoClient):
+        if not issubclass(client_class, howso.client.base.AbstractHowsoClient):
             raise HowsoConfigurationError(
                 'The provided client_class must be a subclass '
                 'of AbstractHowsoClient.')

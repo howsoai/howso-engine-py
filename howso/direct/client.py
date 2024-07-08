@@ -45,7 +45,7 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError, UnsupportedArgumentWarning
-from howso.client.schemas import HowsoVersion, Reaction, Session, Trainee, TraineePersistence
+from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee, TraineePersistence
 from howso.utilities import (
     build_react_series_df,
     internals,
@@ -416,14 +416,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         name: Optional[str] = None,
         features: Optional[Mapping[str, Mapping]] = None,
         *,
-        id: Optional[Union[str, uuid.UUID]] = None,
+        id: Optional[str | uuid.UUID] = None,
         library_type: Optional[Literal["st", "mt"]] = None,
-        max_wait_time: Optional[Union[int, float]] = None,
+        max_wait_time: Optional[int | float] = None,
         metadata: Optional[MutableMapping[str, Any]] = None,
         overwrite_trainee: bool = False,
         persistence: TraineePersistence = "allow",
-        project: Optional[Union[str, Dict]] = None,
-        resources: Optional[MutableMapping[str, Any]] = None,
+        project: Optional[str | Project] = None,
+        resources: Optional[Mapping[str, Any]] = None,
     ) -> Trainee:
         """
         Create a Trainee on the Howso service.
@@ -1109,14 +1109,19 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.howso.persist(trainee_id)
 
-    def _auto_resolve_trainee(self, trainee_id: str):
+    def _resolve_trainee(self, trainee_id: str, **kwargs) -> str:
         """
         Resolve a Trainee and acquire its resources.
 
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee to persist.
+            The identifier of the Trainee to resolve.
+
+        Returns
+        -------
+        str
+            The normalized Trainee unique identifier.
 
         Raises
         ------
@@ -1125,6 +1130,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if trainee_id not in self.trainee_cache:
             self.acquire_trainee_resources(trainee_id)
+        return trainee_id
 
     def _auto_persist_trainee(self, trainee_id: str):
         """
@@ -1218,24 +1224,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         if ret is None:
             return dict()
         return ret
-
-    def set_random_seed(self, trainee_id: str, seed: Union[int, float, str]):
-        """
-        Sets the random seed for the trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to set the random seed for.
-        seed: int or float or str
-            The random seed.
-            Ex: ``7998``, ``"bobtherandomseed"``
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print(f'Setting random seed for trainee with id: {trainee_id}')
-        self.howso.set_random_seed(trainee_id, seed)
-        self._auto_persist_trainee(trainee_id)
 
     def train(  # noqa: C901
         self,
@@ -1425,270 +1413,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._auto_persist_trainee(trainee_id)
 
         return needs_analyze
-
-    def impute(
-        self,
-        trainee_id: str,
-        features: Optional[Iterable[str]] = None,
-        features_to_impute: Optional[Iterable[str]] = None,
-        batch_size: int = 1
-    ):
-        """
-        Impute, or fill in the missing values, for the specified features.
-
-        If no 'features' are specified, will use all features in the trainee
-        for imputation. If no 'features_to_impute' are specified, will impute
-        all features specified by 'features'.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to impute.
-        features: iterable of str, optional
-            An iterable of feature names to use for imputation.
-
-            If not specified, all features will be used imputed.
-        features_to_impute: iterable of str, optional
-            An iterable of feature names to impute
-            If not specified, features will be used (see above)
-        batch_size: int, default 1
-            Larger batch size will increase accuracy and decrease speed.
-            Batch size indicates how many rows to fill before recomputing
-            conviction.
-
-            The default value (which is 1) should return the best accuracy but
-            might be slower. Higher values should improve performance but may
-            decrease accuracy of results.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        validate_list_shape(features, 1, "features", "str")
-        validate_list_shape(features_to_impute, 1, "features_to_impute", "str")
-        if self.verbose:
-            print(f'Imputing trainee with id: {trainee_id}')
-        self.howso.impute(
-            trainee_id,
-            session=self.active_session.id,
-            features=features,
-            features_to_impute=features_to_impute,
-            batch_size=batch_size
-        )
-        self._auto_persist_trainee(trainee_id)
-
-    def remove_cases(
-        self,
-        trainee_id: str,
-        num_cases: int,
-        *,
-        case_indices: Optional[Iterable[Tuple[str, int]]] = None,
-        condition: Optional[Dict[str, object]] = None,
-        condition_session: Optional[str] = None,
-        distribute_weight_feature: Optional[str] = None,
-        precision: Optional[Literal["exact", "similar"]] = None,
-    ) -> int:
-        """
-        Removes training cases from a Trainee.
-
-        The training cases will be completely purged from the model and
-        the model will behave as if it had never been trained with them.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to remove cases from.
-        num_cases : int
-            The number of cases to remove; minimum 1 case must be removed.
-            Ignored if case_indices is specified.
-        case_indices : list of tuples
-            A list of tuples containing session ID and session training index
-            for each case to be removed.
-        condition : dict of str to object, optional
-            The condition map to select the cases to remove that meet all the
-            provided conditions. Ignored if case_indices is specified.
-
-            .. NOTE::
-                The dictionary keys are the feature name and values are one of:
-
-                    - None
-                    - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
-                    - An array of string values, must match any of these values
-                      exactly. Only applicable to nominal and string ordinal
-                      features.
-
-            .. TIP::
-                Example 1 - Remove all values belonging to `feature_name`::
-
-                    criteria = {"feature_name": None}
-
-                Example 2 - Remove cases that have the value 10::
-
-                    criteria = {"feature_name": 10}
-
-                Example 3 - Remove cases that have a value in range [10, 20]::
-
-                    criteria = {"feature_name": [10, 20]}
-
-                Example 4 - Remove cases that match one of ['a', 'c', 'e']::
-
-                    condition = {"feature_name": ['a', 'c', 'e']}
-
-        condition_session : str, optional
-            If specified, ignores the condition and operates on cases for
-            the specified session id. Ignored if case_indices is specified.
-        distribute_weight_feature : str, optional
-            When specified, will distribute the removed cases' weights
-            from this feature into their neighbors.
-        precision : {"exact", "similar"}, optional
-            The precision to use when moving the cases, defaults to "exact".
-            Ignored if case_indices is specified.
-
-        Returns
-        -------
-        int
-            The number of cases removed.
-
-        Raises
-        ------
-        ValueError
-            If `num_cases` is not at least 1.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if num_cases < 1:
-            raise ValueError('num_cases must be a value greater than 0')
-        if self.verbose:
-            print(f'Removing case(s) in trainee with id: {trainee_id}')
-
-        if isinstance(precision, str):
-            if precision not in self.SUPPORTED_PRECISION_VALUES:
-                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
-
-        # Convert session instance to id
-        if (
-            isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
-        ):
-            condition['.session'] = condition['.session'].id
-
-        result = self.howso.remove_cases(
-            trainee_id,
-            case_indices=case_indices,
-            condition=condition,
-            condition_session=condition_session,
-            distribute_weight_feature=distribute_weight_feature,
-            num_cases=num_cases,
-            precision=precision,
-        )
-        self._auto_persist_trainee(trainee_id)
-        return result.get('count', 0)
-
-    def edit_cases(
-        self,
-        trainee_id: str,
-        feature_values: Union[List[object], DataFrame],
-        *,
-        case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-        condition: Optional[Dict[str, object]] = None,
-        condition_session: Optional[str] = None,
-        features: Optional[Iterable[str]] = None,
-        num_cases: Optional[int] = None,
-        precision: Optional[Literal["exact", "similar"]] = None,
-    ) -> int:
-        """
-        Edit feature values for the specified cases.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to edit the cases of.
-        feature_values : list of object or pandas.DataFrame
-            The feature values to edit the case(s) with. If specified as a list,
-            the order corresponds with the order of the `features` parameter.
-            If specified as a DataFrame, only the first row will be used.
-        case_indices : Iterable of Sequence[Union[str, int]], optional
-            Iterable of Sequences containing the session id and index, where index
-            is the original 0-based index of the case as it was trained into
-            the session. This explicitly specifies the cases to edit. When
-            specified, `condition` and `condition_session` are ignored.
-        condition : dict, optional
-            A condition map to select which cases to edit. Ignored when
-            `case_indices` are specified.
-
-            .. NOTE::
-                The dictionary keys are the feature name and values are one of:
-
-                    - None
-                    - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
-                    - An array of string values, must match any of these values
-                      exactly. Only applicable to nominal and string ordinal
-                      features.
-
-        condition_session : str, optional
-            If specified, ignores the condition and operates on all cases for
-            the specified session.
-        features : iterable of str, optional
-            The names of the features to edit. Required when `feature_values`
-            is not specified as a DataFrame.
-        num_cases : int, default None
-            The maximum amount of cases to edit. If not specified, the limit
-            will be k cases if precision is "similar", or no limit if precision
-            is "exact".
-        precision : {"exact", "similar"}, optional
-            The precision to use when moving the cases, defaults to "exact".
-
-        Returns
-        -------
-        int
-            The number of cases modified.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        cached_trainee = self.trainee_cache.get(trainee_id)
-
-        if isinstance(precision, str):
-            if precision not in self.SUPPORTED_PRECISION_VALUES:
-                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
-
-        # Validate case_indices if provided
-        if case_indices is not None:
-            validate_case_indices(case_indices)
-
-        # Serialize feature_values
-        if feature_values is not None:
-            if features is None:
-                features = internals.get_features_from_data(
-                    feature_values, data_parameter='feature_values')
-            feature_values = serialize_cases(feature_values, features,
-                                             cached_trainee.features)
-            if feature_values:
-                # Only a single case should be provided
-                feature_values = feature_values[0]
-
-        # Convert session instance to id
-        if (
-            isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
-        ):
-            condition['.session'] = condition['.session'].id
-
-        if self.verbose:
-            print(f'Editing case(s) in trainee with id: {trainee_id}')
-        result = self.howso.edit_cases(
-            trainee_id,
-            case_indices=case_indices,
-            condition=condition,
-            condition_session=condition_session,
-            features=features,
-            feature_values=feature_values,
-            precision=precision,
-            num_cases=num_cases,
-            session=self.active_session.id
-        )
-        self._auto_persist_trainee(trainee_id)
-        return result.get('count', 0)
 
     def get_trainee_sessions(self, trainee_id: str) -> List[Dict[str, str]]:
         """
@@ -3568,8 +3292,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if case_indices is not None:
             validate_case_indices(case_indices)
 
-        # Get default features
-        self._auto_resolve_trainee(trainee_id)
+        # Get cached trainee
         trainee = self.trainee_cache.get(trainee_id)
 
         # Preprocess contexts
@@ -3687,136 +3410,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             weight_feature=weight_feature,
             use_case_weights=use_case_weights)
         self._auto_persist_trainee(trainee_id)
-
-    def get_cases(
-        self,
-        trainee_id: str,
-        session: Optional[str] = None,
-        case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
-        indicate_imputed: bool = False,
-        features: Optional[Iterable[str]] = None,
-        condition: Optional[Dict] = None,
-        num_cases: Optional[int] = None,
-        precision: Optional[Literal["exact", "similar"]] = None
-    ) -> Dict:
-        """
-        Retrieve cases from a model given a trainee id.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee retrieve cases from.
-
-        session : str, optional
-            The session ID to retrieve cases for, in their trained order.
-
-            NOTE: If a session is not provided, retrieves all feature values
-                  for cases for all (unordered) sessions in the order they
-                  were trained within each session.
-
-        case_indices : iterable of sequence of str, int, optional
-            Iterable of Sequences, of session id and index, where index is the
-            original 0-based index of the case as it was trained into the
-            session. If specified, returns only these cases and ignores the
-            session parameter.
-
-        indicate_imputed : bool, default False
-            If set, an additional value will be appended to the cases
-            indicating if the case was imputed.
-
-        features : iterable of str, optional
-            A list of feature names to return values for in leu of all
-            default features.
-
-            Built-in features that are available for retrieval:
-
-                | **.session** - The session id the case was trained under.
-                | **.session_training_index** - 0-based original index of the
-                  case, ordered by training during the session; is never
-                  changed.
-
-        condition : dict, optional
-            The condition map to select the cases to retrieve that meet all the
-            provided conditions.
-
-            .. NOTE::
-                The dictionary keys are the feature name and values are one of:
-
-                    - None
-                    - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
-                    - An array of string values, must match any of these values
-                      exactly. Only applicable to nominal and string ordinal
-                      features.
-
-            .. TIP::
-                Example 1 - Retrieve all values belonging to `feature_name`::
-
-                    criteria = {"feature_name": None}
-
-                Example 2 - Retrieve cases that have the value 10::
-
-                    criteria = {"feature_name": 10}
-
-                Example 3 - Retrieve cases that have a value in range [10, 20]::
-
-                    criteria = {"feature_name": [10, 20]}
-
-                Example 4 - Retrieve cases that match one of ['a', 'c', 'e']::
-
-                    condition = {"feature_name": ['a', 'c', 'e']}
-
-                Example 5 - Retrieve cases using session name and index::
-
-                    criteria = {'.session':'your_session_name',
-                                '.session_training_index': 1}
-
-        num_cases : int, default None
-            The maximum amount of cases to retrieve. If not specified, the limit
-            will be k cases if precision is "similar", or no limit if precision
-            is "exact".
-
-        precision : {"exact", "similar}, optional
-            The precision to use when retrieving the cases via condition.
-            Options are "exact" or "similar". If not provided, "exact" will
-            be used.
-
-        Returns
-        -------
-        Dict
-            A cases object containing the feature names and cases.
-        """
-        # Validate case_indices if provided
-        if case_indices is not None:
-            validate_case_indices(case_indices)
-
-        if isinstance(precision, str):
-            if precision not in self.SUPPORTED_PRECISION_VALUES:
-                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
-
-        self._auto_resolve_trainee(trainee_id)
-        validate_list_shape(features, 1, "features", "str")
-        if session is None and case_indices is None:
-            warnings.warn("Calling get_cases without session id does not "
-                          "guarantee case order.")
-        if self.verbose:
-            print('Retrieving cases.')
-        result = self.howso.get_cases(
-            trainee_id,
-            features=features,
-            session=session,
-            case_indices=case_indices,
-            indicate_imputed=1 if indicate_imputed else 0,
-            condition=condition,
-            num_cases=num_cases,
-            precision=precision
-        )
-        if result is None:
-            result = dict()
-        return dict(features=result.get('features'),
-                    cases=result.get('cases'))
 
     def react_group(
         self,
@@ -4499,44 +4092,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         return stats
 
-    def get_extreme_cases(
-        self,
-        trainee_id: str,
-        num: int,
-        sort_feature: str,
-        features: Optional[Iterable[str]] = None
-    ) -> Dict:
-        """
-        Gets the extreme cases of a trainee for the given feature(s).
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to retrieve extreme cases from.
-        num : int
-            The number of cases to get.
-        sort_feature : str
-            The feature name by which extreme cases are sorted by.
-        features: iterable of str, optional
-            An iterable of feature names to use when getting extreme cases.
-
-        Returns
-        -------
-        Dict
-            A cases object containing the feature names and extreme cases.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print(f'Getting extreme cases for trainee with id: {trainee_id}')
-        result = self.howso.retrieve_extreme_cases_for_feature(
-            trainee_id,
-            features=features,
-            sort_feature=sort_feature,
-            num=num)
-        if result is None:
-            result = dict()
-        return dict(features=result.get('features'), cases=result.get('cases'))
-
     def _preprocess_generate_parameters(  # noqa: C901
         self,
         trainee_id: str,
@@ -4640,137 +4195,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                     "`context_features`."
                 )
         return context_features, contexts
-
-    def move_cases(
-        self,
-        trainee_id: str,
-        num_cases: int,
-        *,
-        case_indices: Optional[Iterable[Tuple[str, int]]] = None,
-        condition: Optional[Dict] = None,
-        condition_session: Optional[str] = None,
-        precision: Optional[Literal["exact", "similar"]] = None,
-        preserve_session_data: bool = False,
-        source_id: Optional[str] = None,
-        source_name_path: Optional[List[str]] = None,
-        target_name_path: Optional[List[str]] = None,
-        target_id: Optional[str] = None
-    ) -> int:
-        """
-        Moves training cases from one trainee to another in the hierarchy.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee doing the moving.
-        num_cases : int
-            The number of cases to move; minimum 1 case must be moved.
-            Ignored if case_indices is specified.
-        case_indices : list of tuples
-            A list of tuples containing session ID and session training index
-            for each case to be removed.
-        condition : dict, optional
-            The condition map to select the cases to move that meet all the
-            provided conditions. Ignored if case_indices is specified.
-
-            .. NOTE::
-                The dictionary keys are the feature name and values are one of:
-
-                    - None
-                    - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
-                    - An array of string values, must match any of these values
-                      exactly. Only applicable to nominal and string ordinal
-                      features.
-
-            .. TIP::
-                Example 1 - Move all values belonging to `feature_name`::
-
-                    criteria = {"feature_name": None}
-
-                Example 2 - Move cases that have the value 10::
-
-                    criteria = {"feature_name": 10}
-
-                Example 3 - Move cases that have a value in range [10, 20]::
-
-                    criteria = {"feature_name": [10, 20]}
-
-                Example 4 - Remove cases that match one of ['a', 'c', 'e']::
-
-                    condition = {"feature_name": ['a', 'c', 'e']}
-
-                Example 5 - Move cases using session name and index::
-
-                    criteria = {'.session':'your_session_name',
-                                '.session_index': 1}
-
-        condition_session : str, optional
-            If specified, ignores the condition and operates on cases for
-            the specified session id. Ignored if case_indices is specified.
-        precision : {"exact", "similar"}, optional
-            The precision to use when moving the cases. Options are 'exact'
-            or 'similar'. If not specified, "exact" will be used.
-            Ignored if case_indices is specified.
-        preserve_session_data : bool, default False
-            When True, will move cases without cleaning up session data.
-        source_id : str, optional
-            The source trainee unique id from which to move cases. Ignored
-            if source_name_path is specified. If neither source_name_path nor
-            source_id are specified, moves cases from the trainee itself.
-        source_name_path : list of str, optional
-            List of strings specifying the user-friendly path of the child
-            subtrainee from which to move cases.
-        target_name_path : list of str, optional
-            List of strings specifying the user-friendly path of the child
-            subtrainee to move cases to.
-        target_id : str, optional
-            The target trainee id to move the cases to. Ignored if
-            target_name_path is specified. If neither target_name_path nor
-            target_id are specified, moves cases to the trainee itself.
-
-        Returns
-        -------
-        int
-            The number of cases moved.
-        """
-        self._auto_resolve_trainee(trainee_id)
-
-        if num_cases < 1:
-            raise ValueError('num_cases must be a value greater than 0')
-
-        if isinstance(precision, str):
-            if precision not in self.SUPPORTED_PRECISION_VALUES:
-                warnings.warn(self.INCORRECT_PRECISION_VALUE_WARNING)
-
-        if self.verbose:
-            print(f'Moving case from trainee with id: {trainee_id}')
-
-        # Convert session instance to id
-        if (
-            isinstance(condition, dict) and
-            isinstance(condition.get('.session'), Session)
-        ):
-            condition['.session'] = condition['.session'].id
-
-        result = self.howso.move_cases(
-            trainee_id,
-            target_id=target_id,
-            case_indices=case_indices,
-            condition=condition,
-            condition_session=condition_session,
-            num_cases=num_cases,
-            precision=precision,
-            preserve_session_data=preserve_session_data,
-            session=self.active_session.id,
-            source_id=source_id,
-            source_name_path=source_name_path,
-            target_name_path=target_name_path
-        )
-        self._auto_persist_trainee(trainee_id)
-        return result.get('count', 0)
 
     def get_params(
         self,
@@ -4972,26 +4396,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.howso.set_internal_parameters(trainee_id, params)
         self._auto_persist_trainee(trainee_id)
-
-    def get_num_training_cases(self, trainee_id: str) -> int:
-        """
-        Return the number of trained cases in the model.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The Id of the Trainee to retrieve the number of training cases from.
-
-        Returns
-        -------
-        int
-            The number of cases in the model
-        """
-        self._auto_resolve_trainee(trainee_id)
-        ret = self.howso.get_num_training_cases(trainee_id)
-        if isinstance(ret, dict):
-            return ret.get('count', 0)
-        return 0
 
     def set_auto_analyze_params(  # noqa: C901
         self,
