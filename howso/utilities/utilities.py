@@ -541,7 +541,7 @@ def validate_datetime_iso8061(datetime_value, feature):
 
 
 def serialize_datetimes(cases: List[List], columns: Iterable[str],  # noqa: C901
-                        features: Dict, *, warn: bool = False) -> None:
+                        features: Mapping, *, warn: bool = False) -> None:
     """
     Serialize datetimes in the given list of cases, in-place.
 
@@ -554,7 +554,7 @@ def serialize_datetimes(cases: List[List], columns: Iterable[str],  # noqa: C901
         A 2d list of case values corresponding to the features of the cases.
     columns : list of str
         A list of feature names.
-    features : dict
+    features : Mapping
         Dictionary of feature attributes.
     warn : bool, default: False
         If set to true, will warn user when specified datetime format
