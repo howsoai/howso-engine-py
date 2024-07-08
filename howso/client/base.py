@@ -1116,9 +1116,25 @@ class AbstractHowsoClient(ABC):
             cases=result.get('cases') or [],
         )
 
-    @abstractmethod
-    def get_num_training_cases(self, trainee_id) -> int:
-        """Return the number of trained cases in the model."""
+    def get_num_training_cases(self, trainee_id: str) -> int:
+        """
+        Return the number of trained cases in the Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The Id of the Trainee to retrieve the number of training cases from.
+
+        Returns
+        -------
+        int
+            The number of cases in the model
+        """
+        self._auto_resolve_trainee(trainee_id)
+        ret = self._execute(trainee_id, "get_num_training_cases", {})
+        if isinstance(ret, dict):
+            return ret.get('count', 0)
+        return 0
 
     @abstractmethod
     def get_feature_conviction(

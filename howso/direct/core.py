@@ -843,22 +843,6 @@ class HowsoCore:
             "condition_session": condition_session,
         })
 
-    def get_num_training_cases(self, trainee_id: str) -> Dict:
-        """
-        Return the number of trained cases in the model.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-
-        Returns
-        -------
-        dict
-            A dictionary containing the key "count".
-        """
-        return self._execute(trainee_id, "get_num_training_cases", {})
-
     def get_auto_ablation_params(self, trainee_id: str):
         """Get trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`."""
         return self._execute(
@@ -2535,70 +2519,6 @@ class HowsoCore:
             "mode": mode,
             "weight_feature": weight_feature,
         })
-
-    def edit_cases(
-        self,
-        trainee_id: str,
-        feature_values: Optional[Iterable[Any]] = None,
-        *,
-        case_indices: Optional[Iterable[Tuple[str, int]]] = None,
-        condition: Optional[Dict[str, Any]] = None,
-        condition_session: Optional[str] = None,
-        features: Optional[Iterable[str]] = None,
-        num_cases: Optional[int] = None,
-        precision: Optional[Literal["exact", "similar"]] = None,
-        session: Optional[str] = None
-    ) -> Dict:
-        """
-        Edit feature values for the specified cases.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        feature_values : list of object
-            The feature values to edit the case(s) with. If specified as a list,
-            the order corresponds with the order of the `features` parameter.
-        case_indices : Iterable of Sequence[Union[str, int]], optional
-            Iterable of Sequences containing the session id and index, where
-            index is the original 0-based index of the case as it was trained
-            into the session. This explicitly specifies the cases to edit. When
-            specified, `condition` and `condition_session` are ignored.
-        condition : dict, optional
-            A condition map to select which cases to edit. Ignored when
-            `case_indices` are specified.
-        condition_session : str, optional
-            If specified, ignores the condition and operates on all cases for
-            the specified session.
-        features : iterable of str, optional
-            The names of the features to edit. Corresponds to feature_values.
-        num_cases : int, default None
-            The maximum amount of cases to edit. If not specified, the limit
-            will be k cases if precision is "similar", or no limit if precision
-            is "exact".
-        precision : {"exact", "similar"}, optional
-            The precision to use when moving the cases, defaults to "exact".
-        session : str, optional
-            The identifier of the Trainee session to associate the edit with.
-
-        Returns
-        -------
-        dict
-            A dictionary with key 'count' for the number of modified cases.
-        """
-        result = self._execute(trainee_id, "edit_cases", {
-            "case_indices": case_indices,
-            "condition": condition,
-            "condition_session": condition_session,
-            "features": features,
-            "feature_values": feature_values,
-            "precision": precision,
-            "num_cases": num_cases,
-            "session": session,
-        })
-        if not result:
-            return {'count': 0}
-        return result
 
     def pairwise_distances(
         self,
