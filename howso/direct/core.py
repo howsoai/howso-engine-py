@@ -2261,61 +2261,6 @@ class HowsoCore:
         params = {**kwargs}
         return self._execute(trainee_id, "analyze", params)
 
-    def get_marginal_stats(
-        self,
-        trainee_id: str,
-        *,
-        condition: Optional[Dict[str, Any]] = None,
-        num_cases: Optional[int] = None,
-        precision: Optional[Literal["exact", "similar"]] = None,
-        weight_feature: Optional[str] = None
-    ) -> Dict[str, Dict[str, float]]:
-        """
-        Get marginal stats for all features.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        condition : dict or None, optional
-            A condition map to select which cases to compute marginal stats
-            for.
-
-            .. NOTE::
-                The dictionary keys are the feature name and values are one of:
-
-                    - None
-                    - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
-                    - An array of string values, must match any of these values
-                      exactly. Only applicable to nominal and string ordinal
-                      features.
-        num_cases : int, default None
-            The maximum amount of cases to use to calculate marginal stats.
-            If not specified, the limit will be k cases if precision is
-            "similar". Only used if `condition` is not None.
-        precision : str, default None
-            The precision to use when selecting cases with the condition.
-            Options are 'exact' or 'similar'. If not specified "exact" will be
-            used. Only used if `condition` is not None.
-        weight_feature : str, optional
-            When specified, will attempt to return stats that were computed
-            using this weight_feature.
-
-        Returns
-        -------
-        dict of str to dict of str to float
-            A map of feature names to map of stat type to stat values.
-        """
-        return self._execute(trainee_id, "get_marginal_stats", {
-            "condition": condition,
-            "num_cases": num_cases,
-            "precision": precision,
-            "weight_feature": weight_feature,
-        })
-
     def reset_parameter_defaults(self, trainee_id: str) -> None:
         """
         Reset Trainee hyperparameters and thresholds.

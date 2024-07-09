@@ -821,13 +821,70 @@ class AbstractHowsoClient(ABC):
 
     @abstractmethod
     def get_marginal_stats(
-        self, trainee_id, *,
-        condition=None,
-        num_cases=None,
-        precision=None,
-        weight_feature=None,
-    ) -> DataFrame | dict:
-        """Get marginal stats for all features."""
+        self,
+        trainee_id: str,
+        *,
+        condition: t.Optional[Mapping] = None,
+        num_cases: t.Optional[int] = None,
+        precision: t.Optional[Precision] = None,
+        weight_feature: t.Optional[str] = None
+    ) -> dict[str, dict[str, float]]:
+        """
+        Get marginal stats for all features.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to retrieve marginal stats for.
+        condition : dict or None, optional
+            A condition map to select which cases to compute marginal stats
+            for.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        num_cases : int, default None
+            The maximum amount of cases to use to calculate marginal stats.
+            If not specified, the limit will be k cases if precision is
+            "similar". Only used if `condition` is not None.
+        precision : str, default None
+            The precision to use when selecting cases with the condition.
+            Options are 'exact' or 'similar'. If not specified "exact" will be
+            used. Only used if `condition` is not None.
+        weight_feature : str, optional
+            When specified, will attempt to return stats that were computed
+            using this weight_feature.
+
+        Returns
+        -------
+        dict of str to dict of str to float
+            A map of feature names to map of stat type to stat values.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+
+        if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
+            warnings.warn(self.WARNING_MESSAGES['invalid_precision'])
+
+        if self.configuration.verbose:
+            print(f'Getting feature marginal stats for trainee with id: {trainee_id}')
+
+        stats = self._execute(trainee_id, "get_marginal_stats", {
+            "condition": condition,
+            "num_cases": num_cases,
+            "precision": precision,
+            "weight_feature": weight_feature,
+        })
+        if stats is None:
+            return dict()
+        return stats
 
     @abstractmethod
     def react_series(
