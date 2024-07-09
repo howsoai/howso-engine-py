@@ -6,18 +6,28 @@ import typing as t
 from uuid import UUID
 import warnings
 
+import numpy as np
 from pandas import DataFrame, Index
 
+from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee
 from howso.utilities import internals
 from howso.utilities import utilities as util
 from howso.utilities.features import serialize_cases
 from .exceptions import HowsoError
+from .typing import (
+    CaseIndices,
+    Cases,
+    Distances,
+    Evaluation,
+    Mode,
+    Persistence,
+    Precision,
+    TabularData2D,
+)
 
 if t.TYPE_CHECKING:
-    from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee, TraineePersistence
     from .cache import TraineeCache
     from .configuration import HowsoConfiguration
-    from .typing import CaseIndices, Cases, Precision
 
 
 class AbstractHowsoClient(ABC):
@@ -147,7 +157,7 @@ class AbstractHowsoClient(ABC):
         max_wait_time: t.Optional[int | float] = None,
         metadata: t.Optional[MutableMapping[str, t.Any]] = None,
         overwrite_trainee: bool = False,
-        persistence: TraineePersistence = "allow",
+        persistence: Persistence = "allow",
         project: t.Optional[str | Project] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None
     ) -> Trainee:
@@ -164,10 +174,6 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def get_trainee_information(self, trainee_id: str) -> dict:
         """Get information about the trainee."""
-
-    @abstractmethod
-    def get_trainee_metrics(self, trainee_id: str) -> dict:
-        """Get metric information for a trainee."""
 
     @abstractmethod
     def get_trainees(self, search_terms=None) -> list[dict]:
@@ -604,6 +610,7 @@ class AbstractHowsoClient(ABC):
         cached_trainee = self.trainee_cache.get(trainee_id)
 
         # Serialize feature_values
+        serialized_feature_values = None
         if feature_values is not None:
             if features is None:
                 features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
@@ -611,8 +618,6 @@ class AbstractHowsoClient(ABC):
             if serialized_feature_values:
                 # Only a single case should be provided
                 serialized_feature_values = serialized_feature_values[0]
-        else:
-            serialized_feature_values = None
 
         # Convert session instance to id
         if (
@@ -654,21 +659,118 @@ class AbstractHowsoClient(ABC):
     ):
         """Append the specified contexts to a series store."""
 
-    @abstractmethod
-    def set_substitute_feature_values(self, trainee_id, substitution_value_map):
-        """Set a substitution map for use in extended nominal generation."""
+    def set_substitute_feature_values(self, trainee_id: str, substitution_value_map: Mapping):
+        """
+        Set a Trainee's substitution map for use in extended nominal generation.
 
-    @abstractmethod
-    def get_substitute_feature_values(self, trainee_id, clear_on_get=True) -> dict:
-        """Get a substitution map for use in extended nominal generation."""
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to set substitute feature values for.
+        substitution_value_map : dict
+            A dictionary of feature name to a dictionary of feature value to
+            substitute feature value.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Setting substitute feature values for Trainee with id: {trainee_id}')
+        self._execute(trainee_id, "set_substitute_feature_values", {
+            "substitution_value_map": substitution_value_map
+        })
+        self._auto_persist_trainee(trainee_id)
 
-    @abstractmethod
-    def set_feature_attributes(self, trainee_id, feature_attributes):
-        """Set feature attributes for a trainee."""
+    def get_substitute_feature_values(self, trainee_id: str, clear_on_get: bool = True) -> dict:
+        """
+        Gets a substitution map for use in extended nominal generation.
 
-    @abstractmethod
-    def get_feature_attributes(self, trainee_id):
-        """Get a dict of feature attributes."""
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to get the substitution feature values from.
+        clear_on_get : bool, default True
+            Clears the substitution values map in the Trainee upon retrieving
+            them. This is done if it is desired to prevent the substitution map
+            from being persisted. If set to False the model will not be cleared
+            which preserves substitution mappings if the model is saved;
+            representing a potential privacy leak should the substitution map
+            be made public.
+
+        Returns
+        -------
+        dict of dict
+            A dictionary of feature name to a dictionary of feature value to
+            substitute feature value.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Getting substitute feature values from Trainee with id: {trainee_id}')
+        result = self._execute(trainee_id, "get_substitute_feature_values", {})
+        if clear_on_get:
+            self._execute(trainee_id, "set_substitute_feature_values", {
+                "substitution_value_map": {}
+            })
+            self._auto_persist_trainee(trainee_id)
+        if result is None:
+            return dict()
+        return result
+
+    def set_feature_attributes(self, trainee_id: str, feature_attributes: dict[str, dict]):
+        """
+        Sets feature attributes for a Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+        feature_attributes : dict of str to dict
+            A dict of dicts of feature attributes. Each key is the feature
+            'name' and each value is a dict of feature-specific parameters.
+
+            Example::
+
+                {
+                    "length": { "type" : "continuous", "decimal_places": 1 },
+                    "width": { "type" : "continuous", "significant_digits": 4 },
+                    "degrees": { "type" : "continuous", "cycle_length": 360 },
+                    "class": { "type" : "nominal" }
+                }
+        """
+        self._resolve_trainee(trainee_id)
+        cached_trainee = self.trainee_cache.get(trainee_id)
+
+        if not isinstance(feature_attributes, dict):
+            raise ValueError("`feature_attributes` must be a dict")
+        if self.configuration.verbose:
+            print(f'Setting feature attributes for Trainee with id: {trainee_id}')
+
+        self._execute(trainee_id, "set_feature_attributes", {
+            "feature_attributes": internals.preprocess_feature_attributes(feature_attributes),
+        })
+        self._auto_persist_trainee(trainee_id)
+
+        # Update trainee in cache
+        updated_feature_attributes = self._execute(trainee_id, "get_feature_attributes", {})
+        cached_trainee.features = internals.postprocess_feature_attributes(updated_feature_attributes)
+
+    def get_feature_attributes(self, trainee_id: str) -> dict[str, dict]:
+        """
+        Get stored feature attributes.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+
+        Returns
+        -------
+        dict
+            A dictionary of feature name to dictionary of feature attributes.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print('Getting feature attributes from Trainee with id: {trainee_id}')
+        feature_attributes = self._execute(trainee_id, "get_feature_attributes", {})
+        return internals.postprocess_feature_attributes(feature_attributes)
 
     @abstractmethod
     def get_sessions(self, search_terms=None) -> list[Session]:
@@ -717,15 +819,71 @@ class AbstractHowsoClient(ABC):
     ) -> None:
         """Renames a contained child trainee in the hierarchy."""
 
-    @abstractmethod
     def get_marginal_stats(
-        self, trainee_id, *,
-        condition=None,
-        num_cases=None,
-        precision=None,
-        weight_feature=None,
-    ) -> DataFrame | dict:
-        """Get marginal stats for all features."""
+        self,
+        trainee_id: str,
+        *,
+        condition: t.Optional[Mapping] = None,
+        num_cases: t.Optional[int] = None,
+        precision: t.Optional[Precision] = None,
+        weight_feature: t.Optional[str] = None
+    ) -> dict[str, dict[str, float]]:
+        """
+        Get marginal stats for all features.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to retrieve marginal stats for.
+        condition : dict or None, optional
+            A condition map to select which cases to compute marginal stats
+            for.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        num_cases : int, default None
+            The maximum amount of cases to use to calculate marginal stats.
+            If not specified, the limit will be k cases if precision is
+            "similar". Only used if `condition` is not None.
+        precision : str, default None
+            The precision to use when selecting cases with the condition.
+            Options are 'exact' or 'similar'. If not specified "exact" will be
+            used. Only used if `condition` is not None.
+        weight_feature : str, optional
+            When specified, will attempt to return stats that were computed
+            using this weight_feature.
+
+        Returns
+        -------
+        dict of str to dict of str to float
+            A map of feature names to map of stat type to stat values.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+
+        if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
+            warnings.warn(self.WARNING_MESSAGES['invalid_precision'])
+
+        if self.configuration.verbose:
+            print(f'Getting feature marginal stats for trainee with id: {trainee_id}')
+
+        stats = self._execute(trainee_id, "get_marginal_stats", {
+            "condition": condition,
+            "num_cases": num_cases,
+            "precision": precision,
+            "weight_feature": weight_feature,
+        })
+        if stats is None:
+            return dict()
+        return stats
 
     @abstractmethod
     def react_series(
@@ -864,9 +1022,50 @@ class AbstractHowsoClient(ABC):
     ) -> Reaction:
         """Send a `react` to the Howso engine."""
 
-    @abstractmethod
-    def evaluate(self, trainee_id, features_to_code_map, *, aggregation_code=None) -> dict:
-        """Evaluate custom code on case values within the trainee."""
+    def evaluate(
+        self,
+        trainee_id: str,
+        features_to_code_map: Mapping[str, str],
+        *,
+        aggregation_code: t.Optional[str] = None
+    ) -> Evaluation:
+        """
+        Evaluate custom code on feature values of all cases in the trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+        features_to_code_map : dict of str to str
+            A dictionary with feature name keys and custom Amalgam code string values.
+
+            The custom code can use "#feature_name 0" to reference the value
+            of that feature for each case.
+        aggregation_code : str, optional
+            A string of custom Amalgam code that can access the list of values
+            derived form the custom code in features_to_code_map.
+            The custom code can use "#feature_name 0" to reference the list of
+            values derived from using the custom code in features_to_code_map.
+
+        Returns
+        -------
+        dict
+            A dictionary with keys: 'evaluated' and 'aggregated'
+
+            'evaluated' is a dictionary with feature name
+            keys and lists of values derived from the features_to_code_map
+            custom code.
+
+            'aggregated' is None if no aggregation_code is given, it otherwise
+            holds the output of the custom 'aggregation_code'
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Evaluating on Trainee with id: {trainee_id}')
+        return self._execute(trainee_id, "evaluate", {
+            "features_to_code_map": features_to_code_map,
+            "aggregation_code": aggregation_code
+        })
 
     @abstractmethod
     def analyze(
@@ -1137,52 +1336,637 @@ class AbstractHowsoClient(ABC):
             return ret.get('count', 0)
         return 0
 
-    @abstractmethod
     def get_feature_conviction(
         self,
-        trainee_id,
+        trainee_id: str,
         *,
-
-        familiarity_conviction_addition: bool | str = True,
-        familiarity_conviction_removal: bool | str = False,
+        action_features: t.Optional[Collection[str]] = None,
+        features: t.Optional[Collection[str]] = None,
+        familiarity_conviction_addition: bool = True,
+        familiarity_conviction_removal: bool = False,
         use_case_weights: bool = False,
-        features=None,
-        action_features=None,
-        weight_feature=None
-    ) -> dict | DataFrame:
-        """Get familiarity conviction for features in the model."""
+        weight_feature: t.Optional[str] = None
+    ) -> dict:
+        """
+        Get familiarity conviction for features in the model.
 
-    @abstractmethod
-    def add_feature(self, trainee_id, feature, feature_value=None, *,
-                    condition=None, condition_session=None,
-                    feature_attributes=None, overwrite=False):
-        """Add a feature to a trainee's model."""
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee.
+        features : Collection of str, optional
+            An iterable of feature names to calculate convictions. At least 2
+            features are required to get familiarity conviction. If not
+            specified all features will be used.
+        action_features : Collection of str, optional
+            An iterable of feature names to be treated as action features
+            during conviction calculation in order to determine the conviction
+            of each feature against the set of action_features. If not
+            specified, conviction is computed for each feature against the rest
+            of the features as a whole.
+        familiarity_conviction_addition : bool, default True
+            Calculate and output familiarity conviction of adding the
+            specified features in the output.
+        familiarity_conviction_removal : bool, default False
+            Calculate and output familiarity conviction of removing
+            the specified features in the output.
+        weight_feature : str, optional
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+        use_case_weights : bool, default False
+            If set to True will scale influence weights by each
+            case's weight_feature weight.
 
-    @abstractmethod
-    def remove_feature(self, trainee_id, feature, *, condition=None,
-                       condition_session=None):
-        """Remove a feature from a trainee."""
+        Returns
+        -------
+        dict
+            A dict with familiarity_conviction_addition or
+            familiarity_conviction_removal
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        util.validate_list_shape(features, 1, "features", "str")
+        util.validate_list_shape(action_features, 1, "action_features", "str")
+        if self.configuration.verbose:
+            print(f'Getting conviction of features for Trainee with id: {trainee_id}')
+        return self._execute(trainee_id, "get_feature_conviction", {
+            "features": features,
+            "action_features": action_features,
+            "familiarity_conviction_addition": familiarity_conviction_addition,
+            "familiarity_conviction_removal": familiarity_conviction_removal,
+            "weight_feature": weight_feature,
+            "use_case_weights": use_case_weights,
+        })
 
-    @abstractmethod
-    def get_pairwise_distances(self, trainee_id, features=None, *,
-                               action_feature=None, from_case_indices=None,
-                               from_values=None, to_case_indices=None,
-                               to_values=None, use_case_weights=False,
-                               weight_feature=None) -> list[float]:
-        """Compute pairwise distances between specified cases."""
+    def add_feature(
+        self,
+        trainee_id: str,
+        feature: str,
+        feature_value: t.Optional[int | float | str] = None,
+        *,
+        condition: t.Optional[Mapping] = None,
+        condition_session: t.Optional[str] = None,
+        feature_attributes: t.Optional[Mapping] = None,
+        overwrite: bool = False
+    ):
+        """
+        Adds a feature to a trainee.
 
-    @abstractmethod
-    def get_distances(self, trainee_id, features=None, *,
-                      action_feature=None, case_indices=None,
-                      feature_values=None, use_case_weights=False,
-                      weight_feature=None) -> dict:
-        """Compute distances matrix for specified cases."""
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee add the feature to.
+        feature : str
+            The name of the feature.
+        feature_attributes : dict, optional
+            The dict of feature specific attributes for this feature. If
+            unspecified and conditions are not specified, will assume feature
+            type as 'continuous'.
+        feature_value : int or float or str, optional
+            The value to populate the feature with.
+            By default, populates the new feature with None.
+        condition : Mapping, optional
+            A condition map where feature values will only be added when
+            certain criteria is met.
 
-    @abstractmethod
-    def get_params(self, trainee_id, *, action_feature=None,
-                   context_features=None, mode=None, weight_feature=None) -> dict[str, t.Any]:
-        """Get parameters used by the system."""
+            If None, the feature will be added to all cases in the model
+            and feature metadata will be updated to include it. If specified
+            as an empty dict, the feature will still be added to all cases in
+            the model but the feature metadata will not be updated.
 
-    @abstractmethod
-    def set_params(self, trainee_id, params):
-        """Set specific hyperparameters in the trainee."""
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+
+            .. TIP::
+                For instance to add the `feature_value` only when the
+                `length` and `width` features are equal to 10::
+
+                    condition = {"length": 10, "width": 10}
+
+        condition_session : str, optional
+            If specified, ignores the condition and operates on cases for the
+            specified session id.
+        overwrite : bool, default False
+            If True, the feature will be over-written if it exists.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        cached_trainee = self.trainee_cache.get(trainee_id)
+
+        if not self.active_session:
+            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+
+        if feature_attributes is not None:
+            updated_attributes = internals.preprocess_feature_attributes({feature: feature_attributes})
+            if updated_attributes is None:
+                raise AssertionError("Failed to preprocess feature attributes for new feature.")
+            feature_attributes = updated_attributes[feature]
+
+        if self.configuration.verbose:
+            print(f'Adding feature "{feature}" to Trainee with id {trainee_id}.')
+        self._execute(trainee_id, "add_feature", {
+            "feature": feature,
+            "feature_value": feature_value,
+            "overwrite": overwrite,
+            "condition": condition,
+            "feature_attributes": feature_attributes,
+            "session": self.active_session.id,
+            "condition_session": condition_session,
+        })
+        self._auto_persist_trainee(trainee_id)
+
+        # Update trainee in cache
+        cached_trainee.features = self.get_feature_attributes(trainee_id)
+
+    def remove_feature(
+        self,
+        trainee_id: str,
+        feature: str,
+        *,
+        condition: t.Optional[Mapping] = None,
+        condition_session: t.Optional[str] = None
+    ):
+        """
+        Removes a feature from a Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee remove the feature from.
+        feature : str
+            The name of the feature to remove.
+        condition : dict, optional
+            A condition map where features will only be removed when certain
+            criteria is met.
+
+            If None, the feature will be removed from all cases in the model
+            and feature metadata will be updated to exclude it. If specified
+            as an empty dict, the feature will still be removed from all cases
+            in the model but the feature metadata will not be updated.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+
+            .. TIP::
+                For instance to remove the `length` feature only when the
+                value is between 1 and 5::
+
+                    condition = {"length": [1, 5]}
+
+        condition_session : str, optional
+            If specified, ignores the condition and operates on cases for the
+            specified session id.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        cached_trainee = self.trainee_cache.get(trainee_id)
+
+        if not self.active_session:
+            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+
+        if self.configuration.verbose:
+            print(f'Removing feature "{feature}" from Trainee with id: {trainee_id}')
+        self._execute(trainee_id, "remove_feature", {
+            "feature": feature,
+            "condition": condition,
+            "session": self.active_session.id,
+            "condition_session": condition_session,
+        })
+        self._auto_persist_trainee(trainee_id)
+
+        # Update trainee in cache
+        cached_trainee.features = self.get_feature_attributes(trainee_id)
+
+    def get_pairwise_distances(
+        self,
+        trainee_id: str,
+        features: t.Optional[Collection[str]] = None,
+        *,
+        action_feature: t.Optional[str] = None,
+        from_case_indices: t.Optional[CaseIndices] = None,
+        from_values: t.Optional[TabularData2D] = None,
+        to_case_indices: t.Optional[CaseIndices] = None,
+        to_values: t.Optional[TabularData2D] = None,
+        use_case_weights: bool = False,
+        weight_feature: t.Optional[str] = None
+    ) -> list[float]:
+        """
+        Compute pairwise distances between specified cases.
+
+        Returns a list of computed distances between each respective pair of
+        cases specified in either `from_values` or `from_case_indices` to
+        `to_values` or `to_case_indices`. If only one case is specified in any
+        of the lists, all respective distances are computed to/from that one
+        case.
+
+        .. NOTE::
+            - One of `from_values` or `from_case_indices` must be specified,
+              not both.
+            - One of `to_values` or `to_case_indices` must be specified,
+              not both.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The trainee ID.
+        features : iterable of str, optional
+            List of feature names to use when computing pairwise distances.
+            If unspecified uses all features.
+        action_feature : str, optional
+            The action feature. If specified, uses targeted hyperparameters
+            used to predict this `action_feature`, otherwise uses targetless
+            hyperparameters.
+        from_case_indices : Iterable of Sequence[Union[str, int]], optional
+            An iterable of sequences, of session id and index, where index
+            is the original 0-based index of the case as it was trained into
+            the session. If specified must be either length of 1 or match
+            length of `to_values` or `to_case_indices`.
+        from_values : list of list of object or pandas.DataFrame, optional
+            A 2d-list of case values. If specified must be either length of
+            1 or match length of `to_values` or `to_case_indices`.
+        to_case_indices : Iterable of Sequence[Union[str, int]], optional
+            An Iterable of Sequences, of session id and index, where index
+            is the original 0-based index of the case as it was trained into
+            the session. If specified must be either length of 1 or match
+            length of `from_values` or `from_case_indices`.
+        to_values : list of list of object or pandas.DataFrame, optional
+            A 2d-list of case values. If specified must be either length of
+            1 or match length of `from_values` or `from_case_indices`.
+        use_case_weights : bool, default False
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight.
+        weight_feature : str, optional
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+
+        Returns
+        -------
+        list
+            A list of computed pairwise distances between each corresponding
+            pair of cases in `from_case_indices` and `to_case_indices`.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        feature_attributes = self.trainee_cache.get(trainee_id).features
+
+        util.validate_list_shape(from_values, 2, 'from_values', 'list of list of object')
+        util.validate_list_shape(to_values, 2, 'to_values', 'list of list of object')
+
+        if from_case_indices is None and from_values is None:
+            raise ValueError("One of `from_case_indices` or `from_values` "
+                             "must be specified.")
+        elif from_case_indices is not None and from_values is not None:
+            raise ValueError("Only one of `from_case_indices` or `from_values` "
+                             "may be specified, not both.")
+
+        if to_case_indices is None and to_values is None:
+            raise ValueError("One of `to_case_indices` or `to_values` "
+                             "must be specified.")
+        elif to_case_indices is not None and to_values is not None:
+            raise ValueError("Only one of `to_case_indices` or `to_values` "
+                             "may be specified, not both.")
+
+        # Validate case_indices if provided
+        if from_case_indices:
+            util.validate_case_indices(from_case_indices)
+        if to_case_indices:
+            util.validate_case_indices(to_case_indices)
+
+        # Serialize values if defined
+        if from_values is not None:
+            if features is None:
+                features = internals.get_features_from_data(
+                    from_values, data_parameter='from_values')
+            from_values = serialize_cases(from_values, features, feature_attributes)
+        if to_values is not None:
+            if features is None:
+                features = internals.get_features_from_data(
+                    to_values, data_parameter='to_values')
+            to_values = serialize_cases(to_values, features, feature_attributes)
+
+        if self.configuration.verbose:
+            print(f'Getting pairwise distances for Trainee with id: {trainee_id}')
+
+        result = self._execute(trainee_id, "get_pairwise_distances", {
+            "features": features,
+            "action_feature": action_feature,
+            "from_case_indices": from_case_indices,
+            "from_values": from_values,
+            "to_case_indices": to_case_indices,
+            "to_values": to_values,
+            "weight_feature": weight_feature,
+            "use_case_weights": use_case_weights,
+        })
+        if result is None:
+            return []
+        return result
+
+    def get_distances(  # noqa: C901
+        self,
+        trainee_id: str,
+        features: t.Optional[Iterable[str]] = None,
+        *,
+        action_feature: t.Optional[str] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        feature_values: t.Optional[list[t.Any] | DataFrame] = None,
+        use_case_weights: bool = False,
+        weight_feature: t.Optional[str] = None
+    ) -> Distances:
+        """
+        Compute distances matrix for specified cases.
+
+        Returns a dict with computed distances between all cases
+        specified in `case_indices` or from all cases in local model as defined
+        by `feature_values`. If neither `case_indices` nor `feature_values` is
+        specified, returns computed distances for the entire dataset.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The trainee ID.
+        features : iterable of str, optional
+            List of feature names to use when computing distances. If
+            unspecified uses all features.
+        action_feature : str, optional
+            The action feature. If specified, uses targeted hyperparameters
+            used to predict this `action_feature`, otherwise uses targetless
+            hyperparameters.
+        case_indices : Iterable of Sequence[Union[str, int]], optional
+            An Iterable of Sequences, of session id and index, where index is
+            the original 0-based index of the case as it was trained into the
+            session. If specified, returns distances for all of these
+            cases. Ignored if `feature_values` is provided. If neither
+            `feature_values` nor `case_indices` is specified, uses full dataset.
+        feature_values : list of object or DataFrame, optional
+            If specified, returns distances of the local model relative to
+            these values, ignores `case_indices` parameter. If provided a
+            DataFrame, only the first row will be used.
+        use_case_weights : bool, default False
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight.
+        weight_feature : str, optional
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+
+        Returns
+        -------
+        dict
+            A dict containing a matrix of computed distances and the list of
+            corresponding case indices in the following format::
+
+                {
+                    'case_indices': [ session-indices ],
+                    'distances': [ [ distances ] ]
+                }
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        feature_attributes = self.trainee_cache.get(trainee_id).features
+
+        # Validate case_indices if provided
+        if case_indices is not None:
+            util.validate_case_indices(case_indices)
+
+        if feature_values is not None:
+            if (
+                isinstance(feature_values, Iterable)
+                and len(np.array(feature_values).shape) == 1
+                and len(feature_values) > 0
+            ):
+                # Convert 1d list to 2d list for serialization
+                feature_values = [feature_values]
+
+            if features is None:
+                features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
+            feature_values = serialize_cases(feature_values, features, feature_attributes)
+            if feature_values:
+                # Only a single case should be provided
+                feature_values = feature_values[0]
+            # Ignored when feature_values specified
+            case_indices = None
+
+        if case_indices is not None and len(case_indices) < 2:
+            raise ValueError("If providing `case_indices`, must provide at "
+                             "least 2 cases for computation.")
+
+        if self.configuration.verbose:
+            print(f'Getting distances between cases for Trainee with id: {trainee_id}')
+
+        preallocate = True  # If matrix should be preallocated in memory
+        matrix_ndarray = None  # Used when preallocating
+        matrix_list = []  # Used if we cannot preallocate
+        page_size = 2000
+        indices = []
+        total_rows = 0
+        total_cols = 0
+        mismatch_msg = (
+            "Received mismatched distance value pairs. It is likely some "
+            "cases were either deleted or trained during the computation of "
+            "get_distances. Rerunning this operation may resolve this error."
+        )
+
+        if feature_values is not None:
+            # When specifying feature values, only distances closest to this
+            # case will be returned. The largest matrix size that could be
+            # expected is 144x144, so we can request the entire matrix at once.
+            # Set num_cases to 1 so we only page once.
+            num_cases = 1
+            preallocate = False  # won't know the actual size beforehand
+        elif case_indices is not None:
+            num_cases = len(case_indices)
+        else:
+            num_cases = self.get_num_training_cases(trainee_id)
+
+        # Preallocate matrix (This will raise a numpy MemoryError if too large)
+        if preallocate:
+            matrix_ndarray = np.zeros((num_cases, num_cases), dtype='float64')
+
+        for row_offset in range(0, num_cases, page_size):
+            for column_offset in range(0, num_cases, page_size):
+                result = self._execute(trainee_id, "get_distances", {
+                    "features": features,
+                    "action_feature": action_feature,
+                    "case_indices": case_indices,
+                    "feature_values": feature_values,
+                    "weight_feature": weight_feature,
+                    "use_case_weights": use_case_weights,
+                    "row_offset": row_offset,
+                    "row_count": page_size,
+                    "column_offset": column_offset,
+                    "column_count": page_size,
+                })
+
+                column_case_indices = result['column_case_indices']
+                row_case_indices = result['row_case_indices']
+                distances = result['distances']
+
+                if preallocate and matrix_ndarray is not None:
+                    # Fill in allocated matrix
+                    try:
+                        matrix_ndarray[
+                            row_offset:row_offset + len(row_case_indices),
+                            column_offset:column_offset + len(column_case_indices)
+                        ] = distances
+                    except ValueError as err:
+                        # Unexpected shape when populating array
+                        raise HowsoError(mismatch_msg) from err
+                else:
+                    if column_offset == 0:
+                        # Append new rows
+                        matrix_list += distances
+                    else:
+                        # Extend existing columns
+                        try:
+                            for i, cols in enumerate(distances):
+                                matrix_list[row_offset + i].extend(cols)
+                        except (AttributeError, IndexError):
+                            # Unexpected shape when populating array
+                            raise HowsoError(mismatch_msg)
+
+                if column_offset == 0:
+                    total_rows += len(row_case_indices)
+                if row_offset == 0:
+                    total_cols += len(column_case_indices)
+                    # Collect the axis indices. Both axis will be the same,
+                    # so we only need to collect them the first time we page
+                    # through the columns when row offset is 0.
+                    indices += column_case_indices
+
+        if preallocate:
+            if total_cols != num_cases or total_rows != num_cases:
+                # Received unexpected number of distances
+                raise HowsoError(mismatch_msg)
+            distances_matrix = matrix_ndarray if matrix_ndarray is not None else np.ndarray(0, dtype="float64")
+        else:
+            if matrix_list:
+                # Validate matrix shape
+                if (
+                    total_cols != total_rows or
+                    not all(len(r) == total_cols for r in matrix_list)
+                ):
+                    raise HowsoError(mismatch_msg)
+            # Convert matrix to numpy array
+            distances_matrix = np.array(matrix_list, dtype='float64')
+
+        return {
+            'case_indices': indices,
+            'distances': distances_matrix
+        }
+
+    def get_params(
+        self,
+        trainee_id: str,
+        *,
+        action_feature: t.Optional[str] = None,
+        context_features: t.Optional[Iterable[str]] = None,
+        mode: t.Optional[Mode] = None,
+        weight_feature: t.Optional[str] = None,
+    ) -> dict[str, t.Any]:
+        """
+        Get the parameters used by the Trainee.
+
+        If 'action_feature',
+        'context_features', 'mode', or 'weight_feature' are specified, then
+        the best hyperparameters analyzed in the Trainee are the value of the
+        'hyperparameter_map' key, otherwise this value will be the dictionary
+        containing all the hyperparameter sets in the Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee get parameters from.
+        action_feature : str, optional
+            If specified will return the best analyzed hyperparameters to
+            target this feature.
+        context_features : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            to use with these context features.
+        mode : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            that were computed in this mode.
+        weight_feature : str, optional
+            If specified, will find and return the best analyzed hyperparameters
+            that were analyzed using this weight feature.
+
+        Returns
+        -------
+        dict
+            A dict including the either all of the Trainee's internal
+            parameters or only the best hyperparameters selected using the
+            passed parameters.
+        """
+        self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Getting model attributes from Trainee with id: {trainee_id}')
+        return self._execute(trainee_id, "get_params", {
+            "action_feature": action_feature,
+            "context_features": context_features,
+            "mode": mode,
+            "weight_feature": weight_feature,
+        })
+
+    def set_params(self, trainee_id: str, params: Mapping):
+        """
+        Sets specific hyperparameters in the Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee set hyperparameters.
+
+        params : dict
+            A dictionary in the following format containing the hyperparameter
+            information, which is required, and other parameters which are
+            all optional.
+
+            Example::
+
+                {
+                    "hyperparameter_map": {
+                        ".targetless": {
+                            "robust": {
+                                ".none": {
+                                    "dt": -1, "p": .1, "k": 8
+                                }
+                            }
+                        }
+                    },
+                }
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Setting model attributes for Trainee with id: {trainee_id}')
+
+        parameters = dict(params)
+        deprecated_params = {
+            'auto_optimize_enabled': 'auto_analyze_enabled',
+            'optimize_threshold': 'analyze_threshold',
+            'optimize_growth_factor': 'analyze_growth_factor',
+            'auto_optimize_limit_size': 'auto_analyze_limit_size',
+        }
+
+        # replace any old params with new params and remove old param
+        for old_param, new_param in deprecated_params.items():
+            if old_param in parameters:
+                parameters[new_param] = parameters[old_param]
+                del parameters[old_param]
+                warnings.warn(
+                    f'The `{old_param}` parameter has been renamed to '
+                    f'`{new_param}`, please use the new parameter '
+                    'instead.', UserWarning)
+
+        self._execute(trainee_id, "set_params", parameters)
+        self._auto_persist_trainee(trainee_id)
