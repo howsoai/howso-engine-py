@@ -614,6 +614,7 @@ class AbstractHowsoClient(ABC):
         cached_trainee = self.trainee_cache.get(trainee_id)
 
         # Serialize feature_values
+        serialized_feature_values = None
         if feature_values is not None:
             if features is None:
                 features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
@@ -621,8 +622,6 @@ class AbstractHowsoClient(ABC):
             if serialized_feature_values:
                 # Only a single case should be provided
                 serialized_feature_values = serialized_feature_values[0]
-        else:
-            serialized_feature_values = None
 
         # Convert session instance to id
         if (
@@ -672,13 +671,63 @@ class AbstractHowsoClient(ABC):
     def get_substitute_feature_values(self, trainee_id, clear_on_get=True) -> dict:
         """Get a substitution map for use in extended nominal generation."""
 
-    @abstractmethod
-    def set_feature_attributes(self, trainee_id, feature_attributes):
-        """Set feature attributes for a trainee."""
+    def set_feature_attributes(self, trainee_id: str, feature_attributes: dict[str, dict]):
+        """
+        Sets feature attributes for a Trainee.
 
-    @abstractmethod
-    def get_feature_attributes(self, trainee_id):
-        """Get a dict of feature attributes."""
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+        feature_attributes : dict of str to dict
+            A dict of dicts of feature attributes. Each key is the feature
+            'name' and each value is a dict of feature-specific parameters.
+
+            Example::
+
+                {
+                    "length": { "type" : "continuous", "decimal_places": 1 },
+                    "width": { "type" : "continuous", "significant_digits": 4 },
+                    "degrees": { "type" : "continuous", "cycle_length": 360 },
+                    "class": { "type" : "nominal" }
+                }
+        """
+        self._resolve_trainee(trainee_id)
+        cached_trainee = self.trainee_cache.get(trainee_id)
+
+        if not isinstance(feature_attributes, dict):
+            raise ValueError("`feature_attributes` must be a dict")
+        if self.configuration.verbose:
+            print(f'Setting feature attributes for Trainee with id: {trainee_id}')
+
+        self._execute(trainee_id, "set_feature_attributes", {
+            "feature_attributes": internals.preprocess_feature_attributes(feature_attributes),
+        })
+        self._auto_persist_trainee(trainee_id)
+
+        # Update trainee in cache
+        updated_feature_attributes = self._execute(trainee_id, "get_feature_attributes", {})
+        cached_trainee.features = internals.postprocess_feature_attributes(updated_feature_attributes)
+
+    def get_feature_attributes(self, trainee_id: str) -> dict[str, dict]:
+        """
+        Get stored feature attributes.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+
+        Returns
+        -------
+        dict
+            A dictionary of feature name to dictionary of feature attributes.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print('Getting feature attributes from Trainee with id: {trainee_id}')
+        feature_attributes = self._execute(trainee_id, "get_feature_attributes", {})
+        return internals.postprocess_feature_attributes(feature_attributes)
 
     @abstractmethod
     def get_sessions(self, search_terms=None) -> list[Session]:

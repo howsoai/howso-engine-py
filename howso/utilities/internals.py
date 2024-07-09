@@ -4,6 +4,8 @@ Internal utilities.
 Notice: These are internal utilities and are not intended to be
         referenced directly.
 """
+from __future__ import annotations
+
 from collections import OrderedDict
 from collections.abc import Iterable
 from copy import deepcopy
@@ -31,7 +33,7 @@ if TYPE_CHECKING:
     from .monitors import ProgressTimer
 
 
-def postprocess_trainee(trainee: "Trainee") -> "Trainee":
+def postprocess_trainee(trainee: Trainee) -> Trainee:
     """
     Post-process a trainee to update its data into the expected format.
 
@@ -52,7 +54,7 @@ def postprocess_trainee(trainee: "Trainee") -> "Trainee":
     return trainee
 
 
-def preprocess_trainee(trainee: "Trainee") -> "Trainee":
+def preprocess_trainee(trainee: Trainee) -> Trainee:
     """
     Pre-process a trainee to update its data into the expected format.
 
@@ -190,7 +192,7 @@ def serialize_models(obj: Any, *, exclude_null: bool = False) -> Any:
     return obj
 
 
-def postprocess_feature_attributes(features):
+def postprocess_feature_attributes(features: Mapping) -> dict:
     """
     Post-process feature attributes into the expected client format.
 
@@ -204,16 +206,16 @@ def postprocess_feature_attributes(features):
 
     Returns
     -------
-    dict or None
+    dict
         The updated copy of features.
     """
     if features is None:
-        return None
+        return {}
 
     # Serialize any OpenAPI models
-    features = deepcopy(serialize_models(features))
+    feature_attributes: dict = deepcopy(serialize_models(features))
 
-    for feat in features.values():
+    for feat in feature_attributes.values():
         if feat is None:
             continue
 
@@ -232,10 +234,10 @@ def postprocess_feature_attributes(features):
             except (TypeError, KeyError):
                 pass
 
-    return features
+    return feature_attributes
 
 
-def preprocess_feature_attributes(features):
+def preprocess_feature_attributes(features: Mapping) -> dict | None:
     """
     Pre-process feature attributes into the expected API format.
 
@@ -257,10 +259,10 @@ def preprocess_feature_attributes(features):
         return None
 
     # Serialize any OpenAPI models
-    features = deepcopy(serialize_models(features))
+    feature_attributes: dict = deepcopy(serialize_models(features))
 
     regex = re.compile(r"%S.%f")
-    for feat in features.values():
+    for feat in feature_attributes.values():
         if feat is None:
             continue
 
@@ -289,7 +291,7 @@ def preprocess_feature_attributes(features):
         except (KeyError, TypeError, ValueError):
             pass
 
-    return features
+    return feature_attributes
 
 
 def format_react_response(response, single_action=False):

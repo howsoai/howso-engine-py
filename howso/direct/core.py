@@ -2231,46 +2231,6 @@ class HowsoCore:
             "session": session,
         })
 
-    def set_feature_attributes(
-        self,
-        trainee_id: str,
-        feature_attributes: Dict[str, Dict]
-    ) -> Dict[str, Dict]:
-        """
-        Sets feature attributes for a Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        feature_attributes : dict of str to dict
-            A dictionary of feature name to dictionary of feature attributes.
-
-        Returns
-        -------
-        dict
-            The updated feature attributes.
-        """
-        return self._execute(trainee_id, "set_feature_attributes", {
-            "features": feature_attributes,
-        })
-
-    def get_feature_attributes(self, trainee_id: str) -> Dict[str, Dict]:
-        """
-        Get Trainee feature attributes.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee
-
-        Returns
-        -------
-        dict
-            A dictionary of feature name to dictionary of feature attributes.
-        """
-        return self._execute(trainee_id, "get_feature_attributes", {})
-
     def export_trainee(
         self,
         trainee_id: str,
