@@ -319,7 +319,7 @@ class AbstractHowsoClient(ABC):
         case_indices : Sequence of tuple of {str, int}, optional
             A list of tuples containing session ID and session training index
             for each case to be removed.
-        condition : dict of str to object, optional
+        condition : Mapping of str to object, optional
             The condition map to select the cases to remove that meet all the
             provided conditions. Ignored if case_indices is specified.
 
@@ -430,7 +430,7 @@ class AbstractHowsoClient(ABC):
         case_indices : Sequence of tuple of {str, int}, optional
             A list of tuples containing session ID and session training index
             for each case to be removed.
-        condition : dict, optional
+        condition : Mapping, optional
             The condition map to select the cases to move that meet all the
             provided conditions. Ignored if case_indices is specified.
 
@@ -563,7 +563,7 @@ class AbstractHowsoClient(ABC):
             is the original 0-based index of the case as it was trained into
             the session. This explicitly specifies the cases to edit. When
             specified, `condition` and `condition_session` are ignored.
-        condition : dict, optional
+        condition : Mapping, optional
             A condition map to select which cases to edit. Ignored when
             `case_indices` are specified.
 
@@ -667,7 +667,7 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to set substitute feature values for.
-        substitution_value_map : dict
+        substitution_value_map : Mapping
             A dictionary of feature name to a dictionary of feature value to
             substitute feature value.
         """
@@ -714,7 +714,7 @@ class AbstractHowsoClient(ABC):
             return dict()
         return result
 
-    def set_feature_attributes(self, trainee_id: str, feature_attributes: dict[str, dict]):
+    def set_feature_attributes(self, trainee_id: str, feature_attributes: Mapping[str, Mapping]):
         """
         Sets feature attributes for a Trainee.
 
@@ -722,7 +722,7 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee.
-        feature_attributes : dict of str to dict
+        feature_attributes : Mapping of str to Mapping
             A dict of dicts of feature attributes. Each key is the feature
             'name' and each value is a dict of feature-specific parameters.
 
@@ -738,7 +738,7 @@ class AbstractHowsoClient(ABC):
         self._resolve_trainee(trainee_id)
         cached_trainee = self.trainee_cache.get(trainee_id)
 
-        if not isinstance(feature_attributes, dict):
+        if not isinstance(feature_attributes, Mapping):
             raise ValueError("`feature_attributes` must be a dict")
         if self.configuration.verbose:
             print(f'Setting feature attributes for Trainee with id: {trainee_id}')
@@ -835,7 +835,7 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to retrieve marginal stats for.
-        condition : dict or None, optional
+        condition : Mapping or None, optional
             A condition map to select which cases to compute marginal stats
             for.
 
@@ -1036,7 +1036,7 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee.
-        features_to_code_map : dict of str to str
+        features_to_code_map : Mapping of str to str
             A dictionary with feature name keys and custom Amalgam code string values.
 
             The custom code can use "#feature_name 0" to reference the value
@@ -1192,7 +1192,7 @@ class AbstractHowsoClient(ABC):
                 | **.session_training_index** - 0-based original index of the
                   case, ordered by training during the session; is never
                   changed.
-        condition : dict, optional
+        condition : Mapping, optional
             The condition map to select the cases to retrieve that meet all the
             provided conditions.
 
@@ -1417,7 +1417,7 @@ class AbstractHowsoClient(ABC):
             The ID of the Trainee add the feature to.
         feature : str
             The name of the feature.
-        feature_attributes : dict, optional
+        feature_attributes : Mapping, optional
             The dict of feature specific attributes for this feature. If
             unspecified and conditions are not specified, will assume feature
             type as 'continuous'.
@@ -1502,7 +1502,7 @@ class AbstractHowsoClient(ABC):
             The ID of the Trainee remove the feature from.
         feature : str
             The name of the feature to remove.
-        condition : dict, optional
+        condition : Mapping, optional
             A condition map where features will only be removed when certain
             criteria is met.
 
@@ -1927,7 +1927,7 @@ class AbstractHowsoClient(ABC):
         trainee_id : str
             The ID of the Trainee set hyperparameters.
 
-        params : dict
+        params : Mapping
             A dictionary in the following format containing the hyperparameter
             information, which is required, and other parameters which are
             all optional.
