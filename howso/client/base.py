@@ -819,7 +819,6 @@ class AbstractHowsoClient(ABC):
     ) -> None:
         """Renames a contained child trainee in the hierarchy."""
 
-    @abstractmethod
     def get_marginal_stats(
         self,
         trainee_id: str,
@@ -1398,18 +1397,161 @@ class AbstractHowsoClient(ABC):
             "use_case_weights": use_case_weights,
         })
 
-    @abstractmethod
-    def add_feature(self, trainee_id, feature, feature_value=None, *,
-                    condition=None, condition_session=None,
-                    feature_attributes=None, overwrite=False):
-        """Add a feature to a trainee's model."""
+    def add_feature(
+        self,
+        trainee_id: str,
+        feature: str,
+        feature_value: t.Optional[int | float | str] = None,
+        *,
+        condition: t.Optional[Mapping] = None,
+        condition_session: t.Optional[str] = None,
+        feature_attributes: t.Optional[Mapping] = None,
+        overwrite: bool = False
+    ):
+        """
+        Adds a feature to a trainee.
 
-    @abstractmethod
-    def remove_feature(self, trainee_id, feature, *, condition=None,
-                       condition_session=None):
-        """Remove a feature from a trainee."""
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee add the feature to.
+        feature : str
+            The name of the feature.
+        feature_attributes : dict, optional
+            The dict of feature specific attributes for this feature. If
+            unspecified and conditions are not specified, will assume feature
+            type as 'continuous'.
+        feature_value : int or float or str, optional
+            The value to populate the feature with.
+            By default, populates the new feature with None.
+        condition : Mapping, optional
+            A condition map where feature values will only be added when
+            certain criteria is met.
 
-    @abstractmethod
+            If None, the feature will be added to all cases in the model
+            and feature metadata will be updated to include it. If specified
+            as an empty dict, the feature will still be added to all cases in
+            the model but the feature metadata will not be updated.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+
+            .. TIP::
+                For instance to add the `feature_value` only when the
+                `length` and `width` features are equal to 10::
+
+                    condition = {"length": 10, "width": 10}
+
+        condition_session : str, optional
+            If specified, ignores the condition and operates on cases for the
+            specified session id.
+        overwrite : bool, default False
+            If True, the feature will be over-written if it exists.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        cached_trainee = self.trainee_cache.get(trainee_id)
+
+        if not self.active_session:
+            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+
+        if feature_attributes is not None:
+            updated_attributes = internals.preprocess_feature_attributes({feature: feature_attributes})
+            if updated_attributes is None:
+                raise AssertionError("Failed to preprocess feature attributes for new feature.")
+            feature_attributes = updated_attributes[feature]
+
+        if self.configuration.verbose:
+            print(f'Adding feature "{feature}" to Trainee with id {trainee_id}.')
+        self._execute(trainee_id, "add_feature", {
+            "feature": feature,
+            "feature_value": feature_value,
+            "overwrite": overwrite,
+            "condition": condition,
+            "feature_attributes": feature_attributes,
+            "session": self.active_session.id,
+            "condition_session": condition_session,
+        })
+        self._auto_persist_trainee(trainee_id)
+
+        # Update trainee in cache
+        cached_trainee.features = self.get_feature_attributes(trainee_id)
+
+    def remove_feature(
+        self,
+        trainee_id: str,
+        feature: str,
+        *,
+        condition: t.Optional[Mapping] = None,
+        condition_session: t.Optional[str] = None
+    ):
+        """
+        Removes a feature from a Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee remove the feature from.
+        feature : str
+            The name of the feature to remove.
+        condition : dict, optional
+            A condition map where features will only be removed when certain
+            criteria is met.
+
+            If None, the feature will be removed from all cases in the model
+            and feature metadata will be updated to exclude it. If specified
+            as an empty dict, the feature will still be removed from all cases
+            in the model but the feature metadata will not be updated.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+
+            .. TIP::
+                For instance to remove the `length` feature only when the
+                value is between 1 and 5::
+
+                    condition = {"length": [1, 5]}
+
+        condition_session : str, optional
+            If specified, ignores the condition and operates on cases for the
+            specified session id.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        cached_trainee = self.trainee_cache.get(trainee_id)
+
+        if not self.active_session:
+            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+
+        if self.configuration.verbose:
+            print(f'Removing feature "{feature}" from Trainee with id: {trainee_id}')
+        self._execute(trainee_id, "remove_feature", {
+            "feature": feature,
+            "condition": condition,
+            "session": self.active_session.id,
+            "condition_session": condition_session,
+        })
+        self._auto_persist_trainee(trainee_id)
+
+        # Update trainee in cache
+        cached_trainee.features = self.get_feature_attributes(trainee_id)
+
     def get_pairwise_distances(
         self,
         trainee_id: str,
