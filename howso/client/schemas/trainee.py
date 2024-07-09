@@ -4,18 +4,13 @@ from collections.abc import Mapping
 import typing as t
 from uuid import UUID
 
-from typing_extensions import TypeAlias
-
 from .base import BaseSchema
+from ..typing import Persistence
 
 __all__ = [
     "Trainee",
     "TraineeDict",
-    "TraineePersistence",
 ]
-
-
-TraineePersistence: TypeAlias = t.Literal['allow', 'always', 'never']
 
 
 class TraineeDict(t.TypedDict):
@@ -25,7 +20,7 @@ class TraineeDict(t.TypedDict):
     name: str | None
     features: Mapping[str, Mapping]
     metadata: Mapping | None
-    persistence: TraineePersistence
+    persistence: Persistence
     project_id: str | None
 
 
@@ -66,7 +61,7 @@ class Trainee(BaseSchema[TraineeDict]):
         features: t.Optional[Mapping[str, Mapping]] = None,
         *,
         metadata: t.Optional[Mapping] = None,
-        persistence: TraineePersistence = 'allow',
+        persistence: Persistence = 'allow',
         project_id: t.Optional[str | UUID] = None,
     ):
         """Initialize the Trainee instance."""
@@ -144,7 +139,7 @@ class Trainee(BaseSchema[TraineeDict]):
         self._features = features
 
     @property
-    def persistence(self) -> TraineePersistence:
+    def persistence(self) -> Persistence:
         """
         The persistence state of the Trainee.
 
@@ -156,7 +151,7 @@ class Trainee(BaseSchema[TraineeDict]):
         return self._persistence
 
     @persistence.setter
-    def persistence(self, persistence: TraineePersistence):
+    def persistence(self, persistence: Persistence):
         """
         Set the persistence state of the Trainee.
 
@@ -169,7 +164,7 @@ class Trainee(BaseSchema[TraineeDict]):
         if persistence not in allowed_values:
             raise ValueError(
                 f'Invalid value for `persistence` ({persistence}), must be one of: {allowed_values}')
-        self._persistence: TraineePersistence = persistence
+        self._persistence: Persistence = persistence
 
     @property
     def metadata(self) -> Mapping | None:

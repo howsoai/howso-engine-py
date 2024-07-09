@@ -16,24 +16,26 @@ from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import LocalSaveableProtocol, ProjectClient
 from howso.client.schemas import Project as BaseProject, Reaction, Session as BaseSession, Trainee as BaseTrainee
-from howso.client.typing import CaseIndices, Mode, Precision
-from howso.engine.client import get_client
-from howso.engine.project import Project
-from howso.engine.session import Session
-from howso.utilities import matrix_processing
-from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
-from .typing import (
+from howso.client.typing import (
+    CaseIndices,
     GenerateNewCases,
-    Library,
+    LibraryType,
+    Mode,
     NewCaseThreshold,
     NormalizeMethod,
     PathLike,
     Persistence,
+    Precision,
     SeriesIDTracking,
     TabularData2D,
     TabularData3D,
     TargetedModel,
 )
+from howso.engine.client import get_client
+from howso.engine.project import Project
+from howso.engine.session import Session
+from howso.utilities import matrix_processing
+from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 
 __all__ = [
     "Trainee",
@@ -95,7 +97,7 @@ class Trainee(BaseTrainee):
         overwrite_existing: bool = False,
         persistence: Persistence = "allow",
         id: Optional[str] = None,
-        library_type: Optional[Library] = None,
+        library_type: Optional[LibraryType] = None,
         max_wait_time: Optional[Union[int, float]] = None,
         metadata: Optional[MutableMapping[str, Any]] = None,
         project: Optional[Union[str, BaseProject]] = None,
@@ -391,7 +393,7 @@ class Trainee(BaseTrainee):
         self,
         name: Optional[str] = None,
         *,
-        library_type: Optional[Library] = None,
+        library_type: Optional[LibraryType] = None,
         project: Optional[str | BaseProject] = None,
         resources: Optional[MutableMapping[str, Any]] = None,
     ) -> "Trainee":
@@ -3456,7 +3458,7 @@ class Trainee(BaseTrainee):
 
     def _create(
         self, *,
-        library_type: Optional[Library] = None,
+        library_type: Optional[LibraryType] = None,
         max_wait_time: Optional[int | float] = None,
         resources: Optional[MutableMapping[str, Any]] = None,
         overwrite: bool = False,

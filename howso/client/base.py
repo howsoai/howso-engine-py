@@ -6,14 +6,24 @@ import typing as t
 from uuid import UUID
 import warnings
 
+import numpy as np
 from pandas import DataFrame, Index
 
-from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee, TraineePersistence
+from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee
 from howso.utilities import internals
 from howso.utilities import utilities as util
 from howso.utilities.features import serialize_cases
 from .exceptions import HowsoError
-from .typing import CaseIndices, Cases, Evaluation, Mode, Precision
+from .typing import (
+    CaseIndices,
+    Cases,
+    Distances,
+    Evaluation,
+    Mode,
+    Persistence,
+    Precision,
+    TabularData2D,
+)
 
 if t.TYPE_CHECKING:
     from .cache import TraineeCache
@@ -147,7 +157,7 @@ class AbstractHowsoClient(ABC):
         max_wait_time: t.Optional[int | float] = None,
         metadata: t.Optional[MutableMapping[str, t.Any]] = None,
         overwrite_trainee: bool = False,
-        persistence: TraineePersistence = "allow",
+        persistence: Persistence = "allow",
         project: t.Optional[str | Project] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None
     ) -> Trainee:
@@ -1251,19 +1261,319 @@ class AbstractHowsoClient(ABC):
         """Remove a feature from a trainee."""
 
     @abstractmethod
-    def get_pairwise_distances(self, trainee_id, features=None, *,
-                               action_feature=None, from_case_indices=None,
-                               from_values=None, to_case_indices=None,
-                               to_values=None, use_case_weights=False,
-                               weight_feature=None) -> list[float]:
-        """Compute pairwise distances between specified cases."""
+    def get_pairwise_distances(
+        self,
+        trainee_id: str,
+        features: t.Optional[Collection[str]] = None,
+        *,
+        action_feature: t.Optional[str] = None,
+        from_case_indices: t.Optional[CaseIndices] = None,
+        from_values: t.Optional[TabularData2D] = None,
+        to_case_indices: t.Optional[CaseIndices] = None,
+        to_values: t.Optional[TabularData2D] = None,
+        use_case_weights: bool = False,
+        weight_feature: t.Optional[str] = None
+    ) -> list[float]:
+        """
+        Compute pairwise distances between specified cases.
 
-    @abstractmethod
-    def get_distances(self, trainee_id, features=None, *,
-                      action_feature=None, case_indices=None,
-                      feature_values=None, use_case_weights=False,
-                      weight_feature=None) -> dict:
-        """Compute distances matrix for specified cases."""
+        Returns a list of computed distances between each respective pair of
+        cases specified in either `from_values` or `from_case_indices` to
+        `to_values` or `to_case_indices`. If only one case is specified in any
+        of the lists, all respective distances are computed to/from that one
+        case.
+
+        .. NOTE::
+            - One of `from_values` or `from_case_indices` must be specified,
+              not both.
+            - One of `to_values` or `to_case_indices` must be specified,
+              not both.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The trainee ID.
+        features : iterable of str, optional
+            List of feature names to use when computing pairwise distances.
+            If unspecified uses all features.
+        action_feature : str, optional
+            The action feature. If specified, uses targeted hyperparameters
+            used to predict this `action_feature`, otherwise uses targetless
+            hyperparameters.
+        from_case_indices : Iterable of Sequence[Union[str, int]], optional
+            An iterable of sequences, of session id and index, where index
+            is the original 0-based index of the case as it was trained into
+            the session. If specified must be either length of 1 or match
+            length of `to_values` or `to_case_indices`.
+        from_values : list of list of object or pandas.DataFrame, optional
+            A 2d-list of case values. If specified must be either length of
+            1 or match length of `to_values` or `to_case_indices`.
+        to_case_indices : Iterable of Sequence[Union[str, int]], optional
+            An Iterable of Sequences, of session id and index, where index
+            is the original 0-based index of the case as it was trained into
+            the session. If specified must be either length of 1 or match
+            length of `from_values` or `from_case_indices`.
+        to_values : list of list of object or pandas.DataFrame, optional
+            A 2d-list of case values. If specified must be either length of
+            1 or match length of `from_values` or `from_case_indices`.
+        use_case_weights : bool, default False
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight.
+        weight_feature : str, optional
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+
+        Returns
+        -------
+        list
+            A list of computed pairwise distances between each corresponding
+            pair of cases in `from_case_indices` and `to_case_indices`.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        feature_attributes = self.trainee_cache.get(trainee_id).features
+
+        util.validate_list_shape(from_values, 2, 'from_values', 'list of list of object')
+        util.validate_list_shape(to_values, 2, 'to_values', 'list of list of object')
+
+        if from_case_indices is None and from_values is None:
+            raise ValueError("One of `from_case_indices` or `from_values` "
+                             "must be specified.")
+        elif from_case_indices is not None and from_values is not None:
+            raise ValueError("Only one of `from_case_indices` or `from_values` "
+                             "may be specified, not both.")
+
+        if to_case_indices is None and to_values is None:
+            raise ValueError("One of `to_case_indices` or `to_values` "
+                             "must be specified.")
+        elif to_case_indices is not None and to_values is not None:
+            raise ValueError("Only one of `to_case_indices` or `to_values` "
+                             "may be specified, not both.")
+
+        # Validate case_indices if provided
+        if from_case_indices:
+            util.validate_case_indices(from_case_indices)
+        if to_case_indices:
+            util.validate_case_indices(to_case_indices)
+
+        # Serialize values if defined
+        if from_values is not None:
+            if features is None:
+                features = internals.get_features_from_data(
+                    from_values, data_parameter='from_values')
+            from_values = serialize_cases(from_values, features, feature_attributes)
+        if to_values is not None:
+            if features is None:
+                features = internals.get_features_from_data(
+                    to_values, data_parameter='to_values')
+            to_values = serialize_cases(to_values, features, feature_attributes)
+
+        if self.configuration.verbose:
+            print(f'Getting pairwise distances for Trainee with id: {trainee_id}')
+
+        result = self._execute(trainee_id, "get_pairwise_distances", {
+            "features": features,
+            "action_feature": action_feature,
+            "from_case_indices": from_case_indices,
+            "from_values": from_values,
+            "to_case_indices": to_case_indices,
+            "to_values": to_values,
+            "weight_feature": weight_feature,
+            "use_case_weights": use_case_weights,
+        })
+        if result is None:
+            return []
+        return result
+
+    def get_distances(  # noqa: C901
+        self,
+        trainee_id: str,
+        features: t.Optional[Iterable[str]] = None,
+        *,
+        action_feature: t.Optional[str] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        feature_values: t.Optional[list[t.Any] | DataFrame] = None,
+        use_case_weights: bool = False,
+        weight_feature: t.Optional[str] = None
+    ) -> Distances:
+        """
+        Compute distances matrix for specified cases.
+
+        Returns a dict with computed distances between all cases
+        specified in `case_indices` or from all cases in local model as defined
+        by `feature_values`. If neither `case_indices` nor `feature_values` is
+        specified, returns computed distances for the entire dataset.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The trainee ID.
+        features : iterable of str, optional
+            List of feature names to use when computing distances. If
+            unspecified uses all features.
+        action_feature : str, optional
+            The action feature. If specified, uses targeted hyperparameters
+            used to predict this `action_feature`, otherwise uses targetless
+            hyperparameters.
+        case_indices : Iterable of Sequence[Union[str, int]], optional
+            An Iterable of Sequences, of session id and index, where index is
+            the original 0-based index of the case as it was trained into the
+            session. If specified, returns distances for all of these
+            cases. Ignored if `feature_values` is provided. If neither
+            `feature_values` nor `case_indices` is specified, uses full dataset.
+        feature_values : list of object or DataFrame, optional
+            If specified, returns distances of the local model relative to
+            these values, ignores `case_indices` parameter. If provided a
+            DataFrame, only the first row will be used.
+        use_case_weights : bool, default False
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight.
+        weight_feature : str, optional
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+
+        Returns
+        -------
+        dict
+            A dict containing a matrix of computed distances and the list of
+            corresponding case indices in the following format::
+
+                {
+                    'case_indices': [ session-indices ],
+                    'distances': [ [ distances ] ]
+                }
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        feature_attributes = self.trainee_cache.get(trainee_id).features
+
+        # Validate case_indices if provided
+        if case_indices is not None:
+            util.validate_case_indices(case_indices)
+
+        if feature_values is not None:
+            if (
+                isinstance(feature_values, Iterable)
+                and len(np.array(feature_values).shape) == 1
+                and len(feature_values) > 0
+            ):
+                # Convert 1d list to 2d list for serialization
+                feature_values = [feature_values]
+
+            if features is None:
+                features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
+            feature_values = serialize_cases(feature_values, features, feature_attributes)
+            if feature_values:
+                # Only a single case should be provided
+                feature_values = feature_values[0]
+            # Ignored when feature_values specified
+            case_indices = None
+
+        if case_indices is not None and len(case_indices) < 2:
+            raise ValueError("If providing `case_indices`, must provide at "
+                             "least 2 cases for computation.")
+
+        if self.configuration.verbose:
+            print(f'Getting distances between cases for Trainee with id: {trainee_id}')
+
+        preallocate = True  # If matrix should be preallocated in memory
+        matrix_ndarray = None  # Used when preallocating
+        matrix_list = []  # Used if we cannot preallocate
+        page_size = 2000
+        indices = []
+        total_rows = 0
+        total_cols = 0
+        mismatch_msg = (
+            "Received mismatched distance value pairs. It is likely some "
+            "cases were either deleted or trained during the computation of "
+            "get_distances. Rerunning this operation may resolve this error."
+        )
+
+        if feature_values is not None:
+            # When specifying feature values, only distances closest to this
+            # case will be returned. The largest matrix size that could be
+            # expected is 144x144, so we can request the entire matrix at once.
+            # Set num_cases to 1 so we only page once.
+            num_cases = 1
+            preallocate = False  # won't know the actual size beforehand
+        elif case_indices is not None:
+            num_cases = len(case_indices)
+        else:
+            num_cases = self.get_num_training_cases(trainee_id)
+
+        # Preallocate matrix (This will raise a numpy MemoryError if too large)
+        if preallocate:
+            matrix_ndarray = np.zeros((num_cases, num_cases), dtype='float64')
+
+        for row_offset in range(0, num_cases, page_size):
+            for column_offset in range(0, num_cases, page_size):
+                result = self._execute(trainee_id, "get_distances", {
+                    "features": features,
+                    "action_feature": action_feature,
+                    "case_indices": case_indices,
+                    "feature_values": feature_values,
+                    "weight_feature": weight_feature,
+                    "use_case_weights": use_case_weights,
+                    "row_offset": row_offset,
+                    "row_count": page_size,
+                    "column_offset": column_offset,
+                    "column_count": page_size,
+                })
+
+                column_case_indices = result['column_case_indices']
+                row_case_indices = result['row_case_indices']
+                distances = result['distances']
+
+                if preallocate and matrix_ndarray is not None:
+                    # Fill in allocated matrix
+                    try:
+                        matrix_ndarray[
+                            row_offset:row_offset + len(row_case_indices),
+                            column_offset:column_offset + len(column_case_indices)
+                        ] = distances
+                    except ValueError as err:
+                        # Unexpected shape when populating array
+                        raise HowsoError(mismatch_msg) from err
+                else:
+                    if column_offset == 0:
+                        # Append new rows
+                        matrix_list += distances
+                    else:
+                        # Extend existing columns
+                        try:
+                            for i, cols in enumerate(distances):
+                                matrix_list[row_offset + i].extend(cols)
+                        except (AttributeError, IndexError):
+                            # Unexpected shape when populating array
+                            raise HowsoError(mismatch_msg)
+
+                if column_offset == 0:
+                    total_rows += len(row_case_indices)
+                if row_offset == 0:
+                    total_cols += len(column_case_indices)
+                    # Collect the axis indices. Both axis will be the same,
+                    # so we only need to collect them the first time we page
+                    # through the columns when row offset is 0.
+                    indices += column_case_indices
+
+        if preallocate:
+            if total_cols != num_cases or total_rows != num_cases:
+                # Received unexpected number of distances
+                raise HowsoError(mismatch_msg)
+            distances_matrix = matrix_ndarray if matrix_ndarray is not None else np.ndarray(0, dtype="float64")
+        else:
+            if matrix_list:
+                # Validate matrix shape
+                if (
+                    total_cols != total_rows or
+                    not all(len(r) == total_cols for r in matrix_list)
+                ):
+                    raise HowsoError(mismatch_msg)
+            # Convert matrix to numpy array
+            distances_matrix = np.array(matrix_list, dtype='float64')
+
+        return {
+            'case_indices': indices,
+            'distances': distances_matrix
+        }
 
     def get_params(
         self,
