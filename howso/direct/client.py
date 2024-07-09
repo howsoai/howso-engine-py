@@ -675,17 +675,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             "version": version
         }
 
-    def get_trainee_metrics(self, trainee_id: str) -> Never:
-        """
-        This endpoint is not implemented for the direct Howso client.
-
-        Raises
-        ------
-        NotImplementedError
-            This endpoint is not implemented for the direct Howso client.
-        """
-        raise NotImplementedError("`get_trainee_metrics` not implemented")
-
     def get_trainees(self, search_terms: Optional[str] = None) -> List[Dict]:
         """
         Return a list of all trainees.
@@ -1168,63 +1157,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             print('Removing stored series from trainee with id: '
                   f'{trainee_id} and series with id: {series}')
         self.howso.remove_series_store(trainee_id, series)
-
-    def set_substitute_feature_values(
-        self, trainee_id: str, substitution_value_map: Dict[str, Dict]
-    ):
-        """
-        Set a Trainee's substitution map for use in extended nominal generation.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to set substitute feature values for.
-        substitution_value_map : dict
-            A dictionary of feature name to a dictionary of feature value to
-            substitute feature value.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print('Setting substitute feature values for trainee with '
-                  f'id: {trainee_id}')
-        self.howso.set_substitute_feature_values(trainee_id, substitution_value_map)
-        self._auto_persist_trainee(trainee_id)
-
-    def get_substitute_feature_values(
-        self, trainee_id: str, clear_on_get: bool = True
-    ) -> Dict[str, Dict]:
-        """
-        Gets a substitution map for use in extended nominal generation.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to get the substitution feature values from.
-
-        clear_on_get : bool, default True
-            Clears the substitution values map in the Trainee upon retrieving
-            them. This is done if it is desired to prevent the substitution map
-            from being persisted. If set to False the model will not be cleared
-            which preserves substitution mappings if the model is saved;
-            representing a potential privacy leak should the substitution map
-            be made public.
-
-        Returns
-        -------
-        dict of dict
-            A dictionary of feature name to a dictionary of feature value to
-            substitute feature value.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print(f'Getting substitute feature values from trainee with '
-                  f'id: {trainee_id}')
-        ret = self.howso.get_substitute_feature_values(trainee_id)
-        if clear_on_get:
-            self.set_substitute_feature_values(trainee_id, {})
-        if ret is None:
-            return dict()
-        return ret
 
     def train(  # noqa: C901
         self,

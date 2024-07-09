@@ -640,45 +640,6 @@ class HowsoCore:
             "remove_duplicates": remove_duplicates,
         })
 
-    def set_substitute_feature_values(
-        self,
-        trainee_id: str,
-        substitution_value_map: Union[Dict, None]
-    ) -> None:
-        """
-        Set substitution feature values used in case generation.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        substitution_value_map : dict or None
-            A dictionary of feature name to value to substitution value. If the
-            map is None, all substitutions will be disabled and cleared.
-        """
-        return self._execute(
-            trainee_id, "set_substitute_feature_values",
-            {
-                "substitution_value_map": substitution_value_map,
-            }
-        )
-
-    def get_substitute_feature_values(self, trainee_id: str) -> Dict:
-        """
-        Get substitution feature values used in case generation.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-
-        Returns
-        -------
-        dict
-            The dictionary of feature name to value to substitution value.
-        """
-        return self._execute(trainee_id, "get_substitute_feature_values", {})
-
     def set_session_metadata(
         self,
         trainee_id: str,

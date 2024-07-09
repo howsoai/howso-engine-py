@@ -569,20 +569,6 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Client must have 'get_trainee_information' method")
 
-    def metrics(self) -> Dict:
-        """
-        Get metric information of the trainee.
-
-        Returns
-        -------
-        Dict
-            The trainee metric information. Including cpu and memory.
-        """
-        if isinstance(self.client, AbstractHowsoClient):
-            return self.client.get_trainee_metrics(self.id)
-        else:
-            raise ValueError("Client must have 'get_trainee_metrics' method")
-
     def set_random_seed(self, seed: int | float | str):
         """
         Set the random seed for the trainee.

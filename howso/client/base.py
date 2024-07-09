@@ -176,10 +176,6 @@ class AbstractHowsoClient(ABC):
         """Get information about the trainee."""
 
     @abstractmethod
-    def get_trainee_metrics(self, trainee_id: str) -> dict:
-        """Get metric information for a trainee."""
-
-    @abstractmethod
     def get_trainees(self, search_terms=None) -> list[dict]:
         """Return a list of all accessible trainees."""
 
@@ -663,13 +659,60 @@ class AbstractHowsoClient(ABC):
     ):
         """Append the specified contexts to a series store."""
 
-    @abstractmethod
-    def set_substitute_feature_values(self, trainee_id, substitution_value_map):
-        """Set a substitution map for use in extended nominal generation."""
+    def set_substitute_feature_values(self, trainee_id: str, substitution_value_map: Mapping):
+        """
+        Set a Trainee's substitution map for use in extended nominal generation.
 
-    @abstractmethod
-    def get_substitute_feature_values(self, trainee_id, clear_on_get=True) -> dict:
-        """Get a substitution map for use in extended nominal generation."""
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to set substitute feature values for.
+        substitution_value_map : dict
+            A dictionary of feature name to a dictionary of feature value to
+            substitute feature value.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Setting substitute feature values for Trainee with id: {trainee_id}')
+        self._execute(trainee_id, "set_substitute_feature_values", {
+            "substitution_value_map": substitution_value_map
+        })
+        self._auto_persist_trainee(trainee_id)
+
+    def get_substitute_feature_values(self, trainee_id: str, clear_on_get: bool = True) -> dict:
+        """
+        Gets a substitution map for use in extended nominal generation.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to get the substitution feature values from.
+        clear_on_get : bool, default True
+            Clears the substitution values map in the Trainee upon retrieving
+            them. This is done if it is desired to prevent the substitution map
+            from being persisted. If set to False the model will not be cleared
+            which preserves substitution mappings if the model is saved;
+            representing a potential privacy leak should the substitution map
+            be made public.
+
+        Returns
+        -------
+        dict of dict
+            A dictionary of feature name to a dictionary of feature value to
+            substitute feature value.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Getting substitute feature values from Trainee with id: {trainee_id}')
+        result = self._execute(trainee_id, "get_substitute_feature_values", {})
+        if clear_on_get:
+            self._execute(trainee_id, "set_substitute_feature_values", {
+                "substitution_value_map": {}
+            })
+            self._auto_persist_trainee(trainee_id)
+        if result is None:
+            return dict()
+        return result
 
     def set_feature_attributes(self, trainee_id: str, feature_attributes: dict[str, dict]):
         """
