@@ -35,7 +35,6 @@ import certifi
 import numpy as np
 from packaging.version import parse as parse_version
 from pandas import DataFrame
-from typing_extensions import Never
 import urllib3
 from urllib3.util import Retry, Timeout
 
