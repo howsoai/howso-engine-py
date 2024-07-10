@@ -9,11 +9,11 @@ import warnings
 import numpy as np
 from pandas import DataFrame, Index
 
-from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee
 from howso.utilities import internals
 from howso.utilities import utilities as util
 from howso.utilities.features import serialize_cases
-from .exceptions import HowsoError
+from .exceptions import HowsoError, UnsupportedArgumentWarning
+from .schemas import HowsoVersion, Project, Reaction, Session, Trainee
 from .typing import (
     CaseIndices,
     Cases,
@@ -544,7 +544,7 @@ class AbstractHowsoClient(ABC):
     def edit_cases(
         self,
         trainee_id: str,
-        feature_values: Iterable[t.Any] | DataFrame,
+        feature_values: Collection[t.Any] | DataFrame,
         *,
         case_indices: t.Optional[CaseIndices] = None,
         condition: t.Optional[Mapping] = None,
@@ -565,7 +565,7 @@ class AbstractHowsoClient(ABC):
             the order corresponds with the order of the `features` parameter.
             If specified as a DataFrame, only the first row will be used.
         case_indices : Sequence of tuple of {str, int}, optional
-            Iterable of Sequences containing the session id and index, where index
+            Sequence of tuples containing the session id and index, where index
             is the original 0-based index of the case as it was trained into
             the session. This explicitly specifies the cases to edit. When
             specified, `condition` and `condition_session` are ignored.
@@ -588,7 +588,7 @@ class AbstractHowsoClient(ABC):
         condition_session : str, optional
             If specified, ignores the condition and operates on all cases for
             the specified session.
-        features : iterable of str, optional
+        features : Collection of str, optional
             The names of the features to edit. Required when `feature_values`
             is not specified as a DataFrame.
         num_cases : int, default None
@@ -1221,9 +1221,9 @@ class AbstractHowsoClient(ABC):
         if kwargs:
             warn_params = ', '.join(kwargs)
             warnings.warn(
-                f'The following analyze parameter(s) "{warn_params}" are '
-                'not officially supported by analyze and may or may not '
-                'have an effect.', UserWarning)
+                'The following parameter(s) are not officially supported by `analyze` and '
+                f'may or may not have an effect: {warn_params}',
+                UnsupportedArgumentWarning)
 
         if self.configuration.verbose:
             print(f'Analyzing Trainee with id: {trainee_id}')
@@ -1232,7 +1232,6 @@ class AbstractHowsoClient(ABC):
         self._execute(trainee_id, "analyze", analyze_params)
         self._auto_persist_trainee(trainee_id)
 
-    @abstractmethod
     def auto_analyze(self, trainee_id: str):
         """
         Auto-analyze the Trainee model.
@@ -1303,21 +1302,21 @@ class AbstractHowsoClient(ABC):
         analyze_growth_factor : float, optional
             The factor by which to increase the analyze threshold every time
             the model grows to the current threshold size.
-        action_features : Iterable[str], optional
+        action_features : Collection of str, optional
             The action features to analyze for.
-        context_features : Iterable[str], optional
+        context_features : Collection of str, optional
             The context features to analyze for.
         k_folds : int, optional
             The number of cross validation folds to do. A value of 1 does
             hold-one-out instead of k-fold.
         num_samples : int, optional
             The number of samples used in calculating feature residuals.
-        dt_values : Iterable[float], optional
+        dt_values : Collection of float, optional
             The dt value hyperparameters to analyze with.
-        k_values : Iterable[int], optional
+        k_values : Collection of int, optional
             The number of cross validation folds to do. A value of 1 does
             hold-one-out instead of k-fold.
-        p_values : Iterable[float], optional
+        p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
         bypass_calculate_feature_residuals : bool, optional
             When True, bypasses calculation of feature residuals.
@@ -1413,10 +1412,11 @@ class AbstractHowsoClient(ABC):
 
         # Collect valid parameters
         if kwargs:
-            warn_params = ', '.join(kwargs)
+            warn_params = ", ".join(kwargs)
             warnings.warn(
-                f'The following auto ablation parameter(s) "{warn_params}" '
-                'are not officially supported or may not have an effect.', UserWarning)
+                f"The following parameter(s) are not officially supported by `auto_analyze` and "
+                f"may or may not have an effect: {warn_params}",
+                UnsupportedArgumentWarning)
 
         self._execute(trainee_id, "set_auto_analyze_params", {
             "auto_analyze_enabled": auto_analyze_enabled,
@@ -1444,40 +1444,158 @@ class AbstractHowsoClient(ABC):
         })
         self._auto_persist_trainee(trainee_id)
 
-    @abstractmethod
-    def get_auto_ablation_params(self, trainee_id: str):
-        """Get trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`."""
+    def get_auto_ablation_params(self, trainee_id: str) -> dict:
+        """
+        Get Trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`.
 
-    @abstractmethod
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to get auto ablation parameters for.
+
+        Returns
+        -------
+        dict
+            The auto-ablation parameters.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        return self._execute(trainee_id, "get_auto_ablation_params", {})
+
     def set_auto_ablation_params(
         self,
-        trainee_id,
-        auto_ablation_enabled=False,
+        trainee_id: str,
+        auto_ablation_enabled: bool = False,
         *,
-        auto_ablation_weight_feature=".case_weight",
-        conviction_lower_threshold=None,
-        conviction_upper_threshold=None,
-        exact_prediction_features=None,
-        influence_weight_entropy_threshold=0.6,
-        minimum_model_size=1_000,
-        relative_prediction_threshold_map=None,
-        residual_prediction_features=None,
-        tolerance_prediction_threshold_map=None,
+        auto_ablation_weight_feature: str = ".case_weight",
+        conviction_lower_threshold: t.Optional[float] = None,
+        conviction_upper_threshold: t.Optional[float] = None,
+        exact_prediction_features: t.Optional[Collection[str]] = None,
+        influence_weight_entropy_threshold: float = 0.6,
+        minimum_model_size: int = 1_000,
+        relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
+        residual_prediction_features: t.Optional[Collection[str]] = None,
+        tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
         **kwargs
     ):
-        """Set trainee parameters for auto-ablation."""
+        """
+        Set trainee parameters for auto-ablation.
 
-    @abstractmethod
+        .. note::
+            All ablation endpoints, including :meth:`set_auto_ablation_params` are experimental and may
+            have their API changed without deprecation.
+
+        .. seealso::
+            The params ``influence_weight_entropy_threshold`` and ``auto_ablation_weight_feature`` that are
+            set using this endpoint are used as defaults by :meth:`reduce_data`.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to set auto ablation parameters for.
+        auto_ablation_enabled : bool, default False
+            When True, the :meth:`train` method will ablate cases that meet the set criteria.
+        auto_ablation_weight_feature : str, default ".case_weight"
+            The weight feature that should be accumulated to when cases are ablated.
+        minimum_model_size : int, default 1,000
+            The threshold of the minimum number of cases at which the model should auto-ablate.
+        influence_weight_entropy_threshold : float, default 0.6
+            The influence weight entropy quantile that a case must be beneath in order to be trained.
+        exact_prediction_features : Optional[List[str]], optional
+            For each of the features specified, will ablate a case if the prediction matches exactly.
+        residual_prediction_features : Optional[List[str]], optional
+            For each of the features specified, will ablate a case if
+            abs(prediction - case value) / prediction <= feature residual.
+        tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
+            For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
+            and the prediction <= (case value + MAX).
+        relative_prediction_threshold_map : Optional[Dict[str, float]], optional
+            For each of the features specified, will ablate a case if
+            abs(prediction - case value) / prediction <= relative threshold
+        conviction_lower_threshold : Optional[float], optional
+            The conviction value above which cases will be ablated.
+        conviction_upper_threshold : Optional[float], optional
+            The conviction value below which cases will be ablated.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        params = dict(
+            auto_ablation_enabled=auto_ablation_enabled,
+            auto_ablation_weight_feature=auto_ablation_weight_feature,
+            minimum_model_size=minimum_model_size,
+            influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+            exact_prediction_features=exact_prediction_features,
+            residual_prediction_features=residual_prediction_features,
+            tolerance_prediction_threshold_map=tolerance_prediction_threshold_map,
+            relative_prediction_threshold_map=relative_prediction_threshold_map,
+            conviction_lower_threshold=conviction_lower_threshold,
+            conviction_upper_threshold=conviction_upper_threshold,
+        )
+        params.update(kwargs)
+        if kwargs:
+            warn_params = ", ".join(kwargs)
+            warnings.warn(
+                f"The following parameter(s) are not officially supported by `auto_ablation` and "
+                f"may or may not have an effect: {warn_params}",
+                UnsupportedArgumentWarning)
+        self._execute(trainee_id, "set_auto_ablation_params", params)
+
     def reduce_data(
         self,
-        trainee_id,
-        features=None,
-        distribute_weight_feature=None,
-        influence_weight_entropy_threshold=None,
-        skip_auto_analyze=False,
-        **kwargs
+        trainee_id: str,
+        features: t.Optional[Collection[str]] = None,
+        distribute_weight_feature: t.Optional[str] = None,
+        influence_weight_entropy_threshold: t.Optional[float] = None,
+        skip_auto_analyze: bool = False,
+        **kwargs,
     ):
-        """Smartly reduce the amount of trained cases while accumulating case weights."""
+        """
+        Smartly reduce the amount of trained cases while accumulating case weights.
+
+        Determines which cases to remove by comparing the influence weight entropy of each trained
+        case to the ``influence_weight_entropy_threshold`` quantile of existing influence weight
+        entropies.
+
+        .. note::
+            All ablation endpoints, including :meth:`reduce_data` are experimental and may have their
+            API changed without deprecation.
+
+        .. seealso::
+            The default ``distribute_weight_feature`` and ``influence_weight_entropy_threshold`` are
+            pulled from the auto-ablation parameters, which can be set or retrieved with
+            :meth:`set_auto_ablation_params` and :meth:`get_auto_ablation_params`, respectively.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee for which to reduce data.
+        features : Collection of str, optional
+            The features which should be used to determine which cases to remove. This defaults to all of
+            the trained features (excluding internal features).
+        distribute_weight_feature : str, optional
+            The name of the weight feature to accumulate case weights to as cases are removed. This
+            defaults to the value of ``auto_ablation_weight_feature`` from :meth:`set_auto_ablation_params`,
+            which defaults to ".case_weight".
+        influence_weight_entropy_threshold : float, optional
+            The quantile of influence weight entropy above which cases will be removed. This defaults
+            to the value of ``influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
+            which defaults to 0.6.
+        skip_auto_analyze : bool, default False
+            Whether to skip auto-analyzing as cases are removed.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        params = dict(
+            features=features,
+            distribute_weight_feature=distribute_weight_feature,
+            influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+            skip_auto_analyze=skip_auto_analyze,
+        )
+        params.update(kwargs)
+        if kwargs:
+            warn_params = ", ".join(kwargs)
+            warnings.warn(
+                f"The following parameter(s) are not officially supported by `reduce_data` and "
+                f"may or may not have an effect: {warn_params}",
+                UnsupportedArgumentWarning)
+        self._execute(trainee_id, "reduce_data", params)
 
     def get_cases(
         self,
@@ -1506,7 +1624,7 @@ class AbstractHowsoClient(ABC):
                 were trained within each session.
 
         case_indices : Sequence of tuple of {str, int}, optional
-            Iterable of Sequences, of session id and index, where index is the
+            Sequence of tuples, of session id and index, where index is the
             original 0-based index of the case as it was trained into the
             session. If specified, returns only these cases and ignores the
             session parameter.
@@ -1686,11 +1804,11 @@ class AbstractHowsoClient(ABC):
         trainee_id : str
             The id of the trainee.
         features : Collection of str, optional
-            An iterable of feature names to calculate convictions. At least 2
+            A collection of feature names to calculate convictions. At least 2
             features are required to get familiarity conviction. If not
             specified all features will be used.
         action_features : Collection of str, optional
-            An iterable of feature names to be treated as action features
+            A collection of feature names to be treated as action features
             during conviction calculation in order to determine the conviction
             of each feature against the set of action_features. If not
             specified, conviction is computed for each feature against the rest
@@ -1915,23 +2033,23 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The trainee ID.
-        features : iterable of str, optional
+        features : Collection of str, optional
             List of feature names to use when computing pairwise distances.
             If unspecified uses all features.
         action_feature : str, optional
             The action feature. If specified, uses targeted hyperparameters
             used to predict this `action_feature`, otherwise uses targetless
             hyperparameters.
-        from_case_indices : Iterable of Sequence[Union[str, int]], optional
-            An iterable of sequences, of session id and index, where index
+        from_case_indices : Sequence of tuple of {str, int}, optional
+            A sequence of tuples, of session id and index, where index
             is the original 0-based index of the case as it was trained into
             the session. If specified must be either length of 1 or match
             length of `to_values` or `to_case_indices`.
         from_values : list of list of object or pandas.DataFrame, optional
             A 2d-list of case values. If specified must be either length of
             1 or match length of `to_values` or `to_case_indices`.
-        to_case_indices : Iterable of Sequence[Union[str, int]], optional
-            An Iterable of Sequences, of session id and index, where index
+        to_case_indices : Sequence of tuple of {str, int}, optional
+            A sequence of tuples, of session id and index, where index
             is the original 0-based index of the case as it was trained into
             the session. If specified must be either length of 1 or match
             length of `from_values` or `from_case_indices`.
@@ -2009,11 +2127,11 @@ class AbstractHowsoClient(ABC):
     def get_distances(  # noqa: C901
         self,
         trainee_id: str,
-        features: t.Optional[Iterable[str]] = None,
+        features: t.Optional[Collection[str]] = None,
         *,
         action_feature: t.Optional[str] = None,
         case_indices: t.Optional[CaseIndices] = None,
-        feature_values: t.Optional[list[t.Any] | DataFrame] = None,
+        feature_values: t.Optional[Collection[t.Any] | DataFrame] = None,
         use_case_weights: bool = False,
         weight_feature: t.Optional[str] = None
     ) -> Distances:
@@ -2029,20 +2147,20 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The trainee ID.
-        features : iterable of str, optional
+        features : Collection of str, optional
             List of feature names to use when computing distances. If
             unspecified uses all features.
         action_feature : str, optional
             The action feature. If specified, uses targeted hyperparameters
             used to predict this `action_feature`, otherwise uses targetless
             hyperparameters.
-        case_indices : Iterable of Sequence[Union[str, int]], optional
-            An Iterable of Sequences, of session id and index, where index is
+        case_indices : Sequence of tuple of {str, int}, optional
+            A sequence of tuples, of session id and index, where index is
             the original 0-based index of the case as it was trained into the
             session. If specified, returns distances for all of these
             cases. Ignored if `feature_values` is provided. If neither
             `feature_values` nor `case_indices` is specified, uses full dataset.
-        feature_values : list of object or DataFrame, optional
+        feature_values : Collection of object or DataFrame, optional
             If specified, returns distances of the local model relative to
             these values, ignores `case_indices` parameter. If provided a
             DataFrame, only the first row will be used.
@@ -2202,7 +2320,7 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         *,
         action_feature: t.Optional[str] = None,
-        context_features: t.Optional[Iterable[str]] = None,
+        context_features: t.Optional[Collection[str]] = None,
         mode: t.Optional[Mode] = None,
         weight_feature: t.Optional[str] = None,
     ) -> dict[str, t.Any]:
@@ -2222,7 +2340,7 @@ class AbstractHowsoClient(ABC):
         action_feature : str, optional
             If specified will return the best analyzed hyperparameters to
             target this feature.
-        context_features : str, optional
+        context_features : Collection of str, optional
             If specified, will find and return the best analyzed hyperparameters
             to use with these context features.
         mode : str, optional
