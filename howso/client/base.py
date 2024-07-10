@@ -72,11 +72,6 @@ class AbstractHowsoClient(ABC):
     def react_initial_batch_size(self) -> int:
         """The default number of cases in the first react batch."""
 
-    @property
-    @abstractmethod
-    def trace(self) -> bool:
-        """If tracing is enabled."""
-
     @staticmethod
     def sanitize_for_json(payload: t.Any, *, exclude_null: bool = False) -> t.Any:
         """
@@ -168,6 +163,22 @@ class AbstractHowsoClient(ABC):
             The request payload size.
         int
             The response payload size.
+        """
+
+    @abstractmethod
+    def is_tracing_enabled(self, trainee_id: str) -> bool:
+        """
+        Get if tracing is enabled for Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee.
+
+        Returns
+        -------
+        bool
+            True, if tracing is enabled for provided Trainee.
         """
 
     @abstractmethod
@@ -1281,7 +1292,7 @@ class AbstractHowsoClient(ABC):
 
         self._execute(trainee_id, "auto_analyze", {})
         self._auto_persist_trainee(trainee_id)
-        if self.trace:
+        if self.is_tracing_enabled(trainee_id):
             # When trace is enabled, output the auto-analyzed parameters into the trace file
             self._execute(trainee_id, "get_params", {})
 
