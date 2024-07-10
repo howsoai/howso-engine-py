@@ -23,6 +23,7 @@ from .typing import (
     Persistence,
     Precision,
     TabularData2D,
+    TargetedModel,
 )
 
 if t.TYPE_CHECKING:
@@ -70,6 +71,11 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def react_initial_batch_size(self) -> int:
         """The default number of cases in the first react batch."""
+
+    @property
+    @abstractmethod
+    def trace(self) -> bool:
+        """If tracing is enabled."""
 
     @abstractmethod
     def _resolve_trainee(self, trainee_id: str, **kwargs) -> str:
@@ -1067,41 +1073,379 @@ class AbstractHowsoClient(ABC):
             "aggregation_code": aggregation_code
         })
 
-    @abstractmethod
     def analyze(
         self,
-        trainee_id,
-        context_features=None,
-        action_features=None,
+        trainee_id: str,
+        context_features: t.Optional[Collection[str]] = None,
+        action_features: t.Optional[Collection[str]] = None,
         *,
-        bypass_calculate_feature_residuals=None,
-        bypass_calculate_feature_weights=None,
-        bypass_hyperparameter_analysis=None,
-        dt_values=None,
-        inverse_residuals_as_weights=None,
-        k_folds=None,
-        k_values=None,
-        num_analysis_samples=None,
-        num_samples=None,
-        analysis_sub_model_size=None,
-        p_values=None,
-        targeted_model=None,
-        use_case_weights=None,
-        use_deviations=None,
-        weight_feature=None,
+        analysis_sub_model_size: t.Optional[int] = None,
+        bypass_calculate_feature_residuals: t.Optional[bool] = None,
+        bypass_calculate_feature_weights: t.Optional[bool] = None,
+        bypass_hyperparameter_analysis: t.Optional[bool] = None,
+        dt_values: t.Optional[Collection[float]] = None,
+        inverse_residuals_as_weights: t.Optional[bool] = None,
+        k_folds: t.Optional[int] = None,
+        k_values: t.Optional[Collection[int]] = None,
+        num_analysis_samples: t.Optional[int] = None,
+        num_samples: t.Optional[int] = None,
+        p_values: t.Optional[Collection[float]] = None,
+        targeted_model: t.Optional[TargetedModel] = None,
+        use_case_weights: t.Optional[bool] = None,
+        use_deviations: t.Optional[bool] = None,
+        weight_feature: t.Optional[str] = None,
         **kwargs
     ):
-        """Analyzes a trainee."""
+        """
+        Analyzes a Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+        context_features : Collection of str, optional
+            The context features to analyze for.
+        action_features : Collection of str, optional
+            The action features to analyze for.
+        analysis_sub_model_size : int or Node, optional
+            Number of samples to use for analysis. The rest will be randomly
+            held-out and not included in calculations.
+        bypass_calculate_feature_residuals : bool, optional
+            When True, bypasses calculation of feature residuals.
+        bypass_calculate_feature_weights : bool, optional
+            When True, bypasses calculation of feature weights.
+        bypass_hyperparameter_analysis : bool, optional
+            When True, bypasses hyperparameter analysis.
+        dt_values : Collection of float, optional
+            The dt value hyperparameters to analyze with.
+        inverse_residuals_as_weights : bool, default is False
+            When True, will compute and use inverse of residuals as
+            feature weights.
+        k_folds : int, default 6
+            The number of cross validation folds to do.
+        k_values : Collection of int, optional
+            The number of cross validation folds to do. A value of 1 does
+            hold-one-out instead of k-fold.
+        num_analysis_samples : int, optional
+            If the dataset size to too large, analyze on (randomly sampled)
+            subset of data. The `num_analysis_samples` specifies the number of
+            observations to be considered for analysis.
+        num_samples : int, optional
+            The number of samples used in calculating feature residuals.
+        p_values : Collection of float, optional
+            The p value hyperparameters to analyze with.
+        targeted_model : {"omni_targeted", "single_targeted", "targetless"}, optional
+            Type of hyperparameter targeting.
+            Valid options include:
+
+                - **single_targeted**: Analyze hyperparameters for the
+                  specified action_features.
+                - **omni_targeted**: Analyze hyperparameters for each context
+                  feature as an action feature, ignores action_features
+                  parameter.
+                - **targetless**: Analyze hyperparameters for all context
+                  features as possible action features, ignores
+                  action_features parameter.
+        use_case_weights : bool, default False
+            When True, will scale influence weights by each case's weight_feature weight.
+        use_deviations : bool, optional
+            When True, uses deviations for LK metric in queries.
+        weight_feature : str, optional
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+        kwargs
+            Additional experimental analyze parameters.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+
+        util.validate_list_shape(context_features, 1, "context_features", "str")
+        util.validate_list_shape(action_features, 1, "action_features", "str")
+        util.validate_list_shape(p_values, 1, "p_values", "int")
+        util.validate_list_shape(k_values, 1, "k_values", "float")
+        util.validate_list_shape(dt_values, 1, "dt_values", "float")
+
+        if targeted_model not in ['single_targeted', 'omni_targeted', 'targetless', None]:
+            raise ValueError(
+                f'Invalid value "{targeted_model}" for targeted_model. '
+                'Valid values include single_targeted, omni_targeted, '
+                'and targetless.')
+
+        deprecated_params = {
+            'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
+            'num_optimization_samples': 'num_analysis_samples',
+            'optimization_sub_model_size': 'analysis_sub_model_size',
+            'dwe_values': 'dt_values'
+        }
+        # explicitly update parameters if old names are provided
+        if kwargs:
+            for old_param, new_param in deprecated_params.items():
+                if old_param in kwargs:
+                    if old_param == 'bypass_hyperparameter_optimization':
+                        bypass_hyperparameter_analysis = kwargs[old_param]
+                    elif old_param == 'num_optimization_samples':
+                        num_analysis_samples = kwargs[old_param]
+                    elif old_param == 'optimization_sub_model_size':
+                        analysis_sub_model_size = kwargs[old_param]
+                    elif old_param == 'dwe_values':
+                        dt_values = kwargs[old_param]
+
+                    del kwargs[old_param]
+                    warnings.warn(
+                        f'The `{old_param}` parameter has been renamed to '
+                        f'`{new_param}`, please use the new parameter '
+                        'instead.', UserWarning)
+
+        analyze_params = dict(
+            action_features=action_features,
+            context_features=context_features,
+            bypass_calculate_feature_residuals=bypass_calculate_feature_residuals,  # noqa: #E501
+            bypass_calculate_feature_weights=bypass_calculate_feature_weights,
+            bypass_hyperparameter_analysis=bypass_hyperparameter_analysis,  # noqa: #E501
+            dt_values=dt_values,
+            use_case_weights=use_case_weights,
+            inverse_residuals_as_weights=inverse_residuals_as_weights,
+            k_folds=k_folds,
+            k_values=k_values,
+            num_analysis_samples=num_analysis_samples,
+            num_samples=num_samples,
+            analysis_sub_model_size=analysis_sub_model_size,
+            p_values=p_values,
+            targeted_model=targeted_model,
+            use_deviations=use_deviations,
+            weight_feature=weight_feature,
+        )
+
+        # Add experimental options
+        analyze_params.update(kwargs)
+
+        if kwargs:
+            warn_params = ', '.join(kwargs)
+            warnings.warn(
+                f'The following analyze parameter(s) "{warn_params}" are '
+                'not officially supported by analyze and may or may not '
+                'have an effect.', UserWarning)
+
+        if self.configuration.verbose:
+            print(f'Analyzing Trainee with id: {trainee_id}')
+            print(f'Analyzing Trainee with parameters: {analyze_params}')
+
+        self._execute(trainee_id, "analyze", analyze_params)
+        self._auto_persist_trainee(trainee_id)
 
     @abstractmethod
-    def auto_analyze(self, trainee_id):
-        """Auto-analyze the trainee model."""
+    def auto_analyze(self, trainee_id: str):
+        """
+        Auto-analyze the Trainee model.
 
-    @abstractmethod
-    def get_auto_ablation_params(
+        Re-uses all parameters from the previous analyze or
+        set_auto_analyze_params call. If analyze or set_auto_analyze_params
+        has not been previously called, auto_analyze will default to a robust
+        and versatile analysis.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to auto-analyze.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f"Auto-analyzing Trainee with id: {trainee_id}")
+
+        self._execute(trainee_id, "auto_analyze", {})
+        self._auto_persist_trainee(trainee_id)
+        if self.trace:
+            # When trace is enabled, output the auto-analyzed parameters into the trace file
+            self._execute(trainee_id, "get_params", {})
+
+    def set_auto_analyze_params(
         self,
-        trainee_id
+        trainee_id: str,
+        auto_analyze_enabled: bool = False,
+        analyze_threshold: t.Optional[int] = None,
+        *,
+        analysis_sub_model_size: t.Optional[int] = None,
+        auto_analyze_limit_size: t.Optional[int] = None,
+        analyze_growth_factor: t.Optional[float] = None,
+        action_features: t.Optional[Collection[str]] = None,
+        bypass_calculate_feature_residuals: t.Optional[bool] = None,
+        bypass_calculate_feature_weights: t.Optional[bool] = None,
+        bypass_hyperparameter_analysis: t.Optional[bool] = None,
+        context_features: t.Optional[Collection[str]] = None,
+        dt_values: t.Optional[Collection[float]] = None,
+        inverse_residuals_as_weights: t.Optional[bool] = None,
+        k_folds: t.Optional[int] = None,
+        k_values: t.Optional[Collection[int]] = None,
+        num_analysis_samples: t.Optional[int] = None,
+        num_samples: t.Optional[int] = None,
+        p_values: t.Optional[Collection[float]] = None,
+        targeted_model: t.Optional[TargetedModel] = None,
+        use_deviations: t.Optional[bool] = None,
+        use_case_weights: t.Optional[bool] = None,
+        weight_feature: t.Optional[str] = None,
+        **kwargs
     ):
+        """
+        Set Trainee parameters for auto analysis.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to set auto analysis parameters for.
+        auto_analyze_enabled : bool, default False
+            When True, the :func:`train` method will trigger an analyze when
+            it's time for the model to be analyzed again.
+        analyze_threshold : int, optional
+            The threshold for the number of cases at which the model should be
+            re-analyzed.
+        auto_analyze_limit_size : int, optional
+            The size of of the model at which to stop doing auto-analysis.
+            Value of 0 means no limit.
+        analyze_growth_factor : float, optional
+            The factor by which to increase the analyze threshold every time
+            the model grows to the current threshold size.
+        action_features : Iterable[str], optional
+            The action features to analyze for.
+        context_features : Iterable[str], optional
+            The context features to analyze for.
+        k_folds : int, optional
+            The number of cross validation folds to do. A value of 1 does
+            hold-one-out instead of k-fold.
+        num_samples : int, optional
+            The number of samples used in calculating feature residuals.
+        dt_values : Iterable[float], optional
+            The dt value hyperparameters to analyze with.
+        k_values : Iterable[int], optional
+            The number of cross validation folds to do. A value of 1 does
+            hold-one-out instead of k-fold.
+        p_values : Iterable[float], optional
+            The p value hyperparameters to analyze with.
+        bypass_calculate_feature_residuals : bool, optional
+            When True, bypasses calculation of feature residuals.
+        bypass_calculate_feature_weights : bool, optional
+            When True, bypasses calculation of feature weights.
+        bypass_hyperparameter_analysis : bool, optional
+            When True, bypasses hyperparameter analysis.
+        targeted_model : Literal["omni_targeted", "single_targeted", "targetless"], optional
+            Type of hyperparameter targeting.
+            Valid options include:
+
+                - **single_targeted**: Analyze hyperparameters for the
+                  specified action_features.
+                - **omni_targeted**: Analyze hyperparameters for each context
+                  feature as an action feature, ignores action_features
+                  parameter.
+                - **targetless**: Analyze hyperparameters for all context
+                  features as possible action features, ignores
+                  action_features parameter.
+        num_analysis_samples : int, optional
+            If the dataset size to too large, analyze on (randomly sampled)
+            subset of data. The `num_analysis_samples` specifies the number of
+            observations to be considered for analysis.
+        analysis_sub_model_size : int, optional
+            Number of samples to use for analysis. The rest will be
+            randomly held-out and not included in calculations.
+        use_deviations : bool, optional
+            When True, uses deviations for LK metric in queries.
+        inverse_residuals_as_weights : bool, optional
+            When True, will compute and use inverse of residuals as feature
+            weights.
+        use_case_weights : bool, optional
+            When True, will scale influence weights by each
+            case's weight_feature weight.
+        weight_feature : str
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+        kwargs : dict, optional
+            Parameters specific for analyze() may be passed in via kwargs, and
+            will be cached and used during future auto-analysis.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+
+        deprecated_params = {
+            'auto_optimize_enabled': 'auto_analyze_enabled',
+            'optimize_threshold': 'analyze_threshold',
+            'optimize_growth_factor': 'analyze_growth_factor',
+            'auto_optimize_limit_size': 'auto_analyze_limit_size',
+        }
+        analyze_deprecated_params = {
+            'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
+            'num_optimization_samples': 'num_analysis_samples',
+            'optimization_sub_model_size': 'analysis_sub_model_size',
+            'dwe_values': 'dt_values'
+        }
+
+        # explicitly update parameters if old names are provided
+        if kwargs:
+            for old_param, new_param in deprecated_params.items():
+                if old_param in kwargs:
+                    if old_param == 'auto_optimize_enabled':
+                        auto_analyze_enabled = kwargs[old_param]
+                    elif old_param == 'optimize_threshold':
+                        analyze_threshold = kwargs[old_param]
+                    elif old_param == 'optimize_growth_factor':
+                        analyze_growth_factor = kwargs[old_param]
+                    elif old_param == 'auto_optimize_limit_size':
+                        auto_analyze_limit_size = kwargs[old_param]
+
+                    del kwargs[old_param]
+                    warnings.warn(
+                        f'The `{old_param}` parameter has been renamed to '
+                        f'`{new_param}`, please use the new parameter '
+                        'instead.', UserWarning)
+
+            # replace any old kwarg param with new param and remove old param
+            for old_param, new_param in analyze_deprecated_params.items():
+                if old_param in kwargs:
+                    kwargs[new_param] = kwargs[old_param]
+                    del kwargs[old_param]
+                    warnings.warn(
+                        f'The `{old_param}` parameter has been renamed to '
+                        f'`{new_param}`, please use the new parameter '
+                        'instead.', UserWarning)
+
+        if 'targeted_model' in kwargs:
+            targeted_model = kwargs['targeted_model']
+            if targeted_model not in ['single_targeted', 'omni_targeted', 'targetless']:
+                raise ValueError(
+                    f'Invalid value "{targeted_model}" for targeted_model. '
+                    'Valid values include single_targeted, omni_targeted, '
+                    'and targetless.')
+
+        # Collect valid parameters
+        if kwargs:
+            warn_params = ', '.join(kwargs)
+            warnings.warn(
+                f'The following auto ablation parameter(s) "{warn_params}" '
+                'are not officially supported or may not have an effect.', UserWarning)
+
+        self._execute(trainee_id, "set_auto_analyze_params", {
+            "auto_analyze_enabled": auto_analyze_enabled,
+            "analyze_threshold": analyze_threshold,
+            "auto_analyze_limit_size": auto_analyze_limit_size,
+            "analyze_growth_factor": analyze_growth_factor,
+            "action_features": action_features,
+            "context_features": context_features,
+            "k_folds": k_folds,
+            "num_samples": num_samples,
+            "dt_values": dt_values,
+            "k_values": k_values,
+            "p_values": p_values,
+            "bypass_hyperparameter_analysis": bypass_hyperparameter_analysis,
+            "bypass_calculate_feature_residuals": bypass_calculate_feature_residuals,
+            "bypass_calculate_feature_weights": bypass_calculate_feature_weights,
+            "targeted_model": targeted_model,
+            "num_analysis_samples": num_analysis_samples,
+            "analysis_sub_model_size": analysis_sub_model_size,
+            "use_deviations": use_deviations,
+            "inverse_residuals_as_weights": inverse_residuals_as_weights,
+            "use_case_weights": use_case_weights,
+            "weight_feature": weight_feature,
+            **kwargs,
+        })
+        self._auto_persist_trainee(trainee_id)
+
+    @abstractmethod
+    def get_auto_ablation_params(self, trainee_id: str):
         """Get trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`."""
 
     @abstractmethod
@@ -1134,19 +1478,6 @@ class AbstractHowsoClient(ABC):
         **kwargs
     ):
         """Smartly reduce the amount of trained cases while accumulating case weights."""
-
-    @abstractmethod
-    def set_auto_analyze_params(
-        self,
-        trainee_id,
-        auto_analyze_enabled=False,
-        analyze_threshold=None,
-        *,
-        auto_analyze_limit_size=None,
-        analyze_growth_factor=None,
-        **kwargs
-    ):
-        """Set trainee parameters for auto analysis."""
 
     def get_cases(
         self,

@@ -854,57 +854,6 @@ class HowsoCore:
             }
         )
 
-    def auto_analyze_params(
-        self,
-        trainee_id: str,
-        auto_analyze_enabled: bool = False,
-        analyze_threshold: Optional[int] = None,
-        auto_analyze_limit_size: Optional[int] = None,
-        analyze_growth_factor: Optional[float] = None,
-        **kwargs
-    ) -> None:
-        """
-        Set trainee parameters for auto analysis.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        auto_analyze_enabled : bool, default False
-            Enable auto analyze when training. Train will return a status
-            indicating when to auto analyze.
-        analyze_threshold : int, optional
-            The threshold for the number of cases at which the model should be
-            re-analyzed.
-        auto_analyze_limit_size : int, optional
-            The size of of the model at which to stop doing auto-analysis.
-            Value of 0 means no limit.
-        analyze_growth_factor : float, optional
-            The factor by which to increase the analyze threshold every time
-            the model grows to the current threshold size.
-        kwargs : dict, optional
-            Parameters specific for analyze() may be passed in via kwargs, and
-            will be cached and used during future auto-analysis.
-        """
-        params = {
-            "auto_analyze_enabled": auto_analyze_enabled,
-            "analyze_threshold": analyze_threshold,
-            "analyze_growth_factor": analyze_growth_factor,
-            "auto_analyze_limit_size": auto_analyze_limit_size,
-        }
-        return self._execute(trainee_id, "set_auto_analyze_params", {**kwargs, **params})
-
-    def auto_analyze(self, trainee_id: str) -> None:
-        """
-        Auto-analyze the Trainee model.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        """
-        return self._execute(trainee_id, "auto_analyze", {})
-
     def compute_feature_weights(
         self,
         trainee_id: str,
@@ -2166,20 +2115,6 @@ class HowsoCore:
             "root_filepath": f"{self.howso_path}/",
             "separate_files": separate_files,
         })
-
-    def analyze(self, trainee_id: str, **kwargs) -> None:
-        """
-        Analyzes a trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        kwargs : dict
-            Analysis arguments.
-        """
-        params = {**kwargs}
-        return self._execute(trainee_id, "analyze", params)
 
     def reset_parameter_defaults(self, trainee_id: str) -> None:
         """
