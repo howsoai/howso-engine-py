@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from collections.abc import Iterable, Mapping
 import decimal
 from enum import Enum
 from functools import partial
 import locale
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional
 import warnings
 
 import numpy as np
@@ -60,23 +62,23 @@ class FeatureSerializer:
     @classmethod
     def serialize(  # noqa: C901
         cls,
-        data: Union[pd.DataFrame, np.ndarray, Iterable[Any]],
-        columns: Iterable[str],
+        data: pd.DataFrame | np.ndarray | Iterable[Any] | None,
+        columns: Iterable[str] | None,
         features: Mapping,
         *,
         warn: bool = False
-    ) -> Union[List[List[Any]], None]:
+    ) -> list[list[Any]] | None:
         """
         Serialize case data into list of lists.
 
         Parameters
         ----------
-        data : pandas.DataFrame or numpy.ndarray or list of list
+        data : pandas.DataFrame or numpy.ndarray or list of list or None
             The data to serialize.
-        columns : list of str
+        columns : list of str or None
             The case column mapping. The order corresponds to the order of cases
             in output.
-        features : dict
+        features : Mapping
             The dictionary of feature name to feature attributes.
         warn : bool, default False
             If warnings should be raised by serializer.
@@ -156,7 +158,7 @@ class FeatureSerializer:
     @classmethod
     def deserialize(
         cls,
-        data: Union[Iterable[Iterable[Any]], Iterable[Mapping[str, Any]]],
+        data: Iterable[Iterable[Any]] | Iterable[Mapping[str, Any]],
         columns: Iterable[str],
         features: Optional[Mapping] = None
     ) -> pd.DataFrame:
@@ -176,7 +178,7 @@ class FeatureSerializer:
             The order corresponds to how the data will be mapped to columns in
             the output. Ignored for list of dict where the dict key is the column
             name.
-        features : dict, default None
+        features : Mapping, default None
             (Optional) The dictionary of feature name to feature attributes.
 
             If not specified, no column typing will be attempted.
@@ -205,7 +207,7 @@ class FeatureSerializer:
         ----------
         df : pandas.DataFrame
             The DataFrame to format columns of.
-        features : Dict
+        features : Mapping
             The dictionary of feature name to feature attributes.
 
         Returns
@@ -633,7 +635,7 @@ class FeatureSerializer:
         return column
 
     @staticmethod
-    def _get_typing_info(feature: Optional[Mapping]) -> Dict:
+    def _get_typing_info(feature: Optional[Mapping]) -> dict:
         """
         Get typing info from feature attributes.
 

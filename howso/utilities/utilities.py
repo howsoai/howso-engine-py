@@ -6,7 +6,7 @@ from math import isnan
 import re
 import sys
 import threading
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 import uuid
 import warnings
 
@@ -249,7 +249,7 @@ def align_data(x, y=None):
     return x
 
 
-def replace_doublemax_with_infinity(dat):
+def replace_doublemax_with_infinity(dat: Any) -> Any:
     """
     Replace values of Double.MAX_VALUE (1.79769313486232E+308) with Infinity.
 
@@ -257,11 +257,13 @@ def replace_doublemax_with_infinity(dat):
 
     Parameters
     ----------
-    dat : A dict, list, number, or string
+    dat : Any
+        The data to replace infinity in.
 
     Returns
     -------
-    A dict, list, number, or string - same as passed in for translation
+    Any
+        The same value back, with float max values converted to infinity.
     """
     if isinstance(dat, dict):
         dat = {k: replace_doublemax_with_infinity(v) for (k, v) in dat.items()}
@@ -450,12 +452,12 @@ def validate_case_indices(case_indices: Sequence[Sequence[Union[str, int]]], tho
         raise ValueError('Argument case_indices must be type Iterable of (non-string) Sequence[str, int].')
 
 
-def num_list_dimensions(lst):
+def num_list_dimensions(obj: list) -> int:
     """
     Return number of dimensions for a list.
 
     Assumption is that the input nested lists are also lists,
-    or a list of dataframes.
+    or a list of DataFrames.
 
     Parameters
     ----------
@@ -467,16 +469,15 @@ def num_list_dimensions(lst):
     int
         The number of dimensions in the passed in list.
     """
-    the_list = lst
     d = 0
     while True:
-        if not isinstance(the_list, list):
-            if isinstance(the_list, pd.DataFrame):
+        if not isinstance(obj, list):
+            if isinstance(obj, pd.DataFrame):
                 # add the number of dimensions in the dataframe
-                d += the_list.ndim
+                d += obj.ndim
             break
         try:
-            the_list = the_list[0]
+            obj = obj[0]
             d += 1
         except (IndexError, TypeError):
             break

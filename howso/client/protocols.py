@@ -8,7 +8,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from howso.direct.core import HowsoCore
+    from amalgam.api import Amalgam
     from howso.client.schemas import Project, Trainee
 
 __all__ = [
@@ -22,12 +22,12 @@ class LocalSaveableProtocol(Protocol):
     """Protocol to define a Howso client that has direct disk read/write access."""
 
     @property
-    def howso(self) -> HowsoCore:
-        """Howso Core API."""
+    def amlg(self) -> Amalgam:
+        """Amalgam API."""
         ...
 
-    def _get_trainee_from_core(self, trainee_id: str) -> Trainee:
-        """Retrieve the core representation of a Trainee object."""
+    def _get_trainee_from_engine(self, trainee_id: str) -> Trainee:
+        """Retrieve the engine representation of a Trainee object."""
         ...
 
 
