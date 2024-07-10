@@ -1458,6 +1458,9 @@ class AbstractHowsoClient(ABC):
                 f"may or may not have an effect: {warn_params}",
                 UnsupportedArgumentWarning)
 
+        if self.configuration.verbose:
+            print(f'Setting auto analyze parameters for Trainee with id: {trainee_id}')
+
         self._execute(trainee_id, "set_auto_analyze_params", {
             "auto_analyze_enabled": auto_analyze_enabled,
             "analyze_threshold": analyze_threshold,
@@ -1576,6 +1579,8 @@ class AbstractHowsoClient(ABC):
                 f"The following parameter(s) are not officially supported by `auto_ablation` and "
                 f"may or may not have an effect: {warn_params}",
                 UnsupportedArgumentWarning)
+        if self.configuration.verbose:
+            print(f'Setting auto ablation parameters for Trainee with id: {trainee_id}')
         self._execute(trainee_id, "set_auto_ablation_params", params)
 
     def reduce_data(
@@ -1635,6 +1640,8 @@ class AbstractHowsoClient(ABC):
                 f"The following parameter(s) are not officially supported by `reduce_data` and "
                 f"may or may not have an effect: {warn_params}",
                 UnsupportedArgumentWarning)
+        if self.configuration.verbose:
+            print(f'Reducing data on Trainee with id: {trainee_id}')
         self._execute(trainee_id, "reduce_data", params)
 
     def get_cases(
