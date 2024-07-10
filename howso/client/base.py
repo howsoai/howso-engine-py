@@ -26,6 +26,7 @@ from .typing import (
     Persistence,
     Precision,
     TabularData2D,
+    TabularData3D,
     TargetedModel,
 )
 
@@ -1453,7 +1454,7 @@ class AbstractHowsoClient(ABC):
                     warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("context_condition_precision"))
 
         if self.configuration.verbose:
-            print(f'React aggregating to Trainee with id: {trainee_id}')
+            print(f'Reacting into aggregate trained cases of Trainee with id: {trainee_id}')
 
         stats = self.execute(trainee_id, "react_aggregate", {
             "action_feature": action_feature,
@@ -1482,19 +1483,105 @@ class AbstractHowsoClient(ABC):
 
     @abstractmethod
     def react_group(
-        self, trainee_id, new_cases, *,
-        distance_contributions=False,
-        familiarity_conviction_addition=True,
-        familiarity_conviction_removal=False,
-        features=None,
-        kl_divergence_addition=False,
-        kl_divergence_removal=False,
-        p_value_of_addition=False,
-        p_value_of_removal=False,
-        use_case_weights=False,
-        weight_feature=None
-    ) -> DataFrame | dict:
-        """Compute specified data for a **set** of cases."""
+        self,
+        trainee_id: str,
+        new_cases: TabularData3D,
+        *,
+        features: t.Optional[Collection[str]] = None,
+        distance_contributions: bool = False,
+        familiarity_conviction_addition: bool = True,
+        familiarity_conviction_removal: bool = False,
+        kl_divergence_addition: bool = False,
+        kl_divergence_removal: bool = False,
+        p_value_of_addition: bool = False,
+        p_value_of_removal: bool = False,
+        weight_feature: t.Optional[str] = None,
+        use_case_weights: bool = False
+    ) -> dict:
+        """
+        Computes specified data for a **set** of cases.
+
+        Return the list of familiarity convictions (and optionally, distance
+        contributions or p values) for each set.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The trainee id.
+
+        new_cases : list of list of list of object or list of DataFrame
+            Specify a **set** using a list of cases to compute the conviction of
+            groups of cases as shown in the following example.
+
+            >>> [ [[1, 2, 3], [4, 5, 6], [7, 8, 9]], # Group 1
+            >>>   [[1, 2, 3]] ] # Group 2
+
+        features : Collection of str, optional
+            The feature names to consider while calculating convictions.
+        distance_contributions : bool, default False
+            Calculate and output distance contribution ratios in
+            the output dict for each case.
+        familiarity_conviction_addition : bool, default True
+            Calculate and output familiarity conviction of adding the
+            specified cases.
+        familiarity_conviction_removal : bool, default False
+            Calculate and output familiarity conviction of removing
+            the specified cases.
+        kl_divergence_addition : bool, default False
+            Calculate and output KL divergence of adding the
+            specified cases.
+        kl_divergence_removal : bool, default False
+            Calculate and output KL divergence of removing the
+            specified cases.
+        p_value_of_addition : bool, default False
+            If true will output p value of addition.
+        p_value_of_removal : bool, default False
+            If true will output p value of removal.
+        weight_feature : str, optional
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+        use_case_weights : bool, default False
+            If set to True will scale influence weights by each
+            case's weight_feature weight.
+
+        Returns
+        -------
+        dict
+            The react group response.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        feature_attributes = self.trainee_cache.get(trainee_id).features
+        serialized_cases = None
+
+        if util.num_list_dimensions(new_cases) != 3:
+            raise ValueError(
+                "Improper shape of `new_cases` values passed. "
+                "`new_cases` must be a 3d list of object.")
+
+        serialized_cases = []
+        for group in new_cases:
+            if features is None:
+                features = internals.get_features_from_data(group)
+            serialized_cases.append(serialize_cases(group, features, feature_attributes))
+
+        if self.configuration.verbose:
+            print(f'Reacting to a set of cases on Trainee with id: {trainee_id}')
+        result = self.execute(trainee_id, "react_group", {
+            "features": features,
+            "new_cases": serialized_cases,
+            "distance_contributions": distance_contributions,
+            "familiarity_conviction_addition": familiarity_conviction_addition,
+            "familiarity_conviction_removal": familiarity_conviction_removal,
+            "kl_divergence_addition": kl_divergence_addition,
+            "kl_divergence_removal": kl_divergence_removal,
+            "p_value_of_addition": p_value_of_addition,
+            "p_value_of_removal": p_value_of_removal,
+            "weight_feature": weight_feature,
+            "use_case_weights": use_case_weights,
+        })
+        if result is None:
+            result = dict()
+        return result
 
     @abstractmethod
     def react(
