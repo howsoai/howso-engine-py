@@ -371,6 +371,26 @@ def accumulate_react_result(accumulated_result, result):
     return accumulated_result
 
 
+def random_handle() -> str:
+    """
+    Generate a random 6 byte hexadecimal handle.
+
+    Returns
+    -------
+    str
+        A random 6 byte hex.
+    """
+    try:
+        # Use of secrets/uuid must be used instead of the "random" package
+        # as they will not be affected by setting random.seed which could
+        # cause duplicate handles to be generated.
+        import secrets
+        return secrets.token_hex(6)
+    except (ImportError, NotImplementedError):
+        # Fallback to uuid if operating system does not support secrets
+        return uuid.uuid4().hex[-12:]
+
+
 def slugify(value, allow_unicode=False):
     """
     Slugify a value.
