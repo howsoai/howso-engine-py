@@ -27,6 +27,7 @@ from .typing import (
     NewCaseThreshold,
     Persistence,
     Precision,
+    SeriesIDTracking,
     TabularData2D,
     TabularData3D,
     TargetedModel,
@@ -164,6 +165,22 @@ class AbstractHowsoClient(ABC):
         """
 
     @abstractmethod
+    def _get_trainee_thread_count(self, trainee_id: str) -> int:
+        """
+        Get the number of available cpu threads a Trainee has access to.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee.
+
+        Returns
+        -------
+        int
+            The allocated number of cpu threads for a Trainee.
+        """
+
+    @abstractmethod
     def execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:
         """
         Execute a label in Howso engine.
@@ -171,7 +188,7 @@ class AbstractHowsoClient(ABC):
         Parameters
         ----------
         trainee_id : str
-            The entity handle of the Trainee.
+            The identifier of the Trainee.
         label : str
             The label to execute.
         payload : Any
@@ -191,7 +208,7 @@ class AbstractHowsoClient(ABC):
         Parameters
         ----------
         trainee_id : str
-            The entity handle of the Trainee.
+            The identifier of the Trainee.
         label : str
             The label to execute.
         payload : Any
@@ -2218,51 +2235,630 @@ class AbstractHowsoClient(ABC):
 
         return context_features, context_values
 
-    @abstractmethod
-    def react_series(
-        self, trainee_id, *,
-        action_features=None,
-        actions=None,
-        batch_size=None,
-        case_indices=None,
-        contexts=None,
-        context_features=None,
-        continue_series=False,
-        continue_series_features=None,
-        continue_series_values=None,
-        derived_action_features=None,
-        derived_context_features=None,
-        desired_conviction=None,
-        details=None,
-        exclude_novel_nominals_from_uniqueness_check=False,
-        feature_bounds_map=None,
-        final_time_steps=None,
-        generate_new_cases="no",
-        init_time_steps=None,
-        initial_batch_size=None,
-        initial_features=None,
-        initial_values=None,
-        input_is_substituted=False,
-        leave_case_out=None,
-        max_series_lengths=None,
-        new_case_threshold="min",
-        num_series_to_generate=1,
-        ordered_by_specified_features=False,
-        output_new_series_ids=True,
-        preserve_feature_values=None,
-        progress_callback=None,
-        series_context_features=None,
-        series_context_values=None,
-        series_id_tracking="fixed",
-        series_stop_maps=None,
-        series_index=None,
-        substitute_output=True,
-        suppress_warning=False,
-        use_case_weights=False,
-        use_regional_model_residuals=True,
-        weight_feature=None
+    def react_series(  # noqa: C901
+        self,
+        trainee_id: str,
+        *,
+        action_features: t.Optional[Collection[str]] = None,
+        actions: t.Optional[TabularData2D] = None,
+        batch_size: t.Optional[int] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        contexts: t.Optional[TabularData2D] = None,
+        context_features: t.Optional[Collection[str]] = None,
+        continue_series: bool = False,
+        continue_series_features: t.Optional[Collection[str]] = None,
+        continue_series_values: t.Optional[list[t.Any] | list[list[t.Any]]] = None,
+        derived_action_features: t.Optional[Collection[str]] = None,
+        derived_context_features: t.Optional[Collection[str]] = None,
+        desired_conviction: t.Optional[float] = None,
+        details: t.Optional[Mapping] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
+        feature_bounds_map: t.Optional[dict] = None,
+        final_time_steps: t.Optional[list[t.Any] | list[list[t.Any]]] = None,
+        generate_new_cases: GenerateNewCases = "no",
+        init_time_steps: t.Optional[list[t.Any] | list[list[t.Any]]] = None,
+        initial_batch_size: t.Optional[int] = None,
+        initial_features: t.Optional[Collection[str]] = None,
+        initial_values: t.Optional[list[t.Any] | list[list[t.Any]]] = None,
+        input_is_substituted: bool = False,
+        leave_case_out: bool = False,
+        max_series_lengths: t.Optional[list[int]] = None,
+        new_case_threshold: NewCaseThreshold = "min",
+        num_series_to_generate: int = 1,
+        ordered_by_specified_features: bool = False,
+        output_new_series_ids: bool = True,
+        preserve_feature_values: t.Optional[Collection[str]] = None,
+        progress_callback: t.Optional[Callable] = None,
+        series_context_features: t.Optional[Collection[str]] = None,
+        series_context_values: t.Optional[list[t.Any] | list[list[t.Any]]] = None,
+        series_id_tracking: SeriesIDTracking = "fixed",
+        series_index: t.Optional[str] = None,
+        series_stop_maps: t.Optional[list[dict[str, dict]]] = None,
+        substitute_output: bool = True,
+        suppress_warning: bool = False,
+        use_case_weights: bool = False,
+        use_regional_model_residuals: bool = True,
+        weight_feature: t.Optional[str] = None
     ) -> Reaction:
-        """React in a series until a stop condition is met."""
+        """
+        React in a series until a series_stop_map condition is met.
+
+        Aggregates rows of data corresponding to the specified context, action,
+        derived_context and derived_action features, utilizing previous rows to
+        derive values as necessary. Outputs a dict of "action_features" and
+        corresponding "action" where "action" is the completed 'matrix' for the
+        corresponding `action_features` and `derived_action_features`.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to react to.
+        num_series_to_generate : int, default 1
+            The number of series to generate.
+        final_time_steps : list of object, optional
+            The time steps at which to end synthesis. Time-series
+            only. Must provide either one for all series, or exactly one per
+            series.
+        init_time_steps : list of object, optional
+            The time steps at which to begin synthesis. Time-series
+            only. Must provide either one for all series, or exactly one per
+            series.
+        initial_features : iterable of str, optional
+            List of features to condition just the first case in a
+            series, overwrites context_features and derived_context_features
+            for that first case. All specified initial features must be in one
+            of: context_features, action_features, derived_context_features or
+            derived_action_features. If provided a value that isn't in one of
+            those lists, it will be ignored.
+        initial_values : list of list of object, optional
+            2d list of values corresponding to the initial_features,
+            used to condition just the first case in each series. Must provide
+            either one for all series, or exactly one per series.
+        series_stop_maps : list of dict of dict, optional
+            A dictionary of feature name to stop conditions. Must provide either
+            one for all series, or exactly one per series.
+
+            .. TIP::
+                Stop series when value exceeds max or is smaller than min::
+
+                    {"feature_name":  {"min" : 1, "max": 2}}
+
+                Stop series when feature value matches any of the values
+                listed::
+
+                    {"feature_name":  {"values": ["val1", "val2"]}}
+
+        max_series_lengths : list of int, optional
+            maximum size a series is allowed to be.  Default is
+            3 * model_size, a 0 or less is no limit. If forecasting
+            with ``continue_series``, this defines the maximum length of the
+            forecast. Must provide either one for all series, or exactly
+            one per series.
+        continue_series : bool, default False
+            When True will attempt to continue existing series instead of
+            starting new series. If `initial_values` provide series IDs, it
+            will continue those explicitly specified IDs, otherwise it will
+            randomly select series to continue.
+            .. note::
+
+                Terminated series with terminators cannot be continued and
+                will result in null output.
+        continue_series_features : list of str, optional
+            The list of feature names corresponding to the values in each row of
+            `continue_series_values`. This value is ignored if
+            `continue_series_values` is None.
+        continue_series_values : list of list of list of object or list of pandas.DataFrame, default None
+            The set of series data to be forecasted with feature values in the
+            same order defined by `continue_series_values`. The value of
+            `continue_series` will be ignored and treated as true if this value
+            is specified.
+        derived_context_features : iterable of str, optional
+            List of context features whose values should be computed
+            from the entire series in the specified order. Must be
+            different than context_features.
+        derived_action_features : iterable of str, optional
+            List of action features whose values should be computed
+            from the resulting last row in series, in the specified order.
+            Must be a subset of action_features.
+
+            .. note::
+
+                Both of these derived feature lists rely on the features'
+                "derived_feature_code" attribute to compute the values. If
+                "derived_feature_code" attribute references non-existing
+                feature indices, the derived value will be null.
+
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            If True, will exclude features which have a subtype defined in their feature
+            attributes from the uniqueness check that happens when ``generate_new_cases``
+            is True. Only applies to generative reacts.
+        series_context_features : iterable of str, optional
+            List of context features corresponding to
+            series_context_values, if specified must not overlap with any
+            initial_features or context_features.
+        series_context_values : list of list of list of object or list of DataFrame, optional
+            3d-list of context values, one for each feature for each
+            row for each series. If specified, max_series_lengths are ignored.
+        output_new_series_ids : bool, default True
+            If True, series ids are replaced with unique values on output.
+            If False, will maintain or replace ids with existing trained values,
+            but also allows output of series with duplicate existing ids.
+        series_id_tracking : {"dynamic", "fixed", "no"}, default "fixed"
+            Controls how closely generated series should follow existing series (plural).
+
+            Choices are: "fixed" , "dynamic" or "no":
+
+            - If "fixed", tracks the particular relevant series ID.
+            - If "dynamic", tracks the particular relevant series ID, but is
+              allowed to change the series ID that it tracks based on its
+              current context.
+            - If "no", does not track any particular series ID.
+        series_index : str, Optional
+            When set to a string, will include the series index as a
+            column in the returned DataFrame using the column name given.
+            If set to None, no column will be added.
+        progress_callback : callable, optional
+            A callback method that will be called before each
+            batched call to react series and at the end of reacting. The method
+            is given a ProgressTimer containing metrics on the progress and
+            timing of the react series operation, and the batch result.
+        batch_size: int, optional
+            Define the number of series to react to at once. If left
+            unspecified, the batch size will be determined automatically.
+        initial_batch_size: int, optional
+            The number of series to react to in the first batch. If unspecified,
+            the number will be determined automatically. The number of series
+            in following batches will be automatically adjusted. This value is
+            ignored if ``batch_size`` is specified.
+        contexts: list of list of object or DataFrame
+            See parameter ``contexts`` in :meth:`HowsoDirectClient.react`.
+        action_features: iterable of str
+            See parameter ``action_features`` in :meth:`HowsoDirectClient.react`.
+        actions: list of list of object or DataFrame
+            See parameter ``actions`` in :meth:`HowsoDirectClient.react`.
+        context_features: iterable of str
+            See parameter ``context_features`` in :meth:`HowsoDirectClient.react`.
+        input_is_substituted : bool, default False
+            See parameter ``input_is_substituted`` in :meth:`HowsoDirectClient.react`.
+        substitute_output : bool
+            See parameter ``substitute_output`` in :meth:`HowsoDirectClient.react`.
+        details: dict, optional
+            See parameter ``details`` in :meth:`HowsoDirectClient.react`.
+        desired_conviction: float
+            See parameter ``desired_conviction`` in :meth:`HowsoDirectClient.react`.
+        weight_feature : str
+            See parameter ``weight_feature`` in :meth:`HowsoDirectClient.react`.
+        use_case_weights : bool
+            See parameter ``use_case_weights`` in :meth:`HowsoDirectClient.react`.
+        case_indices: iterable of sequence of str, int
+            See parameter ``case_indices`` in :meth:`HowsoDirectClient.react`.
+        preserve_feature_values : iterable of str
+            See parameter ``preserve_feature_values`` in :meth:`HowsoDirectClient.react`.
+        new_case_threshold : str
+            See parameter ``new_case_threshold`` in :meth:`HowsoDirectClient.react`.
+        leave_case_out : bool
+            See parameter ``leave_case_out`` in :meth:`HowsoDirectClient.react`.
+        use_regional_model_residuals : bool
+            See parameter ``use_regional_model_residuals`` in :meth:`HowsoDirectClient.react`.
+        feature_bounds_map: dict of dict
+            See parameter ``feature_bounds_map`` in :meth:`HowsoDirectClient.react`.
+        generate_new_cases : {"always", "attempt", "no"}
+            See parameter ``generate_new_cases`` in :meth:`HowsoDirectClient.react`.
+        ordered_by_specified_features : bool
+            See parameter ``ordered_by_specified_features`` in :meth:`HowsoDirectClient.react`.
+        suppress_warning : bool
+            See parameter ``suppress_warning`` in :meth:`HowsoDirectClient.react`.
+
+        Returns
+        -------
+        Reaction:
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
+
+                details -> Dict or List
+                    An aggregated list of any requested details.
+
+        Raises
+        ------
+        ValueError
+            If the number of provided context values does not match the length of
+            context features.
+
+            If `series_context_values` is not a 3d list of objects.
+
+            If `series_continue_values` is not a 3d list of objects.
+
+            If `derived_action_features` is not a subset of `action_features`.
+
+            If `new_case_threshold` is not one of {"max", "min", "most_similar"}.
+        HowsoError
+            If `num_series_to_generate` is not an integer greater than 0.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        feature_attributes = self.trainee_cache.get(trainee_id).features
+
+        util.validate_list_shape(initial_features, 1, "initial_features", "str")
+        util.validate_list_shape(initial_values, 2, "initial_values", "list of object")
+        util.validate_list_shape(initial_features, 1, "max_series_lengths", "num")
+        util.validate_list_shape(series_stop_maps, 1, "series_stop_maps", "dict")
+        util.validate_list_shape(series_context_features, 1, "series_context_features", "str")
+
+        if continue_series_values and util.num_list_dimensions(continue_series_values) != 3:
+            raise ValueError(
+                "Improper shape of `continue_series_values` values passed. "
+                "`continue_series_values` must be a 3d list of object.")
+        if series_context_values and util.num_list_dimensions(series_context_values) != 3:
+            raise ValueError(
+                "Improper shape of `series_context_values` values passed. "
+                "`series_context_values` must be a 3d list of object.")
+
+        if continue_series_values is not None:
+            continue_series = True
+
+        action_features, actions, context_features, contexts = (
+            self._preprocess_react_parameters(
+                action_features=action_features,
+                action_values=actions,
+                case_indices=case_indices,
+                context_features=context_features,
+                context_values=contexts,
+                desired_conviction=desired_conviction,
+                preserve_feature_values=preserve_feature_values,
+                trainee_id=trainee_id,
+                continue_series=continue_series,
+            )
+        )
+
+        if action_features is not None and derived_action_features is not None:
+            if not set(derived_action_features).issubset(set(action_features)):
+                raise ValueError(
+                    'Specified `derived_action_features` must be a subset of `action_features`.')
+
+        serialized_series_context_values = None
+        if series_context_values:
+            serialized_series_context_values = []
+            for series in series_context_values:
+                if series_context_features is None:
+                    series_context_features = internals.get_features_from_data(
+                        data=series,
+                        data_parameter="series_context_values",
+                        features_parameter="series_context_features")
+                serialized_series_context_values.append(
+                    serialize_cases(series, series_context_features, feature_attributes))
+
+        serialized_continue_series_values = None
+        if continue_series_values:
+            serialized_continue_series_values = []
+            for series in continue_series_values:
+                if continue_series_features is None:
+                    continue_series_features = internals.get_features_from_data(
+                        data=series,
+                        data_parameter="continue_series_values",
+                        features_parameter="continue_series_features")
+                serialized_continue_series_values.append(
+                    serialize_cases(series, continue_series_features, feature_attributes))
+
+        if new_case_threshold not in [None, "min", "max", "most_similar"]:
+            raise ValueError(
+                f"The value '{new_case_threshold}' specified for the parameter "
+                "`new_case_threshold` is not valid. It accepts one of the"
+                " following values - ['min', 'max', 'most_similar',]"
+            )
+
+        if initial_values is not None and initial_features is None:
+            initial_features = internals.get_features_from_data(
+                initial_values,
+                data_parameter='initial_values',
+                features_parameter='initial_features')
+        initial_values = serialize_cases(initial_values, initial_features, feature_attributes)
+
+        # All of these params must be of length 1 or N
+        # where N is the length of the largest
+        one_or_more_params = [
+            contexts,
+            initial_values,
+            serialized_continue_series_values,
+            serialized_series_context_values,
+            case_indices,
+            actions,
+            max_series_lengths,
+            series_stop_maps,
+        ]
+        if any(one_or_more_params):
+            param_lengths = set([len(x) for x in one_or_more_params if x])
+            if len(param_lengths - {1}) > 1:
+                # Raise error if any of the params have different lengths
+                # greater than 1
+                raise ValueError(
+                    'When providing any of `contexts`, `actions`, '
+                    '`series_context_values`, `continue_series_values`, '
+                    '`case_indices`, `initial_values`, `max_series_lengths`, '
+                    'or `series_stop_maps`, each must be of length 1 or the same '
+                    'length as each other.')
+        else:
+            param_lengths = {1}
+
+        if desired_conviction is None:
+            if case_indices and not preserve_feature_values:
+                raise ValueError(
+                    "For discriminative reacts, `preserve_feature_values` "
+                    "is required when `case_indices` is specified.")
+            else:
+                total_size = max(param_lengths)
+
+            react_params = {
+                "action_features": action_features,
+                "action_values": actions,
+                "context_features": context_features,
+                "context_values": contexts,
+                "continue_series": continue_series,
+                "continue_series_features": continue_series_features,
+                "continue_series_values": serialized_continue_series_values,
+                "initial_features": initial_features,
+                "initial_values": initial_values,
+                "final_time_steps": final_time_steps,
+                "init_time_steps": init_time_steps,
+                "series_stop_maps": series_stop_maps,
+                "max_series_lengths": max_series_lengths,
+                "derived_context_features": derived_context_features,
+                "derived_action_features": derived_action_features,
+                "series_context_features": series_context_features,
+                "series_context_values": serialized_series_context_values,
+                "case_indices": case_indices,
+                "preserve_feature_values": preserve_feature_values,
+                "new_case_threshold": new_case_threshold,
+                "input_is_substituted": input_is_substituted,
+                "substitute_output": substitute_output,
+                "weight_feature": weight_feature,
+                "use_case_weights": use_case_weights,
+                "leave_case_out": leave_case_out,
+                "details": details,
+                "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
+                "series_id_tracking": series_id_tracking,
+                "output_new_series_ids": output_new_series_ids,
+            }
+
+        else:
+            if (
+                not isinstance(num_series_to_generate, int) or
+                num_series_to_generate <= 0
+            ):
+                raise HowsoError("`num_series_to_generate` must be an integer "
+                                 "greater than 0.")
+            if max(param_lengths) not in [1, num_series_to_generate]:
+                raise ValueError(
+                    'For generative reacts, when specifying parameters with '
+                    'values for each series they must be of length 1 or the '
+                    'value specified by `num_series_to_generate`.')
+            total_size = num_series_to_generate
+
+            context_features, contexts = \
+                self._preprocess_generate_parameters(
+                    trainee_id,
+                    action_features=action_features,
+                    context_features=context_features,
+                    context_values=contexts,
+                    desired_conviction=desired_conviction,
+                    num_cases_to_generate=num_series_to_generate,
+                    case_indices=case_indices
+                )
+
+            react_params = {
+                "num_series_to_generate": num_series_to_generate,
+                "action_features": action_features,
+                "context_features": context_features,
+                "context_values": contexts,
+                "continue_series": continue_series,
+                "continue_series_features": continue_series_features,
+                "continue_series_values": continue_series_values,
+                "initial_features": initial_features,
+                "initial_values": initial_values,
+                "final_time_steps": final_time_steps,
+                "init_time_steps": init_time_steps,
+                "series_stop_maps": series_stop_maps,
+                "max_series_lengths": max_series_lengths,
+                "derived_context_features": derived_context_features,
+                "derived_action_features": derived_action_features,
+                "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
+                "series_context_features": series_context_features,
+                "series_context_values": serialized_series_context_values,
+                "use_regional_model_residuals": use_regional_model_residuals,
+                "desired_conviction": desired_conviction,
+                "feature_bounds_map": feature_bounds_map,
+                "generate_new_cases": generate_new_cases,
+                "ordered_by_specified_features": ordered_by_specified_features,
+                "input_is_substituted": input_is_substituted,
+                "substitute_output": substitute_output,
+                "weight_feature": weight_feature,
+                "use_case_weights": use_case_weights,
+                "preserve_feature_values": preserve_feature_values,
+                "new_case_threshold": new_case_threshold,
+                "case_indices": case_indices,
+                "leave_case_out": leave_case_out,
+                "details": details,
+                "series_id_tracking": series_id_tracking,
+                "output_new_series_ids": output_new_series_ids,
+            }
+
+        if batch_size or self._should_react_batch(react_params, total_size):
+            if self.configuration.verbose:
+                print(f'Batch series reacting on trainee with id: {trainee_id}')
+            response = self._batch_react_series(
+                trainee_id,
+                react_params,
+                total_size=total_size,
+                batch_size=batch_size,
+                initial_batch_size=initial_batch_size,
+                progress_callback=progress_callback)
+        else:
+            if self.configuration.verbose:
+                print(f'Series reacting on trainee with id: {trainee_id}')
+            with ProgressTimer(total_size) as progress:
+                if isinstance(progress_callback, Callable):
+                    progress_callback(progress, None)
+                response, _, _ = self._react_series(trainee_id, react_params)
+                progress.update(total_size)
+
+            if isinstance(progress_callback, Callable):
+                progress_callback(progress, response)
+
+        # put all details under the 'details' key
+        action = response.pop('action')
+        response = {'action': action, 'details': response}
+
+        # If the number of series generated is less then requested, raise
+        # warning, for generative reacts
+        if desired_conviction is not None:
+            len_action = len(response['action'])
+            internals.insufficient_generation_check(
+                num_series_to_generate, len_action,
+                suppress_warning=suppress_warning
+            )
+
+        series_df = util.build_react_series_df(response, series_index=series_index)
+        return Reaction(series_df, response.get('details'))
+
+    def _batch_react_series(  # noqa: C901
+        self,
+        trainee_id: str,
+        params: dict,
+        *,
+        batch_size: t.Optional[int] = None,
+        initial_batch_size: t.Optional[int] = None,
+        total_size: int,
+        progress_callback: t.Optional[Callable] = None
+    ):
+        """
+        Make react series requests in batch.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to react to.
+        params : dict
+            The engine react series parameters.
+        batch_size: int, optional
+            Define the number of series to react to at once. If left
+            unspecified, the batch size will be determined automatically.
+        initial_batch_size: int, optional
+            The number of series to react to in the first batch. If unspecified,
+            the number will be determined automatically. The number of series
+            in following batches will be automatically adjusted. This value is
+            ignored if ``batch_size`` is specified.
+        total_size : int
+            The total size of the data that will be batched.
+        progress_callback : callable, optional
+            A function to be called during batching to retrieve or
+            report progress metrics.
+
+        Returns
+        -------
+        dict
+            The `react_series` response.
+        """
+        temp_result = None
+        accumulated_result = {'action_values': []}
+
+        actions = params.get('action_values')
+        contexts = params.get('context_values')
+        case_indices = params.get('case_indices')
+        initial_values = params.get('initial_values')
+        max_series_lengths = params.get('max_series_lengths')
+        series_context_values = params.get('series_context_values')
+        series_stop_maps = params.get('series_stop_maps')
+        continue_values = params.get('continue_series_values')
+
+        with ProgressTimer(total_size) as progress:
+            batch_scaler = None
+            gen_batch_size = None
+            if not batch_size:
+                if not initial_batch_size:
+                    start_batch_size = max(self._get_trainee_thread_count(trainee_id), 1)
+                else:
+                    start_batch_size = initial_batch_size
+                batch_scaler = self.batch_scaler_class(start_batch_size, progress)
+                gen_batch_size = batch_scaler.gen_batch_size()
+                batch_size = next(gen_batch_size, None)
+
+            while not progress.is_complete and batch_size is not None:
+                if isinstance(progress_callback, Callable):
+                    progress_callback(progress, temp_result)
+                batch_start = progress.current_tick
+                batch_end = progress.current_tick + batch_size
+
+                if actions is not None and len(actions) > 1:
+                    params['action_values'] = actions[batch_start:batch_end]
+                if contexts is not None and len(contexts) > 1:
+                    params['context_values'] = contexts[batch_start:batch_end]
+                if case_indices is not None and len(case_indices) > 1:
+                    params['case_indices'] = case_indices[batch_start:batch_end]
+                if initial_values is not None and len(initial_values) > 1:
+                    params['initial_values'] = initial_values[batch_start:batch_end]
+                if max_series_lengths is not None and len(max_series_lengths) > 1:
+                    params['max_series_lengths'] = max_series_lengths[batch_start:batch_end]
+                if series_context_values is not None and len(series_context_values) > 1:
+                    params['series_context_values'] = series_context_values[batch_start:batch_end]
+                if series_stop_maps is not None and len(series_stop_maps) > 1:
+                    params['series_stop_maps'] = series_stop_maps[batch_start:batch_end]
+                if continue_values is not None and len(continue_values) > 1:
+                    params['continue_series_values'] = continue_values[batch_start:batch_end]
+
+                if params.get('desired_conviction') is not None:
+                    params['num_series_to_generate'] = batch_size
+                temp_result, in_size, out_size = self._react_series(trainee_id, params)
+
+                internals.accumulate_react_result(accumulated_result, temp_result)
+                if batch_scaler is None or gen_batch_size is None:
+                    progress.update(batch_size)
+                else:
+                    batch_size = batch_scaler.send(
+                        gen_batch_size,
+                        batch_scaler.SendOptions(None, (in_size, out_size)))
+
+        # Final call to callback on completion
+        if isinstance(progress_callback, Callable):
+            progress_callback(progress, temp_result)
+
+        return accumulated_result
+
+    def _react_series(self, trainee_id: str, params: dict):
+        """
+        Make a single react series request.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee.
+        params : dict
+            The engine react series parameters.
+
+        Returns
+        -------
+        dict
+            The react series response.
+        int
+            The request payload size.
+        int
+            The response payload size.
+        """
+        batch_result, in_size, out_size = self.execute(trainee_id, "react_series", params)
+
+        if batch_result is None or batch_result.get('action_values') is None:
+            raise ValueError('Invalid parameters passed to react_series.')
+
+        ret = dict()
+        batch_result = util.replace_doublemax_with_infinity(batch_result)
+
+        # batch_result always has action_features and action_values
+        ret['action_features'] = batch_result.pop('action_features') or []
+        ret['action'] = batch_result.pop('action_values')
+
+        # ensure all the details items are output as well
+        for k, v in batch_result.items():
+            ret[k] = [] if v is None else v
+
+        return ret, in_size, out_size
 
     def react_into_features(
         self,

@@ -6,7 +6,7 @@ from math import isnan
 import re
 import sys
 import threading
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 import uuid
 import warnings
 
@@ -249,7 +249,7 @@ def align_data(x, y=None):
     return x
 
 
-def replace_doublemax_with_infinity(dat):
+def replace_doublemax_with_infinity(dat: Any) -> Any:
     """
     Replace values of Double.MAX_VALUE (1.79769313486232E+308) with Infinity.
 
@@ -257,11 +257,13 @@ def replace_doublemax_with_infinity(dat):
 
     Parameters
     ----------
-    dat : A dict, list, number, or string
+    dat : Any
+        The data to replace infinity in.
 
     Returns
     -------
-    A dict, list, number, or string - same as passed in for translation
+    Any
+        The same value back, with float max values converted to infinity.
     """
     if isinstance(dat, dict):
         dat = {k: replace_doublemax_with_infinity(v) for (k, v) in dat.items()}
