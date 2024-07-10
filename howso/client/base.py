@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Collection, Iterable, Mapping, MutableMapping
+from collections.abc import Callable, Collection, Iterable, Mapping, MutableMapping, Sized
 from pathlib import Path
 import typing as t
 from uuid import UUID
@@ -22,7 +22,9 @@ from .typing import (
     Cases,
     Distances,
     Evaluation,
+    GenerateNewCases,
     Mode,
+    NewCaseThreshold,
     Persistence,
     Precision,
     TabularData2D,
@@ -141,6 +143,24 @@ class AbstractHowsoClient(ABC):
             The identifier of the Trainee.
         session : Session
             The session to store.
+        """
+
+    @abstractmethod
+    def _should_react_batch(self, params: dict, total_size: int) -> bool:
+        """
+        Determine if given react should be batched.
+
+        Parameters
+        ----------
+        params : dict
+            The react request parameters.
+        total_size : int
+            The size of the cases being reacted to.
+
+        Returns
+        -------
+        bool
+            Whether a react should be batched.
         """
 
     @abstractmethod
@@ -1177,6 +1197,1027 @@ class AbstractHowsoClient(ABC):
             return dict()
         return stats
 
+    def react(  # noqa: C901
+        self,
+        trainee_id: str,
+        *,
+        action_features: t.Optional[Collection[str]] = None,
+        actions: t.Optional[TabularData2D] = None,
+        allow_nulls: bool = False,
+        batch_size: t.Optional[int] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        contexts: t.Optional[TabularData2D] = None,
+        context_features: t.Optional[Collection[str]] = None,
+        derived_action_features: t.Optional[Collection[str]] = None,
+        derived_context_features: t.Optional[Collection[str]] = None,
+        desired_conviction: t.Optional[float] = None,
+        details: t.Optional[Mapping] = None,
+        exclude_novel_nominals_from_uniqueness_check: bool = False,
+        feature_bounds_map: t.Optional[Mapping] = None,
+        generate_new_cases: GenerateNewCases = "no",
+        initial_batch_size: t.Optional[int] = None,
+        input_is_substituted: bool = False,
+        into_series_store: t.Optional[str] = None,
+        leave_case_out: bool = False,
+        new_case_threshold: NewCaseThreshold = "min",
+        num_cases_to_generate: int = 1,
+        ordered_by_specified_features: bool = False,
+        post_process_features: t.Optional[Collection[str]] = None,
+        post_process_values: t.Optional[TabularData2D] = None,
+        preserve_feature_values: t.Optional[Collection[str]] = None,
+        progress_callback: t.Optional[Callable] = None,
+        substitute_output: bool = True,
+        suppress_warning: bool = False,
+        use_case_weights: bool = False,
+        use_regional_model_residuals: bool = True,
+        weight_feature: t.Optional[str] = None,
+    ) -> Reaction:
+        r"""
+        React to supplied values and cases contained within the Trainee.
+
+        If desired_conviction is not specified, executes a discriminative
+        react: provided a list of context values, the trainee reacts to the
+        model and produces predictions for the specified actions. If
+        desired_conviction is specified, executes a generative react,
+        produces action_values for the specified action_features conditioned
+        on the optionally provided contexts.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to react to.
+
+        contexts : list of list of object or DataFrame, optional
+            A 2d list of context values to react to.
+            If None for discriminative react, it is assumed that `session`
+            and `session_id` keys are set in the `details`.
+
+            >>> contexts = [[1, 2, 3], [4, 5, 6]]
+
+        action_features : iterable of str, optional
+            An iterable of feature names to treat as action features during
+            react.
+
+            >>> action_features = ['rain_chance', 'is_sunny']
+
+        actions : list of list of object or DataFrame, optional
+            One or more action values to use for action features.
+            If specified, will only return the specified explanation
+            details for the given actions. (Discriminative reacts only)
+
+            >>> actions = [[1, 2, 3], [4, 5, 6]]
+
+        allow_nulls : bool, default False
+            When true will allow return of null values if there
+            are nulls in the local model for the action features, applicable
+            only to discriminative reacts.
+
+        batch_size: int, optional
+            Define the number of cases to react to at once. If left unspecified,
+            the batch size will be determined automatically.
+
+        context_features : iterable of str, optional
+            An iterable of feature names to treat as context features during
+            react.
+
+            >>> context_features = ['temperature', 'humidity', 'dew_point',
+            ...                     'barometric_pressure']
+        derived_context_features : iterable of str, optional
+            An iterable of feature names whose values should be computed
+            from the provided context in the specified order. Must be different
+            than context_features.
+        derived_action_features : iterable of str, optional
+            An iterable of feature names whose values should be computed
+            after generation from the generated case prior to output, in the
+            specified order. Must be a subset of action_features.
+
+            .. note::
+
+                Both of these derived feature lists rely on the features'
+                "derived_feature_code" attribute to compute the values. If
+                'derived_feature_code' attribute is undefined or references
+                non-0 feature indices, the derived value will be null.
+
+        input_is_substituted : bool, default False
+            if True assumes provided categorical (nominal or
+            ordinal) feature values have already been substituted.
+        substitute_output : bool, default True
+            If False, will not substitute categorical feature
+            values. Only applicable if a substitution value map has been set.
+        details : dict, optional
+            If details are specified, the response will contain the requested
+            explanation data along with the reaction. Below are the valid keys
+            and data types for the different audit details. Omitted keys,
+            values set to None, or False values for Booleans will not be
+            included in the audit data returned.
+
+            - boundary_cases : bool, optional
+                If True, outputs an automatically determined (when
+                'num_boundary_cases' is not specified) relevant number of
+                boundary cases. Uses both context and action features of the
+                reacted case to determine the counterfactual boundary based on
+                action features, which maximize the dissimilarity of action
+                features while maximizing the similarity of context features.
+                If action features aren't specified, uses familiarity conviction
+                to determine the boundary instead.
+            - boundary_cases_familiarity_convictions : bool, optional
+                If True, outputs familiarity conviction of addition for each of
+                the boundary cases.
+            - case_contributions_full : bool, optional
+                If true outputs each influential case's differences between the
+                predicted action feature value and the predicted action feature
+                value if each individual case were not included. Uses only the
+                context features of the reacted case to determine that area.
+                Uses full calculations, which uses leave-one-out for cases for
+                computations.
+            - case_contributions_robust : bool, optional
+                If true outputs each influential case's differences between the
+                predicted action feature value and the predicted action feature
+                value if each individual case were not included. Uses only the
+                context features of the reacted case to determine that area.
+                Uses robust calculations, which uses uniform sampling from
+                the power set of all combinations of cases.
+            - case_feature_residuals_full : bool, optional
+                If True, outputs feature residuals for all (context and action)
+                features for just the specified case. Uses leave-one-out for
+                each feature, while using the others to predict the left out
+                feature with their corresponding values from this case. Uses
+                full calculations, which uses leave-one-out for cases for
+                computations.
+            - case_feature_residuals_robust : bool, optional
+                If True, outputs feature residuals for all (context and action)
+                features for just the specified case. Uses leave-one-out for
+                each feature, while using the others to predict the left out
+                feature with their corresponding values from this case. Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions.
+            - case_mda_robust : bool, optional
+                If True, outputs each influential case's mean decrease in
+                accuracy of predicting the action feature in the local model
+                area, as if each individual case were included versus not
+                included. Uses only the context features of the reacted case to
+                determine that area. Uses robust calculations, which uses
+                uniform sampling from the power set of all combinations of cases.
+            - case_mda_full : bool, optional
+                If True, outputs each influential case's mean decrease in
+                accuracy of predicting the action feature in the local model
+                area, as if each individual case were included versus not
+                included. Uses only the context features of the reacted case to
+                determine that area. Uses full calculations, which uses
+                leave-one-out for cases for  computations.
+            - categorical_action_probabilities : bool, optional
+                If True, outputs probabilities for each class for the action.
+                Applicable only to categorical action features.
+            - derivation_parameters : bool, optional
+                If True, outputs a dictionary of the parameters used in the
+                react call. These include k, p, distance_transform,
+                feature_weights, feature_deviations, nominal_class_counts,
+                and use_irw.
+
+                - k: the number of cases used for the local model.
+                - p: the parameter for the Lebesgue space.
+                - distance_transform: the distance transform used as an
+                  exponent to convert distances to raw influence weights.
+                - feature_weights: the weight for each feature used in the
+                  distance metric.
+                - feature_deviations: the deviation for each feature used in
+                  the distance metric.
+                - nominal_class_counts: the number of unique values for each
+                  nominal feature. This is used in the distance metric.
+                - use_irw: a flag indicating if feature weights were
+                  derived using inverse residual weighting.
+            - distance_contribution : bool, optional
+                If True, outputs the distance contribution (expected total
+                surprisal contribution) for the reacted case. Uses both context
+                and action feature values.
+            - distance_ratio : bool, optional
+                If True, outputs the ratio of distance (relative surprisal)
+                between this reacted case and its nearest case to the minimum
+                distance (relative surprisal) in between the closest two cases
+                in the local area. All distances are computed using only the
+                specified context features.
+            - feature_contributions_robust : bool, optional
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context were not in the
+                model for all context features in the local model area Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions. Directional feature
+                contributions are returned under the key
+                'directional_feature_contributions_robust'.
+            - feature_contributions_full : bool, optional
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context were not in the
+                model for all context features in the local model area. Uses
+                full calculations, which uses leave-one-out for cases for
+                computations. Directional feature contributions are returned
+                under the key 'directional_feature_contributions_full'.
+            - case_feature_contributions_robust: bool, optional
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context feature were not
+                in the model for all context features in this case, using only
+                the values from this specific case. Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions.
+                Directional case feature contributions are returned under the
+                'case_directional_feature_contributions_robust' key.
+            - case_feature_contributions_full: bool, optional
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context feature were not
+                in the model for all context features in this case, using only
+                the values from this specific case. Uses
+                full calculations, which uses leave-one-out for cases for
+                computations. Directional case feature
+                contributions are returned under the
+                'case_directional_feature_contributions_full' key.
+            - feature_mda_robust : bool, optional
+                If True, outputs each context feature's mean decrease in
+                accuracy of predicting the action feature given the context.
+                Uses only the context features of the reacted case to determine
+                that area. Uses robust calculations, which uses uniform sampling
+                from the power set of features as the contexts for predictions.
+            - feature_mda_full : bool, optional
+                If True, outputs each context feature's mean decrease in
+                accuracy of predicting the action feature given the context.
+                Uses only the context features of the reacted case to determine
+                that area. Uses full calculations, which uses leave-one-out
+                for cases for computations.
+            - feature_mda_ex_post_robust : bool, optional
+                If True, outputs each context feature's mean decrease in
+                accuracy of predicting the action feature as an explanation detail
+                given that the specified prediction was already made as
+                specified by the action value. Uses both context and action
+                features of the reacted case to determine that area. Uses
+                robust calculations, which uses uniform sampling
+                from the power set of features as the contexts for predictions.
+            - feature_mda_ex_post_full : bool, optional
+                If True, outputs each context feature's mean decrease in
+                accuracy of predicting the action feature as an explanation detail
+                given that the specified prediction was already made as
+                specified by the action value. Uses both context and action
+                features of the reacted case to determine that area. Uses
+                full calculations, which uses leave-one-out for cases for
+                computations.
+            - features : list of str, optional
+                A list of feature names that specifies for what features will
+                per-feature details be computed (residuals, contributions,
+                mda, etc.). This should generally preserve compute, but will
+                not when computing details robustly. Details will be computed
+                for all context and action features if this value is not
+                specified.
+            - feature_residual_robust : bool, optional
+                If True, outputs feature residuals for all (context and action)
+                features locally around the prediction. Uses only the context
+                features of the reacted case to determine that area. Uses robust
+                calculations, which uses uniform sampling
+                from the power set of features as the contexts for predictions.
+            - feature_residuals_full : bool, optional
+                If True, outputs feature residuals for all (context and action)
+                features locally around the prediction. Uses only the context
+                features of the reacted case to determine that area. Uses
+                full calculations, which uses leave-one-out for cases for computations.
+            - global_case_feature_residual_convictions_robust : bool, optional
+                If True, outputs this case's feature residual convictions for
+                the global model. Computed as: global model feature residual
+                divided by case feature residual. Uses robust calculations, which
+                uses uniform sampling from the power set of features as the
+                contexts for predictions.
+            - global_case_feature_residual_convictions_full : bool, optional
+                If True, outputs this case's feature residual convictions for
+                the global model. Computed as: global model feature residual
+                divided by case feature residual. Uses full calculations,
+                which uses leave-one-out for cases for computations.
+            - hypothetical_values : dict, optional
+                A dictionary of feature name to feature value. If specified,
+                shows how a prediction could change in a what-if scenario where
+                the influential cases' context feature values are replaced with
+                the specified values.  Iterates over all influential cases,
+                predicting the action features each one using the updated
+                hypothetical values. Outputs the predicted arithmetic over the
+                influential cases for each action feature.
+            - influential_cases : bool, optional
+                If True, outputs the most influential cases and their influence
+                weights based on the surprisal of each case relative to the
+                context being predicted among the cases. Uses only the context
+                features of the reacted case.
+            - influential_cases_familiarity_convictions :  bool, optional
+                If True, outputs familiarity conviction of addition for each of
+                the influential cases.
+            - influential_cases_raw_weights : bool, optional
+                If True, outputs the surprisal for each of the influential
+                cases.
+            - local_case_feature_residual_convictions_robust : bool, optional
+                If True, outputs this case's feature residual convictions for
+                the region around the prediction. Uses only the context
+                features of the reacted case to determine that region.
+                Computed as: region feature residual divided by case feature
+                residual. Uses robust calculations, which uses uniform sampling
+                from the power set of features as the contexts for predictions.
+            - local_case_feature_residual_convictions_full : bool, optional
+                If True, outputs this case's feature residual convictions for
+                the region around the prediction. Uses only the context
+                features of the reacted case to determine that region.
+                Computed as: region feature residual divided by case feature
+                residual. Uses full calculations, which uses leave-one-out
+                for cases for computations.
+            - most_similar_cases : bool, optional
+                If True, outputs an automatically determined (when
+                'num_most_similar_cases' is not specified) relevant number of
+                similar cases, which will first include the influential cases.
+                Uses only the context features of the reacted case.
+            - num_boundary_cases : int, optional
+                Outputs this manually specified number of boundary cases.
+            - num_most_similar_cases : int, optional
+                Outputs this manually specified number of most similar cases,
+                which will first include the influential cases.
+            - num_most_similar_case_indices : int, optional
+                Outputs this specified number of most similar case indices when
+                'distance_ratio' is also set to True.
+            - num_robust_influence_samples_per_case : int, optional
+                Specifies the number of robust samples to use for each case.
+                Applicable only for computing robust feature contributions or
+                robust case feature contributions. Defaults to 2000. Higher
+                values will take longer but provide more stable results.
+            - observational_errors : bool, optional
+                If True, outputs observational errors for all features as
+                defined in feature attributes.
+            - outlying_feature_values : bool, optional
+                If True, outputs the reacted case's context feature values that
+                are outside the min or max of the corresponding feature values
+                of all the cases in the local model area. Uses only the context
+                features of the reacted case to determine that area.
+            - prediction_stats : bool, optional
+                When true outputs feature prediction stats for all (context
+                and action) features locally around the prediction. The stats
+                returned  are ("r2", "rmse", "spearman_coeff", "precision",
+                "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
+                Uses only the context features of the reacted case to determine that area.
+                Uses full calculations, which uses leave-one-out context features for
+                computations.
+            - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
+                returns all except the confusion matrix. Allowed values:
+
+                - all : Returns all the the available prediction stats, including the confusion matrix.
+                - accuracy : The number of correct predictions divided by the
+                  total number of predictions.
+                - confusion_matrix : A sparse map of actual feature value to a map of
+                  predicted feature value to counts.
+                - mae : Mean absolute error. For continuous features, this is
+                  calculated as the mean of absolute values of the difference
+                  between the actual and predicted values. For nominal features,
+                  this is 1 - the average categorical action probability of each case's
+                  correct classes. Categorical action probabilities are the probabilities
+                  for each class for the action feature.
+                - mda : Mean decrease in accuracy when each feature is dropped
+                  from the model, applies to all features.
+                - feature_mda_permutation_full : Mean decrease in accuracy that used
+                  scrambling of feature values instead of dropping each
+                  feature, applies to all features.
+                - precision : Precision (positive predictive) value for nominal
+                  features only.
+                - r2 : The r-squared coefficient of determination, for
+                  continuous features only.
+                - recall : Recall (sensitivity) value for nominal features only.
+                - rmse : Root mean squared error, for continuous features only.
+                - spearman_coeff : Spearman's rank correlation coefficient,
+                  for continuous features only.
+                - mcc : Matthews correlation coefficient, for nominal features only.
+            - similarity_conviction : bool, optional
+                If True, outputs similarity conviction for the reacted case.
+                Uses both context and action feature values as the case values
+                for all computations. This is defined as expected (local)
+                distance contribution divided by reacted case distance
+                contribution.
+            - generate_attempts : bool, optional
+                If True outputs the number of attempts taken to generate each
+                case. Only applicable when 'generate_new_cases' is "always" or
+                "attempt".
+
+            >>> details = {'num_most_similar_cases': 5,
+            ...            'feature_residuals_full': True}
+
+        desired_conviction : float
+            If specified will execute a generative react. If not
+            specified will executed a discriminative react. Conviction is the
+            ratio of expected surprisal to generated surprisal for each
+            feature generated, valid values are in the range of
+            :math:`(0, \\infty)`.
+        weight_feature : str, optional
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+        use_case_weights : bool, default False
+            If set to True will scale influence weights by each
+            case's weight_feature weight.
+        case_indices : Iterable of Sequence[Union[str, int]], defaults to None
+            An Iterable of Sequences, of session id and index, where
+            index is the original 0-based index of the case as it was trained
+            into the session. If this case does not exist, discriminative react
+            outputs null, generative react ignores it.
+        preserve_feature_values : iterable of str
+            List of features that will preserve their values from
+            the case specified by case_indices, appending and overwriting the
+            specified contexts as necessary.  For generative reacts, if
+            case_indices isn't specified will preserve feature values of a
+            random case.
+        leave_case_out : bool, default False
+            If set to True and specified along with case_indices,
+            each individual react will respectively ignore the corresponding
+            case specified by case_indices by leaving it out.
+        initial_batch_size: int, optional
+            Define the number of cases to react to in the first batch. If
+            unspecified, the value of the ``react_initial_batch_size`` property
+            is used. The number of cases in following batches will be
+            automatically adjusted. This value is ignored if ``batch_size`` is
+            specified.
+        into_series_store : str, optional
+            The name of a series store. If specified, will store an internal
+            record of all react contexts for this session and series to be used
+            later with train series.
+        use_regional_model_residuals : bool
+            If false uses model feature residuals, if True
+            recalculates regional model residuals.
+        feature_bounds_map : dict of dict
+            A mapping of feature names to the bounds for the
+            feature values to be generated in. For continuous features this
+            should be a numeric value, for datetimes this should be a datetime
+            string. Min bounds should be equal to or smaller than max bounds,
+            except when setting the bounds around the cycle length of a cyclic
+            feature.(e.g., to allow 0 +/- 60 degrees, set min=300 and max=60).
+
+            .. code-block::
+                :caption: Example feature bounds map:
+
+                {
+                    "feature_a": {"min": 0},
+                    "feature_b" : {"min": 1, "max": 5},
+                    "feature_c": {"max": 1}
+                }
+
+        generate_new_cases : {"always", "attempt", "no"}, default "no"
+            (Optional) Whether to generate new cases.
+
+            This parameter takes in a string equal to one of the following:
+
+            a. "attempt"
+
+                `Synthesizer` attempts to generate new cases and
+                if its not possible to generate a new case, it might
+                generate cases in "no" mode (see point c.)
+            b. "always"
+
+                `Synthesizer` always generates new cases and
+                if its not possible to generate a new case, it returns
+                `None`.
+            c. "no"
+
+                `Synthesizer` generates data based on the
+                `desired_conviction` specified and the generated data is
+                not guaranteed to be a new case (that is, a case not found
+                in original dataset.)
+
+        ordered_by_specified_features : bool, default False
+            If True order of generated feature values will match
+            the order of specified features.
+        num_cases_to_generate : int, default 1
+            The number of cases to generate.
+        suppress_warning : bool, defaults to False
+            If True, warnings will not be displayed.
+        post_process_features : iterable of str, optional
+            List of feature names that will be made available during the
+            execution of post_process feature attributes.
+        post_process_values : list of list of object or DataFrame, optional
+            A 2d list of values corresponding to post_process_features that
+            will be made available during the execution of post_process feature
+            attributes.
+        progress_callback : callable, optional
+            A callback method that will be called before each
+            batched call to react and at the end of reacting. The method is
+            given a ProgressTimer containing metrics on the progress and timing
+            of the react operation, and the batch result.
+        new_case_threshold : str, optional
+            Distance to determine the privacy cutoff. If None,
+            will default to "min".
+
+            Possible values:
+
+                - min: minimum distance in the original local space.
+                - max: maximum distance in the original local space.
+                - most_similar: distance between the nearest neighbor to the
+                  nearest neighbor in the original space.
+        exclude_novel_nominals_from_uniqueness_check : bool, default False
+            If True, will exclude features which have a subtype defined in their feature
+            attributes from the uniqueness check that happens when ``generate_new_cases``
+            is True. Only applies to generative reacts.
+
+        Returns
+        -------
+        Reaction:
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
+
+                details -> Dict or List
+                    An aggregated list of any requested details.
+
+        Raises
+        ------
+        ValueError
+            If `derived_action_features` is not a subset of `action_features`.
+
+            If `new_case_threshold` is not one of {"max", "min", "most_similar"}.
+
+            If the number of context values does not match the number of context features.
+        HowsoError
+            If `num_cases_to_generate` is not an integer greater than 0.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        trainee = self.trainee_cache.get(trainee_id)
+        action_features, actions, context_features, contexts = (
+            self._preprocess_react_parameters(
+                action_features=action_features,
+                action_values=actions,
+                case_indices=case_indices,
+                context_features=context_features,
+                context_values=contexts,
+                desired_conviction=desired_conviction,
+                preserve_feature_values=preserve_feature_values,
+                trainee_id=trainee_id
+            )
+        )
+
+        if post_process_values is not None and post_process_features is None:
+            post_process_features = internals.get_features_from_data(
+                post_process_values,
+                data_parameter='post_process_values',
+                features_parameter='post_process_features')
+        post_process_values = serialize_cases(post_process_values, post_process_features, trainee.features)
+
+        if post_process_values is not None and contexts is not None:
+            if (len(contexts) > 1 and len(post_process_values) > 1 and
+                    len(contexts) != len(post_process_values)):
+                raise ValueError(
+                    "If more than one value is provided for 'contexts' "
+                    "and 'post_process_values', then they must be of the same "
+                    "length."
+                )
+
+        if action_features is not None and derived_action_features is not None:
+            if not set(derived_action_features).issubset(set(action_features)):
+                raise ValueError(
+                    'Specified \'derived_action_features\' must be a subset of '
+                    '\'action_features\'.')
+
+        if new_case_threshold not in [None, "min", "max", "most_similar"]:
+            raise ValueError(
+                f"The value '{new_case_threshold}' specified for the parameter "
+                "`new_case_threshold` is not valid. It accepts one of the"
+                " following values - ['min', 'max', 'most_similar',]"
+            )
+
+        if details is not None and 'robust_computation' in details:
+            details = dict(details)
+            details['robust_influences'] = details['robust_computation']
+            details['robust_residuals'] = details['robust_computation']
+            del details['robust_computation']
+            warnings.warn(
+                'The detail "robust_computation" is deprecated and will be '
+                'removed in a future release. Please use "robust_residuals" '
+                'and/or "robust_influences" instead.', DeprecationWarning)
+
+        if desired_conviction is None:
+            if contexts is not None:
+                for context in contexts:
+                    if context is not None and len(context) != len(context_features or []):
+                        raise ValueError(
+                            "The number of provided context values in "
+                            "`contexts` does not match the number of features "
+                            "in `context_features`."
+                        )
+                total_size = len(contexts)
+            elif case_indices is not None:
+                total_size = len(case_indices)
+            else:
+                total_size = 1
+
+            # discriminative react parameters
+            react_params = {
+                "action_values": actions,
+                "context_features": context_features,
+                "context_values": contexts,
+                "action_features": action_features,
+                "derived_context_features": derived_context_features,
+                "derived_action_features": derived_action_features,
+                "post_process_features": post_process_features,
+                "post_process_values": post_process_values,
+                "case_indices": case_indices,
+                "allow_nulls": allow_nulls,
+                "input_is_substituted": input_is_substituted,
+                "substitute_output": substitute_output,
+                "weight_feature": weight_feature,
+                "use_case_weights": use_case_weights,
+                "leave_case_out": leave_case_out,
+                "preserve_feature_values": preserve_feature_values,
+                "new_case_threshold": new_case_threshold,
+                "details": details,
+            }
+        else:
+            if (
+                not isinstance(num_cases_to_generate, int) or
+                num_cases_to_generate <= 0
+            ):
+                raise HowsoError("`num_cases_to_generate` must be an integer greater than 0.")
+            total_size = num_cases_to_generate
+
+            context_features, contexts = \
+                self._preprocess_generate_parameters(
+                    trainee_id,
+                    desired_conviction=desired_conviction,
+                    num_cases_to_generate=num_cases_to_generate,
+                    action_features=action_features,
+                    context_features=context_features,
+                    context_values=contexts,
+                    case_indices=case_indices
+                )
+
+            # generative react parameters
+            react_params = {
+                "num_cases_to_generate": num_cases_to_generate,
+                "context_features": context_features,
+                "context_values": contexts,
+                "action_features": action_features,
+                "derived_context_features": derived_context_features,
+                "derived_action_features": derived_action_features,
+                "post_process_features": post_process_features,
+                "post_process_values": post_process_values,
+                "use_regional_model_residuals": use_regional_model_residuals,
+                "desired_conviction": desired_conviction,
+                "feature_bounds_map": feature_bounds_map,
+                "generate_new_cases": generate_new_cases,
+                "ordered_by_specified_features": ordered_by_specified_features,
+                "preserve_feature_values": preserve_feature_values,
+                "new_case_threshold": new_case_threshold,
+                "into_series_store": into_series_store,
+                "input_is_substituted": input_is_substituted,
+                "substitute_output": substitute_output,
+                "weight_feature": weight_feature,
+                "use_case_weights": use_case_weights,
+                "case_indices": case_indices,
+                "leave_case_out": leave_case_out,
+                "details": details,
+                "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
+            }
+
+        if batch_size or self._should_react_batch(react_params, total_size):
+            # Run in batch
+            if self.configuration.verbose:
+                print(f'Batch reacting to context on Trainee with id: {trainee_id}')
+            response = self._batch_react(
+                trainee_id,
+                react_params,
+                batch_size=batch_size,
+                initial_batch_size=initial_batch_size,
+                total_size=total_size,
+                progress_callback=progress_callback
+            )
+        else:
+            # Run as a single react request
+            if self.configuration.verbose:
+                print(f'Reacting to context on Trainee with id: {trainee_id}')
+            with ProgressTimer(total_size) as progress:
+                if isinstance(progress_callback, Callable):
+                    progress_callback(progress, None)
+                response, _, _ = self._react(trainee_id, react_params)
+                progress.update(total_size)
+
+            if isinstance(progress_callback, Callable):
+                progress_callback(progress, response)
+
+        response = internals.format_react_response(response)
+
+        if desired_conviction is not None:
+            # If the number of cases generated is less then requested, raise
+            # warning (only for generative reacts)
+            internals.insufficient_generation_check(
+                num_cases_to_generate, len(response['action']),
+                suppress_warning=suppress_warning
+            )
+
+        return Reaction(response.get('action'), response.get('details'))
+
+    def _batch_react(
+        self,
+        trainee_id: str,
+        params: dict,
+        *,
+        batch_size: t.Optional[int] = None,
+        initial_batch_size: t.Optional[int] = None,
+        total_size: int,
+        progress_callback: t.Optional[Callable] = None
+    ):
+        """
+        Make react requests in batch.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to react to.
+        params : dict
+            The engine react parameters.
+        batch_size : int, optional
+            Define the number of cases to react to at once. If left unspecified,
+            the batch size will be determined automatically.
+        initial_batch_size : int, optional
+            Define the number of cases to react to in the first batch. If
+            unspecified, the value of the ``react_initial_batch_size`` property
+            is used. The number of cases in following batches will be
+            automatically adjusted. This value is ignored if ``batch_size`` is
+            specified.
+        total_size : int
+            The total size of the data that will be batched.
+        progress_callback : callable, optional
+            A method to be called during batching to retrieve the progress
+            metrics.
+
+        Returns
+        -------
+        dict
+            The react response.
+        """
+        temp_result = None
+        accumulated_result = {'action_values': []}
+
+        actions = params.get('action_values')
+        contexts = params.get('context_values')
+        case_indices = params.get('case_indices')
+        post_process_values = params.get('post_process_values')
+
+        with ProgressTimer(total_size) as progress:
+            gen_batch_size = None
+            batch_scaler = None
+            if not batch_size:
+                # Scale the batch size automatically
+                start_batch_size = initial_batch_size or self.react_initial_batch_size
+                batch_scaler = self.batch_scaler_class(start_batch_size, progress)
+                gen_batch_size = batch_scaler.gen_batch_size()
+                batch_size = next(gen_batch_size, None)
+
+            while not progress.is_complete and batch_size is not None:
+                if isinstance(progress_callback, Callable):
+                    progress_callback(progress, temp_result)
+                batch_start = progress.current_tick
+                batch_end = progress.current_tick + batch_size
+
+                if actions is not None and len(actions) > 1:
+                    params['action_values'] = actions[batch_start:batch_end]
+                if contexts is not None and len(contexts) > 1:
+                    params['context_values'] = contexts[batch_start:batch_end]
+                if case_indices is not None and len(case_indices) > 1:
+                    params['case_indices'] = case_indices[batch_start:batch_end]
+                if post_process_values is not None and len(post_process_values) > 1:
+                    params['post_process_values'] = post_process_values[batch_start:batch_end]
+
+                if params.get('desired_conviction') is not None:
+                    params['num_cases_to_generate'] = batch_size
+                temp_result, in_size, out_size = self._react(trainee_id, params)
+
+                internals.accumulate_react_result(accumulated_result, temp_result)
+                if batch_scaler is None or gen_batch_size is None:
+                    progress.update(batch_size)
+                else:
+                    batch_size = batch_scaler.send(
+                        gen_batch_size,
+                        batch_scaler.SendOptions(None, (in_size, out_size)))
+
+        # Final call to callback on completion
+        if isinstance(progress_callback, Callable):
+            progress_callback(progress, temp_result)
+
+        return accumulated_result
+
+    def _react(self, trainee_id: str, params: dict) -> tuple[dict, int, int]:
+        """
+        Make a single react request.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to react to.
+        params : dict
+            The engine react parameters.
+
+        Returns
+        -------
+        dict
+            The react response.
+        int
+            The request payload size.
+        int
+            The response payload size.
+        """
+        ret, in_size, out_size = self.execute_sized(trainee_id, 'react', params)
+
+        # Action values and features should always be defined
+        if not ret.get('action_values'):
+            ret['action_values'] = []
+        if not ret.get('action_features'):
+            ret['action_features'] = []
+
+        return ret, in_size, out_size
+
+    def _preprocess_react_parameters(
+        self,
+        trainee_id: str,
+        *,
+        action_features: t.Optional[Collection[str]],
+        action_values: t.Optional[TabularData2D],
+        case_indices: t.Optional[CaseIndices],
+        context_features: t.Optional[Collection[str]],
+        context_values: t.Optional[TabularData2D],
+        desired_conviction: t.Optional[float],
+        preserve_feature_values: t.Optional[Collection[str]],
+        continue_series: bool = False,
+    ) -> tuple[Collection[str] | None, list[t.Any] | None, Collection[str] | None, list[t.Any] | None]:
+        """
+        Preprocess parameters for `react_` methods.
+
+        Helper method to pre-process the parameters. Updates the passed-in
+        parameters as necessary.
+
+        Parameters
+        ----------
+        trainee_id : str
+            See :meth:`AbstractHowsoClient.react()`.
+        action_features : Collection of str, optional
+            See :meth:`AbstractHowsoClient.react()`.
+        action_values : Collection of object, optional
+            See :meth:`AbstractHowsoClient.react()`.
+        context_features : Collection of str, optional
+            See :meth:`AbstractHowsoClient.react()`.
+        context_values : Collection of object, optional
+            See :meth:`AbstractHowsoClient.react()`.
+        desired_conviction : float, optional
+            See :meth:`AbstractHowsoClient.react()`.
+        case_indices : Sequence of tuple of {str, int}, optional
+            See :meth:`AbstractHowsoClient.react()`.
+        preserve_feature_values : Collection of str, optional
+            See :meth:`AbstractHowsoClient.react()`.
+        continue_series : bool
+            See :meth:`AbstractHowsoClient.react_series()`.
+
+        Returns
+        -------
+        tuple
+           Updated action_features, actions, context_features, contexts
+        """
+        trainee = self.trainee_cache.get(trainee_id)
+
+        # Validate case_indices if provided
+        if case_indices is not None:
+            util.validate_case_indices(case_indices)
+
+        # validate discriminative-react only parameters
+        if desired_conviction is None:
+            util.validate_list_shape(context_values, 2, "contexts", "list of object")
+            util.validate_list_shape(action_features, 1, "action_features", "str")
+            util.validate_list_shape(context_features, 1, "context_features", "str")
+
+            if context_values is None:
+                # case_indices/preserve_feature_values are not necessary
+                # when using continue_series, as initial_feature/values may be used
+                if not continue_series and (
+                    case_indices is None or preserve_feature_values is None
+                ):
+                    raise ValueError(
+                        "If `contexts` are not specified, both `case_indices` "
+                        "and `preserve_feature_values` must be specified."
+                    )
+
+        # Preprocess context values
+        if context_values is not None and context_features is None:
+            context_features = internals.get_features_from_data(
+                context_values,
+                data_parameter='contexts',
+                features_parameter='context_features')
+        serialized_contexts = serialize_cases(context_values, context_features, trainee.features)
+
+        # Preprocess action values
+        if action_values is not None and action_features is None:
+            util.validate_list_shape(action_values, 2, "actions", "object")
+            action_features = internals.get_features_from_data(
+                action_values,
+                data_parameter='actions',
+                features_parameter='action_features')
+        serialized_actions = serialize_cases(action_values, action_features, trainee.features)
+
+        return action_features, serialized_actions, context_features, serialized_contexts
+
+    def _preprocess_generate_parameters(  # noqa: C901
+        self,
+        trainee_id: str,
+        desired_conviction: float,
+        num_cases_to_generate: int,
+        *,
+        action_features: t.Optional[Collection[str]] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        context_features: t.Optional[Collection[str]] = None,
+        context_values: t.Optional[TabularData2D] = None,
+    ) -> tuple[Collection[str] | None, TabularData2D | None]:
+        """
+        Helper method to pre-process generative react parameters.
+
+        Updates the passed-in parameters as necessary.
+
+        Parameters
+        ----------
+        trainee_id : str
+            See :meth:`AbstractHowsoClient.react`.
+        desired_conviction : float, optional
+            See :meth:`AbstractHowsoClient.react`.
+        num_cases_to_generate : int, optional
+            See :meth:`AbstractHowsoClient.react`.
+        action_features : Collection of str, optional
+            See :meth:`AbstractHowsoClient.react`.
+        case_indices : Sequence of tuple of {str, int}, optional
+            See :meth:`AbstractHowsoClient.react`.
+        context_features : Collection of str, optional
+            See :meth:`AbstractHowsoClient.react`.
+        context_values : list of object, optional
+            See :meth:`AbstractHowsoClient.react`.
+
+        Returns
+        -------
+        tuple
+            The prepared context_features and context_values.
+        """
+        if case_indices is not None:
+            if len(case_indices) != 1 and \
+                    len(case_indices) != num_cases_to_generate:
+                raise HowsoError(
+                    "The number of `case_indices` provided does not match "
+                    "the number of cases to generate."
+                )
+
+        # Validate case_indices if provided
+        if case_indices is not None:
+            util.validate_case_indices(case_indices)
+
+        util.validate_list_shape(action_features, 1, "action_features", "str")
+
+        if context_values is not None:
+            if len(context_values) != 1 and len(context_values) != num_cases_to_generate:
+                raise HowsoError(
+                    "The number of case `contexts` provided does not match the "
+                    "number of cases to generate."
+                )
+
+        if context_features and not context_values:
+            raise HowsoError(
+                "For generative reacts, when `context_features` are provided, "
+                "`contexts` values must also be provided."
+            )
+
+        if context_features is not None or context_values is not None:
+            if (
+                context_features is None
+                or context_values is None
+                or not isinstance(context_values[0], Sized)
+                or len(context_features) != len(context_values[0])
+            ):
+                raise HowsoError(
+                    "The number of provided context values in `contexts` "
+                    "does not match the number of features in "
+                    "`context_features`."
+                )
+
+        if desired_conviction <= 0:
+            raise HowsoError("Desired conviction must be greater than 0.")
+
+        if self.configuration.verbose:
+            print(f'Generating case from trainee with id: {trainee_id}')
+
+        for i in range(num_cases_to_generate):
+            target_context_values = None
+            if context_values is not None:
+                if len(context_values) == 1:
+                    target_context_values = context_values[0]
+                elif len(context_values) == num_cases_to_generate:
+                    target_context_values = context_values[i]
+
+            if context_features and (
+                not target_context_values or
+                not isinstance(target_context_values, Sized) or
+                len(target_context_values) != len(context_features)
+            ):
+                raise HowsoError(
+                    f"The number of provided context values in `contexts[{i}]` "
+                    "does not match the number of features in `context_features`."
+                )
+
+        return context_features, context_values
+
     @abstractmethod
     def react_series(
         self, trainee_id, *,
@@ -1692,42 +2733,6 @@ class AbstractHowsoClient(ABC):
         if result is None:
             result = dict()
         return result
-
-    @abstractmethod
-    def react(
-        self, trainee_id, *,
-        action_features=None,
-        actions=None,
-        allow_nulls=False,
-        batch_size=None,
-        case_indices=None,
-        contexts=None,
-        context_features=None,
-        derived_action_features=None,
-        derived_context_features=None,
-        desired_conviction=None,
-        details=None,
-        exclude_novel_nominals_from_uniqueness_check=False,
-        feature_bounds_map=None,
-        generate_new_cases="no",
-        initial_batch_size=None,
-        input_is_substituted=False,
-        into_series_store=None,
-        leave_case_out=None,
-        new_case_threshold="min",
-        num_cases_to_generate=1,
-        ordered_by_specified_features=False,
-        post_process_features=None,
-        post_process_values=None,
-        preserve_feature_values=None,
-        progress_callback=None,
-        substitute_output=True,
-        suppress_warning=False,
-        use_case_weights=False,
-        use_regional_model_residuals=True,
-        weight_feature=None
-    ) -> Reaction:
-        """Send a `react` to the Howso engine."""
 
     def evaluate(
         self,
