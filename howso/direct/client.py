@@ -45,7 +45,7 @@ from howso.client import get_configuration_path
 from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
-from howso.client.exceptions import HowsoError, HowsoWarning
+from howso.client.exceptions import HowsoError, HowsoWarning, UnsupportedArgumentWarning
 from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee
 from howso.client.typing import Persistence
 from howso.utilities import (
@@ -235,9 +235,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             amlg_params.update(options)
         # Filter out invalid amlg_params, and instantiate
         allowed_amlg_params = inspect.signature(Amalgam).parameters.keys()
-        if unknown_amlg_params := set(allowed_amlg_params) - set(amlg_params):
+        if unknown_amlg_params := set(amlg_params) - set(allowed_amlg_params):
             warnings.warn(
-                f"Unknown Amalgam() parameters were specified and ignored: {unknown_amlg_params}", HowsoWarning)
+                f"Unknown Amalgam() parameters were specified and ignored: {unknown_amlg_params}",
+                UnsupportedArgumentWarning)
         amlg_params = {k: v for k, v in amlg_params.items() if k in allowed_amlg_params}
         self.amlg = Amalgam(**amlg_params)
 
