@@ -879,9 +879,22 @@ class AbstractHowsoClient(ABC):
             return 0
         return result.get('count', 0)
 
-    @abstractmethod
-    def remove_series_store(self, trainee_id, series=None):
-        """Clear stored series from trainee."""
+    def remove_series_store(self, trainee_id: str, series: t.Optional[str] = None):
+        """
+        Clear any stored series from the Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to remove the series store from.
+        series : str, optional
+            The ID of the series to clear.
+            If None, the Trainee's entire series store will be cleared.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Removing stored series from Trainee with id: {trainee_id} and series: {series}')
+        self.execute(trainee_id, "remove_series_store", {"series": series})
 
     def append_to_series_store(
         self,

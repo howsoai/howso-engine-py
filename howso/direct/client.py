@@ -1254,25 +1254,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.howso.persist(trainee_id)
 
-    def remove_series_store(self, trainee_id: str, series: Optional[str] = None):
-        """
-        Clear any stored series from the Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to remove the series store from.
-        series : str, optional
-            The ID of the series to clear.
-
-            If None, the Trainee's entire series store will be cleared.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print('Removing stored series from trainee with id: '
-                  f'{trainee_id} and series with id: {series}')
-        self.howso.remove_series_store(trainee_id, series)
-
     def get_trainee_sessions(self, trainee_id: str) -> List[Dict[str, str]]:
         """
         Get the sessions of a trainee.

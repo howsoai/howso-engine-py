@@ -570,23 +570,6 @@ class HowsoCore:
             "trainee_id": subtrainee_id
         })
 
-    def remove_series_store(self, trainee_id: str, series: Optional[str] = None
-                            ) -> None:
-        """
-        Delete part or all of the series store from a Trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to delete the series store from.
-        series : str, optional
-            The ID of the series to remove from the series store.
-            If None, the entire series store will be deleted.
-        """
-        return self._execute(trainee_id, "remove_series_store", {
-            "series": series,
-        })
-
     def clean_data(
         self,
         trainee_id: str,
