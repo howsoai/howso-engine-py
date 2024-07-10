@@ -3886,7 +3886,7 @@ def load_trainee(
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
 
     if isinstance(client, LocalSaveableProtocol):
-        base_trainee = client._get_trainee_from_core(trainee_id)
+        base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore
     else:
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
     if isinstance(client.trainee_cache, TraineeCache):

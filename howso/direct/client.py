@@ -90,7 +90,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     """
     The direct Howso client.
 
-    A client which provides access to the Howso core endpoints
+    A client which provides access to the Howso Engine endpoints
     via a direct interface using dynamic libraries.
 
     Parameters
@@ -408,11 +408,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         -------
         str
             The normalized Trainee unique identifier.
-
-        Raises
-        ------
-        HowsoError
-            If the requested Trainee is currently loaded by another core entity.
         """
         if trainee_id not in self.trainee_cache:
             self.acquire_trainee_resources(trainee_id)
@@ -455,12 +450,49 @@ class HowsoDirectClient(AbstractHowsoClient):
         if not status.loaded:
             raise HowsoError(
                 f'Failed to create the Trainee "{trainee_id}". '
-                f"This may be due to incorrect filepaths to the Howso"
-                f'binaries or camls, or the Trainee already exists.')
+                f"This may be due to incorrect filepaths to the Howso "
+                f"binaries or camls, or the Trainee already exists.")
         self.execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,
             "filepath": str(self._howso_dir) + '/',
         })
+
+    def _get_trainee_from_engine(self, trainee_id: str) -> Trainee:
+        """
+        Retrieve the Howso Engine representation of a Trainee object.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to retrieve.
+
+        Returns
+        -------
+        Trainee
+            The requested Trainee.
+
+        Raises
+        ------
+        HowsoError
+            If no Trainee with the requested ID can be found.
+        """
+        metadata = self.execute(trainee_id, "get_metadata", {})
+        if metadata is None:
+            raise HowsoError(f"Trainee '{trainee_id}' not found.")
+
+        persistence = metadata.get('persistence', 'allow')
+        trainee_meta = metadata.get('metadata')
+        trainee_name = metadata.get('name')
+
+        features = self.execute(trainee_id, "get_feature_attributes", {})
+        loaded_trainee = Trainee(
+            name=trainee_name,
+            id=trainee_id,
+            features=features,
+            persistence=persistence,
+            metadata=trainee_meta,
+        )
+        return internals.postprocess_trainee(loaded_trainee)
 
     def execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:
         """
@@ -820,10 +852,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         Trainee
             A `Trainee` object representing the Trainee.
         """
-        if self.verbose:
-            print(f'Getting trainee with id: {trainee_id}')
-        self._auto_resolve_trainee(trainee_id)
-        return self._get_trainee_from_core(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Getting Trainee with id: {trainee_id}')
+        return self._get_trainee_from_engine(trainee_id)
 
     def get_trainee_information(self, trainee_id: str) -> Dict:
         """
@@ -970,7 +1002,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         else:
             trainee_id = file_path.stem
 
-        # Unload the trainee from core
+        # Unload the trainee from engine
         self.amlg.destroy_entity(trainee_id)
         self.trainee_cache.discard(trainee_id)
 
@@ -1038,16 +1070,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         ValueError
             If the Trainee could not be copied.
         """
-        self._auto_resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id)
         original_trainee = self.trainee_cache.get(trainee_id)
 
         new_trainee_id = new_trainee_id or new_trainee_name or str(uuid.uuid4())
         output = self.howso.copy(trainee_id, new_trainee_id)
 
         if self.verbose:
-            print(f'Copying trainee {trainee_id} to {new_trainee_id}')
+            print(f'Copying Trainee {trainee_id} to {new_trainee_id}')
 
-        # copy in core succeeded
         if output and output.get('name') == new_trainee_id:
             # Create the copy trainee
             new_trainee = deepcopy(original_trainee)
@@ -1063,11 +1094,10 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             return new_trainee
         else:
-            raise ValueError(
-                f"Could not copy the trainee with name {trainee_id}. Possible "
-                f"causes - howso couldn't find core binaries/camls or "
-                f"{new_trainee_name} trainee already exists."
-            )
+            raise HowsoError(
+                f'Failed to copy the Trainee "{trainee_id}". '
+                f"This may be due to incorrect filepaths to the Howso "
+                f'binaries or camls, or a Trainee "{new_trainee_name}" already exists.')
 
     def copy_subtrainee(
         self,
@@ -1150,45 +1180,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         if ret is None:
             raise HowsoError(f"Trainee '{trainee_id}' not found.")
 
-        trainee = self._get_trainee_from_core(trainee_id)
+        trainee = self._get_trainee_from_engine(trainee_id)
         self.trainee_cache.set(trainee)
-
-    def _get_trainee_from_core(self, trainee_id: str) -> Trainee:
-        """
-        Retrieve the core representation of a Trainee object.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to retrieve.
-
-        Returns
-        -------
-        Trainee
-            The requested Trainee.
-
-        Raises
-        ------
-        HowsoError
-            If no Trainee with the requested ID can be found.
-        """
-        metadata = self.execute(trainee_id, "get_metadata", {})
-        if metadata is None:
-            raise HowsoError(f"Trainee '{trainee_id}' not found.")
-
-        persistence = metadata.get('persistence', 'allow')
-        trainee_meta = metadata.get('metadata')
-        trainee_name = metadata.get('name')
-
-        features = self.execute(trainee_id, "get_feature_attributes", {})
-        loaded_trainee = Trainee(
-            name=trainee_name,
-            id=trainee_id,
-            features=features,
-            persistence=persistence,
-            metadata=trainee_meta,
-        )
-        return internals.postprocess_trainee(loaded_trainee)
 
     def release_trainee_resources(self, trainee_id: str):
         """
