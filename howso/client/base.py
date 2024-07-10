@@ -1223,21 +1223,82 @@ class AbstractHowsoClient(ABC):
     ) -> Reaction:
         """React in a series until a stop condition is met."""
 
-    @abstractmethod
     def react_into_features(
-        self, trainee_id, *,
+        self,
+        trainee_id: str,
+        *,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
-        features=None,
+        features: t.Optional[Collection[str]] = None,
         influence_weight_entropy: bool | str = False,
         p_value_of_addition: bool | str = False,
         p_value_of_removal: bool | str = False,
         similarity_conviction: bool | str = False,
-        use_case_weights: bool | str = False,
-        weight_feature=None
+        use_case_weights: bool = False,
+        weight_feature: t.Optional[str] = None,
     ):
-        """Calculate conviction and other data for the specified feature(s)."""
+        """
+        Calculate and cache conviction and other statistics.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to calculate and store conviction for.
+        features : iterable of str, optional
+            An iterable of features to calculate convictions.
+        familiarity_conviction_addition : bool or str, default False
+            The name of the feature to store conviction of addition
+            values. If set to True the values will be stored to the feature
+            'familiarity_conviction_addition'.
+        familiarity_conviction_removal : bool or str, default False
+            The name of the feature to store conviction of removal
+            values. If set to True the values will be stored to the feature
+            'familiarity_conviction_removal'.
+        influence_weight_entropy : bool or str, default False
+            The name of the feature to store influence weight entropy values in.
+            If set to True, the values will be stored in the feature
+            'influence_weight_entropy'.
+        p_value_of_addition : bool or str, default False
+            The name of the feature to store p value of addition
+            values. If set to True the values will be stored to the feature
+            'p_value_of_addition'.
+        p_value_of_removal : bool or str, default False
+            The name of the feature to store p value of removal
+            values. If set to True the values will be stored to the feature
+            'p_value_of_removal'.
+        similarity_conviction : bool or str, default False
+            The name of the feature to store similarity conviction
+            values. If set to True the values will be stored to the feature
+            'similarity_conviction'.
+        distance_contribution : bool or str, default False
+            The name of the feature to store distance contribution.
+            If set to True the values will be stored to the
+            feature 'distance_contribution'.
+        weight_feature : str, optional
+            Name of feature whose values to use as case weights.
+            When left unspecified uses the internally managed case weight.
+        use_case_weights : bool, default False
+            If set to True will scale influence weights by each
+            case's weight_feature weight.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        util.validate_list_shape(features, 1, "features", "str")
+        if self.configuration.verbose:
+            print(f'Reacting into features on Trainee with id: {trainee_id}')
+        self.execute(trainee_id, "react_into_features", {
+            "features": features,
+            "familiarity_conviction_addition": familiarity_conviction_addition,
+            "familiarity_conviction_removal": familiarity_conviction_removal,
+            "influence_weight_entropy": influence_weight_entropy,
+            "p_value_of_addition": p_value_of_addition,
+            "p_value_of_removal": p_value_of_removal,
+            "similarity_conviction": similarity_conviction,
+            "distance_contribution": distance_contribution,
+            "weight_feature": weight_feature,
+            "use_case_weights": use_case_weights,
+        })
+        self._auto_persist_trainee(trainee_id)
 
     def react_aggregate(
         self,
