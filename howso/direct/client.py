@@ -181,7 +181,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.debug = debug
         self._trace_enabled = bool(trace)
         self._trace_filename = f"howso_{internals.random_handle()}_execution.trace"
-        self._howso_path = Path(howso_path).expanduser()
+        self._howso_dir = Path(howso_path).expanduser()
         self._howso_filename = howso_fname
         self._howso_ext = Path(self._howso_filename).suffix or ".caml"
         self._react_generative_batch_threshold = 1
@@ -189,8 +189,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._react_initial_batch_size = react_initial_batch_size
         self._train_initial_batch_size = train_initial_batch_size
 
-        if not self._howso_path.is_dir():
-            raise HowsoError(f"The provided 'howso_path' is not a directory: {self._howso_path}")
+        if not self._howso_dir.is_dir():
+            raise HowsoError(f"The provided 'howso_path' is not a directory: {self._howso_dir}")
 
         # Determine the default save directory
         if default_persist_path:
@@ -205,7 +205,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             self.default_persist_path.mkdir(parents=True)
 
         # Resolve path to engine caml
-        self._howso_absolute_path = Path(self._howso_path, self._howso_filename)
+        self._howso_absolute_path = Path(self._howso_dir, self._howso_filename)
         if not self._howso_absolute_path.exists():
             raise HowsoError(f'Howso Engine file does not exist at: {self._howso_absolute_path}')
         logger.debug(f'Using Howso Engine file: {self._howso_absolute_path}')
@@ -459,7 +459,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f'binaries or camls, or the Trainee already exists.')
         self.execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,
-            "filepath": str(self._howso_path) + '/',
+            "filepath": str(self._howso_dir) + '/',
         })
 
     def execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:
