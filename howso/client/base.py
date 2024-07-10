@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Iterable, Mapping, MutableMapping
+from collections.abc import Callable, Collection, Iterable, Mapping, MutableMapping
+from pathlib import Path
 import typing as t
 from uuid import UUID
 import warnings
@@ -11,7 +12,9 @@ from pandas import DataFrame, Index
 
 from howso.utilities import internals
 from howso.utilities import utilities as util
+from howso.utilities.feature_attributes.base import MultiTableFeatureAttributes, SingleTableFeatureAttributes
 from howso.utilities.features import serialize_cases
+from howso.utilities.monitors import ProgressTimer
 from .exceptions import HowsoError, UnsupportedArgumentWarning
 from .schemas import HowsoVersion, Project, Reaction, Session, Trainee
 from .typing import (
@@ -51,6 +54,11 @@ class AbstractHowsoClient(ABC):
 
     SUPPORTED_PRECISION_VALUES = ["exact", "similar"]
     """Allowed values for precision."""
+
+    @property
+    def batch_scaler_class(self):
+        """The batch scaling manager class used by operations that batch requests."""
+        return internals.BatchScalingManager
 
     @property
     @abstractmethod
@@ -122,7 +130,20 @@ class AbstractHowsoClient(ABC):
         """
 
     @abstractmethod
-    def _execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:
+    def _store_session(self, trainee_id: str, session: Session):
+        """
+        Store a session for a Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee.
+        session : Session
+            The session to store.
+        """
+
+    @abstractmethod
+    def execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:
         """
         Execute a label in Howso engine.
 
@@ -142,7 +163,7 @@ class AbstractHowsoClient(ABC):
         """
 
     @abstractmethod
-    def _execute_sized(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> tuple[t.Any, int, int]:
+    def execute_sized(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> tuple[t.Any, int, int]:
         """
         Execute a label in Howso engine and return the request and response sizes.
 
@@ -219,8 +240,8 @@ class AbstractHowsoClient(ABC):
         """Return a list of all accessible trainees."""
 
     @abstractmethod
-    def delete_trainee(self, trainee_id, file_path=None):
-        """Delete a trainee in the Howso service."""
+    def delete_trainee(self, trainee_id: str, *, file_path: t.Optional[Path | str] = None):
+        """Delete a Trainee from the Howso service."""
 
     @abstractmethod
     def copy_trainee(
@@ -265,22 +286,196 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id)
         if self.configuration.verbose:
             print(f'Setting random seed for Trainee with id: {trainee_id}')
-        self._execute(trainee_id, "set_random_seed", {"seed": seed})
+        self.execute(trainee_id, "set_random_seed", {"seed": seed})
         self._auto_persist_trainee(trainee_id)
 
-    def train(
-        self, trainee_id, cases, features=None, *,
-        accumulate_weight_feature=None,
-        batch_size=None,
-        derived_features=None,
-        initial_batch_size=None,
-        input_is_substituted=False,
-        progress_callback=None,
-        series=None,
-        train_weights_only=False,
-        validate=True,
+    def train(  # noqa: C901
+        self,
+        trainee_id: str,
+        cases: TabularData2D,
+        features: t.Optional[Collection[str]] = None,
+        *,
+        accumulate_weight_feature: t.Optional[str] = None,
+        batch_size: t.Optional[int] = None,
+        derived_features: t.Optional[Collection[str]] = None,
+        initial_batch_size: t.Optional[int] = None,
+        input_is_substituted: bool = False,
+        progress_callback: t.Optional[Callable] = None,
+        series: t.Optional[str] = None,
+        skip_auto_analyze: bool = False,
+        train_weights_only: bool = False,
+        validate: bool = True,
     ):
-        """Train a trainee with sessions containing training cases."""
+        """
+        Train one or more cases into a Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the target Trainee.
+        cases : list of list of object or pandas.DataFrame
+            One or more cases to train into the model.
+        features : Collection of str, optional
+            The feature names corresponding to the case values.
+            This parameter should be provided in the following scenarios:
+
+                a. When cases are not in the format of a DataFrame, or
+                   the DataFrame does not define named columns.
+                b. You want to train only a subset of columns defined in your
+                   cases DataFrame.
+                c. You want to re-order the columns that are trained.
+
+        accumulate_weight_feature : str, optional
+            Name of feature into which to accumulate neighbors'
+            influences as weight for ablated cases. If unspecified, will not
+            accumulate weights.
+        batch_size : int, optional
+            Define the number of cases to train at once. If left unspecified,
+            the batch size will be determined automatically.
+        derived_features : Collection of str, optional
+            Feature names for which values should be derived in the specified
+            order. If this list is not provided, features with the
+            'auto_derive_on_train' feature attribute set to True will be
+            auto-derived. If provided an empty list, no features are derived.
+            Any derived_features that are already in the 'features' list will
+            not be derived since their values are being explicitly provided.
+        initial_batch_size : int, optional
+            Define the number of cases to train in the first batch. If
+            unspecified, the value of the ``train_initial_batch_size`` property
+            is used. The number of cases in following batches will be
+            automatically adjusted. This value is ignored if ``batch_size`` is
+            specified.
+        input_is_substituted : bool, default False
+            if True assumes provided nominal feature values have
+            already been substituted.
+        progress_callback : callable, optional
+            A callback method that will be called before each
+            batched call to train and at the end of training. The method is
+            given a ProgressTimer containing metrics on the progress and timing
+            of the train operation.
+        series : str, optional
+            Name of the series to pull features and case values
+            from internal series storage. If specified, trains on all cases
+            that are stored in the internal series store for the specified
+            series. The trained feature set is the combined features from
+            storage and the passed in features. If cases is of length one,
+            the value(s) of this case are appended to all cases in the series.
+            If cases is the same length as the series, the value of each case
+            in cases is applied in order to each of the cases in the series.
+        skip_auto_analyze : bool, default False
+            When true, the Trainee will not auto-analyze when appropriate.
+            Instead, the boolean response will be True if an analyze is needed.
+        train_weights_only : bool, default False
+            When true, and accumulate_weight_feature is provided,
+            will accumulate all of the cases' neighbor weights instead of
+            training the cases into the model.
+        validate : bool, default True
+            Whether to validate the data against the provided feature
+            attributes. Issues warnings if there are any discrepancies between
+            the data and the features dictionary.
+
+        Returns
+        -------
+        bool
+            Flag indicating if the Trainee needs to analyze. Only true if
+            auto-analyze is enabled and the conditions are met.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        feature_attributes = self.trainee_cache.get(trainee_id).features
+
+        if not self.active_session:
+            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+
+        # Make sure single table dicts are wrapped by SingleTableFeatureAttributes
+        if (
+            isinstance(feature_attributes, Mapping) and
+            not isinstance(feature_attributes, MultiTableFeatureAttributes)
+        ):
+            feature_attributes = SingleTableFeatureAttributes(feature_attributes, {})
+
+        # Check to see if the feature attributes still generally describe
+        # the data, and warn the user if they do not
+        if isinstance(cases, DataFrame) and validate:
+            try:
+                feature_attributes.validate(cases)
+            except NotImplementedError:
+                # MultiTableFeatureAttributes does not yet support DataFrame validation
+                pass
+
+        # See if any features were inferred to have data that is unsupported by the OS.
+        # Issue a warning and drop the feature before training, if so.
+        unsupported_features = []
+        if isinstance(feature_attributes, MultiTableFeatureAttributes):
+            for stfa in feature_attributes.values():
+                unsupported_features = [feat for feat in stfa.keys() if stfa.has_unsupported_data(feat)]
+        elif isinstance(feature_attributes, SingleTableFeatureAttributes):
+            unsupported_features = [feat for feat in feature_attributes.keys()
+                                    if feature_attributes.has_unsupported_data(feat)]
+        if isinstance(cases, DataFrame):
+            for feature in unsupported_features:
+                warnings.warn(
+                    f'Ignoring feature {feature} as it contains values that are too '
+                    'large or small for your operating system. Please evaluate the '
+                    'bounds for this feature.')
+                cases.drop(feature, axis=1, inplace=True)
+
+        util.validate_list_shape(features, 1, "features", "str")
+        util.validate_list_shape(cases, 2, "cases", "list", allow_none=False)
+        if features is None:
+            features = internals.get_features_from_data(cases)
+        serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True) or []
+
+        needs_analyze = False
+
+        if self.configuration.verbose:
+            print(f'Training session(s) on Trainee with id: {trainee_id}')
+
+        with ProgressTimer(len(serialized_cases)) as progress:
+            gen_batch_size = None
+            batch_scaler = None
+            if series is not None:
+                # If training series, always send full size
+                batch_size = len(serialized_cases)
+            if not batch_size:
+                # Scale the batch size automatically
+                start_batch_size = initial_batch_size or self.train_initial_batch_size
+                batch_scaler = self.batch_scaler_class(start_batch_size, progress)
+                gen_batch_size = batch_scaler.gen_batch_size()
+                batch_size = next(gen_batch_size, None)
+
+            while not progress.is_complete and batch_size:
+                if isinstance(progress_callback, Callable):
+                    progress_callback(progress)
+                start = progress.current_tick
+                end = progress.current_tick + batch_size
+                response, in_size, out_size = self.execute_sized(trainee_id, "train", {
+                    "cases": serialized_cases[start:end],
+                    "accumulate_weight_feature": accumulate_weight_feature,
+                    "derived_features": derived_features,
+                    "features": features,
+                    "input_is_substituted": input_is_substituted,
+                    "series": series,
+                    "session": self.active_session.id,
+                    "skip_auto_analyze": skip_auto_analyze,
+                    "train_weights_only": train_weights_only,
+                })
+                if response and response.get('status') == 'analyze':
+                    needs_analyze = True
+                if batch_scaler is None or gen_batch_size is None:
+                    progress.update(batch_size)
+                else:
+                    batch_size = batch_scaler.send(
+                        gen_batch_size,
+                        batch_scaler.SendOptions(None, (in_size, out_size)))
+
+        # Final call to batch callback on completion
+        if isinstance(progress_callback, Callable):
+            progress_callback(progress)
+
+        self._store_session(trainee_id, self.active_session)
+        self._auto_persist_trainee(trainee_id)
+
+        return needs_analyze
 
     def impute(
         self,
@@ -323,7 +518,7 @@ class AbstractHowsoClient(ABC):
 
         if self.configuration.verbose:
             print(f'Imputing Trainee with id: {trainee_id}')
-        self._execute(trainee_id, "impute", {
+        self.execute(trainee_id, "impute", {
             "features": features,
             "features_to_impute": features_to_impute,
             "session": self.active_session.id,
@@ -428,7 +623,7 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Removing case(s) from Trainee with id: {trainee_id}')
 
-        result = self._execute(trainee_id, "remove_cases", {
+        result = self.execute(trainee_id, "remove_cases", {
             "case_indices": case_indices,
             "condition": condition,
             "condition_session": condition_session,
@@ -556,7 +751,7 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Moving case(s) from Trainee with id: {trainee_id}')
 
-        result = self._execute(trainee_id, "move_cases", {
+        result = self.execute(trainee_id, "move_cases", {
             "target_id": target_id,
             "case_indices": case_indices,
             "condition": condition,
@@ -668,7 +863,7 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Editing case(s) in Trainee with id: {trainee_id}')
 
-        result = self._execute(trainee_id, "edit_cases", {
+        result = self.execute(trainee_id, "edit_cases", {
             "case_indices": case_indices,
             "condition": condition,
             "condition_session": condition_session,
@@ -713,7 +908,7 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id)
         if self.configuration.verbose:
             print(f'Setting substitute feature values for Trainee with id: {trainee_id}')
-        self._execute(trainee_id, "set_substitute_feature_values", {
+        self.execute(trainee_id, "set_substitute_feature_values", {
             "substitution_value_map": substitution_value_map
         })
         self._auto_persist_trainee(trainee_id)
@@ -743,9 +938,9 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id)
         if self.configuration.verbose:
             print(f'Getting substitute feature values from Trainee with id: {trainee_id}')
-        result = self._execute(trainee_id, "get_substitute_feature_values", {})
+        result = self.execute(trainee_id, "get_substitute_feature_values", {})
         if clear_on_get:
-            self._execute(trainee_id, "set_substitute_feature_values", {
+            self.execute(trainee_id, "set_substitute_feature_values", {
                 "substitution_value_map": {}
             })
             self._auto_persist_trainee(trainee_id)
@@ -782,13 +977,13 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Setting feature attributes for Trainee with id: {trainee_id}')
 
-        self._execute(trainee_id, "set_feature_attributes", {
+        self.execute(trainee_id, "set_feature_attributes", {
             "feature_attributes": internals.preprocess_feature_attributes(feature_attributes),
         })
         self._auto_persist_trainee(trainee_id)
 
         # Update trainee in cache
-        updated_feature_attributes = self._execute(trainee_id, "get_feature_attributes", {})
+        updated_feature_attributes = self.execute(trainee_id, "get_feature_attributes", {})
         cached_trainee.features = internals.postprocess_feature_attributes(updated_feature_attributes)
 
     def get_feature_attributes(self, trainee_id: str) -> dict[str, dict]:
@@ -808,7 +1003,7 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id)
         if self.configuration.verbose:
             print('Getting feature attributes from Trainee with id: {trainee_id}')
-        feature_attributes = self._execute(trainee_id, "get_feature_attributes", {})
+        feature_attributes = self.execute(trainee_id, "get_feature_attributes", {})
         return internals.postprocess_feature_attributes(feature_attributes)
 
     @abstractmethod
@@ -921,7 +1116,7 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Getting feature marginal stats for trainee with id: {trainee_id}')
 
-        stats = self._execute(trainee_id, "get_marginal_stats", {
+        stats = self.execute(trainee_id, "get_marginal_stats", {
             "condition": condition,
             "num_cases": num_cases,
             "precision": precision,
@@ -1108,7 +1303,7 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id)
         if self.configuration.verbose:
             print(f'Evaluating on Trainee with id: {trainee_id}')
-        return self._execute(trainee_id, "evaluate", {
+        return self.execute(trainee_id, "evaluate", {
             "features_to_code_map": features_to_code_map,
             "aggregation_code": aggregation_code
         })
@@ -1269,7 +1464,7 @@ class AbstractHowsoClient(ABC):
             print(f'Analyzing Trainee with id: {trainee_id}')
             print(f'Analyzing Trainee with parameters: {analyze_params}')
 
-        self._execute(trainee_id, "analyze", analyze_params)
+        self.execute(trainee_id, "analyze", analyze_params)
         self._auto_persist_trainee(trainee_id)
 
     def auto_analyze(self, trainee_id: str):
@@ -1290,11 +1485,11 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f"Auto-analyzing Trainee with id: {trainee_id}")
 
-        self._execute(trainee_id, "auto_analyze", {})
+        self.execute(trainee_id, "auto_analyze", {})
         self._auto_persist_trainee(trainee_id)
         if self.is_tracing_enabled(trainee_id):
             # When trace is enabled, output the auto-analyzed parameters into the trace file
-            self._execute(trainee_id, "get_params", {})
+            self.execute(trainee_id, "get_params", {})
 
     def set_auto_analyze_params(
         self,
@@ -1461,7 +1656,7 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Setting auto analyze parameters for Trainee with id: {trainee_id}')
 
-        self._execute(trainee_id, "set_auto_analyze_params", {
+        self.execute(trainee_id, "set_auto_analyze_params", {
             "auto_analyze_enabled": auto_analyze_enabled,
             "analyze_threshold": analyze_threshold,
             "auto_analyze_limit_size": auto_analyze_limit_size,
@@ -1502,7 +1697,7 @@ class AbstractHowsoClient(ABC):
             The auto-ablation parameters.
         """
         trainee_id = self._resolve_trainee(trainee_id)
-        return self._execute(trainee_id, "get_auto_ablation_params", {})
+        return self.execute(trainee_id, "get_auto_ablation_params", {})
 
     def set_auto_ablation_params(
         self,
@@ -1581,7 +1776,7 @@ class AbstractHowsoClient(ABC):
                 UnsupportedArgumentWarning)
         if self.configuration.verbose:
             print(f'Setting auto ablation parameters for Trainee with id: {trainee_id}')
-        self._execute(trainee_id, "set_auto_ablation_params", params)
+        self.execute(trainee_id, "set_auto_ablation_params", params)
 
     def reduce_data(
         self,
@@ -1642,7 +1837,7 @@ class AbstractHowsoClient(ABC):
                 UnsupportedArgumentWarning)
         if self.configuration.verbose:
             print(f'Reducing data on Trainee with id: {trainee_id}')
-        self._execute(trainee_id, "reduce_data", params)
+        self.execute(trainee_id, "reduce_data", params)
 
     def get_cases(
         self,
@@ -1760,7 +1955,7 @@ class AbstractHowsoClient(ABC):
 
         if self.configuration.verbose:
             print(f'Retrieving cases for Trainee with id {trainee_id}.')
-        result = self._execute(trainee_id, "get_cases", {
+        result = self.execute(trainee_id, "get_cases", {
             "features": features,
             "session": session,
             "case_indices": case_indices,
@@ -1807,7 +2002,7 @@ class AbstractHowsoClient(ABC):
 
         if self.configuration.verbose:
             print(f'Getting extreme cases for trainee with id: {trainee_id}')
-        result = self._execute(trainee_id, "get_extreme_cases", {
+        result = self.execute(trainee_id, "get_extreme_cases", {
             "features": features,
             "sort_feature": sort_feature,
             "num": num,
@@ -1834,7 +2029,7 @@ class AbstractHowsoClient(ABC):
             The number of cases in the model
         """
         trainee_id = self._resolve_trainee(trainee_id)
-        ret = self._execute(trainee_id, "get_num_training_cases", {})
+        ret = self.execute(trainee_id, "get_num_training_cases", {})
         if isinstance(ret, dict):
             return ret.get('count', 0)
         return 0
@@ -1891,7 +2086,7 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(action_features, 1, "action_features", "str")
         if self.configuration.verbose:
             print(f'Getting conviction of features for Trainee with id: {trainee_id}')
-        return self._execute(trainee_id, "get_feature_conviction", {
+        return self.execute(trainee_id, "get_feature_conviction", {
             "features": features,
             "action_features": action_features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
@@ -1981,7 +2176,7 @@ class AbstractHowsoClient(ABC):
 
         if self.configuration.verbose:
             print(f'Adding feature "{feature}" to Trainee with id {trainee_id}.')
-        self._execute(trainee_id, "add_feature", {
+        self.execute(trainee_id, "add_feature", {
             "feature": feature,
             "feature_value": feature_value,
             "overwrite": overwrite,
@@ -2058,7 +2253,7 @@ class AbstractHowsoClient(ABC):
 
         if self.configuration.verbose:
             print(f'Removing feature "{feature}" from Trainee with id: {trainee_id}')
-        self._execute(trainee_id, "remove_feature", {
+        self.execute(trainee_id, "remove_feature", {
             "feature": feature,
             "condition": condition,
             "session": self.active_session.id,
@@ -2178,7 +2373,7 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Getting pairwise distances for Trainee with id: {trainee_id}')
 
-        result = self._execute(trainee_id, "get_pairwise_distances", {
+        result = self.execute(trainee_id, "get_pairwise_distances", {
             "features": features,
             "action_feature": action_feature,
             "from_case_indices": from_case_indices,
@@ -2313,7 +2508,7 @@ class AbstractHowsoClient(ABC):
 
         for row_offset in range(0, num_cases, page_size):
             for column_offset in range(0, num_cases, page_size):
-                result = self._execute(trainee_id, "get_distances", {
+                result = self.execute(trainee_id, "get_distances", {
                     "features": features,
                     "action_feature": action_feature,
                     "case_indices": case_indices,
@@ -2428,7 +2623,7 @@ class AbstractHowsoClient(ABC):
         self._resolve_trainee(trainee_id)
         if self.configuration.verbose:
             print(f'Getting model attributes from Trainee with id: {trainee_id}')
-        return self._execute(trainee_id, "get_params", {
+        return self.execute(trainee_id, "get_params", {
             "action_feature": action_feature,
             "context_features": context_features,
             "mode": mode,
@@ -2485,5 +2680,5 @@ class AbstractHowsoClient(ABC):
                     f'`{new_param}`, please use the new parameter '
                     'instead.', UserWarning)
 
-        self._execute(trainee_id, "set_params", parameters)
+        self.execute(trainee_id, "set_params", parameters)
         self._auto_persist_trainee(trainee_id)

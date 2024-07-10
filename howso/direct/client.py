@@ -7,6 +7,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from http import HTTPStatus
 import importlib.metadata
+import inspect
 import json
 import logging
 import multiprocessing
@@ -38,12 +39,13 @@ from pandas import DataFrame
 import urllib3
 from urllib3.util import Retry, Timeout
 
+from amalgam.api import Amalgam
 from howso import utilities as util
 from howso.client import get_configuration_path
 from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
-from howso.client.exceptions import HowsoError, UnsupportedArgumentWarning
+from howso.client.exceptions import HowsoError, HowsoWarning
 from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee
 from howso.client.typing import Persistence
 from howso.utilities import (
@@ -56,8 +58,6 @@ from howso.utilities import (
     validate_case_indices,
     validate_list_shape
 )
-from howso.utilities.feature_attributes.base import MultiTableFeatureAttributes, SingleTableFeatureAttributes
-from .core import HowsoCore
 
 # Client version
 CLIENT_VERSION = importlib.metadata.version('howso-engine')
@@ -69,6 +69,7 @@ _VERSION_CHECKED = False
 DT_FORMAT_KEY = 'date_time_format'
 HYPERPARAMETER_KEY = "hyperparameter_map"
 VERSION_CHECK_HOST = "https://version-check.howso.com"
+DEFAULT_ENGINE_PATH = Path(__file__).parent.parent.joinpath("howso-engine")
 
 # Cache of trainee information shared across client instances
 _trainee_cache = TraineeCache()
@@ -94,10 +95,8 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     Parameters
     ----------
-    howso_core : howso.direct.HowsoCore, optional
-        A specified howso core direct interface object.
-
-        If None, a HowsoCore will be initialized.
+    amalgam : Mapping, optional
+        Keyword-argument overrides to the underlying Amalgam instance.
     config_path : str or Path or None, optional
         A configuration file in yaml format that specifies Howso engine
         settings.
@@ -107,10 +106,21 @@ class HowsoDirectClient(AbstractHowsoClient):
             - The current directory for howso.yml, howso.yaml, config.yml
             - ~/.howso for howso.yml, howso.yaml, config.yml.
     debug : bool, default False
-        Set debug output.
+        Enable debug output.
+    default_persist_path : str or Path, optional
+        Override the default save location for created Trainees. If not specified the current working
+        directory will be used.
+    howso_path : str or Path, optional
+        Directory path to the Howso caml files. Defaults to the built-in package location.
+    howso_fname : str, default "howso.caml"
+        Name of the Howso caml file with file extension.
     react_initial_batch_size: int, default 10
         The default number of cases to react to in the first batch
         for calls to :meth:`HowsoDirectClient.react`.
+    trace : bool, default False
+        When true, enables tracing of Amalgam operations. This will generate an
+        execution trace file useful in debugging, the filename will use the
+        standard name of `howso_[random 6 byte hex]_execution.trace`.
     train_initial_batch_size: int, default 100
         The default number of cases to train to in the first batch
         for calls to :meth:`HowsoDirectClient.train`.
@@ -132,12 +142,15 @@ class HowsoDirectClient(AbstractHowsoClient):
     )
 
     def __init__(
-        self,
-        howso_core: Optional[HowsoCore] = None,
-        *,
+        self, *,
+        amalgam: t.Optional[Mapping[str, t.Any]] = None,
         config_path: Union[str, Path, None] = None,
         debug: bool = False,
+        default_persist_path: t.Optional[Path | str] = None,
+        howso_path: Path | str = DEFAULT_ENGINE_PATH,
+        howso_fname: str = "howso.caml",
         react_initial_batch_size: int = 10,
+        trace: bool = False,
         train_initial_batch_size: int = 100,
         verbose: bool = False,
         version_check: bool = True,
@@ -162,29 +175,71 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Show deprecation warnings to the user.
         warnings.filterwarnings("default", category=DeprecationWarning)
 
-        self.verbose = verbose
-        self.debug = debug
-
         # Load configuration
-        config_path = get_configuration_path(config_path, self.verbose)
-        self.configuration = HowsoConfiguration(
-            config_path=config_path, verbose=verbose)
-
-        if howso_core is None:
-            self.howso = HowsoCore(
-                **kwargs
-            )
-        elif isinstance(howso_core, HowsoCore):
-            self.howso = howso_core
-        else:
-            raise ValueError("`howso_core` must be an instance of a HowsoCore.")
-
-        self.batch_scaler_class = internals.BatchScalingManager
+        config_path = get_configuration_path(config_path, verbose)
+        self.configuration = HowsoConfiguration(config_path, verbose=verbose)
+        self.debug = debug
+        self._trace_enabled = bool(trace)
+        self._trace_filename = f"howso_{internals.random_handle()}_execution.trace"
+        self._howso_path = Path(howso_path).expanduser()
+        self._howso_filename = howso_fname
+        self._howso_ext = Path(self._howso_filename).suffix or ".caml"
         self._react_generative_batch_threshold = 1
         self._react_discriminative_batch_threshold = 10
         self._react_initial_batch_size = react_initial_batch_size
         self._train_initial_batch_size = train_initial_batch_size
+
+        if not self._howso_path.is_dir():
+            raise HowsoError(f"The provided 'howso_path' is not a directory: {self._howso_path}")
+
+        # Determine the default save directory
+        if default_persist_path:
+            self.default_persist_path = Path(default_persist_path).expanduser()
+            logger.debug(f'The Trainee default save directory has been overridden to: {self.default_persist_path}')
+        else:
+            # If no specific location provided, use current working directory.
+            self.default_persist_path = Path.cwd()
+
+        if not self.default_persist_path.exists():
+            # Make sure persist path exists
+            self.default_persist_path.mkdir(parents=True)
+
+        # Resolve path to engine caml
+        self._howso_absolute_path = Path(self._howso_path, self._howso_filename)
+        if not self._howso_absolute_path.exists():
+            raise HowsoError(f'Howso Engine file does not exist at: {self._howso_absolute_path}')
+        logger.debug(f'Using Howso Engine file: {self._howso_absolute_path}')
+
+        self.__init_amalgam(amalgam)
         self.begin_session()
+
+    def __init_amalgam(self, options: t.Optional[Mapping[str, t.Any]] = None):
+        """Initialize the Amalgam instance."""
+        # The parameters to pass to the Amalgam instance
+        amlg_params = {
+            'library_path': None,
+            'gc_interval': 100,
+            'sbf_datastore_enabled': None,
+            'max_num_threads': None,
+            'trace': self._trace_enabled,
+            'execution_trace_file': self._trace_filename,
+        }
+        if options:
+            # Merge Amalgam override parameters - favoring the configured params
+            if amlg_params_intersection := amlg_params.keys() & options.keys():
+                # Warn that there are changes
+                logger.warning(
+                    "The following parameters from your configuration will "
+                    f"override the default Amalgam parameters: {amlg_params_intersection}"
+                )
+            amlg_params.update(options)
+        # Filter out invalid amlg_params, and instantiate
+        allowed_amlg_params = inspect.signature(Amalgam).parameters.keys()
+        if unknown_amlg_params := set(allowed_amlg_params) - set(amlg_params):
+            warnings.warn(
+                f"Unknown Amalgam() parameters were specified and ignored: {unknown_amlg_params}", HowsoWarning)
+        amlg_params = {k: v for k, v in amlg_params.items() if k in allowed_amlg_params}
+        self.amlg = Amalgam(**amlg_params)
 
     def check_version(self) -> Union[str, None]:
         """Check if there is a more recent version."""
@@ -218,6 +273,11 @@ class HowsoDirectClient(AbstractHowsoClient):
                         f"Version {latest_version} of Howso Engine™ is "
                         f"available. You are using version {CLIENT_VERSION}. "
                         f"This is a pre-release version.")
+
+    @property
+    def verbose(self) -> bool:
+        """Get verbose flag."""
+        return self.configuration.verbose
 
     @property
     def react_initial_batch_size(self) -> int:
@@ -299,34 +359,179 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return _trainee_cache
 
-    @staticmethod
-    def get_unique_handle(handle: str) -> str:
+    @classmethod
+    def _deserialize(cls, payload: str | bytes | None) -> t.Any:
+        """Deserialize engine response."""
+        if payload is None or len(payload) == 0:
+            return None
+        try:
+            deserialized_payload = json.loads(payload)
+            if isinstance(deserialized_payload, list):
+                status = deserialized_payload[0]
+                deserialized_payload = deserialized_payload[1]
+                if status != 1:
+                    # If result is an error, raise it
+                    detail = deserialized_payload.get('detail') or []
+                    if detail:
+                        # Error detail can be either a string or a list of strings
+                        if isinstance(detail, list):
+                            raise HowsoError(detail[0])  # Raise first error
+                        else:
+                            raise HowsoError(detail)
+                    else:
+                        # Unknown error occurred
+                        raise HowsoError('An unknown error occurred while '
+                                         'processing the Howso Engine operation.')
+
+                warning_list = deserialized_payload.get('warnings') or []
+                for w in warning_list:
+                    warnings.warn(w, category=HowsoWarning)
+
+                return deserialized_payload.get('payload')
+            return deserialized_payload
+        except HowsoError:
+            raise
+        except Exception:  # noqa: Deliberately broad
+            raise HowsoError('Failed to deserialize the Howso Engine response.')
+
+    def _resolve_trainee(self, trainee_id: str, **kwargs) -> str:
         """
-        Append a unique 6 byte hex to the input handle.
+        Resolve a Trainee and acquire its resources.
 
         Parameters
         ----------
-        handle : str
-            String to which a unique 6 byte hex string will appended.
+        trainee_id : str
+            The identifier of the Trainee to resolve.
 
         Returns
         -------
         str
-            A unique alphanumeric handle consisting of the input string and
-            a unique 6 byte hex string.
-        """
-        return f"{handle}-{HowsoCore.random_handle()}"
+            The normalized Trainee unique identifier.
 
-    def get_entities(self) -> List[str]:
+        Raises
+        ------
+        HowsoError
+            If the requested Trainee is currently loaded by another core entity.
         """
-        Return a list of loaded core entities.
+        if trainee_id not in self.trainee_cache:
+            self.acquire_trainee_resources(trainee_id)
+        return trainee_id
+
+    def _auto_persist_trainee(self, trainee_id: str):
+        """
+        Automatically persists the Trainee if it has persistence set to True.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to persist.
+        """
+        try:
+            trainee = self.trainee_cache.get(trainee_id)
+            if trainee.persistence == 'always':
+                self.howso.persist(trainee_id)
+        except KeyError:
+            # Trainee not cached, ignore
+            pass
+
+    def _store_session(self, trainee_id: str, session: Session):
+        """Store session details in a Trainee."""
+        self.execute(trainee_id, "set_session_metadata", {
+            "session": session.id,
+            "metadata": session.to_dict(),
+        })
+
+    def _initialize_trainee(self, trainee_id: str):
+        """Create a new Amalgam entity."""
+        status = self.amlg.load_entity(
+            handle=trainee_id,
+            amlg_path=str(self._howso_absolute_path),
+            persist=False,
+            load_contained=True,
+            escape_filename=False,
+            escape_contained_filenames=False
+        )
+        if not status.loaded:
+            raise HowsoError(
+                f'Failed to create the Trainee "{trainee_id}". '
+                f"This may be due to incorrect filepaths to the Howso"
+                f'binaries or camls, or the Trainee already exists.')
+        self.execute(trainee_id, "initialize", {
+            "trainee_id": trainee_id,
+            "filepath": str(self._howso_path) + '/',
+        })
+
+    def execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:
+        """
+        Execute a label in Howso engine.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The entity handle of the Trainee.
+        label : str
+            The label to execute.
+        payload : Any
+            The payload to send to label.
 
         Returns
         -------
-        iterable of str
-            The list of loaded entity names.
+        Any
+            The label's response.
         """
-        return self.howso.get_entities()
+        payload = self.sanitize_for_json(payload, exclude_null=True)
+        try:
+            json_payload = json.dumps(payload)
+            result = self.amlg.execute_entity_json(trainee_id, label, json_payload)
+        except ValueError as err:
+            raise HowsoError('Invalid payload - please check for infinity or NaN values') from err
+        return self._deserialize(result)
+
+    def execute_sized(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> tuple[t.Any, int, int]:
+        """
+        Execute a label in Howso engine and return the request and response sizes.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The entity handle of the Trainee.
+        label : str
+            The label to execute.
+        payload : Any
+            The payload to send to label.
+
+        Returns
+        -------
+        Any
+            The label's response.
+        int
+            The request payload size.
+        int
+            The response payload size.
+        """
+        payload = self.sanitize_for_json(payload, exclude_null=True)
+        try:
+            json_payload = json.dumps(payload)
+            result = self.amlg.execute_entity_json(trainee_id, label, json_payload)
+        except ValueError as err:
+            raise HowsoError('Invalid payload - please check for infinity or NaN values') from err
+        return self._deserialize(result), len(json_payload), len(result)
+
+    def is_tracing_enabled(self, trainee_id: str) -> bool:
+        """
+        Get if tracing is enabled for Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee.
+
+        Returns
+        -------
+        bool
+            True, if tracing is enabled for provided Trainee.
+        """
+        return self._trace_enabled
 
     def get_version(self) -> HowsoVersion:
         """
@@ -339,21 +544,6 @@ class HowsoDirectClient(AbstractHowsoClient):
            instance of Howso.
         """
         return HowsoVersion(client=CLIENT_VERSION)
-
-    def _output_version_in_trace(self, trainee: str):
-        """
-        Instruct Howso core to retrieve the version of the Trainee.
-
-        If debugging is enabled, this version will appear in the trace file.
-
-        Parameters
-        ----------
-        trainee : str
-            The ID of the Trainee that should retrieve the Howso version.
-        """
-        # don't need to return the output, make the call to core in order for
-        # the stack version to show up in the trace file.
-        self.howso.get_trainee_version(trainee)
 
     def check_name_valid_for_save(
         self,
@@ -478,7 +668,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     break
             else:
                 success, reason = True, 'OK'
-            proposed_path: Path = self.howso.default_save_path.joinpath(name)
+            proposed_path: Path = self.default_persist_path.joinpath(name)
             if success:
                 success, reason = self.check_name_valid_for_save(
                     proposed_path, clobber=overwrite_trainee)
@@ -490,24 +680,22 @@ class HowsoDirectClient(AbstractHowsoClient):
         # If overwriting the trainee, attempt to delete it first.
         if overwrite_trainee:
             try:
-                util.dprint(self.verbose, f"Deleting existing {trainee_id} "
-                                          "trainee before creating.")
-                self.howso.delete(trainee_id)
+                util.dprint(
+                    self.configuration.verbose,
+                    f'Deleting existing Trainee "{trainee_id}" before creating.')
+                self.amlg.destroy_entity(trainee_id)
             except Exception:  # noqa: Deliberately broad
-                util.dprint(self.verbose, f"Failed to delete {trainee_id} "
-                                          "trainee. Continuing.")
+                util.dprint(
+                    self.configuration.verbose,
+                    f'Unable to delete Trainee "{trainee_id}". Continuing.')
         elif trainee_id in self.trainee_cache:
             raise HowsoError(
-                f'A trainee already exists using the name "{trainee_id}"')
+                f'A Trainee already exists using the name "{trainee_id}".')
 
-        if self.verbose:
-            print('Creating trainee')
-        result = self.howso.create_trainee(trainee_id)
-        if not result:
-            raise ValueError(
-                f"Could not create the trainee with name {trainee_id}. "
-                f"Possible causes - Howso couldn't find core "
-                f"binaries/camls or {trainee_id} trainee already exists.")
+        if self.configuration.verbose:
+            print('Creating new Trainee')
+        # Initialize Amalgam entity
+        self._initialize_trainee(trainee_id)
 
         trainee_metadata = dict(
             name=name,
@@ -522,12 +710,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             metadata=metadata
         )
         new_trainee = internals.preprocess_trainee(new_trainee)
-        self.howso.set_metadata(trainee_id, trainee_metadata)
-        self.howso.set_feature_attributes(trainee_id, new_trainee.features)
-        new_trainee.features = self.howso.get_feature_attributes(trainee_id)
+        self.execute(trainee_id, "set_metadata", {"metadata": trainee_metadata})
+        self.execute(trainee_id, "set_feature_attributes", {"feature_attributes": new_trainee.features})
+        new_trainee.features = self.execute(trainee_id, "get_feature_attributes", {})
         new_trainee = internals.postprocess_trainee(new_trainee)
 
-        self._output_version_in_trace(trainee_id)
+        if self.is_tracing_enabled(trainee_id):
+            # If tracing is enabled, log the trainee version
+            self.execute(trainee_id, "get_trainee_version", {})
 
         self.trainee_cache.set(new_trainee)
         return new_trainee
@@ -734,10 +924,11 @@ class HowsoDirectClient(AbstractHowsoClient):
     def delete_trainee(
         self,
         trainee_id: Optional[str] = None,
-        file_path: Optional[Union[Path, str]] = None
+        *,
+        file_path: Optional[Path | str] = None
     ):
         """
-        This deletes the Trainee.
+        Delete a Trainee from the Howso service and filesystem.
 
         Includes all cases, model metadata, session data, persisted files, etc.
 
@@ -745,10 +936,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         trainee_id : str, optional
             The ID of the Trainee. If full filepath with is provided, `trainee_id` will only be used
-            to delete from core.
+            to delete from memory.
 
         file_path : Path or str, optional
-            The path of the file to load the Trainee from. Used for deleting trainees from disk.
+            The path of the file used to load the Trainee from. Used for deleting trainees from disk.
 
             The file path must end with a filename, but file path can be either an absolute path, a
             relative path or just the file name.
@@ -779,7 +970,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             trainee_id = file_path.stem
 
         # Unload the trainee from core
-        self.howso.delete(trainee_id)
+        self.amlg.destroy_entity(trainee_id)
         self.trainee_cache.discard(trainee_id)
 
         if self.verbose:
@@ -794,12 +985,12 @@ class HowsoDirectClient(AbstractHowsoClient):
             else:
                 raise ValueError("Filepath must end with a '.caml' filename.")
             if not file_path.is_absolute():
-                file_path = self.howso.default_save_path.joinpath(file_path)
+                file_path = self.default_persist_path.joinpath(file_path)
 
         else:
-            save_path = self.howso.default_save_path
+            save_path = self.default_persist_path
 
-        trainee_path = Path(save_path, f'{trainee_id}{self.howso.ext}')
+        trainee_path = Path(save_path, f'{trainee_id}{self._howso_ext}')
 
         # Delete Trainee
         if trainee_path.exists():
@@ -1062,46 +1253,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.howso.persist(trainee_id)
 
-    def _resolve_trainee(self, trainee_id: str, **kwargs) -> str:
-        """
-        Resolve a Trainee and acquire its resources.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee to resolve.
-
-        Returns
-        -------
-        str
-            The normalized Trainee unique identifier.
-
-        Raises
-        ------
-        HowsoError
-            If the requested Trainee is currently loaded by another core entity.
-        """
-        if trainee_id not in self.trainee_cache:
-            self.acquire_trainee_resources(trainee_id)
-        return trainee_id
-
-    def _auto_persist_trainee(self, trainee_id: str):
-        """
-        Automatically persists the Trainee if it has persistence set to True.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to persist.
-        """
-        try:
-            trainee = self.trainee_cache.get(trainee_id)
-            if trainee.persistence == 'always':
-                self.howso.persist(trainee_id)
-        except KeyError:
-            # Trainee not cached, ignore
-            pass
-
     def remove_series_store(self, trainee_id: str, series: Optional[str] = None):
         """
         Clear any stored series from the Trainee.
@@ -1120,195 +1271,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             print('Removing stored series from trainee with id: '
                   f'{trainee_id} and series with id: {series}')
         self.howso.remove_series_store(trainee_id, series)
-
-    def train(  # noqa: C901
-        self,
-        trainee_id: str,
-        cases: Union[List[List[object]], DataFrame],
-        features: Optional[Iterable[str]] = None,
-        *,
-        accumulate_weight_feature: Optional[str] = None,
-        batch_size: Optional[int] = None,
-        derived_features: Optional[Iterable[str]] = None,
-        initial_batch_size: Optional[int] = None,
-        input_is_substituted: bool = False,
-        progress_callback: Optional[Callable] = None,
-        series: Optional[str] = None,
-        skip_auto_analyze: bool = False,
-        train_weights_only: bool = False,
-        validate: bool = True,
-    ) -> bool:
-        """
-        Train one or more cases into a trainee (model).
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the target Trainee.
-        cases : list of list of object or pandas.DataFrame
-            One or more cases to train into the model.
-        features : iterable of str, optional
-            An iterable of feature names.
-            This parameter should be provided in the following scenarios:
-
-                a. When cases are not in the format of a DataFrame, or
-                   the DataFrame does not define named columns.
-                b. You want to train only a subset of columns defined in your
-                   cases DataFrame.
-                c. You want to re-order the columns that are trained.
-
-        accumulate_weight_feature : str, optional
-            Name of feature into which to accumulate neighbors'
-            influences as weight for ablated cases. If unspecified, will not
-            accumulate weights.
-        batch_size: int, optional
-            Define the number of cases to train at once. If left unspecified,
-            the batch size will be determined automatically.
-        derived_features: iterable of str, optional
-            List of feature names for which values should be derived
-            in the specified order. If this list is not provided, features with
-            the 'auto_derive_on_train' feature attribute set to True will be
-            auto-derived. If provided an empty list, no features are derived.
-            Any derived_features that are already in the 'features' list will
-            not be derived since their values are being explicitly provided.
-        initial_batch_size: int, optional
-            Define the number of cases to train in the first batch. If
-            unspecified, the value of the ``train_initial_batch_size`` property
-            is used. The number of cases in following batches will be
-            automatically adjusted. This value is ignored if ``batch_size`` is
-            specified.
-        input_is_substituted : bool, default False
-            if True assumes provided nominal feature values have
-            already been substituted.
-        progress_callback : callable, optional
-            A callback method that will be called before each
-            batched call to train and at the end of training. The method is
-            given a ProgressTimer containing metrics on the progress and timing
-            of the train operation.
-        series : str, optional
-            Name of the series to pull features and case values
-            from internal series storage. If specified, trains on all cases
-            that are stored in the internal series store for the specified
-            series. The trained feature set is the combined features from
-            storage and the passed in features. If cases is of length one,
-            the value(s) of this case are appended to all cases in the series.
-            If cases is the same length as the series, the value of each case
-            in cases is applied in order to each of the cases in the series.
-        skip_auto_analyze : bool, default False
-            When true, the Trainee will not auto-analyze when appropriate.
-            Instead, the boolean response will be True if an analyze is needed.
-        train_weights_only : bool, default False
-            When true, and accumulate_weight_feature is provided,
-            will accumulate all of the cases' neighbor weights instead of
-            training the cases into the model.
-        validate : bool, default True
-            Whether to validate the data against the provided feature
-            attributes. Issues warnings if there are any discrepancies between
-            the data and the features dictionary.
-
-        Returns
-        -------
-        bool
-            Flag indicating if the Trainee needs to analyze. Only true if
-            auto-analyze is enabled and the conditions are met.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
-
-        # Make sure single table dicts are wrapped by SingleTableFeatureAttributes
-        if isinstance(feature_attributes, Dict) and not isinstance(feature_attributes,
-                                                                   MultiTableFeatureAttributes):
-            feature_attributes = SingleTableFeatureAttributes(feature_attributes, {})
-
-        # Check to see if the feature attributes still generally describe
-        # the data, and warn the user if they do not
-        if isinstance(cases, DataFrame) and validate:
-            try:
-                feature_attributes.validate(cases)
-            except NotImplementedError:
-                # MultiTableFeatureAttributes does not yet support DataFrame validation
-                pass
-
-        # See if any features were inferred to have data that is unsupported by the OS.
-        # Issue a warning and drop the feature before training, if so.
-        unsupported_features = []
-        if isinstance(feature_attributes, MultiTableFeatureAttributes):
-            for stfa in feature_attributes.values():
-                unsupported_features = [feat for feat in stfa.keys() if stfa.has_unsupported_data(feat)]
-        elif isinstance(feature_attributes, SingleTableFeatureAttributes):
-            unsupported_features = [feat for feat in feature_attributes.keys()
-                                    if feature_attributes.has_unsupported_data(feat)]
-        for feature in unsupported_features:
-            warnings.warn(f'Ignoring feature {feature} as it contains values that are too '
-                          'large or small for your operating system. Please evaluate the '
-                          'bounds for this feature.')
-            cases.drop(feature, axis=1, inplace=True)
-
-        validate_list_shape(features, 1, "features", "str")
-        if self.verbose:
-            print(f'Training session(s) on trainee with id: {trainee_id}')
-
-        validate_list_shape(cases, 2, "cases", "list", allow_none=False)
-        if features is None:
-            features = internals.get_features_from_data(cases)
-        cases = serialize_cases(cases, features, feature_attributes, warn=True)
-
-        needs_analyze = False
-
-        with ProgressTimer(len(cases)) as progress:
-            gen_batch_size = None
-            batch_scaler = None
-            if series is not None:
-                # If training series, always send full size
-                batch_size = len(cases)
-            if not batch_size:
-                # Scale the batch size automatically
-                start_batch_size = initial_batch_size or self.train_initial_batch_size
-                batch_scaler = self.batch_scaler_class(
-                    start_batch_size, progress)
-                gen_batch_size = batch_scaler.gen_batch_size()
-                batch_size = next(gen_batch_size, None)
-
-            while not progress.is_complete and batch_size:
-                if isinstance(progress_callback, Callable):
-                    progress_callback(progress)
-                start = progress.current_tick
-                end = progress.current_tick + batch_size
-                response, in_size, out_size = self.howso.train(
-                    trainee_id,
-                    accumulate_weight_feature=accumulate_weight_feature,
-                    derived_features=derived_features,
-                    features=features,
-                    input_cases=cases[start:end],
-                    input_is_substituted=input_is_substituted,
-                    series=series,
-                    session=self.active_session.id,
-                    skip_auto_analyze=skip_auto_analyze,
-                    train_weights_only=train_weights_only,
-                )
-                if response and response.get('status') == 'analyze':
-                    needs_analyze = True
-                if batch_scaler is None or gen_batch_size is None:
-                    progress.update(batch_size)
-                else:
-                    batch_size = batch_scaler.send(
-                        gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size)))
-
-        # Final call to batch callback on completion
-        if isinstance(progress_callback, Callable):
-            progress_callback(progress)
-
-        # Add session metadata to trainee
-        self.howso.set_session_metadata(
-            trainee_id,
-            self.active_session.id,
-            self.active_session.to_dict()
-        )
-
-        self._auto_persist_trainee(trainee_id)
-
-        return needs_analyze
 
     def get_trainee_sessions(self, trainee_id: str) -> List[Dict[str, str]]:
         """
@@ -3904,105 +3866,3 @@ class HowsoDirectClient(AbstractHowsoClient):
             child_id=child_id,
             child_name_path=child_name_path
         )
-
-    def get_label(self, entity_id: str, label: str) -> object:
-        """
-        Get a label value from a Trainee.
-
-        Parameters
-        ----------
-        entity_id : str
-            The ID of the Trainee to get the label from.
-        label : str
-            The label name to get the value from.
-
-        Returns
-        -------
-        object
-            The value of the label requested.
-        """
-        if self.verbose:
-            print(f'Gets a label from trainee with id: {entity_id}')
-        return self.howso.amlg.get_json_from_label(entity_id, label)
-
-    def set_label(self, entity_id: str, label: str, label_value: str):
-        """
-        Set a label value in the trainee.
-
-        Parameters
-        ----------
-        entity_id : str
-            The ID of the Trainee containing/to contain the label.
-        label : str
-            The name of the label.
-        label_value : object
-            The value to set to the label.
-        """
-        if self.verbose:
-            print(f'Setting label for trainee with id: {entity_id}')
-        return self.howso.amlg.set_json_to_label(
-            entity_id, label, json.dumps(label_value))
-
-    def execute_label(self, entity_id: str, label: str) -> object:
-        """
-        Execute a label in the trainee.
-
-        Parameters
-        ----------
-        entity_id : str
-            The ID of the Trainee that contains the label to be executed.
-        label : str
-            The name of the label to execute.
-
-        Returns
-        -------
-            The raw response from the trainee.
-        """
-        if self.verbose:
-            print(f'Executing label for trainee with id: {entity_id}')
-        return self.howso.amlg.execute_entity_json(entity_id, label, "{}")
-
-    def compute_feature_weights(
-        self,
-        trainee_id: str,
-        action_feature: Optional[str] = None,
-        context_features: Optional[Iterable[str]] = None,
-        robust: bool = False,
-        weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
-    ) -> Dict[str, float]:
-        """
-        Compute and set feature weights for specified context and action features.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee.
-        action_feature : str, optional
-            Action feature for which to set the specified feature weights for.
-        context_features: iterable of str
-            List of context feature names.
-        robust : bool, default False.
-            When true, the power set/permutations of features are used as
-            contexts to calculate the residual for a given feature. When
-            false, the full set of features is used to calculate the
-            residual for a given feature.
-        weight_feature : str, optional
-            Name of feature whose values to use as case weights.
-            When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
-            If set to True will scale influence weights by each
-            case's weight_feature weight.
-
-        Returns
-        -------
-        dict
-            A dictionary of computed context features -> weights
-        """
-        self._auto_resolve_trainee(trainee_id)
-
-        weights = self.howso.compute_feature_weights(
-            trainee_id, action_feature, context_features, robust,
-            weight_feature, use_case_weights)
-        self._auto_persist_trainee(trainee_id)
-        return weights
