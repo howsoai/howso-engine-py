@@ -78,7 +78,7 @@ class FeatureSerializer:
         columns : list of str or None
             The case column mapping. The order corresponds to the order of cases
             in output.
-        features : dict
+        features : Mapping
             The dictionary of feature name to feature attributes.
         warn : bool, default False
             If warnings should be raised by serializer.
@@ -178,7 +178,7 @@ class FeatureSerializer:
             The order corresponds to how the data will be mapped to columns in
             the output. Ignored for list of dict where the dict key is the column
             name.
-        features : dict, default None
+        features : Mapping, default None
             (Optional) The dictionary of feature name to feature attributes.
 
             If not specified, no column typing will be attempted.
@@ -207,7 +207,7 @@ class FeatureSerializer:
         ----------
         df : pandas.DataFrame
             The DataFrame to format columns of.
-        features : dict
+        features : Mapping
             The dictionary of feature name to feature attributes.
 
         Returns
