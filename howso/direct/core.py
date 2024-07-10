@@ -744,39 +744,6 @@ class HowsoCore:
             "impute_session": impute_session,
         })
 
-    def append_to_series_store(
-        self,
-        trainee_id: str,
-        series: str,
-        contexts: List[List[Any]],
-        *,
-        context_features: Optional[Iterable[str]] = None
-    ) -> None:
-        """
-        Append the specified contexts to a series store.
-
-        For use with train series.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to append to.
-        series : str
-            The name of the series store to append to.
-        contexts : list of list of object
-            The list of list of context values to append to the series.
-        context_features : iterable of str, optional
-            The list of feature names for contexts.
-        """
-        return self._execute(
-            trainee_id, "append_to_series_store",
-            {
-                "context_features": context_features,
-                "context_values": contexts,
-                "series": series,
-            }
-        )
-
     def react(
         self,
         trainee_id: str,

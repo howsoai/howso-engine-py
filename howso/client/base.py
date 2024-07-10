@@ -883,16 +883,53 @@ class AbstractHowsoClient(ABC):
     def remove_series_store(self, trainee_id, series=None):
         """Clear stored series from trainee."""
 
-    @abstractmethod
     def append_to_series_store(
         self,
-        trainee_id,
-        series,
-        contexts,
+        trainee_id: str,
+        series: str,
+        contexts: TabularData2D,
         *,
-        context_features=None
+        context_features: t.Optional[Collection[str]] = None
     ):
-        """Append the specified contexts to a series store."""
+        """
+        Append the specified contexts to a series store.
+
+        For use with train series.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to append to.
+        series : str
+            The name of the series store to append to.
+        contexts : list of list of object or pandas.DataFrame
+            The list of list of context values to append to the series.
+        context_features : Collection of str, optional
+            The feature names corresponding to context values.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        cached_trainee = self.trainee_cache.get(trainee_id)
+
+        util.validate_list_shape(contexts, 2, "contexts", "list of object", allow_none=False)
+
+        if context_features is None:
+            context_features = internals.get_features_from_data(
+                contexts,
+                data_parameter='contexts',
+                features_parameter='context_features'
+            )
+
+        # Preprocess contexts
+        serialized_contexts = serialize_cases(contexts, context_features, cached_trainee.features)
+
+        if self.configuration.verbose:
+            print(f'Appending to series store for Trainee with id: {trainee_id}, and series: {series}')
+
+        self.execute(trainee_id, "append_to_series_store", {
+            "context_features": context_features,
+            "context_values": serialized_contexts,
+            "series": series,
+        })
 
     def set_substitute_feature_values(self, trainee_id: str, substitution_value_map: Mapping):
         """
@@ -1481,7 +1518,6 @@ class AbstractHowsoClient(ABC):
         self._auto_persist_trainee(trainee_id)
         return stats
 
-    @abstractmethod
     def react_group(
         self,
         trainee_id: str,

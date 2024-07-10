@@ -2178,59 +2178,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         return ret, in_size, out_size
 
-    def append_to_series_store(
-        self,
-        trainee_id: str,
-        series: str,
-        contexts: Union[List[List[object]], DataFrame],
-        *,
-        context_features: Optional[Iterable[str]] = None
-    ):
-        """
-        Append the specified contexts to a series store.
-
-        For use with train series.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to append to.
-        series : str
-            The name of the series store to append to.
-        contexts : list of list of object or pandas.DataFrame
-            The list of list of context values to append to the series.
-        context_features : iterable of str, optional
-            The list of feature names for contexts.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        cached_trainee = self.trainee_cache.get(trainee_id)
-
-        validate_list_shape(contexts, 2, "contexts", "list of object",
-                            allow_none=False)
-
-        if context_features is None:
-            context_features = internals.get_features_from_data(
-                contexts,
-                data_parameter='contexts',
-                features_parameter='context_features'
-            )
-
-        if len(np.array(contexts).shape) == 1 and len(contexts) > 0:
-            contexts = [contexts]
-
-        # Preprocess contexts
-        contexts = serialize_cases(
-            contexts, context_features, cached_trainee.features)
-
-        if self.verbose:
-            print('Appending to series store for trainee with id: '
-                  f'{trainee_id}, and series: {series}')
-
-        self.howso.append_to_series_store(trainee_id,
-                                          context_features=context_features,
-                                          contexts=contexts,
-                                          series=series)
-
     def react(  # noqa: C901
         self,
         trainee_id: str,
