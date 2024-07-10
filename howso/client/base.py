@@ -77,6 +77,28 @@ class AbstractHowsoClient(ABC):
     def trace(self) -> bool:
         """If tracing is enabled."""
 
+    @staticmethod
+    def sanitize_for_json(payload: t.Any, *, exclude_null: bool = False) -> t.Any:
+        """
+        Prepare payload for json serialization.
+
+        Parameters
+        ----------
+        payload : Any
+            The payload to sanitize.
+        exclude_null : bool, default False
+            If top level Mapping keys should be filtered out if they are null.
+
+        Returns
+        -------
+        Any
+            The sanitized payload.
+        """
+        payload = internals.sanitize_for_json(payload)
+        if exclude_null and isinstance(payload, Mapping):
+            payload = dict((k, v) for k, v in payload.items() if v is not None)
+        return payload
+
     @abstractmethod
     def _resolve_trainee(self, trainee_id: str, **kwargs) -> str:
         """
@@ -387,7 +409,7 @@ class AbstractHowsoClient(ABC):
 
         # Convert session instance to id
         if (
-            isinstance(condition, dict) and
+            isinstance(condition, MutableMapping) and
             isinstance(condition.get('.session'), Session)
         ):
             condition['.session'] = condition['.session'].id
@@ -515,7 +537,7 @@ class AbstractHowsoClient(ABC):
 
         # Convert session instance to id
         if (
-            isinstance(condition, dict) and
+            isinstance(condition, MutableMapping) and
             isinstance(condition.get('.session'), Session)
         ):
             condition['.session'] = condition['.session'].id
@@ -627,7 +649,7 @@ class AbstractHowsoClient(ABC):
 
         # Convert session instance to id
         if (
-            isinstance(condition, dict) and
+            isinstance(condition, MutableMapping) and
             isinstance(condition.get('.session'), Session)
         ):
             condition['.session'] = condition['.session'].id
@@ -877,6 +899,13 @@ class AbstractHowsoClient(ABC):
 
         if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
             warnings.warn(self.WARNING_MESSAGES['invalid_precision'])
+
+        # Convert session instance to id
+        if (
+            isinstance(condition, MutableMapping) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
 
         if self.configuration.verbose:
             print(f'Getting feature marginal stats for trainee with id: {trainee_id}')
@@ -1703,9 +1732,16 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(features, 1, "features", "str")
         if session is None and case_indices is None:
             warnings.warn("Calling get_cases without a session id does not guarantee case order.")
+
+        # Convert session instance to id
+        if (
+            isinstance(condition, MutableMapping) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
+
         if self.configuration.verbose:
             print(f'Retrieving cases for Trainee with id {trainee_id}.')
-
         result = self._execute(trainee_id, "get_cases", {
             "features": features,
             "session": session,
@@ -1918,6 +1954,13 @@ class AbstractHowsoClient(ABC):
                 raise AssertionError("Failed to preprocess feature attributes for new feature.")
             feature_attributes = updated_attributes[feature]
 
+        # Convert session instance to id
+        if (
+            isinstance(condition, MutableMapping) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
+
         if self.configuration.verbose:
             print(f'Adding feature "{feature}" to Trainee with id {trainee_id}.')
         self._execute(trainee_id, "add_feature", {
@@ -1987,6 +2030,13 @@ class AbstractHowsoClient(ABC):
 
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+
+        # Convert session instance to id
+        if (
+            isinstance(condition, MutableMapping) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
 
         if self.configuration.verbose:
             print(f'Removing feature "{feature}" from Trainee with id: {trainee_id}')
