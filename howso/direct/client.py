@@ -4239,7 +4239,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             If True, will not attempt to retrieve the selected stats from the cache and will always
             relcalculate the stats, even if they exist in cache, will update the cache with the most recent
             calculations. If True and stats are not cached, will then calculate them. If not provided,
-            will default to none, which behaves like False, and will results in always attempting to
+            will default to none, which behaves like False, and will result in always attempting to
             retrieve the stats from cache first.
         confusion_matrix_min_count : int, optional
             The number of predictions a class should have (value of a cell in the
