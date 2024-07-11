@@ -794,11 +794,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         instance = Trainee.from_dict(trainee) if isinstance(trainee, Mapping) else trainee
 
         if not instance.id:
-            raise ValueError("A trainee id is required.")
+            raise ValueError("A Trainee id is required.")
 
-        self._auto_resolve_trainee(instance.id)
-        if self.verbose:
-            print(f'Updating trainee with id: {instance.id}')
+        self._resolve_trainee(instance.id)
+        if self.configuration.verbose:
+            print(f'Updating Trainee with id: {instance.id}')
 
         instance = internals.preprocess_trainee(instance)
         metadata = {
@@ -806,9 +806,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             'metadata': instance.metadata,
             'persistence': instance.persistence,
         }
-        self.howso.set_metadata(instance.id, metadata)
-        self.howso.set_feature_attributes(instance.id, instance.features)
-        instance.features = self.howso.get_feature_attributes(instance.id)
+        self.execute(instance.id, "set_metadata", {"metadata": metadata})
+        self.execute(instance.id, "set_feature_attributes", {"feature_attributes": instance.features})
+        instance.features = self.execute(instance.id, "get_feature_attributes", {})
 
         updated_trainee = internals.postprocess_trainee(instance)
         self.trainee_cache.set(updated_trainee)
@@ -1028,7 +1028,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.amlg.destroy_entity(trainee_id)
         self.trainee_cache.discard(trainee_id)
 
-        if self.verbose:
+        if self.configuration.verbose:
             print(f'Deleting trainee with id {trainee_id}')
 
         if file_path:
@@ -1296,7 +1296,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if metadata is not None and not isinstance(metadata, Mapping):
             raise TypeError("`metadata` must be a Mapping")
 
-        if self.verbose:
+        if self.configuration.verbose:
             print('Starting new session')
         self._active_session = Session(
             id=str(uuid.uuid4()),
@@ -1325,16 +1325,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         list of Session
             The listing of session instances.
         """
-        if self.verbose:
-            print('Getting listing of sessions')
+        if self.configuration.verbose:
+            print('Querying accessible sessions')
         filter_terms = []
         filtered_sessions = []
         if search_terms:
             filter_terms = search_terms.replace(',', ' ').split(' ')
 
         for trainee_id in self.trainee_cache.ids():
-            sessions = self.howso.get_sessions(
-                trainee_id, attributes=list(Session.attribute_map))
+            sessions = self.execute(trainee_id, "get_sessions", {"attributes": list(Session.attribute_map)})
             if not sessions:
                 continue
 
@@ -1379,7 +1378,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         Session
             The session instance.
         """
-        if self.verbose:
+        if self.configuration.verbose:
             print(f'Getting session with id: {session_id}')
 
         if session_id == self.active_session.id:
@@ -1392,7 +1391,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         session = None
         for trainee_id in loaded_trainees:
             try:
-                session_data = self.howso.get_session_metadata(trainee_id, session_id)
+                session_data = self.execute(trainee_id, "get_session_metadata", {"session": session_id})
                 if session_data is None:
                     continue  # Not found
             except HowsoError:
@@ -1408,7 +1407,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError("Session not found")
         return session
 
-    def update_session(self, session_id: str, *, metadata: Optional[Mapping] = None) -> Session:
+    def update_session(self, session_id: str, *, metadata: t.Optional[Mapping] = None) -> Session:
         """
         Update a session.
 
@@ -1435,22 +1434,23 @@ class HowsoDirectClient(AbstractHowsoClient):
             If `session_id` is not found for the active session or any of
             the session(s) of a loaded Trainees.
         """
-        if metadata is not None and not isinstance(metadata, dict):
-            raise TypeError("`metadata` must be a dict")
-        if self.verbose:
+        if metadata is not None and not isinstance(metadata, Mapping):
+            raise TypeError("`metadata` must be a Mapping")
+        if self.configuration.verbose:
             print(f'Updating session for session with id: {session_id}')
 
         updated_session = None
         modified_date = datetime.now(timezone.utc)
         # We remove the trainee_id since this may have been set by the
         # get_session(s) methods and is not needed to be stored in the model.
-        if metadata is not None:
+        if metadata is not None and 'trainee_id' in metadata:
+            metadata = dict(metadata)
             metadata.pop('trainee_id', None)
 
         # Update session across all loaded trainees
         for trainee_id in self.trainee_cache.ids():
             try:
-                session_data = self.howso.get_session_metadata(trainee_id, session_id)
+                session_data = self.execute(trainee_id, "get_session_metadata", {"session": session_id})
                 if session_data is None:
                     continue  # Not found
             except HowsoError:
@@ -1458,7 +1458,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 continue
             session_data['metadata'] = metadata
             session_data['modified_date'] = modified_date
-            self.howso.set_session_metadata(trainee_id, session_id, session_data)
+            self.execute(trainee_id, "set_session_metadata", {
+                "session": session_id,
+                "metadata": session_data,
+            })
             updated_session = Session.from_dict(session_data)
 
         if self.active_session.id == session_id:

@@ -358,50 +358,6 @@ class HowsoCore:
             "trainee_id": subtrainee_id
         })
 
-    def set_session_metadata(
-        self,
-        trainee_id: str,
-        session: str,
-        metadata: Optional[Dict]
-    ) -> None:
-        """
-        Set the Trainee session metadata.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        session : str
-            The identifier of the Trainee session.
-        metadata : dict
-            The metadata to associate to the session.
-        """
-        return self._execute(trainee_id, "set_session_metadata", {
-            "session": session,
-            "metadata": metadata,
-        })
-
-    def get_session_metadata(self, trainee_id: str, session: str
-                             ) -> Union[Dict, None]:
-        """
-        Get the Trainee session metadata.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The identifier of the Trainee.
-        session : str
-            The identifier of the Trainee session.
-
-        Returns
-        -------
-        dict or None
-            The metadata of the session. Or None if no metadata set.
-        """
-        return self._execute(trainee_id, "get_session_metadata", {
-            "session": session,
-        })
-
     def set_metadata(self, trainee_id: str, metadata: Union[Dict, None]
                      ) -> None:
         """
