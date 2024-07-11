@@ -290,14 +290,6 @@ class AbstractHowsoClient(ABC):
         """Copy a trainee in the Howso service."""
 
     @abstractmethod
-    def copy_subtrainee(
-        self, trainee_id, new_trainee_name, *,
-        target_name_path=None, target_id=None,
-        source_name_path=None, source_id=None
-    ):
-        """Copy a subtrainee in trainee's hierarchy."""
-
-    @abstractmethod
     def acquire_trainee_resources(self, trainee_id: str, *, max_wait_time: t.Optional[int | float] = None):
         """Acquire resources for a Trainee in the Howso service."""
 
@@ -1208,21 +1200,6 @@ class AbstractHowsoClient(ABC):
         if result is None:
             return []
         return result
-
-    @abstractmethod
-    def get_hierarchy(self, trainee_id) -> dict:
-        """Output the hierarchy for a trainee."""
-
-    @abstractmethod
-    def rename_subtrainee(
-        self,
-        trainee_id,
-        new_name,
-        *,
-        child_name_path=None,
-        child_id=None
-    ) -> None:
-        """Renames a contained child trainee in the hierarchy."""
 
     def get_marginal_stats(
         self,
