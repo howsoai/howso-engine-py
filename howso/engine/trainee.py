@@ -41,11 +41,9 @@ __all__ = [
     "Trainee",
     "list_trainees",
     "load_trainee",
-    "get_hierarchy",
     "get_trainee",
     "delete_trainee",
     "query_trainees",
-    "rename_subtrainee",
 ]
 
 
@@ -447,46 +445,6 @@ class Trainee(BaseTrainee):
             return Trainee.from_schema(copy, client=self.client)
         else:
             raise ValueError('Trainee not correctly copied')
-
-    def copy_subtrainee(
-        self,
-        new_trainee_name: str,
-        *,
-        source_id: Optional[str] = None,
-        source_name_path: Optional[List[str]] = None,
-        target_id: Optional[str] = None,
-        target_name_path: Optional[List[str]] = None,
-    ):
-        """
-        Copy a subtrainee in trainee's hierarchy.
-
-        Parameters
-        ----------
-        new_trainee_name: str
-            The name of the new Trainee.
-        source_id: str, optional
-            Id of source trainee to copy. Ignored if source_name_path is
-            specified. If neither source_name_path nor source_id are specified,
-            copies the trainee itself.
-        source_name_path: list of str, optional
-            list of strings specifying the user-friendly path of the child
-            subtrainee to copy.
-        target_id: str, optional
-            Id of target trainee to copy trainee into.  Ignored if
-            target_name_path is specified. If neither target_name_path nor
-            target_id are specified, copies as a direct child of trainee.
-        target_name_path: list of str, optional
-            List of strings specifying the user-friendly path of the child
-            subtrainee to copy trainee into.
-        """
-        self.client.copy_subtrainee(
-            self.id,
-            new_trainee_name,
-            source_id=source_id,
-            source_name_path=source_name_path,
-            target_id=target_id,
-            target_name_path=target_name_path
-        )
 
     def persist(self) -> None:
         """
@@ -3978,45 +3936,3 @@ def query_trainees(
 
     # picks up base
     return client.query_trainees(**params)
-
-
-def get_hierarchy(self) -> Dict:
-    """
-    Output the hierarchy for a trainee.
-
-    Returns
-    -------
-    dict of {str: dict}
-        Dictionary of the currently contained hierarchy as a nested dict
-        with False for trainees that are stored independently.
-    """
-    return self.client.get_hierarchy(self.id)
-
-
-def rename_subtrainee(
-    self,
-    new_name: str,
-    *,
-    child_id: Optional[str] = None,
-    child_name_path: Optional[List[str]] = None
-) -> None:
-    """
-    Renames a contained child trainee in the hierarchy.
-
-    Parameters
-    ----------
-    new_name : str
-        New name of child trainee
-    child_id : str, optional
-        Unique id of child trainee to rename. Ignored if child_name_path is
-        specified.
-    child_name_path : list of str, optional
-        List of strings specifying the user-friendly path of the child
-        subtrainee to rename.
-    """
-    self.client.rename_subtrainee(
-        self.id,
-        child_name_path=child_name_path,
-        child_id=child_id,
-        new_name=new_name
-    )
