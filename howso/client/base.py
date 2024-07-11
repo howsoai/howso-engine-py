@@ -8,7 +8,7 @@ from uuid import UUID
 import warnings
 
 import numpy as np
-from pandas import DataFrame, Index
+from pandas import DataFrame
 
 from howso.utilities import internals
 from howso.utilities import utilities as util
@@ -274,8 +274,8 @@ class AbstractHowsoClient(ABC):
         """Get information about the trainee."""
 
     @abstractmethod
-    def get_trainees(self, search_terms=None) -> list[dict]:
-        """Return a list of all accessible trainees."""
+    def query_trainees(self, search_terms: t.Optional[str] = None) -> list[dict]:
+        """Query accessible Trainees."""
 
     @abstractmethod
     def delete_trainee(self, trainee_id: str, *, file_path: t.Optional[Path | str] = None):
@@ -1095,36 +1095,119 @@ class AbstractHowsoClient(ABC):
         return internals.postprocess_feature_attributes(feature_attributes)
 
     @abstractmethod
-    def get_sessions(self, search_terms=None) -> list[Session]:
-        """Get list of all accessible sessions."""
-
-    @abstractmethod
-    def get_session(self, session_id) -> Session:
-        """Get session details."""
-
-    @abstractmethod
-    def update_session(self, session_id, *, metadata=None) -> Session:
-        """Update a session."""
-
-    @abstractmethod
-    def begin_session(self, name='default', metadata=None) -> Session:
+    def begin_session(self, name: str = 'default', metadata: t.Optional[Mapping] = None) -> Session:
         """Begin a new session."""
 
     @abstractmethod
-    def get_trainee_sessions(self, trainee_id) -> list[dict[str, str]]:
-        """Get the session ids of a trainee."""
+    def query_sessions(self, search_terms: t.Optional[str] = None, **kwargs) -> list[Session]:
+        """Query all accessible sessions."""
 
     @abstractmethod
-    def delete_trainee_session(self, trainee_id, session):
-        """Delete a session from a trainee."""
+    def get_session(self, session_id: str) -> Session:
+        """Get session details."""
 
     @abstractmethod
-    def get_trainee_session_indices(self, trainee_id, session) -> Index | list[int]:
-        """Get list of all session indices for a specified session."""
+    def update_session(self, session_id: str, *, metadata: t.Optional[Mapping] = None) -> Session:
+        """Update a session."""
 
-    @abstractmethod
-    def get_trainee_session_training_indices(self, trainee_id, session) -> Index | list[int]:
-        """Get list of all session training indices for a specified session."""
+    def get_sessions(self, trainee_id: str) -> list[dict[str, str]]:
+        """
+        Get all sessions in a Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to get the list of sessions from.
+
+        Returns
+        -------
+        list of dict of str to str
+            A list of dicts with keys "id" and "name" for each session
+            in the Trainee.
+
+        Examples
+        --------
+        >>> print(cl.get_trainee_sessions(trainee.id))
+        [{'id': '6c35e481-fb49-4178-a96f-fe4b5afe7af4', 'name': 'default'}]
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Getting sessions from Trainee with id: {trainee_id}')
+        result = self.execute(trainee_id, "get_sessions", {"attributes": ['name', ]})
+        if not result:
+            return []
+        return result
+
+    def delete_session(self, trainee_id: str, session: str | Session):
+        """
+        Delete a session from a Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to delete the session from.
+        session : str
+            The session or session identifier to delete.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if isinstance(session, Session):
+            session = session.id
+        if self.configuration.verbose:
+            print(f'Deleting session {session} from Trainee with id: {trainee_id}')
+        self.execute(trainee_id, "delete_session", {"session": session})
+        self._auto_persist_trainee(trainee_id)
+
+    def get_session_indices(self, trainee_id: str, session: str | Session) -> list[int]:
+        """
+        Get list of all session indices for a specified session.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee get parameters from.
+        session : str
+            The session or session identifier to retrieve indices of.
+
+        Returns
+        -------
+        list of int
+            A list of the session indices for the session.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if isinstance(session, Session):
+            session = session.id
+        if self.configuration.verbose:
+            print(f'Getting session {session} indices from Trainee with id: {trainee_id}')
+        result = self.execute(trainee_id, "get_session_indices", {"session": session})
+        if result is None:
+            return []
+        return result
+
+    def get_session_training_indices(self, trainee_id: str, session: str | Session) -> list[int]:
+        """
+        Get list of all session training indices for a specified session.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee get parameters from.
+        session : str or Session
+            The session or session identifier to retrieve indices of.
+
+        Returns
+        -------
+        list of int
+            A list of the session training indices for the session.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if isinstance(session, Session):
+            session = session.id
+        if self.configuration.verbose:
+            print(f'Getting session {session} training indices from Trainee with id: {trainee_id}')
+        result = self.execute(trainee_id, "get_session_training_indices", {"session": session})
+        if result is None:
+            return []
+        return result
 
     @abstractmethod
     def get_hierarchy(self, trainee_id) -> dict:

@@ -40,8 +40,12 @@ from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 __all__ = [
     "Trainee",
     "list_trainees",
+    "load_trainee",
+    "get_hierarchy",
     "get_trainee",
     "delete_trainee",
+    "query_trainees",
+    "rename_subtrainee",
 ]
 
 
@@ -3901,7 +3905,7 @@ def get_trainee(
     name_or_id: str,
     *,
     client: Optional[AbstractHowsoClient] = None
-) -> "Trainee" | None:
+) -> Trainee | None:
     """
     Get an existing trainee from Howso Services.
 
@@ -3923,14 +3927,25 @@ def get_trainee(
         return Trainee.from_schema(trainee, client=client)
 
 
-def list_trainees(
+def list_trainees(*args, **kwargs):
+    """
+    Query accessible Trainees.
+
+    DEPRECATED: use `query_trainees` instead.
+    """
+    warnings.warn(
+        "The method `list_trainees` is deprecated. Use `query_trainees` instead.", DeprecationWarning)
+    return query_trainees(*args, **kwargs)
+
+
+def query_trainees(
     search_terms: Optional[str] = None,
     *,
     client: Optional[AbstractHowsoClient] = None,
     project: Optional[str | BaseProject] = None,
-) -> List["Dict"]:
+) -> list[dict]:
     """
-    Get listing of available trainees.
+    Query accessible Trainees.
 
     This method only returns a simplified informational listing of available
     trainees, not full engine Trainee instances. To get a Trainee instance
@@ -3962,7 +3977,7 @@ def list_trainees(
             params["project_id"] = project
 
     # picks up base
-    return client.get_trainees(**params)
+    return client.query_trainees(**params)
 
 
 def get_hierarchy(self) -> Dict:

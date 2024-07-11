@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Optional
 from uuid import UUID
+import warnings
 
 from howso.client import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
@@ -15,6 +16,7 @@ __all__ = [
     'get_active_session',
     'get_session',
     'list_sessions',
+    'query_sessions',
     'Session',
 ]
 
@@ -264,14 +266,25 @@ def get_session(
     return Session.from_schema(session, client=client)
 
 
-def list_sessions(
+def list_sessions(*args, **kwargs) -> list[Session]:
+    """
+    Query accessible Sessions.
+
+    DEPRECATED: Use `query_sessions` instead.
+    """
+    warnings.warn(
+        "The method `list_sessions` is deprecated. Use `query_sessions` instead.", DeprecationWarning)
+    return query_sessions(*args, **kwargs)
+
+
+def query_sessions(
     search_terms: Optional[str] = None,
     *,
     client: Optional[AbstractHowsoClient] = None,
     project: Optional[str | BaseProject] = None
 ) -> list[Session]:
     """
-    Get listing of Sessions.
+    Query accessible Sessions.
 
     Parameters
     ----------
@@ -299,5 +312,5 @@ def list_sessions(
         else:
             params["project_id"] = project
 
-    sessions = client.get_sessions(**params)
+    sessions = client.query_sessions(**params)
     return [Session.from_schema(s, client=client) for s in sessions]

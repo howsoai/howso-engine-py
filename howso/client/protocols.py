@@ -57,6 +57,6 @@ class ProjectClient(Protocol):
         """Get existing project."""
         ...
 
-    def get_projects(self, search_terms: Optional[str]) -> list[Project]:
-        """Search and list projects."""
+    def query_projects(self, search_terms: Optional[str]) -> list[Project]:
+        """Query available projects."""
         ...
