@@ -10,7 +10,6 @@ import importlib.metadata
 import inspect
 import json
 import logging
-import multiprocessing
 import operator
 import os
 from pathlib import Path
@@ -18,24 +17,16 @@ import platform
 import typing as t
 from typing import (
     Any,
-    Callable,
     Dict,
-    Iterable,
     List,
     Literal,
     Optional,
-    Sequence,
-    Sized,
-    Tuple,
-    Union,
 )
 import uuid
 import warnings
 
 import certifi
-import numpy as np
 from packaging.version import parse as parse_version
-from pandas import DataFrame
 import urllib3
 from urllib3.util import Retry, Timeout
 
@@ -46,18 +37,9 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError, HowsoWarning, UnsupportedArgumentWarning
-from howso.client.schemas import HowsoVersion, Project, Reaction, Session, Trainee
+from howso.client.schemas import HowsoVersion, Project, Session, Trainee
 from howso.client.typing import Persistence
-from howso.utilities import (
-    build_react_series_df,
-    internals,
-    num_list_dimensions,
-    ProgressTimer,
-    replace_doublemax_with_infinity,
-    serialize_cases,
-    validate_case_indices,
-    validate_list_shape
-)
+from howso.utilities import internals
 
 # Client version
 CLIENT_VERSION = importlib.metadata.version('howso-engine')
@@ -144,7 +126,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def __init__(
         self, *,
         amalgam: t.Optional[Mapping[str, t.Any]] = None,
-        config_path: Union[str, Path, None] = None,
+        config_path: t.Optional[Path | str] = None,
         debug: bool = False,
         default_persist_path: t.Optional[Path | str] = None,
         howso_path: Path | str = DEFAULT_ENGINE_PATH,
@@ -242,7 +224,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         amlg_params = {k: v for k, v in amlg_params.items() if k in allowed_amlg_params}
         self.amlg = Amalgam(**amlg_params)
 
-    def check_version(self) -> Union[str, None]:
+    def check_version(self) -> str | None:
         """Check if there is a more recent version."""
         http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED',
                                    ca_certs=certifi.where(),
@@ -620,9 +602,9 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def check_name_valid_for_save(
         self,
-        file_path: Union[Path, str],
+        file_path: Path | str,
         clobber: bool = False,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         Ensure that the given filename is a valid name for the host OS.
 
@@ -795,13 +777,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.trainee_cache.set(new_trainee)
         return new_trainee
 
-    def update_trainee(self, trainee: Union[Dict, Trainee]) -> Trainee:
+    def update_trainee(self, trainee: Mapping | Trainee) -> Trainee:
         """
         Update an existing Trainee in the Howso service.
 
         Parameters
         ----------
-        trainee : dict or Trainee
+        trainee : Mapping or Trainee
             A `Trainee` object defining the Trainee.
 
         Returns
@@ -809,14 +791,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         Trainee
             The `Trainee` object that was updated.
         """
-        instance = Trainee.from_dict(trainee) if isinstance(trainee, dict) else trainee
+        instance = Trainee.from_dict(trainee) if isinstance(trainee, Mapping) else trainee
 
         if not instance.id:
-            raise ValueError("A trainee id is required.")
+            raise ValueError("A Trainee id is required.")
 
-        self._auto_resolve_trainee(instance.id)
-        if self.verbose:
-            print(f'Updating trainee with id: {instance.id}')
+        self._resolve_trainee(instance.id)
+        if self.configuration.verbose:
+            print(f'Updating Trainee with id: {instance.id}')
 
         instance = internals.preprocess_trainee(instance)
         metadata = {
@@ -824,9 +806,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             'metadata': instance.metadata,
             'persistence': instance.persistence,
         }
-        self.howso.set_metadata(instance.id, metadata)
-        self.howso.set_feature_attributes(instance.id, instance.features)
-        instance.features = self.howso.get_feature_attributes(instance.id)
+        self.execute(instance.id, "set_metadata", {"metadata": metadata})
+        self.execute(instance.id, "set_feature_attributes", {"feature_attributes": instance.features})
+        instance.features = self.execute(instance.id, "get_feature_attributes", {})
 
         updated_trainee = internals.postprocess_trainee(instance)
         self.trainee_cache.set(updated_trainee)
@@ -835,7 +817,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def export_trainee(
         self,
         trainee_id: str,
-        path_to_trainee: Optional[Union[Path, str]] = None,
+        path_to_trainee: t.Optional[Path | str] = None,
         decode_cases: bool = False,
     ):
         """
@@ -858,7 +840,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def upgrade_trainee(
         self,
         trainee_id: str,
-        path_to_trainee: Optional[Union[Path, str]] = None,
+        path_to_trainee: t.Optional[Path | str] = None,
         separate_files: bool = False
     ):
         """
@@ -937,19 +919,19 @@ class HowsoDirectClient(AbstractHowsoClient):
             "version": version
         }
 
-    def get_trainees(self, search_terms: Optional[str] = None) -> List[Dict]:
+    def query_trainees(self, search_terms: t.Optional[str] = None) -> list[dict]:
         """
-        Return a list of all trainees.
+        Query accessible Trainees.
 
         Parameters
         ----------
         search_terms : str
-            Keywords to filter trainee list by.
+            Keywords to filter Trainees by.
 
         Returns
         -------
-        list of Dict
-            A list of the trainee identities with schema {"name": TRAINEE_NAME, "id": TRAINEE_ID}
+        list of dict
+            A list of the Trainee identities with schema {"name": TRAINEE_NAME, "id": TRAINEE_ID}
         """
         trainees = list()
         filter_terms = []
@@ -1046,7 +1028,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.amlg.destroy_entity(trainee_id)
         self.trainee_cache.discard(trainee_id)
 
-        if self.verbose:
+        if self.configuration.verbose:
             print(f'Deleting trainee with id {trainee_id}')
 
         if file_path:
@@ -1188,7 +1170,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         *,
-        max_wait_time: Optional[Union[int, float]] = None
+        max_wait_time: t.Optional[int | float] = None
     ):
         """
         Acquire resources for a trainee in the Howso service.
@@ -1287,56 +1269,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.howso.persist(trainee_id)
 
-    def get_trainee_sessions(self, trainee_id: str) -> List[Dict[str, str]]:
-        """
-        Get the sessions of a trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to get the list of sessions from.
-
-        Returns
-        -------
-        list of dict of str to str
-            A list of dicts with keys "id" and "name" for each session
-            in the Trainee.
-
-        Examples
-        --------
-        >>> print(cl.get_trainee_sessions(trainee.id))
-        [{'id': '6c35e481-fb49-4178-a96f-fe4b5afe7af4', 'name': 'default'}]
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print(f'Getting sessions from trainee with id: {trainee_id}')
-        sessions = self.howso.get_sessions(trainee_id, attributes=['name', ])
-        if isinstance(sessions, Iterable):
-            return sessions
-        else:
-            return []
-
-    def delete_trainee_session(self, trainee_id: str, session: str):
-        """
-        Deletes a session from a trainee.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to delete the session from.
-        session : str
-            The id of the session to remove.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        if self.verbose:
-            print(f'Deleting session {session} from trainee with id: '
-                  f'{trainee_id}')
-        self.howso.remove_session(trainee_id, session)
-        self._auto_persist_trainee(trainee_id)
-
-    def begin_session(
-        self, name: str = "default", metadata: Optional[Dict] = None
-    ) -> Session:
+    def begin_session(self, name: str = "default", metadata: t.Optional[Mapping] = None) -> Session:
         """
         Begin a new session.
 
@@ -1344,7 +1277,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         name : str, default "default"
             The name of the session.
-        metadata : dict, optional
+        metadata : Mapping, optional
             Any key-value pair to store as custom metadata for the session.
 
         Returns
@@ -1360,10 +1293,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if not isinstance(name, str):
             raise TypeError("`name` must be a str")
-        if metadata is not None and not isinstance(metadata, dict):
-            raise TypeError("`metadata` must be a dict")
+        if metadata is not None and not isinstance(metadata, Mapping):
+            raise TypeError("`metadata` must be a Mapping")
 
-        if self.verbose:
+        if self.configuration.verbose:
             print('Starting new session')
         self._active_session = Session(
             id=str(uuid.uuid4()),
@@ -1374,7 +1307,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
         return self._active_session
 
-    def get_sessions(self, search_terms: Optional[str] = None) -> List[Session]:
+    def query_sessions(self, search_terms: t.Optional[str] = None, **kwargs) -> list[Session]:
         """
         Return a list of all accessible sessions.
 
@@ -1392,16 +1325,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         list of Session
             The listing of session instances.
         """
-        if self.verbose:
-            print('Getting listing of sessions')
+        if self.configuration.verbose:
+            print('Querying accessible sessions')
         filter_terms = []
         filtered_sessions = []
         if search_terms:
             filter_terms = search_terms.replace(',', ' ').split(' ')
 
         for trainee_id in self.trainee_cache.ids():
-            sessions = self.howso.get_sessions(
-                trainee_id, attributes=list(Session.attribute_map))
+            sessions = self.execute(trainee_id, "get_sessions", {"attributes": list(Session.attribute_map)})
             if not sessions:
                 continue
 
@@ -1446,7 +1378,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         Session
             The session instance.
         """
-        if self.verbose:
+        if self.configuration.verbose:
             print(f'Getting session with id: {session_id}')
 
         if session_id == self.active_session.id:
@@ -1459,7 +1391,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         session = None
         for trainee_id in loaded_trainees:
             try:
-                session_data = self.howso.get_session_metadata(trainee_id, session_id)
+                session_data = self.execute(trainee_id, "get_session_metadata", {"session": session_id})
                 if session_data is None:
                     continue  # Not found
             except HowsoError:
@@ -1475,7 +1407,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError("Session not found")
         return session
 
-    def update_session(self, session_id: str, *, metadata: Optional[Dict] = None) -> Session:
+    def update_session(self, session_id: str, *, metadata: t.Optional[Mapping] = None) -> Session:
         """
         Update a session.
 
@@ -1486,7 +1418,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         session_id : str
             The id of the session to update metadata for.
-        metadata : dict, optional
+        metadata : Mapping, optional
             Any key-value pair to store as custom metadata for the session.
 
         Returns
@@ -1502,22 +1434,23 @@ class HowsoDirectClient(AbstractHowsoClient):
             If `session_id` is not found for the active session or any of
             the session(s) of a loaded Trainees.
         """
-        if metadata is not None and not isinstance(metadata, dict):
-            raise TypeError("`metadata` must be a dict")
-        if self.verbose:
+        if metadata is not None and not isinstance(metadata, Mapping):
+            raise TypeError("`metadata` must be a Mapping")
+        if self.configuration.verbose:
             print(f'Updating session for session with id: {session_id}')
 
         updated_session = None
         modified_date = datetime.now(timezone.utc)
         # We remove the trainee_id since this may have been set by the
         # get_session(s) methods and is not needed to be stored in the model.
-        if metadata is not None:
+        if metadata is not None and 'trainee_id' in metadata:
+            metadata = dict(metadata)
             metadata.pop('trainee_id', None)
 
         # Update session across all loaded trainees
         for trainee_id in self.trainee_cache.ids():
             try:
-                session_data = self.howso.get_session_metadata(trainee_id, session_id)
+                session_data = self.execute(trainee_id, "get_session_metadata", {"session": session_id})
                 if session_data is None:
                     continue  # Not found
             except HowsoError:
@@ -1525,7 +1458,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 continue
             session_data['metadata'] = metadata
             session_data['modified_date'] = modified_date
-            self.howso.set_session_metadata(trainee_id, session_id, session_data)
+            self.execute(trainee_id, "set_session_metadata", {
+                "session": session_id,
+                "metadata": session_data,
+            })
             updated_session = Session.from_dict(session_data)
 
         if self.active_session.id == session_id:
@@ -1540,53 +1476,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError("Session not found")
         return updated_session
 
-    def get_trainee_session_indices(self, trainee_id: str, session: str
-                                    ) -> List[int]:
-        """
-        Get list of all session indices for a specified session.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee get parameters from.
-        session : str
-            The id of the session to retrieve indices from.
-
-        Returns
-        -------
-        list of int
-            A list of the session indices for the session.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        return self.howso.get_session_indices(trainee_id, session)
-
-    def get_trainee_session_training_indices(
-        self,
-        trainee_id: str,
-        session: str
-    ) -> List[int]:
-        """
-        Get list of all session training indices for a specified session.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee get parameters from.
-        session : str
-            The id of the session to retrieve indices from.
-
-        Returns
-        -------
-        list of int
-            A list of the session training indices for the session.
-        """
-        self._auto_resolve_trainee(trainee_id)
-        result = self.howso.get_session_training_indices(trainee_id, session)
-        if result is None:
-            return []
-        return result
-
-    def get_hierarchy(self, trainee_id: str) -> Dict:
+    def get_hierarchy(self, trainee_id: str) -> dict:
         """
         Output the hierarchy for a trainee.
 
@@ -1610,7 +1500,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_name: str,
         *,
         child_id: Optional[str] = None,
-        child_name_path: Optional[List[str]] = None
+        child_name_path: Optional[list[str]] = None
     ) -> None:
         """
         Renames a contained child trainee in the hierarchy.

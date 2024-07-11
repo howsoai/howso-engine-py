@@ -7,12 +7,14 @@ from .project import (
     get_project,
     list_projects,
     Project,
+    query_projects,
     switch_project,
 )
 from .session import (
     get_active_session,
     get_session,
     list_sessions,
+    query_sessions,
     Session,
 )
 from .trainee import (
@@ -20,6 +22,7 @@ from .trainee import (
     get_trainee,
     list_trainees,
     load_trainee,
+    query_trainees,
     Trainee,
 )
 
@@ -36,6 +39,9 @@ __all__ = [
     "list_trainees",
     "load_trainee",
     "Project",
+    "query_projects",
+    "query_sessions",
+    "query_trainees",
     "Session",
     "switch_project",
     "Trainee",

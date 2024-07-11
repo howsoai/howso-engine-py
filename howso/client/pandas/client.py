@@ -19,30 +19,30 @@ class HowsoPandasClientMixin:
     Base: :class:`howso.client.AbstractHowsoClient`
     """
 
-    def get_trainee_session_indices(self, *args, **kwargs) -> Index:
+    def get_session_indices(self, *args, **kwargs) -> Index:
         """
-        Base: :func:`howso.client.AbstractHowsoClient.get_trainee_session_indices`.
+        Base: :func:`howso.client.AbstractHowsoClient.get_session_indices`.
 
         Returns
         -------
         Index
             An index of the session indices for the requested session.
         """
-        indices = super().get_trainee_session_indices(*args, **kwargs)
+        indices = super().get_session_indices(*args, **kwargs)
         if isinstance(indices, list):
             return pd.Index(indices, dtype='int64')
         return pd.Index([], dtype='int64')
 
-    def get_trainee_session_training_indices(self, *args, **kwargs) -> Index:
+    def get_session_training_indices(self, *args, **kwargs) -> Index:
         """
-        Base: :func:`howso.client.AbstractHowsoClient.get_trainee_session_training_indices`.
+        Base: :func:`howso.client.AbstractHowsoClient.get_session_training_indices`.
 
         Returns
         -------
         Index
             An index of the session training indices for the requested session.
         """
-        indices = super().get_trainee_session_training_indices(*args, **kwargs)
+        indices = super().get_session_training_indices(*args, **kwargs)
         if isinstance(indices, list):
             return pd.Index(indices, dtype='int64')
         return pd.Index([], dtype='int64')

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Optional
 from uuid import UUID
+import warnings
 
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
@@ -15,6 +16,7 @@ __all__ = [
     'get_project',
     'list_projects',
     'Project',
+    'query_projects',
     'switch_project',
 ]
 
@@ -282,13 +284,24 @@ def get_project(
     return Project.from_schema(project, client=cl)
 
 
-def list_projects(
+def list_projects(*args, **kwargs) -> list[Project]:
+    """
+    Query accessible Projects.
+
+    DEPRECATED: use `get_projects` instead.
+    """
+    warnings.warn(
+        "The method `list_projects` is deprecated. Use `query_projects` instead.", DeprecationWarning)
+    return query_projects(*args, **kwargs)
+
+
+def query_projects(
     search_terms: Optional[str] = None,
     *,
     client: Optional[ProjectClient] = None
 ) -> list[Project]:
     """
-    Get listing of projects.
+    Query accessible Projects.
 
     Parameters
     ----------
@@ -305,7 +318,7 @@ def list_projects(
     cl = client or get_client()
     if not isinstance(cl, ProjectClient):
         raise HowsoError("Projects are not supported by the active Howso client.")
-    projects = cl.get_projects(search_terms)
+    projects = cl.query_projects(search_terms)
     return [Project.from_schema(project, client=cl) for project in projects]
 
 

@@ -40,8 +40,12 @@ from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 __all__ = [
     "Trainee",
     "list_trainees",
+    "load_trainee",
+    "get_hierarchy",
     "get_trainee",
     "delete_trainee",
+    "query_trainees",
+    "rename_subtrainee",
 ]
 
 
@@ -2066,7 +2070,7 @@ class Trainee(BaseTrainee):
             in the model.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            return self.client.get_trainee_sessions(self.id)
+            return self.client.get_sessions(self.id)
         else:
             raise ValueError("Client must have the 'get_sessions' method.")
 
@@ -2084,9 +2088,9 @@ class Trainee(BaseTrainee):
         else:
             session_id = session
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.delete_trainee_session(trainee_id=self.id, session=session_id)
+            self.client.delete_session(trainee_id=self.id, session=session_id)
         else:
-            raise ValueError("Client must have the 'delete_trainee_session' method.")
+            raise ValueError("Client must have the 'delete_session' method.")
 
     def get_session_indices(self, session: Union[str, BaseSession]) -> Index | List[int]:
         """
@@ -2107,7 +2111,7 @@ class Trainee(BaseTrainee):
             session_id = session.id
         else:
             session_id = session
-        return self.client.get_trainee_session_indices(
+        return self.client.get_session_indices(
             trainee_id=self.id,
             session=session_id,
         )
@@ -2131,7 +2135,7 @@ class Trainee(BaseTrainee):
             session_id = session.id
         else:
             session_id = session
-        return self.client.get_trainee_session_training_indices(
+        return self.client.get_session_training_indices(
             trainee_id=self.id,
             session=session_id,
         )
@@ -3901,7 +3905,7 @@ def get_trainee(
     name_or_id: str,
     *,
     client: Optional[AbstractHowsoClient] = None
-) -> "Trainee" | None:
+) -> Trainee | None:
     """
     Get an existing trainee from Howso Services.
 
@@ -3923,14 +3927,25 @@ def get_trainee(
         return Trainee.from_schema(trainee, client=client)
 
 
-def list_trainees(
+def list_trainees(*args, **kwargs):
+    """
+    Query accessible Trainees.
+
+    DEPRECATED: use `query_trainees` instead.
+    """
+    warnings.warn(
+        "The method `list_trainees` is deprecated. Use `query_trainees` instead.", DeprecationWarning)
+    return query_trainees(*args, **kwargs)
+
+
+def query_trainees(
     search_terms: Optional[str] = None,
     *,
     client: Optional[AbstractHowsoClient] = None,
     project: Optional[str | BaseProject] = None,
-) -> List["Dict"]:
+) -> list[dict]:
     """
-    Get listing of available trainees.
+    Query accessible Trainees.
 
     This method only returns a simplified informational listing of available
     trainees, not full engine Trainee instances. To get a Trainee instance
@@ -3962,7 +3977,7 @@ def list_trainees(
             params["project_id"] = project
 
     # picks up base
-    return client.get_trainees(**params)
+    return client.query_trainees(**params)
 
 
 def get_hierarchy(self) -> Dict:
