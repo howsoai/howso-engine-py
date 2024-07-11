@@ -389,12 +389,4 @@ tzdata==2024.1 \
 urllib3==2.2.2 \
     --hash=sha256:a448b2f64d686155468037e1ace9f2d2199776e17f0a46610480d311f73e3472 \
     --hash=sha256:dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168
-    # via
-    #   howso-engine (pyproject.toml)
-    #   howso-openapi-client
-
-# The following packages are considered to be unsafe in a requirements file:
-setuptools==70.2.0 \
-    --hash=sha256:b8b8060bb426838fbe942479c90296ce976249451118ef566a5a0b7d8b78fb05 \
-    --hash=sha256:bd63e505105011b25c3c11f753f7e3b8465ea739efddaccef8f0efac2137bac1
-    # via howso-openapi-client
+    # via howso-engine (pyproject.toml)
