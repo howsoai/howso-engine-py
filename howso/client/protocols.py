@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import (
     Optional,
     Protocol,
@@ -20,6 +21,8 @@ __all__ = [
 @runtime_checkable
 class LocalSaveableProtocol(Protocol):
     """Protocol to define a Howso client that has direct disk read/write access."""
+
+    default_persist_path: Path
 
     @property
     def amlg(self) -> Amalgam:

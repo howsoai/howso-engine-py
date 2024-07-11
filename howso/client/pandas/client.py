@@ -224,25 +224,6 @@ class HowsoPandasClientMixin:
         response['action'] = deserialize_cases(response['action'], columns, feature_attributes)
         return response
 
-    def get_distances(self, *args, **kwargs) -> dict[str, DataFrame | list]:
-        """
-        base: :func:`howso.client.AbstractHowsoClient.get_distances`.
-
-        Returns
-        -------
-        dict
-            A dict containing a matrix of computed distances and the list of
-            corresponding case indices in the following format::
-
-                {
-                    'case_indices': [ session-indices ],
-                    'distances': DataFrame[ distances ]
-                }
-        """
-        response = super().get_distances(*args, **kwargs)
-        response['distances'] = deserialize_to_dataframe(response['distances'])
-        return response
-
 
 def get_howso_pandas_client(**kwargs):
     """
