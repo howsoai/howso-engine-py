@@ -2913,6 +2913,7 @@ class Trainee(BaseTrainee):
         self,
         *,
         action_feature: Optional[str] = None,
+        always_recalculate: Optional[bool] = None,
         confusion_matrix_min_count: Optional[int] = None,
         context_features: Optional[Iterable[str]] = None,
         details: Optional[dict] = None,
@@ -2942,6 +2943,12 @@ class Trainee(BaseTrainee):
             and ``feature_influences_action_feature`` are not provided, they will default to this value.
             If ``feature_influences_action_feature`` is not provided and feature influences ``details`` are
             selected, this feature must be provided.
+        always_recalculate : bool, optional
+            If True, will not attempt to retrieve the selected stats from the cache and will always
+            relcalculate the stats, even if they exist in cache, will update the cache with the most recent
+            calculations. If True and stats are not cached, will then calculate them. If not provided,
+            will default to none, which behaves like False, and will results in always attempting to
+            retrieve the stats from cache first.
         confusion_matrix_min_count : int, optional
             The number of predictions a class should have (value of a cell in the
             matrix) for it to remain in the confusion matrix. If the count is
@@ -3166,6 +3173,7 @@ class Trainee(BaseTrainee):
             return self.client.react_aggregate(
                 trainee_id=self.id,
                 action_feature=action_feature,
+                always_recalculate=always_recalculate,
                 context_features=context_features,
                 confusion_matrix_min_count=confusion_matrix_min_count,
                 details=details,

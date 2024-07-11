@@ -312,6 +312,7 @@ class AbstractHowsoClient(ABC):
     def react_aggregate(
         self, trainee_id, *,
         action_feature=None,
+        always_recalculate=None,
         confusion_matrix_min_count=None,
         context_features=None,
         details=None,
