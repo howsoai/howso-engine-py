@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Iterable, Mapping
+from pprint import pformat
 import typing as t
 
 from typing_extensions import TypeVar
@@ -60,3 +61,7 @@ class BaseSchema(ABC, t.Generic[DT]):
         if not isinstance(other, BaseSchema):
             return False
         return self.to_dict() == other.to_dict()
+
+    def __repr__(self) -> str:
+        """Return printable representation."""
+        return pformat(self.to_dict(), sort_dicts=False)
