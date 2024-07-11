@@ -1127,7 +1127,7 @@ class AbstractHowsoClient(ABC):
 
         Examples
         --------
-        >>> print(cl.get_trainee_sessions(trainee.id))
+        >>> print(cl.get_sessions(trainee.id))
         [{'id': '6c35e481-fb49-4178-a96f-fe4b5afe7af4', 'name': 'default'}]
         """
         trainee_id = self._resolve_trainee(trainee_id)

@@ -919,19 +919,19 @@ class HowsoDirectClient(AbstractHowsoClient):
             "version": version
         }
 
-    def get_trainees(self, search_terms: Optional[str] = None) -> List[Dict]:
+    def query_trainees(self, search_terms: t.Optional[str] = None) -> list[dict]:
         """
-        Return a list of all trainees.
+        Query accessible Trainees.
 
         Parameters
         ----------
         search_terms : str
-            Keywords to filter trainee list by.
+            Keywords to filter Trainees by.
 
         Returns
         -------
-        list of Dict
-            A list of the trainee identities with schema {"name": TRAINEE_NAME, "id": TRAINEE_ID}
+        list of dict
+            A list of the Trainee identities with schema {"name": TRAINEE_NAME, "id": TRAINEE_ID}
         """
         trainees = list()
         filter_terms = []

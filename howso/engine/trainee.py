@@ -2070,7 +2070,7 @@ class Trainee(BaseTrainee):
             in the model.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            return self.client.get_trainee_sessions(self.id)
+            return self.client.get_sessions(self.id)
         else:
             raise ValueError("Client must have the 'get_sessions' method.")
 
@@ -2088,9 +2088,9 @@ class Trainee(BaseTrainee):
         else:
             session_id = session
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.delete_trainee_session(trainee_id=self.id, session=session_id)
+            self.client.delete_session(trainee_id=self.id, session=session_id)
         else:
-            raise ValueError("Client must have the 'delete_trainee_session' method.")
+            raise ValueError("Client must have the 'delete_session' method.")
 
     def get_session_indices(self, session: Union[str, BaseSession]) -> Index | List[int]:
         """
@@ -2111,7 +2111,7 @@ class Trainee(BaseTrainee):
             session_id = session.id
         else:
             session_id = session
-        return self.client.get_trainee_session_indices(
+        return self.client.get_session_indices(
             trainee_id=self.id,
             session=session_id,
         )
@@ -2135,7 +2135,7 @@ class Trainee(BaseTrainee):
             session_id = session.id
         else:
             session_id = session
-        return self.client.get_trainee_session_training_indices(
+        return self.client.get_session_training_indices(
             trainee_id=self.id,
             session=session_id,
         )

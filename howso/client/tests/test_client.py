@@ -849,15 +849,15 @@ class TestBaseClient:
                 f'with id: {trainee.id}') in out
         assert output == attributes
 
-    def test_get_trainee_sessions_verbose(self, trainee, capsys):
+    def test_get_sessions_verbose(self, trainee, capsys):
         """
-        Test that get_trainee_sessions has verbose output when enabled.
+        Test that get_sessions has verbose output when enabled.
 
-        Test for verbose output expected when get_trainee_sessions is called.
+        Test for verbose output expected when get_sessions is called.
         """
-        self.client.get_trainee_sessions(trainee.id)
+        self.client.get_sessions(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Getting sessions from trainee with id: {trainee.id}' in out
+        assert f'Getting sessions from Trainee with id: {trainee.id}' in out
 
     def test_analyze_verbose(self, trainee, capsys):
         """Test for verbose output expected when analyze is called."""
