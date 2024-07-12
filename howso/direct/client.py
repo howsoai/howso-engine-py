@@ -18,7 +18,6 @@ import typing as t
 from typing import (
     Any,
     Dict,
-    List,
     Literal,
     Optional,
 )
@@ -258,11 +257,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                         f"This is a pre-release version.")
 
     @property
-    def verbose(self) -> bool:
-        """Get verbose flag."""
-        return self.configuration.verbose
-
-    @property
     def react_initial_batch_size(self) -> int:
         """
         The default number of cases in the first react batch.
@@ -395,6 +389,36 @@ class HowsoDirectClient(AbstractHowsoClient):
             self.acquire_trainee_resources(trainee_id)
         return trainee_id
 
+    def _resolve_trainee_filepath(
+        self,
+        filename: str,
+        *,
+        append_ext: bool = True,
+        filepath: t.Optional[str | Path] = None
+    ) -> str:
+        """
+        Resolve the path to a persisted Trainee file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the Trainee file.
+        append_ext : bool, default True
+            Append file extension to filename if missing.
+        filepath : str or Path, optional
+            The directory of the file. If not provided, uses default persist path.
+
+        Returns
+        -------
+        str
+            The resolved path to the the Trainee file.
+        """
+        if append_ext and not filename.endswith(self._howso_ext):
+            filename += self._howso_ext
+        if filepath is None:
+            filepath = self.default_persist_path
+        return str(Path(filepath, filename).expanduser())
+
     def _auto_persist_trainee(self, trainee_id: str):
         """
         Automatically persists the Trainee if it has persistence set to True.
@@ -407,7 +431,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         try:
             trainee = self.trainee_cache.get(trainee_id)
             if trainee.persistence == 'always':
-                self.howso.persist(trainee_id)
+                self.amlg.store_entity(
+                    handle=trainee_id,
+                    amlg_path=self._resolve_trainee_filepath(trainee_id)
+                )
         except KeyError:
             # Trainee not cached, ignore
             pass
@@ -832,10 +859,19 @@ class HowsoDirectClient(AbstractHowsoClient):
         decoded_cases : bool, default False.
             Whether to export decoded cases.
         """
-        if self.verbose:
-            print(f'Export trainee with id: {trainee_id}')
+        if path_to_trainee is None:
+            path_to_trainee = self.default_persist_path
+        path_to_trainee = Path(path_to_trainee)
 
-        self.howso.export_trainee(trainee_id, path_to_trainee, decode_cases)
+        if self.configuration.verbose:
+            print(f'Exporting Trainee with id: {trainee_id}')
+
+        self.execute(trainee_id, "export_trainee", {
+            "trainee_filepath": f"{path_to_trainee}/",
+            "trainee": str(trainee_id),
+            "root_filepath": f"{self._howso_dir}/",
+            "decode_cases": decode_cases,
+        })
 
     def upgrade_trainee(
         self,
@@ -855,10 +891,18 @@ class HowsoDirectClient(AbstractHowsoClient):
         separate_files : bool, default False
             Whether to load each case from its individual file.
         """
-        if self.verbose:
-            print(f'Upgrade trainee with id: {trainee_id}')
+        if path_to_trainee is None:
+            path_to_trainee = self.default_persist_path
+        path_to_trainee = Path(path_to_trainee)
 
-        self.howso.upgrade_trainee(trainee_id, path_to_trainee, separate_files)
+        if self.configuration.verbose:
+            print(f'Upgrading Trainee with id: {trainee_id}')
+
+        self.execute(trainee_id, "upgrade_trainee", {
+            "trainee_filepath": f"{path_to_trainee}/",
+            "root_filepath": f"{self._howso_dir}/",
+            "separate_files": separate_files,
+        })
 
     def get_trainee(self, trainee_id: str) -> Trainee:
         """
@@ -879,7 +923,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Getting Trainee with id: {trainee_id}')
         return self._get_trainee_from_engine(trainee_id)
 
-    def get_trainee_information(self, trainee_id: str) -> Dict:
+    def get_trainee_information(self, trainee_id: str) -> dict:
         """
         Get information about the trainee.
 
@@ -902,21 +946,19 @@ class HowsoDirectClient(AbstractHowsoClient):
                 }
             }
         """
-        self._auto_resolve_trainee(trainee_id)
-        trainee_version = self.howso.get_trainee_version(trainee_id)
-        amlg_version = self.howso.amlg.get_version_string().decode()
-        library_type = 'st'
-        if self.howso.amlg.library_postfix:
-            library_type = self.howso.amlg.library_postfix[1:]
-
-        version = {
-            "amalgam": amlg_version,
-            "trainee": trainee_version
-        }
+        self._resolve_trainee(trainee_id)
+        trainee_version = self.execute(trainee_id, "get_trainee_version", {})
+        amlg_version = self.amlg.get_version_string().decode()
+        library_type = 'mt'
+        if self.amlg.library_postfix:
+            library_type = self.amlg.library_postfix[1:]
 
         return {
             "library_type": library_type,
-            "version": version
+            "version": {
+                "amalgam": amlg_version,
+                "trainee": trainee_version
+            }
         }
 
     def query_trainees(self, search_terms: t.Optional[str] = None) -> list[dict]:
@@ -958,9 +1000,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                 )
 
         # Collect persisted trainees
-        files = os.listdir(self.howso.default_save_path)
+        files = os.listdir(self.default_persist_path)
         for f in files:
-            if not f.endswith(self.howso.ext):
+            if not f.endswith(self._howso_ext):
                 continue
             # remove the extension from the file name
             trainee_name = f[:f.rindex('.')]
@@ -1021,15 +1063,17 @@ class HowsoDirectClient(AbstractHowsoClient):
                 if sub in trainee_id:
                     raise ValueError(
                         f'"{sub}" is not permitted in trainee names for deletion.')
-        else:
+        elif file_path:
             trainee_id = file_path.stem
+        else:
+            raise ValueError("One of `trainee_id` or `file_path` must be provided.")
 
         # Unload the trainee from engine
         self.amlg.destroy_entity(trainee_id)
         self.trainee_cache.discard(trainee_id)
 
         if self.configuration.verbose:
-            print(f'Deleting trainee with id {trainee_id}')
+            print(f'Deleting Trainee with id {trainee_id}')
 
         if file_path:
             # Either full filepath or filename
@@ -1094,32 +1138,34 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         trainee_id = self._resolve_trainee(trainee_id)
         original_trainee = self.trainee_cache.get(trainee_id)
-
         new_trainee_id = new_trainee_id or new_trainee_name or str(uuid.uuid4())
-        output = self.howso.copy(trainee_id, new_trainee_id)
 
-        if self.verbose:
+        if self.configuration.verbose:
             print(f'Copying Trainee {trainee_id} to {new_trainee_id}')
 
-        if output and output.get('name') == new_trainee_id:
-            # Create the copy trainee
-            new_trainee = deepcopy(original_trainee)
-            new_trainee.name = new_trainee_name
-            new_trainee._id = new_trainee_id  # type: ignore
-            metadata = {
-                'name': new_trainee.name,
-                'metadata': new_trainee.metadata,
-                'persistence': new_trainee.persistence,
-            }
-            self.howso.set_metadata(new_trainee_id, metadata)
-            self.trainee_cache.set(new_trainee)
-
-            return new_trainee
-        else:
+        is_cloned = self.amlg.clone_entity(
+            handle=trainee_id,
+            clone_handle=new_trainee_id,
+        )
+        if not is_cloned:
             raise HowsoError(
                 f'Failed to copy the Trainee "{trainee_id}". '
                 f"This may be due to incorrect filepaths to the Howso "
                 f'binaries or camls, or a Trainee "{new_trainee_name}" already exists.')
+
+        # Create the copy trainee
+        new_trainee = deepcopy(original_trainee)
+        new_trainee.name = new_trainee_name
+        new_trainee._id = new_trainee_id  # type: ignore
+        metadata = {
+            'name': new_trainee.name,
+            'metadata': new_trainee.metadata,
+            'persistence': new_trainee.persistence,
+        }
+        self.execute(new_trainee_id, "set_metadata", {"metadata": metadata})
+        self.trainee_cache.set(new_trainee)
+
+        return new_trainee
 
     def acquire_trainee_resources(
         self,
@@ -1144,18 +1190,24 @@ class HowsoDirectClient(AbstractHowsoClient):
             If no Trainee with the requested ID can be found or loaded.
         """
         if trainee_id is None:
-            raise HowsoError("A trainee id is required.")
-        if self.verbose:
-            print(f'Acquiring resources for trainee with id: {trainee_id}')
+            raise HowsoError("A Trainee id is required.")
+        if self.configuration.verbose:
+            print(f'Acquiring resources for Trainee with id: {trainee_id}')
 
         if trainee_id in self.trainee_cache:
             # Trainee is already loaded
             return
 
-        ret = self.howso.load(trainee_id)
-
-        if ret is None:
-            raise HowsoError(f"Trainee '{trainee_id}' not found.")
+        status = self.amlg.load_entity(
+            handle=trainee_id,
+            amlg_path=self._resolve_trainee_filepath(trainee_id),
+            persist=False,
+            load_contained=True,
+            escape_filename=False,
+            escape_contained_filenames=False,
+        )
+        if status.loaded:
+            raise HowsoError(f'Trainee "{trainee_id}" not found.')
 
         trainee = self._get_trainee_from_engine(trainee_id)
         self.trainee_cache.set(trainee)
@@ -1174,15 +1226,18 @@ class HowsoDirectClient(AbstractHowsoClient):
         HowsoError
             If the requested Trainee has a persistence of "never".
         """
-        if self.verbose:
-            print(f'Releasing resources for trainee with id: {trainee_id}')
+        if self.configuration.verbose:
+            print(f'Releasing resources for Trainee with id: {trainee_id}')
         try:
             cache_item = self.trainee_cache.get_item(trainee_id)
             trainee = cache_item['trainee']
 
             if trainee.persistence in ['allow', 'always']:
                 # Persist on unload
-                self.howso.persist(trainee_id)
+                self.amlg.store_entity(
+                    handle=trainee_id,
+                    amlg_path=self._resolve_trainee_filepath(trainee_id)
+                )
             elif trainee.persistence == "never":
                 raise HowsoError(
                     "Trainees set to never persist may not have their "
@@ -1191,7 +1246,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         except KeyError:
             # Trainee not cached, ignore
             pass
-        self.howso.delete(trainee_id)
+        self.amlg.destroy_entity(trainee_id)
 
     def persist_trainee(self, trainee_id: str):
         """
@@ -1210,8 +1265,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         AssertionError
             If the requested Trainee's persistence is set to "never".
         """
-        if self.verbose:
-            print(f'Saving trainee with id: {trainee_id}')
+        if self.configuration.verbose:
+            print(f'Saving Trainee with id: {trainee_id}')
 
         if trainee_id in self.trainee_cache:
             trainee = self.trainee_cache.get(trainee_id)
@@ -1222,7 +1277,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             # Enable auto persistence
             trainee.persistence = 'always'
 
-        self.howso.persist(trainee_id)
+        self.amlg.store_entity(
+            handle=trainee_id,
+            amlg_path=self._resolve_trainee_filepath(trainee_id)
+        )
 
     def begin_session(self, name: str = "default", metadata: t.Optional[Mapping] = None) -> Session:
         """

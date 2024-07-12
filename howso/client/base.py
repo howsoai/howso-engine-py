@@ -65,6 +65,12 @@ class AbstractHowsoClient(ABC):
         return internals.BatchScalingManager
 
     @property
+    def verbose(self) -> bool:
+        """Get verbose flag."""
+        # Backwards compatible reference to the verbose flag
+        return self.configuration.verbose
+
+    @property
     @abstractmethod
     def trainee_cache(self) -> TraineeCache:
         """Return the Trainee cache."""
@@ -300,6 +306,22 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def persist_trainee(self, trainee_id: str):
         """Persist a trainee in the Howso service."""
+
+    @abstractmethod
+    def begin_session(self, name: str = 'default', metadata: t.Optional[Mapping] = None) -> Session:
+        """Begin a new session."""
+
+    @abstractmethod
+    def query_sessions(self, search_terms: t.Optional[str] = None, **kwargs) -> list[Session]:
+        """Query all accessible sessions."""
+
+    @abstractmethod
+    def get_session(self, session_id: str) -> Session:
+        """Get session details."""
+
+    @abstractmethod
+    def update_session(self, session_id: str, *, metadata: t.Optional[Mapping] = None) -> Session:
+        """Update a session."""
 
     def set_random_seed(self, trainee_id: str, seed: int | float | str):
         """
@@ -1085,22 +1107,6 @@ class AbstractHowsoClient(ABC):
             print('Getting feature attributes from Trainee with id: {trainee_id}')
         feature_attributes = self.execute(trainee_id, "get_feature_attributes", {})
         return internals.postprocess_feature_attributes(feature_attributes)
-
-    @abstractmethod
-    def begin_session(self, name: str = 'default', metadata: t.Optional[Mapping] = None) -> Session:
-        """Begin a new session."""
-
-    @abstractmethod
-    def query_sessions(self, search_terms: t.Optional[str] = None, **kwargs) -> list[Session]:
-        """Query all accessible sessions."""
-
-    @abstractmethod
-    def get_session(self, session_id: str) -> Session:
-        """Get session details."""
-
-    @abstractmethod
-    def update_session(self, session_id: str, *, metadata: t.Optional[Mapping] = None) -> Session:
-        """Update a session."""
 
     def get_sessions(self, trainee_id: str) -> list[dict[str, str]]:
         """

@@ -657,7 +657,7 @@ class TestBaseClient:
         """Test the verbose output expected during the execution of impute."""
         self.client.impute(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Imputing trainee with id: {trainee.id}' in out
+        assert f'Imputing Trainee with id: {trainee.id}' in out
 
     def test_remove_cases_verbose(self, trainee, capsys):
         """
@@ -668,7 +668,7 @@ class TestBaseClient:
         condition = {"feature_name": None}
         self.client.remove_cases(trainee.id, 1, condition=condition)
         out, _ = capsys.readouterr()
-        assert f"Removing case(s) in trainee with id: {trainee.id}" in out
+        assert f"Removing case(s) in Trainee with id: {trainee.id}" in out
 
     def test_update_trainee_verbose(self, trainee_builder, capsys):
         """
@@ -690,7 +690,7 @@ class TestBaseClient:
         assert trainee.name == updated_trainee.name
         assert updated_trainee.name == 'test-update-verbose'
         out, _ = capsys.readouterr()
-        assert f'Updating trainee with id: {trainee.id}' in out
+        assert f'Updating Trainee with id: {trainee.id}' in out
 
     def test_get_trainee_verbose(self, trainee, capsys):
         """
@@ -700,7 +700,7 @@ class TestBaseClient:
         """
         self.client.get_trainee(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Getting trainee with id: {trainee.id}' in out
+        assert f'Getting Trainee with id: {trainee.id}' in out
 
     def test_set_feature_attributes(self, trainee, capsys):
         """Test that set_feature_attributes works as expected."""
@@ -713,7 +713,7 @@ class TestBaseClient:
         self.client.set_feature_attributes(trainee.id,
                                            feature_attributes=attributes)
         out, _ = capsys.readouterr()
-        assert (f'Setting feature attributes for trainee '
+        assert (f'Setting feature attributes for Trainee '
                 f'with id: {trainee.id}') in out
 
     def test_get_feature_attributes(self, trainee, capsys):
@@ -749,8 +749,8 @@ class TestBaseClient:
         self.client.train(trainee.id, [['iris-setosa']], context_features)
         self.client.analyze(trainee.id, context_features)
         out, _ = capsys.readouterr()
-        assert f'Analyzing trainee with id: {trainee.id}' in out
-        assert 'Analyzing trainee with parameters: ' in out
+        assert f'Analyzing Trainee with id: {trainee.id}' in out
+        assert 'Analyzing Trainee with parameters: ' in out
 
     def test_acquire_trainee_resources_verbose(self, trainee, capsys):
         """
@@ -761,7 +761,7 @@ class TestBaseClient:
         self.client.persist_trainee(trainee.id)
         self.client.acquire_trainee_resources(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Acquiring resources for trainee with id: {trainee.id}' in out
+        assert f'Acquiring resources for Trainee with id: {trainee.id}' in out
 
     def test_save_trainee_verbose(self, trainee, capsys):
         """
@@ -771,7 +771,7 @@ class TestBaseClient:
         """
         self.client.persist_trainee(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Saving trainee with id: {trainee.id}' in out
+        assert f'Saving Trainee with id: {trainee.id}' in out
 
     def test_release_trainee_resources_verbose(self, trainee, capsys):
         """
@@ -781,7 +781,7 @@ class TestBaseClient:
         """
         self.client.release_trainee_resources(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Releasing resources for trainee with id: {trainee.id}' in out
+        assert f'Releasing resources for Trainee with id: {trainee.id}' in out
 
     def copy_trainee_verbose(self, trainee, trainee_builder, capsys):
         """
@@ -791,7 +791,7 @@ class TestBaseClient:
         """
         trainee_builder.copy(trainee.id, f'new_{trainee.id}')
         out, _ = capsys.readouterr()
-        assert f'Copying trainee {trainee.id} to new_{trainee.id}' in out
+        assert f'Copying Trainee {trainee.id} to new_{trainee.id}' in out
 
     def test_delete_trainee_verbose(self, trainee, capsys):
         """
@@ -801,7 +801,7 @@ class TestBaseClient:
         """
         self.client.delete_trainee(trainee.id)
         out, _ = capsys.readouterr()
-        assert 'Deleting trainee' in out
+        assert 'Deleting Trainee' in out
 
     def test_remove_cases_exception(self, trainee):
         """
@@ -841,7 +841,7 @@ class TestBaseClient:
         """
         self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
         out, _ = capsys.readouterr()
-        assert ('Reacting into features on trainee with id') in out
+        assert ('Reacting into features on Trainee with id') in out
 
     def test_get_feature_conviction_verbose(self, trainee, capsys):
         """
@@ -852,7 +852,7 @@ class TestBaseClient:
         """
         self.client.get_feature_conviction(trainee.id)
         out, _ = capsys.readouterr()
-        assert 'Getting conviction of features for trainee with id' in out
+        assert 'Getting conviction of features for Trainee with id' in out
 
     def test_get_params_verbose(self, trainee, capsys):
         """
@@ -862,7 +862,7 @@ class TestBaseClient:
         """
         self.client.get_params(trainee.id)
         out, _ = capsys.readouterr()
-        assert (f'Getting model attributes from trainee with '
+        assert (f'Getting model attributes from Trainee with '
                 f'id: {trainee.id}') in out
 
     @pytest.mark.parametrize('params', (
@@ -882,7 +882,7 @@ class TestBaseClient:
         """Test for the verbose output expected when set_params is called."""
         self.client.set_params(trainee.id, params)
         out, _ = capsys.readouterr()
-        assert (f'Setting model attributes for trainee with '
+        assert (f'Setting model attributes for Trainee with '
                 f'id: {trainee.id}') in out
 
     def test_set_and_get_params(self, trainee, trainee_builder):
@@ -1024,7 +1024,7 @@ class TestBaseClient:
             trainee.id, substitution_value_map)
         out, _ = capsys.readouterr()
         assert (f'Setting substitute feature values for '
-                f'trainee with id: {trainee.id}') in out
+                f'Trainee with id: {trainee.id}') in out
         ret = self.client.get_substitute_feature_values(trainee.id)
         out, _ = capsys.readouterr()
         assert (f'Getting substitute feature values from trainee with '
@@ -1050,7 +1050,7 @@ class TestBaseClient:
 
         self.client.set_feature_attributes(trainee.id, feature_attributes=feats)
         out, _ = capsys.readouterr()
-        assert (f'Setting feature attributes for trainee '
+        assert (f'Setting feature attributes for Trainee '
                 f'with id: {trainee.id}') in out
 
         ret = self.client.get_feature_attributes(trainee.id)
@@ -1102,7 +1102,7 @@ class TestBaseClient:
         with pytest.warns(Warning, match=expected_message):
             self.client.get_cases(trainee.id)
             out, _ = capsys.readouterr()
-            assert 'Retrieving cases.' in out
+            assert 'Retrieving cases for Trainee' in out
 
     def test_react_group(self, trainee, capsys):
         """
@@ -1168,7 +1168,7 @@ class TestBaseClient:
         feature = 'test'
         self.client.remove_feature(trainee.id, feature=feature)
         out, _ = capsys.readouterr()
-        assert (f'Removing feature "{feature}" for trainee with id: '
+        assert (f'Removing feature "{feature}" from Trainee with id: '
                 f'{trainee.id}') in out
 
     @pytest.mark.parametrize(
