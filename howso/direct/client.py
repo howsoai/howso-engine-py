@@ -1197,7 +1197,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             escape_filename=False,
             escape_contained_filenames=False,
         )
-        if status.loaded:
+        if not status.loaded:
             raise HowsoError(f'Trainee "{trainee_id}" not found.')
 
         trainee = self._get_trainee_from_engine(trainee_id)

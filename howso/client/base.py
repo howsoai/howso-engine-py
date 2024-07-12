@@ -1850,8 +1850,8 @@ class AbstractHowsoClient(ABC):
         if action_features is not None and derived_action_features is not None:
             if not set(derived_action_features).issubset(set(action_features)):
                 raise ValueError(
-                    'Specified \'derived_action_features\' must be a subset of '
-                    '\'action_features\'.')
+                    'Specified `derived_action_features` must be a subset of '
+                    '`action_features`.')
 
         if new_case_threshold not in [None, "min", "max", "most_similar"]:
             raise ValueError(
@@ -2170,7 +2170,7 @@ class AbstractHowsoClient(ABC):
             if context_values is None:
                 # case_indices/preserve_feature_values are not necessary
                 # when using continue_series, as initial_feature/values may be used
-                if not continue_series and (
+                if not continue_series and action_values is None and (
                     case_indices is None or preserve_feature_values is None
                 ):
                     raise ValueError(
