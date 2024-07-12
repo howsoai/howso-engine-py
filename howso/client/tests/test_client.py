@@ -668,7 +668,7 @@ class TestBaseClient:
         condition = {"feature_name": None}
         self.client.remove_cases(trainee.id, 1, condition=condition)
         out, _ = capsys.readouterr()
-        assert f"Removing case(s) in Trainee with id: {trainee.id}" in out
+        assert f"Removing case(s) from Trainee with id: {trainee.id}" in out
 
     def test_update_trainee_verbose(self, trainee_builder, capsys):
         """
@@ -729,7 +729,7 @@ class TestBaseClient:
                                            feature_attributes=attributes)
         output = self.client.get_feature_attributes(trainee.id)
         out, _ = capsys.readouterr()
-        assert (f'Getting feature attributes from trainee '
+        assert (f'Getting feature attributes from Trainee '
                 f'with id: {trainee.id}') in out
         assert output == attributes
 
@@ -911,7 +911,7 @@ class TestBaseClient:
         # get a prediction with the set parameters
         first_pred = self.client.react(
             trainee.id,
-            contexts=[2, 2],
+            contexts=[[2, 2]],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
         )['action']['petal_length'].iloc[0]
@@ -931,7 +931,7 @@ class TestBaseClient:
         # make a prediction on the same case, prediction should be different
         second_pred = self.client.react(
             other_trainee.id,
-            contexts=[2, 2],
+            contexts=[[2, 2]],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
         )['action']['petal_length'].iloc[0]
@@ -941,7 +941,7 @@ class TestBaseClient:
         self.client.set_params(other_trainee.id, param_map)
         third_pred = self.client.react(
             other_trainee.id,
-            contexts=[2, 2],
+            contexts=[[2, 2]],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
         )['action']['petal_length'].iloc[0]
@@ -1027,7 +1027,7 @@ class TestBaseClient:
                 f'Trainee with id: {trainee.id}') in out
         ret = self.client.get_substitute_feature_values(trainee.id)
         out, _ = capsys.readouterr()
-        assert (f'Getting substitute feature values from trainee with '
+        assert (f'Getting substitute feature values from Trainee with '
                 f'id: {trainee.id}') in out
         assert ret == substitution_value_map
         ret = self.client.get_substitute_feature_values(trainee.id)
@@ -1055,7 +1055,7 @@ class TestBaseClient:
 
         ret = self.client.get_feature_attributes(trainee.id)
         out, _ = capsys.readouterr()
-        assert (f'Getting feature attributes from trainee with '
+        assert (f'Getting feature attributes from Trainee with '
                 f'id: {trainee.id}') in out
         assert ret == feats
 
@@ -1097,7 +1097,7 @@ class TestBaseClient:
         Test for expected warning when get_cases is called without passing in
         a session id.
         """
-        expected_message = ('Calling get_cases without session id does '
+        expected_message = ('Calling get_cases without a session id does '
                             'not guarantee case order.')
         with pytest.warns(Warning, match=expected_message):
             self.client.get_cases(trainee.id)

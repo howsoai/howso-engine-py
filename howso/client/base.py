@@ -1104,7 +1104,7 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id)
         if self.configuration.verbose:
-            print('Getting feature attributes from Trainee with id: {trainee_id}')
+            print(f'Getting feature attributes from Trainee with id: {trainee_id}')
         feature_attributes = self.execute(trainee_id, "get_feature_attributes", {})
         return internals.postprocess_feature_attributes(feature_attributes)
 
@@ -2908,7 +2908,7 @@ class AbstractHowsoClient(ABC):
         int
             The response payload size.
         """
-        batch_result, in_size, out_size = self.execute(trainee_id, "react_series", params)
+        batch_result, in_size, out_size = self.execute_sized(trainee_id, "react_series", params)
 
         if batch_result is None or batch_result.get('action_values') is None:
             raise ValueError('Invalid parameters passed to react_series.')
@@ -4732,7 +4732,7 @@ class AbstractHowsoClient(ABC):
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee get parameters from.
+            The ID of the Trainee.
         action_feature : str, optional
             If specified will return the best analyzed hyperparameters to
             target this feature.
@@ -4770,7 +4770,7 @@ class AbstractHowsoClient(ABC):
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee set hyperparameters.
+            The ID of the Trainee.
 
         params : Mapping
             A dictionary in the following format containing the hyperparameter
@@ -4814,4 +4814,21 @@ class AbstractHowsoClient(ABC):
                     'instead.', UserWarning)
 
         self.execute(trainee_id, "set_params", parameters)
+        self._auto_persist_trainee(trainee_id)
+
+    def reset_params(self, trainee_id: str):
+        """
+        Reset all hyperparameters and thresholds back to original values.
+
+        Leaves feature specific definitions alone.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+        """
+        trainee_id = self._resolve_trainee(trainee_id)
+        if self.configuration.verbose:
+            print(f'Resetting model attributes for Trainee with id: {trainee_id}')
+        self.execute(trainee_id, "reset_params", {})
         self._auto_persist_trainee(trainee_id)
