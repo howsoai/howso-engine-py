@@ -3146,17 +3146,6 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'set_params' method.")
 
-    def reset_params(self):
-        """
-        Reset all hyperparameters and thresholds back to original values.
-
-        Leaves feature specific definitions alone.
-        """
-        if isinstance(self.client, AbstractHowsoClient):
-            self.client.reset_params(self.id)
-        else:
-            raise AssertionError("Client must have the 'reset_params' method.")
-
     @property
     def client(self) -> AbstractHowsoClient | HowsoPandasClientMixin:
         """

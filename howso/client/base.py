@@ -4815,20 +4815,3 @@ class AbstractHowsoClient(ABC):
 
         self.execute(trainee_id, "set_params", parameters)
         self._auto_persist_trainee(trainee_id)
-
-    def reset_params(self, trainee_id: str):
-        """
-        Reset all hyperparameters and thresholds back to original values.
-
-        Leaves feature specific definitions alone.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee.
-        """
-        trainee_id = self._resolve_trainee(trainee_id)
-        if self.configuration.verbose:
-            print(f'Resetting model attributes for Trainee with id: {trainee_id}')
-        self.execute(trainee_id, "reset_params", {})
-        self._auto_persist_trainee(trainee_id)
