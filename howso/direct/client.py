@@ -15,12 +15,6 @@ import os
 from pathlib import Path
 import platform
 import typing as t
-from typing import (
-    Any,
-    Dict,
-    Literal,
-    Optional,
-)
 import uuid
 import warnings
 
@@ -37,7 +31,7 @@ from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError, HowsoWarning, UnsupportedArgumentWarning
 from howso.client.schemas import HowsoVersion, Project, Session, Trainee
-from howso.client.typing import Persistence
+from howso.client.typing import LibraryType, Persistence
 from howso.utilities import internals
 
 # Client version
@@ -682,17 +676,17 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def create_trainee(  # noqa: C901
         self,
-        name: Optional[str] = None,
-        features: Optional[Mapping[str, Mapping]] = None,
+        name: t.Optional[str] = None,
+        features: t.Optional[Mapping[str, Mapping]] = None,
         *,
-        id: Optional[str | uuid.UUID] = None,
-        library_type: Optional[Literal["st", "mt"]] = None,
-        max_wait_time: Optional[int | float] = None,
-        metadata: Optional[MutableMapping[str, Any]] = None,
+        id: t.Optional[str | uuid.UUID] = None,
+        library_type: t.Optional[LibraryType] = None,
+        max_wait_time: t.Optional[int | float] = None,
+        metadata: t.Optional[MutableMapping[str, t.Any]] = None,
         overwrite_trainee: bool = False,
         persistence: Persistence = "allow",
-        project: Optional[str | Project] = None,
-        resources: Optional[Mapping[str, Any]] = None,
+        project: t.Optional[str | Project] = None,
+        resources: t.Optional[Mapping[str, t.Any]] = None,
     ) -> Trainee:
         """
         Create a Trainee on the Howso service.
@@ -933,7 +927,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        Dict
+        dict
             The Trainee information in the schema of:
             {
                 "library_type": LIBRARY_TYPE,
@@ -1017,9 +1011,9 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def delete_trainee(
         self,
-        trainee_id: Optional[str] = None,
+        trainee_id: t.Optional[str] = None,
         *,
-        file_path: Optional[Path | str] = None
+        file_path: t.Optional[Path | str] = None
     ):
         """
         Delete a Trainee from the Howso service and filesystem.
@@ -1095,11 +1089,11 @@ class HowsoDirectClient(AbstractHowsoClient):
     def copy_trainee(
         self,
         trainee_id: str,
-        new_trainee_name: Optional[str] = None,
-        new_trainee_id: Optional[str] = None,
+        new_trainee_name: t.Optional[str] = None,
+        new_trainee_id: t.Optional[str] = None,
         *,
-        library_type: Optional[Literal["st", "mt"]] = None,
-        resources: Optional[Dict] = None,
+        library_type: t.Optional[LibraryType] = None,
+        resources: t.Optional[dict] = None,
     ) -> Trainee:
         """
         Copies a trainee to a new trainee id in the Howso service.
