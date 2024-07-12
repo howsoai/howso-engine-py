@@ -65,6 +65,12 @@ class AbstractHowsoClient(ABC):
         return internals.BatchScalingManager
 
     @property
+    def verbose(self) -> bool:
+        """Get verbose flag."""
+        # Backwards compatible reference to the verbose flag
+        return self.configuration.verbose
+
+    @property
     @abstractmethod
     def trainee_cache(self) -> TraineeCache:
         """Return the Trainee cache."""
@@ -262,7 +268,7 @@ class AbstractHowsoClient(ABC):
         """Create a Trainee in the Howso service."""
 
     @abstractmethod
-    def update_trainee(self, trainee: Trainee) -> Trainee:
+    def update_trainee(self, trainee: Mapping | Trainee) -> Trainee:
         """Update an existing trainee in the Howso service."""
 
     @abstractmethod
@@ -300,6 +306,22 @@ class AbstractHowsoClient(ABC):
     @abstractmethod
     def persist_trainee(self, trainee_id: str):
         """Persist a trainee in the Howso service."""
+
+    @abstractmethod
+    def begin_session(self, name: str = 'default', metadata: t.Optional[Mapping] = None) -> Session:
+        """Begin a new session."""
+
+    @abstractmethod
+    def query_sessions(self, search_terms: t.Optional[str] = None, **kwargs) -> list[Session]:
+        """Query all accessible sessions."""
+
+    @abstractmethod
+    def get_session(self, session_id: str) -> Session:
+        """Get session details."""
+
+    @abstractmethod
+    def update_session(self, session_id: str, *, metadata: t.Optional[Mapping] = None) -> Session:
+        """Update a session."""
 
     def set_random_seed(self, trainee_id: str, seed: int | float | str):
         """
@@ -1082,25 +1104,9 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id)
         if self.configuration.verbose:
-            print('Getting feature attributes from Trainee with id: {trainee_id}')
+            print(f'Getting feature attributes from Trainee with id: {trainee_id}')
         feature_attributes = self.execute(trainee_id, "get_feature_attributes", {})
         return internals.postprocess_feature_attributes(feature_attributes)
-
-    @abstractmethod
-    def begin_session(self, name: str = 'default', metadata: t.Optional[Mapping] = None) -> Session:
-        """Begin a new session."""
-
-    @abstractmethod
-    def query_sessions(self, search_terms: t.Optional[str] = None, **kwargs) -> list[Session]:
-        """Query all accessible sessions."""
-
-    @abstractmethod
-    def get_session(self, session_id: str) -> Session:
-        """Get session details."""
-
-    @abstractmethod
-    def update_session(self, session_id: str, *, metadata: t.Optional[Mapping] = None) -> Session:
-        """Update a session."""
 
     def get_sessions(self, trainee_id: str) -> list[dict[str, str]]:
         """
@@ -1844,8 +1850,8 @@ class AbstractHowsoClient(ABC):
         if action_features is not None and derived_action_features is not None:
             if not set(derived_action_features).issubset(set(action_features)):
                 raise ValueError(
-                    'Specified \'derived_action_features\' must be a subset of '
-                    '\'action_features\'.')
+                    'Specified `derived_action_features` must be a subset of '
+                    '`action_features`.')
 
         if new_case_threshold not in [None, "min", "max", "most_similar"]:
             raise ValueError(
@@ -2164,7 +2170,7 @@ class AbstractHowsoClient(ABC):
             if context_values is None:
                 # case_indices/preserve_feature_values are not necessary
                 # when using continue_series, as initial_feature/values may be used
-                if not continue_series and (
+                if not continue_series and action_values is None and (
                     case_indices is None or preserve_feature_values is None
                 ):
                     raise ValueError(
@@ -2313,13 +2319,13 @@ class AbstractHowsoClient(ABC):
         desired_conviction: t.Optional[float] = None,
         details: t.Optional[Mapping] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
-        feature_bounds_map: t.Optional[dict] = None,
-        final_time_steps: t.Optional[list[t.Any] | list[list[t.Any]]] = None,
+        feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
+        final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
-        init_time_steps: t.Optional[list[t.Any] | list[list[t.Any]]] = None,
+        init_time_steps: t.Optional[list[t.Any]] = None,
         initial_batch_size: t.Optional[int] = None,
         initial_features: t.Optional[Collection[str]] = None,
-        initial_values: t.Optional[list[t.Any] | list[list[t.Any]]] = None,
+        initial_values: t.Optional[TabularData2D] = None,
         input_is_substituted: bool = False,
         leave_case_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
@@ -2330,10 +2336,10 @@ class AbstractHowsoClient(ABC):
         preserve_feature_values: t.Optional[Collection[str]] = None,
         progress_callback: t.Optional[Callable] = None,
         series_context_features: t.Optional[Collection[str]] = None,
-        series_context_values: t.Optional[list[t.Any] | list[list[t.Any]]] = None,
+        series_context_values: t.Optional[TabularData3D] = None,
         series_id_tracking: SeriesIDTracking = "fixed",
         series_index: t.Optional[str] = None,
-        series_stop_maps: t.Optional[list[dict[str, dict]]] = None,
+        series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: bool = False,
@@ -2902,7 +2908,7 @@ class AbstractHowsoClient(ABC):
         int
             The response payload size.
         """
-        batch_result, in_size, out_size = self.execute(trainee_id, "react_series", params)
+        batch_result, in_size, out_size = self.execute_sized(trainee_id, "react_series", params)
 
         if batch_result is None or batch_result.get('action_values') is None:
             raise ValueError('Invalid parameters passed to react_series.')
@@ -3809,7 +3815,7 @@ class AbstractHowsoClient(ABC):
         })
         self._auto_persist_trainee(trainee_id)
 
-    def get_auto_ablation_params(self, trainee_id: str) -> dict:
+    def get_auto_ablation_params(self, trainee_id: str) -> dict[str, t.Any]:
         """
         Get Trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`.
 
@@ -4569,7 +4575,7 @@ class AbstractHowsoClient(ABC):
 
                 {
                     'case_indices': [ session-indices ],
-                    'distances': [ [ distances ] ]
+                    'distances': DataFrame[ distances ]
                 }
         """
         trainee_id = self._resolve_trainee(trainee_id)
@@ -4702,7 +4708,7 @@ class AbstractHowsoClient(ABC):
 
         return {
             'case_indices': indices,
-            'distances': distances_matrix
+            'distances': internals.deserialize_to_dataframe(distances_matrix)
         }
 
     def get_params(
@@ -4726,7 +4732,7 @@ class AbstractHowsoClient(ABC):
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee get parameters from.
+            The ID of the Trainee.
         action_feature : str, optional
             If specified will return the best analyzed hyperparameters to
             target this feature.
@@ -4764,7 +4770,7 @@ class AbstractHowsoClient(ABC):
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee set hyperparameters.
+            The ID of the Trainee.
 
         params : Mapping
             A dictionary in the following format containing the hyperparameter

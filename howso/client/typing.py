@@ -3,8 +3,6 @@ from __future__ import annotations
 import os
 from typing import Any, Literal
 
-from numpy import float64
-from numpy.typing import NDArray
 from pandas import DataFrame
 from typing_extensions import Sequence, TypeAlias, TypedDict
 
@@ -25,7 +23,7 @@ class Distances(TypedDict):
     case_indices: CaseIndices
     """The corresponding distances case indices."""
 
-    distances: NDArray[float64]
+    distances: DataFrame
     """The matrix of computed distances."""
 
 
@@ -57,7 +55,7 @@ NewCaseThreshold: TypeAlias = Literal["max", "min", "most_similar"]
 NormalizeMethod: TypeAlias = Literal["feature_count", "fractional", "relative"]
 """Valid values for ``normalize_method`` parameters."""
 
-PathLike: TypeAlias = str | bytes | os.PathLike
+PathLike: TypeAlias = str | os.PathLike
 """Objects which can be interpreted as paths."""
 
 Persistence: TypeAlias = Literal["allow", "always", "never"]

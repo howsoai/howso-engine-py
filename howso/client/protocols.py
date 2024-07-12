@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import (
     Optional,
     Protocol,
@@ -10,6 +11,7 @@ from typing import (
 if TYPE_CHECKING:
     from amalgam.api import Amalgam
     from howso.client.schemas import Project, Trainee
+    from howso.client.typing import PathLike
 
 __all__ = [
     "LocalSaveableProtocol",
@@ -21,6 +23,8 @@ __all__ = [
 class LocalSaveableProtocol(Protocol):
     """Protocol to define a Howso client that has direct disk read/write access."""
 
+    default_persist_path: Path
+
     @property
     def amlg(self) -> Amalgam:
         """Amalgam API."""
@@ -28,6 +32,10 @@ class LocalSaveableProtocol(Protocol):
 
     def _get_trainee_from_engine(self, trainee_id: str) -> Trainee:
         """Retrieve the engine representation of a Trainee object."""
+        ...
+
+    def resolve_trainee_filepath(self, filename: str, *, filepath: Optional[PathLike] = None) -> str:
+        """Resolve the path to a persisted Trainee file."""
         ...
 
 

@@ -114,7 +114,7 @@ def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # no
             Path(environ[XDG_CONFIG_ENV_VAR], XDG_DIR_CONFIG_PATH, DEFAULT_CONFIG_FILE).is_file()
         ):
             # Check if XDG_CONFIG_HOME is an absolute path.
-            if not Path(expandvars(environ.get(XDG_CONFIG_ENV_VAR))).is_absolute():
+            if not Path(expandvars(environ[XDG_CONFIG_ENV_VAR])).is_absolute():
                 raise HowsoConfigurationError(xdg_config_home_not_abs_msg)
             config_path = Path(environ[XDG_CONFIG_ENV_VAR], XDG_DIR_CONFIG_PATH, DEFAULT_CONFIG_FILE)
         # Check for .yaml config file in XDG_CONFIG_HOME directory, if configured
@@ -123,7 +123,7 @@ def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # no
             Path(environ[XDG_CONFIG_ENV_VAR], XDG_DIR_CONFIG_PATH, DEFAULT_CONFIG_FILE_ALT).is_file()
         ):
             # Check if XDG_CONFIG_HOME is an absolute path.
-            if not Path(environ.get(XDG_CONFIG_ENV_VAR)).expanduser().is_absolute():
+            if not Path(environ[XDG_CONFIG_ENV_VAR]).expanduser().is_absolute():
                 raise HowsoConfigurationError(xdg_config_home_not_abs_msg)
             config_path = Path(environ[XDG_CONFIG_ENV_VAR], XDG_DIR_CONFIG_PATH, DEFAULT_CONFIG_FILE_ALT)
         # Check default home directory for config file
