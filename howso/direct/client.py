@@ -389,36 +389,6 @@ class HowsoDirectClient(AbstractHowsoClient):
             self.acquire_trainee_resources(trainee_id)
         return trainee_id
 
-    def _resolve_trainee_filepath(
-        self,
-        filename: str,
-        *,
-        append_ext: bool = True,
-        filepath: t.Optional[str | Path] = None
-    ) -> str:
-        """
-        Resolve the path to a persisted Trainee file.
-
-        Parameters
-        ----------
-        filename : str
-            The name of the Trainee file.
-        append_ext : bool, default True
-            Append file extension to filename if missing.
-        filepath : str or Path, optional
-            The directory of the file. If not provided, uses default persist path.
-
-        Returns
-        -------
-        str
-            The resolved path to the the Trainee file.
-        """
-        if append_ext and not filename.endswith(self._howso_ext):
-            filename += self._howso_ext
-        if filepath is None:
-            filepath = self.default_persist_path
-        return str(Path(filepath, filename).expanduser())
-
     def _auto_persist_trainee(self, trainee_id: str):
         """
         Automatically persists the Trainee if it has persistence set to True.
@@ -433,7 +403,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             if trainee.persistence == 'always':
                 self.amlg.store_entity(
                     handle=trainee_id,
-                    amlg_path=self._resolve_trainee_filepath(trainee_id)
+                    amlg_path=self.resolve_trainee_filepath(trainee_id)
                 )
         except KeyError:
             # Trainee not cached, ignore
@@ -542,6 +512,33 @@ class HowsoDirectClient(AbstractHowsoClient):
             if total_size > self._react_discriminative_batch_threshold:
                 return True
         return False
+
+    def resolve_trainee_filepath(
+        self,
+        filename: str,
+        *,
+        filepath: t.Optional[str | Path] = None
+    ) -> str:
+        """
+        Resolve the path to a persisted Trainee file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the Trainee file.
+        filepath : str or Path, optional
+            The directory of the file. If not provided, uses default persist path.
+
+        Returns
+        -------
+        str
+            The resolved path to the the Trainee file.
+        """
+        if not filename.endswith(self._howso_ext):
+            filename += self._howso_ext
+        if filepath is None:
+            filepath = self.default_persist_path
+        return str(Path(filepath, filename).expanduser())
 
     def execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:
         """
@@ -1200,7 +1197,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         status = self.amlg.load_entity(
             handle=trainee_id,
-            amlg_path=self._resolve_trainee_filepath(trainee_id),
+            amlg_path=self.resolve_trainee_filepath(trainee_id),
             persist=False,
             load_contained=True,
             escape_filename=False,
@@ -1236,7 +1233,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 # Persist on unload
                 self.amlg.store_entity(
                     handle=trainee_id,
-                    amlg_path=self._resolve_trainee_filepath(trainee_id)
+                    amlg_path=self.resolve_trainee_filepath(trainee_id)
                 )
             elif trainee.persistence == "never":
                 raise HowsoError(
@@ -1279,7 +1276,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.amlg.store_entity(
             handle=trainee_id,
-            amlg_path=self._resolve_trainee_filepath(trainee_id)
+            amlg_path=self.resolve_trainee_filepath(trainee_id)
         )
 
     def begin_session(self, name: str = "default", metadata: t.Optional[Mapping] = None) -> Session:

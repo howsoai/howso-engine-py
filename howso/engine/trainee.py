@@ -346,13 +346,12 @@ class Trainee(BaseTrainee):
             file_name = file_path.stem
             file_path = f"{file_path.parents[0]}/"
         else:
-            file_name = None
+            file_name = self.id
 
         if self.id:
-            self.client.howso.persist(
-                trainee_id=self.id,
-                filename=file_name,
-                filepath=file_path
+            self.client.amlg.store_entity(
+                handle=self.id,
+                amlg_path=self.client.resolve_trainee_filepath(file_name, filepath=file_path)
             )
         else:
             raise ValueError("Trainee ID is needed for saving.")
@@ -3854,9 +3853,15 @@ def load_trainee(
         raise HowsoError(
             f'The specified directory "{file_path.parents[0]}" does not exist.')
 
-    ret = client.howso.load(trainee_id, file_path.stem, f"{file_path.parents[0]}/")
-
-    if ret is None:
+    status = client.amlg.load_entity(
+        handle=trainee_id,
+        amlg_path=str(file_path),
+        persist=False,
+        load_contained=True,
+        escape_filename=False,
+        escape_contained_filenames=False,
+    )
+    if not status.loaded:
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
 
     if isinstance(client, LocalSaveableProtocol):
