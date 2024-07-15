@@ -305,12 +305,12 @@ def query_sessions(
 
     params = {'search_terms': search_terms}
 
-    # Only pass project_id for platform clients
+    # Only pass project for platform clients
     if project is not None and isinstance(client, ProjectClient):
         if isinstance(project, BaseProject):
-            params["project_id"] = project.id
+            params["project"] = project.id
         else:
-            params["project_id"] = project
+            params["project"] = project
 
     sessions = client.query_sessions(**params)
     return [Session.from_schema(s, client=client) for s in sessions]
