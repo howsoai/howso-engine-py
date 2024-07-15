@@ -547,7 +547,8 @@ class HowsoEstimator(BaseEstimator):
             'similarity_conviction'.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
-            `weight_feature` weight.
+            `weight_feature` weight. If unspecified, use_case_weights will
+            be automatically determined using the Trainee's hyperparameters.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.

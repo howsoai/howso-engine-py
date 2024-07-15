@@ -3459,7 +3459,8 @@ class Trainee(BaseTrainee):
             DataFrame, only the first row will be used.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            ``weight_feature`` weight.
+            ``weight_feature`` weight. If unspecified, use_case_weights will
+            be automatically determined using the Trainee's hyperparameters.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
