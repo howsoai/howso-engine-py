@@ -11,7 +11,7 @@ import yaml
 from howso.client.exceptions import HowsoConfigurationError
 from .feature_flags import FeatureFlags
 
-CO = TypeVar("CO", bound="ClientOptions", default="ClientOptions")
+CO = TypeVar("CO", bound="ClientOptions")
 
 
 class BaseOptions:
