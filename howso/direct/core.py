@@ -1070,7 +1070,9 @@ class HowsoCore:
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
 
         Returns
         -------
@@ -1457,7 +1459,9 @@ class HowsoCore:
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
         case_indices : Iterable of Sequence[Union[str, int]], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
@@ -1626,7 +1630,9 @@ class HowsoCore:
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
         case_indices : Iterable of Sequence[Union[str, int]], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained

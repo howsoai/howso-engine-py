@@ -3055,7 +3055,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
         case_indices : Iterable of Sequence[Union[str, int]], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
@@ -3662,7 +3664,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
         """
         self._auto_resolve_trainee(trainee_id)
         validate_list_shape(features, 1, "features", "str")
@@ -3874,7 +3878,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
 
         Returns
         -------
@@ -3957,7 +3963,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
 
         Returns
         -------
@@ -4442,7 +4450,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             to models > 1000 cases.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each case's
-            weight_feature weight.
+            weight_feature weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -5385,7 +5395,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             1 or match length of `from_values` or `from_case_indices`.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight.
+            `weight_feature` weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -5497,7 +5509,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             DataFrame, only the first row will be used.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight.
+            `weight_feature` weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -5677,7 +5691,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, ``use_case_weights``
+            will be automatically determined using the Trainee's
+            hyperparameters.
 
         Returns
         -------
