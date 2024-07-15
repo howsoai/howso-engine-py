@@ -1070,9 +1070,8 @@ class HowsoCore:
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight. If unspecified, ``use_case_weights``
-            will be automatically determined using the Trainee's
-            hyperparameters.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
 
         Returns
         -------
@@ -1459,9 +1458,8 @@ class HowsoCore:
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight. If unspecified, ``use_case_weights``
-            will be automatically determined using the Trainee's
-            hyperparameters.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
         case_indices : Iterable of Sequence[Union[str, int]], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
@@ -1630,9 +1628,8 @@ class HowsoCore:
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight. If unspecified, ``use_case_weights``
-            will be automatically determined using the Trainee's
-            hyperparameters.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
         case_indices : Iterable of Sequence[Union[str, int]], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
@@ -1979,8 +1976,8 @@ class HowsoCore:
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight. If unspecified, use_case_weights will
-            be automatically determined using the Trainee's hyperparameters.
+            case's weight_feature weight. If unspecified, case weights will
+            be used if the Trainee has them.
         """
         return self._execute(trainee_id, "react_into_features", {
             "features": features,
@@ -2048,8 +2045,8 @@ class HowsoCore:
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight. If unspecified, use_case_weights will
-            be automatically determined using the Trainee's hyperparameters.
+            case's weight_feature weight. If unspecified, case weights will
+            be used if the Trainee has them.
 
         Returns
         -------
@@ -2312,8 +2309,8 @@ class HowsoCore:
             to models > 1000 cases.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each case's
-            weight_feature weight. If unspecified, use_case_weights will
-            be automatically determined using the Trainee's hyperparameters.
+            weight_feature weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -2382,8 +2379,8 @@ class HowsoCore:
             When left unspecified uses the internally managed case weight.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight. If unspecified, use_case_weights will
-            be automatically determined using the Trainee's hyperparameters.
+            case's weight_feature weight. If unspecified, case weights will
+            be used if the Trainee has them.
 
         Returns
         -------
@@ -2930,8 +2927,8 @@ class HowsoCore:
             1 or match length of `from_values` or `from_case_indices`.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight. If unspecified, use_case_weights will
-            be automatically determined using the Trainee's hyperparameters.
+            `weight_feature` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -2993,8 +2990,8 @@ class HowsoCore:
             these values, ignores `case_indices` parameter.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight. If unspecified, use_case_weights will
-            be automatically determined using the Trainee's hyperparameters.
+            `weight_feature` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.

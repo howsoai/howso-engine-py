@@ -1634,8 +1634,8 @@ class Trainee(BaseTrainee):
             When True, warnings will not be displayed.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
-            ``weight_feature`` weight. If unspecified, ``use_case_weights`` will
-            be automatically determined using the Trainee's hyperparameters.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         use_regional_model_residuals : bool, default True
             When false, uses model feature residuals. When True, recalculates
             regional model residuals.
@@ -2705,8 +2705,8 @@ class Trainee(BaseTrainee):
             If true will output :math:`p` value of removal.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
-            ``weight_feature`` weight. If unspecified, ``use_case_weights`` will
-            be automatically determined using the Trainee's hyperparameters.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -2764,8 +2764,8 @@ class Trainee(BaseTrainee):
             features will be used.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
-            ``weight_feature`` weight. If unspecified, ``use_case_weights`` will
-            be automatically determined using the Trainee's hyperparameters.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -2890,8 +2890,8 @@ class Trainee(BaseTrainee):
             'similarity_conviction'.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
-            ``weight_feature`` weight. If unspecified, ``use_case_weights`` will
-            be automatically determined using the Trainee's hyperparameters.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3154,8 +3154,8 @@ class Trainee(BaseTrainee):
             to models > 1000 cases.
         use_case_weights : bool, optional
             If set to True will scale influence weights by each case's
-            weight_feature weight. If unspecified, ``use_case_weights`` will
-            be automatically determined using the Trainee's hyperparameters.
+            weight_feature weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3394,8 +3394,8 @@ class Trainee(BaseTrainee):
             1 or match length of ``from_values`` or ``from_case_indices``.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            ``weight_feature`` weight. If unspecified, ``use_case_weights`` will
-            be automatically determined using the Trainee's hyperparameters.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3459,8 +3459,8 @@ class Trainee(BaseTrainee):
             DataFrame, only the first row will be used.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            ``weight_feature`` weight. If unspecified, use_case_weights will
-            be automatically determined using the Trainee's hyperparameters.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
