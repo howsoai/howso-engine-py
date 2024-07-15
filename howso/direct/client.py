@@ -1059,12 +1059,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         else:
             raise ValueError("One of `trainee_id` or `file_path` must be provided.")
 
+        if self.configuration.verbose:
+            print(f'Deleting Trainee with id {trainee_id}')
+
         # Unload the trainee from engine
         self.amlg.destroy_entity(trainee_id)
         self.trainee_cache.discard(trainee_id)
-
-        if self.configuration.verbose:
-            print(f'Deleting Trainee with id {trainee_id}')
 
         if file_path:
             # Either full filepath or filename
