@@ -50,10 +50,6 @@ class HowsoError(Exception):
         super().__init__((message, code, url))
 
 
-class HowsoConfigurationError(HowsoError):
-    """An error raised when the howso.yml options are misconfigured."""
-
-
 class HowsoValidationError(HowsoError):
     """
     An error raised when parameters are invalid.
@@ -217,6 +213,10 @@ class HowsoApiValidationError(HowsoValidationError, HowsoApiError):
 
 class HowsoAuthenticationError(HowsoApiError):
     """An error raised due to an authentication failure."""
+
+
+class HowsoConfigurationError(HowsoError):
+    """An error raised when the howso.yml options are misconfigured."""
 
 
 class HowsoNotUniqueError(HowsoError):
