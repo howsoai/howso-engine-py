@@ -25,9 +25,7 @@ from .client import (  # noqa: F401
     get_howso_client,
     HowsoClient,
 )
-from .pandas.client import (  # noqa: F401
-    HowsoPandasClient,
-)
+from .pandas.client import HowsoPandasClient  # noqa: F401
 
 __all__ = [
     "AbstractHowsoClient",

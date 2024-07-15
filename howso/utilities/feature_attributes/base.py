@@ -14,11 +14,12 @@ import warnings
 
 from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
-from howso.utilities.features import FeatureType
-from howso.utilities.internals import serialize_openapi_models
 import numpy as np
 import pandas as pd
 import yaml
+
+from howso.utilities.features import FeatureType
+from howso.utilities.internals import serialize_models
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ LINUX_DT_MAX = '2262-04-11'
 class FeatureAttributesBase(dict):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
-    def __init__(self, feature_attributes: Dict, params: Dict = {}, unsupported: List[str] = []):
+    def __init__(self, feature_attributes: Mapping, params: Dict = {}, unsupported: List[str] = []):
         """
         Instantiate this FeatureAttributesBase object.
 
@@ -47,7 +48,7 @@ class FeatureAttributesBase(dict):
             (Optional) A list of features that contain data that is unsupported by the engine.
 
         """
-        if not isinstance(feature_attributes, Dict):
+        if not isinstance(feature_attributes, Mapping):
             raise TypeError('Provided feature attributes must be a Dict.')
         self.params = params
         self.update(feature_attributes)
@@ -349,7 +350,7 @@ class FeatureAttributesBase(dict):
             return coerced_df
 
     @abstractmethod
-    def validate(data: Any, coerce=False, raise_errors=False, validate_bounds=True,
+    def validate(self, data: Any, coerce=False, raise_errors=False, validate_bounds=True,
                  allow_missing_features=False, localize_datetimes=True):
         """
         Validate the given data against this FeatureAttributes object.
@@ -555,7 +556,7 @@ class InferFeatureAttributesBase(ABC):
             )
 
         if features:
-            feature_attributes: Dict = serialize_openapi_models(features)
+            feature_attributes: Dict = serialize_models(features)
         else:
             feature_attributes = dict()
 

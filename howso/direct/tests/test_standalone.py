@@ -1,7 +1,7 @@
 import pytest
 
 from amalgam.api import Amalgam
-from howso.direct import HowsoDirectClient, HowsoCore
+from howso.direct import HowsoDirectClient
 from howso.utilities.testing import get_configurationless_test_client
 
 
@@ -12,13 +12,11 @@ def client():
                                              verbose=True, trace=True)
 
 
-def test_direct_client(client):
+def test_direct_client(client: HowsoDirectClient):
     """Sanity check client instantiation."""
-    assert isinstance(client.howso, HowsoCore)
-    assert isinstance(client.howso.amlg, Amalgam)
+    assert isinstance(client.amlg, Amalgam)
     version = client.get_version()
-    assert version.api is not None
-    assert version.client is not None
+    assert version.get('client') is not None
 
 
 @pytest.mark.parametrize(('filename', 'truthiness'), (

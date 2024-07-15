@@ -2,7 +2,7 @@ from collections.abc import Collection
 import typing as t
 
 if t.TYPE_CHECKING:
-    from howso.openapi.models import Trainee
+    from howso.client.schemas import Trainee
 
 
 class TraineeCacheItem(t.TypedDict):

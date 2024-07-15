@@ -1,10 +1,10 @@
 Faker
-25.8.0
+26.0.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-25.8.0.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-26.0.0.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -149,12 +149,12 @@ DEALINGS IN THE SOFTWARE.
 
 
 certifi
-2024.6.2
+2024.7.4
 Mozilla Public License 2.0 (MPL 2.0)
 Kenneth Reitz
 https://github.com/certifi/python-certifi
 Python package for providing Mozilla's CA Bundle.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/certifi-2024.6.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/certifi-2024.7.4.dist-info/LICENSE
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
@@ -472,12 +472,12 @@ A library to handle automated deprecations
 
 
 humanize
-4.9.0
+4.10.0
 MIT License
 Jason Moiron <jmoiron@jmoiron.net>
 https://github.com/python-humanize/humanize
 Python humanize utilities
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/humanize-4.9.0.dist-info/licenses/LICENCE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/humanize-4.10.0.dist-info/licenses/LICENCE
 Copyright (c) 2010-2020 Jason Moiron and Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -615,13 +615,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-1.26.4
+2.0.0
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/numpy-1.26.4.dist-info/LICENSE.txt
-Copyright (c) 2005-2023, NumPy Developers.
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/numpy-2.0.0.dist-info/LICENSE.txt
+Copyright (c) 2005-2024, NumPy Developers.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -662,20 +662,15 @@ Files: numpy/linalg/lapack_lite/*
 License: BSD-3-Clause
   For details, see numpy/linalg/lapack_lite/LICENSE.txt
 
-Name: tempita
-Files: tools/npy_tempita/*
-License: MIT
-  For details, see tools/npy_tempita/license.txt
-
 Name: dragon4
-Files: numpy/core/src/multiarray/dragon4.c
+Files: numpy/_core/src/multiarray/dragon4.c
 License: MIT
-  For license text, see numpy/core/src/multiarray/dragon4.c
+  For license text, see numpy/_core/src/multiarray/dragon4.c
 
 Name: libdivide
-Files: numpy/core/include/numpy/libdivide/*
+Files: numpy/_core/include/numpy/libdivide/*
 License: Zlib
-  For license text, see numpy/core/include/numpy/libdivide/LICENSE.txt
+  For license text, see numpy/_core/include/numpy/libdivide/LICENSE.txt
 
 
 Note that the following files are vendored in the repository and sdist but not
@@ -1904,6 +1899,36 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+tomli
+2.0.1
+MIT License
+Taneli Hukkinen <hukkin@users.noreply.github.com>
+https://github.com/hukkin/tomli
+A lil' TOML parser
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/tomli-2.0.1.dist-info/LICENSE
+MIT License
+
+Copyright (c) 2021 Taneli Hukkinen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
 typing_extensions
 4.12.2
 Python Software Foundation License
@@ -2217,12 +2242,12 @@ limitations under the License.
 
 
 urllib3
-2.2.1
+2.2.2
 MIT License
 Andrey Petrov <andrey.petrov@shazow.net>
 https://github.com/urllib3/urllib3/blob/main/CHANGES.rst
 HTTP library with thread-safe connection pooling, file post, and more.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/urllib3-2.2.1.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/urllib3-2.2.2.dist-info/licenses/LICENSE.txt
 MIT License
 
 Copyright (c) 2008-2020 Andrey Petrov and contributors.

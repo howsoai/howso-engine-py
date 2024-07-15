@@ -1,8 +1,9 @@
-from collections.abc import Iterable
 import warnings
-from howso.utilities import internals
+
 import pytest
 from semantic_version import Version
+
+from howso.utilities import internals
 
 
 @pytest.mark.parametrize(('features', 'result'), (
@@ -65,7 +66,7 @@ def test_preprocess_feature_attributes(features, result):
 
 
 @pytest.mark.parametrize(('features', 'result'), (
-    (None, None),
+    (None, {}),
     ({'test': {'type': 'ordinal'}}, {'test': {'type': 'ordinal'}}),
     ({'test': {'date_time_format': ''}}, {'test': {'date_time_format': ''}}),
     (

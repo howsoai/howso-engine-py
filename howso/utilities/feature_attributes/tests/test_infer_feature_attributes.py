@@ -154,9 +154,8 @@ def test_integer_nominality(feature, nominality):
     # Integer
     (pd.DataFrame([[1], [None]], dtype='Int8', columns=['a']),
      {'data_type': str(FeatureType.INTEGER), 'size': 1}),
-    # https://github.com/numpy/numpy/issues/9464
     (pd.DataFrame([[1], [16]], dtype='int', columns=['a']),
-     {'data_type': str(FeatureType.INTEGER), 'size': 4 if platform.system() == 'Windows' else 8}),
+     {'data_type': str(FeatureType.INTEGER), 'size': 8}),
     # Float
     (pd.DataFrame([[1.0], [4.4]], dtype='float', columns=['a']),
      {'data_type': str(FeatureType.NUMERIC), 'size': 8}),
@@ -170,7 +169,7 @@ def test_integer_nominality(feature, nominality):
      {'data_type': str(FeatureType.STRING)}),
     (pd.DataFrame([["test"], [None]], dtype='string', columns=['a']),
      {'data_type': str(FeatureType.STRING)}),
-    (pd.DataFrame([["test"], [None]], dtype=np.string_, columns=['a']),
+    (pd.DataFrame([["test"], [None]], dtype=np.bytes_, columns=['a']),
      {'data_type': str(FeatureType.STRING)}),
     (pd.DataFrame([["test"]], dtype='S', columns=['a']),
      {'data_type': str(FeatureType.STRING)}),

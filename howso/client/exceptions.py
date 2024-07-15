@@ -216,7 +216,7 @@ class HowsoApiValidationError(HowsoValidationError, HowsoApiError):
 
 
 class HowsoAuthenticationError(HowsoApiError):
-    """An error raised when the authentication API request fails."""
+    """An error raised due to an authentication failure."""
 
 
 class HowsoNotUniqueError(HowsoError):
