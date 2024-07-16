@@ -75,7 +75,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             futures: dict[Future, str] = dict()
 
             with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
-                print(f"Using process pool with {pool._max_workers} workers.")  # type: ignore reportPrivateUsage
                 for f in self.data.columns:
                     future = pool.submit(_shard, self.data[[f]], kwargs=kwargs)
                     futures[future] = f
@@ -88,7 +87,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         feature_attributes.update(response[0])
                         unsupported.extend(response[1])
                     except Exception as e:
-                        print(
+                        warnings.warn(
                             f"Infer_feature_attributes raised an exception "
                             f"while processing '{futures[future]}' ({str(e)})."
                         )
