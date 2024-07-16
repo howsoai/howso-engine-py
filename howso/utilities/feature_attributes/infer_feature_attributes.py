@@ -305,12 +305,13 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
         Dict mapping a feature to a list of other feature(s) that it depends on or
         that are dependent on it. This restricts the cases can be selected as
         neighbors (such as in :meth:`~howso.engine.Trainee.react`) to ones that
-        satisfy the dependency, if possible. If this is not possible, the dependency
-        may not be maintained. Be aware that dependencies introduce further constraints
-        to data and so several dependencies or dependencies on already constrained
-        datasets may restrict which operations are possible while maintaining the
-        dependency. As a rule of thumb, each dependency should generally include no
-        more than 1 continuous feature.
+        satisfy the dependency, if possible. If this is not possible, either due to
+        insufficient data which satisfy the dependency or because dependencies are
+        probabilistic, the dependency may not be maintained. Be aware that dependencies
+        introduce further constraints to data and so several dependencies or dependencies
+        on already constrained datasets may restrict which operations are possible while
+        maintaining the dependency. As a rule of thumb, each dependency should generally
+        include no more than 1 continuous feature.
 
         Examples:
             If there's a feature name 'measurement' that contains
