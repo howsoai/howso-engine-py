@@ -32,7 +32,7 @@ from ..utilities import (
 
 logger = logging.getLogger(__name__)
 
-# Import sqlalchemy only if it's available. Not all users of this package will have or need
+# Import SQLAlchemy only if it's available. Not all users of this package will have or need
 # this installed.
 try:
     import sqlalchemy as db
@@ -255,12 +255,12 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         column_types : DatastoreColumnTypes
             The datastore column types.
         session_cls : SessionProtocol
-            The sqlalchemy Session object associated with this SQL table.
+            The SQLAlchemy Session object associated with this SQL table.
         parent_datastore : SQLRelationalDatastoreProtocol
             The datastore to which this SQL table belongs.
         """
         if not db:
-            raise ImportError('Must have sqlalchemy installed to instantiate '
+            raise ImportError('Must have SQLAlchemy installed to instantiate '
                               'FeatureAttributesSQLTable. See synthesizer-data-services/'
                               'requirements.in for versioning.')
         self.data = data

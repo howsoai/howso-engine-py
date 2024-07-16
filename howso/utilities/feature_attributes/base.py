@@ -533,6 +533,7 @@ class InferFeatureAttributesBase(ABC):
                  ordinal_feature_values: Optional[Dict[str, List[str]]] = None,
                  dependent_features: Optional[Dict[str, List[str]]] = None,
                  include_sample: bool = False,
+                 max_workers: Optional[int] = None,
                  ) -> Dict:
         """
         Get inferred feature attributes for the parameters.

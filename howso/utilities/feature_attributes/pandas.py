@@ -1,10 +1,13 @@
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+from concurrent.futures import as_completed, Future, ProcessPoolExecutor
 import datetime
 import decimal
 import logging
-from math import isnan
-from typing import (
-    Any, Dict, Iterable, List, Mapping, Optional, Tuple
-)
+from math import isnan, prod
+import multiprocessing as mp
+import typing as t
 import warnings
 
 from dateutil.parser import parse as dt_parse
@@ -36,10 +39,17 @@ logger = logging.getLogger(__name__)
 SMALLEST_TIME_DELTA = 0.001
 
 
+def _shard(data: pd.DataFrame, *, kwargs: dict[str, t.Any]):
+    """Internal function to aid multiprocessing of feature attributes."""
+    ifr_inst = InferFeatureAttributesDataFrame(data)
+    feature_attributes = ifr_inst._process(**kwargs)  # type: ignore reportPrivateUsage
+    return feature_attributes, ifr_inst.unsupported
+
+
 class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
     """Support inferring feature attributes for Pandas DataFrames."""
 
-    def __init__(self, data: pd.DataFrame):
+    def __init__(self, data: pd.DataFrame):  # type: ignore reportMissingSuperCall
         """
         Instantiate this InferFeatureAttributesDataFrame object.
 
@@ -54,8 +64,50 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
-        return SingleTableFeatureAttributes(self._process(**kwargs), params=kwargs,
-                                            unsupported=self.unsupported)
+        max_workers = kwargs.pop("max_workers", None)
+        # The default with be to not use multiprocessing if the product of rows
+        # and columns is less than 25M.
+        if prod(self.data.shape) < 25_000_000 and max_workers is None:
+            max_workers = 0
+
+        if max_workers is None or max_workers >= 1:
+            mp_context = mp.get_context("spawn")
+            futures: dict[Future, str] = dict()
+
+            with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
+                print(f"Using process pool with {pool._max_workers} workers.")  # type: ignore reportPrivateUsage
+                for f in self.data.columns:
+                    future = pool.submit(_shard, self.data[[f]], kwargs=kwargs)
+                    futures[future] = f
+
+                feature_attributes: dict[str, t.Any] = dict()
+                unsupported: list[str] = list()
+                for future in as_completed(futures):
+                    try:
+                        response = future.result()
+                        feature_attributes.update(response[0])
+                        unsupported.extend(response[1])
+                    except Exception as e:
+                        print(
+                            f"Infer_feature_attributes raised an exception "
+                            f"while processing '{futures[future]}' ({str(e)})."
+                        )
+
+            # Re-order the keys like the original dataframe
+            feature_attributes = {
+                k: feature_attributes[k] for k in self.data.columns
+            }
+
+            return SingleTableFeatureAttributes(
+                feature_attributes=feature_attributes, params=kwargs,
+                unsupported=unsupported
+            )
+
+        else:
+            return SingleTableFeatureAttributes(
+                self._process(**kwargs), params=kwargs,
+                unsupported=self.unsupported
+            )
 
     def _get_num_features(self) -> int:
         return self.data.shape[1]
@@ -63,7 +115,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
     def _get_num_cases(self) -> int:
         return self.data.shape[0]
 
-    def _get_feature_names(self) -> List[str]:
+    def _get_feature_names(self) -> list[str]:
         feature_names = self.data.columns.tolist()
         for name in feature_names:
             if not isinstance(name, str):
@@ -78,7 +130,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return False
 
     def _get_feature_type(self, feature_name: str  # noqa: C901
-                          ) -> Tuple[Optional[FeatureType], Optional[Dict]]:
+                          ) -> tuple[t.Optional[FeatureType], t.Optional[dict]]:
         # Import this here to avoid circular import
         from howso.client.exceptions import HowsoError
         feature = self.data[feature_name]
@@ -167,13 +219,13 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         except Exception:  # noqa: Deliberately broad
             return False
 
-    def _get_first_non_null(self, feature_name: str) -> Optional[Any]:
+    def _get_first_non_null(self, feature_name: str) -> t.Any | None:
         index = self.data[feature_name].first_valid_index()
         if index is None:
             return None
         return self.data[feature_name][index]
 
-    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> Optional[Any]:
+    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
         """
         Return a random sample from the given DataFrame column.
 
@@ -196,10 +248,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self,
         feature_attributes: Mapping[str, Mapping],
         feature_name: str,
-        tight_bounds: Optional[Iterable[str]] = None,
-        mode_bound_features: Optional[Iterable[str]] = None,
-    ) -> Optional[Dict]:
-        output = None
+        tight_bounds: t.Optional[Iterable[str]] = None,
+        mode_bound_features: t.Optional[Iterable[str]] = None,
+    ) -> dict | None:
+        output: dict[str, t.Any] = dict()
         allow_null = True
         column = self.data[feature_name]
         decimal_places = feature_attributes[feature_name].get('decimal_places')
@@ -214,7 +266,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     return float('nan')
                 return value.to_pytimedelta().total_seconds()
             elif isinstance(value, datetime.time):
-                if pd.isna(value):
+                if pd.isna(value):  # type: ignore
                     return float('nan')
                 return time_to_seconds(value)
             else:
@@ -334,7 +386,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 min_f = _as_float(column_filtered.min(), column.dtype)
                 max_f = _as_float(column_filtered.max(), column.dtype)
 
-            if not (isnan(min_f) or isnan(max_f)):
+            if not (isnan(min_f) or isnan(max_f)):  # type: ignore
                 actual_min_f = min_f
                 actual_max_f = max_f
                 # set loose bounds if no tight bounds for all and this
@@ -344,7 +396,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     or feature_name not in tight_bounds
                 ):
                     min_f, max_f = self.infer_loose_feature_bounds(
-                        actual_min_f, actual_max_f
+                        actual_min_f, actual_max_f  # type: ignore
                     )
                     # Check for mode bounds
                     if (
@@ -387,10 +439,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             if 'min' in output:
                 output['min'] = round(output['min'], decimal_places)
 
-        return output
+        return output or None
 
-    def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
-        attributes: Dict[str, Any] = {'type': 'continuous', 'data_type': 'number'}
+    def _infer_floating_point_attributes(self, feature_name: str) -> dict:
+        attributes: dict[str, t.Any] = {'type': 'continuous', 'data_type': 'number'}
 
         n_cases = self.data[feature_name].shape[0]
 
@@ -460,7 +512,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
         return attributes
 
-    def _infer_datetime_attributes(self, feature_name: str) -> Dict:
+    def _infer_datetime_attributes(self, feature_name: str) -> dict:
         column = self.data[feature_name]
         dt_format = ISO_8601_FORMAT
         if hasattr(column, 'dt') and getattr(column.dt, 'tz', None):
@@ -480,32 +532,32 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             'date_time_format': dt_format,
         }
 
-    def _infer_date_attributes(self, feature_name: str) -> Dict:
+    def _infer_date_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'continuous',
             'data_type': 'formatted_date_time',
             'date_time_format': ISO_8601_DATE_FORMAT,
         }
 
-    def _infer_time_attributes(self, feature_name: str) -> Dict:
+    def _infer_time_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'continuous',
             'data_type': 'number',
         }
 
-    def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
+    def _infer_timedelta_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'continuous',
             'data_type': 'number',
         }
 
-    def _infer_boolean_attributes(self, feature_name: str) -> Dict:
+    def _infer_boolean_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'nominal',
             'data_type': 'boolean',
         }
 
-    def _infer_integer_attributes(self, feature_name: str) -> Dict:
+    def _infer_integer_attributes(self, feature_name: str) -> dict:
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
@@ -547,7 +599,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
         return attributes
 
-    def _infer_string_attributes(self, feature_name: str) -> Dict:
+    def _infer_string_attributes(self, feature_name: str) -> dict:
         # Column has arbitrary string values, first check if they
         # are ISO8601 datetimes.
         if self._is_iso8601_datetime_column(feature_name):
@@ -578,7 +630,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             return self._infer_unknown_attributes(feature_name)
 
-    def _infer_unknown_attributes(self, feature_name: str) -> Dict:
+    def _infer_unknown_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'nominal',
         }
