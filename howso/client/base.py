@@ -286,7 +286,7 @@ class AbstractHowsoClient(ABC):
         series_index=None,
         substitute_output=True,
         suppress_warning=False,
-        use_case_weights=False,
+        use_case_weights=None,
         use_regional_model_residuals=True,
         weight_feature=None
     ) -> Reaction:
@@ -303,7 +303,7 @@ class AbstractHowsoClient(ABC):
         p_value_of_addition: Union[bool, str] = False,
         p_value_of_removal: Union[bool, str] = False,
         similarity_conviction: Union[bool, str] = False,
-        use_case_weights: Union[bool, str] = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature=None
     ):
         """Calculate conviction and other data for the specified feature(s)."""
@@ -342,7 +342,7 @@ class AbstractHowsoClient(ABC):
         kl_divergence_removal=False,
         p_value_of_addition=False,
         p_value_of_removal=False,
-        use_case_weights=False,
+        use_case_weights=None,
         weight_feature=None
     ) -> Union["DataFrame", Dict]:
         """Compute specified data for a **set** of cases."""
@@ -377,7 +377,7 @@ class AbstractHowsoClient(ABC):
         progress_callback=None,
         substitute_output=True,
         suppress_warning=False,
-        use_case_weights=False,
+        use_case_weights=None,
         use_regional_model_residuals=True,
         weight_feature=None
     ) -> Reaction:
@@ -496,7 +496,7 @@ class AbstractHowsoClient(ABC):
 
         familiarity_conviction_addition: Union[bool, str] = True,
         familiarity_conviction_removal: Union[bool, str] = False,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         features=None,
         action_features=None,
         weight_feature=None
@@ -518,14 +518,14 @@ class AbstractHowsoClient(ABC):
     def get_pairwise_distances(self, trainee_id, features=None, *,
                                action_feature=None, from_case_indices=None,
                                from_values=None, to_case_indices=None,
-                               to_values=None, use_case_weights=False,
+                               to_values=None, use_case_weights=None,
                                weight_feature=None) -> List[float]:
         """Compute pairwise distances between specified cases."""
 
     @abstractmethod
     def get_distances(self, trainee_id, features=None, *,
                       action_feature=None, case_indices=None,
-                      feature_values=None, use_case_weights=False,
+                      feature_values=None, use_case_weights=None,
                       weight_feature=None) -> Dict:
         """Compute distances matrix for specified cases."""
 
