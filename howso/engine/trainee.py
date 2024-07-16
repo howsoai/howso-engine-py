@@ -1050,7 +1050,7 @@ class Trainee(BaseTrainee):
                   features as possible action features, ignores
                   action_features parameter.
 
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             When True will scale influence weights by each
             case's weight_feature weight.
         use_deviations : bool, default False
@@ -1096,7 +1096,7 @@ class Trainee(BaseTrainee):
         derived_context_features: Optional[Iterable[str]] = None,
         leave_case_out: Optional[bool] = None,
         suppress_warning: bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None,
     ) -> DataFrame:
         """
@@ -1130,7 +1130,7 @@ class Trainee(BaseTrainee):
             See parameter ``leave_case_out`` in :meth:`react`.
         suppress_warning : bool, default False
             See parameter ``suppress_warning`` in :meth:`react`.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
         weight_feature : str, optional
             See parameter ``weight_feature`` in :meth:`react`.
@@ -1194,7 +1194,7 @@ class Trainee(BaseTrainee):
         progress_callback: Optional[Callable] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
     ) -> Reaction:
@@ -1632,9 +1632,10 @@ class Trainee(BaseTrainee):
             applicable if a substitution value map has been set.
         suppress_warning : bool, default False
             When True, warnings will not be displayed.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             When True, will scale influence weights by each case's
-            ``weight_feature`` weight.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         use_regional_model_residuals : bool, default True
             When false, uses model feature residuals. When True, recalculates
             regional model residuals.
@@ -1726,7 +1727,7 @@ class Trainee(BaseTrainee):
         series_stop_maps: Optional[List[MutableMapping[str, MutableMapping[str, object]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
     ) -> Reaction:
@@ -1874,7 +1875,7 @@ class Trainee(BaseTrainee):
             See parameter ``substitute_output`` in :meth:`react`.
         suppress_warning : bool, default False
             See parameter ``suppress_warning`` in :meth:`react`.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
         use_regional_model_residuals : bool, default True
             See parameter ``use_regional_model_residuals`` in :meth:`react`.
@@ -2658,7 +2659,7 @@ class Trainee(BaseTrainee):
         kl_divergence_removal: bool = False,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         features: Optional[Iterable[str]] = None,
         weight_feature: Optional[str] = None,
     ) -> DataFrame | dict:
@@ -2702,9 +2703,10 @@ class Trainee(BaseTrainee):
             If true will output :math:`p` value of addition.
         p_value_of_removal : bool, default False
             If true will output :math:`p` value of removal.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             When True, will scale influence weights by each case's
-            ``weight_feature`` weight.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -2734,7 +2736,7 @@ class Trainee(BaseTrainee):
         *,
         familiarity_conviction_addition: bool | str = True,
         familiarity_conviction_removal: bool | str = False,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         action_features: Optional[Iterable[str]] = None,
         features: Optional[Iterable[str]] = None,
         weight_feature: Optional[str] = None,
@@ -2760,9 +2762,10 @@ class Trainee(BaseTrainee):
             The feature names to calculate convictions for. At least 2 features
             are required to get familiarity conviction. If not specified all
             features will be used.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             When True, will scale influence weights by each case's
-            ``weight_feature`` weight.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -2847,7 +2850,7 @@ class Trainee(BaseTrainee):
         p_value_of_addition: str | bool = False,
         p_value_of_removal: str | bool = False,
         similarity_conviction: str | bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None,
     ):
         """
@@ -2885,9 +2888,10 @@ class Trainee(BaseTrainee):
             The name of the feature to store similarity conviction
             values. If set to True the values will be stored to the feature
             'similarity_conviction'.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             When True, will scale influence weights by each case's
-            ``weight_feature`` weight.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -2927,7 +2931,7 @@ class Trainee(BaseTrainee):
         robust_hyperparameters: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
         sub_model_size: Optional[int] = None,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None,
     ) -> DataFrame:
         """
@@ -3148,9 +3152,10 @@ class Trainee(BaseTrainee):
         sub_model_size : int, optional
             Subset of model to use for calculations. Applicable only
             to models > 1000 cases.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each case's
-            weight_feature weight.
+            weight_feature weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3339,7 +3344,7 @@ class Trainee(BaseTrainee):
         self,
         features: Optional[MutableMapping[str, MutableMapping]] = None,
         *,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         action_feature: Optional[str] = None,
         from_case_indices: Optional[CaseIndices] = None,
         from_values: Optional[TabularData2D] = None,
@@ -3387,9 +3392,10 @@ class Trainee(BaseTrainee):
         to_values : DataFrame or 2-dimensional list of object, optional
             A 2d-list of case values. If specified must be either length of
             1 or match length of ``from_values`` or ``from_case_indices``.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            ``weight_feature`` weight.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3419,7 +3425,7 @@ class Trainee(BaseTrainee):
         self,
         features: Optional[Iterable[str]] = None,
         *,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         action_feature: Optional[str] = None,
         case_indices: Optional[CaseIndices] = None,
         feature_values: Optional[DataFrame | List[object]] = None,
@@ -3451,9 +3457,10 @@ class Trainee(BaseTrainee):
             If specified, returns distances of the local model relative to
             these values, ignores ``case_indices`` parameter. If provided a
             DataFrame, only the first row will be used.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            ``weight_feature`` weight.
+            ``weight_feature`` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.

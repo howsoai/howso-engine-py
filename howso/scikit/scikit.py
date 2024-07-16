@@ -507,7 +507,7 @@ class HowsoEstimator(BaseEstimator):
         p_value_of_addition=False,
         p_value_of_removal=False,
         similarity_conviction=False,
-        use_case_weights=False,
+        use_case_weights=None,
         weight_feature=None,
     ) -> None:
         """
@@ -545,9 +545,10 @@ class HowsoEstimator(BaseEstimator):
             The name of the feature to store similarity conviction
             values. If set to True the values will be stored to the feature
             'similarity_conviction'.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             When True, will scale influence weights by each case's
-            `weight_feature` weight.
+            `weight_feature` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.

@@ -1978,7 +1978,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         series_stop_maps: Optional[List[Dict[str, Dict]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: bool = None,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
     ) -> Reaction:
@@ -2130,7 +2130,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             See parameter ``desired_conviction`` in :meth:`HowsoDirectClient.react`.
         weight_feature : str
             See parameter ``weight_feature`` in :meth:`HowsoDirectClient.react`.
-        use_case_weights : bool
+        use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`HowsoDirectClient.react`.
         case_indices: iterable of sequence of str, int
             See parameter ``case_indices`` in :meth:`HowsoDirectClient.react`.
@@ -2673,7 +2673,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         progress_callback: Optional[Callable] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None,
     ) -> Reaction:
@@ -3053,9 +3053,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
         case_indices : Iterable of Sequence[Union[str, int]], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
@@ -3617,7 +3618,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         p_value_of_addition: Optional[Union[str, bool]] = False,
         p_value_of_removal: Optional[Union[str, bool]] = False,
         similarity_conviction: Optional[Union[str, bool]] = False,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None,
     ):
         """
@@ -3660,9 +3661,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
         """
         self._auto_resolve_trainee(trainee_id)
         validate_list_shape(features, 1, "features", "str")
@@ -3826,7 +3828,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
         weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
+        use_case_weights: Optional[bool] = None
     ) -> ReactGroupResponse:
         """
         Computes specified data for a **set** of cases.
@@ -3872,9 +3874,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
 
         Returns
         -------
@@ -3927,7 +3930,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
         weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
+        use_case_weights: Optional[bool] = None
     ) -> Dict:
         """
         Get familiarity conviction for features in the model.
@@ -3955,9 +3958,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
 
         Returns
         -------
@@ -4219,7 +4223,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         robust_hyperparameters: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
         sub_model_size: Optional[int] = None,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None,
     ) -> dict[str, dict[str, float]]:
         """
@@ -4440,9 +4444,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         sub_model_size : int, optional
             Subset of model to use for calculations. Applicable only
             to models > 1000 cases.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each case's
-            weight_feature weight.
+            weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -5338,7 +5343,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         from_values: Optional[Union[List[List[object]], DataFrame]] = None,
         to_case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
         to_values: Optional[Union[List[List[object]], DataFrame]] = None,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None
     ) -> List[float]:
         """
@@ -5383,9 +5388,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         to_values : list of list of object or pandas.DataFrame, optional
             A 2d-list of case values. If specified must be either length of
             1 or match length of `from_values` or `from_case_indices`.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight.
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -5463,7 +5469,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         action_feature: Optional[str] = None,
         case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
         feature_values: Optional[Union[List[object], DataFrame]] = None,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None
     ) -> Dict:
         """
@@ -5495,9 +5501,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             If specified, returns distances of the local model relative to
             these values, ignores `case_indices` parameter. If provided a
             DataFrame, only the first row will be used.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight.
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -5654,7 +5661,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         context_features: Optional[Iterable[str]] = None,
         robust: bool = False,
         weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
+        use_case_weights: Optional[bool] = None,
     ) -> Dict[str, float]:
         """
         Compute and set feature weights for specified context and action features.
@@ -5675,9 +5682,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
 
         Returns
         -------

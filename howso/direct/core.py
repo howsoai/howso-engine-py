@@ -1047,7 +1047,7 @@ class HowsoCore:
         context_features: Optional[Iterable[str]] = None,
         robust: bool = False,
         weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
+        use_case_weights: Optional[bool] = None
     ) -> Dict:
         """
         Compute feature weights for specified context and action features.
@@ -1068,9 +1068,10 @@ class HowsoCore:
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
 
         Returns
         -------
@@ -1400,7 +1401,7 @@ class HowsoCore:
         post_process_values: Optional[List[object]] = None,
         preserve_feature_values: Optional[Iterable[str]] = None,
         substitute_output: bool = True,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
     ) -> Dict:
@@ -1455,9 +1456,10 @@ class HowsoCore:
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
         case_indices : Iterable of Sequence[Union[str, int]], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
@@ -1565,7 +1567,7 @@ class HowsoCore:
         post_process_values: Optional[List[List[object]]] = None,
         preserve_feature_values: Optional[Iterable[str]] = None,
         substitute_output: bool = True,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
     ) -> Tuple[Dict, int, int]:
@@ -1624,9 +1626,10 @@ class HowsoCore:
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights
+            will be used if the Trainee has them.
         case_indices : Iterable of Sequence[Union[str, int]], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
@@ -1746,7 +1749,7 @@ class HowsoCore:
         series_id_tracking: Literal["dynamic", "fixed", "no"] = "fixed",
         series_stop_maps: Optional[List[Dict[str, Dict]]] = None,
         substitute_output: bool = True,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         use_regional_model_residuals: bool = True,
         weight_feature: Optional[str] = None
     ) -> Tuple[Dict, int, int]:
@@ -1846,7 +1849,7 @@ class HowsoCore:
             See parameter ``exclude_novel_nominals_from_uniqueness_check`` in :meth:`react`.
         weight_feature : str
             See parameter ``weight_feature`` in :meth:`react`.
-        use_case_weights : bool
+        use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
         case_indices: iterable of sequence of str, int
             See parameter ``case_indices`` in :meth:`react`.
@@ -1928,7 +1931,7 @@ class HowsoCore:
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
         similarity_conviction: bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None,
     ) -> None:
         """
@@ -1971,9 +1974,10 @@ class HowsoCore:
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights will
+            be used if the Trainee has them.
         """
         return self._execute(trainee_id, "react_into_features", {
             "features": features,
@@ -2002,7 +2006,7 @@ class HowsoCore:
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
         weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
+        use_case_weights: Optional[bool] = None
     ) -> Dict:
         """
         Computes specified data for a **set** of cases.
@@ -2039,9 +2043,10 @@ class HowsoCore:
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights will
+            be used if the Trainee has them.
 
         Returns
         -------
@@ -2081,7 +2086,7 @@ class HowsoCore:
         robust_hyperparameters: Optional[bool] = None,
         sample_model_fraction: Optional[float] = None,
         sub_model_size: Optional[int] = None,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None,
     ) -> dict:
         """
@@ -2302,9 +2307,10 @@ class HowsoCore:
         sub_model_size : int, optional
             Subset of model to use for calculations. Applicable only
             to models > 1000 cases.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each case's
-            weight_feature weight.
+            weight_feature weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -2343,7 +2349,7 @@ class HowsoCore:
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
         weight_feature: Optional[str] = None,
-        use_case_weights: bool = False
+        use_case_weights: Optional[bool] = None
     ) -> Dict:
         """
         Get familiarity conviction for features in the model.
@@ -2371,9 +2377,10 @@ class HowsoCore:
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True will scale influence weights by each
-            case's weight_feature weight.
+            case's weight_feature weight. If unspecified, case weights will
+            be used if the Trainee has them.
 
         Returns
         -------
@@ -2885,7 +2892,7 @@ class HowsoCore:
         from_values: Optional[List[List[Any]]] = None,
         to_case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
         to_values: Optional[List[List[Any]]] = None,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None
     ) -> List:
         """
@@ -2918,9 +2925,10 @@ class HowsoCore:
         to_values : list of list of object, optional
             A 2d-list of case values. If specified must be either length of
             1 or match length of `from_values` or `from_case_indices`.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight.
+            `weight_feature` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -2950,7 +2958,7 @@ class HowsoCore:
         action_feature: Optional[str] = None,
         case_indices: Optional[Iterable[Sequence[Union[str, int]]]] = None,
         feature_values: Optional[Iterable[Any]] = None,
-        use_case_weights: bool = False,
+        use_case_weights: Optional[bool] = None,
         weight_feature: Optional[str] = None,
         row_offset: int = 0,
         row_count: Optional[int] = None,
@@ -2980,9 +2988,10 @@ class HowsoCore:
         feature_values : list of object, optional
             If specified, returns distances of the local model relative to
             these values, ignores `case_indices` parameter.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight.
+            `weight_feature` weight. If unspecified, case weights will
+            be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
