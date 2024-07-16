@@ -301,7 +301,7 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
                 "size" : [ "small", "medium", "large", "huge" ]
             }
 
-    dependent_features: dict, optional
+    dependent_features : dict, optional
         Dict of feature names to a list of feature(s) that they depend on or
         that are dependent on them. This restricts the cases can be selected as
         neighbors (such as in :meth:`~howso.engine.Trainee.react`) to ones that
