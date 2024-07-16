@@ -301,11 +301,18 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
                 "size" : [ "small", "medium", "large", "huge" ]
             }
 
-    dependent_features: dict, default None
-        (Optional) Dict of features with their respective lists of features
-        that either the feature depends on or are dependent on them. Should
-        be used when there are multi-type value features that tightly
-        depend on values based on other multi-type value features.
+    dependent_features : dict, optional
+        Dict mapping a feature to a list of other feature(s) that it depends on or
+        that are dependent on it. This restricts the cases that can be selected as
+        neighbors (such as in :meth:`~howso.engine.Trainee.react`) to ones that
+        satisfy the dependency, if possible. If this is not possible, either due to
+        insufficient data which satisfy the dependency or because dependencies are
+        probabilistic, the dependency may not be maintained. Be aware that dependencies
+        introduce further constraints to data and so several dependencies or dependencies
+        on already constrained datasets may restrict which operations are possible while
+        maintaining the dependency. As a rule of thumb, sets of features that have
+        dependency relationships should generally not include more than 1 continuous feature,
+        unless the continuous features have a small number of values that are commonly used.
 
         Examples:
             If there's a feature name 'measurement' that contains
