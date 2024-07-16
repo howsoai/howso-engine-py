@@ -303,7 +303,7 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
 
     dependent_features : dict, optional
         Dict mapping a feature to a list of other feature(s) that it depends on or
-        that are dependent on it. This restricts the cases can be selected as
+        that are dependent on it. This restricts the cases that can be selected as
         neighbors (such as in :meth:`~howso.engine.Trainee.react`) to ones that
         satisfy the dependency, if possible. If this is not possible, either due to
         insufficient data which satisfy the dependency or because dependencies are
