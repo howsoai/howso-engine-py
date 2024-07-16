@@ -310,7 +310,7 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
         probabilistic, the dependency may not be maintained. Be aware that dependencies
         introduce further constraints to data and so several dependencies or dependencies
         on already constrained datasets may restrict which operations are possible while
-        maintaining the dependency. As a rule of thumb, set of features that have
+        maintaining the dependency. As a rule of thumb, sets of features that have
         dependency relationships should generally not include more than 1 continuous feature,
         unless the continuous features have a small number of values that are commonly used.
 
