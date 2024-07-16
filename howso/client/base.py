@@ -1311,7 +1311,7 @@ class AbstractHowsoClient(ABC):
         progress_callback: t.Optional[Callable] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: t.Optional[bool] = None,
         use_regional_model_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
@@ -1691,9 +1691,10 @@ class AbstractHowsoClient(ABC):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
-            If set to True will scale influence weights by each
-            case's weight_feature weight.
+        use_case_weights : bool, optional
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
         case_indices : Iterable of Sequence[Union[str, int]], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
@@ -2342,7 +2343,7 @@ class AbstractHowsoClient(ABC):
         series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: t.Optional[bool] = None,
         use_regional_model_residuals: bool = True,
         weight_feature: t.Optional[str] = None
     ) -> Reaction:
@@ -2477,43 +2478,43 @@ class AbstractHowsoClient(ABC):
             in following batches will be automatically adjusted. This value is
             ignored if ``batch_size`` is specified.
         contexts: list of list of object or DataFrame
-            See parameter ``contexts`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``contexts`` in :meth:`AbstractHowsoClient.react`.
         action_features: iterable of str
-            See parameter ``action_features`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``action_features`` in :meth:`AbstractHowsoClient.react`.
         actions: list of list of object or DataFrame
-            See parameter ``actions`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``actions`` in :meth:`AbstractHowsoClient.react`.
         context_features: iterable of str
-            See parameter ``context_features`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``context_features`` in :meth:`AbstractHowsoClient.react`.
         input_is_substituted : bool, default False
-            See parameter ``input_is_substituted`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``input_is_substituted`` in :meth:`AbstractHowsoClient.react`.
         substitute_output : bool
-            See parameter ``substitute_output`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``substitute_output`` in :meth:`AbstractHowsoClient.react`.
         details: dict, optional
-            See parameter ``details`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``details`` in :meth:`AbstractHowsoClient.react`.
         desired_conviction: float
-            See parameter ``desired_conviction`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``desired_conviction`` in :meth:`AbstractHowsoClient.react`.
         weight_feature : str
-            See parameter ``weight_feature`` in :meth:`HowsoDirectClient.react`.
-        use_case_weights : bool
-            See parameter ``use_case_weights`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``weight_feature`` in :meth:`AbstractHowsoClient.react`.
+        use_case_weights : bool, optional
+            See parameter ``use_case_weights`` in :meth:`AbstractHowsoClient.react`.
         case_indices: iterable of sequence of str, int
-            See parameter ``case_indices`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``case_indices`` in :meth:`AbstractHowsoClient.react`.
         preserve_feature_values : iterable of str
-            See parameter ``preserve_feature_values`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``preserve_feature_values`` in :meth:`AbstractHowsoClient.react`.
         new_case_threshold : str
-            See parameter ``new_case_threshold`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``new_case_threshold`` in :meth:`AbstractHowsoClient.react`.
         leave_case_out : bool
-            See parameter ``leave_case_out`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``leave_case_out`` in :meth:`AbstractHowsoClient.react`.
         use_regional_model_residuals : bool
-            See parameter ``use_regional_model_residuals`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``use_regional_model_residuals`` in :meth:`AbstractHowsoClient.react`.
         feature_bounds_map: dict of dict
-            See parameter ``feature_bounds_map`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``feature_bounds_map`` in :meth:`AbstractHowsoClient.react`.
         generate_new_cases : {"always", "attempt", "no"}
-            See parameter ``generate_new_cases`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``generate_new_cases`` in :meth:`AbstractHowsoClient.react`.
         ordered_by_specified_features : bool
-            See parameter ``ordered_by_specified_features`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``ordered_by_specified_features`` in :meth:`AbstractHowsoClient.react`.
         suppress_warning : bool
-            See parameter ``suppress_warning`` in :meth:`HowsoDirectClient.react`.
+            See parameter ``suppress_warning`` in :meth:`AbstractHowsoClient.react`.
 
         Returns
         -------
@@ -2938,7 +2939,7 @@ class AbstractHowsoClient(ABC):
         p_value_of_addition: bool | str = False,
         p_value_of_removal: bool | str = False,
         similarity_conviction: bool | str = False,
-        use_case_weights: bool = False,
+        use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
     ):
         """
@@ -2981,9 +2982,10 @@ class AbstractHowsoClient(ABC):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
-            If set to True will scale influence weights by each
-            case's weight_feature weight.
+        use_case_weights : bool, optional
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
         """
         trainee_id = self._resolve_trainee(trainee_id)
         util.validate_list_shape(features, 1, "features", "str")
@@ -3022,7 +3024,7 @@ class AbstractHowsoClient(ABC):
         robust_hyperparameters: t.Optional[bool] = None,
         sample_model_fraction: t.Optional[float] = None,
         sub_model_size: t.Optional[int] = None,
-        use_case_weights: bool = False,
+        use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
     ) -> dict[str, dict[str, float]]:
         """
@@ -3243,9 +3245,10 @@ class AbstractHowsoClient(ABC):
         sub_model_size : int, optional
             Subset of model to use for calculations. Applicable only
             to models > 1000 cases.
-        use_case_weights : bool, default False
-            If set to True will scale influence weights by each case's
-            weight_feature weight.
+        use_case_weights : bool, optional
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3309,7 +3312,7 @@ class AbstractHowsoClient(ABC):
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
         weight_feature: t.Optional[str] = None,
-        use_case_weights: bool = False
+        use_case_weights: t.Optional[bool] = None,
     ) -> dict:
         """
         Computes specified data for a **set** of cases.
@@ -3353,9 +3356,10 @@ class AbstractHowsoClient(ABC):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
-            If set to True will scale influence weights by each
-            case's weight_feature weight.
+        use_case_weights : bool, optional
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
 
         Returns
         -------
@@ -3514,8 +3518,10 @@ class AbstractHowsoClient(ABC):
                 - **targetless**: Analyze hyperparameters for all context
                   features as possible action features, ignores
                   action_features parameter.
-        use_case_weights : bool, default False
-            When True, will scale influence weights by each case's weight_feature weight.
+        use_case_weights : bool, optional
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
         use_deviations : bool, optional
             When True, uses deviations for LK metric in queries.
         weight_feature : str, optional
@@ -3717,8 +3723,9 @@ class AbstractHowsoClient(ABC):
             When True, will compute and use inverse of residuals as feature
             weights.
         use_case_weights : bool, optional
-            When True, will scale influence weights by each
-            case's weight_feature weight.
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
         weight_feature : str
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -4175,7 +4182,7 @@ class AbstractHowsoClient(ABC):
         features: t.Optional[Collection[str]] = None,
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
-        use_case_weights: bool = False,
+        use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None
     ) -> dict:
         """
@@ -4204,9 +4211,10 @@ class AbstractHowsoClient(ABC):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
-        use_case_weights : bool, default False
-            If set to True will scale influence weights by each
-            case's weight_feature weight.
+        use_case_weights : bool, optional
+            If set to True, will scale influence weights by each case's
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
 
         Returns
         -------
@@ -4407,7 +4415,7 @@ class AbstractHowsoClient(ABC):
         from_values: t.Optional[TabularData2D] = None,
         to_case_indices: t.Optional[CaseIndices] = None,
         to_values: t.Optional[TabularData2D] = None,
-        use_case_weights: bool = False,
+        use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None
     ) -> list[float]:
         """
@@ -4452,9 +4460,10 @@ class AbstractHowsoClient(ABC):
         to_values : list of list of object or pandas.DataFrame, optional
             A 2d-list of case values. If specified must be either length of
             1 or match length of `from_values` or `from_case_indices`.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight.
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -4528,7 +4537,7 @@ class AbstractHowsoClient(ABC):
         action_feature: t.Optional[str] = None,
         case_indices: t.Optional[CaseIndices] = None,
         feature_values: t.Optional[Collection[t.Any] | DataFrame] = None,
-        use_case_weights: bool = False,
+        use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None
     ) -> Distances:
         """
@@ -4560,9 +4569,10 @@ class AbstractHowsoClient(ABC):
             If specified, returns distances of the local model relative to
             these values, ignores `case_indices` parameter. If provided a
             DataFrame, only the first row will be used.
-        use_case_weights : bool, default False
+        use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
-            `weight_feature` weight.
+            `weight_feature` weight. If unspecified, case weights
+            will be used if the Trainee has them.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
