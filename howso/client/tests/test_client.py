@@ -132,11 +132,11 @@ class TraineeBuilder:
         self.trainees.append(new_trainee)
         return new_trainee
 
-    def copy(self, trainee_id, new_trainee_name=None, project_id=None):
+    def copy(self, trainee_id, new_trainee_name=None, project=None):
         """Copy an existing trainee."""
         if isinstance(self.client, ProjectClient):
             new_trainee = self.client.copy_trainee(trainee_id, new_trainee_name,
-                                                   project_id)
+                                                   project)
         else:
             new_trainee = self.client.copy_trainee(trainee_id, new_trainee_name)
         self.trainees.append(new_trainee)

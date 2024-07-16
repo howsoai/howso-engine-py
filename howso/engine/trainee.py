@@ -435,9 +435,9 @@ class Trainee(BaseTrainee):
             "resources": resources,
         }
 
-        # Only pass project_id for platform clients
+        # Only pass project for platform clients
         if isinstance(self.client, ProjectClient):
-            params["project_id"] = project_id
+            params["project"] = project_id
 
         if isinstance(self.client, AbstractHowsoClient):
             copy = self.client.copy_trainee(**params)
@@ -3936,9 +3936,9 @@ def query_trainees(
     # Only pass project_id for platform clients
     if project is not None and isinstance(client, ProjectClient):
         if isinstance(project, BaseProject):
-            params["project_id"] = project.id
+            params["project"] = project.id
         else:
-            params["project_id"] = project
+            params["project"] = project
 
     # picks up base
     return client.query_trainees(**params)
