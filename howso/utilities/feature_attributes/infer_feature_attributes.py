@@ -1,4 +1,7 @@
-from typing import Iterable, Union
+from __future__ import annotations
+
+from collections.abc import Iterable
+import typing as t
 
 import pandas as pd
 
@@ -9,9 +12,11 @@ from .relational import InferFeatureAttributesSQLDatastore
 from .time_series import InferFeatureAttributesTimeSeries
 
 
-def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastoreProtocol], *,
-                             tables: Iterable[TableNameProtocol] = None,
-                             time_feature_name: str = None, **kwargs) -> FeatureAttributesBase:
+def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol, *,
+                             tables: t.Optional[Iterable[TableNameProtocol]] = None,
+                             time_feature_name: t.Optional[str] = None,
+                             **kwargs
+                             ) -> FeatureAttributesBase:
     """
     Return a dict-like feature attributes object with useful accessor methods.
 
@@ -339,6 +344,16 @@ def infer_feature_attributes(data: Union[pd.DataFrame, SQLRelationalDatastorePro
     include_sample: bool, default False
         If True, include a ``sample`` field containing a sample of the data
         from each feature in the output feature attributes dictionary.
+
+    max_workers: int, optional
+        If unset or set to None (recommended), let the ProcessPoolExecutor
+        choose the best maximum number of process pool workers to process
+        columns in a multi-process fashion. In this case, if the product of the
+        data's rows and columns < 25,000,000, multiprocessing will not be used.
+
+        If defined with an integer > 0, manually set the number of max workers.
+        Otherwise, the feature attributes will be calculated serially. Setting
+        this parameter to zero (0) will disable multiprocessing.
 
     Returns
     -------
