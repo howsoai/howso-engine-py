@@ -33,49 +33,6 @@ if TYPE_CHECKING:
     from .monitors import ProgressTimer
 
 
-def postprocess_trainee(trainee: Trainee) -> Trainee:
-    """
-    Post-process a trainee to update its data into the expected format.
-
-    Should be used on trainee objects returned from the API.
-    NOTE: Mutates the original trainee object.
-
-    Parameters
-    ----------
-    trainee : Trainee
-        The trainee instance.
-
-    Returns
-    -------
-    Trainee
-        The trainee instance.
-    """
-    trainee.features = postprocess_feature_attributes(trainee.features)
-    return trainee
-
-
-def preprocess_trainee(trainee: Trainee) -> Trainee:
-    """
-    Pre-process a trainee to update its data into the expected format.
-
-    Should be used on trainee objects before sending to the API.
-    Does not mutate the original trainee object.
-
-    Parameters
-    ----------
-    trainee : Trainee
-        The trainee instance.
-
-    Returns
-    -------
-    Trainee
-        Updated copy of the trainee instance.
-    """
-    trainee = deepcopy(trainee)
-    trainee.features = preprocess_feature_attributes(trainee.features)
-    return trainee
-
-
 def deserialize_to_dataframe(
     data: Union[Iterable[Iterable[object]], Iterable[Dict[str, object]]],
     columns: Optional[Iterable[str]] = None,
@@ -192,7 +149,7 @@ def serialize_models(obj: Any, *, exclude_null: bool = False) -> Any:
     return obj
 
 
-def postprocess_feature_attributes(features: Mapping) -> dict:
+def postprocess_feature_attributes(features: Mapping | None) -> dict:
     """
     Post-process feature attributes into the expected client format.
 
@@ -201,7 +158,7 @@ def postprocess_feature_attributes(features: Mapping) -> dict:
 
     Parameters
     ----------
-    features : dict
+    features : dict or None
         Dictionary of feature name to feature value.
 
     Returns

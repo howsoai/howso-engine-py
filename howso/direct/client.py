@@ -365,7 +365,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         except Exception:  # noqa: Deliberately broad
             raise HowsoError('Failed to deserialize the Howso Engine response.')
 
-    def _resolve_trainee(self, trainee_id: str, **kwargs) -> str:
+    def _resolve_trainee(self, trainee_id: str, **kwargs) -> Trainee:
         """
         Resolve a Trainee and acquire its resources.
 
@@ -381,7 +381,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if trainee_id not in self.trainee_cache:
             self.acquire_trainee_resources(trainee_id)
-        return trainee_id
+        return self.trainee_cache.get(trainee_id)
 
     def _auto_persist_trainee(self, trainee_id: str):
         """
@@ -429,6 +429,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             "trainee_id": trainee_id,
             "filepath": str(self._howso_dir) + '/',
         })
+        if self.is_tracing_enabled(trainee_id):
+            # If tracing is enabled, log the trainee version
+            self.execute(trainee_id, "get_trainee_version", {})
 
     def _get_trainee_from_engine(self, trainee_id: str) -> Trainee:
         """
@@ -457,15 +460,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_meta = metadata.get('metadata')
         trainee_name = metadata.get('name')
 
-        features = self.execute(trainee_id, "get_feature_attributes", {})
-        loaded_trainee = Trainee(
+        return Trainee(
             name=trainee_name,
             id=trainee_id,
-            features=features,
             persistence=persistence,
             metadata=trainee_meta,
         )
-        return internals.postprocess_trainee(loaded_trainee)
 
     def _get_trainee_thread_count(self, trainee_id: str) -> int:
         """
@@ -770,29 +770,28 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Initialize Amalgam entity
         self._initialize_trainee(trainee_id)
 
+        # Store the metadata
         trainee_metadata = dict(
             name=name,
             persistence=persistence,
             metadata=metadata
         )
+        self.execute(trainee_id, "set_metadata", {"metadata": trainee_metadata})
+
+        # Set the feature attributes
+        features = internals.preprocess_feature_attributes(features)
+        self.execute(trainee_id, "set_feature_attributes", {"feature_attributes": features})
+        features = self.execute(trainee_id, "get_feature_attributes", {})
+        features = internals.postprocess_feature_attributes(features)
+
+        # Cache and return the trainee
         new_trainee = Trainee(
             name=name,
-            features=features,
             persistence=persistence,
             id=trainee_id,
             metadata=metadata
         )
-        new_trainee = internals.preprocess_trainee(new_trainee)
-        self.execute(trainee_id, "set_metadata", {"metadata": trainee_metadata})
-        self.execute(trainee_id, "set_feature_attributes", {"feature_attributes": new_trainee.features})
-        new_trainee.features = self.execute(trainee_id, "get_feature_attributes", {})
-        new_trainee = internals.postprocess_trainee(new_trainee)
-
-        if self.is_tracing_enabled(trainee_id):
-            # If tracing is enabled, log the trainee version
-            self.execute(trainee_id, "get_trainee_version", {})
-
-        self.trainee_cache.set(new_trainee)
+        self.trainee_cache.set(new_trainee, feature_attributes=features)
         return new_trainee
 
     def update_trainee(self, trainee: Mapping | Trainee) -> Trainee:
@@ -818,17 +817,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.configuration.verbose:
             print(f'Updating Trainee with id: {instance.id}')
 
-        instance = internals.preprocess_trainee(instance)
         metadata = {
             'name': instance.name,
             'metadata': instance.metadata,
             'persistence': instance.persistence,
         }
         self.execute(instance.id, "set_metadata", {"metadata": metadata})
-        self.execute(instance.id, "set_feature_attributes", {"feature_attributes": instance.features})
-        instance.features = self.execute(instance.id, "get_feature_attributes", {})
 
-        updated_trainee = internals.postprocess_trainee(instance)
+        updated_trainee = deepcopy(instance)
         self.trainee_cache.set(updated_trainee)
         return updated_trainee
 
@@ -909,7 +905,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         Trainee
             A `Trainee` object representing the Trainee.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Getting Trainee with id: {trainee_id}')
         return self._get_trainee_from_engine(trainee_id)
@@ -937,7 +933,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 }
             }
         """
-        self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         trainee_version = self.execute(trainee_id, "get_trainee_version", {})
         amlg_version = self.amlg.get_version_string().decode()
         library_type = 'mt'
@@ -1127,8 +1123,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         ValueError
             If the Trainee could not be copied.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
-        original_trainee = self.trainee_cache.get(trainee_id)
+        original_trainee = self._resolve_trainee(trainee_id)
+        trainee_id = original_trainee.id
         new_trainee_id = new_trainee_id or new_trainee_name or str(uuid.uuid4())
 
         if self.configuration.verbose:

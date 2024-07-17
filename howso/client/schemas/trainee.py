@@ -18,10 +18,10 @@ class TraineeDict(t.TypedDict):
 
     id: str
     name: str | None
-    features: Mapping[str, Mapping]
     metadata: Mapping | None
     persistence: Persistence
     project_id: str | None
+    features: t.NotRequired[Mapping[str, Mapping] | None]
 
 
 class Trainee(BaseSchema[TraineeDict]):
@@ -34,8 +34,6 @@ class Trainee(BaseSchema[TraineeDict]):
         The unique identifier of the Trainee.
     name : str or UUID, optional
         A name given to the Trainee.
-    features : Mapping, optional
-        The feature attributes of the Trainee.
     metadata : Mapping, optional
         Any key-value pair to store as custom metadata for the Trainee.
     persistence : {'allow', 'always', 'never'}, optional
@@ -47,7 +45,6 @@ class Trainee(BaseSchema[TraineeDict]):
     attribute_map = {
         'id': 'id',
         'name': 'name',
-        'features': 'features',
         'persistence': 'persistence',
         'project_id': 'project_id',
         'metadata': 'metadata',
@@ -58,7 +55,6 @@ class Trainee(BaseSchema[TraineeDict]):
         self,
         id: str | UUID,
         name: t.Optional[str] = None,
-        features: t.Optional[Mapping[str, Mapping]] = None,
         *,
         metadata: t.Optional[Mapping] = None,
         persistence: Persistence = 'allow',
@@ -71,7 +67,6 @@ class Trainee(BaseSchema[TraineeDict]):
         self._id = str(id)
         self._project_id = str(project_id) if project_id else None
         self._metadata = metadata
-        self._features = dict() if features is None else features
 
         self.name = name
         self.persistence = persistence
@@ -113,30 +108,6 @@ class Trainee(BaseSchema[TraineeDict]):
         if name is not None and len(name) > 128:
             raise ValueError('Invalid value for `name`, length must be less than or equal to `128`.')
         self._name = name
-
-    @property
-    def features(self) -> Mapping[str, Mapping]:
-        """
-        The feature attributes of the Trainee.
-
-        Returns
-        -------
-        Mapping
-            The feature attributes of the Trainee.
-        """
-        return self._features
-
-    @features.setter
-    def features(self, features: Mapping[str, Mapping]) -> None:
-        """
-        Set the feature attributes of the Trainee.
-
-        Parameters
-        ----------
-        features : Mapping or None
-            The new feature attributes.
-        """
-        self._features = features
 
     @property
     def persistence(self) -> Persistence:

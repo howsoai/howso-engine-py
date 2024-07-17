@@ -113,7 +113,7 @@ class AbstractHowsoClient(ABC):
         return payload
 
     @abstractmethod
-    def _resolve_trainee(self, trainee_id: str, **kwargs) -> str:
+    def _resolve_trainee(self, trainee_id: str, **kwargs) -> Trainee:
         """
         Resolve a Trainee resource.
 
@@ -124,8 +124,8 @@ class AbstractHowsoClient(ABC):
 
         Returns
         -------
-        str
-            The normalized Trainee unique identifier.
+        Trainee
+            The Trainee object.
         """
 
     @abstractmethod
@@ -335,7 +335,7 @@ class AbstractHowsoClient(ABC):
             The random seed.
             Ex: ``7998``, ``"myrandomseed"``
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Setting random seed for Trainee with id: {trainee_id}')
         self.execute(trainee_id, "set_random_seed", {"seed": seed})
@@ -562,7 +562,7 @@ class AbstractHowsoClient(ABC):
             might be slower. Higher values should improve performance but may
             decrease accuracy of results.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
         util.validate_list_shape(features, 1, "features", "str")
@@ -658,7 +658,7 @@ class AbstractHowsoClient(ABC):
         ValueError
             If `num_cases` is not at least 1.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if num_cases < 1:
             raise ValueError('num_cases must be a value greater than 0')
 
@@ -783,7 +783,7 @@ class AbstractHowsoClient(ABC):
         int
             The number of cases moved.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
 
@@ -942,7 +942,7 @@ class AbstractHowsoClient(ABC):
             The ID of the series to clear.
             If None, the Trainee's entire series store will be cleared.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Removing stored series from Trainee with id: {trainee_id} and series: {series}')
         self.execute(trainee_id, "remove_series_store", {"series": series})
@@ -1007,7 +1007,7 @@ class AbstractHowsoClient(ABC):
             A dictionary of feature name to a dictionary of feature value to
             substitute feature value.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Setting substitute feature values for Trainee with id: {trainee_id}')
         self.execute(trainee_id, "set_substitute_feature_values", {
@@ -1037,7 +1037,7 @@ class AbstractHowsoClient(ABC):
             A dictionary of feature name to a dictionary of feature value to
             substitute feature value.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Getting substitute feature values from Trainee with id: {trainee_id}')
         result = self.execute(trainee_id, "get_substitute_feature_values", {})
@@ -1050,7 +1050,11 @@ class AbstractHowsoClient(ABC):
             return dict()
         return result
 
-    def set_feature_attributes(self, trainee_id: str, feature_attributes: Mapping[str, Mapping]):
+    def set_feature_attributes(
+        self,
+        trainee_id: str,
+        feature_attributes: Mapping[str, Mapping]
+    ) -> dict[str, dict]:
         """
         Sets feature attributes for a Trainee.
 
@@ -1070,9 +1074,13 @@ class AbstractHowsoClient(ABC):
                     "degrees": { "type" : "continuous", "cycle_length": 360 },
                     "class": { "type" : "nominal" }
                 }
+
+        Returns
+        -------
+        dict
+            The updated dictionary of feature name to dictionary of feature attributes.
         """
-        self._resolve_trainee(trainee_id)
-        cached_trainee = self.trainee_cache.get(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
 
         if not isinstance(feature_attributes, Mapping):
             raise ValueError("`feature_attributes` must be a dict")
@@ -1086,7 +1094,10 @@ class AbstractHowsoClient(ABC):
 
         # Update trainee in cache
         updated_feature_attributes = self.execute(trainee_id, "get_feature_attributes", {})
-        cached_trainee.features = internals.postprocess_feature_attributes(updated_feature_attributes)
+        updated_feature_attributes = internals.postprocess_feature_attributes(updated_feature_attributes)
+        cached_trainee = self.trainee_cache.get_item(trainee_id)
+        cached_trainee["feature_attributes"] = updated_feature_attributes
+        return updated_feature_attributes
 
     def get_feature_attributes(self, trainee_id: str) -> dict[str, dict]:
         """
@@ -1102,7 +1113,7 @@ class AbstractHowsoClient(ABC):
         dict
             A dictionary of feature name to dictionary of feature attributes.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Getting feature attributes from Trainee with id: {trainee_id}')
         feature_attributes = self.execute(trainee_id, "get_feature_attributes", {})
@@ -1128,7 +1139,7 @@ class AbstractHowsoClient(ABC):
         >>> print(cl.get_sessions(trainee.id))
         [{'id': '6c35e481-fb49-4178-a96f-fe4b5afe7af4', 'name': 'default'}]
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Getting sessions from Trainee with id: {trainee_id}')
         result = self.execute(trainee_id, "get_sessions", {"attributes": ['name', ]})
@@ -1147,7 +1158,7 @@ class AbstractHowsoClient(ABC):
         session : str
             The session or session identifier to delete.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if isinstance(session, Session):
             session = session.id
         if self.configuration.verbose:
@@ -1171,7 +1182,7 @@ class AbstractHowsoClient(ABC):
         list of int
             A list of the session indices for the session.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if isinstance(session, Session):
             session = session.id
         if self.configuration.verbose:
@@ -1197,7 +1208,7 @@ class AbstractHowsoClient(ABC):
         list of int
             A list of the session training indices for the session.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if isinstance(session, Session):
             session = session.id
         if self.configuration.verbose:
@@ -1255,7 +1266,7 @@ class AbstractHowsoClient(ABC):
         dict of str to dict of str to float
             A map of feature names to map of stat type to stat values.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
 
         if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
             warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
@@ -2987,7 +2998,7 @@ class AbstractHowsoClient(ABC):
             `weight_feature` weight. If unspecified, case weights
             will be used if the Trainee has them.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         util.validate_list_shape(features, 1, "features", "str")
         if self.configuration.verbose:
             print(f'Reacting into features on Trainee with id: {trainee_id}')
@@ -3258,7 +3269,7 @@ class AbstractHowsoClient(ABC):
         dict of str to dict of str to float
             If specified, a map of feature to map of stat type to stat values is returned.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         util.validate_list_shape(context_features, 1, "context_features", "str")
 
         if isinstance(details, dict):
@@ -3437,7 +3448,7 @@ class AbstractHowsoClient(ABC):
             'aggregated' is None if no aggregation_code is given, it otherwise
             holds the output of the custom 'aggregation_code'
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Evaluating on Trainee with id: {trainee_id}')
         return self.execute(trainee_id, "evaluate", {
@@ -3530,7 +3541,7 @@ class AbstractHowsoClient(ABC):
         kwargs
             Additional experimental analyze parameters.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
 
         util.validate_list_shape(context_features, 1, "context_features", "str")
         util.validate_list_shape(action_features, 1, "action_features", "str")
@@ -3620,7 +3631,7 @@ class AbstractHowsoClient(ABC):
         trainee_id : str
             The ID of the Trainee to auto-analyze.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f"Auto-analyzing Trainee with id: {trainee_id}")
 
@@ -3733,7 +3744,7 @@ class AbstractHowsoClient(ABC):
             Parameters specific for analyze() may be passed in via kwargs, and
             will be cached and used during future auto-analysis.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
 
         deprecated_params = {
             'auto_optimize_enabled': 'auto_analyze_enabled',
@@ -3836,7 +3847,7 @@ class AbstractHowsoClient(ABC):
         dict
             The auto-ablation parameters.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         return self.execute(trainee_id, "get_auto_ablation_params", {})
 
     def set_auto_ablation_params(
@@ -3894,7 +3905,7 @@ class AbstractHowsoClient(ABC):
         conviction_upper_threshold : Optional[float], optional
             The conviction value below which cases will be ablated.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         params = dict(
             auto_ablation_enabled=auto_ablation_enabled,
             auto_ablation_weight_feature=auto_ablation_weight_feature,
@@ -3961,7 +3972,7 @@ class AbstractHowsoClient(ABC):
         skip_auto_analyze : bool, default False
             Whether to skip auto-analyzing as cases are removed.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         params = dict(
             features=features,
             distribute_weight_feature=distribute_weight_feature,
@@ -4075,7 +4086,7 @@ class AbstractHowsoClient(ABC):
         dict
             A cases object containing the feature names and cases.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if case_indices is not None:
             util.validate_case_indices(case_indices)
 
@@ -4137,7 +4148,7 @@ class AbstractHowsoClient(ABC):
         dict
             A cases object containing the feature names and extreme cases.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         util.validate_list_shape(features, 1, "features", "str")
 
         if self.configuration.verbose:
@@ -4168,7 +4179,7 @@ class AbstractHowsoClient(ABC):
         int
             The number of cases in the model
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         ret = self.execute(trainee_id, "get_num_training_cases", {})
         if isinstance(ret, dict):
             return ret.get('count', 0)
@@ -4222,7 +4233,7 @@ class AbstractHowsoClient(ABC):
             A dict with familiarity_conviction_addition or
             familiarity_conviction_removal
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         util.validate_list_shape(features, 1, "features", "str")
         util.validate_list_shape(action_features, 1, "action_features", "str")
         if self.configuration.verbose:
@@ -4296,8 +4307,7 @@ class AbstractHowsoClient(ABC):
         overwrite : bool, default False
             If True, the feature will be over-written if it exists.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
-        cached_trainee = self.trainee_cache.get(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
 
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
@@ -4329,7 +4339,8 @@ class AbstractHowsoClient(ABC):
         self._auto_persist_trainee(trainee_id)
 
         # Update trainee in cache
-        cached_trainee.features = self.get_feature_attributes(trainee_id)
+        cached_trainee = self.trainee_cache.get_item(trainee_id)
+        cached_trainee['feature_attributes'] = self.get_feature_attributes(trainee_id)
 
     def remove_feature(
         self,
@@ -4379,8 +4390,7 @@ class AbstractHowsoClient(ABC):
             If specified, ignores the condition and operates on cases for the
             specified session id.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
-        cached_trainee = self.trainee_cache.get(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
 
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
@@ -4403,7 +4413,8 @@ class AbstractHowsoClient(ABC):
         self._auto_persist_trainee(trainee_id)
 
         # Update trainee in cache
-        cached_trainee.features = self.get_feature_attributes(trainee_id)
+        cached_trainee = self.trainee_cache.get_item(trainee_id)
+        cached_trainee["feature_attributes"] = self.get_feature_attributes(trainee_id)
 
     def get_pairwise_distances(
         self,
@@ -4763,7 +4774,7 @@ class AbstractHowsoClient(ABC):
             parameters or only the best hyperparameters selected using the
             passed parameters.
         """
-        self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Getting model attributes from Trainee with id: {trainee_id}')
         return self.execute(trainee_id, "get_params", {
@@ -4801,7 +4812,7 @@ class AbstractHowsoClient(ABC):
                     },
                 }
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Setting model attributes for Trainee with id: {trainee_id}')
 

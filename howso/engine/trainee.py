@@ -113,6 +113,7 @@ class Trainee(BaseTrainee):
         self._was_saved: bool = False
         self.client = client or get_client()
 
+        self._features = features
         self._custom_save_path = None
         self._calculated_matrices = {}
         self._needs_analyze: bool = False
@@ -132,7 +133,6 @@ class Trainee(BaseTrainee):
         super().__init__(
             id=id or '',  # The id will be initialized by _create
             name=name,
-            features=features,
             metadata=metadata,
             persistence=persistence,
             project_id=project_id,
@@ -3877,7 +3877,7 @@ def get_trainee(
     name_or_id: str,
     *,
     client: Optional[AbstractHowsoClient] = None
-) -> Trainee | None:
+) -> Trainee:
     """
     Get an existing trainee from Howso Services.
 
@@ -3890,13 +3890,17 @@ def get_trainee(
 
     Returns
     -------
-    Trainee or None
-        The trainee instance or None if a trainee with the specified name/id was not found.
+    Trainee
+        The Trainee instance.
+
+    Raises
+    ------
+    HowsoError
+        If the Trainee could not be found.
     """
     client = client or get_client()
     trainee = client.get_trainee(str(name_or_id))
-    if trainee:
-        return Trainee.from_schema(trainee, client=client)
+    return Trainee.from_schema(trainee, client=client)
 
 
 def list_trainees(*args, **kwargs):
