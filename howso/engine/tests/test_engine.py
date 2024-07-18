@@ -152,6 +152,10 @@ class TestEngine:
 
         load_training_cases = load_example_trainee.get_num_training_cases()
 
+        assert trainee.features is not None
+        assert trainee.features == save_example_trainee.features
+        assert trainee.features == load_example_trainee.features
+
         # Delete trainees
         save_example_trainee.delete()
         load_example_trainee.delete()

@@ -238,7 +238,10 @@ class Trainee(BaseTrainee):
         """
         if self._features is None:
             # Lazy load the feature attributes
-            self._features = self.client._resolve_feature_attributes(self.id)  # type:ignore reportPrivateUsage
+            if isinstance(self.client, AbstractHowsoClient):
+                self._features = self.client.resolve_feature_attributes(self.id)
+            else:
+                raise AssertionError("Client must have the 'resolve_feature_attributes' method.")
         return SingleTableFeatureAttributes(deepcopy(self._features))
 
     @property
@@ -2339,7 +2342,7 @@ class Trainee(BaseTrainee):
                     feature_attributes=feature_attributes,
                     overwrite=overwrite,
                 )
-                self._features = self.client._resolve_feature_attributes(self.id)  # type: ignore reportPrivateUsage
+                self._features = self.client.resolve_feature_attributes(self.id)
             else:
                 raise ValueError("Trainee ID is needed for 'add_feature'.")
         else:
@@ -2402,7 +2405,7 @@ class Trainee(BaseTrainee):
                     condition_session=condition_session_id,
                     feature=feature,
                 )
-                self._features = self.client._resolve_feature_attributes(self.id)  # type: ignore reportPrivateUsage
+                self._features = self.client.resolve_feature_attributes(self.id)
             else:
                 raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
         else:
@@ -3433,9 +3436,9 @@ class Trainee(BaseTrainee):
                     project=self.project_id,
                     resources=resources
                 )
-
-            if new_trainee:
                 self._update_attributes(new_trainee)
+                cached = self.client.trainee_cache.get_item(self.id)
+                self._features = cached["feature_attributes"]
             else:
                 raise AssertionError("Trainee is unable to be created.")
 
@@ -3852,13 +3855,10 @@ def load_trainee(
 
     if isinstance(client, LocalSaveableProtocol):
         base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore
-        context = base_trainee.to_dict()
-        context["features"] = client.get_feature_attributes(trainee_id)
-        context["client"] = client
     else:
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
-    client.trainee_cache.set(base_trainee, feature_attributes=context["features"])
-    trainee = Trainee.from_dict(context)
+    client.trainee_cache.set(base_trainee)
+    trainee = Trainee.from_schema(base_trainee, client=client)
     setattr(trainee, '_custom_save_path', file_path)
 
     return trainee
