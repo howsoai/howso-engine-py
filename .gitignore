@@ -15,6 +15,7 @@ howso/docs/source/auto_examples
 howso/howso-engine
 howso/resources
 local/
+scratch/
 
 # Do not ignore the thumbnails used by sphinx-gallery
 !howso/docs/source/auto_examples/images/thumb/*.png

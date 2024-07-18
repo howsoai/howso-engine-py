@@ -112,6 +112,33 @@ class AbstractHowsoClient(ABC):
             payload = dict((k, v) for k, v in payload.items() if v is not None)
         return payload
 
+    def _resolve_feature_attributes(self, trainee_id: str) -> dict[str, dict]:
+        """
+        Resolve a Trainee's feature attributes.
+
+        Returns cached feature attributes if available. Otherwise
+        resolves the Trainee and cache's its feature attributes.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee.
+
+        Returns
+        -------
+        dict
+            The Trainee feature attributes.
+        """
+        cached = self.trainee_cache.get_item(trainee_id, None)
+        if cached is None:
+            # Trainee not yet cached, resolve it first
+            trainee_id = self._resolve_trainee(trainee_id).id
+            cached = self.trainee_cache.get_item(trainee_id)
+
+        if cached["feature_attributes"] is None:
+            cached["feature_attributes"] = self.get_feature_attributes(trainee_id)
+        return cached["feature_attributes"]
+
     @abstractmethod
     def _resolve_trainee(self, trainee_id: str, **kwargs) -> Trainee:
         """
@@ -432,8 +459,9 @@ class AbstractHowsoClient(ABC):
             Flag indicating if the Trainee needs to analyze. Only true if
             auto-analyze is enabled and the conditions are met.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        trainee = self._resolve_trainee(trainee_id)
+        trainee_id = trainee.id
+        feature_attributes = self._resolve_feature_attributes(trainee_id)
 
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
@@ -883,7 +911,7 @@ class AbstractHowsoClient(ABC):
         int
             The number of cases modified.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
 
@@ -893,14 +921,13 @@ class AbstractHowsoClient(ABC):
         if case_indices is not None:
             util.validate_case_indices(case_indices)
 
-        cached_trainee = self.trainee_cache.get(trainee_id)
-
         # Serialize feature_values
         serialized_feature_values = None
         if feature_values is not None:
+            feature_attributes = self._resolve_feature_attributes(trainee_id)
             if features is None:
                 features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
-            serialized_feature_values = serialize_cases(feature_values, features, cached_trainee.features)
+            serialized_feature_values = serialize_cases(feature_values, features, feature_attributes)
             if serialized_feature_values:
                 # Only a single case should be provided
                 serialized_feature_values = serialized_feature_values[0]
@@ -971,8 +998,8 @@ class AbstractHowsoClient(ABC):
         context_features : Collection of str, optional
             The feature names corresponding to context values.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
-        cached_trainee = self.trainee_cache.get(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self._resolve_feature_attributes(trainee_id)
 
         util.validate_list_shape(contexts, 2, "contexts", "list of object", allow_none=False)
 
@@ -984,7 +1011,7 @@ class AbstractHowsoClient(ABC):
             )
 
         # Preprocess contexts
-        serialized_contexts = serialize_cases(contexts, context_features, cached_trainee.features)
+        serialized_contexts = serialize_cases(contexts, context_features, feature_attributes)
 
         if self.configuration.verbose:
             print(f'Appending to series store for Trainee with id: {trainee_id}, and series: {series}')
@@ -1828,8 +1855,9 @@ class AbstractHowsoClient(ABC):
         HowsoError
             If `num_cases_to_generate` is not an integer greater than 0.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
-        trainee = self.trainee_cache.get(trainee_id)
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self._resolve_feature_attributes(trainee_id)
+
         action_features, actions, context_features, contexts = (
             self._preprocess_react_parameters(
                 action_features=action_features,
@@ -1848,7 +1876,7 @@ class AbstractHowsoClient(ABC):
                 post_process_values,
                 data_parameter='post_process_values',
                 features_parameter='post_process_features')
-        post_process_values = serialize_cases(post_process_values, post_process_features, trainee.features)
+        post_process_values = serialize_cases(post_process_values, post_process_features, feature_attributes)
 
         if post_process_values is not None and contexts is not None:
             if (len(contexts) > 1 and len(post_process_values) > 1 and
@@ -2167,7 +2195,7 @@ class AbstractHowsoClient(ABC):
         tuple
            Updated action_features, actions, context_features, contexts
         """
-        trainee = self.trainee_cache.get(trainee_id)
+        feature_attributes = self._resolve_feature_attributes(trainee_id)
 
         # Validate case_indices if provided
         if case_indices is not None:
@@ -2196,7 +2224,7 @@ class AbstractHowsoClient(ABC):
                 context_values,
                 data_parameter='contexts',
                 features_parameter='context_features')
-        serialized_contexts = serialize_cases(context_values, context_features, trainee.features)
+        serialized_contexts = serialize_cases(context_values, context_features, feature_attributes)
 
         # Preprocess action values
         if action_values is not None and action_features is None:
@@ -2205,7 +2233,7 @@ class AbstractHowsoClient(ABC):
                 action_values,
                 data_parameter='actions',
                 features_parameter='action_features')
-        serialized_actions = serialize_cases(action_values, action_features, trainee.features)
+        serialized_actions = serialize_cases(action_values, action_features, feature_attributes)
 
         return action_features, serialized_actions, context_features, serialized_contexts
 
@@ -2553,8 +2581,8 @@ class AbstractHowsoClient(ABC):
         HowsoError
             If `num_series_to_generate` is not an integer greater than 0.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self._resolve_feature_attributes(trainee_id)
 
         util.validate_list_shape(initial_features, 1, "initial_features", "str")
         util.validate_list_shape(initial_values, 2, "initial_values", "list of object")
@@ -3377,8 +3405,8 @@ class AbstractHowsoClient(ABC):
         dict
             The react group response.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self._resolve_feature_attributes(trainee_id)
         serialized_cases = None
 
         if util.num_list_dimensions(new_cases) != 3:
@@ -4340,7 +4368,7 @@ class AbstractHowsoClient(ABC):
 
         # Update trainee in cache
         cached_trainee = self.trainee_cache.get_item(trainee_id)
-        cached_trainee['feature_attributes'] = self.get_feature_attributes(trainee_id)
+        cached_trainee["feature_attributes"] = self.get_feature_attributes(trainee_id)
 
     def remove_feature(
         self,
@@ -4485,8 +4513,8 @@ class AbstractHowsoClient(ABC):
             A list of computed pairwise distances between each corresponding
             pair of cases in `from_case_indices` and `to_case_indices`.
         """
-        trainee_id = self._resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self._resolve_feature_attributes(trainee_id)
 
         util.validate_list_shape(from_values, 2, 'from_values', 'list of list of object')
         util.validate_list_shape(to_values, 2, 'to_values', 'list of list of object')
@@ -4599,8 +4627,8 @@ class AbstractHowsoClient(ABC):
                     'distances': DataFrame[ distances ]
                 }
         """
-        trainee_id = self._resolve_trainee(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self._resolve_feature_attributes(trainee_id)
 
         # Validate case_indices if provided
         if case_indices is not None:

@@ -10,7 +10,6 @@ import warnings
 from pandas import concat, DataFrame, Index
 
 from howso.client.base import AbstractHowsoClient
-from howso.client.cache import TraineeCache
 from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import LocalSaveableProtocol, ProjectClient
@@ -237,10 +236,10 @@ class Trainee(BaseTrainee):
         SingleTableFeatureAttributes
             The feature attributes of the trainee.
         """
-        if self._features:
-            return SingleTableFeatureAttributes(deepcopy(self._features))
-        else:
-            return SingleTableFeatureAttributes({})
+        if self._features is None:
+            # Lazy load the feature attributes
+            self._features = self.client._resolve_feature_attributes(self.id)  # type:ignore reportPrivateUsage
+        return SingleTableFeatureAttributes(deepcopy(self._features))
 
     @property
     def metadata(self) -> MutableMapping[str, Any] | None:
@@ -367,16 +366,9 @@ class Trainee(BaseTrainee):
             key and a sub dictionary of feature attributes is the value.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.set_feature_attributes(
+            self._features = self.client.set_feature_attributes(
                 trainee_id=self.id, feature_attributes=feature_attributes
             )
-            if self.id:
-                if self.client.trainee_cache:
-                    self._features = self.client.trainee_cache.get(self.id).features
-                else:
-                    raise ValueError("Trainee cache is empty, Trainee features are not added.")
-            else:
-                raise ValueError("Trainee ID is needed for setting feature attributes.")
         else:
             raise AssertionError("Client must have the 'set_feature_attributes' method.")
 
@@ -2347,10 +2339,7 @@ class Trainee(BaseTrainee):
                     feature_attributes=feature_attributes,
                     overwrite=overwrite,
                 )
-                if self.client.trainee_cache:
-                    self._features = self.client.trainee_cache.get(self.id).features
-                else:
-                    raise ValueError("Trainee Cache is empty, Trainee features are not set.")
+                self._features = self.client._resolve_feature_attributes(self.id)  # type: ignore reportPrivateUsage
             else:
                 raise ValueError("Trainee ID is needed for 'add_feature'.")
         else:
@@ -2413,10 +2402,7 @@ class Trainee(BaseTrainee):
                     condition_session=condition_session_id,
                     feature=feature,
                 )
-                if self.client.trainee_cache:
-                    self._features = self.client.trainee_cache.get(self.id).features
-                else:
-                    raise ValueError("Trainee cache is empty, Trainee features are not removed.")
+                self._features = self.client._resolve_feature_attributes(self.id)  # type: ignore reportPrivateUsage
             else:
                 raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
         else:
@@ -3500,7 +3486,10 @@ class Trainee(BaseTrainee):
         """
         if not isinstance(schema, Mapping):
             raise ValueError("``schema`` parameter is not a Mapping")
-        parameters = {}
+        parameters: dict = {
+            'features': schema.get('features'),
+            'client': schema.get('client'),
+        }
         for key in cls.attribute_map:
             if key in schema:
                 if key == "project_id":
@@ -3863,11 +3852,13 @@ def load_trainee(
 
     if isinstance(client, LocalSaveableProtocol):
         base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore
+        context = base_trainee.to_dict()
+        context["features"] = client.get_feature_attributes(trainee_id)
+        context["client"] = client
     else:
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
-    if isinstance(client.trainee_cache, TraineeCache):
-        client.trainee_cache.set(base_trainee)
-    trainee = Trainee.from_schema(base_trainee, client=client)
+    client.trainee_cache.set(base_trainee, feature_attributes=context["features"])
+    trainee = Trainee.from_dict(context)
     setattr(trainee, '_custom_save_path', file_path)
 
     return trainee

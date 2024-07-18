@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable, Iterator, Mapping
+from collections.abc import Collection, Iterable, Iterator
 import typing as t
 
 if t.TYPE_CHECKING:
@@ -11,7 +11,7 @@ class TraineeCacheItem(t.TypedDict):
     """Type definition for trainee cache items."""
 
     trainee: Trainee
-    feature_attributes: Mapping[str, Mapping] | None
+    feature_attributes: dict[str, dict] | None
 
 
 class TraineeCache(Collection):

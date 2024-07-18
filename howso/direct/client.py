@@ -1150,7 +1150,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             'persistence': new_trainee.persistence,
         }
         self.execute(new_trainee_id, "set_metadata", {"metadata": metadata})
-        self.trainee_cache.set(new_trainee)
+        # Add new trainee to cache
+        feature_attributes = self.execute(new_trainee_id, "get_feature_attributes", {})
+        feature_attributes = internals.postprocess_feature_attributes(feature_attributes)
+        self.trainee_cache.set(new_trainee, feature_attributes=feature_attributes)
 
         return new_trainee
 
@@ -1196,8 +1199,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         if not status.loaded:
             raise HowsoError(f'Trainee "{trainee_id}" not found.')
 
+        # Cache the trainee details
         trainee = self._get_trainee_from_engine(trainee_id)
-        self.trainee_cache.set(trainee)
+        feature_attributes = self.execute(trainee_id, "get_feature_attributes", {})
+        feature_attributes = internals.postprocess_feature_attributes(feature_attributes)
+        self.trainee_cache.set(trainee, feature_attributes=feature_attributes)
 
     def release_trainee_resources(self, trainee_id: str):
         """
@@ -1216,8 +1222,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.configuration.verbose:
             print(f'Releasing resources for Trainee with id: {trainee_id}')
         try:
-            cache_item = self.trainee_cache.get_item(trainee_id)
-            trainee = cache_item['trainee']
+            trainee = self.trainee_cache.get(trainee_id)
 
             if trainee.persistence in ['allow', 'always']:
                 # Persist on unload
