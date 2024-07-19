@@ -3455,6 +3455,7 @@ class Trainee(BaseTrainee):
                     resources=resources
                 )
                 self._update_attributes(new_trainee)
+                # Get updated feature attributes
                 cached = self.client.trainee_cache.get_item(self.id)
                 self._features = cached["feature_attributes"]
             else:

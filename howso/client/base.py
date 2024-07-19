@@ -473,8 +473,7 @@ class AbstractHowsoClient(ABC):
             Flag indicating if the Trainee needs to analyze. Only true if
             auto-analyze is enabled and the conditions are met.
         """
-        trainee = self._resolve_trainee(trainee_id)
-        trainee_id = trainee.id
+        trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
 
         if not self.active_session:
