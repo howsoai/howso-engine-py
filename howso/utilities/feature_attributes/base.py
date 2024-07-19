@@ -200,9 +200,9 @@ class FeatureAttributesBase(dict):
                 series = pd.to_datetime(coerced_df[feature], format=format)
                 if coerce:
                     if localize_datetimes and not isinstance(series, pd.DatetimeTZDtype):
-                        series = series.dt.tz_localize('UTC', ambiguous='infer',
-                                                       nonexistent='NaT')
-                        coerced_df[feature] = coerced_df[feature].astype(series.dtype)
+                        coerced_df[feature] = series.dt.tz_localize(
+                            'UTC', ambiguous='infer', nonexistent='NaT'
+                        )
                     else:
                         coerced_df[feature] = series
                 is_valid = True
