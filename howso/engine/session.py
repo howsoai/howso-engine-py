@@ -237,7 +237,7 @@ def get_active_session(
     """
     client = client or get_client()
     if not client.active_session:
-        raise ValueError("No session is active.")
+        raise HowsoError("There is currently no active session.", code="missing_session")
     return Session.from_schema(client.active_session, client=client)
 
 
