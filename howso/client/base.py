@@ -349,7 +349,7 @@ class AbstractHowsoClient(ABC):
         """Persist a trainee in the Howso service."""
 
     @abstractmethod
-    def begin_session(self, name: str = 'default', metadata: t.Optional[Mapping] = None) -> Session:
+    def begin_session(self, name: str | None = 'default', metadata: t.Optional[Mapping] = None) -> Session:
         """Begin a new session."""
 
     @abstractmethod

@@ -1273,13 +1273,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             amlg_path=self.resolve_trainee_filepath(trainee_id)
         )
 
-    def begin_session(self, name: str = "default", metadata: t.Optional[Mapping] = None) -> Session:
+    def begin_session(self, name: str | None = "default", metadata: t.Optional[Mapping] = None) -> Session:
         """
         Begin a new session.
 
         Parameters
         ----------
-        name : str, default "default"
+        name : str or None, default "default"
             The name of the session.
         metadata : Mapping, optional
             Any key-value pair to store as custom metadata for the session.
