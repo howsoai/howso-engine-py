@@ -30,7 +30,14 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
 from howso.client.exceptions import HowsoError, HowsoWarning, UnsupportedArgumentWarning
-from howso.client.schemas import HowsoVersion, Project, Session, Trainee
+from howso.client.schemas import (
+    HowsoVersion,
+    Project,
+    Session,
+    Trainee,
+    TraineeRuntime,
+    TraineeVersion,
+)
 from howso.client.typing import LibraryType, Persistence
 from howso.utilities import internals
 
@@ -910,7 +917,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Getting Trainee with id: {trainee_id}')
         return self._get_trainee_from_engine(trainee_id)
 
-    def get_trainee_information(self, trainee_id: str) -> dict:
+    def get_trainee_runtime(self, trainee_id: str) -> TraineeRuntime:
         """
         Get information about the trainee.
 
@@ -923,15 +930,9 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         Returns
         -------
-        dict
-            The Trainee information in the schema of:
-            {
-                "library_type": LIBRARY_TYPE,
-                "version": {
-                    "amalgam": AMALGAM_VERSION,
-                    "trainee": TRAINEE_VERSION
-                }
-            }
+        TraineeRuntime
+            The Trainee runtime details. Including Trainee version and
+            configuration parameters.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         trainee_version = self.execute(trainee_id, "get_trainee_version", {})
@@ -940,13 +941,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.amlg.library_postfix:
             library_type = self.amlg.library_postfix[1:]
 
-        return {
-            "library_type": library_type,
-            "version": {
-                "amalgam": amlg_version,
-                "trainee": trainee_version
-            }
-        }
+        return TraineeRuntime(
+            library_type=t.cast(LibraryType, library_type),
+            tracing_enabled=self._trace_enabled,
+            versions=TraineeVersion(trainee=trainee_version, amalgam=amlg_version)
+        )
 
     def query_trainees(self, search_terms: t.Optional[str] = None) -> list[dict]:
         """

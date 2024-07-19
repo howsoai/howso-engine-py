@@ -4,15 +4,15 @@ from collections.abc import Generator, Mapping
 import typing as t
 
 from requests import JSONDecodeError as RequestsJSONDecodeError, Response
-from typing_extensions import TypeAliasType
+from typing_extensions import NotRequired, TypeAliasType, TypedDict
 
 
-class ValidationErrorDetail(t.TypedDict):
+class ValidationErrorDetail(TypedDict):
     """Representation of a single validation error object."""
 
     message: str
-    field: t.NotRequired[list[str]]
-    code: t.NotRequired[str | None]
+    field: NotRequired[list[str]]
+    code: NotRequired[str | None]
 
 
 ValidationErrorCollection = TypeAliasType(

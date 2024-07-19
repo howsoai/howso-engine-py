@@ -4,8 +4,10 @@ from collections.abc import Mapping
 import typing as t
 from uuid import UUID
 
+from typing_extensions import NotRequired, TypedDict
+
 from .base import BaseSchema
-from ..typing import Persistence
+from ..typing import LibraryType, Persistence
 
 __all__ = [
     "Trainee",
@@ -13,7 +15,7 @@ __all__ = [
 ]
 
 
-class TraineeDict(t.TypedDict):
+class TraineeDict(TypedDict):
     """A dict representation of a Trainee object."""
 
     id: str
@@ -21,7 +23,30 @@ class TraineeDict(t.TypedDict):
     metadata: Mapping | None
     persistence: Persistence
     project_id: str | None
-    features: t.NotRequired[Mapping[str, Mapping] | None]
+    features: NotRequired[Mapping[str, Mapping] | None]
+
+
+class TraineeVersion(TypedDict, total=False):
+    """Trainee version information."""
+
+    trainee: str | None
+    """The Amalgam version the Trainee's is at."""
+
+    amalgam: str | None
+    """The Amalgam library version."""
+
+
+class TraineeRuntime(TypedDict):
+    """Trainee runtime details."""
+
+    library_type: LibraryType
+    """The Amalgam library type used by the Trainee."""
+
+    tracing_enabled: bool
+    """If debug tracing is enabled for the Trainee."""
+
+    versions: TraineeVersion
+    """The Trainee runtime versions."""
 
 
 class Trainee(BaseSchema[TraineeDict]):

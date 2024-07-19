@@ -16,7 +16,7 @@ from howso.utilities.feature_attributes.base import MultiTableFeatureAttributes,
 from howso.utilities.features import serialize_cases
 from howso.utilities.monitors import ProgressTimer
 from .exceptions import HowsoError, UnsupportedArgumentWarning
-from .schemas import HowsoVersion, Project, Reaction, Session, Trainee
+from .schemas import HowsoVersion, Project, Reaction, Session, Trainee, TraineeRuntime
 from .typing import (
     CaseIndices,
     Cases,
@@ -304,8 +304,21 @@ class AbstractHowsoClient(ABC):
         """Get an existing trainee from the Howso service."""
 
     @abstractmethod
-    def get_trainee_information(self, trainee_id: str) -> dict:
-        """Get information about the trainee."""
+    def get_trainee_runtime(self, trainee_id: str) -> TraineeRuntime:
+        """
+        Get runtime details of a Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee.
+
+        Returns
+        -------
+        TraineeRuntime
+            The Trainee runtime details. Including Trainee version and
+            configuration parameters.
+        """
 
     @abstractmethod
     def query_trainees(self, search_terms: t.Optional[str] = None) -> list[dict]:

@@ -13,7 +13,13 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import LocalSaveableProtocol, ProjectClient
-from howso.client.schemas import Project as BaseProject, Reaction, Session as BaseSession, Trainee as BaseTrainee
+from howso.client.schemas import (
+    Project as BaseProject,
+    Reaction,
+    Session as BaseSession,
+    Trainee as BaseTrainee,
+    TraineeRuntime,
+)
 from howso.client.typing import (
     CaseIndices,
     Distances,
@@ -513,20 +519,32 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'release_trainee_resources' method.")
 
-    def information(self) -> dict:
+    def information(self) -> TraineeRuntime:
         """
-        Get detail information about the trainee.
+        The runtime details of the Trainee.
+
+        Deprecated: Use `trainee.get_runtime()` instead.
+        """
+        warnings.warn(
+            'The method ``information()`` is deprecated and will be removed '
+            'in a future release. Please use ``get_runtime()`` '
+            'instead.', DeprecationWarning)
+        return self.get_runtime()
+
+    def get_runtime(self) -> TraineeRuntime:
+        """
+        The runtime details of the Trainee.
 
         Returns
         -------
-        dict
-            The trainee detail information. Including trainee version and
+        TraineeRuntime
+            The Trainee runtime details. Including Trainee version and
             configuration parameters.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            return self.client.get_trainee_information(self.id)
+            return self.client.get_trainee_runtime(self.id)
         else:
-            raise AssertionError("Client must have 'get_trainee_information' method")
+            raise AssertionError("Client must have 'get_trainee_runtime' method")
 
     def set_random_seed(self, seed: int | float | str):
         """
