@@ -244,6 +244,8 @@ class Trainee(BaseTrainee):
         """
         if self._features is None:
             # Lazy load the feature attributes
+            if not self._created:
+                return SingleTableFeatureAttributes({})
             if isinstance(self.client, AbstractHowsoClient):
                 self._features = self.client.resolve_feature_attributes(self.id)
             else:
