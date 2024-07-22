@@ -10,11 +10,16 @@ import warnings
 from pandas import concat, DataFrame, Index
 
 from howso.client.base import AbstractHowsoClient
-from howso.client.cache import TraineeCache
 from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import LocalSaveableProtocol, ProjectClient
-from howso.client.schemas import Project as BaseProject, Reaction, Session as BaseSession, Trainee as BaseTrainee
+from howso.client.schemas import (
+    Project as BaseProject,
+    Reaction,
+    Session as BaseSession,
+    Trainee as BaseTrainee,
+    TraineeRuntime,
+)
 from howso.client.typing import (
     CaseIndices,
     Distances,
@@ -113,6 +118,7 @@ class Trainee(BaseTrainee):
         self._was_saved: bool = False
         self.client = client or get_client()
 
+        self._features = features
         self._custom_save_path = None
         self._calculated_matrices = {}
         self._needs_analyze: bool = False
@@ -132,7 +138,6 @@ class Trainee(BaseTrainee):
         super().__init__(
             id=id or '',  # The id will be initialized by _create
             name=name,
-            features=features,
             metadata=metadata,
             persistence=persistence,
             project_id=project_id,
@@ -237,10 +242,13 @@ class Trainee(BaseTrainee):
         SingleTableFeatureAttributes
             The feature attributes of the trainee.
         """
-        if self._features:
-            return SingleTableFeatureAttributes(deepcopy(self._features))
-        else:
-            return SingleTableFeatureAttributes({})
+        if self._features is None:
+            # Lazy load the feature attributes
+            if isinstance(self.client, AbstractHowsoClient):
+                self._features = self.client.resolve_feature_attributes(self.id)
+            else:
+                raise AssertionError("Client must have the 'resolve_feature_attributes' method.")
+        return SingleTableFeatureAttributes(deepcopy(self._features))
 
     @property
     def metadata(self) -> MutableMapping[str, Any] | None:
@@ -367,16 +375,9 @@ class Trainee(BaseTrainee):
             key and a sub dictionary of feature attributes is the value.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.set_feature_attributes(
+            self._features = self.client.set_feature_attributes(
                 trainee_id=self.id, feature_attributes=feature_attributes
             )
-            if self.id:
-                if self.client.trainee_cache:
-                    self._features = self.client.trainee_cache.get(self.id).features
-                else:
-                    raise ValueError("Trainee cache is empty, Trainee features are not added.")
-            else:
-                raise ValueError("Trainee ID is needed for setting feature attributes.")
         else:
             raise AssertionError("Client must have the 'set_feature_attributes' method.")
 
@@ -518,20 +519,32 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'release_trainee_resources' method.")
 
-    def information(self) -> dict:
+    def information(self) -> TraineeRuntime:
         """
-        Get detail information about the trainee.
+        The runtime details of the Trainee.
+
+        Deprecated: Use `trainee.get_runtime()` instead.
+        """
+        warnings.warn(
+            'The method ``information()`` is deprecated and will be removed '
+            'in a future release. Please use ``get_runtime()`` '
+            'instead.', DeprecationWarning)
+        return self.get_runtime()
+
+    def get_runtime(self) -> TraineeRuntime:
+        """
+        The runtime details of the Trainee.
 
         Returns
         -------
-        dict
-            The trainee detail information. Including trainee version and
+        TraineeRuntime
+            The Trainee runtime details. Including Trainee version and
             configuration parameters.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            return self.client.get_trainee_information(self.id)
+            return self.client.get_trainee_runtime(self.id)
         else:
-            raise AssertionError("Client must have 'get_trainee_information' method")
+            raise AssertionError("Client must have 'get_trainee_runtime' method")
 
     def set_random_seed(self, seed: int | float | str):
         """
@@ -2347,10 +2360,7 @@ class Trainee(BaseTrainee):
                     feature_attributes=feature_attributes,
                     overwrite=overwrite,
                 )
-                if self.client.trainee_cache:
-                    self._features = self.client.trainee_cache.get(self.id).features
-                else:
-                    raise ValueError("Trainee Cache is empty, Trainee features are not set.")
+                self._features = self.client.resolve_feature_attributes(self.id)
             else:
                 raise ValueError("Trainee ID is needed for 'add_feature'.")
         else:
@@ -2413,10 +2423,7 @@ class Trainee(BaseTrainee):
                     condition_session=condition_session_id,
                     feature=feature,
                 )
-                if self.client.trainee_cache:
-                    self._features = self.client.trainee_cache.get(self.id).features
-                else:
-                    raise ValueError("Trainee cache is empty, Trainee features are not removed.")
+                self._features = self.client.resolve_feature_attributes(self.id)
             else:
                 raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
         else:
@@ -3447,9 +3454,10 @@ class Trainee(BaseTrainee):
                     project=self.project_id,
                     resources=resources
                 )
-
-            if new_trainee:
                 self._update_attributes(new_trainee)
+                # Get updated feature attributes
+                cached = self.client.trainee_cache.get_item(self.id)
+                self._features = cached["feature_attributes"]
             else:
                 raise AssertionError("Trainee is unable to be created.")
 
@@ -3500,7 +3508,10 @@ class Trainee(BaseTrainee):
         """
         if not isinstance(schema, Mapping):
             raise ValueError("``schema`` parameter is not a Mapping")
-        parameters = {}
+        parameters: dict = {
+            'features': schema.get('features'),
+            'client': schema.get('client'),
+        }
         for key in cls.attribute_map:
             if key in schema:
                 if key == "project_id":
@@ -3865,8 +3876,7 @@ def load_trainee(
         base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore
     else:
         raise ValueError("Loading a Trainee from disk requires a client with disk access.")
-    if isinstance(client.trainee_cache, TraineeCache):
-        client.trainee_cache.set(base_trainee)
+    client.trainee_cache.set(base_trainee)
     trainee = Trainee.from_schema(base_trainee, client=client)
     setattr(trainee, '_custom_save_path', file_path)
 
@@ -3877,7 +3887,7 @@ def get_trainee(
     name_or_id: str,
     *,
     client: Optional[AbstractHowsoClient] = None
-) -> Trainee | None:
+) -> Trainee:
     """
     Get an existing trainee from Howso Services.
 
@@ -3890,13 +3900,17 @@ def get_trainee(
 
     Returns
     -------
-    Trainee or None
-        The trainee instance or None if a trainee with the specified name/id was not found.
+    Trainee
+        The Trainee instance.
+
+    Raises
+    ------
+    HowsoError
+        If the Trainee could not be found.
     """
     client = client or get_client()
     trainee = client.get_trainee(str(name_or_id))
-    if trainee:
-        return Trainee.from_schema(trainee, client=client)
+    return Trainee.from_schema(trainee, client=client)
 
 
 def list_trainees(*args, **kwargs):

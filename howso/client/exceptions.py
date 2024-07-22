@@ -4,15 +4,15 @@ from collections.abc import Generator, Mapping
 import typing as t
 
 from requests import JSONDecodeError as RequestsJSONDecodeError, Response
-from typing_extensions import TypeAliasType
+from typing_extensions import NotRequired, TypeAliasType, TypedDict
 
 
-class ValidationErrorDetail(t.TypedDict):
+class ValidationErrorDetail(TypedDict):
     """Representation of a single validation error object."""
 
     message: str
-    field: t.NotRequired[list[str]]
-    code: t.NotRequired[str | None]
+    field: NotRequired[list[str]]
+    code: NotRequired[str | None]
 
 
 ValidationErrorCollection = TypeAliasType(
@@ -49,7 +49,7 @@ class HowsoError(Exception):
         self.message = message
         self.code = code
         self.url = url
-        super().__init__((message, code, url))
+        super().__init__((message, code))
 
 
 class HowsoValidationError(HowsoError):
@@ -97,11 +97,13 @@ class HowsoValidationError(HowsoError):
                     yield from _traverse([*path, key], item)
             elif isinstance(collection, list):
                 for item in collection:
-                    yield ValidationErrorDetail(
-                        message=item.get("message") or 'An unknown error occurred.',
-                        code=item.get("code"),
+                    error = ValidationErrorDetail(
+                        message=item.get('message') or 'An unknown error occurred.',
                         field=path
                     )
+                    if code := item.get('code'):
+                        error['code'] = code
+                    yield error
 
         if self.errors is not None:
             yield from _traverse([], self.errors)

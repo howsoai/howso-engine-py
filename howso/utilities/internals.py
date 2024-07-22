@@ -16,7 +16,7 @@ import logging
 import math
 import random
 import re
-from typing import Any, Dict, Generator, List, Mapping, NamedTuple, Optional, Tuple, TYPE_CHECKING, Union
+from typing import Any, Generator, List, Mapping, NamedTuple, Optional, Tuple, TYPE_CHECKING, Union
 import unicodedata
 import uuid
 import warnings
@@ -29,55 +29,11 @@ from semantic_version import Version
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from howso.client.schemas import Trainee
     from .monitors import ProgressTimer
 
 
-def postprocess_trainee(trainee: Trainee) -> Trainee:
-    """
-    Post-process a trainee to update its data into the expected format.
-
-    Should be used on trainee objects returned from the API.
-    NOTE: Mutates the original trainee object.
-
-    Parameters
-    ----------
-    trainee : Trainee
-        The trainee instance.
-
-    Returns
-    -------
-    Trainee
-        The trainee instance.
-    """
-    trainee.features = postprocess_feature_attributes(trainee.features)
-    return trainee
-
-
-def preprocess_trainee(trainee: Trainee) -> Trainee:
-    """
-    Pre-process a trainee to update its data into the expected format.
-
-    Should be used on trainee objects before sending to the API.
-    Does not mutate the original trainee object.
-
-    Parameters
-    ----------
-    trainee : Trainee
-        The trainee instance.
-
-    Returns
-    -------
-    Trainee
-        Updated copy of the trainee instance.
-    """
-    trainee = deepcopy(trainee)
-    trainee.features = preprocess_feature_attributes(trainee.features)
-    return trainee
-
-
 def deserialize_to_dataframe(
-    data: Union[Iterable[Iterable[object]], Iterable[Dict[str, object]]],
+    data: Iterable[Iterable[Any]] | Iterable[Mapping[str, Any]] | None,
     columns: Optional[Iterable[str]] = None,
     index: Optional[Iterable[Any]] = None
 ) -> pd.DataFrame:
@@ -192,7 +148,7 @@ def serialize_models(obj: Any, *, exclude_null: bool = False) -> Any:
     return obj
 
 
-def postprocess_feature_attributes(features: Mapping) -> dict:
+def postprocess_feature_attributes(features: Mapping | None) -> dict:
     """
     Post-process feature attributes into the expected client format.
 
@@ -201,7 +157,7 @@ def postprocess_feature_attributes(features: Mapping) -> dict:
 
     Parameters
     ----------
-    features : dict
+    features : dict or None
         Dictionary of feature name to feature value.
 
     Returns
@@ -237,7 +193,7 @@ def postprocess_feature_attributes(features: Mapping) -> dict:
     return feature_attributes
 
 
-def preprocess_feature_attributes(features: Mapping) -> dict | None:
+def preprocess_feature_attributes(features: Mapping | None) -> dict | None:
     """
     Pre-process feature attributes into the expected API format.
 

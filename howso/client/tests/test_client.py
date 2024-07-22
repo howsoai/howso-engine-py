@@ -435,11 +435,15 @@ class TestClient:
         ----------
         trainee
         """
-        new_trainee = trainee_builder.copy(trainee.id, trainee.name + "_copy")
+        new_name = trainee.name + "_copy"
+        new_trainee = trainee_builder.copy(trainee.id, new_name)
         trainee_bob = self.client.get_trainee(new_trainee.id)
-        orig = trainee.to_dict()
-        copy_bob = trainee_bob.to_dict()
-        assert orig['features'] == copy_bob['features']
+        assert trainee.name != new_name
+        assert new_trainee.name == new_name
+        assert trainee_bob.name == new_name
+        orig_features = self.client.get_feature_attributes(trainee.id)
+        copy_features = self.client.get_feature_attributes(new_trainee.id)
+        assert orig_features == copy_features
 
     def test_trainee_conviction(self, trainee, trainee_builder):
         """
