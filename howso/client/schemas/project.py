@@ -206,4 +206,4 @@ class Project(BaseSchema[ProjectDict]):
         if not self._permissions:
             return []
         else:
-            return list(self.permissions)
+            return list(self._permissions)
