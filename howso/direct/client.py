@@ -891,7 +891,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The base name of the exported Trainee json files. If not specified,
             uses the value of `trainee_id`. (e.g., [filename].meta.json)
         filepath : Path or str, optional
-            The directory where the `.exp.json` and `.meta.json` files exist.
+            The directory where the exported Trainee `.exp.json` and `.meta.json` files exist.
 
         Returns
         -------
