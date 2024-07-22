@@ -611,6 +611,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         filename: Optional[str] = None,
         filepath: Optional[Union[Path, str]] = None,
+        path_to_trainee: Optional[Union[Path, str]] = None,
     ) -> Trainee:
         """
         Upgrade a saved Trainee to current version.
@@ -624,6 +625,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             uses the value of `trainee_id`. (e.g., [filename].meta.json)
         filepath : Path or str, optional
             The directory where the exported Trainee `.exp.json` and `.meta.json` files exist.
+        path_to_trainee : Path or str, optional
+            Deprecated, use `filepath` instead.
 
         Returns
         -------
@@ -632,6 +635,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if self.verbose:
             print(f'Upgrade trainee with id: {trainee_id}')
+
+        if path_to_trainee is not None:
+            warnings.warn(
+                'The upgrade trainee parameter `path_to_trainee` is deprecated and will be removed in '
+                'a future release. Please use `filepath` instead.', DeprecationWarning)
+            if filepath is None:
+                filepath = path_to_trainee
 
         self.howso.upgrade_trainee(trainee_id, filename=filename, filepath=filepath)
         trainee = self._get_trainee_from_core(trainee_id)
