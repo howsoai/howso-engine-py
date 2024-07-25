@@ -32,6 +32,10 @@ on:
       optional-release-tag:
         required: false
         type: string
+      debug-mode:
+        type: boolean
+        required: false
+        default: false
 
 defaults:
   run:
