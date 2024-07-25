@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import IntEnum
 from functools import cached_property, partial
+import importlib
 import inspect
 from io import StringIO
 import logging
@@ -22,6 +23,7 @@ except ImportError:
 from howso.client import (
     AbstractHowsoClient, HowsoClient
 )
+from howso.client.client import get_howso_client_class
 from howso.client.exceptions import HowsoConfigurationError, HowsoError
 from howso.openapi.models import Trainee
 try:
@@ -273,6 +275,12 @@ class InstallationCheckRegistry:
         start_time = datetime.now()
 
         try:
+            versions = get_versions()
+            print(f"Python version: {versions['python']}")
+            print(f"Client type: {versions['client_type']}")
+            print(f"Client version: {versions['client']}")
+            if 'platform' in versions:
+                print(f"Platform version: {versions['platform']}")
             with progress:
                 for check in progress.track(self._checks):
                     if check.client_required:
@@ -336,8 +344,14 @@ class InstallationCheckRegistry:
                     all_issues += 1
                     with open(log_file, mode="w+") as log:
                         print(f"Installation verification run: "
-                              f"{start_time.isoformat()}\n" + "=" * 80 + "\n",
+                              f"{start_time.isoformat()}\n",
                               file=log)
+                        print(f"Python version: {versions['python']}", file=log)
+                        print(f"Client type: {versions['client_type']}", file=log)
+                        print(f"Client version: {versions['client']}", file=log)
+                        if 'platform' in versions:
+                            print(f"Platform version: {versions['platform']}", file=log)
+                        print("=" * 80 + "\n", file=log)
                         print(logs, file=log)
                         print(f"Verification complete: {end_time.isoformat()} "
                               f"(elapsed time: {end_time - start_time})\n",
@@ -359,6 +373,39 @@ class InstallationCheckRegistry:
             return 255
         else:
             return 0
+
+
+def get_versions():
+    py_version = sys.version_info
+    versions = {
+        "python": f'{py_version.major}.{py_version.minor}.{py_version.micro}',
+    }
+
+    # Instantiating the client is often the point of failure, this won't trigger that
+    client_class, _ = get_howso_client_class()
+    versions.update({
+        "client_type": client_class.__name__
+    })
+
+    if client_class.__name__ == 'HowsoDirectClient':
+        versions.update({
+            "client": importlib.metadata.version('howso-engine')
+        })
+    elif client_class.__name__ == 'HowsoPlatformClient':
+        versions.update({
+            "client": importlib.metadata.version('howso-platform-client')
+        })
+
+    try:
+        client = HowsoClient(debug=0)
+        client_version_info = client.get_version()
+        if hasattr(client_version_info, "platform"):
+            versions.update({
+                "platform": client_version_info.platform
+            })
+    except Exception:
+        pass
+    return versions
 
 
 def get_nonce(length=8) -> str:
