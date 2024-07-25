@@ -218,9 +218,14 @@ def preprocess_feature_attributes(features: Mapping | None) -> dict | None:
     feature_attributes: dict = deepcopy(serialize_models(features))
 
     regex = re.compile(r"%S.%f")
-    for feat in feature_attributes.values():
+    for key, feat in feature_attributes.items():
         if feat is None:
             continue
+
+        if not isinstance(key, str):
+            raise ValueError("Feature attribute keys must be strings.")
+        elif not key.strip():
+            raise ValueError("Feature attribute keys may not be blank.")
 
         # Set decimal places to 0 when %S is in datetime format but %f is not.
         # This prevents core from returning microseconds

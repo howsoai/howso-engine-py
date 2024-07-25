@@ -1208,9 +1208,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             # Trainee is already loaded
             return
 
+        filepath = self.resolve_trainee_filepath(trainee_id)
+        if not os.path.exists(filepath):
+            raise HowsoError(
+                f'Trainee not found. No Trainee file exists at: "{filepath}"', code="not_found")
         status = self.amlg.load_entity(
             handle=trainee_id,
-            amlg_path=self.resolve_trainee_filepath(trainee_id),
+            amlg_path=filepath,
             persist=False,
             load_contained=True,
             escape_filename=False,
