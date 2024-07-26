@@ -497,8 +497,6 @@ def generate_dataframe(*, client: AbstractHowsoClient,
         }
     }
     feature_names = list(features.keys())
-    context_features = list(feature_names)[:-1]
-    action_features = [list(feature_names)[-1]]
 
     trainee_obj = Trainee(
         f"installation_verification generated dataframe ({get_nonce()})",
