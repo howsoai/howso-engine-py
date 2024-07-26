@@ -376,26 +376,36 @@ class InstallationCheckRegistry:
 
 
 def get_versions():
-    py_version = sys.version_info
+    # python version
+    try:
+        py_version = sys.version_info
+        py_version_string = f'{py_version.major}.{py_version.minor}.{py_version.micro}'
+    except Exception:
+        py_version_string = "Could not get Python version."
+
     versions = {
-        "python": f'{py_version.major}.{py_version.minor}.{py_version.micro}',
+        "python": py_version_string,
     }
 
-    # Instantiating the client is often the point of failure, this won't trigger that
-    client_class, _ = get_howso_client_class()
+    # client type and version
+    try:
+        # Instantiating the client is often the point of failure, this won't trigger that
+        client_class_name, _ = get_howso_client_class()
+        client_type_string = client_class_name.__name__
+        if client_type_string == 'HowsoDirectClient':
+            client_version_string = importlib.metadata.version('howso-engine')
+        elif client_type_string == 'HowsoPlatformClient':
+            client_version_string = importlib.metadata.version('howso-platform-client')
+    except Exception:
+        client_type_string = "Could not get client type."
+        client_version_string = "Could not get client version."
+
     versions.update({
-        "client_type": client_class.__name__
+        "client_type": client_type_string,
+        "client": client_version_string
     })
 
-    if client_class.__name__ == 'HowsoDirectClient':
-        versions.update({
-            "client": importlib.metadata.version('howso-engine')
-        })
-    elif client_class.__name__ == 'HowsoPlatformClient':
-        versions.update({
-            "client": importlib.metadata.version('howso-platform-client')
-        })
-
+    # platform version
     try:
         client = HowsoClient(debug=0)
         client_version_info = client.get_version()
@@ -405,6 +415,7 @@ def get_versions():
             })
     except Exception:
         pass
+
     return versions
 
 
