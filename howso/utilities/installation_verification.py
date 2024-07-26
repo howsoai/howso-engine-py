@@ -24,6 +24,7 @@ from howso.client import (
     AbstractHowsoClient, HowsoClient
 )
 from howso.client.client import get_howso_client_class
+from howso.direct.client import HowsoDirectClient
 from howso.client.exceptions import HowsoConfigurationError, HowsoError
 from howso.openapi.models import Trainee
 try:
@@ -376,6 +377,15 @@ class InstallationCheckRegistry:
 
 
 def get_versions():
+    """
+    Gets the Python, client, and platform versions of the environment.
+
+    Returns
+    -------
+    dict
+        A mapping containing keys 'python', 'client', 'client_type', and possibly
+        'platform'. These all are mapped to strings indicating their version.
+    """
     # python version
     try:
         py_version = sys.version_info
@@ -390,12 +400,19 @@ def get_versions():
     # client type and version
     try:
         # Instantiating the client is often the point of failure, this won't trigger that
-        client_class_name, _ = get_howso_client_class()
-        client_type_string = client_class_name.__name__
-        if client_type_string == 'HowsoDirectClient':
+        client_class, _ = get_howso_client_class()
+        client_type_string = client_class.__name__
+        if issubclass(client_class, HowsoDirectClient):
             client_version_string = importlib.metadata.version('howso-engine')
-        elif client_type_string == 'HowsoPlatformClient':
-            client_version_string = importlib.metadata.version('howso-platform-client')
+        else:
+            try:
+                from howso.platform.client import HowsoPlatformClient
+                if issubclass(client_class, HowsoPlatformClient):
+                    client_version_string = importlib.metadata.version('howso-platform-client')
+                else:
+                    client_version_string = "Could not get client version."
+            except Exception:
+                client_version_string = "Could not get client version."
     except Exception:
         client_type_string = "Could not get client type."
         client_version_string = "Could not get client version."
