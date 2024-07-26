@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import IntEnum
 from functools import cached_property, partial
-import importlib
+import importlib.metadata
 import inspect
 from io import StringIO
 import logging
@@ -274,6 +274,12 @@ class InstallationCheckRegistry:
         if not self.logger:
             self.logger = StringIO()
         start_time = datetime.now()
+
+        versions = {
+            "python": "Could not get Python version.",
+            "client_type": "Could not get client type.",
+            "client": "Could not get client version.",
+        }
 
         try:
             versions = get_versions()
