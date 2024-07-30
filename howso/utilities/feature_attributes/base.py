@@ -61,6 +61,10 @@ class FeatureAttributesBase(dict):
         obj_copy.params = self.params
         return obj_copy
 
+    def copy(self):
+        """Ensure the copy method explicity calls the __copy__ method."""
+        return self.__copy__()
+
     def get_parameters(self) -> dict:
         """
         Get the keyword arguments used with the initial call to infer_feature_attributes.
@@ -534,6 +538,7 @@ class InferFeatureAttributesBase(ABC):
                  dependent_features: Optional[Dict[str, List[str]]] = None,
                  include_sample: bool = False,
                  max_workers: Optional[int] = None,
+                 **kwargs
                  ) -> Dict:
         """
         Get inferred feature attributes for the parameters.
