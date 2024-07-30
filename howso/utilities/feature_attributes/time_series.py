@@ -259,7 +259,8 @@ class InferFeatureAttributesTimeSeries:
         attempt_infer_extended_nominals: bool = False,
         nominal_substitution_config: Optional[Dict[str, Dict]] = None,
         include_extended_nominal_probabilities: Optional[bool] = False,
-        time_feature_is_universal: bool = None,
+        include_sample: bool = False,
+        time_feature_is_universal: Optional[bool] = None,
         time_series_type_default: Optional[str] = 'rate',
         time_series_types_override: Optional[Dict] = None,
         orders_of_derivatives: Optional[Dict] = None,
@@ -425,6 +426,10 @@ class InferFeatureAttributesTimeSeries:
             (Optional) If true, extended nominal probabilities will be appended
             as metadata into the feature object.
 
+        include_sample: bool, default False
+            If True, include a ``sample`` field containing a sample of the data
+            from each feature in the output feature attributes dictionary.
+
         time_feature_is_universal : bool, optional
             If True, the time feature will be treated as universal and future data
             is excluded while making predictions. If False, the time feature will
@@ -553,6 +558,7 @@ class InferFeatureAttributesTimeSeries:
             nominal_substitution_config=nominal_substitution_config,
             include_extended_nominal_probabilities=include_extended_nominal_probabilities,
             id_feature_name=id_feature_name,
+            include_sample=include_sample,
             tight_bounds=set(tight_bound_features) if tight_bound_features else None,
             mode_bound_features=mode_bound_features,
         )
