@@ -785,7 +785,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         # Set the feature attributes
         features = internals.preprocess_feature_attributes(features)
-        self.execute(trainee_id, "set_feature_attributes", {"feature_attributes": features})
+        self.execute(trainee_id, "set_feature_attributes", {"features": features})
         features = self.execute(trainee_id, "get_feature_attributes", {})
         features = internals.postprocess_feature_attributes(features)
 

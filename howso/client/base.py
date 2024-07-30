@@ -548,7 +548,7 @@ class AbstractHowsoClient(ABC):
                 start = progress.current_tick
                 end = progress.current_tick + batch_size
                 response, in_size, out_size = self.execute_sized(trainee_id, "train", {
-                    "cases": serialized_cases[start:end],
+                    "input_cases": serialized_cases[start:end],
                     "accumulate_weight_feature": accumulate_weight_feature,
                     "derived_features": derived_features,
                     "features": features,
@@ -1134,7 +1134,7 @@ class AbstractHowsoClient(ABC):
             print(f'Setting feature attributes for Trainee with id: {trainee_id}')
 
         self.execute(trainee_id, "set_feature_attributes", {
-            "feature_attributes": internals.preprocess_feature_attributes(feature_attributes),
+            "features": internals.preprocess_feature_attributes(feature_attributes),
         })
         self._auto_persist_trainee(trainee_id)
 
@@ -1209,7 +1209,7 @@ class AbstractHowsoClient(ABC):
             session = session.id
         if self.configuration.verbose:
             print(f'Deleting session {session} from Trainee with id: {trainee_id}')
-        self.execute(trainee_id, "delete_session", {"session": session})
+        self.execute(trainee_id, "remove_session", {"session": session})
         self._auto_persist_trainee(trainee_id)
 
     def get_session_indices(self, trainee_id: str, session: str | Session) -> list[int]:
@@ -2159,7 +2159,7 @@ class AbstractHowsoClient(ABC):
         int
             The response payload size.
         """
-        ret, in_size, out_size = self.execute_sized(trainee_id, 'react', params)
+        ret, in_size, out_size = self.execute_sized(trainee_id, 'batch_react', params)
 
         # Action values and features should always be defined
         if not ret.get('action_values'):
@@ -2967,7 +2967,7 @@ class AbstractHowsoClient(ABC):
         int
             The response payload size.
         """
-        batch_result, in_size, out_size = self.execute_sized(trainee_id, "react_series", params)
+        batch_result, in_size, out_size = self.execute_sized(trainee_id, "batch_react_series", params)
 
         if batch_result is None or batch_result.get('action_values') is None:
             raise ValueError('Invalid parameters passed to react_series.')
@@ -3441,7 +3441,7 @@ class AbstractHowsoClient(ABC):
 
         if self.configuration.verbose:
             print(f'Reacting to a set of cases on Trainee with id: {trainee_id}')
-        result = self.execute(trainee_id, "react_group", {
+        result = self.execute(trainee_id, "batch_react_group", {
             "features": features,
             "new_cases": serialized_cases,
             "distance_contributions": distance_contributions,
@@ -4202,7 +4202,7 @@ class AbstractHowsoClient(ABC):
 
         if self.configuration.verbose:
             print(f'Getting extreme cases for trainee with id: {trainee_id}')
-        result = self.execute(trainee_id, "get_extreme_cases", {
+        result = self.execute(trainee_id, "retrieve_extreme_cases_for_feature", {
             "features": features,
             "sort_feature": sort_feature,
             "num": num,
@@ -4287,7 +4287,7 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(action_features, 1, "action_features", "str")
         if self.configuration.verbose:
             print(f'Getting conviction of features for Trainee with id: {trainee_id}')
-        return self.execute(trainee_id, "get_feature_conviction", {
+        return self.execute(trainee_id, "compute_conviction_of_features", {
             "features": features,
             "action_features": action_features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
@@ -4575,7 +4575,7 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Getting pairwise distances for Trainee with id: {trainee_id}')
 
-        result = self.execute(trainee_id, "get_pairwise_distances", {
+        result = self.execute(trainee_id, "pairwise_distances", {
             "features": features,
             "action_feature": action_feature,
             "from_case_indices": from_case_indices,
@@ -4711,7 +4711,7 @@ class AbstractHowsoClient(ABC):
 
         for row_offset in range(0, num_cases, page_size):
             for column_offset in range(0, num_cases, page_size):
-                result = self.execute(trainee_id, "get_distances", {
+                result = self.execute(trainee_id, "distances", {
                     "features": features,
                     "action_feature": action_feature,
                     "case_indices": case_indices,
@@ -4826,7 +4826,7 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
             print(f'Getting model attributes from Trainee with id: {trainee_id}')
-        return self.execute(trainee_id, "get_params", {
+        return self.execute(trainee_id, "get_internal_parameters", {
             "action_feature": action_feature,
             "context_features": context_features,
             "mode": mode,
@@ -4883,5 +4883,5 @@ class AbstractHowsoClient(ABC):
                     f'`{new_param}`, please use the new parameter '
                     'instead.', UserWarning)
 
-        self.execute(trainee_id, "set_params", parameters)
+        self.execute(trainee_id, "set_internal_parameters", parameters)
         self._auto_persist_trainee(trainee_id)
