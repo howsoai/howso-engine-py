@@ -1208,9 +1208,13 @@ class HowsoDirectClient(AbstractHowsoClient):
             # Trainee is already loaded
             return
 
+        filepath = self.resolve_trainee_filepath(trainee_id)
+        if not os.path.exists(filepath):
+            raise HowsoError(
+                f'Trainee not found. No Trainee file exists at: "{filepath}"', code="not_found")
         status = self.amlg.load_entity(
             handle=trainee_id,
-            amlg_path=self.resolve_trainee_filepath(trainee_id),
+            amlg_path=filepath,
             persist=False,
             load_contained=True,
             escape_filename=False,
@@ -1333,7 +1337,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
         return self._active_session
 
-    def query_sessions(self, search_terms: t.Optional[str] = None, **kwargs) -> list[Session]:
+    def query_sessions(
+        self,
+        search_terms: t.Optional[str] = None,
+        *,
+        trainee: t.Optional[str | Trainee] = None,
+        **kwargs
+    ) -> list[Session]:
         """
         Return a list of all accessible sessions.
 
@@ -1345,6 +1355,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         search_terms : str, optional
             Space or comma delimited search terms to filter results by.
+        trainee : str or Trainee, optional
+            A Trainee to filter by.
 
         Returns
         -------
@@ -1358,7 +1370,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         if search_terms:
             filter_terms = search_terms.replace(',', ' ').split(' ')
 
+        # Normalize trainee id filter
+        if isinstance(trainee, Trainee):
+            filter_trainee_id = str(trainee.id)
+        else:
+            filter_trainee_id = trainee
+
         for trainee_id in self.trainee_cache.ids():
+            if filter_trainee_id and trainee_id != filter_trainee_id:
+                continue
             sessions = self.execute(trainee_id, "get_sessions", {"attributes": list(Session.attribute_map)})
             if not sessions:
                 continue

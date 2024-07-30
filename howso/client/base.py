@@ -353,7 +353,13 @@ class AbstractHowsoClient(ABC):
         """Begin a new session."""
 
     @abstractmethod
-    def query_sessions(self, search_terms: t.Optional[str] = None, **kwargs) -> list[Session]:
+    def query_sessions(
+        self,
+        search_terms: t.Optional[str] = None,
+        *,
+        trainee: t.Optional[str | Trainee] = None,
+        **kwargs
+    ) -> list[Session]:
         """Query all accessible sessions."""
 
     @abstractmethod
@@ -3653,7 +3659,9 @@ class AbstractHowsoClient(ABC):
 
         if self.configuration.verbose:
             print(f'Analyzing Trainee with id: {trainee_id}')
-            print(f'Analyzing Trainee with parameters: {analyze_params}')
+            print('Analyzing Trainee with parameters: ' + str({
+                k: v for k, v in analyze_params.items() if v is not None
+            }))
 
         self.execute(trainee_id, "analyze", analyze_params)
         self._auto_persist_trainee(trainee_id)
