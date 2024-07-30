@@ -4,6 +4,6 @@ Howso:
      debug: true
      check_version: false 
      amalgam:
-        library_postfix: -st
+        library_postfix: -mt
         trace: true 
         execution_trace_dir: ./traces/

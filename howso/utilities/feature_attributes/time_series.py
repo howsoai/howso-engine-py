@@ -269,6 +269,7 @@ class InferFeatureAttributesTimeSeries:
         num_lags: Optional[Union[int, dict]] = None,
         rate_boundaries: Optional[Dict] = None,
         delta_boundaries: Optional[Dict] = None,
+        max_workers: Optional[int] = None,
     ) -> Dict:
         """
         Infer time series attributes.

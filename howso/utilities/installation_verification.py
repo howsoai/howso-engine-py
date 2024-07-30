@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import IntEnum
 from functools import cached_property, partial
+import importlib.metadata
 import inspect
 from io import StringIO
 import logging
@@ -13,7 +14,7 @@ from pathlib import Path
 import random
 import sys
 import traceback
-from typing import Callable, Iterable, List, Optional, Tuple, TYPE_CHECKING, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
@@ -29,9 +30,13 @@ try:
     from howso import engine
 except ImportError:
     engine = None
-from howso.client.client import HowsoClient
+from howso.client import (
+    AbstractHowsoClient, HowsoClient
+)
+from howso.client.client import get_howso_client_class
 from howso.client.exceptions import HowsoConfigurationError, HowsoError
 from howso.client.schemas import Trainee
+from howso.direct.client import HowsoDirectClient
 try:
     from howso.validator import Validator  # noqa: might not be available # type: ignore
 except OSError as e:
@@ -50,9 +55,6 @@ from howso.utilities.posix import PlatformError, sysctl_by_name
 logger = logging.getLogger(__name__)
 
 LOG_FILE = "howso_stacktrace.txt"
-
-if TYPE_CHECKING:
-    from howso.client.base import AbstractHowsoClient
 
 
 class Status(IntEnum):
@@ -270,7 +272,19 @@ class InstallationCheckRegistry:
             self.logger = StringIO()
         start_time = datetime.now()
 
+        versions = {
+            "python": "Could not get Python version.",
+            "client_type": "Could not get client type.",
+            "client": "Could not get client version.",
+        }
+
         try:
+            versions = get_versions()
+            print(f"Python version: {versions['python']}")
+            print(f"Client type: {versions['client_type']}")
+            print(f"Client version: {versions['client']}")
+            if 'platform' in versions:
+                print(f"Platform version: {versions['platform']}")
             with progress:
                 for check in progress.track(self._checks):
                     if check.client_required:
@@ -334,8 +348,14 @@ class InstallationCheckRegistry:
                     all_issues += 1
                     with open(log_file, mode="w+") as log:
                         print(f"Installation verification run: "
-                              f"{start_time.isoformat()}\n" + "=" * 80 + "\n",
+                              f"{start_time.isoformat()}\n",
                               file=log)
+                        print(f"Python version: {versions['python']}", file=log)
+                        print(f"Client type: {versions['client_type']}", file=log)
+                        print(f"Client version: {versions['client']}", file=log)
+                        if 'platform' in versions:
+                            print(f"Platform version: {versions['platform']}", file=log)
+                        print("=" * 80 + "\n", file=log)
                         print(logs, file=log)
                         print(f"Verification complete: {end_time.isoformat()} "
                               f"(elapsed time: {end_time - start_time})\n",
@@ -357,6 +377,64 @@ class InstallationCheckRegistry:
             return 255
         else:
             return 0
+
+
+def get_versions():
+    """
+    Gets the Python, client, and platform versions of the environment.
+
+    Returns
+    -------
+    dict
+        A mapping containing keys 'python', 'client', 'client_type', and possibly
+        'platform'. These all are mapped to strings indicating their version.
+    """
+    # python version
+    try:
+        py_version = sys.version_info
+        py_version_string = f'{py_version.major}.{py_version.minor}.{py_version.micro}'
+    except Exception:
+        py_version_string = "Could not get Python version."
+
+    versions = {
+        "python": py_version_string,
+    }
+
+    # client type and version
+    try:
+        # Instantiating the client is often the point of failure, this won't trigger that
+        client_class, _ = get_howso_client_class()
+        client_type_string = client_class.__name__
+        if issubclass(client_class, HowsoDirectClient):
+            client_version_string = importlib.metadata.version('howso-engine')
+        else:
+            try:
+                from howso.platform.client import HowsoPlatformClient
+                if issubclass(client_class, HowsoPlatformClient):
+                    client_version_string = importlib.metadata.version('howso-platform-client')
+                else:
+                    client_version_string = "Could not get client version."
+            except Exception:
+                client_version_string = "Could not get client version."
+    except Exception:
+        client_type_string = "Could not get client type."
+        client_version_string = "Could not get client version."
+
+    versions.update({
+        "client_type": client_type_string,
+        "client": client_version_string
+    })
+
+    # platform version
+    try:
+        client = HowsoClient(debug=0)
+        client_version_info = client.get_version()
+        if "platform" in client_version_info:
+            versions["platform"] = client_version_info['platform']
+    except Exception:
+        pass
+
+    return versions
 
 
 def get_nonce(length=8) -> str:

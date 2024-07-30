@@ -839,6 +839,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         decode_cases: bool = False,
         filepath: t.Optional[Path | str] = None,
+        path_to_trainee: t.Optional[Path | str] = None,
     ):
         """
         Export a saved Trainee's data to json files for migration.
@@ -853,7 +854,16 @@ class HowsoDirectClient(AbstractHowsoClient):
             as is from the Trainee.
         filepath : Path or str, optional
             The directory to write the exported Trainee json files to.
+        path_to_trainee : Path or str, optional
+            Deprecated, use `filepath` instead.
         """
+        if path_to_trainee is not None:
+            warnings.warn(
+                'The export trainee parameter `path_to_trainee` is deprecated and will be removed in '
+                'a future release. Please use `filepath` instead.', DeprecationWarning)
+            if filepath is None:
+                filepath = path_to_trainee
+
         if filepath is None:
             filepath = self.default_persist_path
         filepath = Path(filepath).expanduser()
@@ -879,6 +889,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         filename: t.Optional[str] = None,
         filepath: t.Optional[Path | str] = None,
+        path_to_trainee: t.Optional[Path | str] = None,
     ) -> Trainee:
         """
         Upgrade a saved Trainee to current version.
@@ -892,12 +903,21 @@ class HowsoDirectClient(AbstractHowsoClient):
             uses the value of `trainee_id`. (e.g., [filename].meta.json)
         filepath : Path or str, optional
             The directory where the exported Trainee `.exp.json` and `.meta.json` files exist.
+        path_to_trainee : Path or str, optional
+            Deprecated, use `filepath` instead.
 
         Returns
         -------
         Trainee
             The Trainee that was upgraded.
         """
+        if path_to_trainee is not None:
+            warnings.warn(
+                'The upgrade trainee parameter `path_to_trainee` is deprecated and will be removed in '
+                'a future release. Please use `filepath` instead.', DeprecationWarning)
+            if filepath is None:
+                filepath = path_to_trainee
+
         if filepath is None:
             filepath = self.default_persist_path
         filepath = Path(filepath).expanduser()

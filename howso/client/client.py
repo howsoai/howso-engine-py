@@ -1,9 +1,12 @@
 """Primary Howso Client Class."""
+from __future__ import annotations
+
+from collections.abc import Generator, Sequence
 from importlib import import_module
 from os import environ
 from os.path import expandvars
 from pathlib import Path
-from typing import Generator, Optional, Sequence, Tuple, Union
+from typing import Optional, TYPE_CHECKING
 import warnings
 
 import yaml
@@ -11,6 +14,9 @@ import yaml
 import howso.client.base
 from howso.client.exceptions import HowsoConfigurationError
 from howso.utilities.utilities import deep_update, UserFriendlyExit
+
+if TYPE_CHECKING:
+    from howso.client.base import AbstractHowsoClient
 
 
 DEFAULT_CONFIG_FILE = "howso.yml"
@@ -26,7 +32,7 @@ XDG_DIR_CONFIG_PATH = "howso"
 XDG_CONFIG_ENV_VAR = "XDG_CONFIG_HOME"
 
 
-def _check_isfile(file_paths: Sequence[Union[Path, str]]) -> Union[Path, None]:
+def _check_isfile(file_paths: Sequence[Path | str]) -> Path | None:
     """
     Check if any of the given paths are files, returning the first one found.
 
@@ -49,8 +55,8 @@ def _check_isfile(file_paths: Sequence[Union[Path, str]]) -> Union[Path, None]:
     return None
 
 
-def get_configuration_path(config_path: Optional[Union[Path, str]] = None,  # noqa: C901
-                           verbose: bool = False) -> Union[Path, None]:
+def get_configuration_path(config_path: Optional[Path | str] = None,  # noqa: C901
+                           verbose: bool = False) -> Path | None:
     """
     Determine where the configuration is stored, if anywhere.
 
@@ -180,7 +186,7 @@ def _gen_files_in_dir(directory: Path) -> Generator[Path, None, None]:
             yield node
 
 
-def get_extras_configs(directory: Union[Path, str, None] = None) -> dict:
+def get_extras_configs(directory: Optional[Path | str] = None) -> dict:
     """
     Accumulate and return any "extra" config found in resources or other path.
 
@@ -219,7 +225,7 @@ def get_extras_configs(directory: Union[Path, str, None] = None) -> dict:
     return extras_config
 
 
-def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
+def get_howso_client_class(**kwargs) -> tuple[type, dict]:  # noqa: C901
     """
     Return the appropriate AbstractHowsoClient subclass based on config.
 
@@ -368,7 +374,7 @@ def get_howso_client_class(**kwargs) -> Tuple[type, dict]:  # noqa: C901
     return client_class, client_extra_params
 
 
-def get_howso_client(**kwargs):
+def get_howso_client(**kwargs) -> AbstractHowsoClient:
     """
     Return the appropriate AbstractHowsoClient subclass based on config.
 
