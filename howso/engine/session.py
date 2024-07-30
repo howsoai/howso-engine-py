@@ -9,7 +9,7 @@ import warnings
 from howso.client import AbstractHowsoClient
 from howso.client.exceptions import HowsoError
 from howso.client.protocols import ProjectClient
-from howso.client.schemas import Project as BaseProject, Session as BaseSession
+from howso.client.schemas import Project as BaseProject, Session as BaseSession, Trainee as BaseTrainee
 from howso.engine.client import get_client
 
 __all__ = [
@@ -281,7 +281,8 @@ def query_sessions(
     search_terms: Optional[str] = None,
     *,
     client: Optional[AbstractHowsoClient] = None,
-    project: Optional[str | BaseProject] = None
+    project: Optional[str | BaseProject] = None,
+    trainee: Optional[str | BaseTrainee] = None,
 ) -> list[Session]:
     """
     Query accessible Sessions.
@@ -295,6 +296,8 @@ def query_sessions(
     project : str or Project, optional
         The instance or id of a project to filter by. Ignored if client
         does not support projects.
+    trainee : str or Trainee, optional
+        The instance or id of a Trainee to filter by.
 
     Returns
     -------
@@ -303,7 +306,7 @@ def query_sessions(
     """
     client = client or get_client()
 
-    params = {'search_terms': search_terms}
+    params = {'search_terms': search_terms, 'trainee': trainee}
 
     # Only pass project for platform clients
     if project is not None and isinstance(client, ProjectClient):

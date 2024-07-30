@@ -353,7 +353,13 @@ class AbstractHowsoClient(ABC):
         """Begin a new session."""
 
     @abstractmethod
-    def query_sessions(self, search_terms: t.Optional[str] = None, **kwargs) -> list[Session]:
+    def query_sessions(
+        self,
+        search_terms: t.Optional[str] = None,
+        *,
+        trainee: t.Optional[str | Trainee] = None,
+        **kwargs
+    ) -> list[Session]:
         """Query all accessible sessions."""
 
     @abstractmethod
