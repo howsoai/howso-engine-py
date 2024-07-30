@@ -136,8 +136,7 @@ def test_partially_filled_feature_types(features: dict) -> None:
         time_feature_name=time_feature_name,
         features=features,
         id_feature_name=id_feature_name,
-        datetime_feature_formats={time_feature_name: time_format},
-        include_sample=True
+        datetime_feature_formats={time_feature_name: time_format}
     )
 
     for k, v in pre_inferred_features.items():
