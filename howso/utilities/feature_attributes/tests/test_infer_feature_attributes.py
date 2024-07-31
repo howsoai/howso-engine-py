@@ -89,12 +89,27 @@ def test_infer_features_attributes():
 
 
 @pytest.mark.parametrize(
-    "features",
-    [features_1, features_2, features_3, features_4]
+    "features, max_workers",
+    [
+        (features_1, 0),
+        (features_2, 0),
+        (features_3, 0),
+        (features_4, 0),
+        (features_1, 2),
+        (features_2, 2),
+        (features_3, 2),
+        (features_4, 2),
+    ]
 )
-def test_partially_filled_feature_types(features: dict) -> None:
+def test_partially_filled_feature_types(features: dict, max_workers: int) -> None:
     """
     Make sure the partially filled feature types remain intact.
+
+    Note:
+        max_workers: 0 - Forces the non-multi-processing path which would
+                         be normal for this dataset anyway.
+        max_workers: 2 - Forces the multi-processing path which would otherwise
+                         be unnatural for this dataset.
 
     Parameters
     ----------
@@ -106,7 +121,8 @@ def test_partially_filled_feature_types(features: dict) -> None:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inferred_features = infer_feature_attributes(df, features=features)
+        inferred_features = infer_feature_attributes(
+            df, features=features, max_workers=max_workers)
 
     for k, v in pre_inferred_features.items():
         assert v['type'] == inferred_features[k]['type']

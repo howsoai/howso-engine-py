@@ -42,7 +42,15 @@ SMALLEST_TIME_DELTA = 0.001
 def _shard(data: pd.DataFrame, *, kwargs: dict[str, t.Any]):
     """Internal function to aid multiprocessing of feature attributes."""
     ifr_inst = InferFeatureAttributesDataFrame(data)
-    feature_attributes = ifr_inst._process(**kwargs)  # type: ignore reportPrivateUsage
+    # Filter out features that are not related to this shard.
+    _kwargs = kwargs.copy()
+    if "features" in _kwargs:
+        _kwargs['features'] = {
+            k: v for k, v in _kwargs["features"].items()
+            if k in data.columns
+        }
+
+    feature_attributes = ifr_inst._process(**_kwargs)  # type: ignore reportPrivateUsage
     return feature_attributes, ifr_inst.unsupported
 
 
