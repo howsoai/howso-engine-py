@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Collection, Iterable, Iterator
 import typing as t
 
+from semantic_version import Version
+
 if t.TYPE_CHECKING:
     from howso.client.schemas import Trainee
 
@@ -11,7 +13,13 @@ class TraineeCacheItem(t.TypedDict):
     """Type definition for trainee cache items."""
 
     trainee: Trainee
+    """Trainee object."""
+
     feature_attributes: dict[str, dict] | None
+    """Trainee's feature attributes."""
+
+    version: t.NotRequired[Version]
+    """Version of the Trainee."""
 
 
 class TraineeCache(Collection):

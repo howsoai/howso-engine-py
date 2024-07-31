@@ -12,8 +12,10 @@ from copy import deepcopy
 import datetime
 import decimal
 from inspect import getfullargspec
+import json
 import logging
 import math
+from pathlib import Path
 import random
 import re
 from typing import Any, Generator, List, Mapping, NamedTuple, Optional, Tuple, TYPE_CHECKING, Union
@@ -618,6 +620,26 @@ def readable_timedelta(delta: datetime.timedelta, *,
     else:
         minimum_unit = 'seconds'
     return precisedelta(delta, minimum_unit=minimum_unit, format=decimal_format)
+
+
+def get_packaged_engine_version() -> Version | None:
+    """
+    Get the packaged engine version.
+
+    Returns
+    -------
+    Version or None
+        The packaged engine version or None if not available.
+    """
+    file_path = Path(__file__).parent.parent.joinpath("howso-engine", "version.json")
+    if not file_path.exists():
+        return None
+    try:
+        with open(file_path, "r") as f:
+            detail = json.loads(f.read())
+        return Version(detail["version"])
+    except Exception:
+        return None
 
 
 class BatchScalingManager:
