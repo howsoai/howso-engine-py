@@ -252,6 +252,21 @@ class InstallationCheckRegistry:
 
         return (Status.OK, "")
 
+    def _print_versions(self, versions: dict, *, file=None):
+        """Output version information."""
+        if not versions:
+            return
+        if 'python' in versions:
+            print(f"Python version: {versions['python']}", file=file)
+        if 'client_type' in versions:
+            print(f"Client type: {versions['client_type']}", file=file)
+        if 'client' in versions:
+            print(f"Client version: {versions['client']}", file=file)
+        if 'client_base' in versions:
+            print(f"API client version: {versions['client_base']}", file=file)
+        if 'platform' in versions:
+            print(f"Platform version: {versions['platform']}", file=file)
+
     def run_checks(self) -> int:  # noqa: C901
         """
         Run each of the registered checks and output their status.
@@ -280,11 +295,7 @@ class InstallationCheckRegistry:
 
         try:
             versions = get_versions()
-            print(f"Python version: {versions['python']}")
-            print(f"Client type: {versions['client_type']}")
-            print(f"Client version: {versions['client']}")
-            if 'platform' in versions:
-                print(f"Platform version: {versions['platform']}")
+            self._print_versions(versions)
             with progress:
                 for check in progress.track(self._checks):
                     if check.client_required:
@@ -350,11 +361,7 @@ class InstallationCheckRegistry:
                         print(f"Installation verification run: "
                               f"{start_time.isoformat()}\n",
                               file=log)
-                        print(f"Python version: {versions['python']}", file=log)
-                        print(f"Client type: {versions['client_type']}", file=log)
-                        print(f"Client version: {versions['client']}", file=log)
-                        if 'platform' in versions:
-                            print(f"Platform version: {versions['platform']}", file=log)
+                        self._print_versions(versions, file=log)
                         print("=" * 80 + "\n", file=log)
                         print(logs, file=log)
                         print(f"Verification complete: {end_time.isoformat()} "
@@ -398,32 +405,29 @@ def get_versions():
 
     versions = {
         "python": py_version_string,
+        "client_type": "Could not get client type.",
+        "client": "Could not get client version.",
     }
 
     # client type and version
     try:
         # Instantiating the client is often the point of failure, this won't trigger that
         client_class, _ = get_howso_client_class()
-        client_type_string = client_class.__name__
+        versions["client_type"] = client_class.__name__
+        engine_version = importlib.metadata.version('howso-engine')
         if issubclass(client_class, HowsoDirectClient):
-            client_version_string = importlib.metadata.version('howso-engine')
+            versions["client"] = engine_version
         else:
+            versions["client_base"] = engine_version
             try:
                 from howso.platform.client import HowsoPlatformClient
                 if issubclass(client_class, HowsoPlatformClient):
-                    client_version_string = importlib.metadata.version('howso-platform-client')
-                else:
-                    client_version_string = "Could not get client version."
-            except Exception:
-                client_version_string = "Could not get client version."
+                    versions["client"] = importlib.metadata.version('howso-platform-client')
+            except ImportError:
+                pass
     except Exception:
-        client_type_string = "Could not get client type."
-        client_version_string = "Could not get client version."
-
-    versions.update({
-        "client_type": client_type_string,
-        "client": client_version_string
-    })
+        # Failed to get version, leave default message
+        pass
 
     # platform version
     try:
