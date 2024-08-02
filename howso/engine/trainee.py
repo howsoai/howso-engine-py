@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
-import typing as t
 from typing import (
     Any,
     Callable,
@@ -14,6 +13,7 @@ from typing import (
     Tuple,
     Union,
 )
+import typing as t
 import uuid
 import warnings
 
@@ -929,6 +929,7 @@ class Trainee(BaseTrainee):
                 distribute_weight_feature=distribute_weight_feature,
                 influence_weight_entropy_threshold=influence_weight_entropy_threshold,
                 skip_auto_analyze=skip_auto_analyze,
+                **kwargs,
             )
         else:
             raise ValueError("Client must have the 'reduce_data' method.")
