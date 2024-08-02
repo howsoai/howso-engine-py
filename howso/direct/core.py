@@ -1,7 +1,6 @@
 import logging
 from pathlib import Path
 import platform
-import typing as t
 from typing import (
     Any,
     Dict,
@@ -13,14 +12,19 @@ from typing import (
     Tuple,
     Union,
 )
+import typing as t
 import uuid
 import warnings
 
 from amalgam.api import Amalgam
-from howso.client.exceptions import HowsoError, HowsoWarning
+import six
+
+from howso.client.exceptions import (
+    HowsoError,
+    HowsoWarning,
+)
 from howso.utilities.internals import sanitize_for_json
 import howso.utilities.json_wrapper as json
-import six
 
 _logger = logging.getLogger('howso.direct')
 
@@ -986,6 +990,7 @@ class HowsoCore:
                 "distribute_weight_feature": distribute_weight_feature,
                 "influence_weight_entropy_threshold": influence_weight_entropy_threshold,
                 "skip_auto_analyze": skip_auto_analyze,
+                **kwargs,
             }
         )
 
