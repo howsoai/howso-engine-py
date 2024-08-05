@@ -806,6 +806,7 @@ class Trainee(BaseTrainee):
                 distribute_weight_feature=distribute_weight_feature,
                 influence_weight_entropy_threshold=influence_weight_entropy_threshold,
                 skip_auto_analyze=skip_auto_analyze,
+                **kwargs,
             )
         else:
             raise AssertionError("Client must have the 'reduce_data' method.")

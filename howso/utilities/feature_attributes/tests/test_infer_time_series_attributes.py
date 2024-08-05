@@ -63,12 +63,14 @@ def test_infer_features_attributes_single_ID():
         df,
         time_feature_name=time_feature_name,
         id_feature_name=id_feature_name,
-        datetime_feature_formats={time_feature_name: time_format}
+        datetime_feature_formats={time_feature_name: time_format},
+        include_sample=True
     )
 
     for feature, attributes in features.items():
         print(feature)
         assert expected_types[feature] == attributes['type']
+        assert 'sample' in attributes and attributes['sample'] is not None
 
 
 def test_infer_features_attributes_multiple_ID():
