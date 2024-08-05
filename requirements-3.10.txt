@@ -104,13 +104,13 @@ deprecation==2.1.0 \
     --hash=sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff \
     --hash=sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a
     # via howso-engine (pyproject.toml)
-faker==26.0.0 \
-    --hash=sha256:0f60978314973de02c00474c2ae899785a42b2cf4f41b7987e93c132a2b8a4a9 \
-    --hash=sha256:886ee28219be96949cd21ecc96c4c742ee1680e77f687b095202c8def1a08f06
+faker==26.1.0 \
+    --hash=sha256:33921b6fc3b83dd75fd42ec7f47ec87b50c00d3c5380fa7d8a507dab848b8229 \
+    --hash=sha256:e8c5ef795223e945d9166aea3c0ecaf85ac54b4ade2af068d8e3c6524c2c0aa7
     # via howso-engine (pyproject.toml)
-howso-openapi-client==37.0.3 \
-    --hash=sha256:63d28ceffb1702e6051ee60dd888c5b920d31dd3ac4299bcc7d110835583c4aa \
-    --hash=sha256:d3e7d0454d8c30d6ccc688fffa6c736c50b90e4e04fd56edc702fd7f9b9f9bfd
+howso-openapi-client==37.0.4 \
+    --hash=sha256:a36f0f15269951cac6cd43b676849c9e05de2310ac1db683ff165cb9be970f0e \
+    --hash=sha256:f53fe1abdaa5f968e2ee8535131741580967dfc3456e85bd977cffe1b41de64f
     # via howso-engine (pyproject.toml)
 humanize==4.10.0 \
     --hash=sha256:06b6eb0293e4b85e8d385397c5868926820db32b9b654b932f57fa41c23c9978 \
@@ -298,9 +298,9 @@ pygments==2.18.0 \
     --hash=sha256:786ff802f32e91311bff3889f6e9a86e81505fe99f2735bb6d60ae0c5004f199 \
     --hash=sha256:b8e6aca0523f3ab76fee51799c488e38782ac06eafcf95e7ba832985c8e7b13a
     # via rich
-pyjwt==2.8.0 \
-    --hash=sha256:57e28d156e3d5c10088e0c68abb90bfac3df82b40a71bd0daa20c65ccd5c23de \
-    --hash=sha256:59127c392cc44c2da5bb3192169a91f429924e17aff6534d70fdc02ab3e04320
+pyjwt==2.9.0 \
+    --hash=sha256:3b02fb0f44517787776cf48f2ae25d8e14f300e6d7545a4315cee571a415e850 \
+    --hash=sha256:7e1e5b56cc735432a7369cbfa0efe50fa113ebecdc04ae6922deba8b84582d0c
     # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0 \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
@@ -396,7 +396,7 @@ urllib3==2.2.2 \
     #   howso-openapi-client
 
 # The following packages are considered to be unsafe in a requirements file:
-setuptools==71.1.0 \
-    --hash=sha256:032d42ee9fb536e33087fb66cac5f840eb9391ed05637b3f2a76a7c8fb477936 \
-    --hash=sha256:33874fdc59b3188304b2e7c80d9029097ea31627180896fb549c578ceb8a0855
+setuptools==72.1.0 \
+    --hash=sha256:5a03e1860cf56bb6ef48ce186b0e557fdba433237481a9a625176c2831be15d1 \
+    --hash=sha256:8d243eff56d095e5817f796ede6ae32941278f542e0f941867cc05ae52b162ec
     # via howso-openapi-client
