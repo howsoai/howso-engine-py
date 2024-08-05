@@ -17,7 +17,7 @@ class ValidationErrorDetail(TypedDict):
 
 ValidationErrorCollection = TypeAliasType(
     "ValidationErrorCollection",
-    list[ValidationErrorDetail] | dict[str, "ValidationErrorCollection"]
+    t.Union[list[ValidationErrorDetail], dict[str, "ValidationErrorCollection"]]
 )
 """A collection of validation error objects."""
 

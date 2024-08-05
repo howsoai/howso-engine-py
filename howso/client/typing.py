@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Literal
+from typing import Any, Literal, Union
 
 from pandas import DataFrame
 from typing_extensions import Sequence, TypeAlias, TypedDict
@@ -55,7 +55,7 @@ NewCaseThreshold: TypeAlias = Literal["max", "min", "most_similar"]
 NormalizeMethod: TypeAlias = Literal["feature_count", "fractional", "relative"]
 """Valid values for ``normalize_method`` parameters."""
 
-PathLike: TypeAlias = str | os.PathLike
+PathLike: TypeAlias = Union[str, os.PathLike]
 """Objects which can be interpreted as paths."""
 
 Persistence: TypeAlias = Literal["allow", "always", "never"]
@@ -67,10 +67,10 @@ Precision: TypeAlias = Literal["exact", "similar"]
 SeriesIDTracking: TypeAlias = Literal["fixed", "dynamic", "no"]
 """Valid values for ``series_id_tracking`` parameters."""
 
-TabularData2D: TypeAlias = DataFrame | list[list[Any]]
+TabularData2D: TypeAlias = Union[DataFrame, list[list[Any]]]
 """2-dimensional tabular data."""
 
-TabularData3D: TypeAlias = list[DataFrame] | list[list[list[Any]]]
+TabularData3D: TypeAlias = Union[list[DataFrame], list[list[list[Any]]]]
 """3-dimensional tabular (i.e., time-series) data."""
 
 TargetedModel: TypeAlias = Literal["single_targeted", "omni_targeted", "targetless"]
