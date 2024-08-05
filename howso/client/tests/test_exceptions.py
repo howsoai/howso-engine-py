@@ -45,7 +45,7 @@ def test_validation_iter_errors():
     all_errors = list(error.iter_errors())
     assert len(all_errors) == 4
 
-    assert dict(message="abc", code=None, field=["abc"]) in all_errors
-    assert dict(message="An unknown error occurred.", code=None, field=["body", "payload", "test"]) in all_errors
+    assert dict(message="abc", field=["abc"]) in all_errors
+    assert dict(message="An unknown error occurred.", field=["body", "payload", "test"]) in all_errors
     assert dict(message="context", code="CODE", field=["body", "payload", "context"]) in all_errors
-    assert dict(message="required", code=None, field=["body", "payload", "context"]) in all_errors
+    assert dict(message="required", field=["body", "payload", "context"]) in all_errors
