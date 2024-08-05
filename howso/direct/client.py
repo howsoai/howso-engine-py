@@ -574,8 +574,10 @@ class HowsoDirectClient(AbstractHowsoClient):
     def export_trainee(
         self,
         trainee_id: str,
-        path_to_trainee: Optional[Union[Path, str]] = None,
+        *,
         decode_cases: bool = False,
+        filepath: Optional[Union[Path, str]] = None,
+        path_to_trainee: Optional[Union[Path, str]] = None,
     ):
         """
         Export a saved Trainee's data to json files for migration.
@@ -584,22 +586,33 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         trainee_id : str
             The ID of the Trainee.
-        path_to_trainee : Path or str, optional
-            The path to where the saved trainee file is located.
         decoded_cases : bool, default False.
             Whether to export decoded cases.
+        filepath : Path or str, optional
+            The directory to write the exported Trainee json files to.
+        path_to_trainee : Path or str, optional
+            Deprecated, use `filepath` instead.
         """
         if self.verbose:
             print(f'Export trainee with id: {trainee_id}')
 
-        self.howso.export_trainee(trainee_id, path_to_trainee, decode_cases)
+        if path_to_trainee is not None:
+            warnings.warn(
+                'The export trainee parameter `path_to_trainee` is deprecated and will be removed in '
+                'a future release. Please use `filepath` instead.', DeprecationWarning)
+            if filepath is None:
+                filepath = path_to_trainee
+
+        self.howso.export_trainee(trainee_id, decode_cases=decode_cases, filepath=filepath)
 
     def upgrade_trainee(
         self,
         trainee_id: str,
+        *,
+        filename: Optional[str] = None,
+        filepath: Optional[Union[Path, str]] = None,
         path_to_trainee: Optional[Union[Path, str]] = None,
-        separate_files: bool = False
-    ):
+    ) -> Trainee:
         """
         Upgrade a saved Trainee to current version.
 
@@ -607,15 +620,33 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         trainee_id : str
             The ID of the Trainee.
+        filename : str, optional
+            The base name of the exported Trainee json files. If not specified,
+            uses the value of `trainee_id`. (e.g., [filename].meta.json)
+        filepath : Path or str, optional
+            The directory where the exported Trainee `.exp.json` and `.meta.json` files exist.
         path_to_trainee : Path or str, optional
-            The path to where the saved Trainee file is located.
-        separate_files : bool, default False
-            Whether to load each case from its individual file.
+            Deprecated, use `filepath` instead.
+
+        Returns
+        -------
+        Trainee
+            The Trainee that was upgraded.
         """
         if self.verbose:
             print(f'Upgrade trainee with id: {trainee_id}')
 
-        self.howso.upgrade_trainee(trainee_id, path_to_trainee, separate_files)
+        if path_to_trainee is not None:
+            warnings.warn(
+                'The upgrade trainee parameter `path_to_trainee` is deprecated and will be removed in '
+                'a future release. Please use `filepath` instead.', DeprecationWarning)
+            if filepath is None:
+                filepath = path_to_trainee
+
+        self.howso.upgrade_trainee(trainee_id, filename=filename, filepath=filepath)
+        trainee = self._get_trainee_from_core(trainee_id)
+        self.trainee_cache.set(trainee)
+        return trainee
 
     def get_trainee(self, trainee_id: str):
         """

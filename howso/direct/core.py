@@ -1,7 +1,6 @@
 import logging
 from pathlib import Path
 import platform
-import typing as t
 from typing import (
     Any,
     Dict,
@@ -13,14 +12,19 @@ from typing import (
     Tuple,
     Union,
 )
+import typing as t
 import uuid
 import warnings
 
 from amalgam.api import Amalgam
-from howso.client.exceptions import HowsoError, HowsoWarning
+import six
+
+from howso.client.exceptions import (
+    HowsoError,
+    HowsoWarning,
+)
 from howso.utilities.internals import sanitize_for_json
 import howso.utilities.json_wrapper as json
-import six
 
 _logger = logging.getLogger('howso.direct')
 
@@ -986,6 +990,7 @@ class HowsoCore:
                 "distribute_weight_feature": distribute_weight_feature,
                 "influence_weight_entropy_threshold": influence_weight_entropy_threshold,
                 "skip_auto_analyze": skip_auto_analyze,
+                **kwargs,
             }
         )
 
@@ -2495,8 +2500,9 @@ class HowsoCore:
     def export_trainee(
         self,
         trainee_id: str,
-        path_to_trainee: Optional[Union[Path, str]] = None,
+        *,
         decode_cases: bool = False,
+        filepath: Optional[Union[Path, str]] = None,
     ) -> None:
         """
         Export a saved Trainee's data to json files for migration.
@@ -2505,16 +2511,22 @@ class HowsoCore:
         ----------
         trainee_id : str
             The ID of the Trainee.
-        path_to_trainee : Path or str, optional
-            The path to where the saved trainee file is located.
         decoded_cases : bool, default False.
             Whether to export decoded cases.
+        filepath : Path or str, optional
+            The directory to write the exported Trainee json files to.
         """
-        if path_to_trainee is None:
-            path_to_trainee = self.default_save_path
+        if filepath is None:
+            filepath = self.default_save_path
+        filepath = Path(filepath).expanduser()
+
+        if not filepath.exists():
+            filepath.mkdir(parents=True, exist_ok=True)
+        elif not filepath.is_dir():
+            raise ValueError(f'The export filepath "{filepath}" must be a directory.')
 
         return self._execute(trainee_id, "export_trainee", {
-            "trainee_filepath": f"{path_to_trainee}/",
+            "trainee_filepath": f"{filepath}/",
             "trainee": f"{trainee_id}",
             "root_filepath": f"{self.howso_path}/",
             "decode_cases": decode_cases,
@@ -2523,8 +2535,9 @@ class HowsoCore:
     def upgrade_trainee(
         self,
         trainee_id: str,
-        path_to_trainee: Optional[Union[Path, str]] = None,
-        separate_files: bool = False
+        *,
+        filename: Optional[str] = None,
+        filepath: Optional[Union[Path, str]] = None,
     ) -> None:
         """
         Upgrade a saved Trainee to current version.
@@ -2533,18 +2546,38 @@ class HowsoCore:
         ----------
         trainee_id : str
             The identifier of the Trainee.
-        path_to_trainee : Path or str, optional
-            The path to where the saved Trainee file is located.
-        separate_files : bool, default False
-            Whether to load each case from its individual file.
+        filename : str, optional
+            The base name of the exported Trainee json files. If not specified,
+            uses the value of `trainee_id`. (e.g., [filename].meta.json)
+        filepath : Path or str, optional
+            The directory where the exported Trainee `.exp.json` and `.meta.json` files exist.
         """
-        if path_to_trainee is None:
-            path_to_trainee = self.default_save_path
+        if filepath is None:
+            filepath = self.default_save_path
+        filepath = Path(filepath).expanduser()
+
+        if not filepath.exists():
+            raise ValueError(f'The upgrade filepath "{filepath}" does not exist.')
+
+        status = self.amlg.load_entity(
+            handle=trainee_id,
+            amlg_path=str(self.howso_fully_qualified_path),
+            persist=False,
+            load_contained=True,
+            escape_filename=False,
+            escape_contained_filenames=False
+        )
+        if not status.loaded:
+            raise HowsoError(f'Failed to initialize the Trainee "{trainee_id}": {status.message}')
+        self._execute(trainee_id, "initialize", {
+            "trainee_id": trainee_id,
+            "filepath": str(self.howso_path) + '/',
+        })
 
         return self._execute(trainee_id, "upgrade_trainee", {
-            "trainee_filepath": f"{path_to_trainee}/",
+            "trainee": filename or trainee_id,
+            "trainee_json_filepath": f"{filepath}/",
             "root_filepath": f"{self.howso_path}/",
-            "separate_files": separate_files,
         })
 
     def analyze(self, trainee_id: str, **kwargs) -> None:
