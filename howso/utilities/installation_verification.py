@@ -228,7 +228,7 @@ class InstallationCheckRegistry:
         except ValueError:
             traceback.print_exc(file=registry.logger)
             return (Status.CRITICAL,
-                    "The client was unable for find Howso core binaries. "
+                    "The client was unable to find Howso core binaries. "
                     "Please see the Howso Client installation "
                     "documentation for further details.")
         except Exception as e:  # noqa: Deliberately broad
@@ -608,7 +608,7 @@ def check_generate_dataframe(*, registry: InstallationCheckRegistry,
     except ValueError:
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
-                "The client was unable for find Howso core binaries. "
+                "The client was unable to find Howso core binaries. "
                 "Please see the Howso Client installation documentation "
                 "for further details.")
     if threshold is not None and duration > threshold:

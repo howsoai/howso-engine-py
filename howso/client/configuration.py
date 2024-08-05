@@ -24,7 +24,9 @@ class BaseOptions:
     """Required sub keys."""
 
     def __init__(self, config: t.Optional[Mapping]) -> None:
-        if not isinstance(config, Mapping):
+        if config is None:
+            config = {}
+        elif not isinstance(config, Mapping):
             raise ValueError('Invalid configuration object.')
         self._config = CaseInsensitiveDict(config)
         self.post_init()
