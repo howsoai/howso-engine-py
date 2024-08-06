@@ -4910,6 +4910,6 @@ class AbstractHowsoClient(ABC):
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
 
         self.execute(trainee_id, "clear_imputed_data", {
-            "session": self.active_session,
+            "session": self.active_session.id,
             "impute_session": impute_session,
         })
