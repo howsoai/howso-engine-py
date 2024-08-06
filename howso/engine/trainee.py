@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Collection, Iterable, Mapping, MutableMapping
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Optional
+import typing as t
 import uuid
 import warnings
 
@@ -99,18 +99,18 @@ class Trainee(BaseTrainee):
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        features: Optional[Mapping[str, Mapping] | SingleTableFeatureAttributes] = None,
+        name: t.Optional[str] = None,
+        features: t.Optional[Mapping[str, Mapping] | SingleTableFeatureAttributes] = None,
         *,
         overwrite_existing: bool = False,
         persistence: Persistence = "allow",
-        id: Optional[str] = None,
-        library_type: Optional[LibraryType] = None,
-        max_wait_time: Optional[int | float] = None,
-        metadata: Optional[Mapping[str, Any]] = None,
-        project: Optional[str | BaseProject] = None,
-        resources: Optional[Mapping[str, Any]] = None,
-        client: Optional[AbstractHowsoClient] = None
+        id: t.Optional[str] = None,
+        library_type: t.Optional[LibraryType] = None,
+        max_wait_time: t.Optional[int | float] = None,
+        metadata: t.Optional[Mapping[str, t.Any]] = None,
+        project: t.Optional[str | BaseProject] = None,
+        resources: t.Optional[Mapping[str, t.Any]] = None,
+        client: t.Optional[AbstractHowsoClient] = None
     ):
         """Initialize the Trainee object."""
         self._created: bool = False
@@ -253,7 +253,7 @@ class Trainee(BaseTrainee):
         return SingleTableFeatureAttributes(deepcopy(self._features))
 
     @property
-    def metadata(self) -> MutableMapping[str, Any] | None:
+    def metadata(self) -> MutableMapping[str, t.Any] | None:
         """
         The trainee metadata.
 
@@ -283,7 +283,7 @@ class Trainee(BaseTrainee):
         return self._needs_analyze
 
     @property
-    def calculated_matrices(self) -> Optional[dict[str, DataFrame]]:
+    def calculated_matrices(self) -> t.Optional[dict[str, DataFrame]]:
         """
         The calculated matrices.
 
@@ -307,7 +307,7 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
             return Session.from_schema(self.client.active_session, client=self.client)
 
-    def save(self, file_path: Optional[PathLike] = None):
+    def save(self, file_path: t.Optional[PathLike] = None):
         """
         Save a Trainee to disk.
 
@@ -383,14 +383,14 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'set_feature_attributes' method.")
 
-    def set_metadata(self, metadata: Optional[Mapping[str, Any]]):
+    def set_metadata(self, metadata: t.Optional[Mapping[str, t.Any]]):
         """
         Update the trainee metadata.
 
         Parameters
         ----------
         metadata : map of str -> any, optional
-            Any key-value pair to store as custom metadata for the trainee.
+            t.Any key-value pair to store as custom metadata for the trainee.
             Providing ``None`` will remove the current metadata.
         """
         self._metadata = metadata
@@ -398,11 +398,11 @@ class Trainee(BaseTrainee):
 
     def copy(
         self,
-        name: Optional[str] = None,
+        name: t.Optional[str] = None,
         *,
-        library_type: Optional[LibraryType] = None,
-        project: Optional[str | BaseProject] = None,
-        resources: Optional[Mapping[str, Any]] = None,
+        library_type: t.Optional[LibraryType] = None,
+        project: t.Optional[str | BaseProject] = None,
+        resources: t.Optional[Mapping[str, t.Any]] = None,
     ) -> Trainee:
         """
         Copy the trainee to another trainee.
@@ -495,7 +495,7 @@ class Trainee(BaseTrainee):
             'instead.', DeprecationWarning)
         self.release_resources()
 
-    def acquire_resources(self, *, max_wait_time: Optional[int | float] = None):
+    def acquire_resources(self, *, max_wait_time: t.Optional[int | float] = None):
         """
         Acquire resources for a trainee in the Howso service.
 
@@ -566,14 +566,14 @@ class Trainee(BaseTrainee):
         self,
         cases: TabularData2D,
         *,
-        accumulate_weight_feature: Optional[str] = None,
-        batch_size: Optional[int] = None,
-        derived_features: Optional[Collection[str]] = None,
-        features: Optional[Collection[str]] = None,
-        initial_batch_size: Optional[int] = None,
+        accumulate_weight_feature: t.Optional[str] = None,
+        batch_size: t.Optional[int] = None,
+        derived_features: t.Optional[Collection[str]] = None,
+        features: t.Optional[Collection[str]] = None,
+        initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
-        progress_callback: Optional[Callable] = None,
-        series: Optional[str] = None,
+        progress_callback: t.Optional[Callable] = None,
+        series: t.Optional[str] = None,
         skip_auto_analyze: bool = False,
         train_weights_only: bool = False,
         validate: bool = True,
@@ -674,7 +674,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'auto_analyze' method.")
 
-    def get_auto_ablation_params(self) -> dict[str, Any]:
+    def get_auto_ablation_params(self) -> dict[str, t.Any]:
         """
         Get trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`.
 
@@ -693,14 +693,14 @@ class Trainee(BaseTrainee):
         auto_ablation_enabled: bool = False,
         *,
         auto_ablation_weight_feature: str = ".case_weight",
-        conviction_lower_threshold: Optional[float] = None,
-        conviction_upper_threshold: Optional[float] = None,
-        exact_prediction_features: Optional[Collection[str]] = None,
+        conviction_lower_threshold: t.Optional[float] = None,
+        conviction_upper_threshold: t.Optional[float] = None,
+        exact_prediction_features: t.Optional[Collection[str]] = None,
         influence_weight_entropy_threshold: float = 0.6,
         minimum_model_size: int = 1_000,
-        relative_prediction_threshold_map: Optional[Mapping[str, float]] = None,
-        residual_prediction_features: Optional[Collection[str]] = None,
-        tolerance_prediction_threshold_map: Optional[Mapping[str, tuple[float, float]]] = None,
+        relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
+        residual_prediction_features: t.Optional[Collection[str]] = None,
+        tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
         **kwargs
     ):
         """
@@ -759,9 +759,9 @@ class Trainee(BaseTrainee):
 
     def reduce_data(
         self,
-        features: Optional[Collection[str]] = None,
-        distribute_weight_feature: Optional[str] = None,
-        influence_weight_entropy_threshold: Optional[float] = None,
+        features: t.Optional[Collection[str]] = None,
+        distribute_weight_feature: t.Optional[str] = None,
+        influence_weight_entropy_threshold: t.Optional[float] = None,
         skip_auto_analyze: bool = False,
         **kwargs,
     ):
@@ -814,10 +814,10 @@ class Trainee(BaseTrainee):
     def set_auto_analyze_params(
         self,
         auto_analyze_enabled: bool = False,
-        analyze_threshold: Optional[int] = None,
+        analyze_threshold: t.Optional[int] = None,
         *,
-        auto_analyze_limit_size: Optional[int] = None,
-        analyze_growth_factor: Optional[float] = None,
+        auto_analyze_limit_size: t.Optional[int] = None,
+        analyze_growth_factor: t.Optional[float] = None,
         **kwargs,
     ) -> None:
         """
@@ -860,24 +860,24 @@ class Trainee(BaseTrainee):
 
     def analyze(
         self,
-        context_features: Optional[Collection[str]] = None,
-        action_features: Optional[Collection[str]] = None,
+        context_features: t.Optional[Collection[str]] = None,
+        action_features: t.Optional[Collection[str]] = None,
         *,
-        bypass_calculate_feature_residuals: Optional[bool] = None,
-        bypass_calculate_feature_weights: Optional[bool] = None,
-        bypass_hyperparameter_analysis: Optional[bool] = None,
-        dt_values: Optional[Collection[float]] = None,
-        inverse_residuals_as_weights: Optional[bool] = None,
-        k_folds: Optional[int] = None,
-        k_values: Optional[Collection[int]] = None,
-        num_analysis_samples: Optional[int] = None,
-        num_samples: Optional[int] = None,
-        analysis_sub_model_size: Optional[int] = None,
-        p_values: Optional[Collection[float]] = None,
-        targeted_model: Optional[TargetedModel] = None,
-        use_case_weights: Optional[bool] = None,
-        use_deviations: Optional[bool] = None,
-        weight_feature: Optional[str] = None,
+        bypass_calculate_feature_residuals: t.Optional[bool] = None,
+        bypass_calculate_feature_weights: t.Optional[bool] = None,
+        bypass_hyperparameter_analysis: t.Optional[bool] = None,
+        dt_values: t.Optional[Collection[float]] = None,
+        inverse_residuals_as_weights: t.Optional[bool] = None,
+        k_folds: t.Optional[int] = None,
+        k_values: t.Optional[Collection[int]] = None,
+        num_analysis_samples: t.Optional[int] = None,
+        num_samples: t.Optional[int] = None,
+        analysis_sub_model_size: t.Optional[int] = None,
+        p_values: t.Optional[Collection[float]] = None,
+        targeted_model: t.Optional[TargetedModel] = None,
+        use_case_weights: t.Optional[bool] = None,
+        use_deviations: t.Optional[bool] = None,
+        weight_feature: t.Optional[str] = None,
         **kwargs
     ):
         """
@@ -967,18 +967,18 @@ class Trainee(BaseTrainee):
 
     def predict(
         self,
-        contexts: Optional[TabularData2D] = None,
-        action_features: Optional[Collection[str]] = None,
+        contexts: t.Optional[TabularData2D] = None,
+        action_features: t.Optional[Collection[str]] = None,
         *,
         allow_nulls: bool = False,
-        case_indices: Optional[CaseIndices] = None,
-        context_features: Optional[Collection[str]] = None,
-        derived_action_features: Optional[Collection[str]] = None,
-        derived_context_features: Optional[Collection[str]] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        context_features: t.Optional[Collection[str]] = None,
+        derived_action_features: t.Optional[Collection[str]] = None,
+        derived_context_features: t.Optional[Collection[str]] = None,
         leave_case_out: bool = False,
         suppress_warning: bool = False,
-        use_case_weights: Optional[bool] = None,
-        weight_feature: Optional[str] = None,
+        use_case_weights: t.Optional[bool] = None,
+        weight_feature: t.Optional[str] = None,
     ) -> DataFrame:
         """
         Wrapper around :meth:`react`.
@@ -1047,37 +1047,37 @@ class Trainee(BaseTrainee):
 
     def react(
         self,
-        contexts: Optional[TabularData2D] = None,
+        contexts: t.Optional[TabularData2D] = None,
         *,
-        action_features: Optional[Collection[str]] = None,
-        actions: Optional[TabularData2D] = None,
+        action_features: t.Optional[Collection[str]] = None,
+        actions: t.Optional[TabularData2D] = None,
         allow_nulls: bool = False,
-        batch_size: Optional[int] = None,
-        case_indices: Optional[CaseIndices] = None,
-        context_features: Optional[Collection[str]] = None,
-        derived_action_features: Optional[Collection[str]] = None,
-        derived_context_features: Optional[Collection[str]] = None,
-        post_process_features: Optional[Collection[str]] = None,
-        post_process_values: Optional[TabularData2D] = None,
-        desired_conviction: Optional[float] = None,
-        details: Optional[Mapping[str, Any]] = None,
+        batch_size: t.Optional[int] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        context_features: t.Optional[Collection[str]] = None,
+        derived_action_features: t.Optional[Collection[str]] = None,
+        derived_context_features: t.Optional[Collection[str]] = None,
+        post_process_features: t.Optional[Collection[str]] = None,
+        post_process_values: t.Optional[TabularData2D] = None,
+        desired_conviction: t.Optional[float] = None,
+        details: t.Optional[Mapping[str, t.Any]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
-        feature_bounds_map: Optional[Mapping[str, Mapping[str, Any]]] = None,
+        feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
         generate_new_cases: GenerateNewCases = "no",
-        initial_batch_size: Optional[int] = None,
+        initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
-        into_series_store: Optional[str] = None,
+        into_series_store: t.Optional[str] = None,
         leave_case_out: bool = False,
         new_case_threshold: NewCaseThreshold = "min",
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
-        preserve_feature_values: Optional[Collection[str]] = None,
-        progress_callback: Optional[Callable] = None,
+        preserve_feature_values: t.Optional[Collection[str]] = None,
+        progress_callback: t.Optional[Callable] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
-        use_case_weights: Optional[bool] = None,
+        use_case_weights: t.Optional[bool] = None,
         use_regional_model_residuals: bool = True,
-        weight_feature: Optional[str] = None,
+        weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
         React to the provided contexts.
@@ -1570,47 +1570,47 @@ class Trainee(BaseTrainee):
 
     def react_series(
         self,
-        contexts: Optional[TabularData2D] = None,
+        contexts: t.Optional[TabularData2D] = None,
         *,
-        action_features: Optional[Collection[str]] = None,
-        actions: Optional[TabularData2D] = None,
-        batch_size: Optional[int] = None,
-        case_indices: Optional[CaseIndices] = None,
-        context_features: Optional[Collection[str]] = None,
+        action_features: t.Optional[Collection[str]] = None,
+        actions: t.Optional[TabularData2D] = None,
+        batch_size: t.Optional[int] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        context_features: t.Optional[Collection[str]] = None,
         continue_series: bool = False,
-        continue_series_features: Optional[Collection[str]] = None,
-        continue_series_values: Optional[TabularData3D] = None,
-        derived_action_features: Optional[Collection[str]] = None,
-        derived_context_features: Optional[Collection[str]] = None,
-        desired_conviction: Optional[float] = None,
-        details: Optional[Mapping[str, Any]] = None,
+        continue_series_features: t.Optional[Collection[str]] = None,
+        continue_series_values: t.Optional[TabularData3D] = None,
+        derived_action_features: t.Optional[Collection[str]] = None,
+        derived_context_features: t.Optional[Collection[str]] = None,
+        desired_conviction: t.Optional[float] = None,
+        details: t.Optional[Mapping[str, t.Any]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
-        feature_bounds_map: Optional[Mapping[str, Mapping[str, Any]]] = None,
-        final_time_steps: Optional[list[Any]] = None,
+        feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
+        final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
         series_index: str = ".series",
-        init_time_steps: Optional[list[Any]] = None,
-        initial_batch_size: Optional[int] = None,
-        initial_features: Optional[Collection[str]] = None,
-        initial_values: Optional[TabularData2D] = None,
+        init_time_steps: t.Optional[list[t.Any]] = None,
+        initial_batch_size: t.Optional[int] = None,
+        initial_features: t.Optional[Collection[str]] = None,
+        initial_values: t.Optional[TabularData2D] = None,
         input_is_substituted: bool = False,
         leave_case_out: bool = False,
-        max_series_lengths: Optional[list[int]] = None,
+        max_series_lengths: t.Optional[list[int]] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
         output_new_series_ids: bool = True,
-        preserve_feature_values: Optional[list[str]] = None,
-        progress_callback: Optional[Callable] = None,
-        series_context_features: Optional[Collection[str]] = None,
-        series_context_values: Optional[TabularData3D] = None,
+        preserve_feature_values: t.Optional[list[str]] = None,
+        progress_callback: t.Optional[Callable] = None,
+        series_context_features: t.Optional[Collection[str]] = None,
+        series_context_values: t.Optional[TabularData3D] = None,
         series_id_tracking: SeriesIDTracking = "fixed",
-        series_stop_maps: Optional[list[Mapping[str, Mapping[str, Any]]]] = None,
+        series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
-        use_case_weights: Optional[bool] = None,
+        use_case_weights: t.Optional[bool] = None,
         use_regional_model_residuals: bool = True,
-        weight_feature: Optional[str] = None,
+        weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         """
         React to the trainee in a series until a stop condition is met.
@@ -1824,8 +1824,8 @@ class Trainee(BaseTrainee):
         self,
         *,
         batch_size: int = 1,
-        features: Optional[Collection[str]] = None,
-        features_to_impute: Optional[Collection[str]] = None,
+        features: t.Optional[Collection[str]] = None,
+        features_to_impute: t.Optional[Collection[str]] = None,
     ):
         """
         Impute (fill) the missing values for the specified features_to_impute.
@@ -1865,11 +1865,11 @@ class Trainee(BaseTrainee):
         self,
         num_cases: int,
         *,
-        case_indices: Optional[CaseIndices] = None,
-        condition: Optional[Mapping[str, Any]] = None,
-        condition_session: Optional[str | BaseSession] = None,
-        distribute_weight_feature: Optional[str] = None,
-        precision: Optional[Precision] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        condition: t.Optional[Mapping[str, t.Any]] = None,
+        condition_session: t.Optional[str | BaseSession] = None,
+        distribute_weight_feature: t.Optional[str] = None,
+        precision: t.Optional[Precision] = None,
     ) -> int:
         """
         Remove training cases from the trainee.
@@ -1955,12 +1955,12 @@ class Trainee(BaseTrainee):
         self,
         feature_values: TabularData2D,
         *,
-        case_indices: Optional[CaseIndices] = None,
-        condition: Optional[Mapping[str, Any]] = None,
-        condition_session: Optional[str | BaseSession] = None,
-        features: Optional[Collection[str]] = None,
-        num_cases: Optional[int] = None,
-        precision: Optional[Precision] = None
+        case_indices: t.Optional[CaseIndices] = None,
+        condition: t.Optional[Mapping[str, t.Any]] = None,
+        condition_session: t.Optional[str | BaseSession] = None,
+        features: t.Optional[Collection[str]] = None,
+        num_cases: t.Optional[int] = None,
+        precision: t.Optional[Precision] = None
     ) -> int:
         """
         Edit feature values for the specified cases.
@@ -2120,12 +2120,12 @@ class Trainee(BaseTrainee):
         self,
         *,
         indicate_imputed: bool = False,
-        case_indices: Optional[CaseIndices] = None,
-        features: Optional[Collection[str]] = None,
-        session: Optional[str | BaseSession] = None,
-        condition: Optional[Mapping[str, Any]] = None,
-        num_cases: Optional[int] = None,
-        precision: Optional[Precision] = None
+        case_indices: t.Optional[CaseIndices] = None,
+        features: t.Optional[Collection[str]] = None,
+        session: t.Optional[str | BaseSession] = None,
+        condition: t.Optional[Mapping[str, t.Any]] = None,
+        num_cases: t.Optional[int] = None,
+        precision: t.Optional[Precision] = None
     ) -> DataFrame:
         """
         Get the trainee's cases.
@@ -2244,7 +2244,7 @@ class Trainee(BaseTrainee):
     def get_extreme_cases(
         self,
         *,
-        features: Optional[Collection[str]] = None,
+        features: t.Optional[Collection[str]] = None,
         num: int,
         sort_feature: str,
     ) -> DataFrame:
@@ -2294,12 +2294,12 @@ class Trainee(BaseTrainee):
     def add_feature(
         self,
         feature: str,
-        feature_value: Optional[int | float | str] = None,
+        feature_value: t.Optional[int | float | str] = None,
         *,
         overwrite: bool = False,
-        condition: Optional[Mapping[str, Any]] = None,
-        condition_session: Optional[str | BaseSession] = None,
-        feature_attributes: Optional[Mapping[str, Any]] = None,
+        condition: t.Optional[Mapping[str, t.Any]] = None,
+        condition_session: t.Optional[str | BaseSession] = None,
+        feature_attributes: t.Optional[Mapping[str, t.Any]] = None,
     ):
         """
         Add a feature to the model.
@@ -2373,8 +2373,8 @@ class Trainee(BaseTrainee):
         self,
         feature: str,
         *,
-        condition: Optional[Mapping[str, Any]] = None,
-        condition_session: Optional[str | BaseSession] = None,
+        condition: t.Optional[Mapping[str, t.Any]] = None,
+        condition_session: t.Optional[str | BaseSession] = None,
     ):
         """
         Remove a feature from the trainee.
@@ -2432,7 +2432,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'remove_feature' method.")
 
-    def remove_series_store(self, series: Optional[str] = None):
+    def remove_series_store(self, series: t.Optional[str] = None):
         """
         Clear stored series from trainee.
 
@@ -2452,7 +2452,7 @@ class Trainee(BaseTrainee):
         series: str,
         contexts: TabularData2D,
         *,
-        context_features: Optional[Collection[str]] = None,
+        context_features: t.Optional[Collection[str]] = None,
     ):
         """
         Append the specified contexts to a series store.
@@ -2479,7 +2479,7 @@ class Trainee(BaseTrainee):
             raise AssertionError("Client must have the 'append_to_series_store' method.")
 
     def set_substitute_feature_values(
-        self, substitution_value_map: Mapping[str, Mapping[str, Any]]
+        self, substitution_value_map: Mapping[str, Mapping[str, t.Any]]
     ):
         """
         Set a substitution map for use in extended nominal generation.
@@ -2506,7 +2506,7 @@ class Trainee(BaseTrainee):
         self,
         *,
         clear_on_get: bool = True,
-    ) -> dict[str, dict[str, Any]]:
+    ) -> dict[str, dict[str, t.Any]]:
         """
         Get a substitution map for use in extended nominal generation.
 
@@ -2544,9 +2544,9 @@ class Trainee(BaseTrainee):
         kl_divergence_removal: bool = False,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
-        use_case_weights: Optional[bool] = None,
-        features: Optional[Collection[str]] = None,
-        weight_feature: Optional[str] = None,
+        use_case_weights: t.Optional[bool] = None,
+        features: t.Optional[Collection[str]] = None,
+        weight_feature: t.Optional[str] = None,
     ) -> DataFrame | dict:
         """
         Computes specified data for a **set** of cases.
@@ -2621,10 +2621,10 @@ class Trainee(BaseTrainee):
         *,
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
-        use_case_weights: Optional[bool] = None,
-        action_features: Optional[Collection[str]] = None,
-        features: Optional[Collection[str]] = None,
-        weight_feature: Optional[str] = None,
+        use_case_weights: t.Optional[bool] = None,
+        action_features: t.Optional[Collection[str]] = None,
+        features: t.Optional[Collection[str]] = None,
+        weight_feature: t.Optional[str] = None,
     ) -> DataFrame | dict:
         """
         Get familiarity conviction for features in the model.
@@ -2673,10 +2673,10 @@ class Trainee(BaseTrainee):
 
     def get_marginal_stats(
         self, *,
-        condition: Optional[Mapping[str, Any]] = None,
-        num_cases: Optional[int] = None,
-        precision: Optional[Precision] = None,
-        weight_feature: Optional[str] = None,
+        condition: t.Optional[Mapping[str, t.Any]] = None,
+        num_cases: t.Optional[int] = None,
+        precision: t.Optional[Precision] = None,
+        weight_feature: t.Optional[str] = None,
     ) -> DataFrame:
         """
         Get marginal stats for all features.
@@ -2733,13 +2733,13 @@ class Trainee(BaseTrainee):
         distance_contribution: str | bool = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,
-        features: Optional[Collection[str]] = None,
+        features: t.Optional[Collection[str]] = None,
         influence_weight_entropy: str | bool = False,
         p_value_of_addition: str | bool = False,
         p_value_of_removal: str | bool = False,
         similarity_conviction: str | bool = False,
-        use_case_weights: Optional[bool] = None,
-        weight_feature: Optional[str] = None,
+        use_case_weights: t.Optional[bool] = None,
+        weight_feature: t.Optional[str] = None,
     ):
         """
         Calculate conviction and other data and stores them into features.
@@ -2804,23 +2804,23 @@ class Trainee(BaseTrainee):
     def react_aggregate(
         self,
         *,
-        action_feature: Optional[str] = None,
-        confusion_matrix_min_count: Optional[int] = None,
-        context_features: Optional[Collection[str]] = None,
-        details: Optional[dict] = None,
-        feature_influences_action_feature: Optional[str] = None,
-        hyperparameter_param_path: Optional[Collection[str]] = None,
-        num_robust_influence_samples: Optional[int] = None,
-        num_robust_residual_samples: Optional[int] = None,
-        num_robust_influence_samples_per_case: Optional[int] = None,
-        num_samples: Optional[int] = None,
-        prediction_stats_action_feature: Optional[str] = None,
-        residuals_hyperparameter_feature: Optional[str] = None,
-        robust_hyperparameters: Optional[bool] = None,
-        sample_model_fraction: Optional[float] = None,
-        sub_model_size: Optional[int] = None,
-        use_case_weights: Optional[bool] = None,
-        weight_feature: Optional[str] = None,
+        action_feature: t.Optional[str] = None,
+        confusion_matrix_min_count: t.Optional[int] = None,
+        context_features: t.Optional[Collection[str]] = None,
+        details: t.Optional[dict] = None,
+        feature_influences_action_feature: t.Optional[str] = None,
+        hyperparameter_param_path: t.Optional[Collection[str]] = None,
+        num_robust_influence_samples: t.Optional[int] = None,
+        num_robust_residual_samples: t.Optional[int] = None,
+        num_robust_influence_samples_per_case: t.Optional[int] = None,
+        num_samples: t.Optional[int] = None,
+        prediction_stats_action_feature: t.Optional[str] = None,
+        residuals_hyperparameter_feature: t.Optional[str] = None,
+        robust_hyperparameters: t.Optional[bool] = None,
+        sample_model_fraction: t.Optional[float] = None,
+        sub_model_size: t.Optional[int] = None,
+        use_case_weights: t.Optional[bool] = None,
+        weight_feature: t.Optional[str] = None,
     ) -> DataFrame:
         """
         Reacts into the aggregate trained cases in the Trainee.
@@ -3082,11 +3082,11 @@ class Trainee(BaseTrainee):
     def get_params(
         self,
         *,
-        action_feature: Optional[str] = None,
-        context_features: Optional[Collection[str]] = None,
-        mode: Optional[Mode] = None,
-        weight_feature: Optional[str] = None,
-    ) -> dict[str, Any]:
+        action_feature: t.Optional[str] = None,
+        context_features: t.Optional[Collection[str]] = None,
+        mode: t.Optional[Mode] = None,
+        weight_feature: t.Optional[str] = None,
+    ) -> dict[str, t.Any]:
         """
         Get the parameters used by the Trainee.
 
@@ -3128,7 +3128,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_params' method.")
 
-    def set_params(self, params: Mapping[str, Any]):
+    def set_params(self, params: Mapping[str, t.Any]):
         """
         Set the workflow attributes for the trainee.
 
@@ -3230,15 +3230,15 @@ class Trainee(BaseTrainee):
 
     def get_pairwise_distances(
         self,
-        features: Optional[Collection[str]] = None,
+        features: t.Optional[Collection[str]] = None,
         *,
-        use_case_weights: Optional[bool] = None,
-        action_feature: Optional[str] = None,
-        from_case_indices: Optional[CaseIndices] = None,
-        from_values: Optional[TabularData2D] = None,
-        to_case_indices: Optional[CaseIndices] = None,
-        to_values: Optional[TabularData2D] = None,
-        weight_feature: Optional[str] = None,
+        use_case_weights: t.Optional[bool] = None,
+        action_feature: t.Optional[str] = None,
+        from_case_indices: t.Optional[CaseIndices] = None,
+        from_values: t.Optional[TabularData2D] = None,
+        to_case_indices: t.Optional[CaseIndices] = None,
+        to_values: t.Optional[TabularData2D] = None,
+        weight_feature: t.Optional[str] = None,
     ) -> list[float]:
         """
         Computes pairwise distances between specified cases.
@@ -3311,13 +3311,13 @@ class Trainee(BaseTrainee):
 
     def get_distances(
         self,
-        features: Optional[Collection[str]] = None,
+        features: t.Optional[Collection[str]] = None,
         *,
-        use_case_weights: Optional[bool] = None,
-        action_feature: Optional[str] = None,
-        case_indices: Optional[CaseIndices] = None,
-        feature_values: Optional[Collection[Any] | DataFrame] = None,
-        weight_feature: Optional[str] = None
+        use_case_weights: t.Optional[bool] = None,
+        action_feature: t.Optional[str] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        feature_values: t.Optional[Collection[t.Any] | DataFrame] = None,
+        weight_feature: t.Optional[str] = None
     ) -> Distances:
         """
         Computes distances matrix for specified cases.
@@ -3381,7 +3381,7 @@ class Trainee(BaseTrainee):
         self,
         features_to_code_map: Mapping[str, str],
         *,
-        aggregation_code: Optional[str] = None,
+        aggregation_code: t.Optional[str] = None,
     ) -> Evaluation:
         r"""
         Evaluates custom code on feature values of all cases in the trainee.
@@ -3422,11 +3422,38 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'evaluate' method.")
 
+    def clear_imputed_data(
+        self,
+        session: str,
+        *,
+        impute_session: t.Optional[str],
+    ):
+        """
+        Clears values that were imputed during a specified session.
+
+        Won't clear values that were manually set by the user after the impute.
+
+        Parameters
+        ----------
+        session : str
+            Session id of this action.
+        impute_session : str, optional
+            Session id of the impute for which to clear the data. If none is provided, will clear all imputed.
+        """
+        if isinstance(self.client, AbstractHowsoClient):
+            self.client.clear_imputed_data(
+                trainee_id=self.id,
+                session=session,
+                impute_session=impute_session,
+            )
+        else:
+            raise AssertionError("Client must have the 'clear_imputed_data' method.")
+
     def _create(
         self, *,
-        library_type: Optional[LibraryType] = None,
-        max_wait_time: Optional[int | float] = None,
-        resources: Optional[Mapping[str, Any]] = None,
+        library_type: t.Optional[LibraryType] = None,
+        max_wait_time: t.Optional[int | float] = None,
+        resources: t.Optional[Mapping[str, t.Any]] = None,
         overwrite: bool = False,
     ):
         """
@@ -3471,7 +3498,7 @@ class Trainee(BaseTrainee):
         cls,
         schema: BaseTrainee,
         *,
-        client: Optional[AbstractHowsoClient] = None,
+        client: t.Optional[AbstractHowsoClient] = None,
     ) -> Trainee:
         """
         Create Trainee from base class.
@@ -3541,7 +3568,7 @@ class Trainee(BaseTrainee):
 
     def get_contribution_matrix(
         self,
-        features: Optional[Iterable[str]] = None,
+        features: t.Optional[Iterable[str]] = None,
         robust: bool = True,
         targeted: bool = False,
         normalize: bool = False,
@@ -3642,7 +3669,7 @@ class Trainee(BaseTrainee):
 
     def get_mda_matrix(
         self,
-        features: Optional[Iterable[str]] = None,
+        features: t.Optional[Iterable[str]] = None,
         robust: bool = True,
         targeted: bool = False,
         normalize: bool = False,
@@ -3741,9 +3768,9 @@ class Trainee(BaseTrainee):
 
 
 def delete_trainee(
-    name_or_id: Optional[str] = None,
-    file_path: Optional[PathLike] = None,
-    client: Optional[AbstractHowsoClient] = None
+    name_or_id: t.Optional[str] = None,
+    file_path: t.Optional[PathLike] = None,
+    client: t.Optional[AbstractHowsoClient] = None
 ):
     """
     Delete an existing Trainee.
@@ -3801,7 +3828,7 @@ def delete_trainee(
 
 def load_trainee(
     file_path: PathLike,
-    client: Optional[AbstractHowsoClient] = None
+    client: t.Optional[AbstractHowsoClient] = None
 ) -> Trainee:
     """
     Load an existing trainee from disk.
@@ -3889,7 +3916,7 @@ def load_trainee(
 def get_trainee(
     name_or_id: str,
     *,
-    client: Optional[AbstractHowsoClient] = None
+    client: t.Optional[AbstractHowsoClient] = None
 ) -> Trainee:
     """
     Get an existing trainee from Howso Services.
@@ -3928,10 +3955,10 @@ def list_trainees(*args, **kwargs):
 
 
 def query_trainees(
-    search_terms: Optional[str] = None,
+    search_terms: t.Optional[str] = None,
     *,
-    client: Optional[AbstractHowsoClient] = None,
-    project: Optional[str | BaseProject] = None,
+    client: t.Optional[AbstractHowsoClient] = None,
+    project: t.Optional[str | BaseProject] = None,
 ) -> list[dict]:
     """
     Query accessible Trainees.
