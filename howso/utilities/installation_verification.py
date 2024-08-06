@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import IntEnum
@@ -16,6 +18,14 @@ from typing import Callable, Iterable, List, Optional, Tuple, Union
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
+import pandas as pd
+try:
+    from requests.exceptions import ConnectionError
+except ImportError:
+    ConnectionError = None
+from rich import print
+from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
+
 try:
     from howso import engine
 except ImportError:
@@ -24,9 +34,9 @@ from howso.client import (
     AbstractHowsoClient, HowsoClient
 )
 from howso.client.client import get_howso_client_class
-from howso.direct.client import HowsoDirectClient
 from howso.client.exceptions import HowsoConfigurationError, HowsoError
-from howso.openapi.models import Trainee
+from howso.client.schemas import Trainee
+from howso.direct.client import HowsoDirectClient
 try:
     from howso.validator import Validator  # noqa: might not be available # type: ignore
 except OSError as e:
@@ -41,19 +51,6 @@ except ImportError:
 from howso.utilities import StopExecution, Timer
 from howso.utilities.locale import get_default_locale
 from howso.utilities.posix import PlatformError, sysctl_by_name
-import pandas as pd
-try:
-    from requests.exceptions import ConnectionError
-except ImportError:
-    ConnectionError = None
-from rich import print
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +228,7 @@ class InstallationCheckRegistry:
         except ValueError:
             traceback.print_exc(file=registry.logger)
             return (Status.CRITICAL,
-                    "The client was unable for find Howso core binaries. "
+                    "The client was unable to find Howso core binaries. "
                     "Please see the Howso Client installation "
                     "documentation for further details.")
         except Exception as e:  # noqa: Deliberately broad
@@ -254,6 +251,21 @@ class InstallationCheckRegistry:
                 )
 
         return (Status.OK, "")
+
+    def _print_versions(self, versions: dict, *, file=None):
+        """Output version information."""
+        if not versions:
+            return
+        if 'python' in versions:
+            print(f"Python version: {versions['python']}", file=file)
+        if 'client_type' in versions:
+            print(f"Client type: {versions['client_type']}", file=file)
+        if 'client' in versions:
+            print(f"Client version: {versions['client']}", file=file)
+        if 'client_base' in versions:
+            print(f"API client version: {versions['client_base']}", file=file)
+        if 'platform' in versions:
+            print(f"Platform version: {versions['platform']}", file=file)
 
     def run_checks(self) -> int:  # noqa: C901
         """
@@ -283,11 +295,7 @@ class InstallationCheckRegistry:
 
         try:
             versions = get_versions()
-            print(f"Python version: {versions['python']}")
-            print(f"Client type: {versions['client_type']}")
-            print(f"Client version: {versions['client']}")
-            if 'platform' in versions:
-                print(f"Platform version: {versions['platform']}")
+            self._print_versions(versions)
             with progress:
                 for check in progress.track(self._checks):
                     if check.client_required:
@@ -353,11 +361,7 @@ class InstallationCheckRegistry:
                         print(f"Installation verification run: "
                               f"{start_time.isoformat()}\n",
                               file=log)
-                        print(f"Python version: {versions['python']}", file=log)
-                        print(f"Client type: {versions['client_type']}", file=log)
-                        print(f"Client version: {versions['client']}", file=log)
-                        if 'platform' in versions:
-                            print(f"Platform version: {versions['platform']}", file=log)
+                        self._print_versions(versions, file=log)
                         print("=" * 80 + "\n", file=log)
                         print(logs, file=log)
                         print(f"Verification complete: {end_time.isoformat()} "
@@ -401,41 +405,36 @@ def get_versions():
 
     versions = {
         "python": py_version_string,
+        "client_type": "Could not get client type.",
+        "client": "Could not get client version.",
     }
 
     # client type and version
     try:
         # Instantiating the client is often the point of failure, this won't trigger that
         client_class, _ = get_howso_client_class()
-        client_type_string = client_class.__name__
+        versions["client_type"] = client_class.__name__
+        engine_version = importlib.metadata.version('howso-engine')
         if issubclass(client_class, HowsoDirectClient):
-            client_version_string = importlib.metadata.version('howso-engine')
+            versions["client"] = engine_version
         else:
+            versions["client_base"] = engine_version
             try:
                 from howso.platform.client import HowsoPlatformClient
                 if issubclass(client_class, HowsoPlatformClient):
-                    client_version_string = importlib.metadata.version('howso-platform-client')
-                else:
-                    client_version_string = "Could not get client version."
-            except Exception:
-                client_version_string = "Could not get client version."
+                    versions["client"] = importlib.metadata.version('howso-platform-client')
+            except ImportError:
+                pass
     except Exception:
-        client_type_string = "Could not get client type."
-        client_version_string = "Could not get client version."
-
-    versions.update({
-        "client_type": client_type_string,
-        "client": client_version_string
-    })
+        # Failed to get version, leave default message
+        pass
 
     # platform version
     try:
         client = HowsoClient(debug=0)
         client_version_info = client.get_version()
-        if hasattr(client_version_info, "platform"):
-            versions.update({
-                "platform": client_version_info.platform
-            })
+        if "platform" in client_version_info:
+            versions["platform"] = client_version_info['platform']
     except Exception:
         pass
 
@@ -504,12 +503,11 @@ def generate_dataframe(*, client: AbstractHowsoClient,
     }
     feature_names = list(features.keys())
 
-    trainee_obj = Trainee(
-        f"installation_verification generated dataframe ({get_nonce()})",
+    trainee = client.create_trainee(
+        name=f"installation_verification generated dataframe ({get_nonce()})",
         features=features,
         persistence="never"
     )
-    trainee = client.create_trainee(trainee_obj)
     if not isinstance(trainee, Trainee):
         raise HowsoError('Unable to create trainee.')
     client.set_feature_attributes(trainee.id, features)
@@ -610,7 +608,7 @@ def check_generate_dataframe(*, registry: InstallationCheckRegistry,
     except ValueError:
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
-                "The client was unable for find Howso core binaries. "
+                "The client was unable to find Howso core binaries. "
                 "Please see the Howso Client installation documentation "
                 "for further details.")
     if threshold is not None and duration > threshold:
@@ -724,11 +722,10 @@ def check_save(*, registry: InstallationCheckRegistry,
             source_df, _ = generate_dataframe(client=client)
         features = infer_feature_attributes(source_df)
         feature_names = list(features.keys())
-        trainee_obj = Trainee(
-            f"installation_verification check save ({get_nonce()})",
+        if trainee := client.create_trainee(
+            name=f"installation_verification check save ({get_nonce()})",
             features=features
-        )
-        if trainee := client.create_trainee(trainee_obj):
+        ):
             client.train(trainee.id, source_df, features=feature_names)
             client.persist_trainee(trainee.id)
         else:
@@ -1054,12 +1051,11 @@ def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
     """
     client = HowsoClient()
     features = {'date': {'type': 'continuous', 'date_time_format': '%Y-%m-%d'}}
-    trainee_obj = Trainee(
-        f"installation_verification check_tzdata_installed ({get_nonce()})",
+    trainee = client.create_trainee(
+        name=f"installation_verification check_tzdata_installed ({get_nonce()})",
         features=features,
         persistence='never'
     )
-    trainee = client.create_trainee(trainee_obj)
     client.train(trainee_id=trainee.id, cases=[["2001-01-01"]], features=['date'])
     result_queue.put(client.get_num_training_cases(trainee.id))
     client.delete_trainee(trainee.id)

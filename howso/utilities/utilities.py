@@ -1,3 +1,4 @@
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 import datetime as dt
 import inspect
 import locale as python_locale
@@ -5,18 +6,7 @@ from math import isnan
 import re
 import sys
 import threading
-import typing as t
-from typing import (
-    Callable,
-    Collection,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, Dict, List, Optional, Union
 import uuid
 import warnings
 
@@ -26,17 +16,9 @@ from dateutil.tz import tzoffset
 import numpy as np
 import pandas as pd
 
-from howso.openapi.models import (
-    FeatureAttributes,
-    Trainee,
-)
-
-from .internals import serialize_openapi_models
-
+from .internals import serialize_models
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
-# Custom type for case_indices parameter
-CaseIndices = Iterable[Union[List[Union[str, int]], Tuple[Union[str, int]]]]
 DATETIME_TIMEZONE_PATTERN = re.compile(r"(?<!%)(?:%%)*(%z)", re.IGNORECASE)
 DATETIME_UTC_Z_PATTERN = re.compile(r"\dZ$")
 EPOCH = dt.datetime.fromtimestamp(0, dt.timezone.utc)
@@ -47,52 +29,6 @@ ISO_8601_FORMAT_FRACTIONAL = "%Y-%m-%dT%H:%M:%S.%f"
 NON_THOROUGH_NUM = 100
 # Match unescaped timezone character in datetime format strings
 SMALLEST_TIME_DELTA = 0.001
-
-
-def trainee_from_df(df, features: Optional[Mapping[str, Mapping]] = None,
-                    name: Optional[str] = None,
-                    persistence: str = 'allow',
-                    trainee_metadata: Optional[Mapping] = None,
-                    ) -> Trainee:
-    """
-    Create a Trainee from a dataframe.
-
-    Assumes floats are continuous and all other values are nominal.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        A pandas Dataframe with column names corresponding to feature
-        names.Features that are considered to be continuous should have a dtype
-        of float.
-
-    features : Optional[Mapping[str, Mapping]]
-        (Optional) A dictionary of feature names to a dictionary of parameters.
-
-    name : str or None, defaults to None
-        (Optional) The name of the trainee.
-
-    persistence : str: default "allow"
-        The persistence setting to use for the trainee. Valid values:
-        "always", "allow", "never".
-
-    trainee_metadata : Mapping, optional
-        (Optional) mapping of key/value pairs of metadata for trainee.
-
-    Returns
-    -------
-    howso.openapi.models.Trainee
-        A trainee object
-    """
-    # Place this here to avoid circular imports
-    from howso.utilities.feature_attributes import infer_feature_attributes
-
-    if features is None:
-        features = infer_feature_attributes(df)
-
-    return Trainee(name, features=features,
-                   persistence=persistence,
-                   metadata=trainee_metadata)
 
 
 def date_to_epoch(
@@ -313,7 +249,7 @@ def align_data(x, y=None):
     return x
 
 
-def replace_doublemax_with_infinity(dat):
+def replace_doublemax_with_infinity(dat: Any) -> Any:
     """
     Replace values of Double.MAX_VALUE (1.79769313486232E+308) with Infinity.
 
@@ -321,11 +257,13 @@ def replace_doublemax_with_infinity(dat):
 
     Parameters
     ----------
-    dat : A dict, list, number, or string
+    dat : Any
+        The data to replace infinity in.
 
     Returns
     -------
-    A dict, list, number, or string - same as passed in for translation
+    Any
+        The same value back, with float max values converted to infinity.
     """
     if isinstance(dat, dict):
         dat = {k: replace_doublemax_with_infinity(v) for (k, v) in dat.items()}
@@ -485,7 +423,7 @@ def validate_list_shape(values: Union[Collection, None], dimensions: int,
             f"`{variable_name}` must be a {dimensions}d list of {var_types}.")
 
 
-def validate_case_indices(case_indices: CaseIndices, thorough=False) -> None:
+def validate_case_indices(case_indices: Sequence[Sequence[Union[str, int]]], thorough=False) -> None:
     """
     Validate the case_indices parameter to the react() method of a Howso client.
 
@@ -494,7 +432,7 @@ def validate_case_indices(case_indices: CaseIndices, thorough=False) -> None:
 
     Parameters
     ----------
-    case_indices : Iterable of Sequence[str, int]
+    case_indices : Sequence of Sequence of str or int
         The case_indices argument to validate.
     thorough : bool, default False
         Whether to verify the data types in all sequences or only some (for performance)
@@ -514,12 +452,12 @@ def validate_case_indices(case_indices: CaseIndices, thorough=False) -> None:
         raise ValueError('Argument case_indices must be type Iterable of (non-string) Sequence[str, int].')
 
 
-def num_list_dimensions(lst):
+def num_list_dimensions(obj: list) -> int:
     """
     Return number of dimensions for a list.
 
     Assumption is that the input nested lists are also lists,
-    or a list of dataframes.
+    or a list of DataFrames.
 
     Parameters
     ----------
@@ -531,23 +469,22 @@ def num_list_dimensions(lst):
     int
         The number of dimensions in the passed in list.
     """
-    the_list = lst
     d = 0
     while True:
-        if not isinstance(the_list, list):
-            if isinstance(the_list, pd.DataFrame):
+        if not isinstance(obj, list):
+            if isinstance(obj, pd.DataFrame):
                 # add the number of dimensions in the dataframe
-                d += the_list.ndim
+                d += obj.ndim
             break
         try:
-            the_list = the_list[0]
+            obj = obj[0]
             d += 1
         except (IndexError, TypeError):
             break
     return d
 
 
-def validate_features(features: Mapping[str, Union[FeatureAttributes, Mapping]],
+def validate_features(features: Mapping[str, Mapping],
                       extended_feature_types: Optional[Iterable[str]] = None
                       ) -> None:
     """
@@ -575,10 +512,7 @@ def validate_features(features: Mapping[str, Union[FeatureAttributes, Mapping]],
         valid_feature_types += list(extended_feature_types)
 
     for f_name, f_desc in features.items():
-        if isinstance(f_desc, FeatureAttributes):
-            f_type = f_desc.type
-        else:
-            f_type = f_desc.get("type")
+        f_type = f_desc.get("type")
         if f_type not in valid_feature_types:
             raise ValueError(f"The feature name '{f_name}' has invalid "
                              f"feature type - '{f_type}'")
@@ -608,7 +542,7 @@ def validate_datetime_iso8061(datetime_value, feature):
 
 
 def serialize_datetimes(cases: List[List], columns: Iterable[str],  # noqa: C901
-                        features: Dict, *, warn: bool = False) -> None:
+                        features: Mapping, *, warn: bool = False) -> None:
     """
     Serialize datetimes in the given list of cases, in-place.
 
@@ -621,7 +555,7 @@ def serialize_datetimes(cases: List[List], columns: Iterable[str],  # noqa: C901
         A 2d list of case values corresponding to the features of the cases.
     columns : list of str
         A list of feature names.
-    features : dict
+    features : Mapping
         Dictionary of feature attributes.
     warn : bool, default: False
         If set to true, will warn user when specified datetime format
@@ -629,7 +563,7 @@ def serialize_datetimes(cases: List[List], columns: Iterable[str],  # noqa: C901
     """
     # Import here to avoid circular import dependencies
     from .features import FeatureType
-    features = serialize_openapi_models(features)
+    features = serialize_models(features)
     if isinstance(columns, Iterable):
         columns = list(columns)
 

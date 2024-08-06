@@ -7,36 +7,18 @@ from pprint import pprint
 import sys
 import uuid
 
-import howso
-from howso.client import HowsoClient
-from howso.client.client import (
-    _check_isfile,
-    LEGACY_CONFIG_FILENAMES,
-    get_configuration_path,
-    get_howso_client_class,
-)
-from howso.client.exceptions import (
-    HowsoApiError,
-    HowsoConfigurationError,
-    HowsoError,
-    HowsoTimeoutError,
-)
-from howso.client.protocols import ProjectClient
-from howso.direct import HowsoDirectClient
-from howso.openapi.models import (
-    AsyncActionAccepted,
-    AsyncActionStatus,
-    PlatformVersion,
-    Trainee,
-    TrainResponse,
-)
-from howso.utilities.reaction import Reaction
-from howso.utilities.testing import get_configurationless_test_client, get_test_options
 import numpy as np
 import pandas as pd
 import pytest
-from semantic_version import Version
 
+import howso
+from howso.client import HowsoClient
+from howso.client.client import _check_isfile, get_configuration_path, get_howso_client_class, LEGACY_CONFIG_FILENAMES
+from howso.client.exceptions import HowsoApiError, HowsoConfigurationError, HowsoError
+from howso.client.protocols import ProjectClient
+from howso.client.schemas.reaction import Reaction
+from howso.direct import HowsoDirectClient
+from howso.utilities.testing import get_configurationless_test_client, get_test_options
 
 TEST_OPTIONS = get_test_options()
 
@@ -144,18 +126,17 @@ class TraineeBuilder:
         """Delete all created trainees upon destruction of the builder."""
         self.delete_all()
 
-    def create(self, trainee, overwrite_trainee=False):
+    def create(self, **kwargs):
         """Create a new trainee."""
-        new_trainee = self.client.create_trainee(
-            trainee, overwrite_trainee=overwrite_trainee)
+        new_trainee = self.client.create_trainee(**kwargs)
         self.trainees.append(new_trainee)
         return new_trainee
 
-    def copy(self, trainee_id, new_trainee_name=None, project_id=None):
+    def copy(self, trainee_id, new_trainee_name=None, project=None):
         """Copy an existing trainee."""
         if isinstance(self.client, ProjectClient):
             new_trainee = self.client.copy_trainee(trainee_id, new_trainee_name,
-                                                   project_id)
+                                                   project)
         else:
             new_trainee = self.client.copy_trainee(trainee_id, new_trainee_name)
         self.trainees.append(new_trainee)
@@ -211,8 +192,7 @@ class TestDatetimeSerialization:
                     'datetime': {'type': 'continuous',
                                  'date_time_format': '%Y-%m-%dT%H:%M:%S.%f'}
                     }
-        trainee = Trainee(features=features)
-        trainee_builder.create(trainee, overwrite_trainee=True)
+        trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         try:
             yield trainee
         except Exception:
@@ -232,11 +212,11 @@ class TestDatetimeSerialization:
         case_response = self.client.get_cases(
             trainee.id, session=self.client.active_session.id,
             features=['nom', 'datetime'])
-        for case in case_response.cases:
+        for case in case_response["cases"]:
             print(case)
-        assert len(case_response.cases) == 4
+        assert len(case_response["cases"]) == 4
         # datetime is fixed: zero-padded and has fractional seconds
-        assert case_response.cases[0][1].rstrip("0") == '2020-09-12T09:09:09.123'
+        assert case_response["cases"][0][1].rstrip("0") == '2020-09-12T09:09:09.123'
 
     def test_train_warn_fix(self, trainee_builder):
         """Test that train warns when it should."""
@@ -244,8 +224,7 @@ class TestDatetimeSerialization:
                     'datetime': {'type': 'continuous',
                                  'date_time_format': '%Y-%m-%dT%H:%M:%S'}
                     }
-        trainee = Trainee(features=features)
-        trainee_builder.create(trainee, overwrite_trainee=True)
+        trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         df = pd.DataFrame(data=np.asarray([
             ['a', 'b', 'c', 'd'],
             # missing seconds in the provided values, don't match format
@@ -265,11 +244,11 @@ class TestDatetimeSerialization:
         case_response = self.client.get_cases(
             trainee.id, session=self.client.active_session.id,
             features=['nom', 'datetime'])
-        for case in case_response.cases:
+        for case in case_response["cases"]:
             print(case)
-        assert len(case_response.cases) == 4
+        assert len(case_response["cases"]) == 4
         # datetime is fixed: zero-padded and has seconds to adhere to format
-        assert case_response.cases[0][1] == '2020-09-12T09:09:00'
+        assert case_response["cases"][0][1] == '2020-09-12T09:09:00'
 
     def test_train_warn_bad_feature(self, trainee_builder):
         """Test that train warns on bad features."""
@@ -277,8 +256,7 @@ class TestDatetimeSerialization:
                     'datetime': {'type': 'continuous',
                                  'date_time_format': '%H %Y'}
                     }
-        trainee = Trainee(features=features)
-        trainee_builder.create(trainee, overwrite_trainee=True)
+        trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         df = pd.DataFrame(data=np.asarray([
             ['a', 'b', 'c', 'd'],
             # missing seconds in the provided values, don't match format
@@ -294,11 +272,11 @@ class TestDatetimeSerialization:
 
         case_response = self.client.get_cases(
             trainee.id, session=self.client.active_session.id)
-        for case in case_response.cases:
+        for case in case_response["cases"]:
             print(case)
-        assert len(case_response.cases) == 4
+        assert len(case_response["cases"]) == 4
         # datetime is not fixed and the value returned doesn't match originals
-        assert case_response.cases[0][1] != '2020-10-11T11:11'
+        assert case_response["cases"][0][1] != '2020-10-11T11:11'
 
     def test_react(self, trainee):
         """Test that react works as expected."""
@@ -354,8 +332,11 @@ class TestClient:
             "play": {"type": "nominal"},
         }
         trainee_name = uuid.uuid4().hex
-        trainee = Trainee(trainee_name, features=feats, metadata={'ttl': 600000})
-        trainee_builder.create(trainee)
+        trainee = trainee_builder.create(
+            name=trainee_name,
+            features=feats,
+            metadata={'ttl': 600000}
+        )
         try:
             yield trainee
         except Exception:
@@ -412,17 +393,16 @@ class TestClient:
             "dog": {"type": "nominal"},
             "cat": {"type": "continuous"}
         }
-        updated_trainee = Trainee(
-            trainee.name,
+        updated_trainee = trainee.to_dict() | dict(
             features=feats,
             metadata={'date': 'now'}
         )
         updated_trainee = self.client.update_trainee(updated_trainee)
         trainee2 = self.client.get_trainee(trainee.id)
-        assert trainee2.to_dict() == updated_trainee.to_dict()
+        assert trainee2 == updated_trainee
         self.client.update_trainee(trainee)
         trainee3 = self.client.get_trainee(trainee.id)
-        assert trainee3.to_dict() == trainee.to_dict()
+        assert trainee3 == trainee
 
     def test_train_and_react(self, trainee):
         """
@@ -434,17 +414,18 @@ class TestClient:
         """
         cases = [['1', '2'], ['3', '4']]
         self.client.train(trainee.id, cases, features=['penguin', 'play'])
-        react_response = self.client.react(trainee.id,
-                                           contexts=[['1']],
-                                           context_features=['penguin'],
-                                           action_features=['play'])
+        react_response = self.client.react(
+            trainee.id,
+            contexts=[['1']],
+            context_features=['penguin'],
+            action_features=['play'])
         assert isinstance(react_response, Reaction)
         assert react_response['action']['play'].iloc[0] == '2'
         case_response = self.client.get_cases(
             trainee.id, session=self.client.active_session.id)
-        for case in case_response.cases:
+        for case in case_response["cases"]:
             print(case)
-        assert len(case_response.cases) == 2
+        assert len(case_response["cases"]) == 2
 
     def test_copy(self, trainee, trainee_builder):
         """
@@ -454,11 +435,15 @@ class TestClient:
         ----------
         trainee
         """
-        new_trainee = trainee_builder.copy(trainee.id, trainee.name + "_copy")
+        new_name = trainee.name + "_copy"
+        new_trainee = trainee_builder.copy(trainee.id, new_name)
         trainee_bob = self.client.get_trainee(new_trainee.id)
-        orig = trainee.to_dict()
-        copy_bob = trainee_bob.to_dict()
-        assert orig['features'] == copy_bob['features']
+        assert trainee.name != new_name
+        assert new_trainee.name == new_name
+        assert trainee_bob.name == new_name
+        orig_features = self.client.get_feature_attributes(trainee.id)
+        copy_features = self.client.get_feature_attributes(new_trainee.id)
+        assert orig_features == copy_features
 
     def test_trainee_conviction(self, trainee, trainee_builder):
         """
@@ -511,8 +496,8 @@ class TestClient:
             self.client.impute(trainee.id, features=features, batch_size=2)
             imputed_session = self.client.get_cases(trainee.id, session.id,
                                                     indicate_imputed=True)
-            assert imputed_session.cases[0][1] is not None
-            assert '.imputed' in imputed_session.features
+            assert imputed_session['cases'][0][1] is not None
+            assert '.imputed' in imputed_session['features']
         finally:
             self.client.begin_session()  # Reset session
 
@@ -529,8 +514,8 @@ class TestClient:
         cases = self.client.get_cases(trainee.id,
                                       features=['play', 'penguin', 'familiarity_conviction_addition'],
                                       session=self.client.active_session.id)
-        pprint(cases.__dict__)
-        assert 'familiarity_conviction_addition' in cases.features
+        pprint(cases)
+        assert 'familiarity_conviction_addition' in cases['features']
 
     def test_save(self, trainee):
         """
@@ -541,122 +526,6 @@ class TestClient:
         trainee
         """
         self.client.persist_trainee(trainee.id)
-
-    def test_hierarchy(self, trainee):
-        """
-        Test hierarchy operations.
-
-        Parameters
-        ----------
-        trainee
-        """
-        self._train(trainee)
-        response = self.client.howso.create_subtrainee(
-            trainee.id,
-            trainee_name="child",
-            subtrainee_id=str(uuid.uuid4())
-        )
-        assert('child' in response['name'])
-        assert('id' in response)
-
-        child_id = response['id']
-
-        response = self.client.howso.execute_on_subtrainee(
-            trainee.id,
-            method="create_subtrainee",
-            # create under child by id instead of by path name
-            child_id=child_id,
-            payload={"trainee": "grandchild1"}
-        )
-        assert('child' in response['name'])
-        assert('grandchild1' in response['name'])
-
-        response = self.client.move_cases(
-            trainee.id,
-            num_cases=2,
-            target_name_path=["child", "grandchild1"]
-        )
-        assert(response == 2)
-
-        response = self.client.howso.execute_on_subtrainee(
-            trainee.id,
-            method="get_num_training_cases",
-            child_name_path=["child", "grandchild1"]
-        )
-        assert(response['count'] == 2)
-
-        self.client.copy_subtrainee(
-            trainee.id,
-            new_trainee_name="grandchild2",
-            source_name_path=["child", "grandchild1"],
-            target_name_path=["child"]
-        )
-
-        response = self.client.howso.execute_on_subtrainee(
-            trainee.id,
-            method="get_num_training_cases",
-            child_name_path=["child", "grandchild2"]
-        )
-        assert(response['count'] == 2)
-
-        self.client.rename_subtrainee(
-            trainee.id,
-            child_name_path=["child", "grandchild2"],
-            new_name="grandchild_two",
-        )
-
-        response = self.client.get_hierarchy(trainee.id)
-        assert(response == {'child': {'grandchild1': {}, 'grandchild_two': {}}})
-
-        response = self.client.howso.execute_on_subtrainee(
-            trainee.id,
-            method='get_cases',
-            child_name_path=["child", "grandchild_two"]
-        )
-        assert len(response['cases']) == 2
-
-        response = self.client.howso.execute_on_subtrainee(
-            trainee.id,
-            method='react',
-            child_name_path=["child", "grandchild_two"],
-            payload={
-                "context_features": ["penguin"],
-                "context_values": [20],
-                "action_features": ["play"],
-                "details":{"most_similar_cases":True}
-            }
-        )
-        assert response['action_values'][0] == 7
-        assert len(response['most_similar_cases']) == 2
-
-        response = self.client.howso.execute_on_subtrainee(
-            trainee.id,
-            method='batch_react',
-            child_name_path=["child", "grandchild_two"],
-            payload={
-                "context_features": ["penguin"],
-                "context_values": [[20],[22]],
-                "action_features": ["play"]
-            }
-        )
-        assert response['action_values'][0][0] == 7
-        assert response['action_values'][1][0] == 7
-
-        response = self.client.howso.execute_on_subtrainee(
-            trainee.id,
-            method='react_series',
-            child_name_path=["child", "grandchild_two"],
-            payload={
-                "initial_values": [10],
-                "initial_features": ["penguin"],
-                "action_features": ["penguin","play"],
-                "desired_conviction": 1
-            }
-        )
-
-        assert response['action_features'] == ['penguin', 'play']
-        # series has at least one case, one value per feature
-        assert len(response['action_values'][0]) == 2
 
     def test_a_la_cart_data(self, trainee):
         """
@@ -726,8 +595,7 @@ class TestClient:
     def test_get_version(self):
         """Test get_version()."""
         version = self.client.get_version()
-        assert version.api is not None
-        assert version.client == importlib.metadata.version('howso-engine')
+        assert version['client'] == importlib.metadata.version('howso-engine')
 
     def test_doublemax_to_infinity_translation(self):
         """Test the translation from Double.MAX_VALUE to Infinity."""
@@ -775,8 +643,7 @@ class TestBaseClient:
                     header[3]: {'type': 'continuous'},
                     header[4]: {'type': 'nominal'}
                     }
-        trainee = Trainee(features=features)
-        trainee_builder.create(trainee, overwrite_trainee=True)
+        trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         try:
             yield trainee
         except Exception:
@@ -790,43 +657,11 @@ class TestBaseClient:
         configuration_exception = HowsoConfigurationError(message=message)
         assert configuration_exception.message == message
 
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_batch_train_verbose(self, trainee, capsys):
-        """
-        Test that batch_train works in verbose mode.
-
-        Test the verbose output expected during the execution of batch_train.
-        """
-        df = pd.read_csv(iris_file_path)
-        data = df.values
-        test_percent = 0.2
-        data_train = data[:int(len(data) * (1 - test_percent))]
-        cases = data_train.tolist()
-        self.client.train(trainee.id, cases, features=df.columns.tolist(),
-                          batch_size=1000)
-        out, _ = capsys.readouterr()
-        assert (f'Batch training cases on trainee with '
-                f'id: {trainee.id}') in out
-
     def test_impute_verbose(self, trainee, capsys):
         """Test the verbose output expected during the execution of impute."""
         self.client.impute(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Imputing trainee with id: {trainee.id}' in out
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_move_cases_exception(self, trainee):
-        """
-        Test that move_cases raises when expected.
-
-        Checks for the expected exception when num_cases=1 is passed in
-        move_cases.
-        """
-        condition = {"feature_name": None}
-        with pytest.warns(UserWarning) as warn:
-            self.client.move_cases(trainee.id, trainee.id, 1, condition=condition)
-            assert str(warn[0].message) == ("move_cases has been removed from "
-                                            "this version of Howso.")
+        assert f'Imputing Trainee with id: {trainee.id}' in out
 
     def test_remove_cases_verbose(self, trainee, capsys):
         """
@@ -837,20 +672,7 @@ class TestBaseClient:
         condition = {"feature_name": None}
         self.client.remove_cases(trainee.id, 1, condition=condition)
         out, _ = capsys.readouterr()
-        assert f"Removing case(s) in trainee with id: {trainee.id}" in out
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_move_cases_verbose(self, trainee, capsys):
-        """
-        Test that move_cases has verbose output when enabled.
-
-        Tests for verbose output expected when move_cases is called.
-        """
-        condition = {"feature_name": None}
-        self.client.move_cases(trainee.id, trainee.id, 1, condition=condition)
-        out, _ = capsys.readouterr()
-        assert ('"move_cases" does not exist for this version of '
-                'Howso.') in out
+        assert f"Removing case(s) from Trainee with id: {trainee.id}" in out
 
     def test_update_trainee_verbose(self, trainee_builder, capsys):
         """
@@ -866,14 +688,13 @@ class TestBaseClient:
                     header[3]: {'type': 'continuous'},
                     header[4]: {'type': 'nominal'}
                     }
-        trainee = Trainee(features=features)
-        trainee_builder.create(trainee, overwrite_trainee=True)
+        trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         trainee.name = 'test-update-verbose'
         updated_trainee = self.client.update_trainee(trainee)
         assert trainee.name == updated_trainee.name
         assert updated_trainee.name == 'test-update-verbose'
         out, _ = capsys.readouterr()
-        assert f'Updating trainee with id: {trainee.id}' in out
+        assert f'Updating Trainee with id: {trainee.id}' in out
 
     def test_get_trainee_verbose(self, trainee, capsys):
         """
@@ -883,7 +704,7 @@ class TestBaseClient:
         """
         self.client.get_trainee(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Getting trainee with id: {trainee.id}' in out
+        assert f'Getting Trainee with id: {trainee.id}' in out
 
     def test_set_feature_attributes(self, trainee, capsys):
         """Test that set_feature_attributes works as expected."""
@@ -896,7 +717,7 @@ class TestBaseClient:
         self.client.set_feature_attributes(trainee.id,
                                            feature_attributes=attributes)
         out, _ = capsys.readouterr()
-        assert (f'Setting feature attributes for trainee '
+        assert (f'Setting feature attributes for Trainee '
                 f'with id: {trainee.id}') in out
 
     def test_get_feature_attributes(self, trainee, capsys):
@@ -912,19 +733,19 @@ class TestBaseClient:
                                            feature_attributes=attributes)
         output = self.client.get_feature_attributes(trainee.id)
         out, _ = capsys.readouterr()
-        assert (f'Getting feature attributes from trainee '
+        assert (f'Getting feature attributes from Trainee '
                 f'with id: {trainee.id}') in out
         assert output == attributes
 
-    def test_get_trainee_sessions_verbose(self, trainee, capsys):
+    def test_get_sessions_verbose(self, trainee, capsys):
         """
-        Test that get_trainee_sessions has verbose output when enabled.
+        Test that get_sessions has verbose output when enabled.
 
-        Test for verbose output expected when get_trainee_sessions is called.
+        Test for verbose output expected when get_sessions is called.
         """
-        self.client.get_trainee_sessions(trainee.id)
+        self.client.get_sessions(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Getting sessions from trainee with id: {trainee.id}' in out
+        assert f'Getting sessions from Trainee with id: {trainee.id}' in out
 
     def test_analyze_verbose(self, trainee, capsys):
         """Test for verbose output expected when analyze is called."""
@@ -932,36 +753,8 @@ class TestBaseClient:
         self.client.train(trainee.id, [['iris-setosa']], context_features)
         self.client.analyze(trainee.id, context_features)
         out, _ = capsys.readouterr()
-        assert f'Analyzing trainee with id: {trainee.id}' in out
-        assert 'Analyzing trainee with parameters: ' in out
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_wait_for_action_exception(self, mocker):
-        """
-        Test that wait_for_action raises when expected.
-
-        Tests for expected exception to be raised when the max_wait_time
-        keyword argument is set and time runs over.
-        """
-        mock_action_accepted = AsyncActionAccepted(
-            action_id='test123',
-            operation_type='react'
-        )
-        mock_action_status = AsyncActionStatus(
-            action_id='test123',
-            status='pending',
-            operation_type='react'
-        )
-        mocker.patch(
-            'howso.openapi.api.TaskOperationsApi.get_action_output',
-            return_value=mock_action_status)
-
-        with pytest.raises(HowsoTimeoutError) as exc:
-            self.client.api_client.wait_for_action(
-                mock_action_accepted, max_wait_time=0.5)
-        expected_msg = (
-            "Operation 'react' exceeded max wait time of 0.5 seconds")
-        assert expected_msg in str(exc.value)
+        assert f'Analyzing Trainee with id: {trainee.id}' in out
+        assert 'Analyzing Trainee with parameters: ' in out
 
     def test_acquire_trainee_resources_verbose(self, trainee, capsys):
         """
@@ -972,7 +765,7 @@ class TestBaseClient:
         self.client.persist_trainee(trainee.id)
         self.client.acquire_trainee_resources(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Acquiring resources for trainee with id: {trainee.id}' in out
+        assert f'Acquiring resources for Trainee with id: {trainee.id}' in out
 
     def test_save_trainee_verbose(self, trainee, capsys):
         """
@@ -982,7 +775,7 @@ class TestBaseClient:
         """
         self.client.persist_trainee(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Saving trainee with id: {trainee.id}' in out
+        assert f'Saving Trainee with id: {trainee.id}' in out
 
     def test_release_trainee_resources_verbose(self, trainee, capsys):
         """
@@ -992,7 +785,7 @@ class TestBaseClient:
         """
         self.client.release_trainee_resources(trainee.id)
         out, _ = capsys.readouterr()
-        assert f'Releasing resources for trainee with id: {trainee.id}' in out
+        assert f'Releasing resources for Trainee with id: {trainee.id}' in out
 
     def copy_trainee_verbose(self, trainee, trainee_builder, capsys):
         """
@@ -1002,7 +795,7 @@ class TestBaseClient:
         """
         trainee_builder.copy(trainee.id, f'new_{trainee.id}')
         out, _ = capsys.readouterr()
-        assert f'Copying trainee {trainee.id} to new_{trainee.id}' in out
+        assert f'Copying Trainee {trainee.id} to new_{trainee.id}' in out
 
     def test_delete_trainee_verbose(self, trainee, capsys):
         """
@@ -1012,7 +805,7 @@ class TestBaseClient:
         """
         self.client.delete_trainee(trainee.id)
         out, _ = capsys.readouterr()
-        assert 'Deleting trainee' in out
+        assert 'Deleting Trainee' in out
 
     def test_remove_cases_exception(self, trainee):
         """
@@ -1052,7 +845,7 @@ class TestBaseClient:
         """
         self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
         out, _ = capsys.readouterr()
-        assert ('Reacting into features on trainee with id') in out
+        assert ('Reacting into features on Trainee with id') in out
 
     def test_get_feature_conviction_verbose(self, trainee, capsys):
         """
@@ -1063,7 +856,7 @@ class TestBaseClient:
         """
         self.client.get_feature_conviction(trainee.id)
         out, _ = capsys.readouterr()
-        assert 'Getting conviction of features for trainee with id' in out
+        assert 'Getting conviction of features for Trainee with id' in out
 
     def test_get_params_verbose(self, trainee, capsys):
         """
@@ -1073,7 +866,7 @@ class TestBaseClient:
         """
         self.client.get_params(trainee.id)
         out, _ = capsys.readouterr()
-        assert (f'Getting model attributes from trainee with '
+        assert (f'Getting model attributes from Trainee with '
                 f'id: {trainee.id}') in out
 
     @pytest.mark.parametrize('params', (
@@ -1093,7 +886,7 @@ class TestBaseClient:
         """Test for the verbose output expected when set_params is called."""
         self.client.set_params(trainee.id, params)
         out, _ = capsys.readouterr()
-        assert (f'Setting model attributes for trainee with '
+        assert (f'Setting model attributes for Trainee with '
                 f'id: {trainee.id}') in out
 
     def test_set_and_get_params(self, trainee, trainee_builder):
@@ -1122,27 +915,27 @@ class TestBaseClient:
         # get a prediction with the set parameters
         first_pred = self.client.react(
             trainee.id,
-            contexts=[2, 2],
+            contexts=[[2, 2]],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
         )['action']['petal_length'].iloc[0]
 
         # create another trainee
-        other_trainee = Trainee(
+        other_trainee = trainee_builder.create(
             features={"sepal_length": {'type': 'continuous'},
                       "sepal_width": {'type': 'continuous'},
                       "petal_length": {'type': 'continuous'},
                       "petal_width": {'type': 'continuous'},
-                      "class": {'type': 'nominal'}}
+                      "class": {'type': 'nominal'}},
+            overwrite_trainee=True
         )
-        trainee_builder.create(other_trainee, overwrite_trainee=True)
         other_trainee = self.client.update_trainee(other_trainee)
         self.client.train(other_trainee.id, new_cases, features=features)
 
         # make a prediction on the same case, prediction should be different
         second_pred = self.client.react(
             other_trainee.id,
-            contexts=[2, 2],
+            contexts=[[2, 2]],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
         )['action']['petal_length'].iloc[0]
@@ -1152,7 +945,7 @@ class TestBaseClient:
         self.client.set_params(other_trainee.id, param_map)
         third_pred = self.client.react(
             other_trainee.id,
-            contexts=[2, 2],
+            contexts=[[2, 2]],
             context_features=['sepal_length', 'sepal_width'],
             action_features=['petal_length'],
         )['action']['petal_length'].iloc[0]
@@ -1216,26 +1009,6 @@ class TestBaseClient:
             HowsoClient(config_path="Fake/Path", verbose=True)
         assert "Specified configuration file was not found" in str(exc)
 
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_train_analyzes(self, howso_client, trainee, mocker):
-        """
-        Test that traine analyzes when expected.
-
-        Test that auto_analyze is also called when test_train is called
-        using mocking.
-        """
-        df = pd.read_csv(iris_file_path)
-        data = df.values
-        # Ensure we don't trigger batch_train conditions...
-        data_train = data[:howso_client._train_batch_threshold]
-        return_value = TrainResponse(status="analyze")
-        howso_client._train = mocker.Mock(return_value=return_value)
-
-        spy = mocker.spy(howso_client, 'auto_analyze')
-        howso_client.train(trainee.id, cases=data_train,
-                           features=df.columns.tolist(), batch_size=None)
-        spy.assert_called_once_with(trainee.id)
-
     def test_set_get_substitute_feature_values(self, trainee, capsys):
         """
         Test that set_substitute_feature_values works as expected.
@@ -1255,10 +1028,10 @@ class TestBaseClient:
             trainee.id, substitution_value_map)
         out, _ = capsys.readouterr()
         assert (f'Setting substitute feature values for '
-                f'trainee with id: {trainee.id}') in out
+                f'Trainee with id: {trainee.id}') in out
         ret = self.client.get_substitute_feature_values(trainee.id)
         out, _ = capsys.readouterr()
-        assert (f'Getting substitute feature values from trainee with '
+        assert (f'Getting substitute feature values from Trainee with '
                 f'id: {trainee.id}') in out
         assert ret == substitution_value_map
         ret = self.client.get_substitute_feature_values(trainee.id)
@@ -1281,47 +1054,14 @@ class TestBaseClient:
 
         self.client.set_feature_attributes(trainee.id, feature_attributes=feats)
         out, _ = capsys.readouterr()
-        assert (f'Setting feature attributes for trainee '
+        assert (f'Setting feature attributes for Trainee '
                 f'with id: {trainee.id}') in out
 
         ret = self.client.get_feature_attributes(trainee.id)
         out, _ = capsys.readouterr()
-        assert (f'Getting feature attributes from trainee with '
+        assert (f'Getting feature attributes from Trainee with '
                 f'id: {trainee.id}') in out
         assert ret == feats
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_wait_for_action(self, capsys, mocker):
-        """Test for expected exception and verbose output."""
-        max_wait_time = 1.0
-        operation_type = 'testing'
-
-        mock_action_accepted = AsyncActionAccepted(
-            action_id='test123',
-            operation_type=operation_type
-        )
-        mock_action_status = AsyncActionStatus(
-            action_id='test123',
-            status='pending',
-            operation_type=operation_type
-        )
-        mocker.patch(
-            'howso.openapi.api.TaskOperationsApi.get_action_output',
-            return_value=mock_action_status)
-
-        with pytest.raises(HowsoTimeoutError) as exc:
-            self.client.api_client.wait_for_action(
-                mock_action_accepted, max_wait_time=max_wait_time)
-        expected_msg = (f"Operation '{operation_type}' exceeded max wait time "
-                        f"of {max_wait_time} seconds")
-        assert expected_msg in str(exc.value)
-        max_wait_time = 3
-
-        with pytest.raises(HowsoTimeoutError) as exc:
-            self.client.api_client.wait_for_action(
-                mock_action_accepted, max_wait_time=max_wait_time)
-        out, _ = capsys.readouterr()
-        assert f"Operation '{operation_type}' is pending, waiting " in out
 
     def test_react_exceptions(self, trainee):
         """
@@ -1361,12 +1101,12 @@ class TestBaseClient:
         Test for expected warning when get_cases is called without passing in
         a session id.
         """
-        expected_message = ('Calling get_cases without session id does '
+        expected_message = ('Calling get_cases without a session id does '
                             'not guarantee case order.')
         with pytest.warns(Warning, match=expected_message):
             self.client.get_cases(trainee.id)
             out, _ = capsys.readouterr()
-            assert 'Retrieving cases.' in out
+            assert 'Retrieving cases for Trainee' in out
 
     def test_react_group(self, trainee, capsys):
         """
@@ -1432,7 +1172,7 @@ class TestBaseClient:
         feature = 'test'
         self.client.remove_feature(trainee.id, feature=feature)
         out, _ = capsys.readouterr()
-        assert (f'Removing feature "{feature}" for trainee with id: '
+        assert (f'Removing feature "{feature}" from Trainee with id: '
                 f'{trainee.id}') in out
 
     @pytest.mark.parametrize(
@@ -1472,67 +1212,3 @@ class TestBaseClient:
         mocker.patch.object(Path, 'is_file', return_value=True)
         path = get_configuration_path()
         assert str(path) == 'howso.yml'
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    @pytest.mark.parametrize('client_api_version, api_version, outcome', (
-        ('2.0.0', '3.4.5', False),  # Client version too low
-        ('4.0.0', '3.4.5', False),  # Client version too high
-        ('4.0.0', None, None),  # Unknown version compatibility
-        ('3.0.0', '3.4.5', True),  # Valid client version
-    ))
-    def test_check_service_compatibility(self, mocker, client_api_version,
-                                         api_version, outcome):
-        """
-        Test that check_service_availablity works as expected.
-
-        Ensure that the check_service_compatibility() works for a range of
-        scenarios.
-        """
-        version_response = PlatformVersion(
-            platform='1.0.0',
-            api=api_version
-        )
-        mocker.patch('howso.client.client.client_api_version',
-                     client_api_version)
-        mocker.patch.object(self.client, 'get_version',
-                            return_value=version_response)
-
-        def _has_warning(warnings, msg):
-            return any([
-                msg in str(warning.message) for warning in warnings
-            ])
-
-        if outcome:
-            assert self.client._check_service_compatibility()
-        else:
-            with pytest.warns(UserWarning) as warning_list:
-                assert not self.client._check_service_compatibility()
-
-                if api_version is None:
-                    assert len(warning_list)
-                    assert _has_warning(warning_list, "Proceed with caution")
-                elif int(Version(client_api_version).major) < int(Version(api_version).major):
-                    assert len(warning_list)
-                    assert _has_warning(warning_list,
-                                        'Please upgrade the client software to a '
-                                        'newer version.')
-                elif int(Version(client_api_version).major) > int(Version(api_version).major):
-                    assert len(warning_list)
-                    assert _has_warning(warning_list,
-                                        'Please upgrade the server, or downgrade '
-                                        'the client, to compatible API versions.')
-
-    @pytest.mark.skipif('WEB' not in TEST_OPTIONS, reason='Web client only')
-    def test_check_service_compatibility_item_not_found(self, mocker):
-        """
-        Test check_service_compatibility_item raises warnings when expected.
-
-        Test that a warning is raised if the service does not return a
-        valid version item from its "/version" endpoint.
-        """
-        version_response = PlatformVersion()
-        mocker.patch.object(
-            self.client, 'get_version', return_value=version_response)
-        with pytest.warns(UserWarning) as record:
-            assert self.client._check_service_compatibility() is None
-            assert 'Proceed with caution.' in str(record[0].message)

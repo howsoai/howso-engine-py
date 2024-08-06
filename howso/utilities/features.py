@@ -1,11 +1,13 @@
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
 import decimal
 from enum import Enum
 from functools import partial
 import locale
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Optional
 import warnings
 
-from howso.openapi.models import FeatureAttributes
 import numpy as np
 import pandas as pd
 from pandas.core.dtypes.common import (
@@ -60,23 +62,23 @@ class FeatureSerializer:
     @classmethod
     def serialize(  # noqa: C901
         cls,
-        data: Union[pd.DataFrame, np.ndarray, Iterable[Any]],
-        columns: Iterable[str],
-        features: Dict,
+        data: pd.DataFrame | np.ndarray | Iterable[Any] | None,
+        columns: Iterable[str] | None,
+        features: Mapping,
         *,
         warn: bool = False
-    ) -> Union[List[List[Any]], None]:
+    ) -> list[list[Any]] | None:
         """
         Serialize case data into list of lists.
 
         Parameters
         ----------
-        data : pandas.DataFrame or numpy.ndarray or list of list
+        data : pandas.DataFrame or numpy.ndarray or list of list or None
             The data to serialize.
-        columns : list of str
+        columns : list of str or None
             The case column mapping. The order corresponds to the order of cases
             in output.
-        features : dict
+        features : Mapping
             The dictionary of feature name to feature attributes.
         warn : bool, default False
             If warnings should be raised by serializer.
@@ -156,9 +158,9 @@ class FeatureSerializer:
     @classmethod
     def deserialize(
         cls,
-        data: Union[Iterable[Iterable[Any]], Iterable[Dict[str, Any]]],
+        data: Iterable[Iterable[Any]] | Iterable[Mapping[str, Any]],
         columns: Iterable[str],
-        features: Optional[Dict] = None
+        features: Optional[Mapping] = None
     ) -> pd.DataFrame:
         """
         Deserialize case data into a DataFrame.
@@ -176,7 +178,7 @@ class FeatureSerializer:
             The order corresponds to how the data will be mapped to columns in
             the output. Ignored for list of dict where the dict key is the column
             name.
-        features : dict, default None
+        features : Mapping, default None
             (Optional) The dictionary of feature name to feature attributes.
 
             If not specified, no column typing will be attempted.
@@ -192,7 +194,7 @@ class FeatureSerializer:
         return df
 
     @classmethod
-    def format_dataframe(cls, df: pd.DataFrame, features: Dict
+    def format_dataframe(cls, df: pd.DataFrame, features: Mapping
                          ) -> pd.DataFrame:
         """
         Format DataFrame columns to original type using feature attributes.
@@ -205,7 +207,7 @@ class FeatureSerializer:
         ----------
         df : pandas.DataFrame
             The DataFrame to format columns of.
-        features : Dict
+        features : Mapping
             The dictionary of feature name to feature attributes.
 
         Returns
@@ -224,7 +226,7 @@ class FeatureSerializer:
 
     @classmethod
     def format_column(cls, column: pd.Series,  # noqa: C901
-                      feature: Union[Dict, FeatureAttributes]) -> pd.Series:
+                      feature: Mapping) -> pd.Series:
         """
         Format column based on feature typing information.
 
@@ -232,7 +234,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict or FeatureAttributes
+        feature : Mapping
             The feature attributes for the column.
 
         Returns
@@ -240,10 +242,7 @@ class FeatureSerializer:
         pandas.Series
             The formatted column.
         """
-        if isinstance(feature, FeatureAttributes):
-            feature = feature.to_dict()
-        elif feature is None:
-            feature = {}
+        feature = {} if feature is None else feature
         typing_info = cls._get_typing_info(feature)
         data_type = typing_info.get('data_type')
 
@@ -267,7 +266,7 @@ class FeatureSerializer:
             return cls.format_unknown_column(column, feature)
 
     @classmethod
-    def format_timedelta_column(cls, column: pd.Series, feature: Dict
+    def format_timedelta_column(cls, column: pd.Series, feature: Mapping
                                 ) -> pd.Series:
         """
         Format timedelta column.
@@ -276,7 +275,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict
+        feature : Mapping
             The feature attributes for the column.
 
         Returns
@@ -305,7 +304,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_datetime_column(cls, column: pd.Series, feature: Dict  # noqa: C901
+    def format_datetime_column(cls, column: pd.Series, feature: Mapping  # noqa: C901
                                ) -> pd.Series:
         """
         Format datetime column.
@@ -314,7 +313,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict
+        feature : Mapping
             The feature attributes for the column.
 
         Returns
@@ -382,7 +381,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_date_column(cls, column: pd.Series, feature: Dict
+    def format_date_column(cls, column: pd.Series, feature: Mapping
                            ) -> pd.Series:
         """
         Format date only column.
@@ -391,7 +390,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict
+        feature : Mapping
             The feature attributes for the column.
 
         Returns
@@ -422,7 +421,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_time_column(cls, column: pd.Series, feature: Dict  # noqa: C901
+    def format_time_column(cls, column: pd.Series, feature: Mapping  # noqa: C901
                            ) -> pd.Series:
         """
         Format time only column.
@@ -431,7 +430,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict
+        feature : Mapping
             The feature attributes for the column.
 
         Returns
@@ -460,7 +459,7 @@ class FeatureSerializer:
             return column.apply(partial(seconds_to_time, tzinfo=tz))
 
     @classmethod
-    def format_boolean_column(cls, column: pd.Series, feature: Dict
+    def format_boolean_column(cls, column: pd.Series, feature: Mapping
                               ) -> pd.Series:
         """
         Format boolean column.
@@ -469,7 +468,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict
+        feature : Mapping
             The feature attributes for the column.
 
         Returns
@@ -490,7 +489,7 @@ class FeatureSerializer:
             return column
 
     @classmethod
-    def format_integer_column(cls, column: pd.Series, feature: Dict
+    def format_integer_column(cls, column: pd.Series, feature: Mapping
                               ) -> pd.Series:
         """
         Format integer column.
@@ -499,7 +498,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict
+        feature : Mapping
             The feature attributes for the column.
 
         Returns
@@ -543,7 +542,7 @@ class FeatureSerializer:
             return column
 
     @classmethod
-    def format_numeric_column(cls, column: pd.Series, feature: Dict
+    def format_numeric_column(cls, column: pd.Series, feature: Mapping
                               ) -> pd.Series:
         """
         Format numeric column.
@@ -552,7 +551,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict
+        feature : Mapping
             The feature attributes for the column.
 
         Returns
@@ -594,7 +593,7 @@ class FeatureSerializer:
             return column
 
     @classmethod
-    def format_string_column(cls, column: pd.Series, feature: Dict
+    def format_string_column(cls, column: pd.Series, feature: Mapping
                              ) -> pd.Series:
         """
         Format string column.
@@ -603,7 +602,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict
+        feature : Mapping
             The feature attributes for the column.
 
         Returns
@@ -615,7 +614,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_unknown_column(cls, column: pd.Series, feature: Dict
+    def format_unknown_column(cls, column: pd.Series, feature: Mapping
                               ) -> pd.Series:
         """
         Format unknown typed column.
@@ -624,7 +623,7 @@ class FeatureSerializer:
         ----------
         column : pandas.Series
             The column to format.
-        feature : dict
+        feature : Mapping
             The feature attributes for the column.
 
         Returns
@@ -636,13 +635,13 @@ class FeatureSerializer:
         return column
 
     @staticmethod
-    def _get_typing_info(feature: Optional[Dict]) -> Dict:
+    def _get_typing_info(feature: Optional[Mapping]) -> dict:
         """
         Get typing info from feature attributes.
 
         Parameters
         ----------
-        feature : Dict or None
+        feature : Mapping or None
             The feature attributes.
 
         Returns

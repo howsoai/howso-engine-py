@@ -316,10 +316,6 @@ flake8-import-order==0.18.2 \
     --hash=sha256:82ed59f1083b629b030ee9d3928d9e06b6213eb196fe745b3a7d4af2168130df \
     --hash=sha256:e23941f892da3e0c09d711babbb0c73bc735242e9b216b726616758a920d900e
     # via howso-engine (pyproject.toml)
-howso-openapi-client==37.0.4 \
-    --hash=sha256:a36f0f15269951cac6cd43b676849c9e05de2310ac1db683ff165cb9be970f0e \
-    --hash=sha256:f53fe1abdaa5f968e2ee8535131741580967dfc3456e85bd977cffe1b41de64f
-    # via howso-engine (pyproject.toml)
 humanize==4.10.0 \
     --hash=sha256:06b6eb0293e4b85e8d385397c5868926820db32b9b654b932f57fa41c23c9978 \
     --hash=sha256:39e7ccb96923e732b5c2e27aeaa3b10a8dfeeba3eb965ba7b74a3eb0e30040a6
@@ -614,7 +610,6 @@ python-dateutil==2.9.0.post0 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
     # via
     #   faker
-    #   howso-openapi-client
     #   pandas
 pytz==2024.1 \
     --hash=sha256:2a29735ea9c18baf14b448846bde5a48030ed267578472d8955cd0e7443a9812 \
@@ -678,7 +673,9 @@ pyyaml==6.0.1 \
 requests==2.32.3 \
     --hash=sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760 \
     --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
-    # via pmlb
+    # via
+    #   howso-engine (pyproject.toml)
+    #   pmlb
 rich==13.7.1 \
     --hash=sha256:4edbae314f59eb482f54e9e30bf00d33350aaa94f4bfcd4e9e3110e64d0d7222 \
     --hash=sha256:9be308cb1fe2f1f57d67ce99e95af38a1e2bc71ad9813b0e247cf7ffbcc3a432
@@ -740,9 +737,7 @@ semantic-version==2.10.0 \
 six==1.16.0 \
     --hash=sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926 \
     --hash=sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254
-    # via
-    #   howso-openapi-client
-    #   python-dateutil
+    # via python-dateutil
 snowballstemmer==2.2.0 \
     --hash=sha256:09b16deb8547d3412ad7b590689584cd0fe25ec8db3be37788be3810cbf19cb1 \
     --hash=sha256:c8e1716e83cc398ae16824e5572ae04e0d9fc2c6b985fb0f900f5f0c96ecba1a
@@ -778,10 +773,7 @@ tzdata==2024.1 \
 urllib3==2.2.2 \
     --hash=sha256:a448b2f64d686155468037e1ace9f2d2199776e17f0a46610480d311f73e3472 \
     --hash=sha256:dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168
-    # via
-    #   howso-engine (pyproject.toml)
-    #   howso-openapi-client
-    #   requests
+    # via requests
 wheel==0.44.0 \
     --hash=sha256:2376a90c98cc337d18623527a97c31797bd02bad0033d41547043a1cbfbe448f \
     --hash=sha256:a29c3f2817e95ab89aa4660681ad547c0e9547f20e75b0562fe7723c9a2a9d49
@@ -803,5 +795,4 @@ setuptools==72.1.0 \
     --hash=sha256:8d243eff56d095e5817f796ede6ae32941278f542e0f941867cc05ae52b162ec
     # via
     #   flake8-import-order
-    #   howso-openapi-client
     #   pip-tools
