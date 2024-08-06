@@ -784,9 +784,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.execute(trainee_id, "set_metadata", {"metadata": trainee_metadata})
 
         # Set the feature attributes
-        features = internals.preprocess_feature_attributes(features)
-        self.execute(trainee_id, "set_feature_attributes", {"features": features})
-        features = self.execute(trainee_id, "get_feature_attributes", {})
+        features = self.execute(trainee_id, "set_feature_attributes", {
+            "feature_attributes": internals.preprocess_feature_attributes(features)
+        })
         features = internals.postprocess_feature_attributes(features)
 
         # Cache and return the trainee

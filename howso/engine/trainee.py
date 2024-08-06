@@ -295,7 +295,7 @@ class Trainee(BaseTrainee):
         return self._calculated_matrices
 
     @property
-    def active_session(self) -> Session | None:
+    def active_session(self) -> Session:
         """
         The active session.
 
@@ -304,8 +304,10 @@ class Trainee(BaseTrainee):
         Session or None
             The session instance, if it exists.
         """
-        if isinstance(self.client, AbstractHowsoClient) and self.client.active_session:
+        if isinstance(self.client, AbstractHowsoClient):
             return Session.from_schema(self.client.active_session, client=self.client)
+        else:
+            raise AssertionError("Client must have the 'active_session' property.")
 
     def save(self, file_path: t.Optional[PathLike] = None):
         """
@@ -366,7 +368,9 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Trainee ID is needed for saving.")
 
-    def set_feature_attributes(self, feature_attributes: Mapping[str, Mapping] | SingleTableFeatureAttributes):
+    def set_feature_attributes(
+        self, feature_attributes: Mapping[str, Mapping] | SingleTableFeatureAttributes
+    ) -> SingleTableFeatureAttributes:
         """
         Update the trainee feature attributes.
 
@@ -375,11 +379,17 @@ class Trainee(BaseTrainee):
         feature_attributes : Mapping of {str: Mapping}
             The feature attributes of the trainee. Where feature ``name`` is the
             key and a sub dictionary of feature attributes is the value.
+
+        Returns
+        -------
+        SingleTableFeatureAttributes
+            The updated feature attributes of the trainee.
         """
         if isinstance(self.client, AbstractHowsoClient):
             self._features = self.client.set_feature_attributes(
                 trainee_id=self.id, feature_attributes=feature_attributes
             )
+            return self.features
         else:
             raise AssertionError("Client must have the 'set_feature_attributes' method.")
 
