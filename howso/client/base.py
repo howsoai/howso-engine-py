@@ -4889,7 +4889,7 @@ class AbstractHowsoClient(ABC):
     def clear_imputed_data(
         self,
         trainee_id: str,
-        impute_session: t.Optional[str | Session] = None,
+        impute_session: t.Optional[str | Session] = None
     ):
         """
         Clears values that were imputed during a specified session.
