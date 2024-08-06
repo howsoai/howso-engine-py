@@ -13,7 +13,6 @@ from howso.utilities import (
     LocaleOverride,
     matrix_processing,
 )
-from howso.utilities.reaction import Reaction
 import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
@@ -304,75 +303,6 @@ def test_determine_iso_format(date_str, format_str):
         assert format_str == utils.determine_iso_format(date_str, "_")
 
 
-def test_cases_with_details_add_reaction():
-    """Tests that `Reaction` `add_reaction` works with different data types."""
-    df = pd.DataFrame(data=np.asarray([
-        ['a', 'b', 'c', 'd'],
-        ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
-            '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
-    ]).transpose(), columns=['nom', 'datetime'])
-
-    react_response = {
-        'details': {'action_features': ['datetime']},
-        'action': df
-    }
-
-    cwd = Reaction()
-    cwd.add_reaction(react_response['action'], react_response['details'])
-    cwd.add_reaction(react_response['action'].to_dict(), react_response['details'])
-    # List of dicts
-    cwd.add_reaction(react_response['action'].to_dict(orient='records'), react_response['details'])
-    cwd.add_reaction(Reaction(react_response['action'], react_response['details']))
-
-    assert cwd['action'].shape[0] == 16
-
-
-def test_cases_with_details_instantiate():
-    """Tests that `Reaction` can be instantiated with different data types."""
-    df = pd.DataFrame(data=np.asarray([
-        ['a', 'b', 'c', 'd'],
-        ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
-            '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
-    ]).transpose(), columns=['nom', 'datetime'])
-
-    react_response = {
-        'details': {'action_features': ['datetime']},
-        'action': df
-    }
-
-    cwd = Reaction(react_response['action'], react_response['details'])
-    assert cwd['action'].shape[0] == 4
-
-    cwd = Reaction(react_response['action'].to_dict(), react_response['details'])
-    assert cwd['action'].shape[0] == 4
-
-    cwd = Reaction(react_response['action'].to_dict(orient='records'), react_response['details'])
-    assert cwd['action'].shape[0] == 4
-
-
-def test_reaction_reorganized_details_invalid():
-    """Tests that `Reaction` `reorganized_details` property works."""
-    df = pd.DataFrame(data=np.asarray([
-        ['a', 'b', 'c', 'd'],
-        ['2020-9-12T9:09:09.123', '2020-10-12T10:10:10.333',
-            '2020-12-12T12:12:12.444', '2020-10-11T11:11:11.222']
-    ]).transpose(), columns=['nom', 'datetime'])
-
-    # 'action_features' is a special key and should also not raise any warnings.
-    react_response = {
-        'details': {
-            'action_features': ['datetime'],
-            'similarity_conviction': [5],
-            'invalid': [4],
-        },
-        'action': df
-    }
-
-    cwd = Reaction(react_response['action'], react_response['details'])
-    with pytest.warns(UserWarning, match="Unrecognized detail keys found: \\[invalid\\] and"):
-        cwd.reorganized_details
-
-
 def test_get_matrix_diff():
     """Tests that `get_matrix_diff` works properly."""
     df = pd.DataFrame({
@@ -635,7 +565,7 @@ def test_matrix_processing_normalization_callable():
         'c': [0.5, -1.5, 3.0],
     }, index=['a', 'b', 'c']).T
 
-    # This is the exact same function as the 'absolute_sum' normalization method, 
+    # This is the exact same function as the 'absolute_sum' normalization method,
     # thus it should return the same results.
     def divide_by_sum_abs(row):
         sum_abs = row.abs().sum()

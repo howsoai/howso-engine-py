@@ -4,20 +4,21 @@ Internal utilities.
 Notice: These are internal utilities and are not intended to be
         referenced directly.
 """
+from __future__ import annotations
+
 from collections import OrderedDict
 from collections.abc import Iterable
 from copy import deepcopy
 import datetime
 import decimal
 from inspect import getfullargspec
+import json
 import logging
 import math
+from pathlib import Path
 import random
 import re
-from typing import (
-    Any, Dict, Generator, Iterable, List, Mapping, NamedTuple, Optional, Tuple,
-    TYPE_CHECKING, Union,
-)
+from typing import Any, Generator, List, Mapping, NamedTuple, Optional, Tuple, TYPE_CHECKING, Union
 import unicodedata
 import uuid
 import warnings
@@ -33,51 +34,8 @@ if TYPE_CHECKING:
     from .monitors import ProgressTimer
 
 
-def postprocess_trainee(trainee):
-    """
-    Post-process a trainee to update its data into the expected format.
-
-    Should be used on trainee objects returned from the API.
-    NOTE: Mutates the original trainee object.
-
-    Parameters
-    ----------
-    trainee : Trainee
-        The trainee instance.
-
-    Returns
-    -------
-    Trainee
-        The trainee instance.
-    """
-    trainee.features = postprocess_feature_attributes(trainee.features)
-    return trainee
-
-
-def preprocess_trainee(trainee):
-    """
-    Pre-process a trainee to update its data into the expected format.
-
-    Should be used on trainee objects before sending to the API.
-    Does not mutate the original trainee object.
-
-    Parameters
-    ----------
-    trainee : Trainee
-        The trainee instance.
-
-    Returns
-    -------
-    Trainee
-        Updated copy of the trainee instance.
-    """
-    trainee = deepcopy(trainee)
-    trainee.features = preprocess_feature_attributes(trainee.features)
-    return trainee
-
-
 def deserialize_to_dataframe(
-    data: Union[Iterable[Iterable[object]], Iterable[Dict[str, object]]],
+    data: Iterable[Iterable[Any]] | Iterable[Mapping[str, Any]] | None,
     columns: Optional[Iterable[str]] = None,
     index: Optional[Iterable[Any]] = None
 ) -> pd.DataFrame:
@@ -154,9 +112,9 @@ def get_features_from_data(
             f"`{data_parameter}` are not provided as a DataFrame.")
 
 
-def serialize_openapi_models(obj: Any, *, exclude_null: bool = False) -> Any:
+def serialize_models(obj: Any, *, exclude_null: bool = False) -> Any:
     """
-    Serialize OpenAPI client model instances.
+    Serialize client model instances.
 
     Parameters
     ----------
@@ -169,18 +127,18 @@ def serialize_openapi_models(obj: Any, *, exclude_null: bool = False) -> Any:
     """
     if isinstance(obj, list):
         return [
-            serialize_openapi_models(item, exclude_null=exclude_null)
+            serialize_models(item, exclude_null=exclude_null)
             for item in obj
         ]
     if isinstance(obj, OrderedDict):
         # Use OrderedDict if input is an OrderedDict, for consistency
         result = OrderedDict()
         for k, v in obj.items():
-            result[k] = serialize_openapi_models(v, exclude_null=exclude_null)
+            result[k] = serialize_models(v, exclude_null=exclude_null)
         return result
     if isinstance(obj, dict):
         return {
-            k: serialize_openapi_models(v, exclude_null=exclude_null)
+            k: serialize_models(v, exclude_null=exclude_null)
             for k, v in obj.items()
         }
     if hasattr(obj, 'to_dict'):
@@ -192,7 +150,7 @@ def serialize_openapi_models(obj: Any, *, exclude_null: bool = False) -> Any:
     return obj
 
 
-def postprocess_feature_attributes(features):
+def postprocess_feature_attributes(features: Mapping | None) -> dict:
     """
     Post-process feature attributes into the expected client format.
 
@@ -201,21 +159,21 @@ def postprocess_feature_attributes(features):
 
     Parameters
     ----------
-    features : dict
+    features : dict or None
         Dictionary of feature name to feature value.
 
     Returns
     -------
-    dict or None
+    dict
         The updated copy of features.
     """
     if features is None:
-        return None
+        return {}
 
     # Serialize any OpenAPI models
-    features = deepcopy(serialize_openapi_models(features))
+    feature_attributes: dict = deepcopy(serialize_models(features))
 
-    for feat in features.values():
+    for feat in feature_attributes.values():
         if feat is None:
             continue
 
@@ -234,10 +192,10 @@ def postprocess_feature_attributes(features):
             except (TypeError, KeyError):
                 pass
 
-    return features
+    return feature_attributes
 
 
-def preprocess_feature_attributes(features):
+def preprocess_feature_attributes(features: Mapping | None) -> dict | None:
     """
     Pre-process feature attributes into the expected API format.
 
@@ -259,12 +217,17 @@ def preprocess_feature_attributes(features):
         return None
 
     # Serialize any OpenAPI models
-    features = deepcopy(serialize_openapi_models(features))
+    feature_attributes: dict = deepcopy(serialize_models(features))
 
     regex = re.compile(r"%S.%f")
-    for feat in features.values():
+    for key, feat in feature_attributes.items():
         if feat is None:
             continue
+
+        if not isinstance(key, str):
+            raise ValueError("Feature attribute keys must be strings.")
+        elif not key.strip():
+            raise ValueError("Feature attribute keys may not be blank.")
 
         # Set decimal places to 0 when %S is in datetime format but %f is not.
         # This prevents core from returning microseconds
@@ -291,7 +254,7 @@ def preprocess_feature_attributes(features):
         except (KeyError, TypeError, ValueError):
             pass
 
-    return features
+    return feature_attributes
 
 
 def format_react_response(response, single_action=False):
@@ -369,6 +332,26 @@ def accumulate_react_result(accumulated_result, result):
             accumulated_result[k].extend(v)
 
     return accumulated_result
+
+
+def random_handle() -> str:
+    """
+    Generate a random 6 byte hexadecimal handle.
+
+    Returns
+    -------
+    str
+        A random 6 byte hex.
+    """
+    try:
+        # Use of secrets/uuid must be used instead of the "random" package
+        # as they will not be affected by setting random.seed which could
+        # cause duplicate handles to be generated.
+        import secrets
+        return secrets.token_hex(6)
+    except (ImportError, NotImplementedError):
+        # Fallback to uuid if operating system does not support secrets
+        return uuid.uuid4().hex[-12:]
 
 
 def slugify(value, allow_unicode=False):
@@ -639,6 +622,26 @@ def readable_timedelta(delta: datetime.timedelta, *,
     return precisedelta(delta, minimum_unit=minimum_unit, format=decimal_format)
 
 
+def get_packaged_engine_version() -> Version | None:
+    """
+    Get the packaged engine version.
+
+    Returns
+    -------
+    Version or None
+        The packaged engine version or None if not available.
+    """
+    file_path = Path(__file__).parent.parent.joinpath("howso-engine", "version.json")
+    if not file_path.exists():
+        return None
+    try:
+        with open(file_path, "r") as f:
+            detail = json.loads(f.read())
+        return Version(detail["version"])
+    except Exception:
+        return None
+
+
 class BatchScalingManager:
     """
     Manages scaling batching operations.
@@ -874,7 +877,7 @@ class IgnoreWarnings:
 
     def __init__(
         self,
-        warning_types: Union[Warning, Iterable[Warning]]
+        warning_types: Union[type[Warning], Iterable[type[Warning]]]
     ):
         """Initialize a new `catch_warnings` instance."""
         self._catch_warnings = warnings.catch_warnings()

@@ -1,21 +1,15 @@
-from typing import (
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Union,
-)
+from __future__ import annotations
 
-from howso.client.client import get_howso_client_class
-from howso.utilities import (
-    build_react_series_df,
-    deserialize_cases,
-    format_dataframe,
-)
-from howso.utilities.internals import deserialize_to_dataframe
-from howso.utilities.reaction import Reaction
+from collections.abc import Iterable
+from typing import Optional
+
 import pandas as pd
 from pandas import DataFrame, Index
+
+from howso.client.client import get_howso_client_class
+from howso.client.schemas.reaction import Reaction
+from howso.utilities import deserialize_cases, format_dataframe
+from howso.utilities.internals import deserialize_to_dataframe
 
 
 class HowsoPandasClientMixin:
@@ -25,30 +19,30 @@ class HowsoPandasClientMixin:
     Base: :class:`howso.client.AbstractHowsoClient`
     """
 
-    def get_trainee_session_indices(self, *args, **kwargs) -> Index:
+    def get_session_indices(self, *args, **kwargs) -> Index:
         """
-        Base: :func:`howso.client.AbstractHowsoClient.get_trainee_session_indices`.
+        Base: :func:`howso.client.AbstractHowsoClient.get_session_indices`.
 
         Returns
         -------
         Index
             An index of the session indices for the requested session.
         """
-        indices = super().get_trainee_session_indices(*args, **kwargs)
+        indices = super().get_session_indices(*args, **kwargs)
         if isinstance(indices, list):
             return pd.Index(indices, dtype='int64')
         return pd.Index([], dtype='int64')
 
-    def get_trainee_session_training_indices(self, *args, **kwargs) -> Index:
+    def get_session_training_indices(self, *args, **kwargs) -> Index:
         """
-        Base: :func:`howso.client.AbstractHowsoClient.get_trainee_session_training_indices`.
+        Base: :func:`howso.client.AbstractHowsoClient.get_session_training_indices`.
 
         Returns
         -------
         Index
             An index of the session training indices for the requested session.
         """
-        indices = super().get_trainee_session_training_indices(*args, **kwargs)
+        indices = super().get_session_training_indices(*args, **kwargs)
         if isinstance(indices, list):
             return pd.Index(indices, dtype='int64')
         return pd.Index([], dtype='int64')
@@ -80,11 +74,14 @@ class HowsoPandasClientMixin:
         DataFrame
             A DataFrame of feature name columns and case rows.
         """
-        trainee_id = self._resolve_trainee_id(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self.resolve_feature_attributes(trainee_id)
         response = super().get_cases(trainee_id, *args, **kwargs)
-        return deserialize_cases(response.cases, response.features,
-                                 feature_attributes)
+        return deserialize_cases(
+            response['cases'],
+            response['features'],
+            feature_attributes
+        )
 
     def get_extreme_cases(
         self,
@@ -112,12 +109,14 @@ class HowsoPandasClientMixin:
         DataFrame
             A DataFrame of feature name columns and extreme case rows.
         """
-        trainee_id = self._resolve_trainee_id(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
-        response = super().get_extreme_cases(trainee_id, num, sort_feature,
-                                             features)
-        return deserialize_cases(response.cases, response.features,
-                                 feature_attributes)
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self.resolve_feature_attributes(trainee_id)
+        response = super().get_extreme_cases(trainee_id, num, sort_feature, features)
+        return deserialize_cases(
+            response['cases'],
+            response['features'],
+            feature_attributes
+        )
 
     def get_feature_conviction(self, *args, **kwargs) -> DataFrame:
         """
@@ -190,15 +189,13 @@ class HowsoPandasClientMixin:
                 action -> pandas.DataFrame
                     A data frame of action values.
 
-                details -> Dict or List
+                details -> dict or list
                     An aggregated list of any requested details.
         """
-        trainee_id = self._resolve_trainee_id(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self.resolve_feature_attributes(trainee_id)
         response = super().react_series(trainee_id, *args, series_index=series_index, **kwargs)
-
         response['action'] = format_dataframe(response.get("action"), feature_attributes)
-
         return response
 
     def react(self, trainee_id, *args, **kwargs) -> Reaction:
@@ -212,36 +209,16 @@ class HowsoPandasClientMixin:
                 action -> pandas.DataFrame
                     A data frame of action values.
 
-                details -> Dict or List
+                details -> dict or list
                     An aggregated list of any requested details.
         """
-        trainee_id = self._resolve_trainee_id(trainee_id)
-        feature_attributes = self.trainee_cache.get(trainee_id).features
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self.resolve_feature_attributes(trainee_id)
         response = super().react(trainee_id, *args, **kwargs)
         columns = response['details'].get('action_features')
         if 'prediction_stats' in response['details']:
             response['details']['prediction_stats'] = pd.DataFrame(response['details']['prediction_stats'][0]).T
-        response['action'] = deserialize_cases(response['action'], columns,
-                                               feature_attributes)
-        return response
-
-    def get_distances(self, *args, **kwargs) -> Dict[str, Union[DataFrame, List]]:
-        """
-        base: :func:`howso.client.AbstractHowsoClient.get_distances`.
-
-        Returns
-        -------
-        dict
-            A dict containing a matrix of computed distances and the list of
-            corresponding case indices in the following format::
-
-                {
-                    'case_indices': [ session-indices ],
-                    'distances': DataFrame[ distances ]
-                }
-        """
-        response = super().get_distances(*args, **kwargs)
-        response['distances'] = deserialize_to_dataframe(response['distances'])
+        response['action'] = deserialize_cases(response['action'], columns, feature_attributes)
         return response
 
 

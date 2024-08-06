@@ -1,25 +1,28 @@
 """The Python API for the Howso Engine Client."""
 
-from . import typing  # noqa: F401
-from .client import get_client, use_client  # noqa: F401
-from .project import (  # noqa: F401
+from howso.client import typing
+from .client import get_client, use_client
+from .project import (
     delete_project,
     get_project,
     list_projects,
     Project,
+    query_projects,
     switch_project,
 )
-from .session import (  # noqa: F401
+from .session import (
     get_active_session,
     get_session,
     list_sessions,
+    query_sessions,
     Session,
 )
-from .trainee import (  # noqa: F401
+from .trainee import (
     delete_trainee,
     get_trainee,
     list_trainees,
     load_trainee,
+    query_trainees,
     Trainee,
 )
 
@@ -36,6 +39,9 @@ __all__ = [
     "list_trainees",
     "load_trainee",
     "Project",
+    "query_projects",
+    "query_sessions",
+    "query_trainees",
     "Session",
     "switch_project",
     "Trainee",
