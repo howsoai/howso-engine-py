@@ -4886,7 +4886,12 @@ class AbstractHowsoClient(ABC):
         self.execute(trainee_id, "set_internal_parameters", parameters)
         self._auto_persist_trainee(trainee_id)
 
-    def clear_imputed_data(self, trainee_id: str, session: str, *, impute_session: t.Optional[str]):
+    def clear_imputed_data(
+        self,
+        trainee_id: str,
+        *,
+        impute_session: t.Optional[str | Session]
+    ):
         """
         Clears values that were imputed during a specified session.
 
@@ -4896,14 +4901,16 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The id of the trainee.
-        session : str
-            Session id of this action.
-        impute_session : str, optional
-            Session id of the impute for which to clear the data. If none is provided, will clear all imputed.
+        impute_session : str or Session, optional
+            Session or session identifier of the impute for which to clear the data.
+            If none is provided, will clear all imputed.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
 
+        if not self.active_session:
+            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+
         self.execute(trainee_id, "clear_imputed_data", {
-            "session": session,
+            "session": self.active_session,
             "impute_session": impute_session,
         })

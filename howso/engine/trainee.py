@@ -3426,7 +3426,7 @@ class Trainee(BaseTrainee):
         self,
         session: str,
         *,
-        impute_session: t.Optional[str],
+        impute_session: t.Optional[str | BaseSession]
     ):
         """
         Clears values that were imputed during a specified session.
@@ -3437,13 +3437,13 @@ class Trainee(BaseTrainee):
         ----------
         session : str
             Session id of this action.
-        impute_session : str, optional
-            Session id of the impute for which to clear the data. If none is provided, will clear all imputed.
+        impute_session : str or Session, optional
+            Session or session identifier of the impute for which to clear the data.
+            If none is provided, will clear all imputed.
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.clear_imputed_data(
                 trainee_id=self.id,
-                session=session,
                 impute_session=impute_session,
             )
         else:
