@@ -57,12 +57,12 @@ SOFTWARE.
 
 
 PyYAML
-6.0.1
+6.0.2
 MIT License
 Kirill Simonov
 https://pyyaml.org/
 YAML parser and emitter for Python
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/PyYAML-6.0.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/PyYAML-6.0.2.dist-info/LICENSE
 Copyright (c) 2017-2021 Ingy döt Net
 Copyright (c) 2006-2016 Kirill Simonov
 
