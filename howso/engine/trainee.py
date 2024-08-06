@@ -390,7 +390,7 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         metadata : map of str -> any, optional
-            t.Any key-value pair to store as custom metadata for the trainee.
+            Any key-value pair to store as custom metadata for the trainee.
             Providing ``None`` will remove the current metadata.
         """
         self._metadata = metadata
