@@ -3697,7 +3697,6 @@ class AbstractHowsoClient(ABC):
         analyze_threshold: t.Optional[int] = None,
         *,
         analysis_sub_model_size: t.Optional[int] = None,
-        auto_analyze_limit_size: t.Optional[int] = None,
         analyze_growth_factor: t.Optional[float] = None,
         action_features: t.Optional[Collection[str]] = None,
         bypass_calculate_feature_residuals: t.Optional[bool] = None,
@@ -3730,9 +3729,6 @@ class AbstractHowsoClient(ABC):
         analyze_threshold : int, optional
             The threshold for the number of cases at which the model should be
             re-analyzed.
-        auto_analyze_limit_size : int, optional
-            The size of of the model at which to stop doing auto-analysis.
-            Value of 0 means no limit.
         analyze_growth_factor : float, optional
             The factor by which to increase the analyze threshold every time
             the model grows to the current threshold size.
@@ -3799,7 +3795,6 @@ class AbstractHowsoClient(ABC):
             'auto_optimize_enabled': 'auto_analyze_enabled',
             'optimize_threshold': 'analyze_threshold',
             'optimize_growth_factor': 'analyze_growth_factor',
-            'auto_optimize_limit_size': 'auto_analyze_limit_size',
         }
         analyze_deprecated_params = {
             'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
@@ -3818,8 +3813,6 @@ class AbstractHowsoClient(ABC):
                         analyze_threshold = kwargs[old_param]
                     elif old_param == 'optimize_growth_factor':
                         analyze_growth_factor = kwargs[old_param]
-                    elif old_param == 'auto_optimize_limit_size':
-                        auto_analyze_limit_size = kwargs[old_param]
 
                     del kwargs[old_param]
                     warnings.warn(
@@ -3859,7 +3852,6 @@ class AbstractHowsoClient(ABC):
         self.execute(trainee_id, "set_auto_analyze_params", {
             "auto_analyze_enabled": auto_analyze_enabled,
             "analyze_threshold": analyze_threshold,
-            "auto_analyze_limit_size": auto_analyze_limit_size,
             "analyze_growth_factor": analyze_growth_factor,
             "action_features": action_features,
             "context_features": context_features,
@@ -3904,7 +3896,9 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         auto_ablation_enabled: bool = False,
         *,
+        ablated_cases_distribution_batch_size: int = 100,
         auto_ablation_weight_feature: str = ".case_weight",
+        batch_size: int = 2_000,
         conviction_lower_threshold: t.Optional[float] = None,
         conviction_upper_threshold: t.Optional[float] = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
@@ -3932,8 +3926,13 @@ class AbstractHowsoClient(ABC):
             The ID of the Trainee to set auto ablation parameters for.
         auto_ablation_enabled : bool, default False
             When True, the :meth:`train` method will ablate cases that meet the set criteria.
+        ablated_cases_distribution_batch_size: int, default 100
+            Number of cases in a batch to distribute ablated cases' influence weights.
         auto_ablation_weight_feature : str, default ".case_weight"
             The weight feature that should be accumulated to when cases are ablated.
+        batch_size: number, default 2,000
+            Number of cases in a batch to consider for ablation prior to training and
+            to recompute influence weight entropy.
         minimum_model_size : int, default 1,000
             The threshold of the minimum number of cases at which the model should auto-ablate.
         influence_weight_entropy_threshold : float, default 0.6
@@ -3956,8 +3955,10 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         params = dict(
+            ablated_cases_distribution_batch_size=ablated_cases_distribution_batch_size,
             auto_ablation_enabled=auto_ablation_enabled,
             auto_ablation_weight_feature=auto_ablation_weight_feature,
+            batch_size=batch_size,
             minimum_model_size=minimum_model_size,
             influence_weight_entropy_threshold=influence_weight_entropy_threshold,
             exact_prediction_features=exact_prediction_features,
@@ -4869,8 +4870,7 @@ class AbstractHowsoClient(ABC):
         deprecated_params = {
             'auto_optimize_enabled': 'auto_analyze_enabled',
             'optimize_threshold': 'analyze_threshold',
-            'optimize_growth_factor': 'analyze_growth_factor',
-            'auto_optimize_limit_size': 'auto_analyze_limit_size',
+            'optimize_growth_factor': 'analyze_growth_factor'
         }
 
         # replace any old params with new params and remove old param
