@@ -702,7 +702,9 @@ class Trainee(BaseTrainee):
         self,
         auto_ablation_enabled: bool = False,
         *,
+        ablated_cases_distribution_batch_size: int = 100,
         auto_ablation_weight_feature: str = ".case_weight",
+        batch_size: int = 2_000,
         conviction_lower_threshold: t.Optional[float] = None,
         conviction_upper_threshold: t.Optional[float] = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
@@ -728,8 +730,13 @@ class Trainee(BaseTrainee):
         ----------
         auto_ablation_enabled : bool, default False
             When True, the :meth:`train` method will ablate cases that meet the set criteria.
+        ablated_cases_distribution_batch_size: int, default 100
+            Number of cases in a batch to distribute ablated cases' influence weights.
         auto_ablation_weight_feature : str, default ".case_weight"
             The weight feature that should be accumulated to when cases are ablated.
+        batch_size: number, default 2,000
+            Number of cases in a batch to consider for ablation prior to training and
+            to recompute influence weight entropy.
         minimum_model_size : int, default 1,000
             The threshold ofr the minimum number of cases at which the model should auto-ablate.
         influence_weight_entropy_threshold : float, default 0.6
@@ -753,8 +760,10 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             self.client.set_auto_ablation_params(
                 trainee_id=self.id,
+                ablated_cases_distribution_batch_size=ablated_cases_distribution_batch_size,
                 auto_ablation_enabled=auto_ablation_enabled,
                 auto_ablation_weight_feature=auto_ablation_weight_feature,
+                batch_size=batch_size,
                 minimum_model_size=minimum_model_size,
                 influence_weight_entropy_threshold=influence_weight_entropy_threshold,
                 exact_prediction_features=exact_prediction_features,
@@ -826,7 +835,6 @@ class Trainee(BaseTrainee):
         auto_analyze_enabled: bool = False,
         analyze_threshold: t.Optional[int] = None,
         *,
-        auto_analyze_limit_size: t.Optional[int] = None,
         analyze_growth_factor: t.Optional[float] = None,
         **kwargs,
     ) -> None:
@@ -847,9 +855,6 @@ class Trainee(BaseTrainee):
         analyze_threshold : int, optional
             The threshold for the number of cases at which the model should be
             re-analyzed.
-        auto_analyze_limit_size : int, optional
-            The size of the model at which to stop doing auto-analysis. Value of
-            0 means no limit.
         analyze_growth_factor : float, optional
             The factor by which to increase the analysis threshold every
             time the model grows to the current threshold size.
@@ -860,7 +865,6 @@ class Trainee(BaseTrainee):
             self.client.set_auto_analyze_params(
                 trainee_id=self.id,
                 auto_analyze_enabled=auto_analyze_enabled,
-                auto_analyze_limit_size=auto_analyze_limit_size,
                 analyze_growth_factor=analyze_growth_factor,
                 analyze_threshold=analyze_threshold,
                 **kwargs,
@@ -3163,8 +3167,7 @@ class Trainee(BaseTrainee):
                     },
                     "auto_analyze_enabled": False,
                     "analyze_threshold": 100,
-                    "analyze_growth_factor": 7.389,
-                    "auto_analyze_limit_size": 100000
+                    "analyze_growth_factor": 7.389
                 }
         """
         if isinstance(self.client, AbstractHowsoClient):
