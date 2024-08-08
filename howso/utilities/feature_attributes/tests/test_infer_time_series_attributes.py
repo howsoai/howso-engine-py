@@ -230,3 +230,32 @@ def test_time_feature_is_universal(universal_value, expected):
     )
 
     assert features[time_feature_name]['time_series'].get("universal") == expected
+
+
+def test_infer_features_attributes_tight_bounds_dependent_functionality():
+    """Test tight bounds and dependent features functionality for time series IFA."""
+    df = pd.read_csv(data_path)
+
+    # Define time format
+    time_format = "%Y%m%d"
+
+    # Identify id-feature and time-feature
+    id_feature_name = "ID"
+    time_feature_name = "date"
+
+    features = infer_feature_attributes(
+        df,
+        dependent_features={"f1": ["f2"]},
+        tight_bounds=["f3"],
+        time_feature_name=time_feature_name,
+        id_feature_name=id_feature_name,
+        datetime_feature_formats={time_feature_name: time_format},
+        include_sample=True
+    )
+
+    f3_max = df["f3"].max()
+    f3_min = df["f3"].min()
+
+    assert features["f1"]["dependent_features"] == ["f2"]
+    assert features["f3"]["bounds"]["max"] == f3_max
+    assert features["f3"]["bounds"]["min"] == f3_min
