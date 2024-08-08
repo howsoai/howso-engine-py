@@ -254,8 +254,8 @@ class InferFeatureAttributesTimeSeries:
         id_feature_name: Optional[Union[str, Iterable[str]]] = None,
         time_invariant_features: Optional[Iterable[str]] = None,
         datetime_feature_formats: Optional[Dict] = None,
+        dependent_features: Optional[dict] = None,
         tight_bounds: Optional[Iterable[str]] = None,
-        tight_time_bounds: bool = False,
         attempt_infer_extended_nominals: bool = False,
         nominal_substitution_config: Optional[Dict[str, Dict]] = None,
         include_extended_nominal_probabilities: Optional[bool] = False,
@@ -379,6 +379,41 @@ class InferFeatureAttributesTimeSeries:
                     }
                 }
 
+        dependent_features : dict, optional
+            Dict mapping a feature to a list of other feature(s) that it depends on or
+            that are dependent on it. This restricts the cases that can be selected as
+            neighbors (such as in :meth:`~howso.engine.Trainee.react`) to ones that
+            satisfy the dependency, if possible. If this is not possible, either due to
+            insufficient data which satisfy the dependency or because dependencies are
+            probabilistic, the dependency may not be maintained. Be aware that dependencies
+            introduce further constraints to data and so several dependencies or dependencies
+            on already constrained datasets may restrict which operations are possible while
+            maintaining the dependency. As a rule of thumb, sets of features that have
+            dependency relationships should generally not include more than 1 continuous feature,
+            unless the continuous features have a small number of values that are commonly used.
+
+            Examples:
+                If there's a feature name 'measurement' that contains
+                measurements such as BMI, heart rate and weight, while the
+                feature 'measurement_amount' contains the numerical values
+                corresponding to the measurement, dependent features could be
+                passed in as follows:
+
+                .. code-block:: json
+
+                    {
+                        "measurement": [ "measurement_amount" ]
+                    }
+
+                Since dependence directionality is not important, this will
+                also work:
+
+                .. code-block:: json
+
+                    {
+                        "measurement_amount": [ "measurement" ]
+                    }
+
         id_feature_name : str or list of str default None
             (Optional) The name(s) of the ID feature(s).
 
@@ -403,11 +438,6 @@ class InferFeatureAttributesTimeSeries:
         tight_bounds: Iterable of str, default None
             (Optional) Set tight min and max bounds for the features
             specified in the Iterable.
-
-        tight_time_bounds : bool, default False
-            (optional) If True, will set tight bounds for time_feature.
-            This will cause the bounds for the start and end times set
-            to the same bounds as observed in the original data.
 
         attempt_infer_extended_nominals : bool, default False
             (Optional) If set to True, detections of extended nominals will be
@@ -529,18 +559,6 @@ class InferFeatureAttributesTimeSeries:
         A subclass of FeatureAttributesBase that extends `dict`, thus providing
         dict-like access to feature attributes and useful helper methods.
         """
-        tight_bound_features = None
-        if tight_time_bounds:
-            if features:
-                if self.time_feature_name in features:
-                    tight_bound_features = [self.time_feature_name]
-            # if features weren't provided, just set to the specified
-            # time_feature_name if that has also been provided
-            elif self.time_feature_name:
-                tight_bound_features = [self.time_feature_name]
-
-        if tight_bounds is not None:
-            tight_bound_features.extend(tight_bounds)
 
         infer = InferFeatureAttributesDataFrame(self.data)
 
@@ -554,12 +572,13 @@ class InferFeatureAttributesTimeSeries:
             features=features,
             infer_bounds=infer_bounds,
             datetime_feature_formats=datetime_feature_formats,
+            dependent_features=dependent_features,
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             nominal_substitution_config=nominal_substitution_config,
             include_extended_nominal_probabilities=include_extended_nominal_probabilities,
             id_feature_name=id_feature_name,
             include_sample=include_sample,
-            tight_bounds=set(tight_bound_features) if tight_bound_features else None,
+            tight_bounds=set(tight_bounds) if tight_bounds else None,
             mode_bound_features=mode_bound_features,
         )
 
