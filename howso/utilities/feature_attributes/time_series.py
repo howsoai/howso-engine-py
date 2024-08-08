@@ -350,7 +350,6 @@ class InferFeatureAttributesTimeSeries:
                 ...                 'min': '19850517'
                 ...         },
                 ...         'date_time_format': '%Y%m%d',
-                ...         'tight_time_bounds': False,
                 ...         'time_feature': True,
                 ...         'time_series':  { 'type': 'delta'},
                 ...         'type': 'continuous'
