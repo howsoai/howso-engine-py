@@ -221,11 +221,6 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
         (Optional) Set tight min and max bounds for the features
         specified in the Iterable.
 
-    tight_time_bounds : bool, default False
-        (optional) If True, will set tight bounds on time_feature.
-        This will cause the bounds for the start and end times set
-        to the same bounds as observed in the original data.
-
     time_feature_is_universal : bool, optional
         If True, the time feature will be treated as universal and future data
         is excluded while making predictions. If False, the time feature will
