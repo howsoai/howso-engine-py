@@ -2,8 +2,8 @@ Howso:
   client: howso.direct.HowsoDirectClient
   client_extra_params:
      debug: true
-     check_version: false 
+     version_check: false
      amalgam:
         library_postfix: -mt-afmi
-        trace: true 
+        trace: true
         execution_trace_dir: ./traces/
