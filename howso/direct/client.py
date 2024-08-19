@@ -775,8 +775,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Initialize Amalgam entity
         self._initialize_trainee(trainee_id)
 
-        if self.configuration.client.client_extra_params.get("memory_validation", False):
-            self.execute(trainee_id, "enable_memory_validation", {})
+        if self.configuration.client.client_extra_params.get("debugging_instrumentation", False):
+            self.execute(trainee_id, "enable_debugging_instrumentation", {})
 
         # Store the metadata
         trainee_metadata = dict(
