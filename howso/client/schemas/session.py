@@ -5,6 +5,8 @@ from datetime import datetime
 import typing as t
 from uuid import UUID
 
+from dateutil.parser import parse as dt_parse
+
 from .base import BaseSchema
 
 __all__ = [
@@ -151,7 +153,7 @@ class Session(BaseSchema[SessionDict]):
         """
         if isinstance(self._created_date, str):
             # Lazily resolve str datetimes
-            self._created_date = datetime.fromisoformat(self._created_date)
+            self._created_date = dt_parse(self._created_date)
         return self._created_date
 
     @property
@@ -166,5 +168,5 @@ class Session(BaseSchema[SessionDict]):
         """
         if isinstance(self._modified_date, str):
             # Lazily resolve str datetimes
-            self._modified_date = datetime.fromisoformat(self._modified_date)
+            self._modified_date = dt_parse(self._modified_date)
         return self._modified_date
