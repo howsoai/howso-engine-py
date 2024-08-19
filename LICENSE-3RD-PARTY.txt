@@ -684,12 +684,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-2.0.1
+2.1.0
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/numpy-2.0.1.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/numpy-2.1.0.dist-info/LICENSE.txt
 Copyright (c) 2005-2024, NumPy Developers.
 All rights reserved.
 
@@ -761,7 +761,7 @@ This binary distribution of NumPy also bundles the following software:
 
 
 Name: OpenBLAS
-Files: numpy.libs/libopenblas*.so
+Files: numpy.libs/libscipy_openblas*.so
 Description: bundled as a dynamically linked library
 Availability: https://github.com/OpenMathLib/OpenBLAS/
 License: BSD-3-Clause
@@ -797,7 +797,7 @@ License: BSD-3-Clause
 
 
 Name: LAPACK
-Files: numpy.libs/libopenblas*.so
+Files: numpy.libs/libscipy_openblas*.so
 Description: bundled in OpenBLAS
 Availability: https://github.com/OpenMathLib/OpenBLAS/
 License: BSD-3-Clause-Attribution
