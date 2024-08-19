@@ -128,6 +128,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         amalgam: t.Optional[Mapping[str, t.Any]] = None,
         config_path: t.Optional[Path | str] = None,
         debug: bool = False,
+        debugging_instrumentation: bool = False,
         default_persist_path: t.Optional[Path | str] = None,
         howso_path: Path | str = DEFAULT_ENGINE_PATH,
         howso_fname: str = "howso.caml",
@@ -161,6 +162,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         config_path = get_configuration_path(config_path, verbose)
         self.configuration = HowsoConfiguration(config_path, verbose=verbose)
         self.debug = debug
+        self._debugging_instrumentation = debugging_instrumentation
         self._trace_enabled = bool(trace)
         self._trace_filename = f"howso_{internals.random_handle()}_execution.trace"
         self._howso_dir = Path(howso_path).expanduser()
@@ -775,7 +777,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Initialize Amalgam entity
         self._initialize_trainee(trainee_id)
 
-        if self.configuration.client.client_extra_params.get("debugging_instrumentation", False):
+        if self._debugging_instrumentation:
             self.execute(trainee_id, "enable_debugging_instrumentation", {})
 
         # Store the metadata
