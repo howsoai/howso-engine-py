@@ -408,7 +408,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
 ])
 def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
     """Test the infer_feature_bounds() method."""
-    df = pd.DataFrame([[cell] for cell in data], columns=['a'])
+    df = pd.DataFrame(pd.Series(data), columns=['a'])
     features = infer_feature_attributes(df, tight_bounds=tight_bounds)
     assert features['a']['type'] == 'continuous'
     assert 'bounds' in features['a']
