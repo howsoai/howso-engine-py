@@ -128,13 +128,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         amalgam: t.Optional[Mapping[str, t.Any]] = None,
         config_path: t.Optional[Path | str] = None,
         debug: bool = False,
-        debugging_instrumentation: bool = False,
         default_persist_path: t.Optional[Path | str] = None,
         howso_path: Path | str = DEFAULT_ENGINE_PATH,
         howso_fname: str = "howso.caml",
         react_initial_batch_size: int = 10,
         trace: bool = False,
         train_initial_batch_size: int = 100,
+        unsafe_diagnostic_mode: bool = False,
         verbose: bool = False,
         version_check: bool = True,
         **kwargs
@@ -162,7 +162,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         config_path = get_configuration_path(config_path, verbose)
         self.configuration = HowsoConfiguration(config_path, verbose=verbose)
         self.debug = debug
-        self._debugging_instrumentation = debugging_instrumentation
+        self._unsafe_diagnostic_mode = unsafe_diagnostic_mode
         self._trace_enabled = bool(trace)
         self._trace_filename = f"howso_{internals.random_handle()}_execution.trace"
         self._howso_dir = Path(howso_path).expanduser()
@@ -777,7 +777,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Initialize Amalgam entity
         self._initialize_trainee(trainee_id)
 
-        if self._debugging_instrumentation:
+        if self._unsafe_diagnostic_mode:
             self.execute(trainee_id, "enable_debugging_instrumentation", {})
 
         # Store the metadata
