@@ -633,6 +633,7 @@ class InferFeatureAttributesBase(ABC):
                     # User passed only the format string
                     feature_attributes[feature_name] = {
                         'type': 'continuous',
+                        'data_type': 'formatted_date_time',
                         'date_time_format': user_dt_format,
                     }
                 elif (
@@ -643,6 +644,7 @@ class InferFeatureAttributesBase(ABC):
                     dt_format, dt_locale = user_dt_format
                     feature_attributes[feature_name] = {
                         'type': 'continuous',
+                        'data_type': 'formatted_date_time',
                         'date_time_format': dt_format,
                         'locale': dt_locale,
                     }
