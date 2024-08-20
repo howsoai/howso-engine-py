@@ -282,9 +282,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if feature_attributes[feature_name].get('type') == 'continuous':
             column_filtered = self.data[feature_name].dropna()
 
-            if 'date_time_format' in feature_attributes[feature_name]:
-                format_dt = feature_attributes[feature_name].get(
-                    'date_time_format')
+            if (format_dt := feature_attributes[feature_name].get('date_time_format')) is not None:
                 min_date, max_date = None, None
                 min_date_tz, max_date_tz = None, None
 
@@ -293,29 +291,41 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     max_date = column_filtered.max()
                 else:
                     try:
-                        min_date_sec = np.inf
-                        max_date_sec = -np.inf
-                        # loop over all datetimes to determine the min and max
-                        for datetime_val in column_filtered.values:
-                            seconds = date_to_epoch(datetime_val, format_dt)
-                            if seconds < min_date_sec:
-                                min_date_sec = seconds
-                                min_date = datetime_val
-                            if seconds > max_date_sec:
-                                max_date_sec = seconds
-                                max_date = datetime_val
+                        max_date = pd.to_datetime(column_filtered, format=format_dt).max()
+                        min_date = pd.to_datetime(column_filtered, format=format_dt).min()
+                    except Exception as e:  # noqa: Deliberately broad
+                        # This was likely due to Pandas not being able to handle mixed tz-offsets
+                        # or possibly a non-matching datetime format, fall back to the (much)
+                        # slower, but more thorough method.
+                        warnings.warn(
+                            f"Falling back to a more robust (albeit slower) check for feature "
+                            f"bounds due to Pandas raising the following exception:\n\n{str(e)}."
+                        )
+                        try:
+                            min_date_sec = np.inf
+                            max_date_sec = -np.inf
+                            # loop over all datetimes to determine the min and max
+                            for datetime_val in column_filtered.values:
+                                seconds = date_to_epoch(datetime_val, format_dt)
+                                if seconds < min_date_sec:
+                                    min_date_sec = seconds
+                                    min_date = datetime_val
+                                if seconds > max_date_sec:
+                                    max_date_sec = seconds
+                                    max_date = datetime_val
 
-                        # If value is a string, parse it into datetime object
-                        if isinstance(min_date, str):
-                            min_date = dt_parse(min_date)
-                        if isinstance(max_date, str):
-                            max_date = dt_parse(max_date)
-                    except Exception:  # noqa: Intentionally broad
-                        w_str = (f'Feature {feature_name} does not match the '
-                                 'provided date time format, unable to guess '
-                                 'bounds.')
-                        warnings.warn(w_str)
-                        return None
+                            # If value is a string, parse it into datetime object
+                            if isinstance(min_date, str):
+                                min_date = dt_parse(min_date)
+                            if isinstance(max_date, str):
+                                max_date = dt_parse(max_date)
+                        except Exception:  # noqa: Intentionally broad
+                            warnings.warn(
+                                f'Feature {feature_name} does not match the '
+                                f'provided date time format, unable to guess '
+                                f'bounds.'
+                            )
+                            return None
 
                 if pd.isnull(min_date) or pd.isnull(max_date):
                     return None
