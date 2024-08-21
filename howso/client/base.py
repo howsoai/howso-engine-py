@@ -3987,7 +3987,7 @@ class AbstractHowsoClient(ABC):
         influence_weight_entropy_threshold: t.Optional[float] = None,
         skip_auto_analyze: bool = False,
         **kwargs,
-    ):
+    ) -> dict:
         """
         Smartly reduce the amount of trained cases while accumulating case weights.
 
@@ -4021,6 +4021,12 @@ class AbstractHowsoClient(ABC):
             which defaults to 0.6.
         skip_auto_analyze : bool, default False
             Whether to skip auto-analyzing as cases are removed.
+
+        Returns
+        -------
+        dict
+            A dictionary for reporting experimental outputs of reduce data. Currently, the default
+            non-experimental output is an empty dictionary.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         params = dict(
@@ -4038,7 +4044,12 @@ class AbstractHowsoClient(ABC):
                 UnsupportedArgumentWarning)
         if self.configuration.verbose:
             print(f'Reducing data on Trainee with id: {trainee_id}')
-        self.execute(trainee_id, "reduce_data", params)
+        result = self.execute(trainee_id, "reduce_data", params)
+
+        if result is None:
+            return dict()
+
+        return result
 
     def get_cases(
         self,
