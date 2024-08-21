@@ -773,7 +773,7 @@ class Trainee(BaseTrainee):
         influence_weight_entropy_threshold: t.Optional[float] = None,
         skip_auto_analyze: bool = False,
         **kwargs,
-    ):
+    ) -> dict:
         """
         Smartly reduce the amount of trained cases while accumulating case weights.
 
@@ -807,9 +807,15 @@ class Trainee(BaseTrainee):
             which defaults to 0.6.
         skip_auto_analyze : bool, default False
             Whether to skip auto-analyzing as cases are removed.
+
+        Returns
+        -------
+        dict
+            A dictionary for reporting experimental outputs of reduce data. Currently, the default
+            non-experimental output is an empty dictionary.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.reduce_data(
+            return self.client.reduce_data(
                 trainee_id=self.id,
                 features=features,
                 distribute_weight_feature=distribute_weight_feature,
