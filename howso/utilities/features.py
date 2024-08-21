@@ -5,7 +5,7 @@ import decimal
 from enum import Enum
 from functools import partial
 import locale
-from typing import Any, Optional
+import typing as t
 import warnings
 
 import numpy as np
@@ -62,12 +62,12 @@ class FeatureSerializer:
     @classmethod
     def serialize(  # noqa: C901
         cls,
-        data: pd.DataFrame | np.ndarray | Iterable[Any] | None,
+        data: pd.DataFrame | np.ndarray | Iterable[t.Any] | None,
         columns: Iterable[str] | None,
         features: Mapping,
         *,
         warn: bool = False
-    ) -> list[list[Any]] | None:
+    ) -> list[list[t.Any]] | None:
         """
         Serialize case data into list of lists.
 
@@ -158,9 +158,9 @@ class FeatureSerializer:
     @classmethod
     def deserialize(
         cls,
-        data: Iterable[Iterable[Any]] | Iterable[Mapping[str, Any]],
+        data: Iterable[Iterable[t.Any]] | Iterable[Mapping[str, t.Any]],
         columns: Iterable[str],
-        features: Optional[Mapping] = None
+        features: t.Optional[Mapping] = None
     ) -> pd.DataFrame:
         """
         Deserialize case data into a DataFrame.
@@ -635,7 +635,7 @@ class FeatureSerializer:
         return column
 
     @staticmethod
-    def _get_typing_info(feature: Optional[Mapping]) -> dict:
+    def _get_typing_info(feature: t.Optional[Mapping]) -> dict:
         """
         Get typing info from feature attributes.
 
