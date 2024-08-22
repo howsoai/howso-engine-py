@@ -325,7 +325,7 @@ class Trainee(BaseTrainee):
             does not contain a filename, then the natural trainee name will be used ``<uuid>.caml``.
         """
         if not isinstance(self.client, LocalSaveableProtocol):
-            raise HowsoError("To save, ``client`` type must have local disk access.")
+            raise HowsoError("The current client does not support saving a Trainee to file.")
 
         if file_path:
             if not isinstance(file_path, Path):
@@ -3875,7 +3875,7 @@ def load_trainee(
     client = client or get_client()
 
     if not isinstance(client, LocalSaveableProtocol):
-        raise HowsoError("To save, ``client`` must have local disk access.")
+        raise HowsoError("The current client does not support loading a Trainee from file.")
 
     if not isinstance(file_path, Path):
         file_path = Path(file_path)
