@@ -1335,17 +1335,6 @@ class Trainee(BaseTrainee):
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses
                 full calculations, which uses leave-one-out for cases for computations.
-            - global_case_feature_residual_convictions_robust : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the global model. Computed as: global model feature residual
-                divided by case feature residual. Uses robust calculations, which
-                uses uniform sampling from the power set of features as the
-                contexts for predictions.
-            - global_case_feature_residual_convictions_full : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the global model. Computed as: global model feature residual
-                divided by case feature residual. Uses full calculations,
-                which uses leave-one-out for cases for computations.
             - hypothetical_values : dict, optional
                 A dictionary of feature name to feature value. If specified,
                 shows how a prediction could change in a what-if scenario where
@@ -1365,14 +1354,14 @@ class Trainee(BaseTrainee):
             - influential_cases_raw_weights : bool, optional
                 If True, outputs the surprisal for each of the influential
                 cases.
-            - local_case_feature_residual_convictions_robust : bool, optional
+            - case_feature_residual_convictions_robust : bool, optional
                 If True, outputs this case's feature residual convictions for
                 the region around the prediction. Uses only the context
                 features of the reacted case to determine that region.
                 Computed as: region feature residual divided by case feature
                 residual. Uses robust calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
-            - local_case_feature_residual_convictions_full : bool, optional
+            - case_feature_residual_convictions_full : bool, optional
                 If True, outputs this case's feature residual convictions for
                 the region around the prediction. Uses only the context
                 features of the reacted case to determine that region.
@@ -2825,6 +2814,7 @@ class Trainee(BaseTrainee):
         self,
         *,
         action_feature: t.Optional[str] = None,
+        action_features: t.Optional[Collection[str]] = None,
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         details: t.Optional[dict] = None,
@@ -2854,6 +2844,9 @@ class Trainee(BaseTrainee):
             and ``feature_influences_action_feature`` are not provided, they will default to this value.
             If ``feature_influences_action_feature`` is not provided and feature influences ``details`` are
             selected, this feature must be provided.
+        action_features : iterable of str, optional
+            List of feature names to compute any requested residuals or prediction statistics for. If unspecified,
+            the value used for context features will be used.
         confusion_matrix_min_count : int, optional
             The number of predictions a class should have (value of a cell in the
             matrix) for it to remain in the confusion matrix. If the count is
@@ -3079,6 +3072,7 @@ class Trainee(BaseTrainee):
             return self.client.react_aggregate(
                 trainee_id=self.id,
                 action_feature=action_feature,
+                action_features=action_features,
                 context_features=context_features,
                 confusion_matrix_min_count=confusion_matrix_min_count,
                 details=details,
@@ -3584,6 +3578,7 @@ class Trainee(BaseTrainee):
     def get_contribution_matrix(
         self,
         features: t.Optional[Iterable[str]] = None,
+        directional: bool = False,
         robust: bool = True,
         targeted: bool = False,
         normalize: bool = False,
@@ -3602,6 +3597,9 @@ class Trainee(BaseTrainee):
         features : iterable of str, optional
             An iterable of feature names. If features are not provided, then the
             default trainee features will be used.
+        directional : bool, default False
+            Whether to get the matrix for the directional feature contributions or the absolute feature
+            contributions.
         robust : bool, default True
             Whether to use robust calculations.
         targeted : bool, default False
@@ -3640,11 +3638,13 @@ class Trainee(BaseTrainee):
             The Feature Contribution matrix in a DataFrame.
         """
         feature_contribution_matrix = {}
+        details_key = f"feature_contributions_{'robust' if robust else 'full'}"
+        response_key = f"{'directional_' if directional else ''}{details_key}"
         if not features:
             features = self.features
         for feature in features:
+            context_features = [context_feature for context_feature in features if context_feature != feature]
             if targeted:
-                context_features = [context_feature for context_feature in features if context_feature != feature]
                 self.analyze(action_features=[feature], context_features=context_features)
             # Suppresses expected warnings when trainee is targetless
             with warnings.catch_warnings():
@@ -3653,18 +3653,15 @@ class Trainee(BaseTrainee):
                     "Results may be inaccurate because trainee has not been analyzed*",
                     category=HowsoWarning
                 )
-                if robust:
-                    feature_contribution_matrix[feature] = self.react_aggregate(
-                        action_feature=feature,
-                        details={"feature_contributions_robust": True}
-                    )
-                else:
-                    feature_contribution_matrix[feature] = self.react_aggregate(
-                        action_feature=feature,
-                        details={
-                            "feature_contributions_full": True
-                        }
-                    )
+                response = self.react_aggregate(
+                    context_features=context_features,
+                    action_feature=feature,
+                    details={
+                        details_key: True
+                    }
+                )
+                # Response will have both directional/non-directional, need to only get what is necessary
+                feature_contribution_matrix[feature] = response.loc[[response_key]]
 
         matrix = concat(feature_contribution_matrix.values(), keys=feature_contribution_matrix.keys())
         matrix = matrix.droplevel(level=1)
