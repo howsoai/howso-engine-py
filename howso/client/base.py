@@ -3212,14 +3212,6 @@ class AbstractHowsoClient(ABC):
                 action and context features desired. If ``action_feature`` is also provided, that feature will
                 automatically be appended to this list if it is not already in the list.
                     stats : list of str, optional
-            - missing_value_accuracy_full : bool, optional
-                The number of cases with missing values predicted to have missing values divided by the number
-                of cases with missing values, applies to all features that contain missing values. Uses full
-                calculations.
-            - missing_value_accuracy_robust : bool, optional
-                The number of cases with missing values predicted to have missing values divided by the number
-                of cases with missing values, applies to all features that contain missing values. Uses robust
-                calculations.
             - selected_prediction_stats : list, optional
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
