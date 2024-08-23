@@ -2868,42 +2868,44 @@ class Trainee(BaseTrainee):
                 If True outputs full feature prediction stats for all (context and action) features.
                 The prediction stats returned are set by the "selected_prediction_stats" parameter
                 in the `details` parameter. Uses full calculations, which uses leave-one-out for
-                features for computations. False removes cached values.
+                features for computations.
             - feature_residuals_full : bool, optional
                 For each context_feature, use the full set of all other context_features to predict
-                the feature. False removes cached values. When ``prediction_stats``
-                in the ``details`` parameter is true, the Trainee will also calculate and cache the
-                full feature residuals.
+                the feature. When ``prediction_stats`` in the ``details`` parameter is true, the
+                Trainee will also calculate the full feature residuals.
             - feature_residuals_robust : bool, optional
                 For each context_feature, use the robust (power set/permutations) set of all other
-                context_features to predict the feature. False removes cached values.
+                context_features to predict the feature.
             - feature_contributions_full : bool, optional
                 For each context_feature, use the full set of all other
                 context_features to compute the mean absolute delta between
                 prediction of action feature with and without the context features
-                in the model. False removes cached values.
+                in the model. Returns the mean absolute delta
+                under the key 'feature_contributions_full' and returns the mean
+                delta under the key 'directional_feature_contributions_full'.
             - feature_contributions_robust : bool, optional
                 For each context_feature, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
                 delta between prediction of the action feature with and without the
-                context features in the model. False removes cached values.
+                context features in the model. Returns the mean absolute delta
+                under the key 'feature_contributions_robust' and returns the mean
+                delta under the key 'directional_feature_contributions_robust'.
             - feature_mda_full : bool, optional
                 When True will compute Mean Decrease in Accuracy (MDA)
                 for each context feature at predicting the action feature. Drop
                 each feature and use the full set of remaining context features
-                for each prediction. False removes cached values.
+                for each prediction.
             - feature_mda_robust : bool, optional
                 Compute Mean Decrease in Accuracy MDA by dropping each feature and using the
                 robust (power set/permutations) set of remaining context features
-                for each prediction. False removes cached values.
+                for each prediction.
             - feature_feature_mda_permutation_full : bool, optional
                 Compute MDA by scrambling each feature and using the
                 full set of remaining context features for each prediction.
-                False removes cached values.
             - feature_feature_mda_permutation_robust : bool, optional
                 Compute MDA by scrambling each feature and using the
                 robust (power set/permutations) set of remaining context features
-                for each prediction. False removes cached values.
+                for each prediction.
             - action_condition : map of str -> any, optional
                 A condition map to select the action set, which is the dataset for which
                 the prediction stats are for. If both ``action_condition`` and ``context_condition``
