@@ -3572,6 +3572,7 @@ class Trainee(BaseTrainee):
     def get_contribution_matrix(
         self,
         features: t.Optional[Iterable[str]] = None,
+        *,
         directional: bool = False,
         robust: bool = True,
         targeted: bool = False,
@@ -3676,6 +3677,7 @@ class Trainee(BaseTrainee):
     def get_mda_matrix(
         self,
         features: t.Optional[Iterable[str]] = None,
+        *,
         robust: bool = True,
         targeted: bool = False,
         normalize: bool = False,
