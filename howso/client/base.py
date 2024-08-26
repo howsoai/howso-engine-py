@@ -1918,6 +1918,24 @@ class AbstractHowsoClient(ABC):
                 'removed in a future release. Please use "robust_residuals" '
                 'and/or "robust_influences" instead.', DeprecationWarning)
 
+        if details is not None and 'local_case_feature_residual_conviction_robust' in details:
+            details = dict(details)
+            details['case_feature_residual_conviction_robust'] = details['local_case_feature_residual_conviction_robust']  # noqa
+            del details['local_case_feature_residual_conviction_robust']
+            warnings.warn(
+                'The detail "local_case_feature_residual_conviction_robust" is deprecated and will be '
+                'removed in a future release. Please use "case_feature_residual_conviction_robust" instead',
+                DeprecationWarning)
+
+        if details is not None and 'local_case_feature_residual_conviction_full' in details:
+            details = dict(details)
+            details['case_feature_residual_conviction_full'] = details['local_case_feature_residual_conviction_full']  # noqa
+            del details['local_case_feature_residual_conviction_full']
+            warnings.warn(
+                'The detail "local_case_feature_residual_conviction_full" is deprecated and will be '
+                'removed in a future release. Please use "case_feature_residual_conviction_full" instead',
+                DeprecationWarning)
+
         if desired_conviction is None:
             if contexts is not None:
                 for context in contexts:
