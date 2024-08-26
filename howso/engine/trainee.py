@@ -1974,6 +1974,9 @@ class Trainee(BaseTrainee):
         """
         Edit feature values for the specified cases.
 
+        Updates the accumulated data mass for the model proportional to the
+        number of cases and features modified.
+
         Parameters
         ----------
         feature_values : DataFrame or 2-dimensional list of object
@@ -2313,6 +2316,9 @@ class Trainee(BaseTrainee):
         """
         Add a feature to the model.
 
+        Updates the accumulated data mass for the model proportional to the
+        number of cases modified.
+
         Parameters
         ----------
         feature : str
@@ -2387,6 +2393,9 @@ class Trainee(BaseTrainee):
     ):
         """
         Remove a feature from the trainee.
+
+        Updates the accumulated data mass for the model proportional to the
+        number of cases modified.
 
         Parameters
         ----------

@@ -884,6 +884,9 @@ class AbstractHowsoClient(ABC):
         """
         Edit feature values for the specified cases.
 
+        Updates the accumulated data mass for the model proportional to the
+        number of cases and features modified.
+
         Parameters
         ----------
         trainee_id : str
@@ -4328,6 +4331,9 @@ class AbstractHowsoClient(ABC):
         """
         Adds a feature to a trainee.
 
+        Updates the accumulated data mass for the model proportional to the
+        number of cases modified.
+
         Parameters
         ----------
         trainee_id : str
@@ -4419,6 +4425,9 @@ class AbstractHowsoClient(ABC):
     ):
         """
         Removes a feature from a Trainee.
+
+        Updates the accumulated data mass for the model proportional to the
+        number of cases modified.
 
         Parameters
         ----------
