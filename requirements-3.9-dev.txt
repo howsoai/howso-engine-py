@@ -4,14 +4,14 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --generate-hashes --no-emit-index-url --output-file=requirements-3.9-dev.txt
 #
-amalgam-lang==12.3.6 \
-    --hash=sha256:08a0dd6b46abcfa8948f84c30085c5a5482263f5a7508519040b10ead225c051 \
-    --hash=sha256:0952f98514b0c518ab0f448052a595d6806bd4ae7996757914a845a4a1c477bd \
-    --hash=sha256:7d1a2568193f56527e1b4bb1289bc2a7009ce89c8b27597e5d3256ef8c0ea26f \
-    --hash=sha256:82c2eff0e7c94971110a75f09fc23378abb3cf4c6908cb6f4e0df9c711b78a14 \
-    --hash=sha256:b6d389c90070a4fe4c0b89e044b5dd78e36e520b12c2489c5c9473aa3f591d9e \
-    --hash=sha256:d9b52d82edd6eb2d1ce3c934dfc426a27bfff96c5b1452bdeea8d94fb6b4118e \
-    --hash=sha256:f16d753e7b913ab4dcdf6a09b7a5f30a0016deae67534ea684ffce1acf6d1719
+amalgam-lang==12.3.7 \
+    --hash=sha256:0d8a96f8c0755b8d29143b3b0c1e0f8f2f0f3d765a370a755066d2b15ded80c4 \
+    --hash=sha256:5db72d0c33ec78f40478908b825e93c195d2ebbca2706345eed44c877a59a2b9 \
+    --hash=sha256:85f1f748e8eb33c668afe08fc80bf2d9e77ccde094987b12c3e9b92e3bbe2fd4 \
+    --hash=sha256:ae16bf57befed2235506fa3c4f227f335a19bfa6fff4851aba71ed90f2f5cbce \
+    --hash=sha256:c34fcf6bc6e7f97eece1f671949b3fb76656a606276d7ff09758b3031d8813ee \
+    --hash=sha256:ca6340344bcaceff6cc3a5b886d12bf703f036281b8dc86b5d464082809d405a \
+    --hash=sha256:fe5bada646ad341d6f496327ccca8da23eceeaf34e4331f856775638b3127c83
     # via howso-engine (pyproject.toml)
 astroid==3.2.4 \
     --hash=sha256:0e14202810b30da1b735827f78f5157be2bbd4a7a59b7707ca0bfc2fb4c0063a \
@@ -693,9 +693,9 @@ requests==2.32.3 \
     # via
     #   howso-engine (pyproject.toml)
     #   pmlb
-rich==13.7.1 \
-    --hash=sha256:4edbae314f59eb482f54e9e30bf00d33350aaa94f4bfcd4e9e3110e64d0d7222 \
-    --hash=sha256:9be308cb1fe2f1f57d67ce99e95af38a1e2bc71ad9813b0e247cf7ffbcc3a432
+rich==13.8.0 \
+    --hash=sha256:2e85306a063b9492dffc86278197a60cbece75bcb766022f3436f567cae11bdc \
+    --hash=sha256:a5ac1f1cd448ade0d59cc3356f7db7a7ccda2c8cbae9c7a90c28ff463d3e91f4
     # via howso-engine (pyproject.toml)
 scikit-learn==1.5.1 \
     --hash=sha256:0828673c5b520e879f2af6a9e99eee0eefea69a2188be1ca68a6121b809055c1 \
@@ -795,9 +795,9 @@ wheel==0.44.0 \
     --hash=sha256:2376a90c98cc337d18623527a97c31797bd02bad0033d41547043a1cbfbe448f \
     --hash=sha256:a29c3f2817e95ab89aa4660681ad547c0e9547f20e75b0562fe7723c9a2a9d49
     # via pip-tools
-zipp==3.20.0 \
-    --hash=sha256:0145e43d89664cfe1a2e533adc75adafed82fe2da404b4bbb6b026c0157bdb31 \
-    --hash=sha256:58da6168be89f0be59beb194da1250516fdaa062ccebd30127ac65d30045e10d
+zipp==3.20.1 \
+    --hash=sha256:9960cd8967c8f85a56f920d5d507274e74f9ff813a0ab8889a5b5be2daf44064 \
+    --hash=sha256:c22b14cc4763c5a5b04134207736c107db42e9d3ef2d9779d465f5f1bcba572b
     # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:

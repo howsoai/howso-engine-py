@@ -752,17 +752,6 @@ class HowsoEstimator(BaseEstimator):
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses
                 full calculations, which uses leave-one-out for cases for computations.
-            - global_case_feature_residual_convictions_robust : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the global model. Computed as: global model feature residual
-                divided by case feature residual. Uses robust calculations, which
-                uses uniform sampling from the power set of features as the
-                contexts for predictions.
-            - global_case_feature_residual_convictions_full : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the global model. Computed as: global model feature residual
-                divided by case feature residual. Uses full calculations,
-                which uses leave-one-out for cases for computations.
             - hypothetical_values : dict, optional
                 A dictionary of feature name to feature value. If specified,
                 shows how a prediction could change in a what-if scenario where
@@ -782,14 +771,14 @@ class HowsoEstimator(BaseEstimator):
             - influential_cases_raw_weights : bool, optional
                 If True, outputs the surprisal for each of the influential
                 cases.
-            - local_case_feature_residual_convictions_robust : bool, optional
+            - case_feature_residual_convictions_robust : bool, optional
                 If True, outputs this case's feature residual convictions for
                 the region around the prediction. Uses only the context
                 features of the reacted case to determine that region.
                 Computed as: region feature residual divided by case feature
                 residual. Uses robust calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
-            - local_case_feature_residual_convictions_full : bool, optional
+            - case_feature_residual_convictions_full : bool, optional
                 If True, outputs this case's feature residual convictions for
                 the region around the prediction. Uses only the context
                 features of the reacted case to determine that region.

@@ -1622,17 +1622,6 @@ class AbstractHowsoClient(ABC):
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses
                 full calculations, which uses leave-one-out for cases for computations.
-            - global_case_feature_residual_convictions_robust : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the global model. Computed as: global model feature residual
-                divided by case feature residual. Uses robust calculations, which
-                uses uniform sampling from the power set of features as the
-                contexts for predictions.
-            - global_case_feature_residual_convictions_full : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the global model. Computed as: global model feature residual
-                divided by case feature residual. Uses full calculations,
-                which uses leave-one-out for cases for computations.
             - hypothetical_values : dict, optional
                 A dictionary of feature name to feature value. If specified,
                 shows how a prediction could change in a what-if scenario where
@@ -1652,14 +1641,14 @@ class AbstractHowsoClient(ABC):
             - influential_cases_raw_weights : bool, optional
                 If True, outputs the surprisal for each of the influential
                 cases.
-            - local_case_feature_residual_convictions_robust : bool, optional
+            - case_feature_residual_convictions_robust : bool, optional
                 If True, outputs this case's feature residual convictions for
                 the region around the prediction. Uses only the context
                 features of the reacted case to determine that region.
                 Computed as: region feature residual divided by case feature
                 residual. Uses robust calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
-            - local_case_feature_residual_convictions_full : bool, optional
+            - case_feature_residual_convictions_full : bool, optional
                 If True, outputs this case's feature residual convictions for
                 the region around the prediction. Uses only the context
                 features of the reacted case to determine that region.
@@ -1931,6 +1920,24 @@ class AbstractHowsoClient(ABC):
                 'The detail "robust_computation" is deprecated and will be '
                 'removed in a future release. Please use "robust_residuals" '
                 'and/or "robust_influences" instead.', DeprecationWarning)
+
+        if details is not None and 'local_case_feature_residual_conviction_robust' in details:
+            details = dict(details)
+            details['case_feature_residual_conviction_robust'] = details.pop(
+                'local_case_feature_residual_conviction_robust')
+            warnings.warn(
+                'The detail "local_case_feature_residual_conviction_robust" is deprecated and will be '
+                'removed in a future release. Please use "case_feature_residual_conviction_robust" instead',
+                DeprecationWarning)
+
+        if details is not None and 'local_case_feature_residual_conviction_full' in details:
+            details = dict(details)
+            details['case_feature_residual_conviction_full'] = details.pop(
+                'local_case_feature_residual_conviction_full')
+            warnings.warn(
+                'The detail "local_case_feature_residual_conviction_full" is deprecated and will be '
+                'removed in a future release. Please use "case_feature_residual_conviction_full" instead',
+                DeprecationWarning)
 
         if desired_conviction is None:
             if contexts is not None:
@@ -3071,6 +3078,7 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         *,
         action_feature: t.Optional[str] = None,
+        action_features: t.Optional[Collection[str]] = None,
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         details: t.Optional[dict] = None,
@@ -3100,6 +3108,9 @@ class AbstractHowsoClient(ABC):
             and ``feature_influences_action_feature`` are not provided, they will default to this value.
             If ``feature_influences_action_feature`` is not provided and feature influences ``details`` are
             selected, this feature must be provided.
+        action_features : iterable of str, optional
+            List of feature names to compute any requested residuals or prediction statistics for. If unspecified,
+            the value used for context features will be used.
         confusion_matrix_min_count : int, optional
             The number of predictions a class should have (value of a cell in the
             matrix) for it to remain in the confusion matrix. If the count is
@@ -3121,42 +3132,44 @@ class AbstractHowsoClient(ABC):
                 If True outputs full feature prediction stats for all (context and action) features.
                 The prediction stats returned are set by the "selected_prediction_stats" parameter
                 in the `details` parameter. Uses full calculations, which uses leave-one-out for
-                features for computations. False removes cached values.
+                features for computations.
             - feature_residuals_full : bool, optional
                 For each context_feature, use the full set of all other context_features to predict
-                the feature. False removes cached values. When ``prediction_stats``
-                in the ``details`` parameter is true, the Trainee will also calculate and cache the
-                full feature residuals.
+                the feature. When ``prediction_stats`` in the ``details`` parameter is true, the
+                Trainee will also calculate the full feature residuals.
             - feature_residuals_robust : bool, optional
                 For each context_feature, use the robust (power set/permutations) set of all other
-                context_features to predict the feature. False removes cached values.
+                context_features to predict the feature.
             - feature_contributions_full : bool, optional
                 For each context_feature, use the full set of all other
                 context_features to compute the mean absolute delta between
                 prediction of action feature with and without the context features
-                in the model. False removes cached values.
+                in the model. Returns the mean absolute delta
+                under the key 'feature_contributions_full' and returns the mean
+                delta under the key 'directional_feature_contributions_full'.
             - feature_contributions_robust : bool, optional
                 For each context_feature, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
                 delta between prediction of the action feature with and without the
-                context features in the model. False removes cached values.
+                context features in the model. Returns the mean absolute delta
+                under the key 'feature_contributions_robust' and returns the mean
+                delta under the key 'directional_feature_contributions_robust'.
             - feature_mda_full : bool, optional
                 When True will compute Mean Decrease in Accuracy (MDA)
                 for each context feature at predicting the action feature. Drop
                 each feature and use the full set of remaining context features
-                for each prediction. False removes cached values.
+                for each prediction.
             - feature_mda_robust : bool, optional
                 Compute Mean Decrease in Accuracy MDA by dropping each feature and using the
                 robust (power set/permutations) set of remaining context features
-                for each prediction. False removes cached values.
+                for each prediction.
             - feature_feature_mda_permutation_full : bool, optional
                 Compute MDA by scrambling each feature and using the
                 full set of remaining context features for each prediction.
-                False removes cached values.
             - feature_feature_mda_permutation_robust : bool, optional
                 Compute MDA by scrambling each feature and using the
                 robust (power set/permutations) set of remaining context features
-                for each prediction. False removes cached values.
+                for each prediction.
             - action_condition : map of str -> any, optional
                 A condition map to select the action set, which is the dataset for which
                 the prediction stats are for. If both ``action_condition`` and ``context_condition``
@@ -3220,14 +3233,6 @@ class AbstractHowsoClient(ABC):
                 action and context features desired. If ``action_feature`` is also provided, that feature will
                 automatically be appended to this list if it is not already in the list.
                     stats : list of str, optional
-            - missing_value_accuracy_full : bool, optional
-                The number of cases with missing values predicted to have missing values divided by the number
-                of cases with missing values, applies to all features that contain missing values. Uses full
-                calculations.
-            - missing_value_accuracy_robust : bool, optional
-                The number of cases with missing values predicted to have missing values divided by the number
-                of cases with missing values, applies to all features that contain missing values. Uses robust
-                calculations.
             - selected_prediction_stats : list, optional
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
@@ -3336,6 +3341,7 @@ class AbstractHowsoClient(ABC):
 
         stats = self.execute(trainee_id, "react_aggregate", {
             "action_feature": action_feature,
+            "action_features": action_features,
             "residuals_hyperparameter_feature": residuals_hyperparameter_feature,
             "context_features": context_features,
             "confusion_matrix_min_count": confusion_matrix_min_count,
