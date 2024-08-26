@@ -2067,12 +2067,12 @@ Python HTTP for Humans.
 
 
 rich
-13.7.1
+13.8.0
 MIT License
 Will McGugan
 https://github.com/Textualize/rich
 Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/rich-13.7.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/rich-13.8.0.dist-info/LICENSE
 Copyright (c) 2020 Will McGugan
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
