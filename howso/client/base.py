@@ -1920,8 +1920,8 @@ class AbstractHowsoClient(ABC):
 
         if details is not None and 'local_case_feature_residual_conviction_robust' in details:
             details = dict(details)
-            details['case_feature_residual_conviction_robust'] = details['local_case_feature_residual_conviction_robust']  # noqa
-            del details['local_case_feature_residual_conviction_robust']
+            details['case_feature_residual_conviction_robust'] = details.pop(
+                'local_case_feature_residual_conviction_robust')
             warnings.warn(
                 'The detail "local_case_feature_residual_conviction_robust" is deprecated and will be '
                 'removed in a future release. Please use "case_feature_residual_conviction_robust" instead',
@@ -1929,8 +1929,8 @@ class AbstractHowsoClient(ABC):
 
         if details is not None and 'local_case_feature_residual_conviction_full' in details:
             details = dict(details)
-            details['case_feature_residual_conviction_full'] = details['local_case_feature_residual_conviction_full']  # noqa
-            del details['local_case_feature_residual_conviction_full']
+            details['case_feature_residual_conviction_full'] = details.pop(
+                'local_case_feature_residual_conviction_full')
             warnings.warn(
                 'The detail "local_case_feature_residual_conviction_full" is deprecated and will be '
                 'removed in a future release. Please use "case_feature_residual_conviction_full" instead',
