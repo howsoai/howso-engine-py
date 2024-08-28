@@ -183,7 +183,7 @@ class FeatureSerializer:
         ----------
         data : list of list or list of dict
             The context data.
-        columns : Iterable of str, default None
+        columns : Iterable of str
             The case column mapping. The order corresponds to the order of cases in output.
             `columns` must be provided for non-DataFrame Iterables.
 

@@ -1191,7 +1191,7 @@ def matrix_processing( # noqa
         Matrix in Dataframe form.
     normalize : bool, default False
         Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
-    normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
+    normalize_method: Literal string ["relative", "fractional", "feature_count"] | Callable OR Literal string ["relative", "fractional", "feature_count"] OR Callable = "relative"
         The normalization method. The method may either one of the strings below that correspond to a
         default method or a custom Callable.
 
