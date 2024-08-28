@@ -52,10 +52,9 @@ class Reaction(abc.MutableMapping):
         "feature_contributions_full", "feature_contributions_robust", "feature_mda_ex_post_full",
         "feature_mda_ex_post_robust", "feature_mda_robust", "feature_mda_full", "feature_residuals_full",
         "feature_residuals_robust", "generate_attempts", "series_generate_attempts",
-        "global_case_feature_residual_convictions_full", "global_case_feature_residual_convictions_robust",
         "hypothetical_values", "influential_cases_familiarity_convictions", "influential_cases_raw_weights",
-        "influential_cases", "local_case_feature_residual_convictions_full",
-        "local_case_feature_residual_convictions_robust", "most_similar_case_indices", "most_similar_cases",
+        "influential_cases", "case_feature_residual_convictions_full",
+        "case_feature_residual_convictions_robust", "most_similar_case_indices", "most_similar_cases",
         "observational_errors", "prediction_stats", "outlying_feature_values", "robust_influences",
         "similarity_conviction",
     }
