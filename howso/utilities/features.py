@@ -62,7 +62,7 @@ class FeatureSerializer:
     @classmethod
     def serialize(  # noqa: C901
         cls,
-        data: pd.DataFrame | np.ndarray | Iterable[t.Any] | None,
+        data: t.Optional[pd.DataFrame, np.ndarray, Iterable[t.Any]],
         columns: Iterable[str] | None,
         features: Mapping,
         *,
@@ -73,11 +73,11 @@ class FeatureSerializer:
 
         Parameters
         ----------
-        data : pandas.DataFrame or numpy.ndarray or list of list or None
-            The data to serialize.
-        columns : list of str or None
-            The case column mapping. The order corresponds to the order of cases
-            in output.
+        data : pd.DataFrame or np.ndarray or Iterable, default None
+            The data to serialize, typically in a Pandas DataFrame, Numpy ndarray or Python Iterable such as a list.
+        columns : Iterable of str, default None
+            The case column mapping. The order corresponds to the order of cases in output.
+            `columns` must be provided for non-DataFrame Iterables.
         features : Mapping
             The dictionary of feature name to feature attributes.
         warn : bool, default False
@@ -85,8 +85,19 @@ class FeatureSerializer:
 
         Returns
         -------
-        list of list or None
+        list of list or Any or None
             The serialized data from DataFrame.
+
+        ...
+
+        Raises
+        ------
+        HowsoError
+            An `pd.ndarray` or `Iterable` is provided, `columns` was left undefined 
+            or the given columns does not match the columns defined within a given `pd.DataFrame`.
+        ValueError
+            The provided `pd.DataFrame` contains non-unique columns or, an unexpected datatype 
+            was received (should be either pd.DataFrame, np.ndarray or Python Iterable (non-str)).
         """
         # Import locally to prevent a circular import
         from howso.client.exceptions import HowsoError
@@ -158,7 +169,7 @@ class FeatureSerializer:
     @classmethod
     def deserialize(
         cls,
-        data: Iterable[Iterable[t.Any]] | Iterable[Mapping[str, t.Any]],
+        data: Iterable[Iterable[t.Any] | Mapping[str, t.Any]],
         columns: Iterable[str],
         features: t.Optional[Mapping] = None
     ) -> pd.DataFrame:
@@ -172,8 +183,9 @@ class FeatureSerializer:
         ----------
         data : list of list or list of dict
             The context data.
-        columns : list of str
-            The case column mapping.
+        columns : Iterable of str, default None
+            The case column mapping. The order corresponds to the order of cases in output.
+            `columns` must be provided for non-DataFrame Iterables.
 
             The order corresponds to how the data will be mapped to columns in
             the output. Ignored for list of dict where the dict key is the column

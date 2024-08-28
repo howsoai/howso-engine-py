@@ -67,7 +67,7 @@ class Status(IntEnum):
     OK = 4
 
 
-Requirements = t.Iterable[type | object]
+Requirements = t.Iterable[Union[type, object]]
 
 
 @dataclass
@@ -468,7 +468,7 @@ def get_nonce(length=8) -> str:
 def generate_dataframe(*, client: AbstractHowsoClient,
                        num_samples: int = 150,
                        timeout: t.Optional[int] = None
-                       ) -> t.Tuple[pd.DataFrame, float | int]:
+                       ) -> tuple[pd.DataFrame, float | int]:
     """
     Use HowsoClient to create a dataframe of random data.
 

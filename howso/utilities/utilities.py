@@ -1173,7 +1173,7 @@ def deep_update(base, updates):
 def matrix_processing( # noqa
     matrix: pd.DataFrame,
     normalize: bool = False,
-    normalize_method: Iterable[str | Callable, str, Callable] = "relative",
+    normalize_method: Iterable[t.Literal["relative", "fractional", "feature_count"] | Callable] | t.Literal["relative", "fractional", "feature_count"] | Callable = "relative",
     ignore_diagonals_normalize: bool = True,
     absolute: bool = False,
     fill_diagonal: bool = False,
@@ -1214,7 +1214,7 @@ def matrix_processing( # noqa
     fill_diagonal : bool, default False
         Whether to fill in the diagonals of the matrix. If set to true,
         the diagonal values will be filled in based on the `fill_diagonal_value` value.
-    fill_diagonal_value : bool, default False
+    fill_diagonal_value : float | int default 1
         The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
         for the diagonal values to be filled in. If `fill_diagonal` is set to false, then this
         parameter will be ignored.
