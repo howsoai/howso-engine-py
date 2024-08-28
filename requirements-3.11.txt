@@ -213,17 +213,17 @@ deprecation==2.1.0 \
     --hash=sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff \
     --hash=sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a
     # via howso-engine (pyproject.toml)
-faker==27.0.0 \
-    --hash=sha256:32c78b68d2ba97aaad78422e4035785de2b4bb46b81e428190fc11978da9036c \
-    --hash=sha256:55ed0c4ed7bf16800c64823805f6fbbe6d4823db4b7c0903f6f890b8e4d6c34b
+faker==28.0.0 \
+    --hash=sha256:0d3c0399204aaf8205cc1750db443474ca0436f177126b2c27b798e8336cc74f \
+    --hash=sha256:6a3a08be54c37e05f7943d7ba5211d252c1de737687a46ad6f29209d8d5db11f
     # via howso-engine (pyproject.toml)
 humanize==4.10.0 \
     --hash=sha256:06b6eb0293e4b85e8d385397c5868926820db32b9b654b932f57fa41c23c9978 \
     --hash=sha256:39e7ccb96923e732b5c2e27aeaa3b10a8dfeeba3eb965ba7b74a3eb0e30040a6
     # via howso-engine (pyproject.toml)
-idna==3.7 \
-    --hash=sha256:028ff3aadf0609c1fd278d8ea3089299412a7a8b9bd005dd08b9f8285bcb5cfc \
-    --hash=sha256:82fee1fc78add43492d3a1898bfa6d8a904cc97d8427f683ed8e798d07761aa0
+idna==3.8 \
+    --hash=sha256:050b4e5baadcd44d760cedbd2b8e639f2ff89bbc7a5730fcc662954303377aac \
+    --hash=sha256:d838c2c0ed6fced7693d5e8ab8e734d5f8fda53a039c0164afb0b82e771e3603
     # via requests
 markdown-it-py==3.0.0 \
     --hash=sha256:355216845c60bd96232cd8d8c40e8f9765cc86f46880e43a8fd22dc1a1a8cab1 \
@@ -487,9 +487,9 @@ requests==2.32.3 \
     --hash=sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760 \
     --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
     # via howso-engine (pyproject.toml)
-rich==13.7.1 \
-    --hash=sha256:4edbae314f59eb482f54e9e30bf00d33350aaa94f4bfcd4e9e3110e64d0d7222 \
-    --hash=sha256:9be308cb1fe2f1f57d67ce99e95af38a1e2bc71ad9813b0e247cf7ffbcc3a432
+rich==13.8.0 \
+    --hash=sha256:2e85306a063b9492dffc86278197a60cbece75bcb766022f3436f567cae11bdc \
+    --hash=sha256:a5ac1f1cd448ade0d59cc3356f7db7a7ccda2c8cbae9c7a90c28ff463d3e91f4
     # via howso-engine (pyproject.toml)
 semantic-version==2.10.0 \
     --hash=sha256:bdabb6d336998cbb378d4b9db3a4b56a1e3235701dc05ea2690d9a997ed5041c \
