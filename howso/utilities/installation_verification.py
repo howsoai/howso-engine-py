@@ -14,7 +14,7 @@ from pathlib import Path
 import random
 import sys
 import traceback
-from typing import Callable, Iterable, List, Optional, Tuple, Union
+import typing as t
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
@@ -67,7 +67,7 @@ class Status(IntEnum):
     OK = 4
 
 
-Requirements = Iterable[Union[type, object]]
+Requirements = t.Iterable[t.Union[type, object]]
 
 
 @dataclass
@@ -75,9 +75,9 @@ class Check:
     """Store the specification of a single check."""
 
     name: str
-    fn: Callable
-    client_required: Optional[str] = None
-    other_requirements: Optional[Requirements] = None
+    fn: t.Callable
+    client_required: t.Optional[str] = None
+    other_requirements: t.Optional[Requirements] = None
 
 
 class InstallationCheckRegistry:
@@ -106,9 +106,9 @@ class InstallationCheckRegistry:
         )
 
     def add_check(self, name: str,
-                  fn: Callable,
-                  client_required: Optional[str] = None,
-                  other_requirements: Optional[Requirements] = None
+                  fn: t.Callable,
+                  client_required: t.Optional[str] = None,
+                  other_requirements: t.Optional[Requirements] = None
                   ):
         """
         Add a check for this installation.
@@ -129,7 +129,7 @@ class InstallationCheckRegistry:
         """
         if (
             other_requirements and
-            not isinstance(other_requirements, Iterable)
+            not isinstance(other_requirements, t.Iterable)
         ):
             other_requirements = [other_requirements]
         self._checks.append(
@@ -167,8 +167,15 @@ class InstallationCheckRegistry:
         return self._client
 
     @property
-    def client_classes(self) -> List[str]:
-        """Return list of super class names for the current cached client."""
+    def client_classes(self) -> list[str]:
+        """
+        Return list of super class names for the current cached client.
+
+        Returns
+        -------
+        list of class names
+        """
+
         if self._client is None:
             return []
         if self._client_classes == []:
@@ -460,8 +467,8 @@ def get_nonce(length=8) -> str:
 
 def generate_dataframe(*, client: AbstractHowsoClient,
                        num_samples: int = 150,
-                       timeout: Optional[int] = None
-                       ) -> Tuple[pd.DataFrame, Union[float, int]]:
+                       timeout: t.Optional[int] = None
+                       ) -> tuple[pd.DataFrame, float | int]:
     """
     Use HowsoClient to create a dataframe of random data.
 
@@ -582,7 +589,7 @@ def check_not_emulated(*, registry: InstallationCheckRegistry):
 
 
 def check_generate_dataframe(*, registry: InstallationCheckRegistry,
-                             threshold: Optional[float] = None):
+                             threshold: t.Optional[float] = None):
     """
     Rate the speed in which a dataframe was able to be generated.
 
@@ -696,7 +703,7 @@ def check_locales_available(*, registry: InstallationCheckRegistry):
 
 
 def check_save(*, registry: InstallationCheckRegistry,
-               source_df: Optional[pd.DataFrame] = None):
+               source_df: t.Optional[pd.DataFrame] = None):
     """
     Ensure that a model can can be saved.
 
@@ -745,7 +752,7 @@ def check_save(*, registry: InstallationCheckRegistry,
 
 
 def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
-                                    source_df: Optional[pd.DataFrame] = None):
+                                    source_df: t.Optional[pd.DataFrame] = None):
     """
     Ensure that a model can can be created and deleted.
 
@@ -799,7 +806,7 @@ def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
 
 
 def check_latency(*, registry: InstallationCheckRegistry,
-                  source_df: Optional[pd.DataFrame] = None,
+                  source_df: t.Optional[pd.DataFrame] = None,
                   notice_threshold: int = 10, warning_threshold: int = 20,
                   timeout: int = 10):
     """
@@ -922,7 +929,7 @@ def check_performance(*, registry: InstallationCheckRegistry,
 def check_engine_operation(
     *,
     registry: InstallationCheckRegistry,
-    source_df: Optional[pd.DataFrame] = None
+    source_df: t.Optional[pd.DataFrame] = None
 ):
     """
     Ensure that Howso Engine operates as it should.
@@ -991,7 +998,7 @@ def check_engine_operation(
 
 def check_validator_operation(
     *, registry: InstallationCheckRegistry,
-    source_df: Optional[pd.DataFrame] = None,
+    source_df: t.Optional[pd.DataFrame] = None,
 ):
     """
     Ensure that Validator-Enterprise operates as it should.
