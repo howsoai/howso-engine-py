@@ -62,7 +62,7 @@ class FeatureSerializer:
     @classmethod
     def serialize(  # noqa: C901
         cls,
-        data: t.Optional[pd.DataFrame, np.ndarray, Iterable[t.Any]],
+        data: t.Optional[pd.DataFrame | np.ndarray | Iterable[t.Any]],
         columns: Iterable[str] | None,
         features: Mapping,
         *,

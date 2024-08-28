@@ -67,7 +67,7 @@ class Status(IntEnum):
     OK = 4
 
 
-Requirements = t.Iterable[Union[type, object]]
+Requirements = t.Iterable[t.Union[type, object]]
 
 
 @dataclass
