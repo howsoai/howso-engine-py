@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 import datetime as dt
 import inspect
@@ -6,7 +8,7 @@ from math import isnan
 import re
 import sys
 import threading
-from typing import Any, Dict, List, Optional, Union
+import typing as t
 import uuid
 import warnings
 
@@ -32,9 +34,9 @@ SMALLEST_TIME_DELTA = 0.001
 
 
 def date_to_epoch(
-    date_obj: Union[dt.date, dt.datetime, dt.time, str],
+    date_obj: dt.date | dt.datetime | dt.time | str,
     time_format: str
-) -> Optional[Union[str, float]]:
+) -> str | float | None:
     """
     Convert date into epoch (i.e seconds counted from Jan 1st 1970).
 
@@ -51,7 +53,7 @@ def date_to_epoch(
 
     Returns
     -------
-    Union[str, float]
+    str | float | None
         The epoch date as a floating point value or 'np.nan', et al.
     """
     # pd.isnull covers the cases - None, `np.nan` and `pd.na`
@@ -79,14 +81,14 @@ def date_to_epoch(
     return (datetime_object - time_zero).total_seconds()
 
 
-def epoch_to_date(epoch: Union[str, float], time_format: str,
-                  tzinfo: Optional[dt.tzinfo] = None) -> str:
+def epoch_to_date(epoch: str | float, time_format: str,
+                  tzinfo: t.Optional[dt.tzinfo] = None) -> str:
     """
     Convert epoch to date if epoch is not `None` or `nan` else, return as it is.
 
     Parameters
     ----------
-    epoch : Union[str, float]
+    epoch : str or float
         The epoch date as a floating point value (or str if np.nan, et al)
     time_format : str
         Specify format of the time.
@@ -109,7 +111,7 @@ def epoch_to_date(epoch: Union[str, float], time_format: str,
     return dt_value.strftime(time_format)
 
 
-def time_to_seconds(time: Optional[dt.time]) -> Optional[float]:
+def time_to_seconds(time: t.Optional[dt.time]) -> float | None:
     """
     Convert a time object to seconds since midnight.
 
@@ -120,7 +122,7 @@ def time_to_seconds(time: Optional[dt.time]) -> Optional[float]:
 
     Returns
     -------
-    float
+    float or None
         Seconds since midnight.
     """
     if not isinstance(time, dt.time):
@@ -130,8 +132,8 @@ def time_to_seconds(time: Optional[dt.time]) -> Optional[float]:
     return delta.total_seconds()
 
 
-def seconds_to_time(seconds: Union[int, float, None], *,
-                    tzinfo: Optional[dt.tzinfo] = None) -> Optional[dt.time]:
+def seconds_to_time(seconds: int | float | None, *,
+                    tzinfo: t.Optional[dt.tzinfo] = None) -> dt.time | None:
     """
     Convert seconds to a time object.
 
@@ -144,7 +146,7 @@ def seconds_to_time(seconds: Union[int, float, None], *,
 
     Returns
     -------
-    datetime.time
+    datetime.time or None
         The time object.
     """
     if pd.isnull(seconds):
@@ -155,7 +157,7 @@ def seconds_to_time(seconds: Union[int, float, None], *,
     return time_value
 
 
-def replace_none_with_nan(dat: Mapping) -> List[Dict]:
+def replace_none_with_nan(dat: Mapping) -> list[dict]:
     """
     Replace None values with NaN values.
 
@@ -198,7 +200,7 @@ def replace_nan_with_none(dat):
              value for value in case] for case in dat]
 
 
-def reshape_data(x, y):
+def reshape_data(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Reshapes X as a matrix and y as a vector.
 
@@ -211,8 +213,10 @@ def reshape_data(x, y):
 
     Returns
     -------
-    np.ndarray, np.ndarray
-        X, y
+    np.ndarray 
+        X
+    np.ndarray
+        y
     """
     if len(x.shape) < 2:
         x = x.reshape(-1, 1)
@@ -225,7 +229,7 @@ def align_data(x, y=None):
     """
     Check and fix type problems with the data and reshape it.
 
-    x is a Matrix and y is a vector.
+    X is a Matrix and y is a vector.
 
     Parameters
     ----------
@@ -249,7 +253,7 @@ def align_data(x, y=None):
     return x
 
 
-def replace_doublemax_with_infinity(dat: Any) -> Any:
+def replace_doublemax_with_infinity(dat: t.Any) -> t.Any:
     """
     Replace values of Double.MAX_VALUE (1.79769313486232E+308) with Infinity.
 
@@ -390,14 +394,12 @@ def determine_iso_format(str_date: str, fname: str) -> str:  # noqa: C901
     return "%Y-%m-%dT%H:%M:%S%Z"
 
 
-def validate_list_shape(values: Union[Collection, None], dimensions: int,
+def validate_list_shape(values: Collection | None, dimensions: int,
                         variable_name: str, var_types: str,
                         allow_none: bool = True
                         ) -> None:
     """
     Validate the shape of a list.
-
-    Raise a ValueError if it does not match expected number of dimensions.
 
     Parameters
     ----------
@@ -411,6 +413,10 @@ def validate_list_shape(values: Union[Collection, None], dimensions: int,
         The expected type of the data.
     allow_none : bool, default True
         If None should be allowed.
+
+    Raises
+    ------
+    ValueError if variable_name is None 
     """
     if values is None:
         if not allow_none:
@@ -423,7 +429,7 @@ def validate_list_shape(values: Union[Collection, None], dimensions: int,
             f"`{variable_name}` must be a {dimensions}d list of {var_types}.")
 
 
-def validate_case_indices(case_indices: Sequence[Sequence[Union[str, int]]], thorough=False) -> None:
+def validate_case_indices(case_indices: Sequence[Sequence[str | int]], thorough=False) -> None:
     """
     Validate the case_indices parameter to the react() method of a Howso client.
 
@@ -436,6 +442,15 @@ def validate_case_indices(case_indices: Sequence[Sequence[Union[str, int]]], tho
         The case_indices argument to validate.
     thorough : bool, default False
         Whether to verify the data types in all sequences or only some (for performance)
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError 
+        if case_indices : sequences that do not contain the expect data types of str | int
     """
     try:
         amount_to_verify = case_indices[:len(case_indices) if thorough else NON_THOROUGH_NUM]
@@ -485,7 +500,7 @@ def num_list_dimensions(obj: list) -> int:
 
 
 def validate_features(features: Mapping[str, Mapping],
-                      extended_feature_types: Optional[Iterable[str]] = None
+                      extended_feature_types: t.Optional[Iterable[str]] = None
                       ) -> None:
     """
     Validate the feature types in `features`.
@@ -504,6 +519,11 @@ def validate_features(features: Mapping[str, Mapping],
     extended_feature_types : list of str, optional
         (Optional) If a list is passed in, the feature types specified in the
         list will be considered as valid features.
+    
+    Returns
+    -------
+    None
+
     """
     valid_feature_types = _BASE_FEATURE_TYPES
 
@@ -541,7 +561,7 @@ def validate_datetime_iso8061(datetime_value, feature):
             f"example: '2020-10-02T12:43:39'")
 
 
-def serialize_datetimes(cases: List[List], columns: Iterable[str],  # noqa: C901
+def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
                         features: Mapping, *, warn: bool = False) -> None:
     """
     Serialize datetimes in the given list of cases, in-place.
@@ -560,6 +580,11 @@ def serialize_datetimes(cases: List[List], columns: Iterable[str],  # noqa: C901
     warn : bool, default: False
         If set to true, will warn user when specified datetime format
         doesn't match the datetime strings.
+
+    Returns
+    -------
+    None
+
     """
     # Import here to avoid circular import dependencies
     from .features import FeatureType
@@ -848,9 +873,9 @@ class UserFriendlyExit:
         exception : Exception
             An exception to produce the message from.
 
-        Returns
-        -------
-        None
+        Raises
+        ------
+        StopExecution if self.verbose and exception is None
         """
         print("Howso Client Error: " + msg)
         if self.verbose and exception is not None:
@@ -1148,11 +1173,11 @@ def deep_update(base, updates):
 def matrix_processing( # noqa
     matrix: pd.DataFrame,
     normalize: bool = False,
-    normalize_method: Union[Iterable[Union[str, Callable]], str, Callable] = "relative",
+    normalize_method: Iterable[t.Literal["relative", "fractional", "feature_count"] | Callable] | t.Literal["relative", "fractional", "feature_count"] | Callable = "relative",
     ignore_diagonals_normalize: bool = True,
     absolute: bool = False,
     fill_diagonal: bool = False,
-    fill_diagonal_value: Union[float, int] = 1,
+    fill_diagonal_value: float | int = 1,
 ) -> pd.DataFrame:
     """
     Preprocess a matrix including options to normalize, take the absolute value, and fill in the diagonals.
@@ -1166,7 +1191,7 @@ def matrix_processing( # noqa
         Matrix in Dataframe form.
     normalize : bool, default False
         Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
-    normalize_method: Union[Iterable[Union[str, Callable]], str, Callable], default 'relative'
+    normalize_method: Literal string ["relative", "fractional", "feature_count"] | Callable OR Literal string ["relative", "fractional", "feature_count"] OR Callable = "relative"
         The normalization method. The method may either one of the strings below that correspond to a
         default method or a custom Callable.
 
@@ -1189,7 +1214,7 @@ def matrix_processing( # noqa
     fill_diagonal : bool, default False
         Whether to fill in the diagonals of the matrix. If set to true,
         the diagonal values will be filled in based on the `fill_diagonal_value` value.
-    fill_diagonal_value : bool, default False
+    fill_diagonal_value : float | int default 1
         The value to fill in the diagonals with. `fill_diagonal` must be set to True in order
         for the diagonal values to be filled in. If `fill_diagonal` is set to false, then this
         parameter will be ignored.
