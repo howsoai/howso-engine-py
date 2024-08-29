@@ -504,6 +504,10 @@ class AbstractHowsoClient(ABC):
 
         # See if any features were inferred to have data that is unsupported by the OS.
         # Issue a warning and drop the feature before training, if so.
+        # Issue a warning and drop the feature before training, if so.
+        # Issue a warning and drop the feature before training, if so.
+        # Issue a warning and drop the feature before training, if so.
+        # Issue a warning and drop the feature before training, if so.
         unsupported_features = []
         if isinstance(feature_attributes, MultiTableFeatureAttributes):
             for stfa in feature_attributes.values():
