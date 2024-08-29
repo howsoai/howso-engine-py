@@ -17,7 +17,7 @@ concurrency:
 jobs:
 
   gen-requirements:
-    uses: "howsoai/.github/.github/workflows/compile-requirements.yml@main"
+    uses: "howsoai/.github/.github/workflows/compile-requirements.yml@21429-req-rebuild-update"
     secrets: inherit
     with:
       extras: 'dev scikit'

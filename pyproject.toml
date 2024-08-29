@@ -52,7 +52,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
    "dill~=0.0",
-   "flake8-docstrings",
    "flake8-import-order",
    "flake8~=3.0",
    "pip-tools",
