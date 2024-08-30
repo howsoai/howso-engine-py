@@ -33,7 +33,7 @@ NON_THOROUGH_NUM = 100
 # Match unescaped timezone character in datetime format strings
 SMALLEST_TIME_DELTA = 0.001
 
-MatrixNormalizeMethod: TypeAlias = t.Literal["relative", "fractional", "feature_count"] | Callable
+MatrixNormalizeMethod: TypeAlias = t.Union[t.Literal["relative", "fractional", "feature_count"], Callable]
 
 
 def date_to_epoch(
