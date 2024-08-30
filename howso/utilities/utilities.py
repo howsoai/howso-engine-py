@@ -17,8 +17,8 @@ from dateutil.parser import parse as dt_parse
 from dateutil.tz import tzoffset
 import numpy as np
 import pandas as pd
-from typing_extensions import TypeAlias
 
+from howso.client.typing import NormalizeMethod
 from .internals import serialize_models
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
@@ -32,8 +32,6 @@ ISO_8601_FORMAT_FRACTIONAL = "%Y-%m-%dT%H:%M:%S.%f"
 NON_THOROUGH_NUM = 100
 # Match unescaped timezone character in datetime format strings
 SMALLEST_TIME_DELTA = 0.001
-
-MatrixNormalizeMethod: TypeAlias = t.Union[t.Literal["relative", "fractional", "feature_count"], Callable]
 
 
 def date_to_epoch(
@@ -1176,7 +1174,7 @@ def deep_update(base, updates):
 def matrix_processing( # noqa
     matrix: pd.DataFrame,
     normalize: bool = False,
-    normalize_method: Iterable[MatrixNormalizeMethod] | MatrixNormalizeMethod = "relative",
+    normalize_method: Iterable[NormalizeMethod | Callable] | NormalizeMethod | Callable = "relative",
     ignore_diagonals_normalize: bool = True,
     absolute: bool = False,
     fill_diagonal: bool = False,
@@ -1194,7 +1192,7 @@ def matrix_processing( # noqa
         Matrix in Dataframe form.
     normalize : bool, default False
         Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
-    normalize_method : Iterable of MatrixNormalizeMethod or MatrixNormalizeMethod, default "relative"
+    normalize_method : Iterable of NormalizeMethod | Callable or NormalizeMethod | Callable, default "relative"
         The normalization method. The method may either one of the strings below that correspond to a
         default method or a custom Callable.
 
