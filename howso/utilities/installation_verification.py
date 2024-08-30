@@ -38,6 +38,10 @@ from howso.client.exceptions import HowsoConfigurationError, HowsoError
 from howso.client.schemas import Trainee
 from howso.direct.client import HowsoDirectClient
 try:
+    from howso.platform import HowsoPlatformClient  # noqa: might not be available # type: ignore
+except ImportError:
+    HowsoPlatformClient = None
+try:
     from howso.validator import Validator  # noqa: might not be available # type: ignore
 except OSError as e:
     Validator = e
@@ -175,7 +179,6 @@ class InstallationCheckRegistry:
         -------
         list of class names
         """
-
         if self._client is None:
             return []
         if self._client_classes == []:
@@ -426,12 +429,8 @@ def get_versions():
             versions["client"] = engine_version
         else:
             versions["client_base"] = engine_version
-            try:
-                from howso.platform.client import HowsoPlatformClient
-                if issubclass(client_class, HowsoPlatformClient):
-                    versions["client"] = importlib.metadata.version('howso-platform-client')
-            except ImportError:
-                pass
+            if _is_platform_client(client_class):
+                versions["client"] = importlib.metadata.version('howso-platform-client')
     except Exception:
         # Failed to get version, leave default message
         pass
@@ -513,38 +512,40 @@ def generate_dataframe(*, client: AbstractHowsoClient,
     trainee = client.create_trainee(
         name=f"installation_verification generated dataframe ({get_nonce()})",
         features=features,
-        persistence="never"
+        persistence="allow" if _is_platform_client(client) else "never"
     )
     if not isinstance(trainee, Trainee):
         raise HowsoError('Unable to create trainee.')
-    client.set_feature_attributes(trainee.id, features)
-    client.acquire_trainee_resources(trainee.id, max_wait_time=0)
-    if timeout:
-        # Generate 1 case at a time until `timeout` has passed.
-        end_time = datetime.now() + timedelta(seconds=timeout)
-        cases = {"action": []}
-        while datetime.now() < end_time:
-            if reaction := client.react(
-                trainee.id, action_features=feature_names,
-                num_cases_to_generate=1, desired_conviction=1.0,
-                generate_new_cases="no", suppress_warning=True
-            ):
-                new_cases = reaction.get("action", [])
-                if isinstance(new_cases, pd.DataFrame):
-                    new_case = new_cases.iloc[0].tolist()
-                else:
-                    new_case = new_cases[0]
-                cases["action"].append(new_case)
-        elapsed_time = timeout
-    else:
-        with Timer() as timer:
-            cases = client.react(
-                trainee.id, action_features=feature_names,
-                num_cases_to_generate=num_samples, desired_conviction=1.0,
-                generate_new_cases="no", suppress_warning=True
-            ) or {"action": []}
-        elapsed_time = timer.seconds or math.nan
-    client.delete_trainee(trainee.id)
+    try:
+        client.set_feature_attributes(trainee.id, features)
+        client.acquire_trainee_resources(trainee.id, max_wait_time=0)
+        if timeout:
+            # Generate 1 case at a time until `timeout` has passed.
+            end_time = datetime.now() + timedelta(seconds=timeout)
+            cases = {"action": []}
+            while datetime.now() < end_time:
+                if reaction := client.react(
+                    trainee.id, action_features=feature_names,
+                    num_cases_to_generate=1, desired_conviction=1.0,
+                    generate_new_cases="no", suppress_warning=True
+                ):
+                    new_cases = reaction.get("action", [])
+                    if isinstance(new_cases, pd.DataFrame):
+                        new_case = new_cases.iloc[0].tolist()
+                    else:
+                        new_case = new_cases[0]
+                    cases["action"].append(new_case)
+            elapsed_time = timeout
+        else:
+            with Timer() as timer:
+                cases = client.react(
+                    trainee.id, action_features=feature_names,
+                    num_cases_to_generate=num_samples, desired_conviction=1.0,
+                    generate_new_cases="no", suppress_warning=True
+                ) or {"action": []}
+            elapsed_time = timer.seconds or math.nan
+    finally:
+        client.delete_trainee(trainee.id)
     df = pd.DataFrame(cases["action"], columns=feature_names)
     return df, elapsed_time
 
@@ -747,7 +748,7 @@ def check_save(*, registry: InstallationCheckRegistry,
         try:
             if client and trainee:
                 client.delete_trainee(trainee.id)
-        except Exception as e:  # noqa: Deliberately broad
+        except Exception:  # noqa: Deliberately broad
             pass
 
 
@@ -1061,11 +1062,22 @@ def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
     trainee = client.create_trainee(
         name=f"installation_verification check_tzdata_installed ({get_nonce()})",
         features=features,
-        persistence='never'
+        persistence="allow" if _is_platform_client(client) else "never"
     )
-    client.train(trainee_id=trainee.id, cases=[["2001-01-01"]], features=['date'])
-    result_queue.put(client.get_num_training_cases(trainee.id))
-    client.delete_trainee(trainee.id)
+    try:
+        client.train(trainee_id=trainee.id, cases=[["2001-01-01"]], features=['date'])
+        result_queue.put(client.get_num_training_cases(trainee.id))
+    finally:
+        client.delete_trainee(trainee.id)
+
+
+def _is_platform_client(client: type[AbstractHowsoClient] | AbstractHowsoClient) -> bool:
+    """Check if a client is a platform client type or instance."""
+    if HowsoPlatformClient is None:
+        return False
+    if isinstance(client, type) and issubclass(client, HowsoPlatformClient):
+        return True
+    return isinstance(client, HowsoPlatformClient)
 
 
 def check_tzdata_installed(*, registry: InstallationCheckRegistry):

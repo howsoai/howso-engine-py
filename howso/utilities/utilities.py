@@ -20,6 +20,9 @@ import pandas as pd
 
 from .internals import serialize_models
 
+if t.TYPE_CHECKING:
+    from howso.client.typing import NormalizeMethod
+
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
 DATETIME_TIMEZONE_PATTERN = re.compile(r"(?<!%)(?:%%)*(%z)", re.IGNORECASE)
 DATETIME_UTC_Z_PATTERN = re.compile(r"\dZ$")
@@ -213,7 +216,7 @@ def reshape_data(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
     Returns
     -------
-    np.ndarray 
+    np.ndarray
         X
     np.ndarray
         y
@@ -416,7 +419,7 @@ def validate_list_shape(values: Collection | None, dimensions: int,
 
     Raises
     ------
-    ValueError if variable_name is None 
+    ValueError if variable_name is None
     """
     if values is None:
         if not allow_none:
@@ -449,7 +452,7 @@ def validate_case_indices(case_indices: Sequence[Sequence[str | int]], thorough=
 
     Raises
     ------
-    ValueError 
+    ValueError
         if case_indices : sequences that do not contain the expect data types of str | int
     """
     try:
@@ -519,7 +522,7 @@ def validate_features(features: Mapping[str, Mapping],
     extended_feature_types : list of str, optional
         (Optional) If a list is passed in, the feature types specified in the
         list will be considered as valid features.
-    
+
     Returns
     -------
     None
@@ -1173,7 +1176,7 @@ def deep_update(base, updates):
 def matrix_processing( # noqa
     matrix: pd.DataFrame,
     normalize: bool = False,
-    normalize_method: Iterable[t.Literal["relative", "fractional", "feature_count"] | Callable] | t.Literal["relative", "fractional", "feature_count"] | Callable = "relative",
+    normalize_method: Iterable[NormalizeMethod | Callable] | NormalizeMethod | Callable = "relative",
     ignore_diagonals_normalize: bool = True,
     absolute: bool = False,
     fill_diagonal: bool = False,
@@ -1191,7 +1194,7 @@ def matrix_processing( # noqa
         Matrix in Dataframe form.
     normalize : bool, default False
         Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
-    normalize_method: Literal string ["relative", "fractional", "feature_count"] | Callable OR Literal string ["relative", "fractional", "feature_count"] OR Callable = "relative"
+    normalize_method : Iterable of NormalizeMethod | Callable or NormalizeMethod | Callable, default "relative"
         The normalization method. The method may either one of the strings below that correspond to a
         default method or a custom Callable.
 
