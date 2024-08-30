@@ -558,7 +558,6 @@ class InferFeatureAttributesTimeSeries:
         A subclass of FeatureAttributesBase that extends `dict`, thus providing
         dict-like access to feature attributes and useful helper methods.
         """
-
         infer = InferFeatureAttributesDataFrame(self.data)
 
         if mode_bound_features is None:

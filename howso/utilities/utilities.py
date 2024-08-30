@@ -17,6 +17,7 @@ from dateutil.parser import parse as dt_parse
 from dateutil.tz import tzoffset
 import numpy as np
 import pandas as pd
+from typing_extensions import TypeAlias
 
 from .internals import serialize_models
 
@@ -31,6 +32,8 @@ ISO_8601_FORMAT_FRACTIONAL = "%Y-%m-%dT%H:%M:%S.%f"
 NON_THOROUGH_NUM = 100
 # Match unescaped timezone character in datetime format strings
 SMALLEST_TIME_DELTA = 0.001
+
+MatrixNormalizeMethod: TypeAlias = t.Literal["relative", "fractional", "feature_count"] | Callable
 
 
 def date_to_epoch(
@@ -213,7 +216,7 @@ def reshape_data(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
     Returns
     -------
-    np.ndarray 
+    np.ndarray
         X
     np.ndarray
         y
@@ -416,7 +419,7 @@ def validate_list_shape(values: Collection | None, dimensions: int,
 
     Raises
     ------
-    ValueError if variable_name is None 
+    ValueError if variable_name is None
     """
     if values is None:
         if not allow_none:
@@ -449,7 +452,7 @@ def validate_case_indices(case_indices: Sequence[Sequence[str | int]], thorough=
 
     Raises
     ------
-    ValueError 
+    ValueError
         if case_indices : sequences that do not contain the expect data types of str | int
     """
     try:
@@ -519,7 +522,7 @@ def validate_features(features: Mapping[str, Mapping],
     extended_feature_types : list of str, optional
         (Optional) If a list is passed in, the feature types specified in the
         list will be considered as valid features.
-    
+
     Returns
     -------
     None
@@ -1173,7 +1176,7 @@ def deep_update(base, updates):
 def matrix_processing( # noqa
     matrix: pd.DataFrame,
     normalize: bool = False,
-    normalize_method: Iterable[t.Literal["relative", "fractional", "feature_count"] | Callable] | t.Literal["relative", "fractional", "feature_count"] | Callable = "relative",
+    normalize_method: Iterable[MatrixNormalizeMethod] | MatrixNormalizeMethod = "relative",
     ignore_diagonals_normalize: bool = True,
     absolute: bool = False,
     fill_diagonal: bool = False,
@@ -1191,7 +1194,7 @@ def matrix_processing( # noqa
         Matrix in Dataframe form.
     normalize : bool, default False
         Whether to normalize the matrix row wise. Normalization method is set by the `normalize_method` parameter.
-    normalize_method: Literal string ["relative", "fractional", "feature_count"] | Callable OR Literal string ["relative", "fractional", "feature_count"] OR Callable = "relative"
+    normalize_method : Iterable of MatrixNormalizeMethod or MatrixNormalizeMethod, default "relative"
         The normalization method. The method may either one of the strings below that correspond to a
         default method or a custom Callable.
 

@@ -93,10 +93,10 @@ class FeatureSerializer:
         Raises
         ------
         HowsoError
-            An `pd.ndarray` or `Iterable` is provided, `columns` was left undefined 
+            An `pd.ndarray` or `Iterable` is provided, `columns` was left undefined
             or the given columns does not match the columns defined within a given `pd.DataFrame`.
         ValueError
-            The provided `pd.DataFrame` contains non-unique columns or, an unexpected datatype 
+            The provided `pd.DataFrame` contains non-unique columns or, an unexpected datatype
             was received (should be either pd.DataFrame, np.ndarray or Python Iterable (non-str)).
         """
         # Import locally to prevent a circular import
