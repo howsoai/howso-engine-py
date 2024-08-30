@@ -18,8 +18,10 @@ from dateutil.tz import tzoffset
 import numpy as np
 import pandas as pd
 
-from howso.client.typing import NormalizeMethod
 from .internals import serialize_models
+
+if t.TYPE_CHECKING:
+    from howso.client.typing import NormalizeMethod
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
 DATETIME_TIMEZONE_PATTERN = re.compile(r"(?<!%)(?:%%)*(%z)", re.IGNORECASE)
