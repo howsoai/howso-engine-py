@@ -45,7 +45,7 @@ dependencies = [
    "requests>=2.0,<3.0",
    "rich>=12.5.1",
    "semantic-version~=2.0",
-   "typing-extensions~=4.0",
+   "typing-extensions~=4.9",
    "amalgam-lang==12.4.3", # Use exact since Engine is exact in version.json
 ]
 
