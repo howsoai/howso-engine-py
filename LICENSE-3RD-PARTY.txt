@@ -1,10 +1,10 @@
 Faker
-28.0.0
+28.4.1
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-28.0.0.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-28.4.1.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -149,12 +149,12 @@ DEALINGS IN THE SOFTWARE.
 
 
 certifi
-2024.7.4
+2024.8.30
 Mozilla Public License 2.0 (MPL 2.0)
 Kenneth Reitz
 https://github.com/certifi/python-certifi
 Python package for providing Mozilla's CA Bundle.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/certifi-2024.7.4.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/certifi-2024.8.30.dist-info/LICENSE
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
@@ -279,12 +279,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 cryptography
-43.0.0
+43.0.1
 Apache Software License; BSD License
 The cryptography developers <cryptography-dev@python.org>
 https://github.com/pyca/cryptography
 cryptography is a package which provides cryptographic recipes and primitives to Python developers.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/cryptography-43.0.0.dist-info/license_files/LICENSE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/cryptography-43.0.1.dist-info/license_files/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to cryptography are made
 under the terms of *both* these licenses.
@@ -684,12 +684,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-2.1.0
+2.1.1
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/numpy-2.1.0.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/numpy-2.1.1.dist-info/LICENSE.txt
 Copyright (c) 2005-2024, NumPy Developers.
 All rights reserved.
 
