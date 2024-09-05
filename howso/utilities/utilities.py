@@ -1203,8 +1203,9 @@ def matrix_processing( # noqa
 
         Default Methods:
         - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
-        - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
-        - 'feature_count': normalizes each row by dividing by the feature count.
+        - 'fractional': normalizes each row by dividing each value by the sum of the values in the row, so the relative
+           values sum to 1.
+        - 'fractional_absolute': normalizes each row by dividing each value by the sum of absolute values in the row.
 
         Custom Callable:
         - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
@@ -1286,18 +1287,16 @@ def matrix_processing( # noqa
         for method in normalize_method:
             if method == "relative":
                 matrix = matrix.apply(divide_by_max_abs, axis=1)  # type: ignore
-            elif method == "sum":
+            elif method == "fractional":
                 matrix = matrix.apply(sum_if_not_zero, axis=1)  # type: ignore
-            elif method == "absolute_sum":
+            elif method == "fractional_absolute":
                 matrix = matrix.apply(abs_sum_if_not_zero, axis=1)  # type: ignore
-            elif method == "feature_count":
-                matrix = matrix.apply(lambda x: x / len(matrix.columns), axis=1)  # type: ignore
             elif callable(method):
                 matrix = matrix.apply(method, axis=1)   # type: ignore
             else:
                 raise ValueError(
                     f"Invalid normalization method: {normalize_method}. "
-                    "Must be 'relative', 'sum', 'absolute_sum', 'feature_count' or a Callable."
+                    "Must be 'relative', 'fractional', 'fractional_absolute', or a Callable."
                 )
         if ignore_diagonals_normalize:
             for i, value in enumerate(diagonal_values):
