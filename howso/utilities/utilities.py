@@ -1176,7 +1176,7 @@ def deep_update(base, updates):
 def matrix_processing( # noqa
     matrix: pd.DataFrame,
     normalize: bool = False,
-    normalize_method: Iterable[NormalizeMethod | Callable] | NormalizeMethod | Callable = "relative",
+    normalize_method: Iterable[NormalizeMethod | Callable] | NormalizeMethod | Callable = "fractional",
     ignore_diagonals_normalize: bool = True,
     absolute: bool = False,
     fill_diagonal: bool = False,
