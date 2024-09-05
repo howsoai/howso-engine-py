@@ -352,6 +352,7 @@ def test_matrix_processing(
         processed_matrix = matrix_processing(
             matrix=df,
             normalize=normalize,
+            normalize_method='relative',
             ignore_diagonals_normalize=ignore_diagonals_normalize,
             absolute=absolute,
             fill_diagonal=fill_diagonal,
@@ -364,6 +365,7 @@ def test_matrix_processing(
         processed_matrix = matrix_processing(
             matrix=df,
             normalize=normalize,
+            normalize_method='relative',
             ignore_diagonals_normalize=ignore_diagonals_normalize,
             absolute=absolute,
             fill_diagonal=fill_diagonal,
@@ -384,6 +386,7 @@ def test_matrix_processing(
         processed_matrix = matrix_processing(
             matrix=df,
             normalize=normalize,
+            normalize_method='relative',
             ignore_diagonals_normalize=ignore_diagonals_normalize,
             absolute=absolute,
             fill_diagonal=fill_diagonal,
@@ -403,6 +406,7 @@ def test_matrix_processing(
         processed_matrix = matrix_processing(
             matrix=df,
             normalize=normalize,
+            normalize_method='relative',
             ignore_diagonals_normalize=ignore_diagonals_normalize,
             absolute=absolute,
             fill_diagonal=fill_diagonal,
@@ -421,6 +425,7 @@ def test_matrix_processing(
         processed_matrix = matrix_processing(
             matrix=df,
             normalize=normalize,
+            normalize_method='relative',
             ignore_diagonals_normalize=ignore_diagonals_normalize,
             absolute=absolute,
             fill_diagonal=fill_diagonal,
@@ -439,6 +444,7 @@ def test_matrix_processing(
         processed_matrix = matrix_processing(
             matrix=df,
             normalize=normalize,
+            normalize_method='relative',
             ignore_diagonals_normalize=ignore_diagonals_normalize,
             absolute=absolute,
             fill_diagonal=fill_diagonal,
@@ -456,9 +462,8 @@ def test_matrix_processing(
 @pytest.mark.parametrize(
     'normalize_method',
     (
-        ('sum'),
-        ('absolute_sum'),
-        ('feature_count'),
+        ('fractional'),
+        ('fractional_absolute'),
     )
 )
 def test_matrix_processing_normalization_single_method(
@@ -471,7 +476,7 @@ def test_matrix_processing_normalization_single_method(
         'c': [0.5, -1.5, 3.0],
     }, index=['a', 'b', 'c']).T
 
-    if normalize_method == 'sum':
+    if normalize_method == 'fractional':
         processed_matrix = round(
             matrix_processing(
                 matrix=df,
@@ -487,7 +492,7 @@ def test_matrix_processing_normalization_single_method(
 
         assert_frame_equal(processed_matrix, correct_matrix)
 
-    if normalize_method == 'absolute_sum':
+    if normalize_method == 'fractional_absolute':
         processed_matrix = round(
             matrix_processing(
                 matrix=df,
@@ -503,59 +508,6 @@ def test_matrix_processing_normalization_single_method(
 
         assert_frame_equal(processed_matrix, correct_matrix)
 
-    if normalize_method == 'feature_count':
-        processed_matrix = round(
-            matrix_processing(
-                matrix=df,
-                normalize=True,
-                ignore_diagonals_normalize=False,
-                normalize_method=normalize_method
-            ), 2)
-        correct_matrix = pd.DataFrame({
-            'a': [0.33, -1.00, 2.00],
-            'b': [0.17, -0.17, 0.33],
-            'c': [0.17, -0.50, 1.00]
-        }, index=['a', 'b', 'c']).T
-
-        assert_frame_equal(processed_matrix, correct_matrix)
-
-
-def test_matrix_processing_normalization_list(
-    normalize_method=['feature_count', 'sum'],
-):
-    """Tests that `matrix_processing` normalization parameters with lists works properly."""
-    df = pd.DataFrame({
-        'a': [1.0, -3.0, 6.0],
-        'b': [0.5, -0.5, 1.0],
-        'c': [0.5, -1.5, 3.0],
-    }, index=['a', 'b', 'c']).T
-
-    processed_matrix = round(
-        matrix_processing(
-            matrix=df,
-            normalize=True,
-            ignore_diagonals_normalize=False,
-            normalize_method=normalize_method
-        ), 2)
-
-    # When a list is the parameter, the methods inside are calculated sequentialy. It should be the
-    # same as doing the two methods sequentially independently as well.
-    correct_matrix = matrix_processing(
-        matrix=df,
-        normalize=True,
-        ignore_diagonals_normalize=False,
-        normalize_method=normalize_method[0]
-    )
-    correct_matrix = round(
-        matrix_processing(
-            matrix=correct_matrix,
-            normalize=True,
-            ignore_diagonals_normalize=False,
-            normalize_method=normalize_method[1]
-        ), 2)
-
-    assert_frame_equal(processed_matrix, correct_matrix)
-
 
 def test_matrix_processing_normalization_callable():
     """Tests that `matrix_processing` normalization parameters with Callable works properly."""
@@ -565,7 +517,7 @@ def test_matrix_processing_normalization_callable():
         'c': [0.5, -1.5, 3.0],
     }, index=['a', 'b', 'c']).T
 
-    # This is the exact same function as the 'absolute_sum' normalization method,
+    # This is the exact same function as the 'fractional_absolute' normalization method,
     # thus it should return the same results.
     def divide_by_sum_abs(row):
         sum_abs = row.abs().sum()
@@ -584,7 +536,7 @@ def test_matrix_processing_normalization_callable():
             matrix=df,
             normalize=True,
             ignore_diagonals_normalize=False,
-            normalize_method='absolute_sum'
+            normalize_method='fractional_absolute'
         ), 2)
 
     assert_frame_equal(processed_matrix, correct_matrix)
@@ -605,7 +557,7 @@ def test_matrix_processing_normalization_zero_division():
                 matrix=df,
                 normalize=True,
                 ignore_diagonals_normalize=False,
-                normalize_method='sum'
+                normalize_method='fractional'
             ), 2)
 
     # First row is returned unnormalized

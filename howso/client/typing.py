@@ -52,7 +52,7 @@ Mode: TypeAlias = Literal["robust", "full"]
 NewCaseThreshold: TypeAlias = Literal["max", "min", "most_similar"]
 """Valid values for ``new_case_threshold`` parameters."""
 
-NormalizeMethod: TypeAlias = Literal["feature_count", "fractional", "relative"]
+NormalizeMethod: TypeAlias = Literal["fractional_absolute", "fractional", "relative"]
 """Valid values for ``normalize_method`` parameters."""
 
 PathLike: TypeAlias = Union[str, os.PathLike]
