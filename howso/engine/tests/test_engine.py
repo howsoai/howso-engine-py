@@ -318,7 +318,6 @@ class TestEngine:
     def test_get_mda_matrix(self, trainee):
         """Test `get_mda_matrix`."""
         matrix = trainee.get_mda_matrix(
-            normalize=True,
             absolute=True,
             fill_diagonal=True
         )
@@ -334,7 +333,6 @@ class TestEngine:
 
         saved_matrix = matrix_processing(
             saved_matrix['mda'],
-            normalize=True,
             absolute=True,
             fill_diagonal=True
         )
