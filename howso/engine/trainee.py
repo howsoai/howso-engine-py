@@ -3585,11 +3585,7 @@ class Trainee(BaseTrainee):
         features: t.Optional[Iterable[str]] = None,
         robust: bool = True,
         targeted: bool = False,
-        normalize: bool = False,
-        normalize_method: NormalizeMethod | Callable | Iterable[
-            NormalizeMethod | Callable
-        ] = "relative",
-        absolute: bool = False,
+        normalize: bool = True,
         fill_diagonal: bool = True,
         fill_diagonal_value: float | int = 1,
     ) -> DataFrame:
@@ -3606,25 +3602,8 @@ class Trainee(BaseTrainee):
         targeted : bool, default False
             Whether to do a targeted re-analyze before each feature's contribution is calculated.
         normalize : bool, default False
-            Whether to normalize the matrix row wise. Normalization method is set by the ``normalize_method``
-            parameter.
-        normalize_method : str or callable or iterable of str or callable, default "relative"
-            The normalization method. The method may either one of the strings below that correspond to a
-            default method or a custom callable.
-
-            These methods may be passed in as an individual string or in a iterable where they will
-            be processed sequentially.
-
-            Default Methods:
-            - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
-            - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
-            - 'feature_count': normalizes each row by dividing by the feature count.
-
-            Custom Callable:
-            - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
-                ``matrix.apply(Callable)``
-        absolute : bool, default False
-            Whether to transform the matrix values into the absolute values.
+            Whether to normalize the matrix row wise. If True, normalizes each row by dividing each value
+                by the sum of the values in the row, so the fractional values sum to 1.
         fill_diagonal : bool, default False
             Whether to fill in the diagonals of the matrix. If set to true,
             the diagonal values will be filled in based on the ``fill_diagonal_value`` value.
@@ -3673,8 +3652,7 @@ class Trainee(BaseTrainee):
         matrix = matrix_processing(
             matrix,
             normalize=normalize,
-            normalize_method=normalize_method,
-            absolute=absolute,
+            normalize_method="fractional",
             fill_diagonal=fill_diagonal,
             fill_diagonal_value=fill_diagonal_value
         )
@@ -3718,8 +3696,9 @@ class Trainee(BaseTrainee):
 
             Default Methods:
             - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
-            - 'fractional': normalizes each row by dividing each value by the sum of absolute values in the row.
-            - 'feature_count': normalizes each row by dividing by the feature count.
+            - 'fractional': normalizes each row by dividing each value by the sum of the values in the row, so the relative
+            values sum to 1.
+            - 'fractional_absolute': normalizes each row by dividing each value by the sum of absolute values in the row.
 
             Custom Callable:
             - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
