@@ -178,12 +178,12 @@ one at http://mozilla.org/MPL/2.0/.
 
 
 cffi
-1.17.0
+1.17.1
 MIT License
 Armin Rigo, Maciej Fijalkowski
 http://cffi.readthedocs.org
 Foreign Function Interface for Python calling C code.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/cffi-1.17.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/cffi-1.17.1.dist-info/LICENSE
 
 Except when otherwise stated (look for LICENSE files in directories or
 information at the beginning of each file) all software and
