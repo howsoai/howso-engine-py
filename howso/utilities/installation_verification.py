@@ -10,8 +10,10 @@ from io import StringIO
 import logging
 import math
 import multiprocessing
+import os
 from pathlib import Path
 import random
+import re
 import sys
 import traceback
 import typing as t
@@ -23,7 +25,7 @@ try:
     from requests.exceptions import ConnectionError
 except ImportError:
     ConnectionError = None
-from rich import print
+from rich import print as rich_print
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
 
 try:
@@ -57,6 +59,22 @@ from howso.utilities.locale import get_default_locale
 from howso.utilities.posix import PlatformError, sysctl_by_name
 
 logger = logging.getLogger(__name__)
+
+
+def is_databricks():
+    return bool(os.environ.get('DATABRICKS_RUNTIME_VERSION', None))
+
+
+def iv_print(*args, **kwargs):
+    if is_databricks():
+        # strip out rich formatting before printing
+        alist = list(args)
+        alist[0] = re.sub(r"\[.*\]", "", alist[0])
+        args = tuple(alist)
+        print(*args, **kwargs)
+    else:
+        rich_print(*args, **kwargs)
+
 
 LOG_FILE = "howso_stacktrace.txt"
 
@@ -267,15 +285,15 @@ class InstallationCheckRegistry:
         if not versions:
             return
         if 'python' in versions:
-            print(f"Python version: {versions['python']}", file=file)
+            iv_print(f"Python version: {versions['python']}", file=file)
         if 'client_type' in versions:
-            print(f"Client type: {versions['client_type']}", file=file)
+            iv_print(f"Client type: {versions['client_type']}", file=file)
         if 'client' in versions:
-            print(f"Client version: {versions['client']}", file=file)
+            iv_print(f"Client version: {versions['client']}", file=file)
         if 'client_base' in versions:
-            print(f"API client version: {versions['client_base']}", file=file)
+            iv_print(f"API client version: {versions['client_base']}", file=file)
         if 'platform' in versions:
-            print(f"Platform version: {versions['platform']}", file=file)
+            iv_print(f"Platform version: {versions['platform']}", file=file)
 
     def run_checks(self) -> int:  # noqa: C901
         """
@@ -289,9 +307,13 @@ class InstallationCheckRegistry:
         all_issues = 0
         critical_issues = 0
 
+        disable = False
+        if is_databricks():
+            disable = True
         progress = Progress(
             TextColumn("[progress.description]{task.description}"),
-            BarColumn(), TaskProgressColumn(), TimeElapsedColumn())
+            BarColumn(), TaskProgressColumn(), TimeElapsedColumn(),
+            disable=disable)
 
         if not self.logger:
             self.logger = StringIO()
@@ -368,26 +390,26 @@ class InstallationCheckRegistry:
                 if len(logs):
                     all_issues += 1
                     with open(log_file, mode="w+") as log:
-                        print(f"Installation verification run: "
-                              f"{start_time.isoformat()}\n",
-                              file=log)
+                        iv_print(f"Installation verification run: "
+                                 f"{start_time.isoformat()}\n",
+                                 file=log)
                         self._print_versions(versions, file=log)
-                        print("=" * 80 + "\n", file=log)
-                        print(logs, file=log)
-                        print(f"Verification complete: {end_time.isoformat()} "
-                              f"(elapsed time: {end_time - start_time})\n",
-                              file=log)
+                        iv_print("=" * 80 + "\n", file=log)
+                        iv_print(logs, file=log)
+                        iv_print(f"Verification complete: {end_time.isoformat()} "
+                                 f"(elapsed time: {end_time - start_time})\n",
+                                 file=log)
 
         if not all_issues:
-            print("[bold green]You are ready to use Howso™!")
+            iv_print("[bold green]You are ready to use Howso™!")
         else:
-            print("[bold yellow]There were one or more issues. Please review "
-                  "the messages emitted during the installation verification "
-                  "process to identify next steps. If you cannot resolve "
-                  "these issues please do not hesitate to contact your "
-                  "Howso™ representative.")
-            print(f'[bold yellow]Any CRITICAL issues are logged in the file '
-                  f'"{LOG_FILE}" in the current directory.')
+            iv_print("[bold yellow]There were one or more issues. Please review "
+                     "the messages emitted during the installation verification "
+                     "process to identify next steps. If you cannot resolve "
+                     "these issues please do not hesitate to contact your "
+                     "Howso™ representative.")
+            iv_print(f'[bold yellow]Any CRITICAL issues are logged in the file '
+                     f'"{LOG_FILE}" in the current directory.')
 
         # This is largely for automated systems.
         if critical_issues:
@@ -1020,7 +1042,7 @@ def check_validator_operation(
             A message to display about the WARNING, ERROR or CRITICAL result.
     """
     if isinstance(Validator, Exception):
-        print(Validator, file=registry.logger)
+        iv_print(Validator, file=registry.logger)
         return (Status.CRITICAL,
                 "Howso Validator™ was not installed correctly. "
                 "Please check installation.")
@@ -1214,12 +1236,17 @@ def configure(registry: InstallationCheckRegistry):
 
 def main():
     """Primary entry point."""
-    print("[bold]Validating Howso™ Installation")
+    iv_print("[bold]Validating Howso™ Installation")
     registry = InstallationCheckRegistry()
+
     with warnings.catch_warnings():
         configure(registry)
         warnings.simplefilter("ignore")
-        sys.exit(registry.run_checks())
+        result = registry.run_checks()
+        if is_databricks():
+            return
+        else:
+            sys.exit(result)
 
 
 if __name__ == "__main__":
