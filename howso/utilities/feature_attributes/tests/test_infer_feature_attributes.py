@@ -119,7 +119,7 @@ def test_infer_features_attributes_type_overrides_invalid():
 
     with pytest.raises(
         ValueError,
-        match='A `.caml` file must be provided.'
+        match='Invalid `type_overrides` type keys'
     ):
         infer_feature_attributes(
             df,
