@@ -640,12 +640,15 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
+        attributes = {
+            'type': 'nominal',
+            'data_type': 'number',
+            'decimal_places': 0,
+        }
+
         if feature_type_override == 'nominal':
-            return {
-                'type': 'nominal',
-                'data_type': 'number',
-                'decimal_places': 0,
-            }
+            return attributes
+
         num_uniques = self.data[feature_name].nunique()
         n_cases = int(self.data[feature_name].count())
         if num_uniques < pow(n_cases, 0.5):
@@ -669,18 +672,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     len(str(col_min)) == len(str(col_max))
                 )
 
-        if guess_nominals and feature_type_override != 'continuous':
-            attributes = {
-                'type': 'nominal',
-                'data_type': 'number',
-                'decimal_places': 0,
-            }
-        else:
-            attributes = {
-                'type': 'continuous',
-                'data_type': 'number',
-                'decimal_places': 0,
-            }
+        if not guess_nominals or feature_type_override == 'continuous':
+            attributes['type'] = 'continuous'
 
         return attributes
 

@@ -717,15 +717,17 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
     ) -> Dict:
         # Most primary keys will be integer types (but not all). These are
         # always treated as nominals.
+        attributes = {
+            'type': 'nominal',
+            'data_type': 'number',
+            'decimal_places': 0,
+        }
+
         if (
                 self._is_primary_key(feature_name) or
                 self._is_foreign_key(feature_name)
         ) or feature_type_override == 'nominal':
-            return {
-                'type': 'nominal',
-                'data_type': 'number',
-                'decimal_places': 0,
-            }
+            return attributes
 
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
@@ -755,18 +757,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     len(str(col_min)) == len(str(col_max))
                 )
 
-        if guess_nominals and feature_type_override != 'continuous':
-            attributes = {
-                'type': 'nominal',
-                'data_type': 'number',
-                'decimal_places': 0,
-            }
-        else:
-            attributes = {
-                'type': 'continuous',
-                'data_type': 'number',
-                'decimal_places': 0,
-            }
+        if not guess_nominals or feature_type_override == 'continuous':
+            attributes['type'] = 'continuous'
 
         return attributes
 
