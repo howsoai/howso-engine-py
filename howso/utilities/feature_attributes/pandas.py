@@ -24,7 +24,11 @@ from pandas.core.dtypes.common import (
 )
 import pytz
 
-from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes, PreprocessedAttributes
+from .base import (
+    InferFeatureAttributesBase,
+    PreprocessedAttributes,
+    SingleTableFeatureAttributes
+)
 from ..features import FeatureType
 from ..utilities import (
     date_to_epoch,
@@ -463,7 +467,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self,
         feature_name: str,
         preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
-    ) -> dict:
+    ) -> dict[str, str]:
 
         known_feature_type = preprocessed_attributes.get("known_feature_type")
 
@@ -554,7 +558,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self,
         feature_name: str,
         preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
-    ) -> dict:
+    ) -> dict[str, str]:
         known_feature_type = preprocessed_attributes.get("known_feature_type")
         column = self.data[feature_name]
         dt_format = ISO_8601_FORMAT
@@ -580,7 +584,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self,
         feature_name: str,
         preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
-    ) -> dict:
+    ) -> dict[str, str]:
         known_feature_type = preprocessed_attributes.get("known_feature_type")
         return {
             'type': known_feature_type if known_feature_type else 'continuous',
@@ -592,7 +596,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self,
         feature_name: str,
         preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
-    ) -> dict:
+    ) -> dict[str, str]:
 
         known_feature_type = preprocessed_attributes.get("known_feature_type")
 
@@ -605,7 +609,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self,
         feature_name: str,
         preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
-    ) -> dict:
+    ) -> dict[str, str]:
 
         known_feature_type = preprocessed_attributes.get("known_feature_type")
 
@@ -618,7 +622,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self,
         feature_name: str,
         preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
-    ) -> dict:
+    ) -> dict[str, str]:
 
         known_feature_type = preprocessed_attributes.get("known_feature_type")
         if known_feature_type == 'continuous':
@@ -636,7 +640,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self,
         feature_name: str,
         preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
-    ) -> dict:
+    ) -> dict[str, str]:
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
@@ -682,7 +686,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self,
         feature_name: str,
         preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
-    ) -> dict:
+    ) -> dict[str, str]:
         # Column has arbitrary string values, first check if they
         # are ISO8601 datetimes.
         known_feature_type = preprocessed_attributes.get("known_feature_type")
@@ -722,7 +726,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self,
         feature_name: str,
         preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
-    ) -> dict:
+    ) -> dict[str, str]:
         known_feature_type = preprocessed_attributes.get("known_feature_type")
         if known_feature_type:
             return {
