@@ -114,7 +114,7 @@ def test_infer_features_attributes_type_overrides():
 
 
 def test_infer_features_attributes_type_overrides_invalid():
-    """Litmus test for infer feature types for iris dataset."""
+    """Test invalid forced types for infer feature types for iris dataset."""
     df = pd.read_csv(iris_path)
 
     with pytest.raises(
