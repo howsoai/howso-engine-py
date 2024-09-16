@@ -97,7 +97,7 @@ def test_infer_features_attributes_type_overrides():
         "sepal_width": "nominal",
         "petal_length": "nominal",
         "petal_width": "ordinal",
-        "class": "continuous"
+        "class": "nominal"
     }
 
     features = infer_feature_attributes(
@@ -105,12 +105,34 @@ def test_infer_features_attributes_type_overrides():
         type_overrides={
             'nominal': ['sepal_length', 'sepal_width', 'petal_length'],
             'ordinal': ['petal_width'],
-            'continuous': ['class'],
         }
     )
 
     for feature, attributes in features.items():
         assert expected_types[feature] == attributes['type']
+
+
+def test_infer_features_attributes_type_overrides_ordinals():
+    """Test ordinal forced type, should have the same values as continuous outside of type and bounds."""
+    df = pd.read_csv(iris_path)
+
+    features = infer_feature_attributes(df)
+
+    features_overrides = infer_feature_attributes(
+        df,
+        type_overrides={
+            'ordinal': ['sepal_length', 'sepal_width', 'petal_length', 'petal_width']
+        }
+    )
+    for _, value in features.items():
+        value.pop('type', None)
+        value.pop('bounds', None)
+
+    for _, value in features_overrides.items():
+        value.pop('type', None)
+        value.pop('bounds', None)
+
+    assert features == features_overrides
 
 
 def test_infer_features_attributes_type_overrides_invalid():
