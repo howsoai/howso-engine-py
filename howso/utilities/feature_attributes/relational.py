@@ -13,7 +13,12 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from .base import InferFeatureAttributesBase, MultiTableFeatureAttributes, SingleTableFeatureAttributes
+from .base import (
+    InferFeatureAttributesBase,
+    MultiTableFeatureAttributes,
+    PreprocessedAttributes,
+    SingleTableFeatureAttributes,
+)
 from .protocols import (
     SessionProtocol,
     SQLRelationalDatastoreProtocol,
@@ -551,12 +556,13 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
     def _infer_floating_point_attributes(
         self,
         feature_name: str,
-        feature_type_override: Optional[str] = None
-    ) -> Dict:
-        if (
-                self._is_primary_key(feature_name) or
-                self._is_foreign_key(feature_name)
-        ) or feature_type_override == 'nominal':
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool],
+    ) -> dict[str, str]:
+
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+        feature_relational_key = preprocessed_attributes.get("feature_relational_key")
+
+        if known_feature_type == 'nominal' or feature_relational_key:
             return {
                 'type': 'nominal',
                 'data_type': 'number',
@@ -571,11 +577,11 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         # Ensure we have at least one valid value before attempting to
         # introspect further.
-        if num_nulls < num_cases and feature_type_override not in ('continuous', 'ordinal'):
+        if num_nulls < num_cases and known_feature_type not in ('continuous', 'ordinal'):
             # Determine if nominal by checking if number of uniques <= 2
             if (
-                    self._get_num_uniques(feature_name) <= 2 and
-                    num_cases > 10
+                self._get_num_uniques(feature_name) <= 2 and
+                num_cases > 10
             ):
                 attributes = {
                     'type': 'nominal',
@@ -603,26 +609,18 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 precision * (log(2) / log(10)))
 
         # Only override types left are ordinal and continuous
-        if feature_type_override:
-            attributes['type'] = feature_type_override
+        if known_feature_type:
+            attributes['type'] = known_feature_type
 
         return attributes
 
     def _infer_datetime_attributes(
         self,
         feature_name: str,
-        feature_type_override: Optional[str] = None
-    ) -> Dict:
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool]
+    ) -> dict[str, str]:
         # Although rare, it is plausible that a datetime field could be a
         # primary- or foreign-key.
-        if (
-                self._is_primary_key(feature_name) or
-                self._is_foreign_key(feature_name)
-        ) or feature_type_override == 'nominal':
-            return {
-                'type': 'nominal',
-            }
-
         column = self.data.c[feature_name]
         column_type, _ = self._parse_column_type(str(column.type))
         if (
@@ -633,73 +631,84 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         else:
             dt_format = ISO_8601_FORMAT
 
-        return {
-            'type': feature_type_override if feature_type_override else 'continuous',
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+        feature_relational_key = preprocessed_attributes.get("feature_relational_key")
+
+        attributes = {
+            'type': known_feature_type if known_feature_type else 'continuous',
             'data_type': 'formatted_date_time',
             'date_time_format': dt_format,
         }
 
+        if feature_relational_key:
+            attributes['type'] = 'nominal'
+
+        return attributes
+
     def _infer_date_attributes(
         self,
         feature_name: str,
-        feature_type_override: Optional[str] = None
-    ) -> Dict:
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool]
+    ) -> dict[str, str]:
         # Although rare, it is plausible that a date field could be a
         # primary- or foreign-key.
-        if (
-                self._is_primary_key(feature_name) or
-                self._is_foreign_key(feature_name)
-        ) or feature_type_override == 'nominal':
-            return {
-                'type': 'nominal',
-            }
-        else:
-            return {
-                'type': feature_type_override if feature_type_override else 'continuous',
-                'data_type': 'formatted_date_time',
-                'date_time_format': ISO_8601_DATE_FORMAT,
-            }
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+        feature_relational_key = preprocessed_attributes.get("feature_relational_key")
+
+        attributes = {
+            'type': known_feature_type if known_feature_type else 'continuous',
+            'data_type': 'formatted_date_time',
+            'date_time_format': ISO_8601_DATE_FORMAT,
+        }
+
+        if feature_relational_key:
+            attributes['type'] = 'nominal'
 
     def _infer_time_attributes(
         self,
         feature_name: str,
-        feature_type_override: Optional[str] = None
-    ) -> Dict:
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool]
+    ) -> dict[str, str]:
+
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
 
         return {
-            'type': feature_type_override if feature_type_override else 'continuous',
+            'type': known_feature_type if known_feature_type else 'continuous',
             'data_type': 'number'
         }
 
     def _infer_timedelta_attributes(
         self,
         feature_name: str,
-        feature_type_override: Optional[str] = None
-    ) -> Dict:
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool]
+    ) -> dict[str, str]:
         # Although rare, it is plausible that a timedelta field could be a
         # primary- or foreign-key.
-        if (
-                self._is_primary_key(feature_name) or
-                self._is_foreign_key(feature_name)
-        ) or feature_type_override == 'nominal':
+        if preprocessed_attributes.get("feature_relational_key"):
             return {
                 'type': 'nominal',
+                'data_type': 'number'
             }
 
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+
         return {
-            'type': feature_type_override if feature_type_override else 'continuous',
+            'type': known_feature_type if known_feature_type else 'continuous',
             'data_type': 'number'
         }
 
     def _infer_boolean_attributes(
         self,
         feature_name: str,
-        feature_type_override: Optional[str] = None
-    ) -> Dict:
-        if feature_type_override in ('continuous', 'ordinal'):
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool]
+    ) -> dict[str, str]:
+
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+
+        if known_feature_type in ('continuous', 'ordinal'):
             warnings.warn(
-                f"Feature {feature_name} is specified as {feature_type_override} "
-                "in `type_overrides` but detected as boolean. Booleans "
+                f"Feature {feature_name} is specified as {known_feature_type} "
+                "in `known_types` but detected as boolean. Booleans "
                 "must be 'nominal', thus the type override will be ignored."
             )
         return {
@@ -710,8 +719,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
     def _infer_integer_attributes(
         self,
         feature_name: str,
-        feature_type_override: Optional[str] = None
-    ) -> Dict:
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool]
+    ) -> dict[str, str]:
         # Most primary keys will be integer types (but not all). These are
         # always treated as nominals.
         attributes = {
@@ -720,17 +729,17 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             'decimal_places': 0,
         }
 
-        if (
-                self._is_primary_key(feature_name) or
-                self._is_foreign_key(feature_name)
-        ) or feature_type_override == 'nominal':
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+        feature_relational_key = preprocessed_attributes.get("feature_relational_key")
+
+        if feature_relational_key or known_feature_type == 'nominal':
             return attributes
 
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
-        if feature_type_override:
-            attributes['type'] = feature_type_override
+        if known_feature_type:
+            attributes['type'] = known_feature_type
         else:
             num_uniques = self._get_num_uniques(feature_name)
             n_cases = self._get_num_cases()
@@ -765,38 +774,39 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
     def _infer_string_attributes(
         self,
         feature_name: str,
-        feature_type_override: Optional[str] = None
-    ) -> Dict:
-        if (
-                self._is_primary_key(feature_name) or
-                self._is_foreign_key(feature_name)
-        ) or feature_type_override == 'nominal':
-            return {
-                'type': 'nominal',
-            }
-
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool]
+    ) -> dict[str, str]:
         # Column has arbitrary string values, first check if they
         # are ISO8601 datetimes.
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+        feature_relational_key = preprocessed_attributes.get("feature_relational_key")
         if self._is_iso8601_datetime_column(feature_name):
             # if datetime, determine the iso8601 format it's using
             sample = self._get_first_non_null(feature_name)
             fmt = determine_iso_format(sample, feature_name)
-            return {
-                'type': feature_type_override if feature_type_override else 'continuous',
+            attributes = {
+                'type': known_feature_type if known_feature_type else 'continuous',
                 'data_type': 'formatted_date_time',
                 'date_time_format': fmt
             }
+
+            if feature_relational_key:
+                attributes['type'] = 'nominal'
+
+            return attributes
+
         else:
-            return self._infer_unknown_attributes(feature_name, feature_type_override)
+            return self._infer_unknown_attributes(feature_name, preprocessed_attributes)
 
     def _infer_unknown_attributes(
         self,
         feature_name: str,
-        feature_type_override: Optional[str] = None
-    ) -> Dict:
-        if feature_type_override:
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool]
+    ) -> dict[str, str]:
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+        if known_feature_type:
             return {
-                'type': f'{feature_type_override}'
+                'type': f'{known_feature_type}'
             }
         else:
             return {

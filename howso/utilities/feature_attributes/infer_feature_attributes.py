@@ -162,17 +162,14 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
         Set to True to include a sample of each feature's data in the output.
 
 
-    type_overrides : dict, default None
+    known_types : dict, default None
         (Optional) A dictionary that may include the keys 'continuous', 'ordinal',
         or 'nominal' whose values are a list that forces the list's features' `type` to
         be this value.
 
             Examples::
-            {
-                "type_overrides": {
-                    "continuous": ['a', 'b', 'c'],
-                    "nominal": ['d', 'e']
-                }
+                "continuous": ['a', 'b', 'c'],
+                "nominal": ['d', 'e']
             }
 
 

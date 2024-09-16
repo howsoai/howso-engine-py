@@ -102,7 +102,7 @@ def test_infer_features_attributes_type_overrides():
 
     features = infer_feature_attributes(
         df,
-        type_overrides={
+        known_types={
             'nominal': ['sepal_length', 'sepal_width', 'petal_length'],
             'ordinal': ['petal_width'],
         }
@@ -120,36 +120,52 @@ def test_infer_features_attributes_type_overrides_ordinals():
 
     features_overrides = infer_feature_attributes(
         df,
-        type_overrides={
+        known_types={
             'ordinal': ['sepal_length', 'sepal_width', 'petal_length', 'petal_width']
         }
     )
-    for _, value in features.items():
+    for value in features.values():
         value.pop('type', None)
         value.pop('bounds', None)
 
-    for _, value in features_overrides.items():
+    for value in features_overrides.values():
         value.pop('type', None)
         value.pop('bounds', None)
 
     assert features == features_overrides
 
 
-def test_infer_features_attributes_type_overrides_invalid():
+def test_infer_features_attributes_type_overrides_invalid_repeats():
+    """Test invalid repeated features for infer feature types for iris dataset."""
+    df = pd.read_csv(iris_path)
+
+    with pytest.raises(
+        ValueError,
+        match='appear in more than type for `known_types`'
+    ):
+        infer_feature_attributes(
+            df,
+            known_types={
+                'ordinal': ['sepal_length'],
+                'nominal': ['sepal_length']
+            }
+        )
+
+
+def test_infer_features_attributes_type_overrides_invalid_keys():
     """Test invalid forced types for infer feature types for iris dataset."""
     df = pd.read_csv(iris_path)
 
     with pytest.raises(
         ValueError,
-        match='Invalid `type_overrides` type keys'
+        match='Invalid `known_types` type keys'
     ):
         infer_feature_attributes(
             df,
-            type_overrides={
+            known_types={
                 'bad_type': ['class'],
             }
         )
-
 
 @pytest.mark.parametrize(
     "features, max_workers",
