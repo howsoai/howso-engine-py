@@ -664,6 +664,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         if feature_relational_key:
             attributes['type'] = 'nominal'
 
+        return attributes
+
     def _infer_time_attributes(
         self,
         feature_name: str,
