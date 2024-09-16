@@ -458,8 +458,18 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
         return output or None
 
-    def _infer_floating_point_attributes(self, feature_name: str) -> dict:
-        attributes: dict[str, t.Any] = {'type': 'continuous', 'data_type': 'number'}
+    def _infer_floating_point_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: t.Optional[str] = None,
+    ) -> dict:
+        if feature_type_override == 'nominal':
+            return {
+                'type': 'nominal',
+                'data_type': 'number',
+            }
+        else:
+            attributes: dict[str, t.Any] = {'type': 'continuous', 'data_type': 'number'}
 
         n_cases = self.data[feature_name].shape[0]
 
@@ -468,7 +478,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if self.data[feature_name].isna().sum() < n_cases:
 
             # determine if nominal by checking if number of uniques <= 2
-            if self.data[feature_name].nunique() <= 2 and n_cases > 10:
+            if self.data[feature_name].nunique() <= 2 and n_cases > 10 and feature_type_override != 'continuous':
                 return {
                     'type': 'nominal',
                     'data_type': 'number'
@@ -529,7 +539,16 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
         return attributes
 
-    def _infer_datetime_attributes(self, feature_name: str) -> dict:
+    def _infer_datetime_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: t.Optional[str] = None
+    ) -> dict:
+        if feature_type_override == 'nominal':
+            return {
+                'type': 'nominal',
+            }
+
         column = self.data[feature_name]
         dt_format = ISO_8601_FORMAT
         if hasattr(column, 'dt') and getattr(column.dt, 'tz', None):
@@ -549,35 +568,84 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             'date_time_format': dt_format,
         }
 
-    def _infer_date_attributes(self, feature_name: str) -> dict:
-        return {
-            'type': 'continuous',
-            'data_type': 'formatted_date_time',
-            'date_time_format': ISO_8601_DATE_FORMAT,
-        }
+    def _infer_date_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: t.Optional[str] = None
+    ) -> dict:
+        if feature_type_override == 'nominal':
+            return {
+                'type': 'nominal'
+            }
+        else:
+            return {
+                'type': 'continuous',
+                'data_type': 'formatted_date_time',
+                'date_time_format': ISO_8601_DATE_FORMAT,
+            }
 
-    def _infer_time_attributes(self, feature_name: str) -> dict:
-        return {
-            'type': 'continuous',
-            'data_type': 'number',
-        }
+    def _infer_time_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: t.Optional[str] = None
+    ) -> dict:
+        if feature_type_override == 'nominal':
+            return {
+                'type': 'nominal',
+                'data_type': 'number',
+            }
+        else:
+            return {
+                'type': 'continuous',
+                'data_type': 'number',
+            }
 
-    def _infer_timedelta_attributes(self, feature_name: str) -> dict:
-        return {
-            'type': 'continuous',
-            'data_type': 'number',
-        }
+    def _infer_timedelta_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: t.Optional[str] = None
+    ) -> dict:
+        if feature_type_override == 'nominal':
+            return {
+                'type': 'nominal',
+                'data_type': 'number',
+            }
+        else:
+            return {
+                'type': 'continuous',
+                'data_type': 'number',
+            }
 
-    def _infer_boolean_attributes(self, feature_name: str) -> dict:
+    def _infer_boolean_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: t.Optional[str] = None
+    ) -> dict:
+        if feature_type_override == 'continuous':
+            warnings.warn(
+                f"Feature {feature_name} is specified as 'continuous' "
+                "in `type_overrides` but detected as boolean. Booleans "
+                "must be 'nominal', thus the type override will be ignored."
+            )
         return {
             'type': 'nominal',
             'data_type': 'boolean',
         }
 
-    def _infer_integer_attributes(self, feature_name: str) -> dict:
+    def _infer_integer_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: t.Optional[str] = None
+    ) -> dict:
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
+        if feature_type_override == 'nominal':
+            return {
+                'type': 'nominal',
+                'data_type': 'number',
+                'decimal_places': 0,
+            }
         num_uniques = self.data[feature_name].nunique()
         n_cases = int(self.data[feature_name].count())
         if num_uniques < pow(n_cases, 0.5):
@@ -601,7 +669,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     len(str(col_min)) == len(str(col_max))
                 )
 
-        if guess_nominals:
+        if guess_nominals and feature_type_override != 'continuous':
             attributes = {
                 'type': 'nominal',
                 'data_type': 'number',
@@ -616,9 +684,17 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
         return attributes
 
-    def _infer_string_attributes(self, feature_name: str) -> dict:
+    def _infer_string_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: t.Optional[str] = None
+    ) -> dict:
         # Column has arbitrary string values, first check if they
         # are ISO8601 datetimes.
+        if feature_type_override == 'nominal':
+            return {
+                'type': 'nominal'
+            }
         if self._is_iso8601_datetime_column(feature_name):
             # if datetime, determine the iso8601 format it's using
             if first_non_null := self._get_first_non_null(feature_name):
@@ -645,9 +721,18 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 'data_type': 'yaml'
             }
         else:
-            return self._infer_unknown_attributes(feature_name)
+            return self._infer_unknown_attributes(feature_name, feature_type_override)
 
-    def _infer_unknown_attributes(self, feature_name: str) -> dict:
-        return {
-            'type': 'nominal',
-        }
+    def _infer_unknown_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: t.Optional[str] = None
+    ) -> dict:
+        if feature_type_override == 'continuous':
+            return {
+                'type': 'continuous'
+            }
+        else:
+            return {
+                'type': 'nominal'
+            }

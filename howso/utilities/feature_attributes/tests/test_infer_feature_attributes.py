@@ -88,6 +88,47 @@ def test_infer_features_attributes():
         assert expected_types[feature] == attributes['type']
 
 
+def test_infer_features_attributes_type_overrides():
+    """Test forced types for infer feature types for iris dataset."""
+    df = pd.read_csv(iris_path)
+
+    expected_types = {
+        "sepal_length": "nominal",
+        "sepal_width": "nominal",
+        "petal_length": "nominal",
+        "petal_width": "ordinal",
+        "class": "continuous"
+    }
+
+    features = infer_feature_attributes(
+        df,
+        type_overrides={
+            'nominal': ['sepal_length', 'sepal_width', 'petal_length'],
+            'ordinal': ['petal_width'],
+            'continuous': ['class'],
+        }
+    )
+
+    for feature, attributes in features.items():
+        assert expected_types[feature] == attributes['type']
+
+
+def test_infer_features_attributes_type_overrides_invalid():
+    """Litmus test for infer feature types for iris dataset."""
+    df = pd.read_csv(iris_path)
+
+    with pytest.raises(
+        ValueError,
+        match='A `.caml` file must be provided.'
+    ):
+        infer_feature_attributes(
+            df,
+            type_overrides={
+                'bad_type': ['class'],
+            }
+        )
+
+
 @pytest.mark.parametrize(
     "features, max_workers",
     [

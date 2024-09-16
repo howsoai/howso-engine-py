@@ -535,6 +535,7 @@ class InferFeatureAttributesBase(ABC):
                  dependent_features: Optional[Dict[str, List[str]]] = None,
                  include_sample: bool = False,
                  max_workers: Optional[int] = None,
+                 type_overrides: Optional[dict] = None,
                  ) -> Dict:
         """
         Get inferred feature attributes for the parameters.
@@ -571,7 +572,21 @@ class InferFeatureAttributesBase(ABC):
             dependent_features = dict()
 
         feature_names_list = self._get_feature_names()
+
+        if type_overrides:
+            invalid_type_override_keys = set(type_overrides.keys()) - {'continuous', 'ordinal', 'nominal'}
+            if invalid_type_override_keys:
+                raise ValueError(
+                    f"Invalid `type_overrides` type keys: {invalid_type_override_keys}"
+                    "Valid values are: 'continuous', 'ordinal', oe 'nominal'."
+                )
+
         for feature_name in feature_names_list:
+            feature_type_override = self._process_type_overrides(
+                feature_name,
+                type_overrides,
+            )
+
             # What type is this feature?
             feature_type, typing_info = self._get_feature_type(feature_name)
 
@@ -579,10 +594,17 @@ class InferFeatureAttributesBase(ABC):
 
             # EXPLICITLY DECLARED ORDINALS
             if feature_name in ordinal_feature_values:
-                feature_attributes[feature_name] = {
-                    'type': 'ordinal',
-                    'bounds': {'allowed': ordinal_feature_values[feature_name]}
-                }
+                if feature_type_override != "ordinal":
+                    raise ValueError(
+                        f"Feature: {feature_name} was specified as '{feature_type_override}' in `type_overrides` "
+                        "but is also specified as 'ordinal' as `ordinal_feature_values` were provided."
+                    )
+                else:
+                    feature_attributes[feature_name] = {
+                        'type': 'ordinal',
+                        'bounds': {'allowed': ordinal_feature_values[feature_name]}
+                    }
+            # After this point, all feature_type_override values can only be 'continuous' or 'nominal'
 
             # EXPLICITLY DECLARED DATETIME FEATURES
             elif datetime_feature_formats.get(feature_name, None):
@@ -599,7 +621,7 @@ class InferFeatureAttributesBase(ABC):
                     # When feature is a datetime instance, we won't need to
                     # parse the datetime from a string using a custom format.
                     feature_attributes[feature_name] = (
-                        self._infer_datetime_attributes(feature_name))
+                        self._infer_datetime_attributes(feature_name, feature_type_override))
                     warnings.warn(
                         'Providing a datetime feature format for the feature '
                         f'"{feature_name}" is not necessary because the data '
@@ -609,7 +631,7 @@ class InferFeatureAttributesBase(ABC):
                     # When feature is a date instance, we won't need to
                     # parse the datetime from a string using a custom format.
                     feature_attributes[feature_name] = (
-                        self._infer_date_attributes(feature_name))
+                        self._infer_date_attributes(feature_name, feature_type_override))
                     warnings.warn(
                         'Providing a datetime feature format for the feature '
                         f'"{feature_name}" is not necessary because the data '
@@ -619,7 +641,7 @@ class InferFeatureAttributesBase(ABC):
                     # When feature is a time instance, we won't need to
                     # parse the datetime from a string using a custom format.
                     feature_attributes[feature_name] = (
-                        self._infer_datetime_attributes(feature_name))
+                        self._infer_datetime_attributes(feature_name, feature_type_override))
                     warnings.warn(
                         'Time only features with a datetime feature format '
                         'will be treated as a datetime using the date '
@@ -631,6 +653,8 @@ class InferFeatureAttributesBase(ABC):
                         'data_type': 'formatted_date_time',
                         'date_time_format': user_dt_format,
                     }
+                    if feature_type_override == 'nominal':
+                        feature_attributes[feature_name]['type'] = 'nominal'
                 elif (
                     isinstance(user_dt_format, Collection) and
                     len(user_dt_format) == 2
@@ -643,6 +667,8 @@ class InferFeatureAttributesBase(ABC):
                         'date_time_format': dt_format,
                         'locale': dt_locale,
                     }
+                    if feature_type_override == 'nominal':
+                        feature_attributes[feature_name]['type'] = 'nominal'
                 else:
                     # Not really sure what they passed.
                     raise TypeError(
@@ -654,42 +680,43 @@ class InferFeatureAttributesBase(ABC):
             # FLOATING POINT FEATURES
             elif feature_type == FeatureType.NUMERIC:
                 feature_attributes[feature_name] = (
-                    self._infer_floating_point_attributes(feature_name))
+                    self._infer_floating_point_attributes(feature_name, feature_type_override)
+                )
 
             # IMPLICITLY DEFINED DATETIME FEATURES
             elif feature_type == FeatureType.DATETIME:
                 feature_attributes[feature_name] = (
-                    self._infer_datetime_attributes(feature_name))
+                    self._infer_datetime_attributes(feature_name, feature_type_override))
 
             # DATE ONLY FEATURES
             elif feature_type == FeatureType.DATE:
                 feature_attributes[feature_name] = (
-                    self._infer_date_attributes(feature_name))
+                    self._infer_date_attributes(feature_name, feature_type_override))
 
             # TIME ONLY FEATURES
             elif feature_type == FeatureType.TIME:
                 feature_attributes[feature_name] = (
-                    self._infer_time_attributes(feature_name))
+                    self._infer_time_attributes(feature_name, feature_type_override))
 
             # TIMEDELTA FEATURES
             elif feature_type == FeatureType.TIMEDELTA:
                 feature_attributes[feature_name] = (
-                    self._infer_timedelta_attributes(feature_name))
+                    self._infer_timedelta_attributes(feature_name, feature_type_override))
 
             # INTEGER FEATURES
             elif feature_type == FeatureType.INTEGER:
                 feature_attributes[feature_name] = (
-                    self._infer_integer_attributes(feature_name))
+                    self._infer_integer_attributes(feature_name, feature_type_override))
 
             # BOOLEAN FEATURES
             elif feature_type == FeatureType.BOOLEAN:
                 feature_attributes[feature_name] = (
-                    self._infer_boolean_attributes(feature_name))
+                    self._infer_boolean_attributes(feature_name, feature_type_override))
 
             # ALL OTHER FEATURES
             else:
                 feature_attributes[feature_name] = (
-                    self._infer_string_attributes(feature_name))
+                    self._infer_string_attributes(feature_name, feature_type_override))
 
             # Is column constrained to be unique?
             if self._has_unique_constraint(feature_name):
@@ -805,39 +832,75 @@ class InferFeatureAttributesBase(ABC):
         """Process and return the feature attributes."""
 
     @abstractmethod
-    def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
+    def _infer_floating_point_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None,
+    ) -> Dict:
         """Get inferred attributes for the given floating-point column."""
 
     @abstractmethod
-    def _infer_datetime_attributes(self, feature_name: str) -> Dict:
+    def _infer_datetime_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None,
+    ) -> Dict:
         """Get inferred attributes for the given date-time column."""
 
     @abstractmethod
-    def _infer_date_attributes(self, feature_name: str) -> Dict:
+    def _infer_date_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None,
+    ) -> Dict:
         """Get inferred attributes for the given date only column."""
 
     @abstractmethod
-    def _infer_time_attributes(self, feature_name: str) -> Dict:
+    def _infer_time_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None,
+    ) -> Dict:
         """Get inferred attributes for the given time column."""
 
     @abstractmethod
-    def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
+    def _infer_timedelta_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None,
+    ) -> Dict:
         """Get inferred attributes for the given timedelta column."""
 
     @abstractmethod
-    def _infer_boolean_attributes(self, feature_name: str) -> Dict:
+    def _infer_boolean_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None,
+    ) -> Dict:
         """Get inferred attributes for the given boolean column."""
 
     @abstractmethod
-    def _infer_integer_attributes(self, feature_name: str) -> Dict:
+    def _infer_integer_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None,
+    ) -> Dict:
         """Get inferred attributes for the given integer column."""
 
     @abstractmethod
-    def _infer_string_attributes(self, feature_name: str) -> Dict:
+    def _infer_string_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None,
+    ) -> Dict:
         """Get inferred attributes for the given string column."""
 
     @abstractmethod
-    def _infer_unknown_attributes(self, feature_name: str) -> Dict:
+    def _infer_unknown_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None,
+    ) -> Dict:
         """Get inferred attributes for the given unknown-type column."""
 
     @abstractmethod
@@ -1211,6 +1274,47 @@ class InferFeatureAttributesBase(ABC):
                     max_value = 8388607
 
         return min_value, max_value
+
+    def _process_type_overrides(
+        self,
+        feature_name: str,
+        type_overrides: Optional[dict],
+    ) -> Optional[str]:
+        """
+        Process the `type_overrides` if it exists for a single feature.
+
+        Parameters
+        ----------
+        feature_name : str
+            The name of feature.
+        type_overrides : dict, optional
+            A dictionary of type data type overrides.
+
+        Returns
+        -------
+        str or None
+            The processed data type override for this feature.
+        """
+        feature_type_override = None
+        if type_overrides:
+            for key, value_list in type_overrides.items():
+                if feature_name in value_list:
+                    feature_type_override = key
+            if feature_type_override:
+                from .relational import InferFeatureAttributesSQLTable
+                if isinstance(self, InferFeatureAttributesSQLTable):
+                    if (
+                            self._is_primary_key(feature_name) or
+                            self._is_foreign_key(feature_name)
+                    ):
+                        warnings.warn(
+                            f"Feature: {feature_name}: was specified as '{feature_type_override}' "
+                            "in `type_overrides` but is a primary or foreign key which must "
+                            "be 'nominal'. The type override will be ignored."
+                        )
+                        feature_type_override = "nominal"
+
+        return feature_type_override
 
     @abstractmethod
     def _get_feature_type(self, feature_name: str

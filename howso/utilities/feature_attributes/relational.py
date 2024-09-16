@@ -548,17 +548,21 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return None, None
 
-    def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
+    def _infer_floating_point_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None
+    ) -> Dict:
         if (
                 self._is_primary_key(feature_name) or
                 self._is_foreign_key(feature_name)
-        ):
+        ) or feature_type_override == 'nominal':
             return {
                 'type': 'nominal',
                 'data_type': 'number',
             }
-
-        attributes = {'type': 'continuous', 'data_type': 'number'}
+        else:
+            attributes = {'type': 'continuous', 'data_type': 'number'}
         num_cases = self._get_num_cases()
 
         column = self.data.c[feature_name]
@@ -567,7 +571,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         # Ensure we have at least one valid value before attempting to
         # introspect further.
-        if num_nulls < num_cases:
+        if num_nulls < num_cases and feature_type_override != 'continuous':
             # Determine if nominal by checking if number of uniques <= 2
             if (
                     self._get_num_uniques(feature_name) <= 2 and
@@ -600,13 +604,17 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return attributes
 
-    def _infer_datetime_attributes(self, feature_name: str) -> Dict:
+    def _infer_datetime_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None
+    ) -> Dict:
         # Although rare, it is plausible that a datetime field could be a
         # primary- or foreign-key.
         if (
                 self._is_primary_key(feature_name) or
                 self._is_foreign_key(feature_name)
-        ):
+        ) or feature_type_override == 'nominal':
             return {
                 'type': 'nominal',
             }
@@ -627,13 +635,17 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             'date_time_format': dt_format,
         }
 
-    def _infer_date_attributes(self, feature_name: str) -> Dict:
+    def _infer_date_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None
+    ) -> Dict:
         # Although rare, it is plausible that a date field could be a
         # primary- or foreign-key.
         if (
                 self._is_primary_key(feature_name) or
                 self._is_foreign_key(feature_name)
-        ):
+        ) or feature_type_override == 'nominal':
             return {
                 'type': 'nominal',
             }
@@ -644,41 +656,71 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             'date_time_format': ISO_8601_DATE_FORMAT,
         }
 
-    def _infer_time_attributes(self, feature_name: str) -> Dict:
-        return {
-            'type': 'continuous',
-            'data_type': 'number',
-        }
+    def _infer_time_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None
+    ) -> Dict:
+        if feature_type_override == 'nominal':
+            return {
+                'type': 'nominal',
+                'data_type': 'number',
+            }
+        else:
+            return {
+                'type': 'continuous',
+                'data_type': 'number',
+            }
 
-    def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
+    def _infer_timedelta_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None
+    ) -> Dict:
         # Although rare, it is plausible that a timedelta field could be a
         # primary- or foreign-key.
         if (
                 self._is_primary_key(feature_name) or
                 self._is_foreign_key(feature_name)
-        ):
+        ) or feature_type_override == 'nominal':
             return {
                 'type': 'nominal',
+                'data_type': 'number',
             }
 
-        return {
-            'type': 'continuous',
-            'data_type': 'number',
-        }
+        else:
+            return {
+                'type': 'continuous',
+                'data_type': 'number',
+            }
 
-    def _infer_boolean_attributes(self, feature_name: str) -> Dict:
+    def _infer_boolean_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None
+    ) -> Dict:
+        if feature_type_override == 'continuous':
+            warnings.warn(
+                f"Feature {feature_name} is specified as 'continuous' "
+                "in `type_overrides` but detected as boolean. Booleans "
+                "must be 'nominal', thus the type override will be ignored."
+            )
         return {
             'type': 'nominal',
             'data_type': 'boolean',
         }
 
-    def _infer_integer_attributes(self, feature_name: str) -> Dict:
+    def _infer_integer_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None
+    ) -> Dict:
         # Most primary keys will be integer types (but not all). These are
         # always treated as nominals.
         if (
                 self._is_primary_key(feature_name) or
                 self._is_foreign_key(feature_name)
-        ):
+        ) or feature_type_override == 'nominal':
             return {
                 'type': 'nominal',
                 'data_type': 'number',
@@ -713,7 +755,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     len(str(col_min)) == len(str(col_max))
                 )
 
-        if guess_nominals:
+        if guess_nominals and feature_type_override != 'continuous':
             attributes = {
                 'type': 'nominal',
                 'data_type': 'number',
@@ -728,11 +770,15 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return attributes
 
-    def _infer_string_attributes(self, feature_name: str) -> Dict:
+    def _infer_string_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None
+    ) -> Dict:
         if (
                 self._is_primary_key(feature_name) or
                 self._is_foreign_key(feature_name)
-        ):
+        ) or feature_type_override == 'nominal':
             return {
                 'type': 'nominal',
             }
@@ -749,12 +795,21 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 'date_time_format': fmt
             }
         else:
-            return self._infer_unknown_attributes(feature_name)
+            return self._infer_unknown_attributes(feature_name, feature_type_override)
 
-    def _infer_unknown_attributes(self, feature_name: str) -> Dict:
-        return {
-            'type': 'nominal'
-        }
+    def _infer_unknown_attributes(
+        self,
+        feature_name: str,
+        feature_type_override: Optional[str] = None
+    ) -> Dict:
+        if feature_type_override == 'continuous':
+            return {
+                'type': 'continuous'
+            }
+        else:
+            return {
+                'type': 'nominal'
+            }
 
     def _infer_feature_bounds(self,  # noqa: C901
                               feature_attributes: Mapping[str, Mapping],
