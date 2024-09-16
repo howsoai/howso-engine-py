@@ -571,7 +571,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         # Ensure we have at least one valid value before attempting to
         # introspect further.
-        if num_nulls < num_cases and feature_type_override != 'continuous':
+        if num_nulls < num_cases and feature_type_override not in ('continuous', 'ordinal'):
             # Determine if nominal by checking if number of uniques <= 2
             if (
                     self._get_num_uniques(feature_name) <= 2 and
@@ -602,6 +602,10 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             attributes['significant_digits'] = ceil(
                 precision * (log(2) / log(10)))
 
+        # Only override types left are ordinal and continuous
+        if feature_type_override:
+            attributes['type'] = feature_type_override
+
         return attributes
 
     def _infer_datetime_attributes(
@@ -630,7 +634,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             dt_format = ISO_8601_FORMAT
 
         return {
-            'type': 'continuous',
+            'type': feature_type_override if feature_type_override else 'continuous',
             'data_type': 'formatted_date_time',
             'date_time_format': dt_format,
         }
@@ -649,28 +653,23 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             return {
                 'type': 'nominal',
             }
-
-        return {
-            'type': 'continuous',
-            'data_type': 'formatted_date_time',
-            'date_time_format': ISO_8601_DATE_FORMAT,
-        }
+        else:
+            return {
+                'type': feature_type_override if feature_type_override else 'continuous',
+                'data_type': 'formatted_date_time',
+                'date_time_format': ISO_8601_DATE_FORMAT,
+            }
 
     def _infer_time_attributes(
         self,
         feature_name: str,
         feature_type_override: Optional[str] = None
     ) -> Dict:
-        if feature_type_override == 'nominal':
-            return {
-                'type': 'nominal',
-                'data_type': 'number',
-            }
-        else:
-            return {
-                'type': 'continuous',
-                'data_type': 'number',
-            }
+
+        return {
+            'type': feature_type_override if feature_type_override else 'continuous',
+            'data_type': 'number'
+        }
 
     def _infer_timedelta_attributes(
         self,
@@ -685,23 +684,21 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         ) or feature_type_override == 'nominal':
             return {
                 'type': 'nominal',
-                'data_type': 'number',
             }
 
-        else:
-            return {
-                'type': 'continuous',
-                'data_type': 'number',
-            }
+        return {
+            'type': feature_type_override if feature_type_override else 'continuous',
+            'data_type': 'number'
+        }
 
     def _infer_boolean_attributes(
         self,
         feature_name: str,
         feature_type_override: Optional[str] = None
     ) -> Dict:
-        if feature_type_override == 'continuous':
+        if feature_type_override in ('continuous', 'ordinal'):
             warnings.warn(
-                f"Feature {feature_name} is specified as 'continuous' "
+                f"Feature {feature_name} is specified as {feature_type_override} "
                 "in `type_overrides` but detected as boolean. Booleans "
                 "must be 'nominal', thus the type override will be ignored."
             )
@@ -732,33 +729,36 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
-        num_uniques = self._get_num_uniques(feature_name)
-        n_cases = self._get_num_cases()
-        if num_uniques < pow(n_cases, 0.5):
-            guess_nominals = True
+        if feature_type_override:
+            attributes['type'] = feature_type_override
         else:
-            # Find the largest and smallest non-null values in column.
-            try:
-                col_min, col_max = (
-                    self._get_min_max_values(feature_name))
-                if col_min is None or col_max is None:
-                    raise AssertionError('No data in the column?')
-            except (AssertionError, TypeError):
-                # Column is all None?
-                guess_nominals = False
+            num_uniques = self._get_num_uniques(feature_name)
+            n_cases = self._get_num_cases()
+            if num_uniques < pow(n_cases, 0.5):
+                guess_nominals = True
             else:
-                # Guess nominals if ALL of:
-                #   - `col_min` and `col_max` are both greater than zero
-                #   - Their length is at least 5
-                #   - They have the same length
-                guess_nominals = (
-                    col_min > 0 and col_max > 0 and
-                    len(str(col_min)) >= 5 and
-                    len(str(col_min)) == len(str(col_max))
-                )
+                # Find the largest and smallest non-null values in column.
+                try:
+                    col_min, col_max = (
+                        self._get_min_max_values(feature_name))
+                    if col_min is None or col_max is None:
+                        raise AssertionError('No data in the column?')
+                except (AssertionError, TypeError):
+                    # Column is all None?
+                    guess_nominals = False
+                else:
+                    # Guess nominals if ALL of:
+                    #   - `col_min` and `col_max` are both greater than zero
+                    #   - Their length is at least 5
+                    #   - They have the same length
+                    guess_nominals = (
+                        col_min > 0 and col_max > 0 and
+                        len(str(col_min)) >= 5 and
+                        len(str(col_min)) == len(str(col_max))
+                    )
 
-        if not guess_nominals or feature_type_override == 'continuous':
-            attributes['type'] = 'continuous'
+            if not guess_nominals:
+                attributes['type'] = 'continuous'
 
         return attributes
 
@@ -782,7 +782,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             sample = self._get_first_non_null(feature_name)
             fmt = determine_iso_format(sample, feature_name)
             return {
-                'type': 'continuous',
+                'type': feature_type_override if feature_type_override else 'continuous',
                 'data_type': 'formatted_date_time',
                 'date_time_format': fmt
             }
@@ -794,9 +794,9 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         feature_name: str,
         feature_type_override: Optional[str] = None
     ) -> Dict:
-        if feature_type_override == 'continuous':
+        if feature_type_override:
             return {
-                'type': 'continuous'
+                'type': f'{feature_type_override}'
             }
         else:
             return {

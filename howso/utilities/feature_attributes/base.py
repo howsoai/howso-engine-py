@@ -604,7 +604,6 @@ class InferFeatureAttributesBase(ABC):
                         'type': 'ordinal',
                         'bounds': {'allowed': ordinal_feature_values[feature_name]}
                     }
-            # After this point, all feature_type_override values can only be 'continuous' or 'nominal'
 
             # EXPLICITLY DECLARED DATETIME FEATURES
             elif datetime_feature_formats.get(feature_name, None):
