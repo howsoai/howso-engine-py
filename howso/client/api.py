@@ -80,7 +80,7 @@ def get_api(engine_path: t.Optional[Path] = None) -> EngineApi:
 
     Returns
     -------
-    dict
+    EngineApi
         The engine api documentation details.
 
     Raises
