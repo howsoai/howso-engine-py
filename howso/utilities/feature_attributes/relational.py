@@ -643,6 +643,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         }
 
         if feature_relational_key:
+            self._date_time_key_warning(feature_name)
             attributes['type'] = 'nominal'
 
         return attributes
@@ -664,6 +665,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         }
 
         if feature_relational_key:
+            self._date_time_key_warning(feature_name)
             attributes['type'] = 'nominal'
 
         return attributes
@@ -675,6 +677,9 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
     ) -> dict[str, str]:
 
         known_feature_type = preprocessed_attributes.get("known_feature_type")
+
+        if preprocessed_attributes.get("feature_relational_key"):
+            self._date_time_key_warning(feature_name)
 
         return {
             'type': known_feature_type if known_feature_type else 'continuous',
@@ -689,6 +694,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         # Although rare, it is plausible that a timedelta field could be a
         # primary- or foreign-key.
         if preprocessed_attributes.get("feature_relational_key"):
+            self._date_time_key_warning(feature_name)
             return {
                 'type': 'nominal',
                 'data_type': 'number'
@@ -795,6 +801,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             }
 
             if feature_relational_key:
+                self._date_time_key_warning(feature_name)
                 attributes['type'] = 'nominal'
 
             return attributes

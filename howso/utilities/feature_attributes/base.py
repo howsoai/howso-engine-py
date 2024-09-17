@@ -609,6 +609,8 @@ class InferFeatureAttributesBase(ABC):
 
             # EXPLICITLY DECLARED DATETIME FEATURES
             elif datetime_feature_formats.get(feature_name, None):
+                if preprocessed_attributes.get('feature_relational_key'):
+                    self._date_time_key_warning(feature_name)
                 # datetime_feature_formats is expected to either be only a
                 # single string (format) or a tuple of strings (format, locale)
                 user_dt_format = datetime_feature_formats[feature_name]
@@ -826,6 +828,13 @@ class InferFeatureAttributesBase(ABC):
                     feature_attributes[feature][attribute] = value
 
         return feature_attributes
+
+    def _date_time_key_warning(self, feature):
+        """Emits a warning if a date or time value is used as a primary or foreign key."""
+        warnings.warn(
+            f"Feature: {feature} is a date/time value and is being used as a primary/foreign key, "
+            f"which may cause unexpected behavior."
+        )
 
     @abstractmethod
     def __call__(self) -> FeatureAttributesBase:
