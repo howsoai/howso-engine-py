@@ -814,7 +814,7 @@ class HowsoEstimator(BaseEstimator):
             - prediction_stats : bool, optional
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
-                returned  are ("r2", "rmse", "spearman_coeff", "precision",
+                returned  are ("r2", "rmse", "smape", "spearman_coeff", "precision",
                 "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
@@ -847,6 +847,7 @@ class HowsoEstimator(BaseEstimator):
                 - spearman_coeff : Spearman's rank correlation coefficient,
                   for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
+                - smape : Symmetric mean absolute percentage error , for continuous features only.
             - similarity_conviction : bool, optional
                 If True, outputs similarity conviction for the reacted case.
                 Uses both context and action feature values as the case values
