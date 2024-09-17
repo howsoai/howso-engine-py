@@ -544,7 +544,7 @@ class InferFeatureAttributesBase(ABC):
                  dependent_features: Optional[Dict[str, List[str]]] = None,
                  include_sample: bool = False,
                  max_workers: Optional[int] = None,
-                 known_types: Optional[dict[KnownTypes, list]] = None,
+                 known_types: Optional[dict[str, KnownTypes]] = None,
                  ) -> Dict:
         """
         Get inferred feature attributes for the parameters.
@@ -581,15 +581,6 @@ class InferFeatureAttributesBase(ABC):
             dependent_features = dict()
 
         feature_names_list = self._get_feature_names()
-
-        if known_types:
-            invalid_type_override_keys = set(known_types.keys()) - {'continuous', 'ordinal', 'nominal'}
-            if invalid_type_override_keys:
-                raise ValueError(
-                    f"Invalid `known_types` type keys: {invalid_type_override_keys}"
-                    "Valid values are: 'continuous', 'ordinal', or 'nominal'."
-                )
-
         for feature_name in feature_names_list:
             # Process known feature types and if a relational table, checks if the feature is a foreign or primary key.
             preprocessed_attributes = self._process_known_types_and_keys(
@@ -1287,7 +1278,7 @@ class InferFeatureAttributesBase(ABC):
     def _process_known_types_and_keys(
         self,
         feature_name: str,
-        known_types: Optional[dict[KnownTypes, list]],
+        known_types: Optional[dict[str, KnownTypes]] = None,
     ) -> dict[PreprocessedAttributes, Optional[str] | bool]:
         """
         Process the `known_types` if it exists for a single feature and if checking a relational table,
@@ -1297,7 +1288,7 @@ class InferFeatureAttributesBase(ABC):
         ----------
         feature_name : str
             The name of feature.
-        known_types : dict[KnownTypes, list]], optional
+        known_types : dict[str, KnownTypes]], optional
             A dictionary of type data type overrides.
 
         Returns
@@ -1319,32 +1310,24 @@ class InferFeatureAttributesBase(ABC):
             feature_relational_key = True
 
         if known_types:
-            seen_strings = set()
-            repeated_strings = set()
-            for key, value_list in known_types.items():
-                # Check to see if any feature appears in multiple types
-                for string in value_list:
-                    if string in seen_strings:
-                        repeated_strings.add(string)
-                    else:
-                        seen_strings.add(string)
+            known_feature_type = known_types.get(feature_name)
 
-                if feature_name in value_list:
-                    known_feature_type = key
-
-                # Check to see if the feature is a foreign or primary key
-                if known_feature_type and known_feature_type != 'nominal' and feature_relational_key:
-                    warnings.warn(
-                        f"Feature: {feature_name}: was specified as '{known_feature_type}' "
-                        "in `known_types` but is a primary or foreign key which must "
-                        "be 'nominal'. The type override will be ignored."
-                    )
-                    known_feature_type = "nominal"
-
-            if repeated_strings:
+            if known_feature_type and known_feature_type not in (
+                'continuous', 'ordinal', 'nominal'
+            ):
                 raise ValueError(
-                    f"The features: {repeated_strings}, appear in more than type for `known_types`."
+                    f"Invalid `known_types` type value: {known_feature_type} for "
+                    f"feature: {feature_name}. Valid values are: 'continuous', 'ordinal', or 'nominal'."
                 )
+
+            # Check to see if the feature is a foreign or primary key
+            if known_feature_type and known_feature_type != 'nominal' and feature_relational_key:
+                warnings.warn(
+                    f"Feature: {feature_name}: was specified as '{known_feature_type}' "
+                    "in `known_types` but is a primary or foreign key which must "
+                    "be 'nominal'. The type override will be ignored."
+                )
+                known_feature_type = "nominal"
 
         return {
             'known_feature_type': known_feature_type,

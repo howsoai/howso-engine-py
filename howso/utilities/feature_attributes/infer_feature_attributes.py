@@ -161,17 +161,16 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
     include_sample : bool, default False
         Set to True to include a sample of each feature's data in the output.
 
-
     known_types : dict, default None
-        (Optional) A dictionary that may include the keys 'continuous', 'ordinal',
-        or 'nominal' whose values are a list that forces the list's features' `type` to
-        be this value.
+        (Optional) A dictionary of known feature `type` values. The keys are the feature
+        names and the values are the known type. Valid type values are 'continuous', 'ordinal',
+        or 'nominal'.
 
             Examples::
-                "continuous": ['a', 'b', 'c'],
-                "nominal": ['d', 'e']
+            {
+                "a": "nominal",
+                "b": "ordinal"
             }
-
 
     lags : list or dict, default None
         (Optional) A list containing the specific indices of the desired lag

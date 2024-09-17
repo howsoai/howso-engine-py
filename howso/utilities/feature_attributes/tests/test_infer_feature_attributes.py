@@ -102,10 +102,7 @@ def test_infer_features_attributes_type_overrides():
 
     features = infer_feature_attributes(
         df,
-        known_types={
-            'nominal': ['sepal_length', 'sepal_width', 'petal_length'],
-            'ordinal': ['petal_width'],
-        }
+        known_types=expected_types
     )
 
     for feature, attributes in features.items():
@@ -121,7 +118,10 @@ def test_infer_features_attributes_type_overrides_ordinals():
     features_overrides = infer_feature_attributes(
         df,
         known_types={
-            'ordinal': ['sepal_length', 'sepal_width', 'petal_length', 'petal_width']
+            'sepal_length': 'ordinal',
+            'sepal_width': 'ordinal',
+            'petal_length': 'ordinal',
+            'petal_width': 'ordinal',
         }
     )
     for value in features.values():
@@ -135,36 +135,17 @@ def test_infer_features_attributes_type_overrides_ordinals():
     assert features == features_overrides
 
 
-def test_infer_features_attributes_type_overrides_invalid_repeats():
-    """Test invalid repeated features for infer feature types for iris dataset."""
-    df = pd.read_csv(iris_path)
-
-    with pytest.raises(
-        ValueError,
-        match='appear in more than type for `known_types`'
-    ):
-        infer_feature_attributes(
-            df,
-            known_types={
-                'ordinal': ['sepal_length'],
-                'nominal': ['sepal_length']
-            }
-        )
-
-
 def test_infer_features_attributes_type_overrides_invalid_keys():
     """Test invalid forced types for infer feature types for iris dataset."""
     df = pd.read_csv(iris_path)
 
     with pytest.raises(
         ValueError,
-        match='Invalid `known_types` type keys'
+        match='Invalid `known_types` type value'
     ):
         infer_feature_attributes(
             df,
-            known_types={
-                'bad_type': ['class'],
-            }
+            known_types={'sepal_length': 'invalid'}
         )
 
 @pytest.mark.parametrize(
