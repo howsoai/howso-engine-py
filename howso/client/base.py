@@ -1018,8 +1018,13 @@ class AbstractHowsoClient(ABC):
             The name of the series store to append to.
         contexts : list of list of object or pandas.DataFrame
             The list of list of context values to append to the series.
+            When the value is a DataFrame, the value will be used to populate
+            both `context_values` and `context_features` parameters of the Engine.
+            When the value is a list, `context_features` must also be specified.
         context_features : Collection of str, optional
-            The feature names corresponding to context values.
+            The feature names corresponding to context values. If `contexts`
+            is a DataFrame, overrides what columns will be used in `context_values`
+            supplied to the Engine.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
@@ -1391,22 +1396,27 @@ class AbstractHowsoClient(ABC):
             The ID of the Trainee to react to.
 
         contexts : list of list of object or DataFrame, optional
-            A 2d list of context values to react to.
-            If None for discriminative react, it is assumed that `session`
-            and `session_id` keys are set in the `details`.
+            The context values to react to. When the value is a DataFrame, the
+            value will be used to populate both `context_values` and
+            `context_features` parameters of the Engine. When the value is a
+            list, `context_features` must also be specified.
 
             >>> contexts = [[1, 2, 3], [4, 5, 6]]
 
         action_features : iterable of str, optional
-            An iterable of feature names to treat as action features during
-            react.
+            Feature names to treat as action features during react.
+            If `actions` is a DataFrame, overrides what columns will be used
+            in `action_values` supplied to the Engine.
 
             >>> action_features = ['rain_chance', 'is_sunny']
 
         actions : list of list of object or DataFrame, optional
-            One or more action values to use for action features.
-            If specified, will only return the specified explanation
-            details for the given actions. (Discriminative reacts only)
+            One or more action values to use for action features. If specified,
+            will only return the specified explanation details for the given
+            actions (Discriminative reacts only). When the value is a DataFrame,
+            the value will be used to populate both `action_values` and
+            `action_features` parameters of the Engine. When the value is a
+            list, `action_features` must also be specified.
 
             >>> actions = [[1, 2, 3], [4, 5, 6]]
 
@@ -1420,8 +1430,9 @@ class AbstractHowsoClient(ABC):
             the batch size will be determined automatically.
 
         context_features : iterable of str, optional
-            An iterable of feature names to treat as context features during
-            react.
+            Feature names to treat as context features during react.
+            If `contexts` is a DataFrame, overrides what columns will be used
+            in `context_values` supplied to the Engine.
 
             >>> context_features = ['temperature', 'humidity', 'dew_point',
             ...                     'barometric_pressure']
@@ -3695,9 +3706,6 @@ class AbstractHowsoClient(ABC):
 
         self.execute(trainee_id, "auto_analyze", {})
         self._auto_persist_trainee(trainee_id)
-        if self.is_tracing_enabled(trainee_id):
-            # When trace is enabled, output the auto-analyzed parameters into the trace file
-            self.execute(trainee_id, "get_params", {})
 
     def set_auto_analyze_params(
         self,
