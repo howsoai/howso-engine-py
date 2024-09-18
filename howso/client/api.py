@@ -52,6 +52,7 @@ class LabelDefinition(TypedDict):
     description: NotRequired[str | None]
     long_running: NotRequired[bool]
     idempotent: NotRequired[bool]
+    statistically_idempotent: NotRequired[bool]
     read_only: NotRequired[bool]
 
 
@@ -68,7 +69,7 @@ class EngineApi(TypedDict):
     """Description of the API."""
 
 
-@lru_cache(8)
+@lru_cache(16)
 def get_api(engine_path: t.Optional[Path] = None) -> EngineApi:
     """
     Get api documentation from the Howso Engine.
