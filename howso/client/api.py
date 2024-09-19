@@ -62,7 +62,7 @@ class EngineApi(TypedDict):
     labels: Mapping[str, LabelDefinition]
     """Engine labels."""
 
-    schemas: Mapping[str, Schema | RefSchema]
+    schemas: Mapping[str, Schema]
     """Mapping of shared schemas."""
 
     description: str
