@@ -41,7 +41,7 @@ class Schema(TypedDict):
     max_length: NotRequired[int]
     values: NotRequired[SchemaType | Schema | RefSchema]
     indices: NotRequired[SchemaType | Mapping[str, SchemaType | Schema | RefSchema]]
-    additional_indices: NotRequired[SchemaType | Mapping[str, SchemaType | Schema | RefSchema]]
+    additional_indices: NotRequired[SchemaType | Schema | RefSchema]
 
 
 class LabelDefinition(TypedDict):
