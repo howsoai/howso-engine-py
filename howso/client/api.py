@@ -40,7 +40,7 @@ class Schema(TypedDict):
     min_length: NotRequired[int]
     max_length: NotRequired[int]
     values: NotRequired[SchemaType | Schema | RefSchema]
-    indices: NotRequired[SchemaType | Mapping[str, SchemaType | Schema | RefSchema]]
+    indices: NotRequired[Mapping[str, SchemaType | Schema | RefSchema]]
     additional_indices: NotRequired[SchemaType | Schema | RefSchema]
 
 
