@@ -1718,6 +1718,26 @@ class AbstractHowsoClient(ABC):
                   for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
                 - smape : Symmetric mean absolute percentage error , for continuous features only.
+
+                    SMAPE is defined as:
+
+                    .. math::
+                        \text{SMAPE} = \frac{1}{n} \sum_{i=1}^{n} \frac{|F_i - A_i|}
+                        {\frac{|A_i| + |F_i|}{2}} \times 100
+
+                    Where:
+
+                    .. math::
+
+                        F_i: \text{The forecasted value for the } i\text{-th observation.} \\
+                        A_i: \text{The actual value for the } i\text{-th observation.} \\
+                        n: \text{The total number of observations.}
+
+                - adjusted_smape : Adjusted symmetric mean absolute percentage error, for continuous features only.
+                    See `smape` for the formula. Adjusted smape adds the minimum gap / 2 to each forecasted and
+                    actual value. The minimum gap for each feature is the smallest difference between two values
+                    in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
+
             - similarity_conviction : bool, optional
                 If True, outputs similarity conviction for the reacted case.
                 Uses both context and action feature values as the case values
