@@ -3706,6 +3706,9 @@ class AbstractHowsoClient(ABC):
 
         self.execute(trainee_id, "auto_analyze", {})
         self._auto_persist_trainee(trainee_id)
+        if self.is_tracing_enabled(trainee_id):
+            # When trace is enabled, output the auto-analyzed parameters into the trace file
+            self.execute(trainee_id, "get_params", {})
 
     def set_auto_analyze_params(
         self,
