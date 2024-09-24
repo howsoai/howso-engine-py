@@ -1,4 +1,4 @@
-from concurrent.futures import as_completed, Future, ProcessPoolExecutor
+from concurrent.futures import as_completed, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
 import logging
 from math import e, isnan, prod
