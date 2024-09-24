@@ -44,7 +44,7 @@ def _shard(data: pd.DataFrame, *, kwargs: dict[str, t.Any]):
     ifr_inst = InferFeatureAttributesDataFrame(data)
     # Filter out features that are not related to this shard.
     _kwargs = kwargs.copy()
-    if "features" in _kwargs:
+    if "features" in _kwargs and _kwargs.get("features") is not None:
         _kwargs['features'] = {
             k: v for k, v in _kwargs["features"].items()
             if k in data.columns
@@ -75,8 +75,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         max_workers = kwargs.pop("max_workers", None)
         # The default with be to not use multiprocessing if the product of rows
         # and columns is less than 25M.
-        if prod(self.data.shape) < 25_000_000 and max_workers is None:
-            max_workers = 0
+        # if prod(self.data.shape) < 25_000_000 and max_workers is None:
+        #     max_workers = 0
 
         if max_workers is None or max_workers >= 1:
             mp_context = mp.get_context("spawn")
