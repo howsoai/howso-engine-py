@@ -4,14 +4,14 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=requirements-3.11.txt
 #
-amalgam-lang==12.4.1 \
-    --hash=sha256:3532ca56e181bc8747eb3ed50a94e856fb09e8f3a1d903c1ab83c56f9db86350 \
-    --hash=sha256:436c91602948b59a1f88d4a18b167ce8982713d92edd639df1c4b923186c12b1 \
-    --hash=sha256:49a8a0a94d12562e6265858efc105eba50a6e14bbed749b63f0073f2ebd178b6 \
-    --hash=sha256:d07bca4a3a454e4d7bf2295b4a2c954841a0d2a8bad3e5271101c4dbb4f481e8 \
-    --hash=sha256:e048d17985afa6747330f2afadbdec4c112a3f69d64ed81ec867ce0a40294185 \
-    --hash=sha256:e7346ae368def40c85392d5a0838b7b346ec6970964f7ac255007e3801ef0f06 \
-    --hash=sha256:fd759357f0c32c8fc289d2e9b7c03b29892bced38e04bf15bf11b3f3e08add75
+amalgam-lang==12.4.2 \
+    --hash=sha256:236c78c429ce9b92b3015fb30d165ea9f33f1b9d6aac57d5f32310e11ad1a50a \
+    --hash=sha256:24dde6f89e11d08818741f7bcc803f0f8ecccfad7efbddb8f6b3f3b9b7208262 \
+    --hash=sha256:49e7a45b53e7e93ca5e58454f5461442bb9f747ce511091b920b5e0c32c9a278 \
+    --hash=sha256:4b929b66f670980c80e26a17b7325db5b4a66fd09d87211413794c6b609995df \
+    --hash=sha256:59de2dea05faa6d7f7c4e8bce8819b5af3fe9b3b978e39f6129263308d1e2ece \
+    --hash=sha256:67a4ccc637e47f73941f78bd8f12ffd79c9cf95037ddf476cda8e478fd1e093e \
+    --hash=sha256:6873779c9ef1f1ddd860401fa902cc94f77784b75e4f8ab08195870df9af7f4b
     # via howso-engine (pyproject.toml)
 certifi==2024.8.30 \
     --hash=sha256:922820b53db7a7257ffbda3f597266d435245903d80737e34f8a45ff3e3230d8 \
@@ -533,9 +533,9 @@ typing-extensions==4.12.2 \
     --hash=sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d \
     --hash=sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8
     # via howso-engine (pyproject.toml)
-tzdata==2024.1 \
-    --hash=sha256:2674120f8d891909751c38abcdfd386ac0a5a1127954fbc332af6b5ceae07efd \
-    --hash=sha256:9068bc196136463f5245e51efda838afa15aaeca9903f49050dfa2679db4d252
+tzdata==2024.2 \
+    --hash=sha256:7d85cc416e9382e69095b7bdf4afd9e3880418a2413feec7069d533d6b4e31cc \
+    --hash=sha256:a48093786cdcde33cad18c2555e8532f34422074448fbc874186f0abd79565cd
     # via pandas
 urllib3==2.2.3 \
     --hash=sha256:ca899ca043dcb1bafa3e262d73aa25c465bfb49e0bd9dd5d59f1d0acba2f8fac \
