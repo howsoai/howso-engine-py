@@ -62,6 +62,10 @@ class FeatureAttributesBase(dict):
         obj_copy.params = self.params
         return obj_copy
 
+    def copy(self):
+        """Ensure the copy method explicity calls the __copy__ method."""
+        return self.__copy__()
+
     def get_parameters(self) -> dict:
         """
         Get the keyword arguments used with the initial call to infer_feature_attributes.
@@ -628,7 +632,6 @@ class InferFeatureAttributesBase(ABC):
                     # User passed only the format string
                     feature_attributes[feature_name] = {
                         'type': 'continuous',
-                        'data_type': 'formatted_date_time',
                         'date_time_format': user_dt_format,
                     }
                 elif (
@@ -639,7 +642,6 @@ class InferFeatureAttributesBase(ABC):
                     dt_format, dt_locale = user_dt_format
                     feature_attributes[feature_name] = {
                         'type': 'continuous',
-                        'data_type': 'formatted_date_time',
                         'date_time_format': dt_format,
                         'locale': dt_locale,
                     }
