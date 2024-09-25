@@ -759,9 +759,10 @@ class InferFeatureAttributesTimeSeries:
 
         # Process the time feature first so that the time_feature_deltas are cached
         time_feature_attributes, time_feature_deltas = self._infer_delta_min_and_max(
-            data=self.data[self.time_feature_name],
+            # Double brackets forces the selected dataframe to remain a dataframe instead of a series
+            data=self.data[[self.time_feature_name]],
             time_feature_name=self.time_feature_name,
-            features=features[self.time_feature_name],
+            features={key: features[key] for key in [self.time_feature_name]},
             datetime_feature_formats=datetime_feature_formats,
             id_feature_name=id_feature_name,
             orders_of_derivatives=orders_of_derivatives,
@@ -769,7 +770,7 @@ class InferFeatureAttributesTimeSeries:
         )
 
         # Get the list of the other features to process
-        non_time_feature_names = set(features.keys())
+        non_time_feature_names = list(set(features.keys()))
         non_time_feature_names.remove(self.time_feature_name)
 
         max_workers = kwargs.pop("series_max_workers", None)
@@ -788,14 +789,14 @@ class InferFeatureAttributesTimeSeries:
                 orders_of_derivatives=orders_of_derivatives,
                 derived_orders=derived_orders,
                 time_feature_deltas=time_feature_deltas,
-                )
+            )
 
             with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
                 for feature in non_time_feature_names:
                     future = pool.submit(
                         task_func,
-                        data=self.data[feature],
-                        features=features[feature],
+                        data=self.data[[feature]],
+                        features={key: features[key] for key in [feature]},
                     )
                     futures[future] = feature
 
@@ -814,7 +815,7 @@ class InferFeatureAttributesTimeSeries:
             temp_feature_attributes, _ = standalone_infer_delta_min_and_max(
                 data=self.data[non_time_feature_names],
                 time_feature_name=self.time_feature_name,
-                features=features[non_time_feature_names],
+                features={key: features[key] for key in non_time_feature_names},
                 time_feature_deltas=time_feature_deltas,
                 datetime_feature_formats=datetime_feature_formats,
                 id_feature_name=id_feature_name,
