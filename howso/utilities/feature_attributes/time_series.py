@@ -1,5 +1,9 @@
+from concurrent.futures import as_completed, Future, ProcessPoolExecutor, ThreadPoolExecutor
+from functools import partial
 import logging
-from math import e, isnan
+from math import e, isnan, prod
+import multiprocessing as mp
+import typing as t
 from typing import (
     Dict, Iterable, Optional, Union
 )
@@ -18,6 +22,29 @@ logger = logging.getLogger(__name__)
 SMALLEST_TIME_DELTA = 0.001
 
 
+def standalone_infer_delta_min_and_max(
+    data,
+    time_feature_name,
+    datetime_feature_formats: Optional[Dict] = None,
+    derived_orders: Optional[Dict] = None,
+    features: Optional[dict | SingleTableFeatureAttributes] = None,
+    id_feature_name: Optional[Union[str, Iterable[str]]] = None,
+    orders_of_derivatives: Optional[Dict] = None,
+    time_feature_deltas: Optional[pd.Series] = None,
+) -> t.Tuple[dict | SingleTableFeatureAttributes, pd.Series]:
+
+    return InferFeatureAttributesTimeSeries._infer_delta_min_and_max(
+        data=data,
+        time_feature_name=time_feature_name,
+        features=features,
+        datetime_feature_formats=datetime_feature_formats,
+        derived_orders=derived_orders,
+        id_feature_name=id_feature_name,
+        orders_of_derivatives=orders_of_derivatives,
+        time_feature_deltas=time_feature_deltas
+    )
+
+
 class InferFeatureAttributesTimeSeries:
     """Infer feature attributes for time series data."""
 
@@ -28,25 +55,27 @@ class InferFeatureAttributesTimeSeries:
         # Keep track of features that contain unsupported data
         self.unsupported = []
 
+    @staticmethod
     def _infer_delta_min_and_max(  # noqa: C901
-        self,
-        features: Optional[Dict] = None,
+        data,
+        features: dict,
+        time_feature_name,
         datetime_feature_formats: Optional[Dict] = None,
+        derived_orders: Optional[Dict] = None,
+        # feature_names: Optional[Iterable | str] = None,
         id_feature_name: Optional[Union[str, Iterable[str]]] = None,
         orders_of_derivatives: Optional[Dict] = None,
-        derived_orders: Optional[Dict] = None,
-    ) -> Dict:
+        time_feature_deltas: Optional[pd.Series] = None,
+    ) -> t.Tuple[dict | SingleTableFeatureAttributes, pd.Series]:
         """
         Infer continuous feature delta_min, delta_max for each feature.
 
+        Can either process all of the features or a subset of features. If processing the time feature, this method
+        is intended to be used only used on the time feature. All of the other features may be then processed together
+        or individually.
+
         Parameters
         ----------
-        features : dict, default None
-            (Optional) A partially filled features dict. If partially filled
-            attributes for a feature are passed in, those parameters will be
-            retained as is and the delta_min and delta_max attributes will be
-            inferred.
-
         datetime_feature_formats : dict, default None
             (Optional) Dict defining a custom (non-ISO8601) datetime format and
             an optional locale for features with datetimes.  By default
@@ -62,6 +91,23 @@ class InferFeatureAttributesTimeSeries:
                     "end_date" : "%Y-%m-%d"
                 }
 
+        derived_orders : dict, default None
+            (Optional) Dict of features to the number of orders of derivatives
+            that should be derived instead of synthesized. For example, for a
+            feature with a 3rd order of derivative, setting its derived_orders
+            to 2 will synthesize the 3rd order derivative value, and then use
+            that synthed value to derive the 2nd and 1st order.
+
+        features : SingleTableFeatureAttributes, default None
+            (Optional) A partially filled SingleTableFeatureAttributes object. If partially filled
+            attributes for a feature are passed in, those parameters will be
+            retained as is and the delta_min and delta_max attributes will be
+            inferred.
+
+        features : Iterable or str, default None
+            (Optional) An interable or string of feature name(s) to calculate delta min and maxes for.
+            If `time_feature` is True, then this parameter should only contain one feature name.
+
         id_feature_name : str or list of str, default None
             (Optional) The name(s) of the ID feature(s).
 
@@ -72,24 +118,41 @@ class InferFeatureAttributesTimeSeries:
             set to 0, will not generate any delta/rate features. By default all
             continuous features have an order value of 1.
 
-        derived_orders : dict, default None
-            (Optional) Dict of features to the number of orders of derivatives
-            that should be derived instead of synthesized. For example, for a
-            feature with a 3rd order of derivative, setting its derived_orders
-            to 2 will synthesize the 3rd order derivative value, and then use
-            that synthed value to derive the 2nd and 1st order.
+        time_feature_deltas : pd.Series, default None
+            (Optional) Series of time feature deltas. If `time_feature` is not True, then
+            `time_feature_deltas` must be provided. time_feature_deltas` is a pandas series that is
+            created when `_infer_delta_min_and_max` is called on a time feature and setting
+            `time_feature` to True.
 
         Returns
         -------
-        features : dict
-            Returns dictionary of {`type`: "feature type"}} with column names
-            in passed in df as key.
+        dict
+            Returns dict object of {`type`: "feature type"}} with column names
+            as keys as well as a Series of time feature deltas. If `time_feature` is not True, then this Series is a
+            passthrough of the provided `time_feature_deltas` parameter values.
+
+        SingleTableFeatureAttributes | dict, pd.Series]
+            Returns a SingleTableFeatureAttributes or dict object of {`type`: "feature type"}} with column names
+            as keys as well as a Series of time feature deltas. If `time_feature` is not True, then this Series is a
+            passthrough of the provided `time_feature_deltas` parameter values.
         """
-        # iterate over all features, ensuring that the time feature is the first
-        # one to be processed so that its deltas are cached
+
         feature_names = set(features.keys())
-        feature_names.remove(self.time_feature_name)
-        feature_names = [self.time_feature_name] + list(feature_names)
+
+        if time_feature_name not in feature_names:
+            if time_feature_deltas is None:
+                raise ValueError(
+                    "If not a time feature, then calculated time_feature_deltas must be provided"
+                )
+        # else we are processing the time feature
+        else:
+            time_feature_deltas = None
+            if len(feature_names) > 1:
+                features = {key: features[key] for key in features if key == time_feature_name}
+                warnings.warn(
+                    "The features dictionary provide includes the time feature in addition to the non time features. "
+                    "These feature types must be processed separately, ignoring non time features."
+                )
 
         if orders_of_derivatives is None:
             orders_of_derivatives = dict()
@@ -97,7 +160,6 @@ class InferFeatureAttributesTimeSeries:
         if derived_orders is None:
             derived_orders = dict()
 
-        time_feature_deltas = None
         for f_name in feature_names:
             if features[f_name]['type'] == "continuous" and \
                     'time_series' in features[f_name]:
@@ -127,11 +189,11 @@ class InferFeatureAttributesTimeSeries:
                 if dt_format is not None:
                     # copy just the id columns and the time feature
                     if isinstance(id_feature_name, str):
-                        df_c = self.data.loc[:, [id_feature_name, f_name]]
+                        df_c = data.loc[:, [id_feature_name, f_name]]
                     elif isinstance(id_feature_name, list):
-                        df_c = self.data.loc[:, id_feature_name + [f_name]]
+                        df_c = data.loc[:, id_feature_name + [f_name]]
                     else:
-                        df_c = self.data.loc[:, [f_name]]
+                        df_c = data.loc[:, [f_name]]
 
                     # convert time feature to epoch
                     df_c[f_name] = df_c[f_name].apply(
@@ -148,13 +210,13 @@ class InferFeatureAttributesTimeSeries:
                 else:
                     # Use pandas' diff() to pull all the deltas for this feature
                     if isinstance(id_feature_name, list):
-                        deltas = self.data.groupby(id_feature_name)[f_name].diff(1)
+                        deltas = data.groupby(id_feature_name)[f_name].diff(1)
                     elif isinstance(id_feature_name, str):
-                        deltas = self.data.groupby([id_feature_name])[f_name].diff(1)
+                        deltas = data.groupby([id_feature_name])[f_name].diff(1)
                     else:
-                        deltas = self.data[f_name].diff(1)
+                        deltas = data[f_name].diff(1)
 
-                if f_name == self.time_feature_name:
+                if time_feature_deltas is None:
                     time_feature_deltas = deltas
 
                 # initial rates are same as deltas which will then be used as input
@@ -213,13 +275,17 @@ class InferFeatureAttributesTimeSeries:
                         delta_min = min(deltas.dropna())
                         # don't allow the time series time feature to go back in time
                         # TODO: 15550: support user-specified min/max values
-                        if f_name == self.time_feature_name:
+                        if f_name == time_feature_name:
                             features[f_name]['time_series']['delta_min'].append(max(0, delta_min / e))
                         else:
                             delta_min = delta_min / e if delta_min > 0 else delta_min * e
                             features[f_name]['time_series']['delta_min'].append(delta_min)
 
-        return features
+        return features, time_feature_deltas
+        # return {
+        #     "features": features,
+        #     "time_feature_deltas": time_feature_deltas
+        # }
 
     def _set_rate_delta_bounds(self, btype: str, bounds: Dict, features: Dict):
         """Set optinally-specified rate/delta bounds in the features dict."""
@@ -271,6 +337,7 @@ class InferFeatureAttributesTimeSeries:
         rate_boundaries: Optional[Dict] = None,
         delta_boundaries: Optional[Dict] = None,
         max_workers: Optional[int] = None,
+        **kwargs
     ) -> Dict:
         """
         Infer time series attributes.
@@ -673,13 +740,85 @@ class InferFeatureAttributesTimeSeries:
             else:
                 features[self.time_feature_name]['bounds'] = {'allow_null': False}
 
-        features = self._infer_delta_min_and_max(
-            features=features,
+        # Process the time feature first so that the time_feature_deltas are cached
+        time_feature_attributes, time_feature_deltas = self._infer_delta_min_and_max(
+            # Double brackets forces the selected dataframe to remain a dataframe instead of a series
+            data=self.data[[self.time_feature_name]],
+            time_feature_name=self.time_feature_name,
+            features={key: features[key] for key in [self.time_feature_name]},
             datetime_feature_formats=datetime_feature_formats,
             id_feature_name=id_feature_name,
             orders_of_derivatives=orders_of_derivatives,
             derived_orders=derived_orders
         )
+
+        # Get the list of the other features to process
+        non_time_feature_names = list(set(features.keys()))
+        non_time_feature_names.remove(self.time_feature_name)
+
+        max_workers = kwargs.pop("series_max_workers", None)
+        # The default with be to not use multiprocessing if the product of rows
+        # and columns is less than 25M.
+        if prod(self.data.shape) < 25_000_000 and max_workers is None:
+            max_workers = 0
+        if max_workers is None or max_workers >= 1:
+            mp_context = mp.get_context("spawn")
+            futures: dict[Future, str] = dict()
+            task_func = partial(
+                standalone_infer_delta_min_and_max,
+                time_feature_name=self.time_feature_name,
+                datetime_feature_formats=datetime_feature_formats,
+                id_feature_name=id_feature_name,
+                orders_of_derivatives=orders_of_derivatives,
+                derived_orders=derived_orders,
+                time_feature_deltas=time_feature_deltas,
+            )
+
+            with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
+                for feature in non_time_feature_names:
+                    future = pool.submit(
+                        task_func,
+                        data=self.data[[feature]],
+                        features={key: features[key] for key in [feature]},
+                    )
+                    futures[future] = feature
+
+                temp_feature_attributes: dict[str, t.Any] = dict()
+                for future in as_completed(futures):
+                    try:
+                        response = future.result()
+                        temp_feature_attributes.update(response[0])
+                    except Exception as e:
+                        warnings.warn(
+                            f"Infer_feature_attributes raised an exception "
+                            f"while processing '{futures[future]}' ({str(e)})."
+                        )
+
+        else:
+            temp_feature_attributes, _ = standalone_infer_delta_min_and_max(
+                data=self.data[non_time_feature_names],
+                time_feature_name=self.time_feature_name,
+                features={key: features[key] for key in non_time_feature_names},
+                time_feature_deltas=time_feature_deltas,
+                datetime_feature_formats=datetime_feature_formats,
+                id_feature_name=id_feature_name,
+                orders_of_derivatives=orders_of_derivatives,
+                derived_orders=derived_orders,
+            )
+
+        # Add the time feature attributes
+        temp_feature_attributes.update(time_feature_attributes)
+        # Re-order the keys like the original dataframe by following the `features`` key order.
+        # features has not been modified since it was created and ordered by `InferFeatureAttributesDataFrame`.
+        temp_feature_attributes = {
+            k: temp_feature_attributes[k] for k in set(features.keys())
+        }
+
+        # Since features is a `SingleTableFeatureAttributes` object, in order preserve the class
+        # attributes while reordering, the key-values are cleared and then updated with the ordered temporary feature
+        # attributes.
+        features.clear()
+        features.update(temp_feature_attributes)
 
         # Set any manually specified rate/delta boundaries
         if delta_boundaries is not None:
