@@ -57,7 +57,7 @@ class InferFeatureAttributesTimeSeries:
         Parameters
         ----------
         data : pd.Dataframe
-            A dataframe of the data to infer min and max for.
+            A dataframe of the data to infer min and max deltas for.
 
         datetime_feature_formats : dict, default None
             (Optional) Dict defining a custom (non-ISO8601) datetime format and
@@ -120,6 +120,7 @@ class InferFeatureAttributesTimeSeries:
             time_feature_deltas = None
             if len(feature_names) > 1:
                 features = {f: features[f] for f in features if f == time_feature_name}
+                feature_names = [time_feature_name]
                 warnings.warn(
                     "The features dictionary provided includes the time feature in addition to the non time features. "
                     "These feature types must be processed separately. Ignoring non time features."
@@ -187,7 +188,7 @@ class InferFeatureAttributesTimeSeries:
                     else:
                         deltas = data[f_name].diff(1)
 
-                if time_feature_deltas is None:
+                if f_name == time_feature_name:
                     time_feature_deltas = deltas
 
                 # initial rates are same as deltas which will then be used as input
@@ -706,11 +707,11 @@ class InferFeatureAttributesTimeSeries:
             else:
                 features[self.time_feature_name]['bounds'] = {'allow_null': False}
 
-        # Process the time feature first so that the time_feature_deltas are cached in case multiprocessing is used
+        # Process the time feature first so that the `time_feature_deltas` are cached in case multiprocessing is used
         time_feature_attributes, time_feature_deltas = self._infer_delta_min_and_max(
             data=self.data[((id_feature_names if id_feature_names is not None else []) + [self.time_feature_name])],
             time_feature_name=self.time_feature_name,
-            features={key: features[key] for key in [self.time_feature_name]},
+            features={f: features[f] for f in [self.time_feature_name]},
             datetime_feature_formats=datetime_feature_formats,
             id_feature_name=id_feature_names,
             orders_of_derivatives=orders_of_derivatives,
@@ -741,7 +742,7 @@ class InferFeatureAttributesTimeSeries:
                     future = pool.submit(
                         task_func,
                         data=self.data[((id_feature_names if id_feature_names is not None else []) + [feature])],
-                        features={key: features[key] for key in [feature]},
+                        features={f: features[f] for f in [feature]},
                     )
                     futures[future] = feature
 
@@ -760,7 +761,7 @@ class InferFeatureAttributesTimeSeries:
             temp_feature_attributes, _ = InferFeatureAttributesTimeSeries._infer_delta_min_and_max(
                 data=self.data[non_time_feature_names],
                 time_feature_name=self.time_feature_name,
-                features={key: features[key] for key in non_time_feature_names},
+                features={f: features[f] for f in non_time_feature_names},
                 time_feature_deltas=time_feature_deltas,
                 datetime_feature_formats=datetime_feature_formats,
                 id_feature_name=id_feature_names,
