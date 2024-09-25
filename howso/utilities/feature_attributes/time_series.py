@@ -161,7 +161,7 @@ class InferFeatureAttributesTimeSeries:
                     # copy just the id columns and the time feature
                     if isinstance(id_feature_name, str):
                         df_c = data.loc[:, [id_feature_name, f_name]]
-                    elif isinstance(id_feature_name, list):
+                    elif isinstance(id_feature_name, list) and len(id_feature_name) > 0:
                         df_c = data.loc[:, id_feature_name + [f_name]]
                     else:
                         df_c = data.loc[:, [f_name]]
@@ -171,7 +171,7 @@ class InferFeatureAttributesTimeSeries:
                         lambda x: date_to_epoch(x, dt_format))
 
                     # use Pandas' diff() to pull all the deltas for this feature
-                    if isinstance(id_feature_name, list):
+                    if isinstance(id_feature_name, list) and len(id_feature_name) > 0:
                         deltas = df_c.groupby(id_feature_name)[f_name].diff(1)
                     elif isinstance(id_feature_name, str):
                         deltas = df_c.groupby([id_feature_name])[f_name].diff(1)
@@ -180,7 +180,7 @@ class InferFeatureAttributesTimeSeries:
 
                 else:
                     # Use pandas' diff() to pull all the deltas for this feature
-                    if isinstance(id_feature_name, list):
+                    if isinstance(id_feature_name, list) and len(id_feature_name) > 0:
                         deltas = data.groupby(id_feature_name)[f_name].diff(1)
                     elif isinstance(id_feature_name, str):
                         deltas = data.groupby([id_feature_name])[f_name].diff(1)
@@ -626,7 +626,7 @@ class InferFeatureAttributesTimeSeries:
         if isinstance(id_feature_name, str):
             id_feature_names = [id_feature_name]
         elif isinstance(id_feature_name, Iterable):
-            id_feature_names = id_feature_name
+            id_feature_names = list(id_feature_name)
         else:
             id_feature_names = []
 
@@ -708,11 +708,11 @@ class InferFeatureAttributesTimeSeries:
 
         # Process the time feature first so that the time_feature_deltas are cached in case multiprocessing is used
         time_feature_attributes, time_feature_deltas = self._infer_delta_min_and_max(
-            data=self.data[[f for f in [id_feature_name, self.time_feature_name] if f is not None]],
+            data=self.data[((id_feature_names if id_feature_names is not None else []) + [self.time_feature_name])],
             time_feature_name=self.time_feature_name,
             features={key: features[key] for key in [self.time_feature_name]},
             datetime_feature_formats=datetime_feature_formats,
-            id_feature_name=id_feature_name,
+            id_feature_name=id_feature_names,
             orders_of_derivatives=orders_of_derivatives,
             derived_orders=derived_orders
         )
@@ -730,7 +730,7 @@ class InferFeatureAttributesTimeSeries:
                 InferFeatureAttributesTimeSeries._infer_delta_min_and_max,
                 time_feature_name=self.time_feature_name,
                 datetime_feature_formats=datetime_feature_formats,
-                id_feature_name=id_feature_name,
+                id_feature_name=id_feature_names,
                 orders_of_derivatives=orders_of_derivatives,
                 derived_orders=derived_orders,
                 time_feature_deltas=time_feature_deltas,
@@ -740,7 +740,7 @@ class InferFeatureAttributesTimeSeries:
                 for feature in non_time_feature_names:
                     future = pool.submit(
                         task_func,
-                        data=self.data[[f for f in [id_feature_name, feature] if f is not None]],
+                        data=self.data[((id_feature_names if id_feature_names is not None else []) + [feature])],
                         features={key: features[key] for key in [feature]},
                     )
                     futures[future] = feature
@@ -763,7 +763,7 @@ class InferFeatureAttributesTimeSeries:
                 features={key: features[key] for key in non_time_feature_names},
                 time_feature_deltas=time_feature_deltas,
                 datetime_feature_formats=datetime_feature_formats,
-                id_feature_name=id_feature_name,
+                id_feature_name=id_feature_names,
                 orders_of_derivatives=orders_of_derivatives,
                 derived_orders=derived_orders,
             )
