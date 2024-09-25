@@ -1,4 +1,9 @@
-from concurrent.futures import as_completed, Future, ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import (
+    as_completed,
+    Future,
+    ProcessPoolExecutor,
+    ThreadPoolExecutor
+)
 from functools import partial
 import logging
 from math import e, isnan, prod
@@ -22,16 +27,17 @@ logger = logging.getLogger(__name__)
 SMALLEST_TIME_DELTA = 0.001
 
 
-def standalone_infer_delta_min_and_max(
+def _delta_min_and_max_shard(
     data,
     time_feature_name,
     datetime_feature_formats: Optional[Dict] = None,
     derived_orders: Optional[Dict] = None,
-    features: Optional[dict | SingleTableFeatureAttributes] = None,
+    features: Optional[dict] = None,
     id_feature_name: Optional[Union[str, Iterable[str]]] = None,
     orders_of_derivatives: Optional[Dict] = None,
     time_feature_deltas: Optional[pd.Series] = None,
-) -> t.Tuple[dict | SingleTableFeatureAttributes, pd.Series]:
+) -> t.Tuple[dict, pd.Series]:
+    """Internal function to aid multiprocessing of feature attributes for series."""
 
     return InferFeatureAttributesTimeSeries._infer_delta_min_and_max(
         data=data,
@@ -58,15 +64,14 @@ class InferFeatureAttributesTimeSeries:
     @staticmethod
     def _infer_delta_min_and_max(  # noqa: C901
         data,
-        features: dict,
-        time_feature_name,
+        time_feature_name: str,
         datetime_feature_formats: Optional[Dict] = None,
+        features: Optional[dict] = None,
         derived_orders: Optional[Dict] = None,
-        # feature_names: Optional[Iterable | str] = None,
         id_feature_name: Optional[Union[str, Iterable[str]]] = None,
         orders_of_derivatives: Optional[Dict] = None,
         time_feature_deltas: Optional[pd.Series] = None,
-    ) -> t.Tuple[dict | SingleTableFeatureAttributes, pd.Series]:
+    ) -> t.Tuple[dict, pd.Series]:
         """
         Infer continuous feature delta_min, delta_max for each feature.
 
@@ -765,7 +770,7 @@ class InferFeatureAttributesTimeSeries:
             mp_context = mp.get_context("spawn")
             futures: dict[Future, str] = dict()
             task_func = partial(
-                standalone_infer_delta_min_and_max,
+                _delta_min_and_max_shard,
                 time_feature_name=self.time_feature_name,
                 datetime_feature_formats=datetime_feature_formats,
                 id_feature_name=id_feature_name,
@@ -795,7 +800,7 @@ class InferFeatureAttributesTimeSeries:
                         )
 
         else:
-            temp_feature_attributes, _ = standalone_infer_delta_min_and_max(
+            temp_feature_attributes, _ = _delta_min_and_max_shard(
                 data=self.data[non_time_feature_names],
                 time_feature_name=self.time_feature_name,
                 features={key: features[key] for key in non_time_feature_names},
