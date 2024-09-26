@@ -14,7 +14,7 @@ from .exceptions import HowsoError
 
 DEFAULT_ENGINE_PATH = Path(__file__).parent.parent.joinpath("howso-engine")
 
-SchemaTypeOption: TypeAlias = t.Literal["any", "assoc", "boolean", "list", "number", "string"]
+SchemaTypeOption: TypeAlias = t.Literal["any", "assoc", "boolean", "list", "number", "string", "null"]
 SchemaType: TypeAlias = SchemaTypeOption | list[SchemaTypeOption]
 
 
@@ -37,8 +37,8 @@ class Schema(TypedDict):
     enum: NotRequired[list[int | float | str]]
     min: NotRequired[int | float]
     max: NotRequired[int | float]
-    min_length: NotRequired[int]
-    max_length: NotRequired[int]
+    min_size: NotRequired[int]
+    max_size: NotRequired[int]
     values: NotRequired[SchemaType | Schema | RefSchema]
     indices: NotRequired[Mapping[str, SchemaType | Schema | RefSchema]]
     additional_indices: NotRequired[SchemaType | Schema | RefSchema]
