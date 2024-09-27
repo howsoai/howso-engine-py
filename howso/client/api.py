@@ -23,7 +23,7 @@ class RefSchema(TypedDict):
 
     ref: str
     description: NotRequired[str]
-    optional: NotRequired[bool]
+    required: NotRequired[bool]
     default: NotRequired[t.Any]
 
 
@@ -32,7 +32,7 @@ class Schema(TypedDict):
 
     type: SchemaType
     description: NotRequired[str]
-    optional: NotRequired[bool]
+    required: NotRequired[bool]
     default: NotRequired[t.Any]
     enum: NotRequired[list[int | float | str]]
     min: NotRequired[int | float]
