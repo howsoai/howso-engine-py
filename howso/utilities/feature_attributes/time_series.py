@@ -4,10 +4,9 @@ from concurrent.futures import (
     ProcessPoolExecutor,
 )
 import logging
-from math import e, isnan, prod
+from math import e, isnan
 import multiprocessing as mp
 import os
-import typing as t
 from typing import (
     Dict, Iterable, Optional, Union
 )
@@ -93,6 +92,17 @@ class InferFeatureAttributesTimeSeries:
             to 2 will synthesize the 3rd order derivative value, and then use
             that synthed value to derive the 2nd and 1st order.
 
+        max_workers: int, optional
+            If unset or set to None (recommended), let the ProcessPoolExecutor
+            choose the best maximum number of process pool workers to process
+            columns in a multi-process fashion. In this case, if the product of the
+            data's rows and columns > 25,000,000 or the number of rows > 500,000
+            multiprocessing will used.
+
+            If defined with an integer > 0, manually set the number of max workers.
+            Otherwise, the feature attributes will be calculated serially. Setting
+            this parameter to zero (0) will disable multiprocessing.
+
         Returns
         -------
         features : dict
@@ -148,7 +158,7 @@ class InferFeatureAttributesTimeSeries:
                         df_c = self.data.loc[:, [f_name]]
 
                     # convert time feature to epoch
-                    if prod(self.data.shape) < 25_000_000 and max_workers is None:
+                    if len(df_c) < 500_000 and max_workers is None:
                         max_workers = 0
                     if max_workers is None or max_workers >= 1:
                         if max_workers is None:
