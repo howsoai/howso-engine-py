@@ -6,6 +6,7 @@ from concurrent.futures import (
 import logging
 from math import e, isnan, prod
 import multiprocessing as mp
+import os
 import typing as t
 from typing import (
     Dict, Iterable, Optional, Union
@@ -23,6 +24,11 @@ from ..utilities import date_to_epoch
 logger = logging.getLogger(__name__)
 
 SMALLEST_TIME_DELTA = 0.001
+
+
+def _apply_chunks_shard(df: pd.DataFrame, feature_name: str, dt_format: str):
+    """Internal function to aid multiprocessing of series feature attributes."""
+    return df[feature_name].apply(lambda x: date_to_epoch(x, dt_format))
 
 
 class InferFeatureAttributesTimeSeries:
@@ -145,33 +151,37 @@ class InferFeatureAttributesTimeSeries:
                     if prod(self.data.shape) < 25_000_000 and max_workers is None:
                         max_workers = 0
                     if max_workers is None or max_workers >= 1:
+                        if max_workers is None:
+                            cpu_counts = os.cpu_count()
+                            max_workers = cpu_counts
                         mp_context = mp.get_context("spawn")
-                    futures: dict[Future, str] = dict()
+                        futures: dict[Future, str] = dict()
 
-                    with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
-                        df_chunks = self._split_dataframe(df_c, max_workers)
-                        for chunk in df_chunks:
-                            future = pool.submit(
-                                self.apply_in_chunks,
-                                df=chunk,
-                                feature_name=f_name,
-                                dt_format=dt_format
-                            )
-                            futures[future] = f_name
-
-                        temp_results = []
-                        for future in as_completed(futures):
-                            try:
-                                response = future.result()
-                                temp_results.append(response)
-                            except Exception as exception:
-                                warnings.warn(
-                                    f"Infer_feature_attributes raised an exception "
-                                    f"while processing '{futures[future]}' ({str(exception)})."
+                        with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
+                            df_chunks = self._split_dataframe(df_c, max_workers)
+                            for chunk in df_chunks:
+                                future = pool.submit(
+                                    _apply_chunks_shard,
+                                    df=chunk,
+                                    feature_name=f_name,
+                                    dt_format=dt_format
                                 )
+                                futures[future] = f_name
 
-                    df_c[f_name] = pd.concat(temp_results)
+                            temp_results = []
+                            for future in as_completed(futures):
+                                try:
+                                    response = future.result()
+                                    temp_results.append(response)
+                                except Exception as exception:
+                                    warnings.warn(
+                                        f"Infer_feature_attributes raised an exception "
+                                        f"while processing '{futures[future]}' ({str(exception)})."
+                                    )
 
+                        df_c[f_name] = pd.concat(temp_results)
+                    else:
+                        df_c[f_name] = df_c[f_name].apply(lambda x: date_to_epoch(x, dt_format))
 
                     # use Pandas' diff() to pull all the deltas for this feature
                     if isinstance(id_feature_name, list):
@@ -284,13 +294,25 @@ class InferFeatureAttributesTimeSeries:
                         warnings.warn(f"Ignoring {btype}_boundaries for order {order}: out of range")
 
     @staticmethod
-    def _split_dataframe(df, n_chunks):
+    def _split_dataframe(df: pd.DataFrame, n_chunks: int) -> list[pd.DataFrame]:
+        """
+        Splits the dataframe into a specified number of chunks for multiprocessing.
+
+        Parameters
+        ----------
+        df : DataFrame
+            DataFrame of the data to be split.
+
+        n_chunks : int
+            The number of chunks to split the dataframe into.
+
+        Returns
+        -------
+        list
+            A list of DataFrames split into `n_chunks` chunks.
+        """
         chunk_size = len(df) // n_chunks
         return [df[i * chunk_size:(i + 1) * chunk_size] for i in range(n_chunks)]
-
-    @staticmethod
-    def apply_in_chunks(df, feature_name, dt_format):
-        return df[feature_name].apply(lambda x: date_to_epoch(x, dt_format))
 
     def _process(  # noqa: C901
         self,
