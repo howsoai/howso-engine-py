@@ -50,6 +50,7 @@ class LabelDefinition(TypedDict):
     parameters: Mapping[str, Schema | RefSchema] | None
     returns: NotRequired[Schema | RefSchema | None]
     description: NotRequired[str | None]
+    attribute: NotRequired[bool]
     long_running: NotRequired[bool]
     idempotent: NotRequired[bool]
     statistically_idempotent: NotRequired[bool]
