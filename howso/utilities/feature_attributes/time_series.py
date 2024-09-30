@@ -1,5 +1,12 @@
+from concurrent.futures import (
+    as_completed,
+    Future,
+    ProcessPoolExecutor,
+)
 import logging
-from math import e, isnan
+from math import e, isnan, prod
+import multiprocessing as mp
+import typing as t
 from typing import (
     Dict, Iterable, Optional, Union
 )
@@ -35,6 +42,7 @@ class InferFeatureAttributesTimeSeries:
         id_feature_name: Optional[Union[str, Iterable[str]]] = None,
         orders_of_derivatives: Optional[Dict] = None,
         derived_orders: Optional[Dict] = None,
+        max_workers: Optional[int] = None
     ) -> Dict:
         """
         Infer continuous feature delta_min, delta_max for each feature.
@@ -134,8 +142,36 @@ class InferFeatureAttributesTimeSeries:
                         df_c = self.data.loc[:, [f_name]]
 
                     # convert time feature to epoch
-                    df_c[f_name] = df_c[f_name].apply(
-                        lambda x: date_to_epoch(x, dt_format))
+                    if prod(self.data.shape) < 25_000_000 and max_workers is None:
+                        max_workers = 0
+                    if max_workers is None or max_workers >= 1:
+                        mp_context = mp.get_context("spawn")
+                    futures: dict[Future, str] = dict()
+
+                    with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
+                        df_chunks = self._split_dataframe(df_c, max_workers)
+                        for chunk in df_chunks:
+                            future = pool.submit(
+                                self.apply_in_chunks,
+                                df=chunk,
+                                feature_name=f_name,
+                                dt_format=dt_format
+                            )
+                            futures[future] = f_name
+
+                        temp_results = []
+                        for future in as_completed(futures):
+                            try:
+                                response = future.result()
+                                temp_results.append(response)
+                            except Exception as exception:
+                                warnings.warn(
+                                    f"Infer_feature_attributes raised an exception "
+                                    f"while processing '{futures[future]}' ({str(exception)})."
+                                )
+
+                    df_c[f_name] = pd.concat(temp_results)
+
 
                     # use Pandas' diff() to pull all the deltas for this feature
                     if isinstance(id_feature_name, list):
@@ -246,6 +282,15 @@ class InferFeatureAttributesTimeSeries:
                         features[feature]['time_series'][f'{btype}_max'][int(order)] = bounds[feature]['max'][order]
                     else:
                         warnings.warn(f"Ignoring {btype}_boundaries for order {order}: out of range")
+
+    @staticmethod
+    def _split_dataframe(df, n_chunks):
+        chunk_size = len(df) // n_chunks
+        return [df[i * chunk_size:(i + 1) * chunk_size] for i in range(n_chunks)]
+
+    @staticmethod
+    def apply_in_chunks(df, feature_name, dt_format):
+        return df[feature_name].apply(lambda x: date_to_epoch(x, dt_format))
 
     def _process(  # noqa: C901
         self,
@@ -578,6 +623,7 @@ class InferFeatureAttributesTimeSeries:
             include_sample=include_sample,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
             mode_bound_features=mode_bound_features,
+            max_workers=max_workers
         )
 
         # Add any features with unsupported data to this object's list
@@ -678,7 +724,8 @@ class InferFeatureAttributesTimeSeries:
             datetime_feature_formats=datetime_feature_formats,
             id_feature_name=id_feature_name,
             orders_of_derivatives=orders_of_derivatives,
-            derived_orders=derived_orders
+            derived_orders=derived_orders,
+            max_workers=max_workers
         )
 
         # Set any manually specified rate/delta boundaries
