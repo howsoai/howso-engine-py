@@ -344,7 +344,8 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
         If unset or set to None (recommended), let the ProcessPoolExecutor
         choose the best maximum number of process pool workers to process
         columns in a multi-process fashion. In this case, if the product of the
-        data's rows and columns < 25,000,000, multiprocessing will not be used.
+        data's rows and columns > 25,000,000 or if the data is time series and the
+        number of rows > 500,000 multiprocessing will be used.
 
         If defined with an integer > 0, manually set the number of max workers.
         Otherwise, the feature attributes will be calculated serially. Setting
