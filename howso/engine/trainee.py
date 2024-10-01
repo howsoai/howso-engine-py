@@ -1113,13 +1113,21 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         contexts : DataFrame or 2-dimensional list of object, optional
-            The context values to react to.
+            The context values to react to. When the value is a DataFrame, the
+            value will be used to populate both `context_values` and
+            `context_features` parameters of the Engine. When the value is a
+            list, `context_features` must also be specified.
         action_features : list of str, optional
             Feature names to treat as action features during react.
+            If `actions` is a DataFrame, overrides what columns will be used
+            in `action_values` supplied to the Engine.
         actions : DataFrame or 2-dimensional list of object, optional
-            One or more action values to use for action features.
-            If specified, will only return the specified explanation
-            details for the given actions. (Discriminative reacts only)
+            One or more action values to use for action features. If specified,
+            will only return the specified explanation details for the given
+            actions (Discriminative reacts only). When the value is a DataFrame,
+            the value will be used to populate both `action_values` and
+            `action_features` parameters of the Engine. When the value is a
+            list, `action_features` must also be specified.
         allow_nulls : bool, default False
             When true will allow return of null values if there
             are nulls in the local model for the action features, applicable
@@ -1134,6 +1142,8 @@ class Trainee(BaseTrainee):
             outputs null, generative react ignores it.
         context_features : list of str, optional
             Feature names to treat as context features during react.
+            If `contexts` is a DataFrame, overrides what columns will be used
+            in `context_values` supplied to the Engine.
         derived_action_features : list of str, optional
             Features whose values should be computed after reaction from
             the resulting case prior to output, in the specified order.
@@ -1633,7 +1643,7 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         contexts : DataFrame or 2-dimensional list of object, optional
-            The context values to react to.
+            See parameter ``contexts`` in :meth:`react`.
         action_features : list of str, optional
             See parameter ``action_features`` in :meth:`react`.
         actions : DataFrame or 2-dimensional list of object, optional
@@ -2483,8 +2493,13 @@ class Trainee(BaseTrainee):
             The name of the series store to append to.
         contexts : DataFrame or 2-dimensional list of object
             The list of context values to append to the series.
+            When the value is a DataFrame, the value will be used to populate
+            both `context_values` and `context_features` parameters of the Engine.
+            When the value is a list, `context_features` must also be specified.
         context_features : Collection of str, optional
-            The list of feature names for contexts.
+            The feature names corresponding to context values. If `contexts`
+            is a DataFrame, overrides what columns will be used in `context_values`
+            supplied to the Engine.
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.append_to_series_store(
