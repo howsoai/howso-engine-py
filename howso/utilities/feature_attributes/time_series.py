@@ -162,13 +162,12 @@ class InferFeatureAttributesTimeSeries:
                         max_workers = 0
                     if max_workers is None or max_workers >= 1:
                         if max_workers is None:
-                            cpu_counts = os.cpu_count()
-                            max_workers = cpu_counts
+                            max_workers = os.cpu_count()
                         mp_context = mp.get_context("spawn")
                         futures: dict[Future, str] = dict()
 
                         with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
-                            df_chunks = self._split_dataframe(df_c, max_workers)
+                            df_chunks = np.array_split(df_c, max_workers)
                             for chunk in df_chunks:
                                 future = pool.submit(
                                     _apply_chunks_shard,
@@ -302,27 +301,6 @@ class InferFeatureAttributesTimeSeries:
                         features[feature]['time_series'][f'{btype}_max'][int(order)] = bounds[feature]['max'][order]
                     else:
                         warnings.warn(f"Ignoring {btype}_boundaries for order {order}: out of range")
-
-    @staticmethod
-    def _split_dataframe(df: pd.DataFrame, n_chunks: int) -> list[pd.DataFrame]:
-        """
-        Splits the dataframe into a specified number of chunks for multiprocessing.
-
-        Parameters
-        ----------
-        df : DataFrame
-            DataFrame of the data to be split.
-
-        n_chunks : int
-            The number of chunks to split the dataframe into.
-
-        Returns
-        -------
-        list
-            A list of DataFrames split into `n_chunks` chunks.
-        """
-        chunk_size = len(df) // n_chunks
-        return [df[i * chunk_size:(i + 1) * chunk_size] for i in range(n_chunks)]
 
     def _process(  # noqa: C901
         self,
