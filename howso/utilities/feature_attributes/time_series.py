@@ -1,5 +1,12 @@
+from concurrent.futures import (
+    as_completed,
+    Future,
+    ProcessPoolExecutor,
+)
 import logging
 from math import e, isnan
+import multiprocessing as mp
+import os
 from typing import (
     Dict, Iterable, Optional, Union
 )
@@ -16,6 +23,11 @@ from ..utilities import date_to_epoch
 logger = logging.getLogger(__name__)
 
 SMALLEST_TIME_DELTA = 0.001
+
+
+def _apply_chunks_shard(df: pd.DataFrame, feature_name: str, dt_format: str):
+    """Internal function to aid multiprocessing of series feature attributes."""
+    return df[feature_name].apply(lambda x: date_to_epoch(x, dt_format))
 
 
 class InferFeatureAttributesTimeSeries:
@@ -35,6 +47,7 @@ class InferFeatureAttributesTimeSeries:
         id_feature_name: Optional[Union[str, Iterable[str]]] = None,
         orders_of_derivatives: Optional[Dict] = None,
         derived_orders: Optional[Dict] = None,
+        max_workers: Optional[int] = None
     ) -> Dict:
         """
         Infer continuous feature delta_min, delta_max for each feature.
@@ -78,6 +91,17 @@ class InferFeatureAttributesTimeSeries:
             feature with a 3rd order of derivative, setting its derived_orders
             to 2 will synthesize the 3rd order derivative value, and then use
             that synthed value to derive the 2nd and 1st order.
+
+        max_workers: int, optional
+            If unset or set to None (recommended), let the ProcessPoolExecutor
+            choose the best maximum number of process pool workers to process
+            columns in a multi-process fashion. In this case, if the product of the
+            data's rows and columns > 25,000,000 or the number of rows > 500,000
+            multiprocessing will used.
+
+            If defined with an integer > 0, manually set the number of max workers.
+            Otherwise, the feature attributes will be calculated serially. Setting
+            this parameter to zero (0) will disable multiprocessing.
 
         Returns
         -------
@@ -134,8 +158,39 @@ class InferFeatureAttributesTimeSeries:
                         df_c = self.data.loc[:, [f_name]]
 
                     # convert time feature to epoch
-                    df_c[f_name] = df_c[f_name].apply(
-                        lambda x: date_to_epoch(x, dt_format))
+                    if len(df_c) < 500_000 and max_workers is None:
+                        max_workers = 0
+                    if max_workers is None or max_workers >= 1:
+                        if max_workers is None:
+                            max_workers = os.cpu_count()
+                        mp_context = mp.get_context("spawn")
+                        futures: dict[Future, str] = dict()
+
+                        with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
+                            df_chunks = np.array_split(df_c, max_workers)
+                            for chunk in df_chunks:
+                                future = pool.submit(
+                                    _apply_chunks_shard,
+                                    df=chunk,
+                                    feature_name=f_name,
+                                    dt_format=dt_format
+                                )
+                                futures[future] = f_name
+
+                            temp_results = []
+                            for future in as_completed(futures):
+                                try:
+                                    response = future.result()
+                                    temp_results.append(response)
+                                except Exception as exception:
+                                    warnings.warn(
+                                        f"Infer_feature_attributes raised an exception "
+                                        f"while processing '{futures[future]}' ({str(exception)})."
+                                    )
+
+                        df_c[f_name] = pd.concat(temp_results)
+                    else:
+                        df_c[f_name] = df_c[f_name].apply(lambda x: date_to_epoch(x, dt_format))
 
                     # use Pandas' diff() to pull all the deltas for this feature
                     if isinstance(id_feature_name, list):
@@ -578,6 +633,7 @@ class InferFeatureAttributesTimeSeries:
             include_sample=include_sample,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
             mode_bound_features=mode_bound_features,
+            max_workers=max_workers
         )
 
         # Add any features with unsupported data to this object's list
@@ -678,7 +734,8 @@ class InferFeatureAttributesTimeSeries:
             datetime_feature_formats=datetime_feature_formats,
             id_feature_name=id_feature_name,
             orders_of_derivatives=orders_of_derivatives,
-            derived_orders=derived_orders
+            derived_orders=derived_orders,
+            max_workers=max_workers
         )
 
         # Set any manually specified rate/delta boundaries

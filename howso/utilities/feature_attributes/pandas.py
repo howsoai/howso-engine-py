@@ -44,7 +44,7 @@ def _shard(data: pd.DataFrame, *, kwargs: dict[str, t.Any]):
     ifr_inst = InferFeatureAttributesDataFrame(data)
     # Filter out features that are not related to this shard.
     _kwargs = kwargs.copy()
-    if "features" in _kwargs:
+    if _kwargs.get("features") is not None:
         _kwargs['features'] = {
             k: v for k, v in _kwargs["features"].items()
             if k in data.columns

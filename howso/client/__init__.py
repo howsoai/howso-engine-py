@@ -26,6 +26,7 @@ from .client import (  # noqa: F401
     HowsoClient,
 )
 from .pandas.client import HowsoPandasClient  # noqa: F401
+from . import typing  # noqa: F401
 
 __all__ = [
     "AbstractHowsoClient",
@@ -36,4 +37,5 @@ __all__ = [
     "get_howso_client",
     "HowsoClient",
     "HowsoPandasClient",
+    "typing",
 ]
