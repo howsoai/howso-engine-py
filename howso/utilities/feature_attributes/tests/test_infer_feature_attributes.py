@@ -88,8 +88,8 @@ def test_infer_features_attributes():
         assert expected_types[feature] == attributes['type']
 
 
-def test_infer_features_attributes_type_overrides():
-    """Test forced types for infer feature types for iris dataset."""
+def test_infer_features_attributes_known_types():
+    """Test known types for infer feature types for iris dataset."""
     df = pd.read_csv(iris_path)
 
     expected_types = {
@@ -109,8 +109,8 @@ def test_infer_features_attributes_type_overrides():
         assert expected_types[feature] == attributes['type']
 
 
-def test_infer_features_attributes_type_overrides_ordinals():
-    """Test ordinal forced type, should have the same values as continuous outside of type and bounds."""
+def test_infer_features_attributes_known_types_ordinals():
+    """Test ordinal known types, should have the same values as continuous outside of type and bounds."""
     df = pd.read_csv(iris_path)
 
     features = infer_feature_attributes(df)
@@ -135,8 +135,8 @@ def test_infer_features_attributes_type_overrides_ordinals():
     assert features == features_overrides
 
 
-def test_infer_features_attributes_type_overrides_invalid_keys():
-    """Test invalid forced types for infer feature types for iris dataset."""
+def test_infer_features_attributes_known_types_invalid_keys():
+    """Test invalid known types for infer feature types for iris dataset."""
     df = pd.read_csv(iris_path)
 
     with pytest.raises(
