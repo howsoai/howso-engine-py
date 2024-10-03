@@ -37,6 +37,8 @@ class Schema(TypedDict):
     enum: NotRequired[list[int | float | str]]
     min: NotRequired[int | float]
     max: NotRequired[int | float]
+    exclusive_min: NotRequired[int | float]
+    exclusive_max: NotRequired[int | float]
     min_size: NotRequired[int]
     max_size: NotRequired[int]
     values: NotRequired[SchemaType | Schema | RefSchema]
@@ -100,6 +102,9 @@ def get_api(engine_path: t.Optional[Path] = None) -> EngineApi:
     try:
         status = amlg.load_entity(entity_id, str(engine_path))
         if status.loaded:
+            initialized = amlg.execute_entity_json(entity_id, "initialize", json.dumps({"trainee_id": entity_id}))
+            if not initialized:
+                raise ValueError("Not initialized")
             data = amlg.execute_entity_json(entity_id, "get_api", "")
             result = json.loads(data)
             if isinstance(result, list):
