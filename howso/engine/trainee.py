@@ -1440,9 +1440,9 @@ class Trainee(BaseTrainee):
                 - spearman_coeff : Spearman's rank correlation coefficient,
                   for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
-                - smape : Symmetric mean absolute percentage error , for continuous features only.
+                - smape : Symmetric mean absolute percentage error, for continuous features only.
                 - adjusted_smape : Adjusted symmetric mean absolute percentage error, for
-                  continuous features only. Adjusted smape adds the minimum gap / 2 to each forecasted and
+                  continuous features only. Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
                   actual value. The minimum gap for each feature is the smallest difference between two values
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
             - similarity_conviction : bool, optional
@@ -3026,9 +3026,9 @@ class Trainee(BaseTrainee):
                 - spearman_coeff : Spearman's rank correlation coefficient,
                   for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
-                - smape : Symmetric mean absolute percentage error , for continuous features only.
+                - smape : Symmetric mean absolute percentage error, for continuous features only.
                 - adjusted_smape : Adjusted symmetric mean absolute percentage error, for
-                  continuous features only. Adjusted smape adds the minimum gap / 2 to each forecasted and
+                  continuous features only. Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
                   actual value. The minimum gap for each feature is the smallest difference between two values
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
         feature_influences_action_feature : str, optional
