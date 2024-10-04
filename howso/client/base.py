@@ -1695,7 +1695,7 @@ class AbstractHowsoClient(ABC):
             - prediction_stats : bool, optional
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
-                returned  are ("r2", "rmse", "spearman_coeff", "precision",
+                returned  are ("r2", "rmse", "adjusted_smape", "smape", "spearman_coeff", "precision",
                 "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
@@ -1728,6 +1728,11 @@ class AbstractHowsoClient(ABC):
                 - spearman_coeff : Spearman's rank correlation coefficient,
                   for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
+                - smape : Symmetric mean absolute percentage error , for continuous features only.
+                - adjusted_smape : Adjusted symmetric mean absolute percentage error, for continuous features only.
+                    See `smape` for the formula. Adjusted smape adds the minimum gap / 2 to each forecasted and
+                    actual value. The minimum gap for each feature is the smallest difference between two values
+                    in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
             - similarity_conviction : bool, optional
                 If True, outputs similarity conviction for the reacted case.
                 Uses both context and action feature values as the case values
@@ -3272,6 +3277,11 @@ class AbstractHowsoClient(ABC):
                 - spearman_coeff : Spearman's rank correlation coefficient,
                   for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
+                - smape : Symmetric mean absolute percentage error , for continuous features only.
+                - adjusted_smape : Adjusted symmetric mean absolute percentage error, for
+                  continuous features only. Adjusted smape adds the minimum gap / 2 to each forecasted and
+                  actual value. The minimum gap for each feature is the smallest difference between two values
+                  in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
         feature_influences_action_feature : str, optional
             When feature influences such as contributions and mda, use this feature as
             the action feature.  If not provided, will default to the ``action_feature`` if provided.
