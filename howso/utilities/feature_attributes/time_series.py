@@ -167,8 +167,8 @@ class InferFeatureAttributesTimeSeries:
                         futures: dict[Future, str] = dict()
 
                         with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
-                            df_chunks = split_dataframe_into_chunks(df_c, max_workers)
-                            for chunk in df_chunks:
+                            df_chunks_generator = split_dataframe_into_chunks(df_c, max_workers)
+                            for chunk in df_chunks_generator:
                                 future = pool.submit(
                                     _apply_chunks_shard,
                                     df=chunk,
