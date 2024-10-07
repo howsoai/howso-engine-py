@@ -1018,8 +1018,13 @@ class AbstractHowsoClient(ABC):
             The name of the series store to append to.
         contexts : list of list of object or pandas.DataFrame
             The list of list of context values to append to the series.
+            When the value is a DataFrame, the value will be used to populate
+            both `context_values` and `context_features` parameters of the Engine.
+            When the value is a list, `context_features` must also be specified.
         context_features : Collection of str, optional
-            The feature names corresponding to context values.
+            The feature names corresponding to context values. If `contexts`
+            is a DataFrame, overrides what columns will be used in `context_values`
+            supplied to the Engine.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
@@ -1391,22 +1396,27 @@ class AbstractHowsoClient(ABC):
             The ID of the Trainee to react to.
 
         contexts : list of list of object or DataFrame, optional
-            A 2d list of context values to react to.
-            If None for discriminative react, it is assumed that `session`
-            and `session_id` keys are set in the `details`.
+            The context values to react to. When the value is a DataFrame, the
+            value will be used to populate both `context_values` and
+            `context_features` parameters of the Engine. When the value is a
+            list, `context_features` must also be specified.
 
             >>> contexts = [[1, 2, 3], [4, 5, 6]]
 
         action_features : iterable of str, optional
-            An iterable of feature names to treat as action features during
-            react.
+            Feature names to treat as action features during react.
+            If `actions` is a DataFrame, overrides what columns will be used
+            in `action_values` supplied to the Engine.
 
             >>> action_features = ['rain_chance', 'is_sunny']
 
         actions : list of list of object or DataFrame, optional
-            One or more action values to use for action features.
-            If specified, will only return the specified explanation
-            details for the given actions. (Discriminative reacts only)
+            One or more action values to use for action features. If specified,
+            will only return the specified explanation details for the given
+            actions (Discriminative reacts only). When the value is a DataFrame,
+            the value will be used to populate both `action_values` and
+            `action_features` parameters of the Engine. When the value is a
+            list, `action_features` must also be specified.
 
             >>> actions = [[1, 2, 3], [4, 5, 6]]
 
@@ -1420,8 +1430,9 @@ class AbstractHowsoClient(ABC):
             the batch size will be determined automatically.
 
         context_features : iterable of str, optional
-            An iterable of feature names to treat as context features during
-            react.
+            Feature names to treat as context features during react.
+            If `contexts` is a DataFrame, overrides what columns will be used
+            in `context_values` supplied to the Engine.
 
             >>> context_features = ['temperature', 'humidity', 'dew_point',
             ...                     'barometric_pressure']
@@ -1684,7 +1695,7 @@ class AbstractHowsoClient(ABC):
             - prediction_stats : bool, optional
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
-                returned  are ("r2", "rmse", "spearman_coeff", "precision",
+                returned  are ("r2", "rmse", "adjusted_smape", "smape", "spearman_coeff", "precision",
                 "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
@@ -1717,6 +1728,11 @@ class AbstractHowsoClient(ABC):
                 - spearman_coeff : Spearman's rank correlation coefficient,
                   for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
+                - smape : Symmetric mean absolute percentage error, for continuous features only.
+                - adjusted_smape : Adjusted symmetric mean absolute percentage error, for continuous features only.
+                    Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
+                    actual value. The minimum gap for each feature is the smallest difference between two values
+                    in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
             - similarity_conviction : bool, optional
                 If True, outputs similarity conviction for the reacted case.
                 Uses both context and action feature values as the case values
@@ -3261,6 +3277,11 @@ class AbstractHowsoClient(ABC):
                 - spearman_coeff : Spearman's rank correlation coefficient,
                   for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
+                - smape : Symmetric mean absolute percentage error, for continuous features only.
+                - adjusted_smape : Adjusted symmetric mean absolute percentage error, for
+                  continuous features only. Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
+                  actual value. The minimum gap for each feature is the smallest difference between two values
+                  in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
         feature_influences_action_feature : str, optional
             When feature influences such as contributions and mda, use this feature as
             the action feature.  If not provided, will default to the ``action_feature`` if provided.
