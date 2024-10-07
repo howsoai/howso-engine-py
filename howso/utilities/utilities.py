@@ -1397,7 +1397,7 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
 
 def split_dataframe_into_chunks(df: pd.DataFrame, num_chunks: int) -> list[pd.DataFrame]:
     """
-    Splits a dataframe in chunks using iloc. Np.array_split is deprecated.
+    Splits a DataFrame in chunks using iloc. Np.array_split is deprecated.
 
     Parameters
     ----------
