@@ -18,7 +18,7 @@ from pandas.core.dtypes.common import is_string_dtype
 
 from .base import SingleTableFeatureAttributes
 from .pandas import InferFeatureAttributesDataFrame
-from ..utilities import date_to_epoch
+from ..utilities import date_to_epoch, split_dataframe_into_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,7 @@ class InferFeatureAttributesTimeSeries:
                         futures: dict[Future, str] = dict()
 
                         with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
-                            df_chunks = np.array_split(df_c, max_workers)
+                            df_chunks = split_dataframe_into_chunks(df_c, max_workers)
                             for chunk in df_chunks:
                                 future = pool.submit(
                                     _apply_chunks_shard,

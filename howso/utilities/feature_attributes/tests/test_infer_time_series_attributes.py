@@ -170,6 +170,7 @@ def test_set_rate_delta_boundaries():
         datetime_feature_formats={time_feature_name: time_format},
         rate_boundaries=rate_boundaries,
         delta_boundaries=delta_boundaries,
+        max_workers = 3
     )
 
     # Make sure that order 0 was overwritten for rate/delta min & max

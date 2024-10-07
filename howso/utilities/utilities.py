@@ -1393,3 +1393,43 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
             confusion_matrix_array[i, j] = confusion_matrix.get(actual_label, {}).get(predicted_label, 0)
 
     return confusion_matrix_array, row_labels
+
+
+def split_dataframe_into_chunks(df: pd.DataFrame, num_chunks: int) -> list[pd.DataFrame]:
+    """
+    Splits a dataframe in chunks using iloc. Np.array_split is deprecated.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas DataFrame to be split.
+    num_chunks : int
+        The number of chunks to split the df into.
+
+    Returns
+    -------
+    list of DataFrame
+        A list of `num_chunks` dataframes.
+    """
+    total_rows = len(df)
+
+    if num_chunks < total_rows:
+        warnings.warn(
+            f"Number of chunks requested: {num_chunks} is greater than "
+            f"the number of rows in the DataFrame. Returning a list with the original DataFrame."
+        )
+        # Return the DataFrame in a list to maintain consistency with the return type
+        return [df]
+
+    rows_per_chunk = total_rows // num_chunks
+
+    chunks = []
+
+    for i in range(num_chunks):
+        start = i * rows_per_chunk
+        # Cap the end index at total_rows to avoid out-of-bounds
+        end = ((i + 1) * rows_per_chunk) if i != num_chunks - 1 else total_rows
+        chunk = df.iloc[start:end]
+        chunks.append(chunk)
+
+    return chunks
