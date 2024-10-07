@@ -1413,7 +1413,7 @@ def split_dataframe_into_chunks(df: pd.DataFrame, num_chunks: int) -> list[pd.Da
     """
     total_rows = len(df)
 
-    if num_chunks < total_rows:
+    if num_chunks > total_rows:
         warnings.warn(
             f"Number of chunks requested: {num_chunks} is greater than "
             f"the number of rows in the DataFrame. Returning a list with the original DataFrame."
