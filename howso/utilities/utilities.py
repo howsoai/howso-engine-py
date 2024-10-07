@@ -1397,7 +1397,7 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
 
 def yield_dataframe_as_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generator[pd.DataFrame, None, None]:
     """
-    Splits and yields a DataFrame in chunks using iloc. Np.array_split is deprecated.
+    Yields a DataFrame in chunks using iloc. Np.array_split is deprecated.
 
     Parameters
     ----------
@@ -1420,7 +1420,7 @@ def yield_dataframe_as_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generator[
         )
         yield df
 
-    rows_per_chunk = ceil(total_rows // num_chunks)
+    rows_per_chunk = ceil(total_rows / num_chunks)
 
     for i in range(num_chunks):
         start = i * rows_per_chunk
