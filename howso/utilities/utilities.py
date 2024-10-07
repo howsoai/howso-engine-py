@@ -4,7 +4,7 @@ from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 import datetime as dt
 import inspect
 import locale as python_locale
-from math import isnan
+from math import ceil, isnan
 import re
 import sys
 import threading
@@ -1395,7 +1395,7 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
     return confusion_matrix_array, row_labels
 
 
-def split_dataframe_into_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generator[pd.DataFrame, None, None]:
+def yield_dataframe_as_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generator[pd.DataFrame, None, None]:
     """
     Splits and yields a DataFrame in chunks using iloc. Np.array_split is deprecated.
 
@@ -1404,7 +1404,7 @@ def split_dataframe_into_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generato
     df : DataFrame
         Pandas DataFrame to be split.
     num_chunks : int
-        The number of chunks to split the df into.
+        The number of chunks to split the DataFrame into.
 
     Yields
     ------
@@ -1420,7 +1420,7 @@ def split_dataframe_into_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generato
         )
         yield df
 
-    rows_per_chunk = total_rows // num_chunks
+    rows_per_chunk = ceil(total_rows // num_chunks)
 
     for i in range(num_chunks):
         start = i * rows_per_chunk
