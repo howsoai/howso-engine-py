@@ -1409,7 +1409,7 @@ def split_dataframe_into_chunks(df: pd.DataFrame, num_chunks: int) -> list[pd.Da
     Returns
     -------
     list of DataFrame
-        A list of `num_chunks` dataframes.
+        A list of `num_chunks` DataFrames.
     """
     total_rows = len(df)
 
