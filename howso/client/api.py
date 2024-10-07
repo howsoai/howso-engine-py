@@ -18,11 +18,11 @@ SchemaTypeOption: TypeAlias = t.Literal["any", "assoc", "boolean", "list", "numb
 SchemaType: TypeAlias = SchemaTypeOption | list[SchemaTypeOption]
 
 
-class RefSchema(TypedDict):
+class Ref(TypedDict):
     """Reference to another schema."""
 
     ref: str
-    description: NotRequired[str]
+    description: NotRequired[str | None]
     required: NotRequired[bool]
     default: NotRequired[t.Any]
 
@@ -41,18 +41,19 @@ class Schema(TypedDict):
     exclusive_max: NotRequired[int | float]
     min_size: NotRequired[int]
     max_size: NotRequired[int]
-    values: NotRequired[SchemaType | Schema | RefSchema]
-    indices: NotRequired[Mapping[str, SchemaType | Schema | RefSchema]]
-    additional_indices: NotRequired[SchemaType | Schema | RefSchema]
+    values: NotRequired[SchemaType | Schema | Ref]
+    indices: NotRequired[Mapping[str, SchemaType | Schema | Ref]]
+    additional_indices: NotRequired[SchemaType | Schema | Ref | bool]
 
 
 class LabelDefinition(TypedDict):
     """Engine label definition."""
 
-    parameters: Mapping[str, Schema | RefSchema] | None
-    returns: NotRequired[Schema | RefSchema | None]
+    parameters: Mapping[str, Schema | Ref] | None
+    returns: NotRequired[Schema | Ref | None]
     description: NotRequired[str | None]
     attribute: NotRequired[bool]
+    use_active_session: NotRequired[bool]
     long_running: NotRequired[bool]
     idempotent: NotRequired[bool]
     statistically_idempotent: NotRequired[bool]
@@ -136,7 +137,7 @@ def get_api_label(label: str) -> LabelDefinition | None:
     return api["labels"].get(label)
 
 
-def get_api_schema(name: str) -> Schema | RefSchema | None:
+def get_api_schema(name: str) -> Schema | Ref | None:
     """
     Get a schema definition by name.
 
@@ -147,7 +148,7 @@ def get_api_schema(name: str) -> Schema | RefSchema | None:
 
     Returns
     -------
-    Schema or RefSchema or None
+    Schema or Ref or None
         The schema definition, or None if not found.
     """
     api = get_api()
