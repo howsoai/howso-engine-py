@@ -3244,11 +3244,6 @@ class AbstractHowsoClient(ABC):
                 The precision to use when selecting cases with the ``context_condition``.
                 If not specified "exact" will be used. Only used if ``context_condition``
                 is not None.
-            - prediction_stats_features : list, optional
-                List of features to use when calculating conditional prediction stats. Should contain all
-                action and context features desired. If ``action_feature`` is also provided, that feature will
-                automatically be appended to this list if it is not already in the list.
-                    stats : list of str, optional
             - selected_prediction_stats : list, optional
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
