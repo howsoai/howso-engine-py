@@ -558,8 +558,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
     def _infer_time_attributes(self, feature_name: str) -> dict:
         return {
-            'type': 'continuous',
-            'data_type': 'number',
+            'type': 'cyclic',
+            'data_type': 'formatted_time',
+            'time_format': time_format,
         }
 
     def _infer_timedelta_attributes(self, feature_name: str) -> dict:
