@@ -564,6 +564,9 @@ class InferFeatureAttributesBase(ABC):
         if datetime_feature_formats is None:
             datetime_feature_formats = dict()
 
+        if time_feature_formats is None:
+            time_feature_formats = dict()
+
         if ordinal_feature_values is None:
             ordinal_feature_values = dict()
 
@@ -616,14 +619,24 @@ class InferFeatureAttributesBase(ABC):
                         'is already formatted as a date object. This custom '
                         'format will be ignored.')
                 elif feature_type == FeatureType.TIME:
-                    # When feature is a time instance, we won't need to
-                    # parse the datetime from a string using a custom format.
-                    feature_attributes[feature_name] = (
-                        self._infer_datetime_attributes(feature_name))
-                    warnings.warn(
-                        'Time only features with a datetime feature format '
-                        'will be treated as a datetime using the date '
-                        '1970-1-1.', UserWarning)
+                    if time_feature_formats.get(feature_name, None):
+                        # When feature is a time instance and also has a time feature format,
+                        # do nothing here
+                        warnings.warn(
+                            f'Feature "{feature_name}" has both a datetime feature format and '
+                            'time feature format specified. It has been inferred as a time only '
+                            'feature, so the datetime feature format will be ignored.',
+                            UserWarning
+                        )
+                    else:
+                        # When feature is a time instance, we won't need to
+                        # parse the datetime from a string using a custom format.
+                        feature_attributes[feature_name] = (
+                            self._infer_datetime_attributes(feature_name))
+                        warnings.warn(
+                            'Time only features with a datetime feature format '
+                            'will be treated as a datetime using the date '
+                            '1970-1-1. Please instead use time_feature_formats.', UserWarning)
                 elif isinstance(user_dt_format, str):
                     # User passed only the format string
                     feature_attributes[feature_name] = {
@@ -650,6 +663,10 @@ class InferFeatureAttributesBase(ABC):
                         f'`datetime_feature_formats` for feature "{feature_name}"'
                         f'is invalid. It should be either a single string '
                         f'(format), or a tuple of 2 strings (format, locale).')
+
+            # EXPLICITLY DECLARED TIME FEATURES
+            elif time_feature_formats.get(feature_name, None):
+                user_time_format = time_feature_formats[feature_name]
 
             # FLOATING POINT FEATURES
             elif feature_type == FeatureType.NUMERIC:

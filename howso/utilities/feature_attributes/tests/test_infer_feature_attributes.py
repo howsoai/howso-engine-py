@@ -228,6 +228,44 @@ def test_get_feature_type(data, expected_type):
     assert original_type == expected_type
 
 
+@pytest.mark.parametrize('data', [
+    (pd.DataFrame(["08:08:08"], columns=['a'])),
+    (pd.DataFrame(["8:8:8"], columns=['a'])),
+    (pd.DataFrame(["8:59:59am"], columns=['a'])),
+    (pd.DataFrame(["T08:08:08"], columns=['a'])),
+    (pd.DataFrame(["00:00:00"], columns=['a'])),
+    (pd.DataFrame(["23:59:59"], columns=['a'])),
+    (pd.DataFrame(["23:59:59.59"], columns=['a'])),
+    (pd.DataFrame(["2:30 am"], columns=['a'])),
+    (pd.DataFrame(["2:30 pm"], columns=['a'])),
+    (pd.DataFrame(["12am"], columns=['a'])),
+    (pd.DataFrame(["12pm"], columns=['a'])),
+    (pd.DataFrame(["4:25"], columns=['a'])),
+    (pd.DataFrame(["20:00"], columns=['a'])),
+])
+def test_infer_time_features(data):
+    """Test get_feature_type against many possible time-only features."""
+    ifa = InferFeatureAttributesDataFrame(data)
+    feature_type, _ = ifa._get_feature_type()
+    assert str(feature_type) == FeatureType.TIME
+
+
+@pytest.mark.parametrize('data', [
+    (pd.DataFrame(["-01:01:01"], columns=['a'])),
+    (pd.DataFrame(["24:0:0"], columns=['a'])),
+    (pd.DataFrame(["59:0:0"], columns=['a'])),
+    (pd.DataFrame(["3:60"], columns=['a'])),
+    (pd.DataFrame(["12 o'clock"], columns=['a'])),
+    (pd.DataFrame(["8:8:8:8"], columns=['a'])),
+    (pd.DataFrame(["8.5:32:32"], columns=['a'])),
+])
+def test_infer_invalid_time_features(data):
+    """Test get_feature_type with features that look like time features but are invalid times."""
+    ifa = InferFeatureAttributesDataFrame(data)
+    feature_type, _ = ifa._get_feature_type()
+    assert str(feature_type) in (FeatureType.STRING, FeatureType.UNKNOWN)
+
+
 @pytest.mark.parametrize('data, data_type', [
     (123, 'float128'),
 ])
