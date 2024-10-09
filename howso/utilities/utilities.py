@@ -4,7 +4,7 @@ from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 import datetime as dt
 import inspect
 import locale as python_locale
-from math import isnan
+from math import ceil, isnan
 import re
 import sys
 import threading
@@ -1393,3 +1393,37 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
             confusion_matrix_array[i, j] = confusion_matrix.get(actual_label, {}).get(predicted_label, 0)
 
     return confusion_matrix_array, row_labels
+
+
+def yield_dataframe_as_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generator[pd.DataFrame, None, None]:
+    """
+    Yields a DataFrame in chunks using iloc. Np.array_split is deprecated.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas DataFrame to be split.
+    num_chunks : int
+        The number of chunks to split the DataFrame into.
+
+    Yields
+    ------
+    DataFrame
+        A DataFrame chunk.
+    """
+    total_rows = len(df)
+
+    if num_chunks > total_rows:
+        warnings.warn(
+            f"Number of chunks requested: {num_chunks} is greater than "
+            f"the number of rows in the DataFrame. Yielding the original DataFrame."
+        )
+        yield df
+
+    rows_per_chunk = ceil(total_rows / num_chunks)
+
+    for i in range(num_chunks):
+        start = i * rows_per_chunk
+        # Cap the end index at total_rows to avoid out-of-bounds
+        end = ((i + 1) * rows_per_chunk) if i != num_chunks - 1 else total_rows
+        yield df.iloc[start:end]
