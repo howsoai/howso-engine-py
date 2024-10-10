@@ -1,10 +1,10 @@
 Faker
-30.1.0
+30.3.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-30.1.0.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-30.3.0.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -120,12 +120,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 build
-1.2.2
+1.2.2.post1
 MIT License
 Filipe Laíns <lains@riseup.net>, Bernát Gábor <gaborjbernat@gmail.com>, layday <layday@protonmail.com>, Henry Schreiner <henryschreineriii@gmail.com>
 https://build.pypa.io
 A simple, correct Python build frontend
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/build-1.2.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/build-1.2.2.post1.dist-info/LICENSE
 Copyright © 2019 Filipe Laíns <filipe.lains@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -213,12 +213,12 @@ documentation is licensed as follows:
 
 
 charset-normalizer
-3.3.2
+3.4.0
 MIT License
 Ahmed TAHRI
 https://github.com/Ousret/charset_normalizer
 The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/charset_normalizer-3.3.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/charset_normalizer-3.4.0.dist-info/LICENSE
 MIT License
 
 Copyright (c) 2019 TAHRI Ahmed R.
@@ -501,12 +501,12 @@ A library to handle automated deprecations
 
 
 humanize
-4.10.0
+4.11.0
 MIT License
 Jason Moiron <jmoiron@jmoiron.net>
 https://github.com/python-humanize/humanize
 Python humanize utilities
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/humanize-4.10.0.dist-info/licenses/LICENCE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/humanize-4.11.0.dist-info/licenses/LICENCE
 Copyright (c) 2010-2020 Jason Moiron and Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -684,12 +684,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-2.1.1
+2.1.2
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/numpy-2.1.1.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/numpy-2.1.2.dist-info/LICENSE.txt
 Copyright (c) 2005-2024, NumPy Developers.
 All rights reserved.
 
@@ -3306,12 +3306,12 @@ Python HTTP for Humans.
 
 
 rich
-13.9.1
+13.9.2
 MIT License
 Will McGugan
 https://github.com/Textualize/rich
 Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/rich-13.9.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/rich-13.9.2.dist-info/LICENSE
 Copyright (c) 2020 Will McGugan
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

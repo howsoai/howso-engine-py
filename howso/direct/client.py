@@ -36,6 +36,7 @@ from howso.client.schemas import (
     Session,
     Trainee,
     TraineeRuntime,
+    TraineeRuntimeOptions,
     TraineeVersion,
 )
 from howso.client.typing import LibraryType, Persistence
@@ -692,6 +693,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         persistence: Persistence = "allow",
         project: t.Optional[str | Project] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
+        runtime: t.Optional[TraineeRuntimeOptions] = None,
     ) -> Trainee:
         """
         Create a Trainee on the Howso service.
@@ -709,6 +711,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             the name will be used, or a new UUID if no name was provided.
         library_type : {"st", "mt"}, optional
             (Not implemented in this client)
+
+            .. deprecated:: 31.0
+                Pass via `runtime` instead.
         max_wait_time : int or float, optional
             (Not implemented in this client)
         metadata : dict, optional
@@ -721,6 +726,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         project : str or dict, optional
             (Not implemented in this client)
         resources : dict, optional
+            (Not implemented in this client)
+
+            .. deprecated:: 31.0
+                Pass via `runtime` instead.
+        runtime : TraineeRuntime, optional
             (Not implemented in this client)
 
         Returns
@@ -736,6 +746,15 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if features is None:
             features = {}
+
+        if library_type is not None:
+            warnings.warn(
+                'The create trainee parameter `library_type` is deprecated and will be removed in '
+                'a future release. Please use `runtime` instead.', DeprecationWarning)
+        if resources is not None:
+            warnings.warn(
+                'The create trainee parameter `resources` is deprecated and will be removed in '
+                'a future release. Please use `runtime` instead.', DeprecationWarning)
 
         # Check that the id is usable for saving later.
         if name:
@@ -1129,7 +1148,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_trainee_id: t.Optional[str] = None,
         *,
         library_type: t.Optional[LibraryType] = None,
-        resources: t.Optional[dict] = None,
+        resources: t.Optional[Mapping[str, t.Any]] = None,
+        runtime: t.Optional[TraineeRuntimeOptions] = None
     ) -> Trainee:
         """
         Copies a trainee to a new trainee id in the Howso service.
@@ -1148,10 +1168,21 @@ class HowsoDirectClient(AbstractHowsoClient):
         library_type : str, optional
             (Not Implemented) The library type of the Trainee. If not specified,
             the new trainee will inherit the value from the original.
+
+            .. deprecated:: 31.0
+                Pass via `runtime` instead.
         resources : dict, optional
             (Not Implemented) Customize the resources provisioned for the
             Trainee instance. If not specified, the new trainee will inherit
             the value from the original.
+
+            .. deprecated:: 31.0
+                Pass via `runtime` instead.
+        runtime : TraineeRuntimeOptions, optional
+            Library type, resource requirements, and other runtime settings
+            for the new Trainee instance.  If not specified, the new trainee
+            will inherit the values from the original.  Not used in this
+            client implementation.
 
         Returns
         -------
@@ -1169,6 +1200,15 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if self.configuration.verbose:
             print(f'Copying Trainee {trainee_id} to {new_trainee_id}')
+
+        if library_type is not None:
+            warnings.warn(
+                'The copy trainee parameter `library_type` is deprecated and will be removed in '
+                'a future release. Please use `runtime` instead.', DeprecationWarning)
+        if resources is not None:
+            warnings.warn(
+                'The copy trainee parameter `resources` is deprecated and will be removed in '
+                'a future release. Please use `runtime` instead.', DeprecationWarning)
 
         is_cloned = self.amlg.clone_entity(
             handle=trainee_id,

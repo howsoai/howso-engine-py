@@ -16,7 +16,15 @@ from howso.utilities.feature_attributes.base import MultiTableFeatureAttributes,
 from howso.utilities.features import serialize_cases
 from howso.utilities.monitors import ProgressTimer
 from .exceptions import HowsoError, UnsupportedArgumentWarning
-from .schemas import HowsoVersion, Project, Reaction, Session, Trainee, TraineeRuntime
+from .schemas import (
+    HowsoVersion,
+    Project,
+    Reaction,
+    Session,
+    Trainee,
+    TraineeRuntime,
+    TraineeRuntimeOptions
+)
 from .typing import (
     CaseIndices,
     Cases,
@@ -292,9 +300,66 @@ class AbstractHowsoClient(ABC):
         overwrite_trainee: bool = False,
         persistence: Persistence = "allow",
         project: t.Optional[str | Project] = None,
-        resources: t.Optional[Mapping[str, t.Any]] = None
+        resources: t.Optional[Mapping[str, t.Any]] = None,
+        runtime: t.Optional[TraineeRuntimeOptions] = None
     ) -> Trainee:
-        """Create a Trainee in the Howso service."""
+        """
+        Create a trainee on the Howso service.
+
+        A trainee can be thought of as "model" in traditional ML sense.
+
+        Implementations of the client may honor different subsets of these
+        parameters.
+
+        Parameters
+        ----------
+        name : str, optional
+            A name to use for the Trainee.
+        features : dict, optional
+            The Trainee feature attributes.
+        id : str or UUID, optional
+            A custom unique identifier to use with the Trainee, if the client
+            implementation supports manually assigning the name.
+        library_type : str, optional
+            The library type of the Trainee, if the client implementation
+            supports dynamically selecting this.
+
+            .. deprecated:: 31.0
+                Pass via `runtime` instead.
+        max_wait_time : int or float, default 30
+            The number of seconds to wait for a trainee to be created
+            and become available before aborting gracefully, if the client
+            supports this.
+
+            Set to `0` (or None) to wait as long as the system-configured maximum for
+            sufficient resources to become available, which is typically 20 minutes.
+        metadata : MutableMapping, optional
+            Arbitrary jsonifiable data to store along with the Trainee.
+        overwrite_trainee : bool, default False
+            If True, and if a trainee with name `trainee.name` already exists,
+            the given trainee will delete the old trainee and create the new
+            trainee.
+        persistence : {"allow", "always", "never"}, default "allow"
+            The requested persistence state of the Trainee.
+        project : str or Project, optional
+            The project to create this Trainee under, if the client
+            implementation supports this project.
+        resources : Mapping, optional
+            Customize the resources provisioned for the Trainee instance.
+
+            .. deprecated:: 80.0
+                Pass via `runtime` instead.
+        runtime : TraineeRuntimeOptions, optional
+            Runtime options used by the Trainee, including the library type
+            and resource and scaling options, if the client implementation
+            supports setting these.  Takes precedence over `library_type` and
+            `resources` if these options are set.
+
+        Returns
+        -------
+        Trainee
+            The trainee object that was created.
+        """
 
     @abstractmethod
     def update_trainee(self, trainee: Mapping | Trainee) -> Trainee:
@@ -331,9 +396,14 @@ class AbstractHowsoClient(ABC):
 
     @abstractmethod
     def copy_trainee(
-        self, trainee_id, new_trainee_name=None, *,
-        library_type=None,
-        resources=None,
+        self,
+        trainee_id: str,
+        new_trainee_name: t.Optional[str] = None,
+        new_trainee_id: t.Optional[str] = None,
+        *,
+        library_type: t.Optional[LibraryType] = None,
+        resources: t.Optional[Mapping[str, t.Any]] = None,
+        runtime: t.Optional[TraineeRuntimeOptions] = None
     ) -> Trainee:
         """Copy a trainee in the Howso service."""
 
@@ -3201,20 +3271,20 @@ class AbstractHowsoClient(ABC):
                         - None
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
-                        range. Only applicable to continuous and numeric ordinal
-                        features.
+                          range. Only applicable to continuous and numeric ordinal
+                          features.
                         - An array of string values, must match any of these values
-                        exactly. Only applicable to nominal and string ordinal
-                        features.
+                          exactly. Only applicable to nominal and string ordinal
+                          features.
             - action_num_cases : int, optional
                 The maximum amount of cases to use to calculate prediction stats.
                 If not specified, the limit will be k cases if precision is
-                "similar", or 1000 cases if precision is "exact". Works with or
-                without ``action_condition``.
-                -If ``action_condition`` is set:
-                    If None, will be set to k if precision is "similar" or no limit if precision is "exact".
-                - If ``action_condition`` is not set:
-                    If None, will be set to the Howso default limit of 2000.
+                "similar", or 1000 cases if precision is "exact".
+
+                If this value is not provided, the default depends on ``action_condition``.  If
+                If ``action_condition`` is set, the default is k if precision is "similar" or no
+                limit if precision is "exact".  If ``action_condition`` is not set, the Howso
+                default limit is 2000.
             - action_condition_precision : {"exact", "similar"}, optional
                 The precision to use when selecting cases with the ``action_condition``.
                 If not specified "exact" will be used. Only used if ``action_condition``
@@ -3232,11 +3302,11 @@ class AbstractHowsoClient(ABC):
                         - None
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
-                        range. Only applicable to continuous and numeric ordinal
-                        features.
+                          range. Only applicable to continuous and numeric ordinal
+                          features.
                         - An array of string values, must match any of these values
-                        exactly. Only applicable to nominal and string ordinal
-                        features.
+                          exactly. Only applicable to nominal and string ordinal
+                          features.
             - context_precision_num_cases : int, optional
                 Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
                 If None, will be set to k.
@@ -3244,6 +3314,10 @@ class AbstractHowsoClient(ABC):
                 The precision to use when selecting cases with the ``context_condition``.
                 If not specified "exact" will be used. Only used if ``context_condition``
                 is not None.
+            - prediction_stats_features : list, optional
+                List of features to use when calculating conditional prediction stats. Should contain all
+                action and context features desired. If ``action_feature`` is also provided, that feature will
+                automatically be appended to this list if it is not already in the list.
             - selected_prediction_stats : list, optional
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 

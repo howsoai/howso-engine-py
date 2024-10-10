@@ -4,7 +4,7 @@ from collections.abc import Mapping
 import typing as t
 from uuid import UUID
 
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired, ReadOnly, TypedDict
 
 from .base import BaseSchema
 from ..typing import LibraryType, Persistence
@@ -36,17 +36,57 @@ class TraineeVersion(TypedDict, total=False):
     """The Amalgam library version."""
 
 
+class ResourceLimit(TypedDict):
+    """System resource (CPU/Memory) limit."""
+
+    minimum: ReadOnly[NotRequired[int | None]]
+    """Minimum allocated."""
+
+    maximum: ReadOnly[NotRequired[int | None]]
+    """Maximum allocated."""
+
+
+class TraineeScalingResources(TypedDict, total=False):
+    """Resources allocated to a Trainee."""
+
+    cpu: ReadOnly[NotRequired[ResourceLimit | None]]
+    """Trainee CPU limits in millicores."""
+
+    memory: ReadOnly[NotRequired[ResourceLimit | None]]
+    """Trainee memory limits in mebibytes."""
+
+
+class TraineeScaling(TypedDict, total=False):
+    """Trainee runtime scaling options."""
+
+    resources: ReadOnly[NotRequired[TraineeScalingResources | None]]
+    """The CPU and memory resources allocated to the Trainee."""
+
+
+class TraineeRuntimeOptions(TypedDict, total=False):
+    """Runtime options used when creating a Trainee."""
+
+    library_type: ReadOnly[NotRequired[LibraryType | None]]
+    """The Amalgam library type used by the Trainee."""
+
+    scaling: ReadOnly[NotRequired[TraineeScaling | None]]
+    """The runtime scaling options used by the Trainee."""
+
+
 class TraineeRuntime(TypedDict):
     """Trainee runtime details."""
 
-    library_type: LibraryType
+    library_type: ReadOnly[LibraryType]
     """The Amalgam library type used by the Trainee."""
 
-    tracing_enabled: bool
+    tracing_enabled: ReadOnly[bool]
     """If debug tracing is enabled for the Trainee."""
 
-    versions: TraineeVersion
+    versions: ReadOnly[TraineeVersion]
     """The Trainee runtime versions."""
+
+    scaling: ReadOnly[NotRequired[TraineeScaling | None]]
+    """The runtime scaling options used by the Trainee."""
 
 
 class Trainee(BaseSchema[TraineeDict]):
