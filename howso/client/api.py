@@ -15,13 +15,23 @@ from .exceptions import HowsoError
 DEFAULT_ENGINE_PATH = Path(__file__).parent.parent.joinpath("howso-engine")
 
 SchemaTypeOption: TypeAlias = t.Literal["any", "assoc", "boolean", "list", "number", "string", "null"]
-SchemaType: TypeAlias = SchemaTypeOption | list[SchemaTypeOption]
+SchemaType: TypeAlias = t.Union[SchemaTypeOption, list[SchemaTypeOption]]
+TypeDefinition: TypeAlias = t.Union[SchemaType, "Ref", "Schema", "AnyOf"]
 
 
 class Ref(TypedDict):
     """Reference to another schema."""
 
     ref: str
+    description: NotRequired[str | None]
+    required: NotRequired[bool]
+    default: NotRequired[t.Any]
+
+
+class AnyOf(TypedDict):
+    """An "OR" schema composition."""
+
+    any_of: TypeDefinition
     description: NotRequired[str | None]
     required: NotRequired[bool]
     default: NotRequired[t.Any]
@@ -41,16 +51,19 @@ class Schema(TypedDict):
     exclusive_max: NotRequired[int | float]
     min_size: NotRequired[int]
     max_size: NotRequired[int]
-    values: NotRequired[SchemaType | Schema | Ref]
-    indices: NotRequired[Mapping[str, SchemaType | Schema | Ref]]
-    additional_indices: NotRequired[SchemaType | Schema | Ref | bool]
+    values: NotRequired[TypeDefinition]
+    min_indices: NotRequired[int]
+    max_indices: NotRequired[int]
+    indices: NotRequired[Mapping[str, TypeDefinition]]
+    additional_indices: NotRequired[TypeDefinition | bool]
+    dynamic_indices: NotRequired[TypeDefinition]
 
 
 class LabelDefinition(TypedDict):
     """Engine label definition."""
 
-    parameters: Mapping[str, Schema | Ref] | None
-    returns: NotRequired[Schema | Ref | None]
+    parameters: Mapping[str, TypeDefinition] | None
+    returns: NotRequired[TypeDefinition | None]
     description: NotRequired[str | None]
     attribute: NotRequired[bool]
     use_active_session: NotRequired[bool]
@@ -58,6 +71,7 @@ class LabelDefinition(TypedDict):
     idempotent: NotRequired[bool]
     statistically_idempotent: NotRequired[bool]
     read_only: NotRequired[bool]
+    payload: NotRequired[bool]
 
 
 class EngineApi(TypedDict):
@@ -66,7 +80,7 @@ class EngineApi(TypedDict):
     labels: Mapping[str, LabelDefinition]
     """Engine labels."""
 
-    schemas: Mapping[str, Schema]
+    schemas: Mapping[str, Schema | AnyOf]
     """Mapping of shared schemas."""
 
     description: str
