@@ -3748,9 +3748,10 @@ class Trainee(BaseTrainee):
 
             Default Methods:
             - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
-            - 'fractional': normalizes each row by dividing each value by the sum of the values in the row, so the relative
-            values sum to 1.
-            - 'fractional_absolute': normalizes each row by dividing each value by the sum of absolute values in the row.
+            - 'fractional': normalizes each row by dividing each value by the sum of the values in the row, so the
+              relative values sum to 1.
+            - 'fractional_absolute': normalizes each row by dividing each value by the sum of absolute values in
+              the row.
 
             Custom Callable:
             - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:

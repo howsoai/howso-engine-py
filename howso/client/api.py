@@ -15,8 +15,13 @@ from .exceptions import HowsoError
 DEFAULT_ENGINE_PATH = Path(__file__).parent.parent.joinpath("howso-engine")
 
 SchemaTypeOption: TypeAlias = t.Literal["any", "assoc", "boolean", "list", "number", "string", "null"]
+"""Enum of valid Engine types."""
+
 SchemaType: TypeAlias = t.Union[SchemaTypeOption, list[SchemaTypeOption]]
+"""Valid schema type options."""
+
 TypeDefinition: TypeAlias = t.Union[SchemaType, "Ref", "Schema", "AnyOf"]
+"""Any valid type definition. Type(s), Reference, Schema, or Schema composition."""
 
 
 class Ref(TypedDict):
@@ -38,7 +43,7 @@ class AnyOf(TypedDict):
 
 
 class Schema(TypedDict):
-    """A definition of a parameter or return value in Engine."""
+    """A definition of a schema in Engine."""
 
     type: SchemaType
     description: NotRequired[str]
@@ -60,7 +65,7 @@ class Schema(TypedDict):
 
 
 class LabelDefinition(TypedDict):
-    """Engine label definition."""
+    """A definition to an Engine label."""
 
     parameters: Mapping[str, TypeDefinition] | None
     returns: NotRequired[TypeDefinition | None]
@@ -78,17 +83,17 @@ class EngineApi(TypedDict):
     """The Howso Engine Api documentation object."""
 
     labels: Mapping[str, LabelDefinition]
-    """Engine labels."""
+    """Map of Engine label name to label definition."""
 
     schemas: Mapping[str, Schema | Ref | AnyOf]
-    """Mapping of shared schemas."""
+    """Mapping of schema name to schema definition."""
 
     description: str
     """Description of the API."""
 
 
 @lru_cache(16)
-def get_api(engine_path: t.Optional[Path] = None) -> EngineApi:
+def get_api(engine_path: t.Optional[Path | str] = None) -> EngineApi:
     """
     Get api documentation from the Howso Engine.
 
@@ -110,7 +115,7 @@ def get_api(engine_path: t.Optional[Path] = None) -> EngineApi:
     entity_id = str(uuid4())
     if not engine_path:
         engine_path = DEFAULT_ENGINE_PATH.joinpath("howso.caml")
-    if not engine_path.exists():
+    if not Path(engine_path).exists():
         raise HowsoError(f"The Howso Engine file path does not exist: {engine_path}.")
 
     amlg = Amalgam()
