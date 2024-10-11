@@ -19,6 +19,7 @@ from howso.client.schemas import (
     Session as BaseSession,
     Trainee as BaseTrainee,
     TraineeRuntime,
+    TraineeRuntimeOptions
 )
 from howso.client.typing import (
     CaseIndices,
@@ -78,6 +79,9 @@ class Trainee(BaseTrainee):
     library_type : {"st", "mt"}, optional
         The library type of the Trainee. "st" will use the single-threaded library,
         while "mt" will use the multi-threaded library.
+
+        .. deprecated:: 31.0
+            Pass via `runtime` instead.
     max_wait_time : int or float, default 30
         The number of seconds to wait for a trainee to be created and become
         available before aborting gracefully. Set to ``0`` (or None) to wait as
@@ -91,10 +95,15 @@ class Trainee(BaseTrainee):
         Any key-value pair to store as custom metadata for the trainee.
     resources : map, optional
         Customize the resources provisioned for the Trainee instance.
+
+        .. deprecated:: 31.0
+            Pass via `runtime` instead.
     client : AbstractHowsoClient, optional
         The Howso client instance to use.
     overwrite_existing : bool, default False
         Overwrite existing trainee with the same name (if exists).
+    runtime : TraineeRuntimeOptions, optional
+        Runtime settings for this trainee, including resource requirements.
     """
 
     def __init__(
@@ -110,7 +119,8 @@ class Trainee(BaseTrainee):
         metadata: t.Optional[Mapping[str, t.Any]] = None,
         project: t.Optional[str | BaseProject] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
-        client: t.Optional[AbstractHowsoClient] = None
+        client: t.Optional[AbstractHowsoClient] = None,
+        runtime: t.Optional[TraineeRuntimeOptions] = None
     ):
         """Initialize the Trainee object."""
         self._created: bool = False
@@ -148,7 +158,8 @@ class Trainee(BaseTrainee):
             library_type=library_type,
             max_wait_time=max_wait_time,
             overwrite=overwrite_existing,
-            resources=resources
+            resources=resources,
+            runtime=runtime
         )
 
     @property
@@ -413,6 +424,7 @@ class Trainee(BaseTrainee):
         library_type: t.Optional[LibraryType] = None,
         project: t.Optional[str | BaseProject] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
+        runtime: t.Optional[TraineeRuntimeOptions] = None
     ) -> Trainee:
         """
         Copy the trainee to another trainee.
@@ -424,12 +436,24 @@ class Trainee(BaseTrainee):
         library_type : {"st", "mt"}, optional
             The library type of the Trainee. "st" will use the single-threaded library,
             while "mt" will use the multi-threaded library.
+
+            .. deprecated:: 31.0
+                Pass via `runtime` instead.
+
         project : str or Project, optional
             The instance or id of the project to use for the new trainee.
         resources : dict, optional
             Customize the resources provisioned for the Trainee instance. If
             not specified, the new trainee will inherit the value from the
             original.
+
+            .. deprecated:: 31.0
+                Pass via `runtime` instead.
+        runtime : TraineeRuntimeOptions, optional
+            Runtime settings for this trainee, including resource requirements.
+            Takes precedence over `library_type` and `resources`, if either
+            option is set.  If not specified, the new trainee will inherit the
+            value from the original.
 
         Returns
         -------
@@ -446,6 +470,7 @@ class Trainee(BaseTrainee):
             "new_trainee_name": name,
             "library_type": library_type,
             "resources": resources,
+            "runtime": runtime,
         }
 
         # Only pass project for platform clients
@@ -3487,6 +3512,7 @@ class Trainee(BaseTrainee):
         max_wait_time: t.Optional[int | float] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
         overwrite: bool = False,
+        runtime: t.Optional[TraineeRuntimeOptions] = None
     ):
         """
         Create the trainee at the API.
@@ -3501,6 +3527,8 @@ class Trainee(BaseTrainee):
             The resources to provision for the trainee.
         overwrite : bool, default False
             If True, will overwrite an existing trainee with the same name.
+        runtime : TraineeRuntimeOptions, optional
+            Client-specific runtime options.
         """
         if not self.id:
             new_trainee = None
@@ -3514,7 +3542,8 @@ class Trainee(BaseTrainee):
                     library_type=library_type,
                     max_wait_time=max_wait_time,
                     project=self.project_id,
-                    resources=resources
+                    resources=resources,
+                    runtime=runtime
                 )
                 self._update_attributes(new_trainee)
                 # Get updated feature attributes
