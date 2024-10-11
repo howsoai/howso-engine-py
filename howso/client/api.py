@@ -80,7 +80,7 @@ class EngineApi(TypedDict):
     labels: Mapping[str, LabelDefinition]
     """Engine labels."""
 
-    schemas: Mapping[str, Schema | AnyOf]
+    schemas: Mapping[str, Schema | Ref | AnyOf]
     """Mapping of shared schemas."""
 
     description: str
@@ -131,39 +131,3 @@ def get_api(engine_path: t.Optional[Path] = None) -> EngineApi:
     finally:
         amlg.destroy_entity(entity_id)
         del amlg
-
-
-def get_api_label(label: str) -> LabelDefinition | None:
-    """
-    Get the API definition for a given label.
-
-    Parameters
-    ----------
-    label : str
-        The label to retrieve.
-
-    Returns
-    -------
-    LabelDefinition or None
-        The definition of the label, or None if the label is not defined.
-    """
-    api = get_api()
-    return api["labels"].get(label)
-
-
-def get_api_schema(name: str) -> Schema | Ref | None:
-    """
-    Get a schema definition by name.
-
-    Parameters
-    ----------
-    name : str
-        The name of the schema to retrieve.
-
-    Returns
-    -------
-    Schema or Ref or None
-        The schema definition, or None if not found.
-    """
-    api = get_api()
-    return api["schemas"].get(name)
