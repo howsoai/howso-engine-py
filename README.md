@@ -1,4 +1,3 @@
-
 <div align="left">
 <picture>
  <source media="(prefers-color-scheme: dark)" srcset="https://cdn.howso.com/img/howso/1/svg/logo-gradient-light.svg" width="33%">
@@ -45,7 +44,6 @@ the Trainee functionality is sufficient. Each Trainee represents an individual
 Machine Learning object or model that can perform functions like training and
 predicting, while a client may manage the API interface for multiple Trainees.
 
-
 ## Supported Platforms
 
 Compatible with Python versions: 3.9, 3.10, 3.11, and 3.12.
@@ -53,7 +51,7 @@ Compatible with Python versions: 3.9, 3.10, 3.11, and 3.12.
 **Operating Systems**
 
 | OS      | x86_64 | arm64 |
-|---------|--------|-------|
+| ------- | ------ | ----- |
 | Windows | Yes    | No    |
 | Linux   | Yes    | Yes   |
 | MacOS   | Yes    | Yes   |
@@ -61,6 +59,7 @@ Compatible with Python versions: 3.9, 3.10, 3.11, and 3.12.
 ## Install
 
 To install the current release:
+
 ```bash
 pip install howso-engine
 ```
@@ -94,7 +93,7 @@ the Trainee is ready to be used for all supported machine learning tasks. At
 this point one could start making predictions on unseen data, investigate the
 most noisy features, find the most anomalous training cases, and much more.
 
-Please see the [User Guide](https://docs.howso.com/user_guide/index.html) for
+Please see the [User Guide](https://docs.howso.com/en/release-latest/user_guide/index.html) for
 basic workflows as well as additional information about:
 
 - Anomaly detection
