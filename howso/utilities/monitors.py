@@ -1,5 +1,9 @@
+from __future__ import annotations
+
+import typing as t
+
 from datetime import datetime, timedelta
-from typing import Union
+
 
 __all__ = [
     "ProgressTimer",
@@ -22,10 +26,11 @@ class Timer:
         "The task took 1:30:10.454419"
     """
 
-    def __init__(self):
+    def __init__(self, message: t.Optional[str] = None):  # type: ignore reportMissingSuperCall
         """Initialize a new Timer instance."""
         self.start_time = None
         self.end_time = None
+        self.message = message
 
     def start(self) -> "Timer":
         """Start the timer."""
@@ -35,6 +40,8 @@ class Timer:
 
     def end(self) -> None:
         """End the timer."""
+        if self.message:
+            print(f"{self.message} : {self.duration}")
         self.end_time = datetime.now()
 
     def reset(self) -> None:
@@ -53,7 +60,7 @@ class Timer:
         return self.end_time is not None
 
     @property
-    def duration(self) -> Union[timedelta, None]:
+    def duration(self) -> timedelta | None:
         """
         The total computed duration of the timer.
 
@@ -71,7 +78,7 @@ class Timer:
         return self.end_time - self.start_time
 
     @property
-    def seconds(self) -> Union[float, None]:
+    def seconds(self) -> float | None:
         """The total seconds representing the duration of timer instance."""
         if duration := self.duration:
             return duration.total_seconds()
@@ -124,12 +131,15 @@ class ProgressTimer(Timer):
         """
         if not self.has_started:
             raise ValueError("Progress timer not started")
-        elapsed_time = datetime.now() - self.start_time
+        if self.start_time:
+            elapsed_time = datetime.now() - self.start_time
+        else:
+            elapsed_time = timedelta(0)
         return ((self.total_ticks * elapsed_time /
                  max(self.current_tick, 1)) - elapsed_time)
 
     @property
-    def tick_duration(self) -> Union[timedelta, None]:
+    def tick_duration(self) -> timedelta | None:
         """
         The duration since the last tick.
 
@@ -182,6 +192,6 @@ class ProgressTimer(Timer):
         self.last_tick_time = self.start_time
         return self
 
-    def __enter__(self) -> "ProgressTimer":
+    def __enter__(self) -> "ProgressTimer":  # type: ignore reportMissingSuperCall
         """Context entrance."""
         return self.start()
