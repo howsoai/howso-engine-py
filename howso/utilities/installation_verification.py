@@ -62,10 +62,12 @@ logger = logging.getLogger(__name__)
 
 
 def is_databricks():
+    """Check environment is on Databricks."""
     return bool(os.environ.get('DATABRICKS_RUNTIME_VERSION', None))
 
 
 def iv_print(*args, **kwargs):
+    """Print wrapper for handling prints in different environments."""
     if is_databricks():
         # strip out rich formatting before printing
         alist = list(args)

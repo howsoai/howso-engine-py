@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import typing as t
-
 from datetime import datetime, timedelta
+import typing as t
 
 
 __all__ = [
