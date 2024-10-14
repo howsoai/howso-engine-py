@@ -28,68 +28,72 @@ class Ref(TypedDict):
     """Reference to another schema."""
 
     ref: str
+    default: NotRequired[t.Any]
     description: NotRequired[str | None]
     required: NotRequired[bool]
-    default: NotRequired[t.Any]
 
 
 class AnyOf(TypedDict):
     """An "OR" schema composition."""
 
     any_of: TypeDefinition
+    default: NotRequired[t.Any]
     description: NotRequired[str | None]
     required: NotRequired[bool]
-    default: NotRequired[t.Any]
 
 
 class Schema(TypedDict):
     """A definition of a schema in Engine."""
 
     type: SchemaType
-    description: NotRequired[str]
-    required: NotRequired[bool]
     default: NotRequired[t.Any]
+    description: NotRequired[str]
     enum: NotRequired[list[int | float | str]]
-    min: NotRequired[int | float]
-    max: NotRequired[int | float]
-    exclusive_min: NotRequired[int | float]
+    required: NotRequired[bool]
+    # Numbers
     exclusive_max: NotRequired[int | float]
-    min_size: NotRequired[int]
+    exclusive_min: NotRequired[int | float]
+    max: NotRequired[int | float]
+    min: NotRequired[int | float]
+    # Lists
     max_size: NotRequired[int]
+    min_size: NotRequired[int]
     values: NotRequired[TypeDefinition]
-    min_indices: NotRequired[int]
-    max_indices: NotRequired[int]
-    indices: NotRequired[Mapping[str, TypeDefinition]]
+    # Mappings
     additional_indices: NotRequired[TypeDefinition | bool]
     dynamic_indices: NotRequired[TypeDefinition]
+    indices: NotRequired[Mapping[str, TypeDefinition]]
+    max_indices: NotRequired[int]
+    min_indices: NotRequired[int]
 
 
 class LabelDefinition(TypedDict):
     """A definition to an Engine label."""
 
     parameters: Mapping[str, TypeDefinition] | None
-    returns: NotRequired[TypeDefinition | None]
+    returns: TypeDefinition | None
     description: NotRequired[str | None]
+    # Annotations
     attribute: NotRequired[bool]
-    use_active_session: NotRequired[bool]
-    long_running: NotRequired[bool]
     idempotent: NotRequired[bool]
-    statistically_idempotent: NotRequired[bool]
-    read_only: NotRequired[bool]
+    long_running: NotRequired[bool]
     payload: NotRequired[bool]
+    read_only: NotRequired[bool]
+    statistically_idempotent: NotRequired[bool]
+    use_active_session: NotRequired[bool]
 
 
 class EngineApi(TypedDict):
     """The Howso Engine Api documentation object."""
+
+    description: str
+    """Description of the API."""
 
     labels: Mapping[str, LabelDefinition]
     """Map of Engine label name to label definition."""
 
     schemas: Mapping[str, Schema | Ref | AnyOf]
     """Mapping of schema name to schema definition."""
-
-    description: str
-    """Description of the API."""
 
 
 @lru_cache(16)
