@@ -7,6 +7,7 @@ import decimal
 import logging
 from math import isnan, prod
 import multiprocessing as mp
+import re
 import typing as t
 import warnings
 
@@ -31,6 +32,7 @@ from ..utilities import (
     epoch_to_date,
     ISO_8601_DATE_FORMAT,
     ISO_8601_FORMAT,
+    TIME_PATTERN,
     time_to_seconds,
 )
 
@@ -195,9 +197,12 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             else:
                 first_non_null = self._get_first_non_null(feature_name)
+                # DataFrames may use 'object' dtype for strings, detect
+                # string columns by checking the type of the data
                 if isinstance(first_non_null, str):
-                    # DataFrames may use 'object' dtype for strings, detect
-                    # string columns by checking the type of the data
+                    # First, determine if the string resembles common time-only formats
+                    if re.match(TIME_PATTERN, first_non_null):
+                        return FeatureType.TIME
                     return FeatureType.STRING, {}
                 elif isinstance(first_non_null, bytes):
                     warnings.warn(f'The column "{feature_name}" contained '

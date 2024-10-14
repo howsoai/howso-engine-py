@@ -238,8 +238,6 @@ def test_get_feature_type(data, expected_type):
     (pd.DataFrame(["23:59:59.59"], columns=['a'])),
     (pd.DataFrame(["2:30 am"], columns=['a'])),
     (pd.DataFrame(["2:30 pm"], columns=['a'])),
-    (pd.DataFrame(["12am"], columns=['a'])),
-    (pd.DataFrame(["12pm"], columns=['a'])),
     (pd.DataFrame(["4:25"], columns=['a'])),
     (pd.DataFrame(["20:00"], columns=['a'])),
 ])

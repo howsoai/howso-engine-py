@@ -34,6 +34,9 @@ ISO_8601_FORMAT_FRACTIONAL = "%Y-%m-%dT%H:%M:%S.%f"
 NON_THOROUGH_NUM = 100
 # Match unescaped timezone character in datetime format strings
 SMALLEST_TIME_DELTA = 0.001
+# Regex that matches common time strings
+TIME_PATTERN = (r'\b(T)?(?P<hour>[01]?\d|2[0-3]|\d):(?P<minute>[0-5]?\d)(?::(?P<second>[0-5]?\d)('
+                r'?:\.(?P<fraction>\d{1,2}))?)?\s?(?P<ampm>[APap][Mm])?\b')
 
 
 def date_to_epoch(
@@ -1433,3 +1436,53 @@ def yield_dataframe_as_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generator[
         # Cap the end index at total_rows to avoid out-of-bounds
         end = ((i + 1) * rows_per_chunk) if i != num_chunks - 1 else total_rows
         yield df.iloc[start:end]
+
+
+def infer_time_format(time_str: str):
+    """
+    Attempts to infer a time format given an arbitrary time string.
+
+    Parameters
+    ----------
+    time_str : str
+        The time to infer the format of
+
+    Returns
+    -------
+    str
+        The format of the given time string, if a format can be inferred.
+        For example, the input `13:05:59` would return `%H:%M:%S`.
+
+    Raises
+    ------
+    ValueError
+        If the format of the time string cannot be deteremined.
+    """
+    format_string = ""
+
+    # Hour component
+    hour = match.group("hour")
+    if hour:
+        format_string += "%I" if match.group("ampm") else "%H"
+
+    # Minute component
+    minute = match.group("minute")
+    if minute:
+        format_string += ":%M"
+
+    # Second component
+    second = match.group("second")
+    if second:
+        format_string += ":%S"
+
+    # Fractional seconds component
+    fraction = match.group("fraction")
+    if fraction:
+        format_string += ".%f"
+
+    # AM/PM component
+    ampm = match.group("ampm")
+    if ampm:
+        format_string += " %p"
+
+    return format_string

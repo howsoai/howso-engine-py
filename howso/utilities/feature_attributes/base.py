@@ -24,11 +24,11 @@ from howso.utilities.internals import serialize_models
 logger = logging.getLogger(__name__)
 
 # Maximum/minimum data sizes for integers, floats, datetimes supported by the core
-INTEGER_MAX = int(math.pow(2, 53))
 FLOAT_MAX = 1.7976931348623157 * math.pow(10, 308)
 FLOAT_MIN = 2.2250738585072014 * math.pow(10, -308)
-WIN_DT_MAX = '6053-01-24'
+INTEGER_MAX = int(math.pow(2, 53))
 LINUX_DT_MAX = '2262-04-11'
+WIN_DT_MAX = '6053-01-24'
 
 
 class FeatureAttributesBase(dict):
@@ -564,9 +564,6 @@ class InferFeatureAttributesBase(ABC):
         if datetime_feature_formats is None:
             datetime_feature_formats = dict()
 
-        if time_feature_formats is None:
-            time_feature_formats = dict()
-
         if ordinal_feature_values is None:
             ordinal_feature_values = dict()
 
@@ -587,7 +584,7 @@ class InferFeatureAttributesBase(ABC):
                     'bounds': {'allowed': ordinal_feature_values[feature_name]}
                 }
 
-            # EXPLICITLY DECLARED DATETIME FEATURES
+            # EXPLICITLY DECLARED DATETIME & TIME FEATURES
             elif datetime_feature_formats.get(feature_name, None):
                 # datetime_feature_formats is expected to either be only a
                 # single string (format) or a tuple of strings (format, locale)
@@ -663,10 +660,6 @@ class InferFeatureAttributesBase(ABC):
                         f'`datetime_feature_formats` for feature "{feature_name}"'
                         f'is invalid. It should be either a single string '
                         f'(format), or a tuple of 2 strings (format, locale).')
-
-            # EXPLICITLY DECLARED TIME FEATURES
-            elif time_feature_formats.get(feature_name, None):
-                user_time_format = time_feature_formats[feature_name]
 
             # FLOATING POINT FEATURES
             elif feature_type == FeatureType.NUMERIC:
