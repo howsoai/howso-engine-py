@@ -26,6 +26,7 @@ from urllib3.util import Retry, Timeout
 from amalgam.api import Amalgam
 from howso import utilities as util
 from howso.client import get_configuration_path
+from howso.client.api import DEFAULT_ENGINE_PATH
 from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
@@ -52,7 +53,6 @@ _VERSION_CHECKED = False
 DT_FORMAT_KEY = 'date_time_format'
 HYPERPARAMETER_KEY = "hyperparameter_map"
 VERSION_CHECK_HOST = "https://version-check.howso.com"
-DEFAULT_ENGINE_PATH = Path(__file__).parent.parent.joinpath("howso-engine")
 
 # Cache of trainee information shared across client instances
 _trainee_cache = TraineeCache()
