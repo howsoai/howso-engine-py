@@ -30,7 +30,7 @@ from howso.client.api import DEFAULT_ENGINE_PATH
 from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
-from howso.client.exceptions import HowsoError, HowsoWarning, UnsupportedArgumentWarning
+from howso.client.exceptions import HowsoError, HowsoValidationError, HowsoWarning, UnsupportedArgumentWarning
 from howso.client.schemas import (
     HowsoVersion,
     Project,
@@ -338,36 +338,43 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return _trainee_cache
 
-    @classmethod
-    def _deserialize(cls, payload: str | bytes | None) -> t.Any:
+    def _deserialize(self, label: str, payload: str | bytes | None) -> t.Any:
         """Deserialize engine response."""
         if payload is None or len(payload) == 0:
             return None
         try:
-            deserialized_payload = json.loads(payload)
-            if isinstance(deserialized_payload, list):
-                status = deserialized_payload[0]
-                deserialized_payload = deserialized_payload[1]
+            data = json.loads(payload)
+            if isinstance(data, list):
+                status = data[0]
+                data = data[1]
                 if status != 1:
                     # If result is an error, raise it
-                    detail = deserialized_payload.get('detail') or []
+                    # Error detail can be either a string or a list of strings
+                    detail = data.get('detail') or []
                     if detail:
-                        # Error detail can be either a string or a list of strings
                         if isinstance(detail, list):
-                            raise HowsoError(detail[0])  # Raise first error
-                        else:
-                            raise HowsoError(detail)
+                            # Use first error only
+                            detail = detail[0]
+                        code = data.get('code')
+                        errors = data.get('errors')
+                        if errors or code == 'invalid':
+                            ex = HowsoValidationError(detail, code=code, errors=errors)
+                            if self.verbose and errors:
+                                # Print all the validation errors in verbose mode
+                                errors = "\n  - ".join(ex.messages())
+                                print(f"The following validation errors occurred in {label}:\n  - {errors}")
+                            raise ex
+                        raise HowsoError(detail, code=code)
                     else:
                         # Unknown error occurred
-                        raise HowsoError('An unknown error occurred while '
-                                         'processing the Howso Engine operation.')
+                        raise HowsoError(f'An unknown error occurred during {label}.')
 
-                warning_list = deserialized_payload.get('warnings') or []
+                warning_list = data.get('warnings') or []
                 for w in warning_list:
                     warnings.warn(w, category=HowsoWarning)
 
-                return deserialized_payload.get('payload')
-            return deserialized_payload
+                return data.get('payload')
+            return data
         except HowsoError:
             raise
         except Exception:  # noqa: Deliberately broad
@@ -564,7 +571,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             result = self.amlg.execute_entity_json(trainee_id, label, json_payload)
         except ValueError as err:
             raise HowsoError('Invalid payload - please check for infinity or NaN values') from err
-        return self._deserialize(result)
+        return self._deserialize(label, result)
 
     def execute_sized(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> tuple[t.Any, int, int]:
         """
@@ -594,7 +601,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             result = self.amlg.execute_entity_json(trainee_id, label, json_payload)
         except ValueError as err:
             raise HowsoError('Invalid payload - please check for infinity or NaN values') from err
-        return self._deserialize(result), len(json_payload), len(result)
+        return self._deserialize(label, result), len(json_payload), len(result)
 
     def is_tracing_enabled(self, trainee_id: str) -> bool:
         """
