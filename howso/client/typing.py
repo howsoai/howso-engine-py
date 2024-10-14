@@ -76,7 +76,7 @@ TabularData3D: TypeAlias = Union[list[DataFrame], list[list[list[Any]]]]
 TargetedModel: TypeAlias = Literal["single_targeted", "omni_targeted", "targetless"]
 """Valid values for ``targeted_model`` parameters."""
 
-PredictionStats: TypeAlias = Literal[
+_ThresholdMeasureKey: TypeAlias = Literal[
     "accuracy",
     "adjusted_smape",
     "mcc",
@@ -90,5 +90,5 @@ PredictionStats: TypeAlias = Literal[
 ]
 """Valid values for ``prediction_stats`` and related parameters."""
 
-AblationThresholdMap: TypeAlias = dict[PredictionStats, dict[str, float]]
+AblationThresholdMap: TypeAlias = dict[_ThresholdMeasureKey, dict[str, float]]
 """Threshold map(s) for auto-ablation and data reduction."""

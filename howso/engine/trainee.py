@@ -1437,8 +1437,8 @@ class Trainee(BaseTrainee):
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
                 computations.
-            - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
-                returns all except the confusion matrix. Allowed values:
+            - selected_prediction_stats : list[Prediction_Stats], optional.
+                List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
                 - all : Returns all the the available prediction stats, including the confusion matrix.
                 - accuracy : The number of correct predictions divided by the
