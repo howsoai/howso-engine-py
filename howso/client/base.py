@@ -1830,7 +1830,7 @@ class AbstractHowsoClient(ABC):
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
             will be used if the Trainee has them.
-        case_indices : Iterable of Sequence[Union[str, int]], defaults to None
+        case_indices : Iterable of Sequence[str | int], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
             into the session. If this case does not exist, discriminative react

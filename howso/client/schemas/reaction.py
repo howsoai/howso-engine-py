@@ -31,11 +31,11 @@ class Reaction(abc.MutableMapping):
 
     Parameters
     ----------
-    action : Union[pandas.DataFrame, list, dict], default None
+    action : pandas.DataFrame or list or dict, default None
         (Optional) A DataFrame with columns representing the requested
         features of ``react`` or ``react_series`` cases.
 
-    details : List or None
+    details : list or None
         (Optional) The details of results from ``react`` or ``react_series``
         when providing a ``details`` parameter.
     """
@@ -62,8 +62,8 @@ class Reaction(abc.MutableMapping):
     }
 
     def __init__(self,
-                 action: t.Optional[t.Union[pd.DataFrame, list, dict]] = None,
-                 details: t.Optional[t.MutableMapping[str, t.Any]] = None
+                 action: t.Optional[pd.DataFrame | list | dict] = None,
+                 details: t.Optional[abc.MutableMapping[str, t.Any]] = None
                  ):
         """Initialize the dictionary with the allowed keys."""
         self._data = {
@@ -150,7 +150,7 @@ class Reaction(abc.MutableMapping):
 
     @singledispatchmethod
     def add_reaction(self, action: pd.DataFrame,
-                     details: t.MutableMapping[str, t.Any]):
+                     details: abc.MutableMapping[str, t.Any]):
         """
         Add more data to the instance.
 
@@ -203,13 +203,13 @@ class Reaction(abc.MutableMapping):
         self._reorganized_details = None
 
     @add_reaction.register
-    def _(self, action: dict, details: t.MutableMapping[str, t.Any]):
+    def _(self, action: dict, details: abc.MutableMapping[str, t.Any]):
         """Add dict[list, dict] to Reaction."""
         action_df = pd.DataFrame.from_dict(action)
         return self.add_reaction(action_df, details)
 
     @add_reaction.register
-    def _(self, action: list, details: t.MutableMapping[str, t.Any]):
+    def _(self, action: list, details: abc.MutableMapping[str, t.Any]):
         """Add list[dict] to Reaction."""
         action_df = pd.DataFrame(action)
         return self.add_reaction(action_df, details)
@@ -242,7 +242,7 @@ class Reaction(abc.MutableMapping):
         return self._reorganized_details
 
     @classmethod
-    def _reorganize_details(cls, details: t.MutableMapping[str, list]) -> list[dict]:
+    def _reorganize_details(cls, details: abc.MutableMapping[str, list]) -> list[dict]:
         """
         Re-organize `details` to be a list of dicts. One dict per case.
 

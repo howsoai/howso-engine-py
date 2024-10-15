@@ -294,7 +294,7 @@ class Trainee(BaseTrainee):
         return self._needs_analyze
 
     @property
-    def calculated_matrices(self) -> t.Optional[dict[str, DataFrame]]:
+    def calculated_matrices(self) -> dict[str, DataFrame] | None:
         """
         The calculated matrices.
 

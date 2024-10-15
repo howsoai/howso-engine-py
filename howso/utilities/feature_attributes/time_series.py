@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from collections.abc import Iterable
 from concurrent.futures import (
     as_completed,
     Future,
@@ -7,9 +10,7 @@ import logging
 from math import e, isnan
 import multiprocessing as mp
 import os
-from typing import (
-    Dict, Iterable, Optional, Union
-)
+import typing as t
 import warnings
 
 import numpy as np
@@ -42,13 +43,13 @@ class InferFeatureAttributesTimeSeries:
 
     def _infer_delta_min_and_max(  # noqa: C901
         self,
-        features: Optional[Dict] = None,
-        datetime_feature_formats: Optional[Dict] = None,
-        id_feature_name: Optional[Union[str, Iterable[str]]] = None,
-        orders_of_derivatives: Optional[Dict] = None,
-        derived_orders: Optional[Dict] = None,
-        max_workers: Optional[int] = None
-    ) -> Dict:
+        features: t.Optional[dict] = None,
+        datetime_feature_formats: t.Optional[dict] = None,
+        id_feature_name: t.Optional[str | Iterable[str]] = None,
+        orders_of_derivatives: t.Optional[dict] = None,
+        derived_orders: t.Optional[dict] = None,
+        max_workers: t.Optional[int] = None
+    ) -> dict:
         """
         Infer continuous feature delta_min, delta_max for each feature.
 
@@ -276,7 +277,7 @@ class InferFeatureAttributesTimeSeries:
 
         return features
 
-    def _set_rate_delta_bounds(self, btype: str, bounds: Dict, features: Dict):
+    def _set_rate_delta_bounds(self, btype: str, bounds: dict, features: dict):
         """Set optinally-specified rate/delta bounds in the features dict."""
         for feature in bounds.keys():
             # Check for any problems
@@ -304,29 +305,29 @@ class InferFeatureAttributesTimeSeries:
 
     def _process(  # noqa: C901
         self,
-        features: Optional[Dict] = None,
+        features: t.Optional[dict] = None,
         infer_bounds: bool = True,
-        id_feature_name: Optional[Union[str, Iterable[str]]] = None,
-        time_invariant_features: Optional[Iterable[str]] = None,
-        datetime_feature_formats: Optional[Dict] = None,
-        dependent_features: Optional[dict] = None,
-        tight_bounds: Optional[Iterable[str]] = None,
+        id_feature_name: t.Optional[str | Iterable[str]] = None,
+        time_invariant_features: t.Optional[Iterable[str]] = None,
+        datetime_feature_formats: t.Optional[dict] = None,
+        dependent_features: t.Optional[dict] = None,
+        tight_bounds: t.Optional[Iterable[str]] = None,
         attempt_infer_extended_nominals: bool = False,
-        nominal_substitution_config: Optional[Dict[str, Dict]] = None,
-        include_extended_nominal_probabilities: Optional[bool] = False,
+        nominal_substitution_config: t.Optional[dict[str, dict]] = None,
+        include_extended_nominal_probabilities: t.Optional[bool] = False,
         include_sample: bool = False,
-        time_feature_is_universal: Optional[bool] = None,
-        time_series_type_default: Optional[str] = 'rate',
-        time_series_types_override: Optional[Dict] = None,
-        orders_of_derivatives: Optional[Dict] = None,
-        derived_orders: Optional[Dict] = None,
-        mode_bound_features: Optional[Iterable[str]] = None,
-        lags: Optional[Union[list, dict]] = None,
-        num_lags: Optional[Union[int, dict]] = None,
-        rate_boundaries: Optional[Dict] = None,
-        delta_boundaries: Optional[Dict] = None,
-        max_workers: Optional[int] = None,
-    ) -> Dict:
+        time_feature_is_universal: t.Optional[bool] = None,
+        time_series_type_default: t.Optional[str] = 'rate',
+        time_series_types_override: t.Optional[dict] = None,
+        orders_of_derivatives: t.Optional[dict] = None,
+        derived_orders: t.Optional[dict] = None,
+        mode_bound_features: t.Optional[Iterable[str]] = None,
+        lags: t.Optional[list | dict] = None,
+        num_lags: t.Optional[int | dict] = None,
+        rate_boundaries: t.Optional[dict] = None,
+        delta_boundaries: t.Optional[dict] = None,
+        max_workers: t.Optional[int] = None,
+    ) -> dict:
         """
         Infer time series attributes.
 
