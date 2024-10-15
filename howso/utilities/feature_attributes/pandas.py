@@ -5,6 +5,7 @@ from concurrent.futures import as_completed, Future, ProcessPoolExecutor
 import datetime
 import decimal
 import logging
+import math
 from math import isnan, prod
 import multiprocessing as mp
 import typing as t
@@ -23,7 +24,11 @@ from pandas.core.dtypes.common import (
 )
 import pytz
 
-from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
+from .base import (
+    InferFeatureAttributesBase,
+    PreprocessedAttributes,
+    SingleTableFeatureAttributes
+)
 from ..features import FeatureType
 from ..utilities import (
     date_to_epoch,
@@ -458,8 +463,21 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
         return output or None
 
-    def _infer_floating_point_attributes(self, feature_name: str) -> dict:
-        attributes: dict[str, t.Any] = {'type': 'continuous', 'data_type': 'number'}
+    def _infer_floating_point_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
+    ) -> dict[str, str]:
+
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+
+        if known_feature_type == 'nominal':
+            return {
+                'type': 'nominal',
+                'data_type': 'number',
+            }
+        else:
+            attributes: dict[str, t.Any] = {'type': 'continuous', 'data_type': 'number'}
 
         n_cases = self.data[feature_name].shape[0]
 
@@ -468,7 +486,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if self.data[feature_name].isna().sum() < n_cases:
 
             # determine if nominal by checking if number of uniques <= 2
-            if self.data[feature_name].nunique() <= 2 and n_cases > 10:
+            if (
+                self.data[feature_name].nunique() <= 2 and n_cases > 10 and
+                known_feature_type not in ('continuous', 'ordinal')
+            ):
                 return {
                     'type': 'nominal',
                     'data_type': 'number'
@@ -527,9 +548,18 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         'of 64 bits.'
                     )
 
+        # Only override types left are ordinal and continuous
+        if known_feature_type:
+            attributes['type'] = known_feature_type
+
         return attributes
 
-    def _infer_datetime_attributes(self, feature_name: str) -> dict:
+    def _infer_datetime_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
+    ) -> dict[str, str]:
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
         column = self.data[feature_name]
         dt_format = ISO_8601_FORMAT
         if hasattr(column, 'dt') and getattr(column.dt, 'tz', None):
@@ -543,88 +573,133 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 # value has tzinfo and include the timezone in the format
                 if first_non_null.tzinfo is not None:
                     dt_format += '%z'
+
         return {
-            'type': 'continuous',
+            'type': known_feature_type if known_feature_type else 'continuous',
             'data_type': 'formatted_date_time',
             'date_time_format': dt_format,
         }
 
-    def _infer_date_attributes(self, feature_name: str) -> dict:
+    def _infer_date_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
+    ) -> dict[str, str]:
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
         return {
-            'type': 'continuous',
+            'type': known_feature_type if known_feature_type else 'continuous',
             'data_type': 'formatted_date_time',
             'date_time_format': ISO_8601_DATE_FORMAT,
         }
 
-    def _infer_time_attributes(self, feature_name: str) -> dict:
+    def _infer_time_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
+    ) -> dict[str, str]:
+
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+
         return {
-            'type': 'continuous',
-            'data_type': 'number',
+            'type': known_feature_type if known_feature_type else 'continuous',
+            'data_type': 'number'
         }
 
-    def _infer_timedelta_attributes(self, feature_name: str) -> dict:
+    def _infer_timedelta_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
+    ) -> dict[str, str]:
+
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+
         return {
-            'type': 'continuous',
-            'data_type': 'number',
+            'type': known_feature_type if known_feature_type else 'continuous',
+            'data_type': 'number'
         }
 
-    def _infer_boolean_attributes(self, feature_name: str) -> dict:
+    def _infer_boolean_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
+    ) -> dict[str, str]:
+
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+        if known_feature_type == 'continuous':
+            warnings.warn(
+                f"Feature {feature_name} is specified as 'continuous' "
+                "in `known_types` but detected as boolean. Booleans "
+                "must be 'nominal', thus the type override will be ignored."
+            )
         return {
             'type': 'nominal',
             'data_type': 'boolean',
         }
 
-    def _infer_integer_attributes(self, feature_name: str) -> dict:
+    def _infer_integer_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
+    ) -> dict[str, str]:
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
-        num_uniques = self.data[feature_name].nunique()
-        n_cases = int(self.data[feature_name].count())
-        if num_uniques < pow(n_cases, 0.5):
-            guess_nominals = True
-        else:
-            # Find the largest and smallest non-null values in column.
-            try:
-                col_min = int(self.data[feature_name].nsmallest(1).iloc[0])
-                col_max = int(self.data[feature_name].nlargest(1).iloc[0])
-            except TypeError:
-                # Column is all None?
-                guess_nominals = False
-            else:
-                # Guess nominals if ALL of:
-                #   - `col_min` and `col_max` are both greater than zero
-                #   - Their length is at least 5
-                #   - They have the same length
-                guess_nominals = (
-                    col_min > 0 and col_max > 0 and
-                    len(str(col_min)) >= 5 and
-                    len(str(col_min)) == len(str(col_max))
-                )
+        attributes = {
+            'type': 'nominal',
+            'data_type': 'number',
+            'decimal_places': 0,
+        }
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
 
-        if guess_nominals:
-            attributes = {
-                'type': 'nominal',
-                'data_type': 'number',
-                'decimal_places': 0,
-            }
+        if known_feature_type:
+            attributes['type'] = known_feature_type
         else:
-            attributes = {
-                'type': 'continuous',
-                'data_type': 'number',
-                'decimal_places': 0,
-            }
+            num_uniques = self.data[feature_name].nunique()
+            n_cases = int(self.data[feature_name].count())
+            if num_uniques < math.sqrt(n_cases):
+                guess_nominals = True
+            else:
+                # Find the largest and smallest non-null values in column.
+                try:
+                    col_min = int(self.data[feature_name].nsmallest(1).iloc[0])
+                    col_max = int(self.data[feature_name].nlargest(1).iloc[0])
+                except TypeError:
+                    # Column is all None?
+                    guess_nominals = False
+                else:
+                    # Guess nominals if ALL of:
+                    #   - `col_min` and `col_max` are both greater than zero
+                    #   - Their length is at least 5
+                    #   - They have the same length
+                    guess_nominals = (
+                        col_min > 0 and col_max > 0 and
+                        len(str(col_min)) >= 5 and
+                        len(str(col_min)) == len(str(col_max))
+                    )
+
+            if not guess_nominals:
+                attributes['type'] = 'continuous'
 
         return attributes
 
-    def _infer_string_attributes(self, feature_name: str) -> dict:
+    def _infer_string_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
+    ) -> dict[str, str]:
         # Column has arbitrary string values, first check if they
         # are ISO8601 datetimes.
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+        if known_feature_type == 'nominal':
+            return {
+                'type': 'nominal'
+            }
         if self._is_iso8601_datetime_column(feature_name):
             # if datetime, determine the iso8601 format it's using
             if first_non_null := self._get_first_non_null(feature_name):
                 fmt = determine_iso_format(first_non_null, feature_name)
                 return {
-                    'type': 'continuous',
+                    'type': known_feature_type if known_feature_type else 'continuous',
                     'data_type': 'formatted_date_time',
                     'date_time_format': fmt
                 }
@@ -632,22 +707,32 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 # It isn't clear how this method would be called on a feature
                 # if it has no data, but just in case...
                 return {
-                    'type': 'continuous',
+                    'type': known_feature_type if known_feature_type else 'continuous',
                 }
         elif self._is_json_feature(feature_name):
             return {
-                'type': 'continuous',
+                'type': known_feature_type if known_feature_type else 'continuous',
                 'data_type': 'json'
             }
         elif self._is_yaml_feature(feature_name):
             return {
-                'type': 'continuous',
+                'type': known_feature_type if known_feature_type else 'continuous',
                 'data_type': 'yaml'
             }
         else:
-            return self._infer_unknown_attributes(feature_name)
+            return self._infer_unknown_attributes(feature_name, preprocessed_attributes)
 
-    def _infer_unknown_attributes(self, feature_name: str) -> dict:
-        return {
-            'type': 'nominal',
-        }
+    def _infer_unknown_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, t.Optional[str] | bool],
+    ) -> dict[str, str]:
+        known_feature_type = preprocessed_attributes.get("known_feature_type")
+        if known_feature_type:
+            return {
+                'type': f'{known_feature_type}'
+            }
+        else:
+            return {
+                'type': 'nominal'
+            }

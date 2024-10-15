@@ -88,6 +88,66 @@ def test_infer_features_attributes():
         assert expected_types[feature] == attributes['type']
 
 
+def test_infer_features_attributes_known_types():
+    """Test known types for infer feature types for iris dataset."""
+    df = pd.read_csv(iris_path)
+
+    expected_types = {
+        "sepal_length": "nominal",
+        "sepal_width": "nominal",
+        "petal_length": "nominal",
+        "petal_width": "ordinal",
+        "class": "nominal"
+    }
+
+    features = infer_feature_attributes(
+        df,
+        known_types=expected_types
+    )
+
+    for feature, attributes in features.items():
+        assert expected_types[feature] == attributes['type']
+
+
+def test_infer_features_attributes_known_types_ordinals():
+    """Test ordinal known types, should have the same values as continuous outside of type and bounds."""
+    df = pd.read_csv(iris_path)
+
+    features = infer_feature_attributes(df)
+
+    features_overrides = infer_feature_attributes(
+        df,
+        known_types={
+            'sepal_length': 'ordinal',
+            'sepal_width': 'ordinal',
+            'petal_length': 'ordinal',
+            'petal_width': 'ordinal',
+        }
+    )
+    for value in features.values():
+        value.pop('type', None)
+        value.pop('bounds', None)
+
+    for value in features_overrides.values():
+        value.pop('type', None)
+        value.pop('bounds', None)
+
+    assert features == features_overrides
+
+
+def test_infer_features_attributes_known_types_invalid_keys():
+    """Test invalid known types for infer feature types for iris dataset."""
+    df = pd.read_csv(iris_path)
+
+    with pytest.raises(
+        ValueError,
+        match='Invalid `known_types` type value'
+    ):
+        infer_feature_attributes(
+            df,
+            known_types={'sepal_length': 'invalid'}
+        )
+
 @pytest.mark.parametrize(
     "features, max_workers",
     [

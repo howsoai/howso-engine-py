@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import Container
 from copy import deepcopy
@@ -8,7 +10,7 @@ import math
 import numbers
 import platform
 from typing import (
-    Any, Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union
+    Any, Collection, Dict, Iterable, List, Literal, Mapping, Optional, Tuple, Union
 )
 import warnings
 
@@ -16,6 +18,7 @@ from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
 import numpy as np
 import pandas as pd
+from typing_extensions import TypeAlias
 import yaml
 
 from howso.utilities.features import FeatureType
@@ -29,6 +32,12 @@ FLOAT_MAX = 1.7976931348623157 * math.pow(10, 308)
 FLOAT_MIN = 2.2250738585072014 * math.pow(10, -308)
 WIN_DT_MAX = '6053-01-24'
 LINUX_DT_MAX = '2262-04-11'
+
+KnownTypes: TypeAlias = Literal["continuous", "ordinal", "nominal"]
+"""Valid values for ``known_types`` parameters."""
+
+PreprocessedAttributes: TypeAlias = Literal["known_feature_type", "feature_relational_key"]
+"""Valid values for the `FeatureAttributesBase._process_known_types_and_keys` return dictionary."""
 
 
 class FeatureAttributesBase(dict):
@@ -535,6 +544,7 @@ class InferFeatureAttributesBase(ABC):
                  dependent_features: Optional[Dict[str, List[str]]] = None,
                  include_sample: bool = False,
                  max_workers: Optional[int] = None,
+                 known_types: Optional[dict[str, KnownTypes]] = None,
                  ) -> Dict:
         """
         Get inferred feature attributes for the parameters.
@@ -572,6 +582,12 @@ class InferFeatureAttributesBase(ABC):
 
         feature_names_list = self._get_feature_names()
         for feature_name in feature_names_list:
+            # Process known feature types and if a relational table, checks if the feature is a foreign or primary key.
+            preprocessed_attributes = self._process_known_types_and_keys(
+                feature_name,
+                known_types,
+            )
+
             # What type is this feature?
             feature_type, typing_info = self._get_feature_type(feature_name)
 
@@ -579,13 +595,22 @@ class InferFeatureAttributesBase(ABC):
 
             # EXPLICITLY DECLARED ORDINALS
             if feature_name in ordinal_feature_values:
-                feature_attributes[feature_name] = {
-                    'type': 'ordinal',
-                    'bounds': {'allowed': ordinal_feature_values[feature_name]}
-                }
+                if preprocessed_attributes.get("known_feature_type") != "ordinal":
+                    raise ValueError(
+                        f"Feature: {feature_name} was specified as "
+                        f"'{preprocessed_attributes.get('known_feature_type')}' in `known_types` "
+                        "but is also specified as 'ordinal' as `ordinal_feature_values` were provided."
+                    )
+                else:
+                    feature_attributes[feature_name] = {
+                        'type': 'ordinal',
+                        'bounds': {'allowed': ordinal_feature_values[feature_name]}
+                    }
 
             # EXPLICITLY DECLARED DATETIME FEATURES
             elif datetime_feature_formats.get(feature_name, None):
+                if preprocessed_attributes.get('feature_relational_key'):
+                    self._date_time_key_warning(feature_name)
                 # datetime_feature_formats is expected to either be only a
                 # single string (format) or a tuple of strings (format, locale)
                 user_dt_format = datetime_feature_formats[feature_name]
@@ -599,7 +624,7 @@ class InferFeatureAttributesBase(ABC):
                     # When feature is a datetime instance, we won't need to
                     # parse the datetime from a string using a custom format.
                     feature_attributes[feature_name] = (
-                        self._infer_datetime_attributes(feature_name))
+                        self._infer_datetime_attributes(feature_name, preprocessed_attributes))
                     warnings.warn(
                         'Providing a datetime feature format for the feature '
                         f'"{feature_name}" is not necessary because the data '
@@ -609,7 +634,7 @@ class InferFeatureAttributesBase(ABC):
                     # When feature is a date instance, we won't need to
                     # parse the datetime from a string using a custom format.
                     feature_attributes[feature_name] = (
-                        self._infer_date_attributes(feature_name))
+                        self._infer_date_attributes(feature_name, preprocessed_attributes) )
                     warnings.warn(
                         'Providing a datetime feature format for the feature '
                         f'"{feature_name}" is not necessary because the data '
@@ -619,7 +644,7 @@ class InferFeatureAttributesBase(ABC):
                     # When feature is a time instance, we won't need to
                     # parse the datetime from a string using a custom format.
                     feature_attributes[feature_name] = (
-                        self._infer_datetime_attributes(feature_name))
+                        self._infer_datetime_attributes(feature_name, preprocessed_attributes) )
                     warnings.warn(
                         'Time only features with a datetime feature format '
                         'will be treated as a datetime using the date '
@@ -631,6 +656,8 @@ class InferFeatureAttributesBase(ABC):
                         'data_type': 'formatted_date_time',
                         'date_time_format': user_dt_format,
                     }
+                    if preprocessed_attributes.get("known_feature_type"):
+                        feature_attributes[feature_name]['type'] = preprocessed_attributes.get("known_feature_type")
                 elif (
                     isinstance(user_dt_format, Collection) and
                     len(user_dt_format) == 2
@@ -643,6 +670,8 @@ class InferFeatureAttributesBase(ABC):
                         'date_time_format': dt_format,
                         'locale': dt_locale,
                     }
+                    if preprocessed_attributes.get("known_feature_type"):
+                        feature_attributes[feature_name] = preprocessed_attributes.get("known_feature_type")
                 else:
                     # Not really sure what they passed.
                     raise TypeError(
@@ -654,42 +683,42 @@ class InferFeatureAttributesBase(ABC):
             # FLOATING POINT FEATURES
             elif feature_type == FeatureType.NUMERIC:
                 feature_attributes[feature_name] = (
-                    self._infer_floating_point_attributes(feature_name))
+                    self._infer_floating_point_attributes(feature_name, preprocessed_attributes))
 
             # IMPLICITLY DEFINED DATETIME FEATURES
             elif feature_type == FeatureType.DATETIME:
                 feature_attributes[feature_name] = (
-                    self._infer_datetime_attributes(feature_name))
+                    self._infer_datetime_attributes(feature_name, preprocessed_attributes))
 
             # DATE ONLY FEATURES
             elif feature_type == FeatureType.DATE:
                 feature_attributes[feature_name] = (
-                    self._infer_date_attributes(feature_name))
+                    self._infer_date_attributes(feature_name, preprocessed_attributes))
 
             # TIME ONLY FEATURES
             elif feature_type == FeatureType.TIME:
                 feature_attributes[feature_name] = (
-                    self._infer_time_attributes(feature_name))
+                    self._infer_time_attributes(feature_name, preprocessed_attributes))
 
             # TIMEDELTA FEATURES
             elif feature_type == FeatureType.TIMEDELTA:
                 feature_attributes[feature_name] = (
-                    self._infer_timedelta_attributes(feature_name))
+                    self._infer_timedelta_attributes(feature_name, preprocessed_attributes))
 
             # INTEGER FEATURES
             elif feature_type == FeatureType.INTEGER:
                 feature_attributes[feature_name] = (
-                    self._infer_integer_attributes(feature_name))
+                    self._infer_integer_attributes(feature_name, preprocessed_attributes))
 
             # BOOLEAN FEATURES
             elif feature_type == FeatureType.BOOLEAN:
                 feature_attributes[feature_name] = (
-                    self._infer_boolean_attributes(feature_name))
+                    self._infer_boolean_attributes(feature_name, preprocessed_attributes))
 
             # ALL OTHER FEATURES
             else:
                 feature_attributes[feature_name] = (
-                    self._infer_string_attributes(feature_name))
+                    self._infer_string_attributes(feature_name, preprocessed_attributes))
 
             # Is column constrained to be unique?
             if self._has_unique_constraint(feature_name):
@@ -800,44 +829,87 @@ class InferFeatureAttributesBase(ABC):
 
         return feature_attributes
 
+    def _date_time_key_warning(self, feature):
+        """Emits a warning if a date or time value is used as a primary or foreign key."""
+        warnings.warn(
+            f"Feature: {feature} is a date/time value and is being used as a primary/foreign key, "
+            f"which may cause unexpected behavior."
+        )
+
     @abstractmethod
     def __call__(self) -> FeatureAttributesBase:
         """Process and return the feature attributes."""
 
     @abstractmethod
-    def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
+    def _infer_floating_point_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool],
+    ) -> Dict:
         """Get inferred attributes for the given floating-point column."""
 
     @abstractmethod
-    def _infer_datetime_attributes(self, feature_name: str) -> Dict:
+    def _infer_datetime_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool],
+    ) -> Dict:
         """Get inferred attributes for the given date-time column."""
 
     @abstractmethod
-    def _infer_date_attributes(self, feature_name: str) -> Dict:
+    def _infer_date_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool],
+    ) -> Dict:
         """Get inferred attributes for the given date only column."""
 
     @abstractmethod
-    def _infer_time_attributes(self, feature_name: str) -> Dict:
+    def _infer_time_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool],
+    ) -> Dict:
         """Get inferred attributes for the given time column."""
 
     @abstractmethod
-    def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
+    def _infer_timedelta_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool],
+    ) -> Dict:
         """Get inferred attributes for the given timedelta column."""
 
     @abstractmethod
-    def _infer_boolean_attributes(self, feature_name: str) -> Dict:
+    def _infer_boolean_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool],
+    ) -> Dict:
         """Get inferred attributes for the given boolean column."""
 
     @abstractmethod
-    def _infer_integer_attributes(self, feature_name: str) -> Dict:
+    def _infer_integer_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool],
+    ) -> Dict:
         """Get inferred attributes for the given integer column."""
 
     @abstractmethod
-    def _infer_string_attributes(self, feature_name: str) -> Dict:
+    def _infer_string_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool],
+    ) -> Dict:
         """Get inferred attributes for the given string column."""
 
     @abstractmethod
-    def _infer_unknown_attributes(self, feature_name: str) -> Dict:
+    def _infer_unknown_attributes(
+        self,
+        feature_name: str,
+        preprocessed_attributes: dict[PreprocessedAttributes, Optional[str] | bool],
+    ) -> Dict:
         """Get inferred attributes for the given unknown-type column."""
 
     @abstractmethod
@@ -1211,6 +1283,65 @@ class InferFeatureAttributesBase(ABC):
                     max_value = 8388607
 
         return min_value, max_value
+
+    def _process_known_types_and_keys(
+        self,
+        feature_name: str,
+        known_types: Optional[dict[str, KnownTypes]] = None,
+    ) -> dict[PreprocessedAttributes, Optional[str] | bool]:
+        """
+        Process the `known_types` if it exists for a single feature and if checking a relational table,
+        check if the feature if a primary or foreign key.
+
+        Parameters
+        ----------
+        feature_name : str
+            The name of feature.
+        known_types : dict[str, KnownTypes]], optional
+            A dictionary of type data type overrides.
+
+        Returns
+        -------
+        dict[PreprocessedAttributes, Optional[str] | bool]
+            The preprocessed data type attributes with the keys:
+            - 'known_feature_type' which is the processed known feature type
+            - 'feature_relational_key' which is a boolean indicator of whether
+                the feature is a primary or foreign key if processing a relational table.
+        """
+        from .relational import InferFeatureAttributesSQLTable
+        known_feature_type = None
+        feature_relational_key = False
+
+        if isinstance(self, InferFeatureAttributesSQLTable) and (
+            self._is_primary_key(feature_name) or
+            self._is_foreign_key(feature_name)
+        ):
+            feature_relational_key = True
+
+        if known_types:
+            known_feature_type = known_types.get(feature_name)
+
+            if known_feature_type and known_feature_type not in (
+                'continuous', 'ordinal', 'nominal'
+            ):
+                raise ValueError(
+                    f"Invalid `known_types` type value: {known_feature_type} for "
+                    f"feature: {feature_name}. Valid values are: 'continuous', 'ordinal', or 'nominal'."
+                )
+
+            # Check to see if the feature is a foreign or primary key
+            if known_feature_type and known_feature_type != 'nominal' and feature_relational_key:
+                warnings.warn(
+                    f"Feature: {feature_name}: was specified as '{known_feature_type}' "
+                    "in `known_types` but is a primary or foreign key which must "
+                    "be 'nominal'. The type override will be ignored."
+                )
+                known_feature_type = "nominal"
+
+        return {
+            'known_feature_type': known_feature_type,
+            'feature_relational_key': feature_relational_key
+        }
 
     @abstractmethod
     def _get_feature_type(self, feature_name: str
