@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import abc
 from functools import singledispatchmethod
 from pprint import pformat
@@ -79,7 +81,7 @@ class Reaction(abc.MutableMapping):
 
         self._reorganized_details = None
 
-    def _validate_key(self, key) -> str:
+    def _validate_key(self, key: str) -> str:
         """
         Raise KeyError if key is not one of the allowed keys.
 
@@ -115,18 +117,18 @@ class Reaction(abc.MutableMapping):
 
         return key
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str):
         """Get an item by key if the key is allowed."""
         key = self._validate_key(key)
         return self._data[key]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: t.Any):
         """Set an item by key if the key is allowed."""
         key = self._validate_key(key)
         self._reorganized_details = None
         self._data[key] = value
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: str):
         """Delete an item by key if the key is allowed."""
         key = self._validate_key(key)
         self._reorganized_details = None
@@ -202,17 +204,17 @@ class Reaction(abc.MutableMapping):
 
     @add_reaction.register
     def _(self, action: dict, details: t.MutableMapping[str, t.Any]):
-        """Add Dict[List, Dict] to Reaction."""
+        """Add dict[list, dict] to Reaction."""
         action_df = pd.DataFrame.from_dict(action)
         return self.add_reaction(action_df, details)
 
     @add_reaction.register
     def _(self, action: list, details: t.MutableMapping[str, t.Any]):
-        """Add list[Dict] to Reaction."""
+        """Add list[dict] to Reaction."""
         action_df = pd.DataFrame(action)
         return self.add_reaction(action_df, details)
 
-    def gen_cases(self) -> t.Generator[t.Dict, None, None]:
+    def gen_cases(self) -> t.Generator[dict, None, None]:
         """
         Yield dict containing DetailedCase items for a single case.
 
@@ -240,8 +242,7 @@ class Reaction(abc.MutableMapping):
         return self._reorganized_details
 
     @classmethod
-    def _reorganize_details(cls, details: t.MutableMapping[str, t.List]
-                            ) -> t.List[t.Dict]:
+    def _reorganize_details(cls, details: t.MutableMapping[str, list]) -> list[dict]:
         """
         Re-organize `details` to be a list of dicts. One dict per case.
 
@@ -261,11 +262,15 @@ class Reaction(abc.MutableMapping):
                 {k1: v1m, k2: v2m, ... kn: vnm}
             ]
 
-        Parameters:
-            details : Dict of Lists
+        Parameters
+        ----------
+        details : dict of list
+            The reaction details.
 
-        Returns:
-            List of Dicts, one Dict per case
+        Returns
+        -------
+        List of dicts
+            One dict per case.
         """
         if isinstance(details, list):
             return details
@@ -282,7 +287,7 @@ class Reaction(abc.MutableMapping):
             k: v for k, v in details.items()
             if k in cls.KNOWN_KEYS and v
         }
-        # Transform Dict[List] -> List[Dict]
+        # Transform dict[list] -> list[dict]
         per_case_details = [
             dict(zip([key for key in cleaned_details.keys()], values))
             for values in zip(*cleaned_details.values())

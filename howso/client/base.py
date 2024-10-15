@@ -1938,7 +1938,7 @@ class AbstractHowsoClient(ABC):
                 action -> pandas.DataFrame
                     A data frame of action values.
 
-                details -> Dict or List
+                details -> dict or list
                     An aggregated list of any requested details.
 
         Raises
@@ -2677,7 +2677,7 @@ class AbstractHowsoClient(ABC):
                 action -> pandas.DataFrame
                     A data frame of action values.
 
-                details -> Dict or List
+                details -> dict or list
                     An aggregated list of any requested details.
 
         Raises
@@ -4041,10 +4041,10 @@ class AbstractHowsoClient(ABC):
         residual_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
-        tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
+        tolerance_prediction_threshold_map : Optional[dict[str, tuple[float, float]]], optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
-        relative_prediction_threshold_map : Optional[Dict[str, float]], optional
+        relative_prediction_threshold_map : Optional[dict[str, float]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= relative threshold
         conviction_lower_threshold : Optional[float], optional
