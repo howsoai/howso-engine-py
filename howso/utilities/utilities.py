@@ -1438,7 +1438,7 @@ def yield_dataframe_as_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generator[
         yield df.iloc[start:end]
 
 
-def infer_time_format(time_str: str):
+def infer_time_format(time_str: str) -> str:
     """
     Attempts to infer a time format given an arbitrary time string.
 
@@ -1458,31 +1458,37 @@ def infer_time_format(time_str: str):
     ValueError
         If the format of the time string cannot be deteremined.
     """
+    match = re.match(TIME_PATTERN, time_str)
+    if not match:
+        raise ValueError(f"The time '{time_str}' does not match a known time format")
+
     format_string = ""
 
-    # Hour component
+    # Hours
     hour = match.group("hour")
     if hour:
         format_string += "%I" if match.group("ampm") else "%H"
 
-    # Minute component
+    # Minutes
     minute = match.group("minute")
     if minute:
         format_string += ":%M"
 
-    # Second component
+    # Seconds
     second = match.group("second")
     if second:
         format_string += ":%S"
 
-    # Fractional seconds component
+    # Fractional seconds
     fraction = match.group("fraction")
     if fraction:
         format_string += ".%f"
 
-    # AM/PM component
+    # AM/PM designation
     ampm = match.group("ampm")
     if ampm:
-        format_string += " %p"
+        # Ensure whitespace or lackthereof is preserved
+        split = time_str.split(' ')
+        format_string += ' %p' if "am" in split or "pm" in split else '%p'
 
     return format_string

@@ -30,6 +30,7 @@ from ..utilities import (
     date_to_epoch,
     determine_iso_format,
     epoch_to_date,
+    infer_time_format,
     ISO_8601_DATE_FORMAT,
     ISO_8601_FORMAT,
     TIME_PATTERN,
@@ -202,7 +203,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 if isinstance(first_non_null, str):
                     # First, determine if the string resembles common time-only formats
                     if re.match(TIME_PATTERN, first_non_null):
-                        return FeatureType.TIME
+                        return FeatureType.TIME, {}
                     return FeatureType.STRING, {}
                 elif isinstance(first_non_null, bytes):
                     warnings.warn(f'The column "{feature_name}" contained '
@@ -561,11 +562,33 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             'date_time_format': ISO_8601_DATE_FORMAT,
         }
 
-    def _infer_time_attributes(self, feature_name: str) -> dict:
+    def _infer_time_attributes(self, feature_name: str, user_time_format: str = None) -> dict:
+        # Import this here to avoid circular import
+        from howso.client.exceptions import HowsoError
+        # First check if the user provided a format
+        if user_time_format:
+            time_format = user_time_format
+        # If not, try to infer it
+        else:
+            first_non_null = self._get_first_non_null(feature_name)
+            # If the type is datetime.time
+            if isinstance(first_non_null, datetime.time):
+                if user_time_format:
+                    warnings.warn(f"Feature '{feature_name} is an instance of 'datetime.time', "
+                                  "so the user-provided format will be ignored.")
+                # String representation of datetime.time types
+                time_format = '%H:%M:%S'
+            # If the type is a string
+            else:
+                try:
+                    time_format = infer_time_format(first_non_null)
+                except ValueError as e:
+                    raise HowsoError(f"Please specify the format of feature '{feature_name}' in "
+                                     "'datetime_feature_formats'") from e
         return {
             'type': 'cyclic',
             'data_type': 'formatted_time',
-            'time_format': time_format,
+            'date_time_format': time_format,
         }
 
     def _infer_timedelta_attributes(self, feature_name: str) -> dict:
