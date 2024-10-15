@@ -649,7 +649,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
     def _infer_time_attributes(self, feature_name: str, user_time_format: str = None) -> dict:
         # Import this here to avoid circular import
         from howso.client.exceptions import HowsoError
-        # Although rare, it is plausible that a date field could be a
+        # Although rare, it is plausible that a time field could be a
         # primary- or foreign-key.
         if (
                 self._is_primary_key(feature_name) or

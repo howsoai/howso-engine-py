@@ -436,7 +436,7 @@ def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
     """Test the infer_feature_bounds() method."""
     df = pd.DataFrame(pd.Series(data), columns=['a'])
     features = infer_feature_attributes(df, tight_bounds=tight_bounds)
-    assert features['a']['type'] in ('continuous')
+    assert features['a']['type'] == 'continuous'
     assert 'bounds' in features['a']
     assert features['a']['bounds'] == expected_bounds
 

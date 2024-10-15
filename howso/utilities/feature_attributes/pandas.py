@@ -565,26 +565,23 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
     def _infer_time_attributes(self, feature_name: str, user_time_format: str = None) -> dict:
         # Import this here to avoid circular import
         from howso.client.exceptions import HowsoError
-        # First check if the user provided a format
-        if user_time_format:
+        first_non_null = self._get_first_non_null(feature_name)
+        # If the type is datetime.time
+        if isinstance(first_non_null, datetime.time):
+            if user_time_format:
+                warnings.warn(f"Feature '{feature_name} is an instance of 'datetime.time', "
+                              "so the user-provided format will be ignored.")
+            # Format string representation of datetime.time types
+            time_format = '%H:%M:%S'
+        # If the type is a string
+        elif user_time_format is not None:
             time_format = user_time_format
-        # If not, try to infer it
         else:
-            first_non_null = self._get_first_non_null(feature_name)
-            # If the type is datetime.time
-            if isinstance(first_non_null, datetime.time):
-                if user_time_format:
-                    warnings.warn(f"Feature '{feature_name} is an instance of 'datetime.time', "
-                                  "so the user-provided format will be ignored.")
-                # String representation of datetime.time types
-                time_format = '%H:%M:%S'
-            # If the type is a string
-            else:
-                try:
-                    time_format = infer_time_format(first_non_null)
-                except ValueError as e:
-                    raise HowsoError(f"Please specify the format of feature '{feature_name}' in "
-                                     "'datetime_feature_formats'") from e
+            try:
+                time_format = infer_time_format(first_non_null)
+            except ValueError as e:
+                raise HowsoError(f"Please specify the format of feature '{feature_name}' in "
+                                 "'datetime_feature_formats'") from e
         return {
             'type': 'cyclic',
             'data_type': 'formatted_time',
