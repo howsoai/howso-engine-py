@@ -374,7 +374,7 @@ class Trainee(BaseTrainee):
         if self.id:
             self.client.amlg.store_entity(
                 handle=self.id,
-                amlg_path=self.client.resolve_trainee_filepath(file_name, filepath=file_path)
+                file_path=self.client.resolve_trainee_filepath(file_name, filepath=file_path)
             )
         else:
             raise ValueError("Trainee ID is needed for saving.")
@@ -3939,11 +3939,7 @@ def load_trainee(
 
     status = client.amlg.load_entity(
         handle=trainee_id,
-        amlg_path=str(file_path),
-        persist=False,
-        load_contained=True,
-        escape_filename=False,
-        escape_contained_filenames=False,
+        file_path=str(file_path)
     )
     if not status.loaded:
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
