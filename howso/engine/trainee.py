@@ -3087,7 +3087,8 @@ class Trainee(BaseTrainee):
             When calculating residuals and prediction stats, uses this target
             features's hyperparameters. The trainee must have been analyzed with
             this feature as the action feature first. If not provided, by default
-            residuals and prediction stats uses ".targetless" hyperparameters.
+            residuals and prediction stats uses targetless hyperparameters. Targetless
+            hyperparameters can also be selected using an empty string: "".
         robust_hyperparameters : bool, optional
             When specified, will attempt to return residuals that were
             computed using hyperparameters with the specified robust or
@@ -3097,8 +3098,9 @@ class Trainee(BaseTrainee):
             hyperparameters. The trainee must have been analyzed with this feature as the
             action feature first. If both ``prediction_stats_action_feature`` and
             ``action_feature`` are not provided, by default residuals and prediction
-            stats uses ".targetless" hyperparameters. If "action_feature" is provided,
-            and this value is not provided, will default to ``action_feature``.
+            stats uses targetless hyperparameters. If "action_feature" is provided,
+            and this value is not provided, will default to ``action_feature``. Targetless
+            hyperparameters can also be selected with an empty string: "".
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
@@ -3211,8 +3213,8 @@ class Trainee(BaseTrainee):
 
                 {
                     "hyperparameter_map": {
-                        ".targetless": {
-                            "robust": {
+                        "targetless": {
+                            "f1.f2.f3": {
                                 ".none": {
                                     "dt": -1, "p": .1, "k": 8
                                 }
@@ -3330,7 +3332,8 @@ class Trainee(BaseTrainee):
         action_feature : str, optional
             The action feature. If specified, uses targeted hyperparameters
             used to predict this ``action_feature``, otherwise uses targetless
-            hyperparameters.
+            hyperparameters. Targetless hyperparameters may also be specified using an
+            empty string: "".
         from_case_indices : iterable of (str, int), optional
             An Iterable of Sequences, of session id and index, where index
             is the original 0-based index of the case as it was trained into
@@ -3401,7 +3404,8 @@ class Trainee(BaseTrainee):
         action_feature : str, optional
             The action feature. If specified, uses targeted hyperparameters
             used to predict this ``action_feature``, otherwise uses targetless
-            hyperparameters.
+            hyperparameters. Targetless hyperparameters may also be specified using an
+            empty string: "".
         case_indices : Sequence of (str, int), optional
             List of tuples, of session id and index, where index is the
             original 0-based index of the case as it was trained into the
