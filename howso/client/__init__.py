@@ -16,6 +16,8 @@ from the documentation.
 Examples implementations are included in the howso/examples directory.
 """
 
+from . import typing  # noqa: F401
+from .api import get_api  # noqa: F401
 from .base import AbstractHowsoClient  # noqa: F401
 from .client import (  # noqa: F401
     CONFIG_FILE_ENV_VAR,
@@ -26,13 +28,13 @@ from .client import (  # noqa: F401
     HowsoClient,
 )
 from .pandas.client import HowsoPandasClient  # noqa: F401
-from . import typing  # noqa: F401
 
 __all__ = [
     "AbstractHowsoClient",
     "CONFIG_FILE_ENV_VAR",
     "DEFAULT_CONFIG_FILE_ALT",
     "DEFAULT_CONFIG_FILE",
+    "get_api",
     "get_configuration_path",
     "get_howso_client",
     "HowsoClient",

@@ -40,7 +40,6 @@ from .utilities import (  # noqa: F401
     reshape_data,
     seconds_to_time,
     serialize_datetimes,
-    yield_dataframe_as_chunks,
     StopExecution,
     time_to_seconds,
     UserFriendlyExit,
@@ -48,6 +47,7 @@ from .utilities import (  # noqa: F401
     validate_datetime_iso8061,
     validate_features,
     validate_list_shape,
+    yield_dataframe_as_chunks,
 )
 
 __all__ = [

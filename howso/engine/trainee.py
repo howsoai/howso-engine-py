@@ -2994,10 +2994,10 @@ class Trainee(BaseTrainee):
                 Compute Mean Decrease in Accuracy MDA by dropping each feature and using the
                 robust (power set/permutations) set of remaining context features
                 for each prediction.
-            - feature_feature_mda_permutation_full : bool, optional
+            - feature_mda_permutation_full : bool, optional
                 Compute MDA by scrambling each feature and using the
                 full set of remaining context features for each prediction.
-            - feature_feature_mda_permutation_robust : bool, optional
+            - feature_mda_permutation_robust : bool, optional
                 Compute MDA by scrambling each feature and using the
                 robust (power set/permutations) set of remaining context features
                 for each prediction.
@@ -3789,9 +3789,10 @@ class Trainee(BaseTrainee):
 
             Default Methods:
             - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
-            - 'fractional': normalizes each row by dividing each value by the sum of the values in the row, so the relative
-            values sum to 1.
-            - 'fractional_absolute': normalizes each row by dividing each value by the sum of absolute values in the row.
+            - 'fractional': normalizes each row by dividing each value by the sum of the values in the row, so the
+              relative values sum to 1.
+            - 'fractional_absolute': normalizes each row by dividing each value by the sum of absolute values in
+              the row.
 
             Custom Callable:
             - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
