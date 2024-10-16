@@ -294,7 +294,7 @@ class Trainee(BaseTrainee):
         return self._needs_analyze
 
     @property
-    def calculated_matrices(self) -> t.Optional[dict[str, DataFrame]]:
+    def calculated_matrices(self) -> dict[str, DataFrame] | None:
         """
         The calculated matrices.
 
@@ -2610,7 +2610,7 @@ class Trainee(BaseTrainee):
         use_case_weights: t.Optional[bool] = None,
         features: t.Optional[Collection[str]] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> DataFrame | dict:
+    ) -> DataFrame:
         """
         Computes specified data for a **set** of cases.
 
@@ -2661,23 +2661,26 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame or dict
+        DataFrame
             The conviction of grouped cases.
         """
-        return self.client.react_group(
-            trainee_id=self.id,
-            new_cases=new_cases,
-            features=features,
-            familiarity_conviction_addition=familiarity_conviction_addition,
-            familiarity_conviction_removal=familiarity_conviction_removal,
-            kl_divergence_addition=kl_divergence_addition,
-            kl_divergence_removal=kl_divergence_removal,
-            p_value_of_addition=p_value_of_addition,
-            p_value_of_removal=p_value_of_removal,
-            distance_contributions=distance_contributions,
-            use_case_weights=use_case_weights,
-            weight_feature=weight_feature,
-        )
+        if isinstance(self.client, HowsoPandasClientMixin):
+            return self.client.react_group(
+                trainee_id=self.id,
+                new_cases=new_cases,
+                features=features,
+                familiarity_conviction_addition=familiarity_conviction_addition,
+                familiarity_conviction_removal=familiarity_conviction_removal,
+                kl_divergence_addition=kl_divergence_addition,
+                kl_divergence_removal=kl_divergence_removal,
+                p_value_of_addition=p_value_of_addition,
+                p_value_of_removal=p_value_of_removal,
+                distance_contributions=distance_contributions,
+                use_case_weights=use_case_weights,
+                weight_feature=weight_feature,
+            )
+        else:
+            raise AssertionError("Client must have the 'react_group' method.")
 
     def get_feature_conviction(
         self,
@@ -2688,7 +2691,7 @@ class Trainee(BaseTrainee):
         action_features: t.Optional[Collection[str]] = None,
         features: t.Optional[Collection[str]] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> DataFrame | dict:
+    ) -> DataFrame:
         """
         Get familiarity conviction for features in the model.
 
@@ -2720,19 +2723,22 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame or dict
+        DataFrame
             A DataFrame containing the familiarity conviction rows to feature
             columns.
         """
-        return self.client.get_feature_conviction(
-            trainee_id=self.id,
-            action_features=action_features,
-            familiarity_conviction_addition=familiarity_conviction_addition,
-            familiarity_conviction_removal=familiarity_conviction_removal,
-            features=features,
-            use_case_weights=use_case_weights,
-            weight_feature=weight_feature,
-        )
+        if isinstance(self.client, HowsoPandasClientMixin):
+            return self.client.get_feature_conviction(
+                trainee_id=self.id,
+                action_features=action_features,
+                familiarity_conviction_addition=familiarity_conviction_addition,
+                familiarity_conviction_removal=familiarity_conviction_removal,
+                features=features,
+                use_case_weights=use_case_weights,
+                weight_feature=weight_feature,
+            )
+        else:
+            raise AssertionError("Client must have the 'get_feature_conviction' method.")
 
     def get_marginal_stats(
         self, *,
