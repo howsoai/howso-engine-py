@@ -1488,7 +1488,7 @@ def infer_time_format(time_str: str) -> str:
     ampm = match.group("ampm")
     if ampm:
         # Ensure whitespace or lackthereof is preserved
-        split = time_str.split(' ')
+        split = time_str.lower().split(' ')
         format_string += ' %p' if "am" in split or "pm" in split else '%p'
 
     return format_string
