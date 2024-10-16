@@ -541,23 +541,20 @@ class InferFeatureAttributesBase(ABC):
 
         See `infer_feature_attributes` for full docstring.
         """
-        if isinstance(tight_bounds, bool):
-            warnings.warn("Using booleans with 'tight_bounds' is deprecated. Please "
-                          "specify the features you would like tight bounds for as an "
-                          "iterable of strings.", DeprecationWarning)
-            if tight_bounds:
-                tight_bounds = self._get_feature_names()
-            else:
-                tight_bounds = None
-
-        if features and not isinstance(features, dict):
-            raise ValueError(
-                f"The parameter `features` needs to be a `dict` and not of "
-                f"type {type(features)}."
-            )
-
         if features:
-            feature_attributes: dict = serialize_models(features)
+            if not isinstance(features, dict):
+                raise ValueError(
+                    f"The parameter `features` needs to be a `dict` and not of "
+                    f"type {type(features)}."
+                )
+            else:
+                feature_attributes: dict = serialize_models(features)
+                warnings.warn('The `features` parameter is deprecated. Please instead construct '
+                              'an `InferFeatureAttributesBase` instance with a pre-filled '
+                              'feature attributes Mapping. You can also specify feature types '
+                              'alone with the `types` parameter.', DeprecationWarning)
+        elif self.keys():
+            feature_attributes: dict = serialize_models(self)
         else:
             feature_attributes = dict()
 
