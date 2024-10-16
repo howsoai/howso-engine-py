@@ -1,27 +1,45 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Iterable, Mapping, MutableMapping
+from collections.abc import (
+    Callable,
+    Collection,
+    Iterable,
+    Mapping,
+    MutableMapping,
+)
 from copy import deepcopy
 from pathlib import Path
 import typing as t
 import uuid
 import warnings
 
-from pandas import concat, DataFrame, Index
+from pandas import (
+    concat,
+    DataFrame,
+    Index,
+)
 
 from howso.client.base import AbstractHowsoClient
-from howso.client.exceptions import HowsoApiError, HowsoError, HowsoWarning
+from howso.client.exceptions import (
+    HowsoApiError,
+    HowsoError,
+    HowsoWarning,
+)
 from howso.client.pandas import HowsoPandasClientMixin
-from howso.client.protocols import LocalSaveableProtocol, ProjectClient
+from howso.client.protocols import (
+    LocalSaveableProtocol,
+    ProjectClient,
+)
+from howso.client.schemas import Project as BaseProject
+from howso.client.schemas import Reaction
+from howso.client.schemas import Session as BaseSession
+from howso.client.schemas import Trainee as BaseTrainee
 from howso.client.schemas import (
-    Project as BaseProject,
-    Reaction,
-    Session as BaseSession,
-    Trainee as BaseTrainee,
     TraineeRuntime,
-    TraineeRuntimeOptions
+    TraineeRuntimeOptions,
 )
 from howso.client.typing import (
+    AblationThresholdMap,
     CaseIndices,
     Distances,
     Evaluation,
@@ -728,13 +746,16 @@ class Trainee(BaseTrainee):
         auto_ablation_enabled: bool = False,
         *,
         ablated_cases_distribution_batch_size: int = 100,
+        abs_threshold_map: AblationThresholdMap = None,
         auto_ablation_weight_feature: str = ".case_weight",
         batch_size: int = 2_000,
         conviction_lower_threshold: t.Optional[float] = None,
         conviction_upper_threshold: t.Optional[float] = None,
+        delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         influence_weight_entropy_threshold: float = 0.6,
-        minimum_model_size: int = 1_000,
+        minimum_num_cases: int = 1_000,
+        rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
         tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
@@ -762,7 +783,7 @@ class Trainee(BaseTrainee):
         batch_size: number, default 2,000
             Number of cases in a batch to consider for ablation prior to training and
             to recompute influence weight entropy.
-        minimum_model_size : int, default 1,000
+        minimum_num_cases : int, default 1,000
             The threshold ofr the minimum number of cases at which the model should auto-ablate.
         influence_weight_entropy_threshold : float, default 0.6
             The influence weight entropy quantile that a case must be beneath in order to be trained.
@@ -781,22 +802,42 @@ class Trainee(BaseTrainee):
             The conviction value above which cases will be ablated.
         conviction_upper_threshold : float, optional
             The conviction value below which cases will be ablated.
+        abs_threshold_map : AblationThresholdMap, optional
+            A map of measure names (any of the prediction stats, except for ``confusion_matrix``)
+            to a map of feature names to threshold value. Absolute thresholds will cause ablation
+            to stop when any of the measure values for any of the features for which a threshold
+            is defined go above the threshold (in the case of rmse and mae) or below the threshold
+            (otherwise).
+        delta_threshold_map : AblationThresholdMap, optional
+            A map of measure names (any of the prediction stats, except for ``confusion_matrix``)
+            to a map of feature names to threshold value. Absolute thresholds will cause ablation
+            to stop when any of the measure values for any of the features for which a threshold
+            is defined go above the threshold (in the case of rmse and mae) or below the threshold
+            (otherwise).
+        rel_threshold_map : AblationThresholdMap, optional
+            A map of measure names (any of the prediction stats, except for ``confusion_matrix``)
+            to a map of feature names to threshold value. Absolute thresholds will cause ablation
+            to stop when any of the measure values for any of the features for which a threshold
+            is defined go above the threshold (in the case of rmse and mae) or below the threshold
+            (otherwise).
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.set_auto_ablation_params(
                 trainee_id=self.id,
-                ablated_cases_distribution_batch_size=ablated_cases_distribution_batch_size,
+                ablated_cases_distribution_batch_size=ablated_cases_distribution_batch_size,abs_threshold_map=abs_threshold_map,
                 auto_ablation_enabled=auto_ablation_enabled,
                 auto_ablation_weight_feature=auto_ablation_weight_feature,
                 batch_size=batch_size,
-                minimum_model_size=minimum_model_size,
-                influence_weight_entropy_threshold=influence_weight_entropy_threshold,
-                exact_prediction_features=exact_prediction_features,
-                residual_prediction_features=residual_prediction_features,
-                tolerance_prediction_threshold_map=tolerance_prediction_threshold_map,
-                relative_prediction_threshold_map=relative_prediction_threshold_map,
                 conviction_lower_threshold=conviction_lower_threshold,
                 conviction_upper_threshold=conviction_upper_threshold,
+                delta_threshold_map=delta_threshold_map,
+                exact_prediction_features=exact_prediction_features,
+                influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+                minimum_num_cases=minimum_num_cases,
+                rel_threshold_map=rel_threshold_map,
+                relative_prediction_threshold_map=relative_prediction_threshold_map,
+                residual_prediction_features=residual_prediction_features,
+                tolerance_prediction_threshold_map=tolerance_prediction_threshold_map,
             )
         else:
             raise AssertionError("Client must have the 'set_auto_ablation_params' method.")

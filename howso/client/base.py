@@ -1,7 +1,17 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from collections.abc import Callable, Collection, Iterable, Mapping, MutableMapping, Sized
+from abc import (
+    ABC,
+    abstractmethod,
+)
+from collections.abc import (
+    Callable,
+    Collection,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Sized,
+)
 from pathlib import Path
 import typing as t
 from uuid import UUID
@@ -12,10 +22,17 @@ from pandas import DataFrame
 
 from howso.utilities import internals
 from howso.utilities import utilities as util
-from howso.utilities.feature_attributes.base import MultiTableFeatureAttributes, SingleTableFeatureAttributes
+from howso.utilities.feature_attributes.base import (
+    MultiTableFeatureAttributes,
+    SingleTableFeatureAttributes,
+)
 from howso.utilities.features import serialize_cases
 from howso.utilities.monitors import ProgressTimer
-from .exceptions import HowsoError, UnsupportedArgumentWarning
+
+from .exceptions import (
+    HowsoError,
+    UnsupportedArgumentWarning,
+)
 from .schemas import (
     HowsoVersion,
     Project,
@@ -23,7 +40,7 @@ from .schemas import (
     Session,
     Trainee,
     TraineeRuntime,
-    TraineeRuntimeOptions
+    TraineeRuntimeOptions,
 )
 from .typing import (
     AblationThresholdMap,
@@ -4005,7 +4022,7 @@ class AbstractHowsoClient(ABC):
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         influence_weight_entropy_threshold: float = 0.6,
-        minimum_model_size: int = 1_000,
+        minimum_num_cases: int = 1_000,
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
@@ -4036,7 +4053,7 @@ class AbstractHowsoClient(ABC):
         batch_size: number, default 2,000
             Number of cases in a batch to consider for ablation prior to training and
             to recompute influence weight entropy.
-        minimum_model_size : int, default 1,000
+        minimum_num_cases : int, default 1,000
             The threshold of the minimum number of cases at which the model should auto-ablate.
         influence_weight_entropy_threshold : float, default 0.6
             The influence weight entropy quantile that a case must be beneath in order to be trained.
@@ -4086,7 +4103,7 @@ class AbstractHowsoClient(ABC):
             delta_threshold_map=delta_threshold_map,
             exact_prediction_features=exact_prediction_features,
             influence_weight_entropy_threshold=influence_weight_entropy_threshold,
-            minimum_model_size=minimum_model_size,
+            minimum_num_cases=minimum_num_cases,
             rel_threshold_map=rel_threshold_map,
             relative_prediction_threshold_map=relative_prediction_threshold_map,
             residual_prediction_features=residual_prediction_features,

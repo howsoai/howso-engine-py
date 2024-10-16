@@ -1,10 +1,15 @@
 from pathlib import Path
 
-from howso.client.exceptions import HowsoError
-from howso.engine import delete_trainee, load_trainee, Trainee
-from howso.utilities import matrix_processing
 from pandas.testing import assert_frame_equal
 import pytest
+
+from howso.client.exceptions import HowsoError
+from howso.engine import (
+    delete_trainee,
+    load_trainee,
+    Trainee,
+)
+from howso.utilities import matrix_processing
 
 
 class TestEngine:
@@ -344,7 +349,7 @@ class TestEngine:
         """Test `reduce_data`."""
         pre_reduction_cases = trainee.get_cases()
 
-        trainee.set_auto_ablation_params(minimum_model_size=50)
+        trainee.set_auto_ablation_params(minimum_num_cases=50)
         trainee.reduce_data(influence_weight_entropy_threshold=0.5)
 
         post_reduction_cases = trainee.get_cases(features=[".case_weight"])
