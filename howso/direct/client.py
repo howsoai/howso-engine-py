@@ -412,7 +412,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             if trainee.persistence == 'always':
                 self.amlg.store_entity(
                     handle=trainee_id,
-                    amlg_path=self.resolve_trainee_filepath(trainee_id)
+                    file_path=self.resolve_trainee_filepath(trainee_id)
                 )
         except KeyError:
             # Trainee not cached, ignore
@@ -429,11 +429,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """Create a new Amalgam entity."""
         status = self.amlg.load_entity(
             handle=trainee_id,
-            amlg_path=str(self._howso_absolute_path),
-            persist=False,
-            load_contained=True,
-            escape_filename=False,
-            escape_contained_filenames=False
+            file_path=str(self._howso_absolute_path)
         )
         if not status.loaded:
             raise HowsoError(
@@ -1281,11 +1277,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f'Trainee not found. No Trainee file exists at: "{filepath}"', code="not_found")
         status = self.amlg.load_entity(
             handle=trainee_id,
-            amlg_path=filepath,
-            persist=False,
-            load_contained=True,
-            escape_filename=False,
-            escape_contained_filenames=False,
+            file_path=filepath
         )
         if not status.loaded:
             raise HowsoError(
@@ -1320,7 +1312,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 # Persist on unload
                 self.amlg.store_entity(
                     handle=trainee_id,
-                    amlg_path=self.resolve_trainee_filepath(trainee_id)
+                    file_path=self.resolve_trainee_filepath(trainee_id)
                 )
             elif trainee.persistence == "never":
                 raise HowsoError(
@@ -1363,7 +1355,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.amlg.store_entity(
             handle=trainee_id,
-            amlg_path=self.resolve_trainee_filepath(trainee_id)
+            file_path=self.resolve_trainee_filepath(trainee_id)
         )
 
     def begin_session(self, name: str | None = "default", metadata: t.Optional[Mapping] = None) -> Session:

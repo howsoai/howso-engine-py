@@ -228,6 +228,41 @@ def test_get_feature_type(data, expected_type):
     assert original_type == expected_type
 
 
+@pytest.mark.parametrize('data, is_time, expected_format', [
+    (pd.DataFrame(["08:08:08"], columns=['a']), True, '%H:%M:%S'),
+    (pd.DataFrame(["8:8:8"], columns=['a']), True, '%H:%M:%S'),
+    (pd.DataFrame(["8:59:59am"], columns=['a']), True, '%I:%M:%S%p'),
+    (pd.DataFrame(["00:00:00"], columns=['a']), True, '%H:%M:%S'),
+    (pd.DataFrame(["23:59:59"], columns=['a']), True, '%H:%M:%S'),
+    (pd.DataFrame(["23:59:59.59"], columns=['a']), True, '%H:%M:%S.%f'),
+    (pd.DataFrame(["2:30 am"], columns=['a']), True, '%I:%M %p'),
+    (pd.DataFrame(["2:30 pm"], columns=['a']), True, '%I:%M %p'),
+    (pd.DataFrame(["4:25"], columns=['a']), True, '%H:%M'),
+    (pd.DataFrame(["20:00"], columns=['a']), True, '%H:%M'),
+    (pd.DataFrame([datetime.time(15)], columns=['a']), True, '%H:%M:%S'),
+    (pd.DataFrame(["-01:01:01"], columns=['a']), False, None),
+    (pd.DataFrame(["24:0:0"], columns=['a']), False, None),
+    (pd.DataFrame(["59:0:0"], columns=['a']), False, None),
+    (pd.DataFrame(["3:60"], columns=['a']), False, None),
+    (pd.DataFrame(["12 o'clock"], columns=['a']), False, None),
+    (pd.DataFrame(["8.5:32:32"], columns=['a']), False, None),
+    (pd.DataFrame([["2020-01-01T10:00:00"]], columns=['a']), False, None),
+    (pd.DataFrame([["2020-01-01"]], columns=['a']), False, None),
+])
+def test_infer_time_features(data, is_time, expected_format):
+    """Test IFA against many possible valid and invalid time-only features."""
+    ifa = InferFeatureAttributesDataFrame(data)
+    feature_type, _ = ifa._get_feature_type('a')
+    if is_time:
+        assert feature_type == FeatureType.TIME
+        features = infer_feature_attributes(data)
+        assert features['a']['type'] == 'continuous'
+        assert features['a']['cycle_length'] == 86400
+        assert features['a']['date_time_format'] == expected_format
+    else:
+        assert feature_type != FeatureType.TIME
+
+
 @pytest.mark.parametrize('data, data_type', [
     (123, 'float128'),
 ])
@@ -396,14 +431,6 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.timedelta(days=5), datetime.timedelta(days=5),
          datetime.timedelta(days=5)],
         {'min': 2.718281828459045, 'max': 5 * 24 * 60 * 60, 'allow_null': True}
-    ),
-    (
-        None,
-        [datetime.time(hour=1), datetime.time(hour=5),
-         datetime.time(minute=1, second=30), datetime.time(minute=10),
-         datetime.time(second=15), datetime.time(second=15),
-         datetime.time(second=15), datetime.time(second=15)],
-        {'min': 15, 'max': 22026.465794806718, 'allow_null': True}
     ),
 ])
 def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
