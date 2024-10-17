@@ -3399,7 +3399,8 @@ class AbstractHowsoClient(ABC):
             When calculating residuals and prediction stats, uses this target
             features's hyperparameters. The trainee must have been analyzed with
             this feature as the action feature first. If not provided, by default
-            residuals and prediction stats uses ".targetless" hyperparameters.
+            residuals and prediction stats uses targetless hyperparameters. Targetless
+            hyperparameters may also be selected using an empty string: "".
         robust_hyperparameters : bool, optional
             When specified, will attempt to return residuals that were
             computed using hyperparameters with the specified robust or
@@ -3409,8 +3410,9 @@ class AbstractHowsoClient(ABC):
             hyperparameters. The trainee must have been analyzed with this feature as the
             action feature first. If both ``prediction_stats_action_feature`` and
             ``action_feature`` are not provided, by default residuals and prediction
-            stats uses ".targetless" hyperparameters. If "action_feature" is provided,
+            stats uses targetless hyperparameters. If "action_feature" is provided,
             and this value is not provided, will default to ``action_feature``.
+            Targetless hyperparameters may also be selected using an empty string: "".
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
@@ -4662,7 +4664,8 @@ class AbstractHowsoClient(ABC):
         action_feature : str, optional
             The action feature. If specified, uses targeted hyperparameters
             used to predict this `action_feature`, otherwise uses targetless
-            hyperparameters.
+            hyperparameters. Targetless hyperparameters may also be specified using an
+            empty string: "".
         from_case_indices : Sequence of tuple of {str, int}, optional
             A sequence of tuples, of session id and index, where index
             is the original 0-based index of the case as it was trained into
@@ -4777,7 +4780,8 @@ class AbstractHowsoClient(ABC):
         action_feature : str, optional
             The action feature. If specified, uses targeted hyperparameters
             used to predict this `action_feature`, otherwise uses targetless
-            hyperparameters.
+            hyperparameters. Targetless hyperparameters may also be specified using an
+            empty string: "".
         case_indices : Sequence of tuple of {str, int}, optional
             A sequence of tuples, of session id and index, where index is
             the original 0-based index of the case as it was trained into the
@@ -5010,14 +5014,18 @@ class AbstractHowsoClient(ABC):
 
                 {
                     "hyperparameter_map": {
-                        ".targetless": {
-                            "robust": {
-                                ".none": {
-                                    "dt": -1, "p": .1, "k": 8
-                                }
-                            }
+                        targeted: {
+                            "action_feature" :
+                                "all.appended.context.features":
+                                    "case_weight" : {
+                                        k: 3,
+                                        p: 1,
+                                        featureWeights: { ... },
+                                        featureDeviations: { ... },
+                                        ...
+                                    }
                         }
-                    },
+                    }
                 }
         """
         trainee_id = self._resolve_trainee(trainee_id).id

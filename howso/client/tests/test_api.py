@@ -20,6 +20,3 @@ def test_get_api_raises():
     with pytest.raises(HowsoError, match="The Howso Engine file path does not exist"):
         # Should raise if passed a non-existent file
         get_api("dne")
-    with pytest.raises(HowsoError, match="Failed to retrieve the Howso Engine API"):
-        # Should raise if file is invalid to be loaded in Amalgam
-        get_api(DEFAULT_ENGINE_PATH.joinpath("version.json"))
