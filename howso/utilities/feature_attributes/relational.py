@@ -26,11 +26,11 @@ from ..utilities import (
     date_to_epoch,
     determine_iso_format,
     epoch_to_date,
+    infer_time_feature_cycle_length,
     infer_time_format,
     ISO_8601_DATE_FORMAT,
     ISO_8601_FORMAT,
     time_to_seconds,
-    TWENTY_FOUR_HOURS,
 )
 
 logger = logging.getLogger(__name__)
@@ -672,7 +672,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                                  "'datetime_feature_formats'") from e
         return {
             'type': 'continuous',
-            'cycle_length': TWENTY_FOUR_HOURS,
+            'cycle_length': infer_time_feature_cycle_length(time_format),
             'data_type': 'formatted_time',
             'date_time_format': time_format,
         }
