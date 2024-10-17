@@ -1,7 +1,17 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from collections.abc import Callable, Collection, Iterable, Mapping, MutableMapping, Sized
+from abc import (
+    ABC,
+    abstractmethod,
+)
+from collections.abc import (
+    Callable,
+    Collection,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Sized,
+)
 from pathlib import Path
 import typing as t
 from uuid import UUID
@@ -12,10 +22,17 @@ from pandas import DataFrame
 
 from howso.utilities import internals
 from howso.utilities import utilities as util
-from howso.utilities.feature_attributes.base import MultiTableFeatureAttributes, SingleTableFeatureAttributes
+from howso.utilities.feature_attributes.base import (
+    MultiTableFeatureAttributes,
+    SingleTableFeatureAttributes,
+)
 from howso.utilities.features import serialize_cases
 from howso.utilities.monitors import ProgressTimer
-from .exceptions import HowsoError, UnsupportedArgumentWarning
+
+from .exceptions import (
+    HowsoError,
+    UnsupportedArgumentWarning,
+)
 from .schemas import (
     HowsoVersion,
     Project,
@@ -23,9 +40,10 @@ from .schemas import (
     Session,
     Trainee,
     TraineeRuntime,
-    TraineeRuntimeOptions
+    TraineeRuntimeOptions,
 )
 from .typing import (
+    AblationThresholdMap,
     CaseIndices,
     Cases,
     Distances,
@@ -1770,8 +1788,8 @@ class AbstractHowsoClient(ABC):
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
                 computations.
-            - selected_prediction_stats : list, optional. List of stats to output. When unspecified,
-                returns all except the confusion matrix. Allowed values:
+            - selected_prediction_stats : list, optional.
+                List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
                 - all : Returns all the the available prediction stats, including the confusion matrix.
                 - accuracy : The number of correct predictions divided by the
@@ -1830,7 +1848,7 @@ class AbstractHowsoClient(ABC):
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
             will be used if the Trainee has them.
-        case_indices : Iterable of Sequence[Union[str, int]], defaults to None
+        case_indices : Iterable of Sequence[str | int], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
             into the session. If this case does not exist, discriminative react
@@ -1938,7 +1956,7 @@ class AbstractHowsoClient(ABC):
                 action -> pandas.DataFrame
                     A data frame of action values.
 
-                details -> Dict or List
+                details -> dict or list
                     An aggregated list of any requested details.
 
         Raises
@@ -2677,7 +2695,7 @@ class AbstractHowsoClient(ABC):
                 action -> pandas.DataFrame
                     A data frame of action values.
 
-                details -> Dict or List
+                details -> dict or list
                     An aggregated list of any requested details.
 
         Raises
@@ -3996,13 +4014,16 @@ class AbstractHowsoClient(ABC):
         auto_ablation_enabled: bool = False,
         *,
         ablated_cases_distribution_batch_size: int = 100,
+        abs_threshold_map: AblationThresholdMap = None,
         auto_ablation_weight_feature: str = ".case_weight",
         batch_size: int = 2_000,
         conviction_lower_threshold: t.Optional[float] = None,
         conviction_upper_threshold: t.Optional[float] = None,
+        delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         influence_weight_entropy_threshold: float = 0.6,
-        minimum_model_size: int = 1_000,
+        minimum_num_cases: int = 1_000,
+        rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
         tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
@@ -4032,7 +4053,7 @@ class AbstractHowsoClient(ABC):
         batch_size: number, default 2,000
             Number of cases in a batch to consider for ablation prior to training and
             to recompute influence weight entropy.
-        minimum_model_size : int, default 1,000
+        minimum_num_cases : int, default 1,000
             The threshold of the minimum number of cases at which the model should auto-ablate.
         influence_weight_entropy_threshold : float, default 0.6
             The influence weight entropy quantile that a case must be beneath in order to be trained.
@@ -4041,31 +4062,52 @@ class AbstractHowsoClient(ABC):
         residual_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
-        tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
+        tolerance_prediction_threshold_map : Optional[dict[str, tuple[float, float]]], optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
-        relative_prediction_threshold_map : Optional[Dict[str, float]], optional
+        relative_prediction_threshold_map : Optional[dict[str, float]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= relative threshold
         conviction_lower_threshold : Optional[float], optional
             The conviction value above which cases will be ablated.
         conviction_upper_threshold : Optional[float], optional
             The conviction value below which cases will be ablated.
+        abs_threshold_map : AblationThresholdMap, optional
+            A map of measure names (any of the prediction stats, except for ``confusion_matrix``)
+            to a map of feature names to threshold value. Absolute thresholds will cause ablation
+            to stop when any of the measure values for any of the features for which a threshold
+            is defined go above the threshold (in the case of rmse and mae) or below the threshold
+            (otherwise).
+        delta_threshold_map : AblationThresholdMap, optional
+            A map of measure names (any of the prediction stats, except for ``confusion_matrix``)
+            to a map of feature names to threshold value. Absolute thresholds will cause ablation
+            to stop when any of the measure values for any of the features for which a threshold
+            is defined go above the threshold (in the case of rmse and mae) or below the threshold
+            (otherwise).
+        rel_threshold_map : AblationThresholdMap, optional
+            A map of measure names (any of the prediction stats, except for ``confusion_matrix``)
+            to a map of feature names to threshold value. Absolute thresholds will cause ablation
+            to stop when any of the measure values for any of the features for which a threshold
+            is defined go above the threshold (in the case of rmse and mae) or below the threshold
+            (otherwise).
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         params = dict(
             ablated_cases_distribution_batch_size=ablated_cases_distribution_batch_size,
+            abs_threshold_map=abs_threshold_map,
             auto_ablation_enabled=auto_ablation_enabled,
             auto_ablation_weight_feature=auto_ablation_weight_feature,
             batch_size=batch_size,
-            minimum_model_size=minimum_model_size,
-            influence_weight_entropy_threshold=influence_weight_entropy_threshold,
-            exact_prediction_features=exact_prediction_features,
-            residual_prediction_features=residual_prediction_features,
-            tolerance_prediction_threshold_map=tolerance_prediction_threshold_map,
-            relative_prediction_threshold_map=relative_prediction_threshold_map,
             conviction_lower_threshold=conviction_lower_threshold,
             conviction_upper_threshold=conviction_upper_threshold,
+            delta_threshold_map=delta_threshold_map,
+            exact_prediction_features=exact_prediction_features,
+            influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+            minimum_num_cases=minimum_num_cases,
+            rel_threshold_map=rel_threshold_map,
+            relative_prediction_threshold_map=relative_prediction_threshold_map,
+            residual_prediction_features=residual_prediction_features,
+            tolerance_prediction_threshold_map=tolerance_prediction_threshold_map,
         )
         params.update(kwargs)
         if kwargs:

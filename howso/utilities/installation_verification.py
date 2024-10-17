@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import IntEnum
@@ -27,6 +28,7 @@ except ImportError:
     ConnectionError = None
 from rich import print as rich_print
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
+from typing_extensions import TypeAlias
 
 try:
     from howso import engine
@@ -91,7 +93,7 @@ class Status(IntEnum):
     OK = 4
 
 
-Requirements = t.Iterable[t.Union[type, object]]
+Requirements: TypeAlias = Iterable[type | object]
 
 
 @dataclass
@@ -99,7 +101,7 @@ class Check:
     """Store the specification of a single check."""
 
     name: str
-    fn: t.Callable
+    fn: Callable
     client_required: t.Optional[str] = None
     other_requirements: t.Optional[Requirements] = None
 
@@ -130,7 +132,7 @@ class InstallationCheckRegistry:
         )
 
     def add_check(self, name: str,
-                  fn: t.Callable,
+                  fn: Callable,
                   client_required: t.Optional[str] = None,
                   other_requirements: t.Optional[Requirements] = None
                   ):
@@ -153,7 +155,7 @@ class InstallationCheckRegistry:
         """
         if (
             other_requirements and
-            not isinstance(other_requirements, t.Iterable)
+            not isinstance(other_requirements, Iterable)
         ):
             other_requirements = [other_requirements]
         self._checks.append(

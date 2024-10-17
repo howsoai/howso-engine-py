@@ -7,7 +7,7 @@ Notice: These are internal utilities and are not intended to be
 from __future__ import annotations
 
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable, Mapping
 from copy import deepcopy
 import datetime
 import decimal
@@ -18,7 +18,7 @@ import math
 from pathlib import Path
 import random
 import re
-from typing import Any, Generator, List, Mapping, NamedTuple, Optional, Tuple, TYPE_CHECKING, Union
+import typing as t
 import unicodedata
 import uuid
 import warnings
@@ -30,14 +30,14 @@ from semantic_version import Version
 
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from .monitors import ProgressTimer
 
 
 def deserialize_to_dataframe(
-    data: Iterable[Iterable[Any]] | Iterable[Mapping[str, Any]] | None,
-    columns: Optional[Iterable[str]] = None,
-    index: Optional[Iterable[Any]] = None
+    data: Iterable[Iterable[t.Any]] | Iterable[Mapping[str, t.Any]] | None,
+    columns: t.Optional[Iterable[str]] = None,
+    index: t.Optional[Iterable[t.Any]] = None
 ) -> pd.DataFrame:
     """
     Deserialize data into a DataFrame.
@@ -67,10 +67,10 @@ def deserialize_to_dataframe(
 
 
 def get_features_from_data(
-    data: Any, *,
-    data_parameter: Optional[str] = 'cases',
-    features_parameter: Optional[str] = 'features'
-) -> List[str]:
+    data: t.Any, *,
+    data_parameter: t.Optional[str] = 'cases',
+    features_parameter: t.Optional[str] = 'features'
+) -> list[str]:
     """
     Retrieve feature names from dataframe columns.
 
@@ -112,7 +112,7 @@ def get_features_from_data(
             f"`{data_parameter}` are not provided as a DataFrame.")
 
 
-def serialize_models(obj: Any, *, exclude_null: bool = False) -> Any:
+def serialize_models(obj: t.Any, *, exclude_null: bool = False) -> t.Any:
     """
     Serialize client model instances.
 
@@ -257,7 +257,7 @@ def preprocess_feature_attributes(features: Mapping | None) -> dict | None:
     return feature_attributes
 
 
-def format_react_response(response, single_action=False):
+def format_react_response(response: dict, single_action: bool = False):
     """
     Reformat the react response into a dict of action and details.
 
@@ -299,7 +299,7 @@ def format_react_response(response, single_action=False):
     return {'action': action, 'details': response}
 
 
-def accumulate_react_result(accumulated_result, result):
+def accumulate_react_result(accumulated_result: dict, result: dict) -> dict:
     """
     Accumulate the results from multiple reacts responses.
 
@@ -354,7 +354,7 @@ def random_handle() -> str:
         return uuid.uuid4().hex[-12:]
 
 
-def slugify(value, allow_unicode=False):
+def slugify(value: t.Any, allow_unicode: bool = False):
     """
     Slugify a value.
 
@@ -390,7 +390,7 @@ def slugify(value, allow_unicode=False):
     return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
-def generate_cache_file_name(identifier, ext="txt"):
+def generate_cache_file_name(identifier: str, ext: str = "txt"):
     """
     Generate a unique cache file name.
 
@@ -447,7 +447,7 @@ def insufficient_generation_check(
     return False
 
 
-def sanitize_for_json(obj: Any):  # noqa: C901
+def sanitize_for_json(obj: t.Any):  # noqa: C901
     """
     Sanitizes data for JSON serialization.
 
@@ -569,7 +569,7 @@ def sanitize_for_json(obj: Any):  # noqa: C901
 
 def readable_timedelta(delta: datetime.timedelta, *,
                        microsecond_places: int = 2,
-                       precision: Union[bool, int] = True,
+                       precision: bool | int = True,
                        ) -> str:
     """
     Format timedelta to a readable string.
@@ -656,25 +656,25 @@ class BatchScalingManager:
 
     # Threshold by which batch sizes will be increased/decreased until
     # request-response time falls between these two times
-    time_threshold: Tuple[datetime.timedelta, datetime.timedelta] = (
+    time_threshold: tuple[datetime.timedelta, datetime.timedelta] = (
         datetime.timedelta(seconds=60), datetime.timedelta(seconds=75))
     # The batch size min and max (respectively)
-    size_limits: Tuple[int, Optional[int]] = (1, None)
+    size_limits: tuple[int, t.Optional[int]] = (1, None)
     # Limit by memory usage of request or response size (respectively)
     # In bytes, zero means no limit.
-    memory_limits: Tuple[int, int] = (10_000_000, 10_000_000)  # 10MB
+    memory_limits: tuple[int, int] = (10_000_000, 10_000_000)  # 10MB
     # Prevent raising batch size when the size of the request or response
     # (respectively) is within this range of the limit.
-    memory_limit_thresholds: Tuple[float, float] = (0.1, 0.1)  # 10%
+    memory_limit_thresholds: tuple[float, float] = (0.1, 0.1)  # 10%
     # The rate at which batches are scaled up and down (respectively)
     # See: https://en.wikipedia.org/wiki/Golden_ratio
-    size_multiplier: Tuple[float, float] = (1.618, 0.809)
+    size_multiplier: tuple[float, float] = (1.618, 0.809)
 
-    class SendOptions(NamedTuple):
+    class SendOptions(t.NamedTuple):
         """Options that can be passed to the generator."""
 
-        tick_duration: Optional[datetime.timedelta]
-        memory_sizes: Optional[Tuple[int, int]]
+        tick_duration: t.Optional[datetime.timedelta]
+        memory_sizes: t.Optional[tuple[int, int]]
 
     def __init__(self, starting_size: int, progress_monitor: "ProgressTimer"):
         """Initialize a new BatchScalingManager instance."""
@@ -683,16 +683,16 @@ class BatchScalingManager:
 
     @staticmethod
     def send(
-        gen: Generator[int, Optional["SendOptions"], None],
+        gen: Generator[int, t.Optional["SendOptions"], None],
         options: SendOptions
-    ) -> Union[int, None]:
+    ) -> int | None:
         """Helper to send to generator and return None when stopped."""
         try:
             return gen.send(options)
         except StopIteration:
             return None
 
-    def gen_batch_size(self) -> Generator[int, Optional["SendOptions"], None]:
+    def gen_batch_size(self) -> Generator[int, t.Optional["SendOptions"], None]:
         """
         Returns a generator to get the next batch size.
 
@@ -725,8 +725,8 @@ class BatchScalingManager:
     def scale(
         self,
         batch_size: int,
-        batch_duration: Optional[datetime.timedelta],
-        memory_sizes: Optional[Tuple[int, int]]
+        batch_duration: t.Optional[datetime.timedelta],
+        memory_sizes: t.Optional[tuple[int, int]]
     ) -> int:
         """
         Scale batch size based on duration or memory size of the batch.
@@ -823,7 +823,7 @@ class BatchScalingManager:
         return batch_size
 
 
-def show_core_warnings(core_warnings):
+def show_core_warnings(core_warnings: Iterable[str | dict]):
     """Warns the user for each warning returned from the core."""
     # Import here to avoid circular import
     from ..client.exceptions import HowsoWarning
@@ -835,7 +835,7 @@ def show_core_warnings(core_warnings):
                 warnings.warn(msg, category=HowsoWarning)
 
 
-def to_pandas_datetime_format(f):
+def to_pandas_datetime_format(f: str):
     """
     Normalize the pandas datetime format.
 
@@ -877,19 +877,19 @@ class IgnoreWarnings:
 
     def __init__(
         self,
-        warning_types: Union[type[Warning], Iterable[type[Warning]]]
+        warning_types: type[Warning] | Iterable[type[Warning]]
     ):
         """Initialize a new `catch_warnings` instance."""
         self._catch_warnings = warnings.catch_warnings()
-        self._warning_types = warning_types
-
-        if not isinstance(self._warning_types, Iterable):
-            self._warning_types = [self._warning_types]
+        if not isinstance(warning_types, Iterable):
+            self._warning_types = [warning_types]
+        else:
+            self._warning_types = warning_types
         for warning_type in self._warning_types:
             self._check_warning_class(warning_type)
 
     @staticmethod
-    def _check_warning_class(warning_type):
+    def _check_warning_class(warning_type: type[Warning]):
         """Check correct warning type."""
         if not issubclass(warning_type, Warning):
             warnings.warn(

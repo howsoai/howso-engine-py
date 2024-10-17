@@ -1,5 +1,8 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
 import inspect
-from typing import Any, Dict, List, Optional, Union
+import typing as t
 import uuid
 
 import numpy as np
@@ -10,6 +13,8 @@ from sklearn.metrics import accuracy_score, r2_score
 from howso import engine
 from howso.client import AbstractHowsoClient, HowsoPandasClient
 from howso.client.exceptions import HowsoApiError, HowsoError, HowsoNotUniqueError
+from howso.client.schemas import Reaction
+from howso.client.typing import Precision
 import howso.utilities as utils
 from howso.utilities.feature_attributes import infer_feature_attributes
 
@@ -31,7 +36,7 @@ class HowsoEstimator(BaseEstimator):
 
     Parameters
     ----------
-    features : dict of str: dict, default None
+    features : Mapping of str: Mapping, default None
         The features that will predict the targets(s). Will be generated
         automatically if not specified.
 
@@ -48,7 +53,7 @@ class HowsoEstimator(BaseEstimator):
                 "class": { "type" : "nominal" }
             }
 
-    targets : dict of str: dict, default None
+    targets : Mapping of str: Mapping, default None
         The target(s) to be predicted. Will be generated automatically if not
         specified.
 
@@ -73,9 +78,9 @@ class HowsoEstimator(BaseEstimator):
     ttl : int, in milliseconds
         The maximum time a server should maintain a connection open for a
         trainee when processing requests.
-    client_params : dict, default None
+    client_params : Mapping, default None
         The parameters with which to instantiate the client.
-    trainee_params : dict, default None
+    trainee_params : Mapping, default None
         The parameters with which to instantiate the trainee.
 
     Examples
@@ -108,12 +113,18 @@ class HowsoEstimator(BaseEstimator):
     0.9666666666666667
     """
 
-    def __init__(self, client: Optional[AbstractHowsoClient] = None,
-                 features: Optional[Dict] = None, targets: Dict = None,
-                 method: Optional[str] = None, verbose: bool = False,
-                 debug: bool = False, ttl: int = DEFAULT_TTL,
-                 trainee_params: Optional[Dict] = None,
-                 client_params: Optional[Dict] = None):
+    def __init__(
+        self,
+        client: t.Optional[AbstractHowsoClient] = None,
+        features: t.Optional[Mapping] = None,
+        targets: t.Optional[Mapping] = None,
+        method: t.Optional[str] = None,
+        verbose: bool = False,
+        debug: bool = False,
+        ttl: int = DEFAULT_TTL,
+        trainee_params: t.Optional[Mapping] = None,
+        client_params: t.Optional[Mapping] = None
+    ):
         """Initialize HowsoEstimator."""
         if method not in [CLASSIFICATION, REGRESSION]:
             raise ValueError(f'Unsupported method {method}')
@@ -230,7 +241,7 @@ class HowsoEstimator(BaseEstimator):
         elif getattr(self, 'verbose', False):
             print("The Howso estimator has no trainees to delete.")
 
-    def _get_trainee_params(self) -> Dict:
+    def _get_trainee_params(self) -> dict:
         """
         Gets the initial parameters of `self.trainee`.
 
@@ -251,7 +262,7 @@ class HowsoEstimator(BaseEstimator):
         trainee_params["args"] = {p: getattr(self.trainee_id, p, None) for p in parameters}
         return trainee_params
 
-    def _get_client_params(self) -> Dict:
+    def _get_client_params(self) -> dict:
         """
         Get the initial parameters of `self.client`.
 
@@ -273,7 +284,7 @@ class HowsoEstimator(BaseEstimator):
         return client_params
 
     @property
-    def trainee_id(self) -> Union[str, None]:
+    def trainee_id(self) -> str | None:
         """Return the trainee's ID, if possible."""
         try:
             return self.trainee.id
@@ -281,7 +292,7 @@ class HowsoEstimator(BaseEstimator):
             return None
 
     @property
-    def trainee_name(self) -> Union[str, None]:
+    def trainee_name(self) -> str | None:
         """Return the trainee name (getter)."""
         return self.trainee.name
 
@@ -322,7 +333,7 @@ class HowsoEstimator(BaseEstimator):
                 print(f'The trainee name was successfully set '
                       f'to "{self.trainee.name}".')
 
-    def get_params(self, deep=True) -> Dict[str, Any]:
+    def get_params(self, deep: bool = True) -> dict[str, t.Any]:
         """
         Get parameters for this estimator.
 
@@ -357,7 +368,7 @@ class HowsoEstimator(BaseEstimator):
                 out[key] = value
         return out
 
-    def fit(self, X, y, analyze=True) -> "HowsoEstimator":
+    def fit(self, X: np.ndarray, y: np.ndarray, analyze: bool = True) -> "HowsoEstimator":
         """
         Fit a model with Howso.
 
@@ -414,7 +425,7 @@ class HowsoEstimator(BaseEstimator):
 
         return self
 
-    def partial_fit(self, X, y):
+    def partial_fit(self, X: np.ndarray, y: np.ndarray):
         """
         Add data to an existing Howso model.
 
@@ -433,7 +444,7 @@ class HowsoEstimator(BaseEstimator):
         X, y = utils.align_data(X, y)
         self._train(X, y)
 
-    def predict(self, X) -> np.ndarray:
+    def predict(self, X: np.ndarray) -> np.ndarray:
         """
         Make predictions using Howso.
 
@@ -447,7 +458,7 @@ class HowsoEstimator(BaseEstimator):
         numpy.ndarray, shape (n_samples,)
             The predicted values based on the feature values provided.
         """
-        X = utils.align_data(X)
+        X = t.cast(np.ndarray, utils.align_data(X))
         cases = X.tolist()
         cases = utils.replace_nan_with_none(cases)
 
@@ -467,7 +478,7 @@ class HowsoEstimator(BaseEstimator):
             print('Server returned NaN with predictions.')
         return out
 
-    def score(self, X, y) -> float:
+    def score(self, X: np.ndarray, y: np.ndarray) -> float:
         """
         Score Howso.
 
@@ -568,7 +579,7 @@ class HowsoEstimator(BaseEstimator):
             weight_feature=weight_feature,
         )
 
-    def describe_prediction(self, X, details=None) -> Dict:
+    def describe_prediction(self, X: np.ndarray, details: t.Optional[Mapping] = None) -> Reaction:
         """
         Describe a prediction in detail.
 
@@ -923,7 +934,7 @@ class HowsoEstimator(BaseEstimator):
         audit_data['action'] = utils.replace_none_with_nan(audit_data['action'])
         return audit_data
 
-    def get_feature_conviction(self, features=None) -> Dict:
+    def get_feature_conviction(self, features: t.Optional[str | list[str]] = None) -> dict:
         """
         Gets the conviction of the features in a model.
 
@@ -935,28 +946,24 @@ class HowsoEstimator(BaseEstimator):
         Returns
         -------
         dict
-            A map of feature convictions and contributions.
+            A map of feature name to conviction.
         """
         ret = self.trainee.get_feature_conviction(
             features=self.feature_names,
             action_features=self.target_names,
         )
-
-        feature_conviction = ret.to_dict()
+        feature_conviction = ret.loc["familiarity_conviction_addition"].to_dict()
 
         if features is not None:
             if isinstance(features, str):
                 features = [features]
+            feature_conviction = {
+                k: v for k, v in feature_conviction.items() if k in features
+            }
 
-            filtered = {}
-            for k, v in feature_conviction.items():
-                v = {fkey: fval for fkey, fval in v.items() if fkey in features}
-                filtered[k] = v
-            feature_conviction = filtered
+        return feature_conviction
 
-        return feature_conviction["familiarity_conviction_addition"]
-
-    def get_case_conviction(self, X, features=None) -> List:
+    def get_case_conviction(self, X: np.ndarray | list, features: t.Optional[str | list[str]] = None) -> list:
         """
         Return case conviction.
 
@@ -996,7 +1003,7 @@ class HowsoEstimator(BaseEstimator):
             new_case_groups,
             features=features
         )
-        return [case['familiarity_conviction_addition'] for case in ret]
+        return [case for case in ret['familiarity_conviction_addition']]
 
     def _set_random_name(self, retries: int = RENAME_RETRIES):
         """
@@ -1022,7 +1029,7 @@ class HowsoEstimator(BaseEstimator):
             if last_exception:
                 raise last_exception
 
-    def __getstate__(self) -> Dict:
+    def __getstate__(self) -> dict:
         """
         Returns the state of this object (self.__dict__).
 
@@ -1052,7 +1059,7 @@ class HowsoEstimator(BaseEstimator):
         self.trainee.persist()
         return self.__dict__
 
-    def __setstate__(self, state: Dict):
+    def __setstate__(self, state: Mapping):
         """
         Receives the state of the object when unpickling.
 
@@ -1061,7 +1068,7 @@ class HowsoEstimator(BaseEstimator):
 
         Parameters
         ----------
-        state : dict
+        state : Mapping
             The state of the HowsoEstimator.
         """
         for attr in state:
@@ -1174,8 +1181,8 @@ class HowsoEstimator(BaseEstimator):
 
         self.trainee.analyze(**kwargs)
 
-    def partial_unfit(self, precision: str, num_cases: int,
-                      criteria: Optional[Dict] = None):
+    def partial_unfit(self, precision: t.Optional[Precision], num_cases: int,
+                      criteria: t.Optional[Mapping] = None):
         """
         Remove a training case from a trainee.
 
@@ -1196,10 +1203,10 @@ class HowsoEstimator(BaseEstimator):
             have the feature) | a value (must match exactly) | an array of two
             values (a range, feature values must be between)
         """
-        self.trainee.remove_cases(precision, num_cases, criteria)
+        self.trainee.remove_cases(num_cases, precision=precision, condition=criteria)
 
-    def feature_add(self, feature: str = None,
-                    value: Union[float, int, str, None] = None):
+    def feature_add(self, feature: t.Optional[str] = None,
+                    value: t.Optional[float | int | str] = None):
         """
         Add a feature to a trainee.
 
@@ -1219,7 +1226,7 @@ class HowsoEstimator(BaseEstimator):
 
         self.trainee.add_feature(feature, feature_value=value)
 
-    def feature_remove(self, feature: Optional[str] = None):
+    def feature_remove(self, feature: t.Optional[str] = None):
         """
         Remove a feature from a trainee.
 
@@ -1272,7 +1279,7 @@ class HowsoEstimator(BaseEstimator):
         return name
 
 
-def build_cases(X: np.ndarray, y: np.ndarray) -> List:
+def build_cases(X: np.ndarray, y: np.ndarray) -> list:
     """
     Transform the cases from the feature and target ndarrays to a list of case values.
 
@@ -1285,8 +1292,8 @@ def build_cases(X: np.ndarray, y: np.ndarray) -> List:
 
     Returns
     -------
-    List
-        A multi-dimensional List.
+    list
+        A multi-dimensional list.
     """
     if len(y.shape) == 1:
         y = np.expand_dims(y, axis=1)
@@ -1303,7 +1310,7 @@ class HowsoClassifier(HowsoEstimator):
 
     Parameters
     ----------
-    features : dict of str: dict, default None
+    features : Mapping of str: Mapping, default None
         The features that will predict the targets(s). Will be generated
         automatically if not specified.
 
@@ -1320,7 +1327,7 @@ class HowsoClassifier(HowsoEstimator):
                 "class": { "type" : "nominal" }
             }
 
-    targets : dict of str: dict, default None
+    targets : Mapping of str: Mapping, default None
         The target(s) to be predicted. Will be generated automatically if not
         specified.
 
@@ -1343,19 +1350,23 @@ class HowsoClassifier(HowsoEstimator):
     ttl : int, in milliseconds
         The maximum time a server should maintain a connection open for a
         trainee when processing requests.
-    client_params : dict, default None
+    client_params : Mapping, default None
         The parameters with which to instantiate the client.
-    trainee_params : dict, default None
+    trainee_params : Mapping, default None
         The parameters with which to instantiate the client. Intended for use by `HowsoEstimator.get_params`.
     """
 
-    def __init__(self, client: Optional[AbstractHowsoClient] = None,
-                 features: Optional[Dict] = None,
-                 targets: Optional[Dict] = None,
-                 verbose: bool = False,
-                 debug: bool = False, ttl: int = DEFAULT_TTL,
-                 client_params: Optional[Dict] = None,
-                 trainee_params: Optional[Dict] = None):
+    def __init__(
+        self,
+        client: t.Optional[AbstractHowsoClient] = None,
+        features: t.Optional[Mapping] = None,
+        targets: t.Optional[Mapping] = None,
+        verbose: bool = False,
+        debug: bool = False,
+        ttl: int = DEFAULT_TTL,
+        client_params: t.Optional[Mapping] = None,
+        trainee_params: t.Optional[Mapping] = None
+    ):
         """Initialize HowsoClassifier."""
         super(HowsoClassifier, self).__init__(client=client,
                                               features=features,
@@ -1487,7 +1498,7 @@ class HowsoRegressor(HowsoEstimator):
 
     Parameters
     ----------
-    features : dict of str: dict, default None
+    features : Mapping of str: Mapping, default None
         The features that will predict the targets(s). Will be generated
         automatically if not specified.
 
@@ -1504,7 +1515,7 @@ class HowsoRegressor(HowsoEstimator):
                 "class": { "type" : "nominal" }
             }
 
-    targets : dict of str: dict, default None
+    targets : Mapping of str: Mapping, default None
         The target(s) to be predicted. Will be generated automatically if not
         specified.
 
@@ -1527,20 +1538,24 @@ class HowsoRegressor(HowsoEstimator):
     ttl : int, in milliseconds
         The maximum time a server should maintain a connection open for a
         trainee when processing requests.
-    client_params : dict, default None
+    client_params : Mapping, default None
         The parameters with which to instantiate the client.
-    trainee_params : dict, default None
+    trainee_params : Mapping, default None
         The parameters with which to instantiate the client. Intended for use
         by `HowsoEstimator.get_params`.
     """
 
-    def __init__(self, client=None, features: Optional[Dict] = None,
-                 targets: Optional[Dict] = None,
-                 verbose: bool = False,
-                 debug: bool = False,
-                 ttl: int = DEFAULT_TTL,
-                 client_params: Optional[Dict] = None,
-                 trainee_params: Optional[Dict] = None):
+    def __init__(
+        self,
+        client=None,
+        features: t.Optional[Mapping] = None,
+        targets: t.Optional[Mapping] = None,
+        verbose: bool = False,
+        debug: bool = False,
+        ttl: int = DEFAULT_TTL,
+        client_params: t.Optional[Mapping] = None,
+        trainee_params: t.Optional[Mapping] = None
+    ):
         """Initialize a HowsoRegressor."""
         super(HowsoRegressor, self).__init__(client=client,
                                              features=features,

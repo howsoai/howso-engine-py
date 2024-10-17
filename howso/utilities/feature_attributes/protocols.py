@@ -1,28 +1,29 @@
+from __future__ import annotations
+
 from abc import abstractmethod
-from typing import (
-    Any, Dict, Generator, Iterable, List, Optional, Protocol, runtime_checkable, Tuple, Union
-)
+from collections.abc import Generator, Iterable
+import typing as t
 
 import pandas as pd
 
 
-class TableNameProtocol(Protocol):
+class TableNameProtocol(t.Protocol):
     """Protocol for a database table name object."""
 
     schema: str
     table: str
 
 
-class SQLTableProtocol(Protocol):
+class SQLTableProtocol(t.Protocol):
     """Protocol for a SQL table object."""
 
-    c: Dict
-    columns: Dict
+    c: dict
+    columns: dict
     name: str
     schema: str
 
 
-class SessionProtocol(Protocol):
+class SessionProtocol(t.Protocol):
     """Protocol for a sqlalchemy Session object."""
 
     @abstractmethod
@@ -41,7 +42,7 @@ class SessionProtocol(Protocol):
         raise NotImplementedError
 
 
-class AbstractDataProtocol(Protocol):
+class AbstractDataProtocol(t.Protocol):
     """Protocol for an abstract data file object."""
 
     @abstractmethod
@@ -55,12 +56,12 @@ class AbstractDataProtocol(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def get_group_map(self, column_name: str) -> Dict[Any, int]:
+    def get_group_map(self, column_name: str) -> dict[t.Any, int]:
         """Get the group map."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_n_random_rows(self, samples: int, seed: Optional[int]) -> pd.DataFrame:
+    def get_n_random_rows(self, samples: int, seed: t.Optional[int]) -> pd.DataFrame:
         """Get a specified number of random rows."""
         raise NotImplementedError
 
@@ -73,15 +74,15 @@ class AbstractDataProtocol(Protocol):
 
     @abstractmethod
     def yield_chunk(self, chunk_size: int = 5000, *,
-                    max_chunks: Optional[int] = None,
-                    skip_chunks: Optional[int] = None,
+                    max_chunks: t.Optional[int] = None,
+                    skip_chunks: t.Optional[int] = None,
                     ) -> Generator[pd.DataFrame, None, None]:
         """Provide a chunk generator."""
         raise NotImplementedError
 
     @abstractmethod
     def yield_grouped_chunk(self, column_name: str,
-                            groups: Iterable[Iterable[Any]]
+                            groups: Iterable[Iterable[t.Any]]
                             ) -> Generator[pd.DataFrame, None, None]:
         """Provide a grouped chunk generator."""
         raise NotImplementedError
@@ -92,28 +93,28 @@ class AbstractDataProtocol(Protocol):
         raise NotImplementedError
 
 
-class RelationshipProtocol(Protocol):
+class RelationshipProtocol(t.Protocol):
     """Protocol for an object representing a relationship in a database."""
 
     source: TableNameProtocol
-    source_columns: Tuple[str]
+    source_columns: tuple[str]
     destination: TableNameProtocol
-    destination_columns: Tuple[str]
+    destination_columns: tuple[str]
 
 
-class ComponentProtocol(Protocol):
-    """Protocl for an object representing an independent collection of dataframes."""
+class ComponentProtocol(t.Protocol):
+    """Protocol for an object representing an independent collection of DataFrame."""
 
-    datastore: Any
-    graph: Any
+    datastore: t.Any
+    graph: t.Any
 
 
-@runtime_checkable
-class DatastoreProtocol(Protocol):
+@t.runtime_checkable
+class DatastoreProtocol(t.Protocol):
     """Protocol for a datastore object."""
 
     @abstractmethod
-    def items(self) -> Generator[Tuple[TableNameProtocol, AbstractDataProtocol], None, None]:
+    def items(self) -> Generator[tuple[TableNameProtocol, AbstractDataProtocol], None, None]:
         """Get items in the datastore."""
         raise NotImplementedError
 
@@ -135,14 +136,12 @@ class DatastoreProtocol(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def pre_synth_check(self, related_datastore: Any,
-                        **kwargs) -> bool:
+    def pre_synth_check(self, related_datastore: t.Any, **kwargs) -> bool:
         """Attempt a pre-synth check."""
         raise NotImplementedError
 
     @abstractmethod
-    def reflect(self, source: Any,
-                drop_existing: bool = False) -> None:
+    def reflect(self, source: t.Any, drop_existing: bool = False) -> None:
         """Do a reflection."""
         raise NotImplementedError
 
@@ -152,7 +151,7 @@ class DatastoreProtocol(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def get_row_count(self, table_name: TableNameProtocol) -> Optional[int]:
+    def get_row_count(self, table_name: TableNameProtocol) -> int | None:
         """Get the number of rows in the specified table."""
         raise NotImplementedError
 
@@ -169,34 +168,34 @@ class DatastoreProtocol(Protocol):
     @abstractmethod
     def get_values(self,
                    table_name: TableNameProtocol,
-                   primary_key_columns: Union[List[str], str],
-                   primary_key_values: Union[List[List[Any]], List[Any]],
-                   column_name: str) -> List[Any]:
+                   primary_key_columns: list[str] | str,
+                   primary_key_values: list[list[t.Any]] | list[t.Any],
+                   column_name: str) -> list[t.Any]:
         """Get the column values in a specified table."""
         raise NotImplementedError
 
     @abstractmethod
     def replace_values(self,
                        table_name: TableNameProtocol,
-                       primary_key_columns: Union[List[str], str],
-                       primary_key_values: Union[List[Any], Any],
+                       primary_key_columns: list[str] | str,
+                       primary_key_values: list[t.Any] | t.Any,
                        column_name: str,
-                       replace_values: List[Any],
+                       replace_values: list[t.Any],
                        return_old: bool = False
-                       ) -> Optional[List[Any]]:
+                       ) -> list[t.Any] | None:
         """Replace the column values in a specified table."""
         raise NotImplementedError
 
 
-@runtime_checkable
-class RelationalDatastoreProtocol(DatastoreProtocol, Protocol):
+@t.runtime_checkable
+class RelationalDatastoreProtocol(DatastoreProtocol, t.Protocol):
     """Protocol for a relational datastore object."""
 
-    graph: Any
+    graph: t.Any
 
 
-@runtime_checkable
-class SQLRelationalDatastoreProtocol(DatastoreProtocol, Protocol):
+@t.runtime_checkable
+class SQLRelationalDatastoreProtocol(DatastoreProtocol, t.Protocol):
     """Protocol for a SQL relational datastore object."""
 
     engine: int

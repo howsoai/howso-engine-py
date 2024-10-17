@@ -183,7 +183,7 @@ def replace_none_with_nan(dat: Mapping) -> list[dict]:
     ]
 
 
-def replace_nan_with_none(dat):
+def replace_nan_with_none(dat: list[list]):
     """
     Replace None values with NaN values.
 
@@ -228,7 +228,7 @@ def reshape_data(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return x, y
 
 
-def align_data(x, y=None):
+def align_data(x: np.ndarray, y: t.Optional[np.ndarray] = None) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """
     Check and fix type problems with the data and reshape it.
 
@@ -243,7 +243,8 @@ def align_data(x, y=None):
 
     Returns
     -------
-    numpy.ndarray, numpy.ndarray or numpy.ndarray
+    numpy.ndarray or tuple of numpy.ndarray
+        The aligned data.
     """
     if x.dtype == object:
         x = x.astype(float)
@@ -282,7 +283,7 @@ def replace_doublemax_with_infinity(dat: t.Any) -> t.Any:
     return dat
 
 
-def dprint(debug, *argc, **kwargs):
+def dprint(debug: bool | int, *argc, **kwargs):
     """
     Print based on debug levels.
 
@@ -541,7 +542,7 @@ def validate_features(features: Mapping[str, Mapping],
                              f"feature type - '{f_type}'")
 
 
-def validate_datetime_iso8061(datetime_value, feature):
+def validate_datetime_iso8061(datetime_value: str, feature: str):
     """
     Check that the passed in datetime value adheres to the ISO 8601 format.
 
@@ -721,7 +722,7 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
             case[i] = dt_value
 
 
-def is_valid_uuid(value, version=4):
+def is_valid_uuid(value: str | uuid.UUID, version: int = 4) -> bool:
     """
     Check if a given string is a valid uuid.
 
@@ -861,11 +862,11 @@ class UserFriendlyExit:
         If True, emit more information
     """
 
-    def __init__(self, verbose=False):
+    def __init__(self, verbose: bool = False):
         """Construct a UserFriendlyExit instance."""
         self.verbose = verbose
 
-    def __call__(self, msg="An unexpected exit occurred.", exception=None):
+    def __call__(self, msg: str = "An unexpected exit occurred.", exception: t.Optional[Exception] = None):
         """
         Exit, but print the exception first.
 
@@ -888,7 +889,11 @@ class UserFriendlyExit:
         raise StopExecution
 
 
-def get_kwargs(kwargs, descriptors, warn_on_extra=False):  # noqa: C901
+def get_kwargs(  # noqa: C901
+    kwargs: dict,
+    descriptors: Iterable[Mapping | Collection | str],
+    warn_on_extra: bool = False
+):
     """
     Decompose kwargs into a tuple of return values.
 
@@ -900,7 +905,7 @@ def get_kwargs(kwargs, descriptors, warn_on_extra=False):  # noqa: C901
     kwargs : dict
         Mapping of keys and values (kwargs)
 
-    descriptors :
+    descriptors : Iterable of {Mapping or Collection or str}
         An iterable of descriptors for how to handle each item in kwargs. Each
         descriptor can be a mapping, another iterable, or a single string.
 
@@ -1074,7 +1079,7 @@ def check_feature_names(features: Mapping,
     return ret_value
 
 
-def build_react_series_df(react_series_response, series_index=None):
+def build_react_series_df(react_series_response: Mapping, series_index: t.Optional[str] = None):
     """
     Build a DataFrame from the response from react_series.
 
@@ -1083,9 +1088,9 @@ def build_react_series_df(react_series_response, series_index=None):
 
     Parameters
     ----------
-    react_series_response : Dictionary
+    react_series_response : Mapping
         The response dictionary from a call to react_series.
-    series_index : String
+    series_index : str
         The name of the series index feature, which will index each series in
         the form 'series_<idx>', e.g., series_1, series_1, ..., series_n.
         If None, does not include the series index feature in the returned
@@ -1123,7 +1128,7 @@ def build_react_series_df(react_series_response, series_index=None):
     return pd.DataFrame(data, columns=columns)
 
 
-def date_format_is_iso(f):
+def date_format_is_iso(f: str) -> bool:
     """
     Check if datetime format is ISO8601.
 
@@ -1148,7 +1153,7 @@ def date_format_is_iso(f):
     return False
 
 
-def deep_update(base, updates):
+def deep_update(base: dict | None, updates: dict):
     """
     Update dict `base` with updates from dict `updates` in a "deep" fashion.
 
@@ -1164,9 +1169,10 @@ def deep_update(base, updates):
 
     Returns
     -------
-    dict : The updated dictionary.
+    dict
+        The updated dictionary.
     """
-    if all((isinstance(d, dict) for d in (base, updates))):
+    if isinstance(base, dict) and isinstance(updates, dict):
         for k, v in updates.items():
             base[k] = deep_update(base.get(k), v)
         return base

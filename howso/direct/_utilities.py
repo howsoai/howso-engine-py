@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from importlib import metadata
 from pathlib import Path
 import sysconfig
-from typing import Union
 
 
-def get_file_in_distribution(file_path) -> Union[Path, None]:
+def get_file_in_distribution(file_path: str) -> Path | None:
     """
     Locate the LICENSE.txt file in the distribution of this package.
 
@@ -20,6 +21,8 @@ def get_file_in_distribution(file_path) -> Union[Path, None]:
     """
     purelib_path = sysconfig.get_path('purelib')
     dist = metadata.distribution('howso-engine')
+    if dist.files is None:
+        raise AssertionError("The package howso-engine is not installed correctly, please reinstall.")
     for fp in dist.files:
         if fp.name == file_path:
             return Path(purelib_path, fp)
