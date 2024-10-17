@@ -256,7 +256,8 @@ def test_infer_time_features(data, is_time, expected_format):
     if is_time:
         assert feature_type == FeatureType.TIME
         features = infer_feature_attributes(data)
-        assert features['a']['type'] == 'cyclic'
+        assert features['a']['type'] == 'continuous'
+        assert features['a']['cycle_length'] == 86400
         assert features['a']['date_time_format'] == expected_format
     else:
         assert feature_type != FeatureType.TIME

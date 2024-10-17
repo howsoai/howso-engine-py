@@ -37,6 +37,8 @@ SMALLEST_TIME_DELTA = 0.001
 # Regex that matches common time strings
 TIME_PATTERN = (r'\b(T)?(?P<hour>[01]?\d|2[0-3]|\d):(?P<minute>[0-5]?\d)(?::(?P<second>[0-5]?\d)('
                 r'?:\.(?P<fraction>\d{1,2}))?)?\s?(?P<ampm>[APap][Mm])?\b')
+# 24 hours in seconds
+TWENTY_FOUR_HOURS = 86400
 
 
 def date_to_epoch(

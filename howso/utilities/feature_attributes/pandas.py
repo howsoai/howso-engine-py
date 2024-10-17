@@ -35,6 +35,7 @@ from ..utilities import (
     ISO_8601_FORMAT,
     TIME_PATTERN,
     time_to_seconds,
+    TWENTY_FOUR_HOURS,
 )
 
 logger = logging.getLogger(__name__)
@@ -583,7 +584,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 raise HowsoError(f"Please specify the format of feature '{feature_name}' in "
                                  "'datetime_feature_formats'") from e
         return {
-            'type': 'cyclic',
+            'type': 'continuous',
+            'cycle_length': TWENTY_FOUR_HOURS,
             'data_type': 'formatted_time',
             'date_time_format': time_format,
         }
