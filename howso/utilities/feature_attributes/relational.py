@@ -26,6 +26,8 @@ from ..utilities import (
     date_to_epoch,
     determine_iso_format,
     epoch_to_date,
+    infer_time_feature_cycle_length,
+    infer_time_format,
     ISO_8601_DATE_FORMAT,
     ISO_8601_FORMAT,
     time_to_seconds,
@@ -645,10 +647,34 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             'date_time_format': ISO_8601_DATE_FORMAT,
         }
 
-    def _infer_time_attributes(self, feature_name: str) -> dict:
+    def _infer_time_attributes(self, feature_name: str, user_time_format: str = None) -> dict:
+        # Import this here to avoid circular import
+        from howso.client.exceptions import HowsoError
+        # Although rare, it is plausible that a time field could be a
+        # primary- or foreign-key.
+        if (
+                self._is_primary_key(feature_name) or
+                self._is_foreign_key(feature_name)
+        ):
+            return {
+                'type': 'nominal',
+            }
+        # First check if the user provided a format
+        if user_time_format:
+            time_format = user_time_format
+        # If not, try to infer it
+        else:
+            first_non_null = self._get_first_non_null(feature_name)
+            try:
+                time_format = infer_time_format(first_non_null)
+            except ValueError as e:
+                raise HowsoError(f"Please specify the format of time feature '{feature_name}' in "
+                                 "'datetime_feature_formats'") from e
         return {
             'type': 'continuous',
-            'data_type': 'number',
+            'cycle_length': infer_time_feature_cycle_length(time_format),
+            'data_type': 'formatted_time',
+            'date_time_format': time_format,
         }
 
     def _infer_timedelta_attributes(self, feature_name: str) -> dict:

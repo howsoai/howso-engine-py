@@ -32,8 +32,17 @@ ISO_8601_FORMAT = "%Y-%m-%dT%H:%M:%S"
 ISO_8601_FORMAT_FRACTIONAL = "%Y-%m-%dT%H:%M:%S.%f"
 # The number of Sequences to check in a non-thorough validation of case_indices
 NON_THOROUGH_NUM = 100
+# 1 hour in seconds
+ONE_HOUR = 3600
+# 1 minute in seconds
+ONE_MINUTE = 60
 # Match unescaped timezone character in datetime format strings
 SMALLEST_TIME_DELTA = 0.001
+# Regex that matches common time strings
+TIME_PATTERN = (r'\b(T)?(?P<hour>[01]?\d|2[0-3]|\d):(?P<minute>[0-5]?\d)(?::(?P<second>[0-5]?\d)('
+                r'?:\.(?P<fraction>\d{1,2}))?)?\s?(?P<ampm>[APap][Mm])?\b')
+# 24 hours in seconds
+TWENTY_FOUR_HOURS = 86400
 
 
 def date_to_epoch(
@@ -1433,3 +1442,91 @@ def yield_dataframe_as_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generator[
         # Cap the end index at total_rows to avoid out-of-bounds
         end = ((i + 1) * rows_per_chunk) if i != num_chunks - 1 else total_rows
         yield df.iloc[start:end]
+
+
+def infer_time_format(time_str: str) -> str:
+    """
+    Attempts to infer a time format given an arbitrary time string.
+
+    Parameters
+    ----------
+    time_str : str
+        The time to infer the format of
+
+    Returns
+    -------
+    str
+        The format of the given time string, if a format can be inferred.
+        For example, the input `13:05:59` would return `%H:%M:%S`.
+
+    Raises
+    ------
+    ValueError
+        If the format of the time string cannot be deteremined.
+    """
+    match = re.match(TIME_PATTERN, time_str)
+    if not match:
+        raise ValueError(f"The time '{time_str}' does not match a known time format")
+
+    format_string = ""
+
+    # Hours
+    hour = match.group("hour")
+    if hour:
+        format_string += "%I" if match.group("ampm") else "%H"
+
+    # Minutes
+    minute = match.group("minute")
+    if minute:
+        format_string += ":%M"
+
+    # Seconds
+    second = match.group("second")
+    if second:
+        format_string += ":%S"
+
+    # Fractional seconds
+    fraction = match.group("fraction")
+    if fraction:
+        format_string += ".%f"
+
+    # AM/PM designation
+    ampm = match.group("ampm")
+    if ampm:
+        # Ensure whitespace or lackthereof is preserved
+        split = time_str.lower().split(' ')
+        format_string += ' %p' if "am" in split or "pm" in split else '%p'
+
+    return format_string
+
+
+def infer_time_feature_cycle_length(time_format_str: str) -> int:
+    """
+    Determines the cycle length of a time-only feature given its format string.
+
+    Parameters
+    ----------
+    time_format_str : str
+        The format string of the time-only feature.
+
+    Returns
+    -------
+    int
+        The appropriate cycle length
+
+    Raises
+    ------
+    ValueError
+        If the given format does not contain one of "%H", "%M", "%S", or "%f"
+    """
+    if "%H" in time_format_str or "%I" in time_format_str:
+        return TWENTY_FOUR_HOURS
+    elif "%M" in time_format_str:
+        return ONE_HOUR
+    elif "%S" in time_format_str:
+        return ONE_MINUTE
+    elif "%f" in time_format_str:
+        # One second
+        return 1
+    else:
+        raise ValueError("Unsupported time format")

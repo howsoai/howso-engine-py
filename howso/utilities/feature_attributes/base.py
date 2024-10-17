@@ -24,11 +24,11 @@ from howso.utilities.internals import serialize_models
 logger = logging.getLogger(__name__)
 
 # Maximum/minimum data sizes for integers, floats, datetimes supported by the core
-INTEGER_MAX = int(math.pow(2, 53))
 FLOAT_MAX = 1.7976931348623157 * math.pow(10, 308)
 FLOAT_MIN = 2.2250738585072014 * math.pow(10, -308)
-WIN_DT_MAX = '6053-01-24'
+INTEGER_MAX = int(math.pow(2, 53))
 LINUX_DT_MAX = '2262-04-11'
+WIN_DT_MAX = '6053-01-24'
 
 
 class FeatureAttributesBase(dict):
@@ -584,7 +584,7 @@ class InferFeatureAttributesBase(ABC):
                     'bounds': {'allowed': ordinal_feature_values[feature_name]}
                 }
 
-            # EXPLICITLY DECLARED DATETIME FEATURES
+            # EXPLICITLY DECLARED DATETIME & TIME FEATURES
             elif datetime_feature_formats.get(feature_name, None):
                 # datetime_feature_formats is expected to either be only a
                 # single string (format) or a tuple of strings (format, locale)
@@ -616,14 +616,8 @@ class InferFeatureAttributesBase(ABC):
                         'is already formatted as a date object. This custom '
                         'format will be ignored.')
                 elif feature_type == FeatureType.TIME:
-                    # When feature is a time instance, we won't need to
-                    # parse the datetime from a string using a custom format.
                     feature_attributes[feature_name] = (
-                        self._infer_datetime_attributes(feature_name))
-                    warnings.warn(
-                        'Time only features with a datetime feature format '
-                        'will be treated as a datetime using the date '
-                        '1970-1-1.', UserWarning)
+                        self._infer_datetime_attributes(feature_name, user_dt_format))
                 elif isinstance(user_dt_format, str):
                     # User passed only the format string
                     feature_attributes[feature_name] = {
@@ -817,7 +811,7 @@ class InferFeatureAttributesBase(ABC):
         """Get inferred attributes for the given date only column."""
 
     @abstractmethod
-    def _infer_time_attributes(self, feature_name: str) -> dict:
+    def _infer_time_attributes(self, feature_name: str, user_time_format: str = None) -> dict:
         """Get inferred attributes for the given time column."""
 
     @abstractmethod

@@ -119,18 +119,19 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
         feature column has at least one non NaN value
 
     datetime_feature_formats : dict, default None
-        (Optional) Dict defining a custom (non-ISO8601) datetime format and
-        an optional locale for features with datetimes.  By default datetime
-        features are assumed to be in ISO8601 format.  Non-English datetimes
-        must have locales specified.  If locale is omitted, the default
-        system locale is used. The keys are the feature name, and the values
-        are a tuple of date time format and locale string.
+        (Optional) Dict defining custom (non-ISO8601) datetime or time-only formats.
+        By default, datetime features are assumed to be in ISO8601 format.  Non-English datetimes
+        must have locales specified.  If locale is omitted, the default system locale is used.
+        The keys are the feature name, and the values are a tuple of date/time format and locale
+        string. Time-only feature formats are expected to adhere to the format codes used in
+        strftime().
 
-        Example::
+        Examples::
 
             {
                 "start_date": ("%Y-%m-%d %A %H.%M.%S", "es_ES"),
-                "end_date": "%Y-%m-%d"
+                "end_date": "%Y-%m-%d",
+                "start_time": "%H:%M:%S %p",
             }
 
     delta_boundaries : dict, default None
