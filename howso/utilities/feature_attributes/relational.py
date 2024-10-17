@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
 from contextlib import contextmanager
 import datetime
 from datetime import time, timedelta
@@ -5,9 +8,7 @@ import decimal
 import logging
 from math import ceil, isnan, log
 import re
-from typing import (
-    Any, Dict, Iterable, List, Mapping, Optional, Tuple
-)
+import typing as t
 import warnings
 
 import numpy as np
@@ -131,7 +132,7 @@ class DatastoreColumnTypes:
         """Initialize this DatastoreColumnTypes class and set the dialect."""
         self._dialect = dialect
 
-    def _get_data_types(self, key: str) -> List[str]:
+    def _get_data_types(self, key: str) -> list[str]:
         """
         Get data types by key.
 
@@ -151,12 +152,12 @@ class DatastoreColumnTypes:
             return self.DEFAULTS[key]
 
     @property
-    def variable_size_numbers(self) -> List[str]:
+    def variable_size_numbers(self) -> list[str]:
         """Get variable size number column types."""
         return self._get_data_types('variable_size_numbers')
 
     @property
-    def exact_size_numbers(self) -> Dict[str, int]:
+    def exact_size_numbers(self) -> dict[str, int]:
         """Get exact size number column types."""
         try:
             overrides = self.DIALECT_OVERRIDES[
@@ -169,54 +170,54 @@ class DatastoreColumnTypes:
         }
 
     @property
-    def floating_point_types(self) -> List[str]:
+    def floating_point_types(self) -> list[str]:
         """Get floating point column types."""
         return self._get_data_types('floating_point')
 
     @property
-    def integer_types(self) -> List[str]:
+    def integer_types(self) -> list[str]:
         """Get integer column types."""
         return self._get_data_types('integer')
 
     @property
-    def boolean_types(self) -> List[str]:
+    def boolean_types(self) -> list[str]:
         """Get boolean column types."""
         return self._get_data_types('boolean')
 
     @property
-    def tz_aware_date_time_types(self) -> List[str]:
+    def tz_aware_date_time_types(self) -> list[str]:
         """Get date time column types that are timezone aware."""
         return self._get_data_types('tz_aware_date_time_types')
 
     @property
-    def datetime_types(self) -> List[str]:
+    def datetime_types(self) -> list[str]:
         """Get date-time column types."""
         return self._get_data_types('datetime')
 
     @property
-    def date_types(self) -> List[str]:
+    def date_types(self) -> list[str]:
         """Get date column types."""
         return self._get_data_types('date')
 
     @property
-    def time_types(self) -> List[str]:
+    def time_types(self) -> list[str]:
         """Get time column types."""
         return self._get_data_types('time')
 
     @property
-    def all_date_time_types(self) -> List[str]:
+    def all_date_time_types(self) -> list[str]:
         """Get all date and time types."""
         return (self._get_data_types('datetime')
                 + self._get_data_types('date')
                 + self._get_data_types('time'))
 
     @property
-    def timedelta_types(self) -> List[str]:
+    def timedelta_types(self) -> list[str]:
         """Return timedelta column types."""
         return self._get_data_types('timedelta')
 
     @property
-    def string_types(self) -> List[str]:
+    def string_types(self) -> list[str]:
         """Return string column types."""
         return self._get_data_types('string')
 
@@ -293,13 +294,13 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return False
 
-    def _get_first_non_null(self, feature_name: str) -> Optional[Any]:
+    def _get_first_non_null(self, feature_name: str) -> t.Any | None:
         with session_scope(self.session_cls) as session:
             first_non_null = session.query(self.data.c[feature_name]).filter(
                 self.data.c[feature_name].is_not(None)).first()
         return first_non_null
 
-    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> Optional[Any]:
+    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
         """
         Return a random sample from the given table column.
 
@@ -369,7 +370,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return any([c['column_names'] == [feature_name] for c in uniques])
 
-    def _get_unique_values(self, feature_name: str) -> List[Any]:
+    def _get_unique_values(self, feature_name: str) -> list[t.Any]:
         """Get a list of all the unique values for a column."""
         with session_scope(self.session_cls) as session:
             distinct_values = (
@@ -380,7 +381,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         return distinct_values
 
     @classmethod
-    def _value_to_number(cls, value: Any) -> Any:
+    def _value_to_number(cls, value: t.Any) -> t.Any:
         """Convert value to a number."""
         if pd.isna(value):
             return float('nan')
@@ -393,11 +394,11 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         else:
             return value
 
-    def _get_min_max_values(self, feature_name: str) -> Tuple[Any, Any]:
+    def _get_min_max_values(self, feature_name: str) -> tuple[t.Any, t.Any]:
         """
         Get the smallest and largest values for the given table column.
 
-        The return type within the Tuple is determined by the column type.
+        The return type within the tuple is determined by the column type.
         Smallness and largeness is determined by the SQLAlchemy functions
         `min()` and `max()`.
         """
@@ -409,7 +410,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return results.min_value, results.max_value
 
-    def _get_mode(self, feature_name: str) -> List[Tuple[Any, int]]:
+    def _get_mode(self, feature_name: str) -> list[tuple[t.Any, int]]:
         """
         Get the most common value in the given feature/column.
 
@@ -450,11 +451,11 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             num_rows = session.query(self.data).count()
         return num_rows
 
-    def _get_feature_names(self) -> List[str]:
+    def _get_feature_names(self) -> list[str]:
         return [c.name for c in self.data.columns]
 
     def _get_feature_type(self, feature_name: str  # noqa: C901
-                          ) -> Tuple[Optional[FeatureType], Optional[Dict]]:
+                          ) -> tuple[FeatureType | None, dict | None]:
         # Place here to avoid circular import
         from howso.client.exceptions import HowsoError
         for column in self.data.columns:
@@ -548,7 +549,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return None, None
 
-    def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
+    def _infer_floating_point_attributes(self, feature_name: str) -> dict:
         if (
                 self._is_primary_key(feature_name) or
                 self._is_foreign_key(feature_name)
@@ -600,7 +601,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return attributes
 
-    def _infer_datetime_attributes(self, feature_name: str) -> Dict:
+    def _infer_datetime_attributes(self, feature_name: str) -> dict:
         # Although rare, it is plausible that a datetime field could be a
         # primary- or foreign-key.
         if (
@@ -627,7 +628,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             'date_time_format': dt_format,
         }
 
-    def _infer_date_attributes(self, feature_name: str) -> Dict:
+    def _infer_date_attributes(self, feature_name: str) -> dict:
         # Although rare, it is plausible that a date field could be a
         # primary- or foreign-key.
         if (
@@ -644,13 +645,13 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             'date_time_format': ISO_8601_DATE_FORMAT,
         }
 
-    def _infer_time_attributes(self, feature_name: str) -> Dict:
+    def _infer_time_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'continuous',
             'data_type': 'number',
         }
 
-    def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
+    def _infer_timedelta_attributes(self, feature_name: str) -> dict:
         # Although rare, it is plausible that a timedelta field could be a
         # primary- or foreign-key.
         if (
@@ -666,13 +667,13 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             'data_type': 'number',
         }
 
-    def _infer_boolean_attributes(self, feature_name: str) -> Dict:
+    def _infer_boolean_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'nominal',
             'data_type': 'boolean',
         }
 
-    def _infer_integer_attributes(self, feature_name: str) -> Dict:
+    def _infer_integer_attributes(self, feature_name: str) -> dict:
         # Most primary keys will be integer types (but not all). These are
         # always treated as nominals.
         if (
@@ -728,7 +729,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return attributes
 
-    def _infer_string_attributes(self, feature_name: str) -> Dict:
+    def _infer_string_attributes(self, feature_name: str) -> dict:
         if (
                 self._is_primary_key(feature_name) or
                 self._is_foreign_key(feature_name)
@@ -751,7 +752,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         else:
             return self._infer_unknown_attributes(feature_name)
 
-    def _infer_unknown_attributes(self, feature_name: str) -> Dict:
+    def _infer_unknown_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'nominal'
         }
@@ -759,9 +760,9 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
     def _infer_feature_bounds(self,  # noqa: C901
                               feature_attributes: Mapping[str, Mapping],
                               feature_name: str,
-                              tight_bounds: Optional[Iterable[str]] = None,
-                              mode_bound_features: Optional[List[str]] = None,
-                              ) -> Optional[Dict]:
+                              tight_bounds: t.Optional[Iterable[str]] = None,
+                              mode_bound_features: t.Optional[list[str]] = None,
+                              ) -> dict | None:
         output = None
         allow_null = True
         original_type = feature_attributes[feature_name]['original_type']
@@ -902,7 +903,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return output
 
-    def _parse_column_type(self, full_type_str: str) -> Tuple[str, dict]:
+    def _parse_column_type(self, full_type_str: str) -> tuple[str, dict]:
         """
         Determine column type from schema description of column.
 

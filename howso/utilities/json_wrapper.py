@@ -7,8 +7,11 @@ is installed.
 
 The `pysimdjson` package must be installed separately.
 """
+from __future__ import annotations
+
+from collections.abc import Callable
 import json
-from typing import Any
+import typing as t
 
 try:
     import simdjson  # noqa
@@ -16,7 +19,11 @@ except ImportError:
     simdjson = None
 
 
-def detect_encoding(b):
+if t.TYPE_CHECKING:
+    from _typeshed import SupportsRead
+
+
+def detect_encoding(b: bytes | bytearray):
     """
     Detect encoring.
 
@@ -45,7 +52,7 @@ def dumps(*args, **kwargs):
     return json.dumps(*args, **kwargs)
 
 
-def load(fp, *, object_hook=None, **kwargs) -> Any:
+def load(fp: SupportsRead[str | bytes], *, object_hook: t.Optional[Callable[[dict], t.Any]] = None, **kwargs) -> t.Any:
     """
     Use the fastest available `load` for JSON based on kwargs given.
 
@@ -60,7 +67,7 @@ def load(fp, *, object_hook=None, **kwargs) -> Any:
         return json.load(fp, object_hook=object_hook, **kwargs)
 
 
-def loads(s, *, object_hook=None, **kwargs) -> Any:
+def loads(s: str | bytes | bytearray, *, object_hook: t.Optional[Callable[[dict], t.Any]] = None, **kwargs) -> t.Any:
     """
     Use the fastest available `loads` for JSON based on kwargs given.
 
