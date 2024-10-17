@@ -1,10 +1,18 @@
 Faker
-30.3.0
+<<<<<<< HEAD
+30.4.0
+=======
+30.6.0
+>>>>>>> 0963026890edb75b3f8a2a8649d37a12f90ddada
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-30.3.0.dist-info/LICENSE.txt
+<<<<<<< HEAD
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-30.4.0.dist-info/LICENSE.txt
+=======
+/home/runner/.pyenv/versions/3.12.1/lib/python3.12/site-packages/Faker-30.6.0.dist-info/LICENSE.txt
+>>>>>>> 0963026890edb75b3f8a2a8649d37a12f90ddada
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
