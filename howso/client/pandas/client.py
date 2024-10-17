@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Optional
+from collections.abc import Collection
+import typing as t
 
 import pandas as pd
 from pandas import DataFrame, Index
@@ -88,7 +88,7 @@ class HowsoPandasClientMixin:
         trainee_id: str,
         num: int,
         sort_feature: str,
-        features: Optional[Iterable[str]] = None
+        features: t.Optional[Collection[str]] = None
     ) -> DataFrame:
         """
         Base: :func:`howso.client.AbstractHowsoClient.get_extreme_cases`.

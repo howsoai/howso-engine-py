@@ -137,7 +137,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return False
 
     def _get_feature_type(self, feature_name: str  # noqa: C901
-                          ) -> tuple[t.Optional[FeatureType], t.Optional[dict]]:
+                          ) -> tuple[FeatureType | None, dict | None]:
         # Import this here to avoid circular import
         from howso.client.exceptions import HowsoError
         feature = self.data[feature_name]

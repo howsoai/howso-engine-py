@@ -1830,7 +1830,7 @@ class AbstractHowsoClient(ABC):
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
             will be used if the Trainee has them.
-        case_indices : Iterable of Sequence[Union[str, int]], defaults to None
+        case_indices : Iterable of Sequence[str | int], defaults to None
             An Iterable of Sequences, of session id and index, where
             index is the original 0-based index of the case as it was trained
             into the session. If this case does not exist, discriminative react
@@ -1938,7 +1938,7 @@ class AbstractHowsoClient(ABC):
                 action -> pandas.DataFrame
                     A data frame of action values.
 
-                details -> Dict or List
+                details -> dict or list
                     An aggregated list of any requested details.
 
         Raises
@@ -2677,7 +2677,7 @@ class AbstractHowsoClient(ABC):
                 action -> pandas.DataFrame
                     A data frame of action values.
 
-                details -> Dict or List
+                details -> dict or list
                     An aggregated list of any requested details.
 
         Raises
@@ -4041,10 +4041,10 @@ class AbstractHowsoClient(ABC):
         residual_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
-        tolerance_prediction_threshold_map : Optional[Dict[str, Tuple[float, float]]], optional
+        tolerance_prediction_threshold_map : Optional[dict[str, tuple[float, float]]], optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
-        relative_prediction_threshold_map : Optional[Dict[str, float]], optional
+        relative_prediction_threshold_map : Optional[dict[str, float]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= relative threshold
         conviction_lower_threshold : Optional[float], optional

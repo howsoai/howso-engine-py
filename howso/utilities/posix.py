@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from ctypes import (
     byref, c_int32, c_int64, c_uint, cast,
     CDLL, create_string_buffer, POINTER,
 )
 from ctypes.util import find_library
 import sys
-from typing import Union
 
 
 _LIBC = None
@@ -18,8 +19,8 @@ class CLibError(Exception):
     """Problem instantiating the C Library."""
 
 
-def sysctl_by_name(name: Union[str, bytes], output_type: str = 'raw',
-                   encoding: str = "UTF-8") -> Union[bytes, int, str]:
+def sysctl_by_name(name: str | bytes, output_type: str = 'raw',
+                   encoding: str = "UTF-8") -> bytes | int | str | None:
     """
     Call `sysclt` with the provided key and return the result.
 
@@ -38,7 +39,7 @@ def sysctl_by_name(name: Union[str, bytes], output_type: str = 'raw',
 
     Returns
     -------
-    bytes, int or str
+    bytes, int, str or None
         The result of the `sysctl` call, possibly modified by the
         given `output_type`.
 
@@ -77,6 +78,7 @@ def sysctl_by_name(name: Union[str, bytes], output_type: str = 'raw',
             return cast(buf, POINTER(c_int32)).contents.value
         if size.value == 8:
             return cast(buf, POINTER(c_int64)).contents.value
+        return None
     elif output_type == 'str':
         return buf.value.decode(encoding=encoding)
     else:  # return_type == 'raw'

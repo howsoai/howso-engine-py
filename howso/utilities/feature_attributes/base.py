@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from collections.abc import Container
+from collections.abc import Collection, Container, Iterable, Mapping
 from copy import deepcopy
 from functools import singledispatchmethod
 import json
@@ -7,9 +9,7 @@ import logging
 import math
 import numbers
 import platform
-from typing import (
-    Any, Collection, Dict, Iterable, List, Mapping, Optional, Tuple, Union
-)
+import typing as t
 import warnings
 
 from dateutil.parser import isoparse
@@ -34,22 +34,22 @@ LINUX_DT_MAX = '2262-04-11'
 class FeatureAttributesBase(dict):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
-    def __init__(self, feature_attributes: Mapping, params: Dict = {}, unsupported: List[str] = []):
+    def __init__(self, feature_attributes: Mapping, params: dict = {}, unsupported: list[str] = []):
         """
         Instantiate this FeatureAttributesBase object.
 
         Parameters
         ----------
-        feature_attributes : Dict
+        feature_attributes : dict
             The feature attributes dictionary to be wrapped by this object.
-        params : Dict
+        params : dict
             (Optional) The parameters used in the call to infer_feature_attributes.
-        unsupported : List of str
+        unsupported : list of str
             (Optional) A list of features that contain data that is unsupported by the engine.
 
         """
         if not isinstance(feature_attributes, Mapping):
-            raise TypeError('Provided feature attributes must be a Dict.')
+            raise TypeError('Provided feature attributes must be a Mapping.')
         self.params = params
         self.update(feature_attributes)
         self.unsupported = unsupported
@@ -68,7 +68,7 @@ class FeatureAttributesBase(dict):
 
         Returns
         -------
-        Dict
+        dict
             A dictionary containing the kwargs used in the call to `infer_feature_attributes`.
 
         """
@@ -85,9 +85,9 @@ class FeatureAttributesBase(dict):
         """
         return json.dumps(self)
 
-    def get_names(self, *, types: Union[str, Container, None] = None,
-                  without: Union[Iterable[str], None] = None,
-                  ) -> List[str]:
+    def get_names(self, *, types: t.Optional[str | Container] = None,
+                  without: t.Optional[Iterable[str]] = None,
+                  ) -> list[str]:
         """
         Get feature names associated with this FeatureAttributes object.
 
@@ -101,7 +101,7 @@ class FeatureAttributesBase(dict):
 
         Returns
         -------
-        List of String
+        list of str
             A list of feature names.
         """
         if without:
@@ -125,7 +125,7 @@ class FeatureAttributesBase(dict):
         ]
 
     def _validate_bounds(self, data: pd.DataFrame, feature: str,
-                         attributes: Dict) -> List[str]:  # noqa: C901
+                         attributes: dict) -> list[str]:  # noqa: C901
         """Validate the feature bounds of the provided DataFrame."""
         # Import here to avoid circular import
         from howso.utilities import date_to_epoch
@@ -177,8 +177,8 @@ class FeatureAttributesBase(dict):
         return errors
 
     def _validate_dtype(self, data: pd.DataFrame, feature: str,  # noqa: C901
-                        expected_dtype: Union[str, pd.CategoricalDtype], coerced_df: pd.DataFrame,
-                        coerce: bool = False, localize_datetimes=True) -> List[str]:
+                        expected_dtype: str | pd.CategoricalDtype, coerced_df: pd.DataFrame,
+                        coerce: bool = False, localize_datetimes: bool = True) -> list[str]:
         """Validate the data type of a feature and optionally attempt to coerce."""
         errors = []
         series = coerced_df[feature]
@@ -239,12 +239,12 @@ class FeatureAttributesBase(dict):
         return errors
 
     @staticmethod
-    def _allows_null(attributes: Dict) -> bool:
+    def _allows_null(attributes: dict) -> bool:
         """Return whether the given attributes indicates the allowance of null values."""
         return 'bounds' in attributes and attributes['bounds'].get('allow_null', False)
 
     def _validate_df(self, data: pd.DataFrame, coerce: bool = False,  # noqa: C901
-                     raise_errors: bool = False, table_name: str = None, validate_bounds=True,
+                     raise_errors: bool = False, table_name: t.Optional[str] = None, validate_bounds=True,
                      allow_missing_features: bool = False, localize_datetimes=True):
         errors = []
         coerced_df = data.copy(deep=True)
@@ -350,8 +350,8 @@ class FeatureAttributesBase(dict):
             return coerced_df
 
     @abstractmethod
-    def validate(self, data: Any, coerce=False, raise_errors=False, validate_bounds=True,
-                 allow_missing_features=False, localize_datetimes=True):
+    def validate(self, data: t.Any, coerce: bool = False, raise_errors: bool = False, validate_bounds: bool = True,
+                 allow_missing_features: bool = False, localize_datetimes: bool = True):
         """
         Validate the given data against this FeatureAttributes object.
 
@@ -391,7 +391,7 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
     """A dict-like object containing feature attributes for a single table or DataFrame."""
 
     @singledispatchmethod
-    def validate(data: Any, **kwargs):
+    def validate(data: t.Any, **kwargs):
         """
         Validate the given single table data against this FeatureAttributes object.
 
@@ -420,7 +420,7 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
         raise NotImplementedError("'data' is an unsupported type")
 
     @validate.register
-    def _(self, data: pd.DataFrame, coerce=False, raise_errors=False, validate_bounds=True,
+    def _(self, data: pd.DataFrame, coerce: bool = False, raise_errors: bool = False, validate_bounds: bool = True,
           allow_missing_features=False, localize_datetimes=True):
         return self._validate_df(data, coerce=coerce, raise_errors=raise_errors,
                                  validate_bounds=validate_bounds,
@@ -522,20 +522,20 @@ class InferFeatureAttributesBase(ABC):
     """
 
     def _process(self,  # noqa: C901
-                 features: Optional[Dict[str, Dict]] = None,
+                 features: t.Optional[dict[str, dict]] = None,
                  infer_bounds: bool = True,
-                 tight_bounds: Optional[Iterable[str]] = None,
-                 mode_bound_features: Optional[Iterable[str]] = None,
-                 id_feature_name: Optional[Union[str, Iterable[str]]] = None,
+                 tight_bounds: t.Optional[Iterable[str]] = None,
+                 mode_bound_features: t.Optional[Iterable[str]] = None,
+                 id_feature_name: t.Optional[str | Iterable[str]] = None,
                  attempt_infer_extended_nominals: bool = False,
-                 nominal_substitution_config: Optional[Dict[str, Dict]] = None,
-                 include_extended_nominal_probabilities: Optional[bool] = False,
-                 datetime_feature_formats: Optional[Dict] = None,
-                 ordinal_feature_values: Optional[Dict[str, List[str]]] = None,
-                 dependent_features: Optional[Dict[str, List[str]]] = None,
+                 nominal_substitution_config: t.Optional[dict[str, dict]] = None,
+                 include_extended_nominal_probabilities: t.Optional[bool] = False,
+                 datetime_feature_formats: t.Optional[dict] = None,
+                 ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
+                 dependent_features: t.Optional[dict[str, list[str]]] = None,
                  include_sample: bool = False,
-                 max_workers: Optional[int] = None,
-                 ) -> Dict:
+                 max_workers: t.Optional[int] = None,
+                 ) -> dict:
         """
         Get inferred feature attributes for the parameters.
 
@@ -557,7 +557,7 @@ class InferFeatureAttributesBase(ABC):
             )
 
         if features:
-            feature_attributes: Dict = serialize_models(features)
+            feature_attributes: dict = serialize_models(features)
         else:
             feature_attributes = dict()
 
@@ -805,39 +805,39 @@ class InferFeatureAttributesBase(ABC):
         """Process and return the feature attributes."""
 
     @abstractmethod
-    def _infer_floating_point_attributes(self, feature_name: str) -> Dict:
+    def _infer_floating_point_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given floating-point column."""
 
     @abstractmethod
-    def _infer_datetime_attributes(self, feature_name: str) -> Dict:
+    def _infer_datetime_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given date-time column."""
 
     @abstractmethod
-    def _infer_date_attributes(self, feature_name: str) -> Dict:
+    def _infer_date_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given date only column."""
 
     @abstractmethod
-    def _infer_time_attributes(self, feature_name: str) -> Dict:
+    def _infer_time_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given time column."""
 
     @abstractmethod
-    def _infer_timedelta_attributes(self, feature_name: str) -> Dict:
+    def _infer_timedelta_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given timedelta column."""
 
     @abstractmethod
-    def _infer_boolean_attributes(self, feature_name: str) -> Dict:
+    def _infer_boolean_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given boolean column."""
 
     @abstractmethod
-    def _infer_integer_attributes(self, feature_name: str) -> Dict:
+    def _infer_integer_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given integer column."""
 
     @abstractmethod
-    def _infer_string_attributes(self, feature_name: str) -> Dict:
+    def _infer_string_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given string column."""
 
     @abstractmethod
-    def _infer_unknown_attributes(self, feature_name: str) -> Dict:
+    def _infer_unknown_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given unknown-type column."""
 
     @abstractmethod
@@ -845,9 +845,9 @@ class InferFeatureAttributesBase(ABC):
         self,
         feature_attributes: Mapping[str, Mapping],
         feature_name: str,
-        tight_bounds: Optional[Iterable[str]] = None,
-        mode_bound_features: Optional[Iterable[str]] = None,
-    ) -> Optional[Dict]:
+        tight_bounds: t.Optional[Iterable[str]] = None,
+        mode_bound_features: t.Optional[Iterable[str]] = None,
+    ) -> dict | None:
         """
         Return inferred bounds for the given column.
 
@@ -857,8 +857,6 @@ class InferFeatureAttributesBase(ABC):
 
         Parameters
         ----------
-        data : Any
-            Input data
         feature_attributes : dict
             A dictionary of feature names to a dictionary of parameters.
         feature_name : str
@@ -878,9 +876,9 @@ class InferFeatureAttributesBase(ABC):
         """
 
     @staticmethod
-    def infer_loose_feature_bounds(min_bound: Union[int, float],
-                                   max_bound: Union[int, float]
-                                   ) -> Tuple[float, float]:
+    def infer_loose_feature_bounds(min_bound: int | float,
+                                   max_bound: int | float
+                                   ) -> tuple[float, float]:
         """
         Infer the loose bound values given a tight min and max bound value.
 
@@ -895,8 +893,9 @@ class InferFeatureAttributesBase(ABC):
 
         Returns
         -------
-        Tuple of (min_bound, max_bound) of loose bounds around the provided tight
-        min and max_bound bounds
+        tuple
+            Tuple (min_bound, max_bound) of loose bounds around the provided tight
+            min and max_bound bounds
         """
         # NOTE: It was considered to use a smoother bounds-expansion function that
         #       looked like max_loose_bounds = exp(ln(max_bounds) + 0.5), but this
@@ -934,7 +933,7 @@ class InferFeatureAttributesBase(ABC):
                 return WIN_DT_MAX
         return LINUX_DT_MAX
 
-    def _check_unsupported_data(self, feature_attributes: Dict) -> None:
+    def _check_unsupported_data(self, feature_attributes: dict) -> None:
         """
         Determine whether any features contain data that is unsupported by the core.
 
@@ -988,7 +987,7 @@ class InferFeatureAttributesBase(ABC):
                     self.unsupported.append(feature_name)
 
     @staticmethod
-    def _is_datetime(string):
+    def _is_datetime(string: str):
         """
         Return True if string can be interpreted as a date.
 
@@ -1131,9 +1130,7 @@ class InferFeatureAttributesBase(ABC):
         return True
 
     @staticmethod
-    def _add_id_attribute(feature_attributes: Mapping,
-                          id_feature_name: str
-                          ) -> None:
+    def _add_id_attribute(feature_attributes: Mapping, id_feature_name: str) -> None:
         """Update the given feature_attributes in-place for id_features."""
         if id_feature_name in feature_attributes:
             feature_attributes[id_feature_name]['id_feature'] = True
@@ -1149,7 +1146,7 @@ class InferFeatureAttributesBase(ABC):
     def _get_min_max_number_size_bounds(
         cls, feature_attributes: Mapping,
         feature_name: str
-    ) -> Tuple[Optional[numbers.Number], Optional[numbers.Number]]:
+    ) -> tuple[numbers.Number | None, numbers.Number | None]:
         """
         Get the minimum and maximum size bounds for a numeric feature.
 
@@ -1214,7 +1211,7 @@ class InferFeatureAttributesBase(ABC):
 
     @abstractmethod
     def _get_feature_type(self, feature_name: str
-                          ) -> Tuple[Optional[FeatureType], Optional[Dict]]:
+                          ) -> tuple[FeatureType | None, dict | None]:
         """
         Return the type information for a given feature.
 
@@ -1233,7 +1230,7 @@ class InferFeatureAttributesBase(ABC):
         """
 
     @abstractmethod
-    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> Any:
+    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any:
         """Retrieve a random value from the data."""
 
     @abstractmethod
@@ -1241,7 +1238,7 @@ class InferFeatureAttributesBase(ABC):
         """Return whether this feature has a unique constraint."""
 
     @abstractmethod
-    def _get_first_non_null(self, feature_name: str) -> Optional[Any]:
+    def _get_first_non_null(self, feature_name: str) -> t.Any:
         """
         Get the first non-null value in the given column.
 
@@ -1258,5 +1255,5 @@ class InferFeatureAttributesBase(ABC):
         """Get the number of cases/rows in the data."""
 
     @abstractmethod
-    def _get_feature_names(self) -> List[str]:
+    def _get_feature_names(self) -> list[str]:
         """Get the names of the features/columns of the data."""

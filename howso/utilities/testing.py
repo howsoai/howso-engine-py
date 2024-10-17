@@ -1,9 +1,10 @@
 """Utilities to aide in testing `howso-engine`."""
+from __future__ import annotations
+
+from collections.abc import Callable
 import os
-from typing import Callable, Union
 from unittest.mock import patch
 
-from howso.client import HowsoClient
 from howso.client.base import AbstractHowsoClient
 from howso.direct import HowsoDirectClient
 
@@ -33,9 +34,9 @@ def get_test_options():
 
 
 def get_configurationless_test_client(
-    client_class: Union[AbstractHowsoClient, Callable] = HowsoDirectClient,
+    client_class: type[AbstractHowsoClient] | Callable = HowsoDirectClient,
     **kwargs
-) -> HowsoClient:
+) -> AbstractHowsoClient:
     """
     Return a client for use within testing.
 
