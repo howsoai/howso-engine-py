@@ -339,6 +339,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
     (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6], {'min': 2, 'max': 6, 'allow_null': False}),
     (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6, 6], {'min': 1, 'max': 6, 'allow_null': False}),
     (None, [2, 2, 2, 2, 4, 5, 6, 7], {'min': 2, 'max': 7, 'allow_null': False}),
+    (None, [float('nan'), float('nan')], {'allow_null': True}),
     (['a'], [2, 3, 4, 5, 6, 7], {'min': 2, 'max': 7, 'allow_null': False}),
     (['a'], [2, 3, 4, None, 6, 7], {'min': 2, 'max': 7, 'allow_null': True}),
     (
