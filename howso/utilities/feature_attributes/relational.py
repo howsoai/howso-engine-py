@@ -804,6 +804,18 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             column_type, _ = self._parse_column_type(str(column.type))
             format_dt = None
 
+            # Compute loose time-only feature bounds
+            if feature_attributes[feature_name]['data_type'] == 'formatted_time':
+                if (
+                    tight_bounds is None
+                    or feature_name not in tight_bounds
+                ):
+                    if not feature_attributes[feature_name].get('cycle_length'):
+                        raise ValueError(f'Error computing loose bounds for {feature_name}: '
+                                         '`cycle_length` must be specified in attributes')
+                    return {'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
+                            'allow_null': allow_null}
+
             if 'date_time_format' in feature_attributes[feature_name]:
                 format_dt = (
                     feature_attributes[feature_name].get('date_time_format'))

@@ -617,14 +617,20 @@ class InferFeatureAttributesBase(ABC):
                         'format will be ignored.')
                 elif feature_type == FeatureType.TIME:
                     feature_attributes[feature_name] = (
-                        self._infer_datetime_attributes(feature_name, user_dt_format))
+                        self._infer_time_attributes(feature_name, user_dt_format))
                 elif isinstance(user_dt_format, str):
                     # User passed only the format string
-                    feature_attributes[feature_name] = {
-                        'type': 'continuous',
-                        'data_type': 'formatted_date_time',
-                        'date_time_format': user_dt_format,
-                    }
+                    # First see if it is likely a time-only feature
+                    if any(identifier in user_dt_format
+                           for identifier in ['%I', '%H', '%M', '%S', '%f', '%p']):
+                        feature_attributes[feature_name] = (
+                            self._infer_time_attributes(feature_name, user_dt_format))
+                    else:
+                        feature_attributes[feature_name] = {
+                            'type': 'continuous',
+                            'data_type': 'formatted_date_time',
+                            'date_time_format': user_dt_format,
+                        }
                 elif (
                     isinstance(user_dt_format, Collection) and
                     len(user_dt_format) == 2
@@ -944,6 +950,9 @@ class InferFeatureAttributesBase(ABC):
         from howso.utilities import date_to_epoch
         feature_names = list(feature_attributes.keys())
         for feature_name in feature_names:
+            # Cyclic time features won't have unsupported data as they cannot exceed 24hour bounds
+            if feature_attributes[feature_name].get('data_type') == 'formatted_time':
+                return
             # Check original data type for ints, floats, datetimes
             orig_type = feature_attributes[feature_name]['original_type']['data_type']
             if (orig_type in ['integer', 'numeric'] or 'date_time_format' in

@@ -232,13 +232,15 @@ def test_get_feature_type(data, expected_type):
     (pd.DataFrame(["08:08:08"], columns=['a']), True, '%H:%M:%S'),
     (pd.DataFrame(["8:8:8"], columns=['a']), True, '%H:%M:%S'),
     (pd.DataFrame(["8:59:59am"], columns=['a']), True, '%I:%M:%S%p'),
-    (pd.DataFrame(["00:00:00"], columns=['a']), True, '%H:%M:%S'),
+    (pd.DataFrame(["01:00:00"], columns=['a']), True, '%H:%M:%S'),
     (pd.DataFrame(["23:59:59"], columns=['a']), True, '%H:%M:%S'),
     (pd.DataFrame(["23:59:59.59"], columns=['a']), True, '%H:%M:%S.%f'),
     (pd.DataFrame(["2:30 am"], columns=['a']), True, '%I:%M %p'),
-    (pd.DataFrame(["2:30 pm"], columns=['a']), True, '%I:%M %p'),
+    (pd.DataFrame(["2:01 pm"], columns=['a']), True, '%I:%M %p'),
     (pd.DataFrame(["4:25"], columns=['a']), True, '%H:%M'),
     (pd.DataFrame(["20:00"], columns=['a']), True, '%H:%M'),
+    (pd.DataFrame(["1am"], columns=['a']), True, '%I%p'),
+    (pd.DataFrame(["12 pm"], columns=['a']), True, '%I %p'),
     (pd.DataFrame([datetime.time(15)], columns=['a']), True, '%H:%M:%S'),
     (pd.DataFrame(["-01:01:01"], columns=['a']), False, None),
     (pd.DataFrame(["24:0:0"], columns=['a']), False, None),
@@ -255,12 +257,35 @@ def test_infer_time_features(data, is_time, expected_format):
     feature_type, _ = ifa._get_feature_type('a')
     if is_time:
         assert feature_type == FeatureType.TIME
-        features = infer_feature_attributes(data)
+        features = infer_feature_attributes(data, tight_bounds=['a'])
         assert features['a']['type'] == 'continuous'
-        assert features['a']['cycle_length'] == 86400
         assert features['a']['date_time_format'] == expected_format
     else:
         assert feature_type != FeatureType.TIME
+
+
+@pytest.mark.parametrize('data, tight_bounds, provided_format, expected_bounds, cycle_length', [
+    (pd.DataFrame(["00:00:00", "23:59:59"], columns=['a']), ['a'], None,
+     {'min': 0, 'max': 86399, 'allow_null': True}, 86400),
+    (pd.DataFrame(["03:00:00.0", "12:00:01.5"], columns=['a']), ['a'], None,
+     {'min': 10800, 'max': 43201.5, 'allow_null': True}, 86400),
+    (pd.DataFrame(["03:00:00.0", "12:00:01.5"], columns=['a']), None, None,
+     {'min': 0, 'max': 86400, 'allow_null': True}, 86400),
+    (pd.DataFrame(["25:0", "30:0"], columns=['a']), ['a'], '%M:%S',
+     {'min': 1500, 'max': 1800, 'allow_null': True}, 3600),
+    (pd.DataFrame(["25.0", "30.5"], columns=['a']), None, '%S.%f',
+     {'min': 0, 'max': 60, 'allow_null': True}, 60),
+    (pd.DataFrame(["5", "7"], columns=['a']), None, '%f',
+     {'min': 0, 'max': 1, 'allow_null': True}, 1),
+])
+def test_infer_time_feature_bounds(data, tight_bounds, provided_format, expected_bounds, cycle_length):
+    """Test that IFA correctly calculates the bounds and cycle length of time-only features."""
+    features = infer_feature_attributes(data, tight_bounds=tight_bounds,
+                                        datetime_feature_formats={'a': provided_format})
+    assert features['a']['type'] == 'continuous'
+    assert 'cycle_length' in features['a']
+    assert features['a']['cycle_length'] == cycle_length
+    assert features['a']['bounds'] == expected_bounds
 
 
 @pytest.mark.parametrize('data, data_type', [
