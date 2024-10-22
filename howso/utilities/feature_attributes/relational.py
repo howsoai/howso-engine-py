@@ -145,6 +145,9 @@ class DatastoreColumnTypes:
         list of str or dict
             The supported database column types.
         """
+        if not self._dialect:
+            return self.DEFAULTS[key]
+
         try:
             return self.DIALECT_OVERRIDES[self._dialect.name][key]
         except (TypeError, KeyError):

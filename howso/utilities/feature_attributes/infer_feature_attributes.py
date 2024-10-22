@@ -9,12 +9,14 @@ from .base import FeatureAttributesBase
 from .pandas import InferFeatureAttributesDataFrame
 from .protocols import SQLRelationalDatastoreProtocol, TableNameProtocol
 from .relational import InferFeatureAttributesSQLDatastore
+from .schema import InferFeatureAttributesSQLSchema
 from .time_series import InferFeatureAttributesTimeSeries
 
 
 def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol, *,
                              tables: t.Optional[Iterable[TableNameProtocol]] = None,
                              time_feature_name: t.Optional[str] = None,
+                             schema: t.Optional[str] = None,
                              **kwargs
                              ) -> FeatureAttributesBase:
     """
@@ -408,6 +410,8 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
     elif time_feature_name:
         raise ValueError("'time_feature_name' was included, but 'data' must be of type DataFrame "
                          "for time series feature attributes to be calculated.")
+    elif schema:
+        infer = InferFeatureAttributesSQLSchema(schema)
     # Else, check data type
     elif isinstance(data, pd.DataFrame):
         infer = InferFeatureAttributesDataFrame(data)

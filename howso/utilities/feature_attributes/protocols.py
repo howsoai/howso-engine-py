@@ -22,6 +22,15 @@ class SQLTableProtocol(Protocol):
     schema: str
 
 
+class SQLSchemaTableProtocol(Protocol):
+    """Protocol for a SQL schema table object."""
+
+    c: Dict
+    columns: Dict
+    name: str
+    schema: str
+
+
 class SessionProtocol(Protocol):
     """Protocol for a sqlalchemy Session object."""
 
