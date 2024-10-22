@@ -815,12 +815,15 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                                          '`cycle_length` must be specified in attributes')
                     return {'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
                             'allow_null': allow_null}
-                else:
+                elif column_type in self.column_types.all_date_time_types:
                     # Expected to return a datetime.time object
                     min_time, max_time = (
                         self._get_min_max_values(feature_name))
                     return {'min': time_to_seconds(min_time), 'max': time_to_seconds(max_time),
                             'allow_null': allow_null}
+                else:
+                    raise ValueError(f'Error computing tight bounds for {feature_name}: '
+                                     f'column type {column_type} not supported')
 
             if 'date_time_format' in feature_attributes[feature_name]:
                 format_dt = (
