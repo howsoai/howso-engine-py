@@ -871,13 +871,9 @@ class TestBaseClient:
 
     @pytest.mark.parametrize('params', (
         {"hyperparameter_map": {
-            "f1.f2.f3.": {
-                ".targetless": {
-                    "robust": {
-                        ".none": {
-                            "dt": -1, "p": .1, "k": 8
-                        }
-                    }
+            "targetless": {
+                "f1.f2.f3.": {
+                    ".none": {"dt": -1, "p": .1, "k": 8}
                 }
             }
         }},
@@ -892,9 +888,9 @@ class TestBaseClient:
     def test_set_and_get_params(self, trainee, trainee_builder):
         """Test for set_params and get_params functionality."""
         param_map = {"hyperparameter_map": {
-            "petal_length": {
-                "sepal_length.sepal_width.": {
-                    "robust": {
+            "targeted": {
+                "petal_length": {
+                    "sepal_length.sepal_width.": {
                         ".none": {
                             "dt": -1, "p": .1, "k": 2
                         }
@@ -959,21 +955,19 @@ class TestBaseClient:
     def test_get_specific_hyperparameters(self, trainee):
         """Test to verify parameters of get_params are functional."""
         param_map = {"hyperparameter_map": {
-            "petal_length": {
-                "sepal_length.sepal_width.": {
-                    "robust": {
+            "targeted": {
+                "petal_length": {
+                    "sepal_length.sepal_width.": {
                         ".none": {
                             "dt": -1, "p": .1, "k": 2
                         }
                     }
                 }
             },
-            ".targetless": {
+            "targetless": {
                 "sepal_length.sepal_width.": {
-                    "robust": {
-                        ".none": {
-                            "dt": -1, "p": .5, "k": 3
-                        }
+                    ".none": {
+                        "dt": -1, "p": .5, "k": 3
                     }
                 }
             }
@@ -981,7 +975,7 @@ class TestBaseClient:
 
         self.client.set_params(trainee.id, param_map)
 
-        params = self.client.get_params(trainee.id, action_feature='.targetless')
+        params = self.client.get_params(trainee.id, action_feature='')
         assert params['hyperparameter_map'] == {"dt": -1, "p": .5, "k": 3}
 
         params = self.client.get_params(trainee.id, action_feature='petal_length')
