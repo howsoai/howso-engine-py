@@ -621,8 +621,10 @@ class InferFeatureAttributesBase(ABC):
                 elif isinstance(user_dt_format, str):
                     # User passed only the format string
                     # First see if it is likely a time-only feature
-                    if any(identifier in user_dt_format
-                           for identifier in ['%I', '%H', '%M', '%S', '%f', '%p']):
+                    if (not any(date_id in user_dt_format.lower()
+                        for date_id in ['%d', '%y', "%z"])
+                            and any(time_id in user_dt_format
+                                    for time_id in ['%I', '%H', '%M', '%S', '%f', '%p'])):
                         feature_attributes[feature_name] = (
                             self._infer_time_attributes(feature_name, user_dt_format))
                     else:
@@ -952,7 +954,7 @@ class InferFeatureAttributesBase(ABC):
         for feature_name in feature_names:
             # Cyclic time features won't have unsupported data as they cannot exceed 24hour bounds
             if feature_attributes[feature_name].get('data_type') == 'formatted_time':
-                return
+                continue
             # Check original data type for ints, floats, datetimes
             orig_type = feature_attributes[feature_name]['original_type']['data_type']
             if (orig_type in ['integer', 'numeric'] or 'date_time_format' in

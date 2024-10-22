@@ -247,6 +247,7 @@ def test_get_feature_type(data, expected_type):
     (pd.DataFrame(["59:0:0"], columns=['a']), False, None),
     (pd.DataFrame(["3:60"], columns=['a']), False, None),
     (pd.DataFrame(["12 o'clock"], columns=['a']), False, None),
+    (pd.DataFrame(["10pm is the time"], columns=['a']), False, None),
     (pd.DataFrame(["8.5:32:32"], columns=['a']), False, None),
     (pd.DataFrame([["2020-01-01T10:00:00"]], columns=['a']), False, None),
     (pd.DataFrame([["2020-01-01"]], columns=['a']), False, None),
