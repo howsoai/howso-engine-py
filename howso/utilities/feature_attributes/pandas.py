@@ -34,6 +34,7 @@ from ..utilities import (
     infer_time_format,
     ISO_8601_DATE_FORMAT,
     ISO_8601_FORMAT,
+    SIMPLE_TIME_PATTERN,
     TIME_PATTERN,
     time_to_seconds,
 )
@@ -203,7 +204,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 # string columns by checking the type of the data
                 if isinstance(first_non_null, str):
                     # First, determine if the string resembles common time-only formats
-                    if re.match(TIME_PATTERN, first_non_null):
+                    if re.match(TIME_PATTERN, first_non_null) or re.match(SIMPLE_TIME_PATTERN,
+                                                                          first_non_null):
                         return FeatureType.TIME, {}
                     return FeatureType.STRING, {}
                 elif isinstance(first_non_null, bytes):
@@ -288,6 +290,31 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
         if feature_attributes[feature_name].get('type') == 'continuous':
             column_filtered = self.data[feature_name].dropna()
+
+            # Compute time-only feature bounds
+            if feature_attributes[feature_name]['data_type'] == 'formatted_time':
+                # Loose bounds
+                if (
+                    tight_bounds is None
+                    or feature_name not in tight_bounds
+                ):
+                    if not feature_attributes[feature_name].get('cycle_length'):
+                        raise ValueError(f'Error computing loose bounds for {feature_name}: '
+                                         '`cycle_length` must be specified in attributes')
+                    return {'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
+                            'allow_null': allow_null}
+                # Tight bounds
+                else:
+                    time_format = feature_attributes[feature_name].get('date_time_format')
+                    if not time_format:
+                        raise ValueError(f'Error computing tight bounds for {feature_name}: '
+                                         '`date_time_format` must be specified in attributes')
+                    time_column = pd.to_datetime(self.data[feature_name], format=time_format,
+                                                 errors='coerce').dropna()
+                    min_time = time_to_seconds(time_column.min().time())
+                    max_time = time_to_seconds(time_column.max().time())
+
+                    return {'min': min_time, 'max': max_time, 'allow_null': allow_null}
 
             if (format_dt := feature_attributes[feature_name].get('date_time_format')) is not None:
                 min_date, max_date = None, None

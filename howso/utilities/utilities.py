@@ -39,8 +39,11 @@ ONE_MINUTE = 60
 # Match unescaped timezone character in datetime format strings
 SMALLEST_TIME_DELTA = 0.001
 # Regex that matches common time strings
-TIME_PATTERN = (r'\b(T)?(?P<hour>[01]?\d|2[0-3]|\d):(?P<minute>[0-5]?\d)(?::(?P<second>[0-5]?\d)('
-                r'?:\.(?P<fraction>\d{1,2}))?)?\s?(?P<ampm>[APap][Mm])?\b')
+# <hour> AM/PM
+SIMPLE_TIME_PATTERN = r'^\s*([1-9]|1[0-2])\s?[aApP][mM]\s*$'
+# Other time formats (H:M:S, H:M, etc.)
+TIME_PATTERN = (r'^\s*(T)?(?P<hour>[01]?\d|2[0-3]|\d):(?P<minute>[0-5]?\d)(?::(?P<second>[0-5]?\d)('
+                r'?:\.(?P<fraction>\d{1,2}))?)?\s?(?P<ampm>[APap][Mm])?\s*$')
 # 24 hours in seconds
 TWENTY_FOUR_HOURS = 86400
 
@@ -1466,7 +1469,12 @@ def infer_time_format(time_str: str) -> str:
     """
     match = re.match(TIME_PATTERN, time_str)
     if not match:
-        raise ValueError(f"The time '{time_str}' does not match a known time format")
+        # First try the simple time pattern (<hour AM/PM)
+        simple_match = re.match(SIMPLE_TIME_PATTERN, time_str)
+        if simple_match:
+            return '%I %p' if ' ' in time_str else '%I%p'
+        else:
+            raise ValueError(f"The time '{time_str}' does not match a known time format")
 
     format_string = ""
 
