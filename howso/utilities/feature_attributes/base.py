@@ -621,8 +621,8 @@ class InferFeatureAttributesBase(ABC):
                 elif isinstance(user_dt_format, str):
                     # User passed only the format string
                     # First see if it is likely a time-only feature
-                    if (not any(date_id in user_dt_format.lower()
-                        for date_id in ['%d', '%y', "%z"])
+                    if (not any(date_id in user_dt_format
+                        for date_id in ['%m', '%d', '%y', "%z"])
                             and any(time_id in user_dt_format
                                     for time_id in ['%I', '%H', '%M', '%S', '%f', '%p'])):
                         feature_attributes[feature_name] = (
