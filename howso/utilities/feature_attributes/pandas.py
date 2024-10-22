@@ -452,7 +452,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 min_value, max_value = self._get_min_max_number_size_bounds(
                     feature_attributes, feature_name)
                 if min_value is not None and max_value is not None:
-                    output = {'min': min_value, 'max': max_value}
+                    output = {'min': min_value, 'max': max_value, 'allow_null': allow_null}
+                else:
+                    output = {'allow_null': allow_null}
 
         else:  # Ordinals
             output = {'allow_null': allow_null}
