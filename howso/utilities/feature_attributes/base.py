@@ -525,6 +525,7 @@ class InferFeatureAttributesBase(ABC):
                  features: t.Optional[dict[str, dict]] = None,
                  infer_bounds: bool = True,
                  tight_bounds: t.Optional[Iterable[str]] = None,
+                 types: t.Optional[dict] = None,
                  mode_bound_features: t.Optional[Iterable[str]] = None,
                  id_feature_name: t.Optional[str | Iterable[str]] = None,
                  attempt_infer_extended_nominals: bool = False,
@@ -549,12 +550,12 @@ class InferFeatureAttributesBase(ABC):
                 )
             else:
                 feature_attributes: dict = serialize_models(features)
-                warnings.warn('The `features` parameter is deprecated. Please instead construct '
-                              'an `InferFeatureAttributesBase` instance with a pre-filled '
-                              'feature attributes Mapping. You can also specify feature types '
-                              'alone with the `types` parameter.', DeprecationWarning)
-        elif self.keys():
-            feature_attributes: dict = serialize_models(self)
+                warnings.warn('The `features` parameter ("partial features") is deprecated. '
+                              'Please instead clobber the dict-like `FeatureAttributesBase` '
+                              'instance post-hoc with desired modifications. However, you can '
+                              'also guarantee certain feature types in calling '
+                              '`infer_feature_attributes` with the `types` parameter.',
+                              DeprecationWarning)
         else:
             feature_attributes = dict()
 

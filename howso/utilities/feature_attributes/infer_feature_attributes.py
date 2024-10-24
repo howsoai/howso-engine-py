@@ -168,6 +168,10 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
         one of 'rate' or 'delta', used to override time_series_type_default
         for the specified features.
 
+    types: dict, default None
+        (Optional) Dict of features and their corresponding feature type, or
+        feature types with lists of features to be mapped. TODO put the params in this docstring in alphabetical order (those after the asterisk in the signature)
+
     mode_bound_features : list of str, default None
         (Optional) Explicit list of feature names to use mode bounds for
         when inferring loose bounds. If None, assumes all features. A mode
