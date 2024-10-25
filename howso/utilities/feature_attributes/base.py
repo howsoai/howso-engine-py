@@ -522,20 +522,20 @@ class InferFeatureAttributesBase(ABC):
     """
 
     def _process(self,  # noqa: C901
+                 attempt_infer_extended_nominals: bool = False,
+                 datetime_feature_formats: t.Optional[dict] = None,
+                 dependent_features: t.Optional[dict[str, list[str]]] = None,
                  features: t.Optional[dict[str, dict]] = None,
+                 id_feature_name: t.Optional[str | Iterable[str]] = None,
+                 include_extended_nominal_probabilities: t.Optional[bool] = False,
+                 include_sample: bool = False,
                  infer_bounds: bool = True,
+                 max_workers: t.Optional[int] = None,
+                 mode_bound_features: t.Optional[Iterable[str]] = None,
+                 nominal_substitution_config: t.Optional[dict[str, dict]] = None,
+                 ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
                  tight_bounds: t.Optional[Iterable[str]] = None,
                  types: t.Optional[dict] = None,
-                 mode_bound_features: t.Optional[Iterable[str]] = None,
-                 id_feature_name: t.Optional[str | Iterable[str]] = None,
-                 attempt_infer_extended_nominals: bool = False,
-                 nominal_substitution_config: t.Optional[dict[str, dict]] = None,
-                 include_extended_nominal_probabilities: t.Optional[bool] = False,
-                 datetime_feature_formats: t.Optional[dict] = None,
-                 ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
-                 dependent_features: t.Optional[dict[str, list[str]]] = None,
-                 include_sample: bool = False,
-                 max_workers: t.Optional[int] = None,
                  ) -> dict:
         """
         Get inferred feature attributes for the parameters.
