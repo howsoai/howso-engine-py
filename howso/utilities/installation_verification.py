@@ -93,7 +93,7 @@ class Status(IntEnum):
     OK = 4
 
 
-Requirements: TypeAlias = Iterable[type | object]
+Requirements: TypeAlias = t.Iterable[t.Union[type, object]]
 
 
 @dataclass
