@@ -4,14 +4,14 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --generate-hashes --no-emit-index-url --output-file=requirements-3.12-dev.txt
 #
-amalgam-lang==13.0.1 \
-    --hash=sha256:25877ec0850c9b4225d1e6399c99c57ed0f2887b9206ebfbf4508636d5808e05 \
-    --hash=sha256:3ed7c9fa719da409ea0c3ac580e47f023aba32337521e43619a0330d364ea87b \
-    --hash=sha256:45b55dd59790538399230aeda187e47a5640501de9601e8ae2f0e63b78894a22 \
-    --hash=sha256:79af382954a57523a28b67409ce0512bd2fb3f3acf2d3373f3aa574739236bb0 \
-    --hash=sha256:7ca3be64c9c15973b727c187c73908e643e3533545ba22f44063b74d3adfde43 \
-    --hash=sha256:fd06971be4636de88fc7433fa87190e59e9afb91f38fd45ac6663b6bac8ed691 \
-    --hash=sha256:fe040ba2ee600565a59596b2f48ce0e727e9a7f3bc005a10b0ab60567d41e21e
+amalgam-lang==13.0.2 \
+    --hash=sha256:0666366b493714c09030e27a3dea9f658c8396ff119edb84fddf224ea6658374 \
+    --hash=sha256:151f05c3a20dc7e003a61e718637dfe298a4850da3c6adce564e9cdec79d2007 \
+    --hash=sha256:537861c177513f790b2165c669d70a643707aa3a6c14a3943281f53cb2897007 \
+    --hash=sha256:c348e955e88901de4b54f4369572e2b847ae402a2284deb5650ff832694deeb3 \
+    --hash=sha256:e923cbfcbb86d998e93616ddc5b397ac5aa6b209ecbd29c775b0c9ec547cbd75 \
+    --hash=sha256:f8c02fa035a2e882179debf3f6944f8a8a47a0f55ca37b2471c063cbd3a067d9 \
+    --hash=sha256:fbc2925d2f0fa8586fbd2b6a20dfeff0a3fb7ed4b2ab4a765fa1e5a2bbbe3e65
     # via howso-engine (pyproject.toml)
 astroid==3.3.5 \
     --hash=sha256:5cfc40ae9f68311075d27ef68a4841bdc5cc7f6cf86671b49f00607d30188e2d \
@@ -314,9 +314,9 @@ execnet==2.1.1 \
     --hash=sha256:26dee51f1b80cebd6d0ca8e74dd8745419761d3bef34163928cbebbdc4749fdc \
     --hash=sha256:5189b52c6121c24feae288166ab41b32549c7e2348652736540b9e6e7d4e72e3
     # via pytest-xdist
-faker==30.8.0 \
-    --hash=sha256:3608c7fcac2acde0eaa6da28dae97628f18f14d54eaa2a92b96ae006f1621bd7 \
-    --hash=sha256:4cd0c5ea4bc1e4c902967f6e662f5f5da69f1674d9a94f54e516d27f3c2a6a16
+faker==30.8.1 \
+    --hash=sha256:4f7f133560b9d4d2a915581f4ba86f9a6a83421b89e911f36c4c96cff58135a5 \
+    --hash=sha256:93e8b70813f76d05d98951154681180cb795cfbcff3eced7680d963bcc0da2a9
     # via howso-engine (pyproject.toml)
 flake8==3.9.2 \
     --hash=sha256:07528381786f2a6237b061f6e96610a4167b226cb926e2aa2b6b1d78057c576b \
@@ -834,9 +834,9 @@ wheel==0.44.0 \
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:
-pip==24.2 \
-    --hash=sha256:2cd581cf58ab7fcfca4ce8efa6dcacd0de5bf8d0a3eb9ec927e07405f4d9e2a2 \
-    --hash=sha256:5b5e490b5e9cb275c879595064adce9ebd31b854e3e803740b72f9ccf34a45b8
+pip==24.3.1 \
+    --hash=sha256:3790624780082365f47549d032f3770eeb2b1e8bd1f7b2e02dace1afa361b4ed \
+    --hash=sha256:ebcb60557f2aefabc2e0f918751cd24ea0d56d8ec5445fe1807f1d2109660b99
     # via
     #   pip-tools
     #   pipdeptree
