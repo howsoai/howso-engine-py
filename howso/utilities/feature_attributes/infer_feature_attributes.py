@@ -248,17 +248,18 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
         for the specified features.
 
     types: dict, default None
-        (Optional) Dict of features and their intended feature type, or
-        feature types with lists of features to be mapped. Any types provided
-        here will override the types would otherwise be inferred, and will
-        direct ``infer_feature_attributes`` to compute the attributes accordingly.
+        (Optional) Dict of features and their intended type (i.e., "nominal,"
+        "ordinal," or "continuous"), or types mapped to Iterables of feature
+        names. Any types provided here will override the types that would
+        otherwise be inferred, and will direct ``infer_feature_attributes`` to
+        compute the attributes accordingly.
 
         Example::
 
             {
                 "feature_1": "nominal",
-                "feature_2": "continuous",
-                "ordinal": ["feature_3", "feature_4", "feature_5"]
+                "feature_2": "ordinal",
+                "continuous": ["feature_3", "feature_4", "feature_5"]
             }
 
     max_workers: int, optional

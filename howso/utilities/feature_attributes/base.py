@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from howso.utilities import validate_features
 from howso.utilities.features import FeatureType
 from howso.utilities.internals import serialize_models
 
@@ -357,6 +358,7 @@ class FeatureAttributesBase(dict):
 
         Check that feature bounds and data types loosely describe the data. Optionally
         attempt to coerce the data into conformity.
+
         Parameters
         ----------
         data : Any
@@ -379,6 +381,30 @@ class FeatureAttributesBase(dict):
             None or the coerced DataFrame if 'coerce' is True and there were no errors.
         """
         raise NotImplementedError()
+
+    def safe_update(self, entries: dict[str, dict]):
+        """
+        Update this FeatureAttributesBase instance with one or more new entries.
+
+        Ensure that no predefined attributes are overwritten, and that updates make sense
+        contextually.
+
+        Parameters
+        ----------
+        entry: dict of str to dict
+            The new feature attributes entries to validate and set, where keys are feature
+            names and values are feature attributes.
+
+        Raises
+        ------
+        ValueError
+            If there is a validation issue with the entry to set
+        """
+        for feature_name in entries.keys():
+            if feature_name in self:
+                pass
+
+        self.update(entries)
 
 
 class MultiTableFeatureAttributes(FeatureAttributesBase):
@@ -535,12 +561,12 @@ class InferFeatureAttributesBase(ABC):
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
                  tight_bounds: t.Optional[Iterable[str]] = None,
-                 types: t.Optional[dict] = None,
+                 types: t.Optional[dict[str, str] | dict[str, Iterable[str]]] = None,
                  ) -> dict:
         """
         Get inferred feature attributes for the parameters.
 
-        See `infer_feature_attributes` for full docstring.
+        See ``infer_feature_attributes`` for full docstring.
         """
         if features:
             if not isinstance(features, dict):
@@ -568,6 +594,24 @@ class InferFeatureAttributesBase(ABC):
         if dependent_features is None:
             dependent_features = dict()
 
+        # Preprocess user-defined feature types
+        preset_types = {}
+        # Check the `types` argument
+        if types:
+            # Can be either str -> str or str -> Iterable[str]
+            for k, v in types.items():
+                if isinstance(v, Iterable):
+                    for feat_name in v:
+                        preset_types[feat_name] = {'type': k}
+                else:
+                    preset_types[k] = {'type': v}
+            # Validate
+            for feat_name in preset_types:
+                validate_features(preset_types[feat_name])
+
+        # Update the feature attributes dictionary with the user-defined base types
+        feature_attributes.update(preset_types)
+
         feature_names_list = self._get_feature_names()
         for feature_name in feature_names_list:
             # What type is this feature?
@@ -577,10 +621,10 @@ class InferFeatureAttributesBase(ABC):
 
             # EXPLICITLY DECLARED ORDINALS
             if feature_name in ordinal_feature_values:
-                feature_attributes[feature_name] = {
+                feature_attributes.safe_update(dict(feature_name={
                     'type': 'ordinal',
                     'bounds': {'allowed': ordinal_feature_values[feature_name]}
-                }
+                }))
 
             # EXPLICITLY DECLARED DATETIME & TIME FEATURES
             elif datetime_feature_formats.get(feature_name, None):
@@ -725,7 +769,7 @@ class InferFeatureAttributesBase(ABC):
         if infer_bounds:
             for feature_name in feature_attributes:
                 # Don't infer bounds for manually-specified nominal features
-                if features and features.get(feature_name, {}).get('type') == 'nominal':
+                if feature_attributes[feature_name].get('type') == 'nominal':
                     continue
                 # Likewise, don't infer bounds for JSON/YAML features
                 elif any([
