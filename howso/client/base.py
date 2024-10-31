@@ -3639,7 +3639,7 @@ class AbstractHowsoClient(ABC):
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
-        rebalance_features: t.Optional[Collection[str]] = None,
+        rebalance_features: t.Optional[t.Collection[str]] = None,
         targeted_model: t.Optional[TargetedModel] = None,
         use_case_weights: t.Optional[bool] = None,
         use_deviations: t.Optional[bool] = None,
@@ -3684,7 +3684,7 @@ class AbstractHowsoClient(ABC):
             The number of samples used in calculating feature residuals.
         p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
-        rebalance_features : Collection of str, optional
+        rebalance_features : Collection[str], optional
             The list of features whose values to use to rebalance case
             weighting of the data and to store into weight_feature.
             Cannot be used with ablation.
@@ -3836,7 +3836,7 @@ class AbstractHowsoClient(ABC):
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
-        rebalance_features: t.Optional[Collection[str]] = None,
+        rebalance_features: t.Optional[t.Collection[str]] = None,
         targeted_model: t.Optional[TargetedModel] = None,
         use_deviations: t.Optional[bool] = None,
         use_case_weights: t.Optional[bool] = None,
@@ -3881,7 +3881,7 @@ class AbstractHowsoClient(ABC):
             When True, bypasses calculation of feature weights.
         bypass_hyperparameter_analysis : bool, optional
             When True, bypasses hyperparameter analysis.
-        rebalance_features : Collection of str, optional
+        rebalance_features : Collection[str], optional
             The list of features whose values to use to rebalance case
             weighting of the data and to store into weight_feature.
             Cannot be used with ablation.
