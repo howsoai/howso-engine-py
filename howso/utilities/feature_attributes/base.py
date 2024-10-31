@@ -382,28 +382,44 @@ class FeatureAttributesBase(dict):
         """
         raise NotImplementedError()
 
-    def safe_update(self, entries: dict[str, dict]):
+    def merge(self, entries: dict[str, dict]):
         """
-        Update this FeatureAttributesBase instance with one or more new entries.
+        Update the feature attributes with one or more new entries such that types are preserved.
 
-        Ensure that no predefined attributes are overwritten, and that updates make sense
-        contextually.
+        Do not overwrite preexisting feature types if they exist. Other attributes will be merged
+        regardless of their current values. Performs basic validation of incoming feature types.
 
         Parameters
         ----------
-        entry: dict of str to dict
+        entries: dict of str to dict
             The new feature attributes entries to validate and set, where keys are feature
             names and values are feature attributes.
 
         Raises
         ------
         ValueError
-            If there is a validation issue with the entry to set
+            If the provided feature type is invalid
         """
+        # Do basic type validation
+        validate_features(entries)
+        # Compare to existing attributes
         for feature_name in entries.keys():
             if feature_name in self:
-                pass
-
+                orig_type = self[feature_name].get('type')
+                new_type = entries[feature_name].get('type')
+                # Just updating non-type attributes; nothing to do
+                if not orig_type or not new_type:
+                    continue
+                # TODO 22059: Allow ordinals here when we can attempt to infer values
+                elif new_type == 'ordinal':
+                    raise ValueError('Inferral of ordinal values is not yet supported. Please '
+                                     'preset ordinal features with their ordered values using '
+                                     '`ordinal_feature_values`.')
+                # Could result in nonsensical feature attributes; warn the user
+                elif orig_type == 'nominal' and new_type == 'continuous':
+                    warnings.warn(f"Feature '{feature_name}' was inferred to be nominal, but will "
+                                  "be overwritten as continuous. Please verify the validity of "
+                                  "the resulting attributes.")
         self.update(entries)
 
 
