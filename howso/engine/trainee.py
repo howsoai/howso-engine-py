@@ -960,6 +960,7 @@ class Trainee(BaseTrainee):
         num_samples: t.Optional[int] = None,
         analysis_sub_model_size: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
+        rebalance_features: t.Optional[Collection[str]] = None,
         targeted_model: t.Optional[TargetedModel] = None,
         use_case_weights: t.Optional[bool] = None,
         use_deviations: t.Optional[bool] = None,
@@ -1001,6 +1002,10 @@ class Trainee(BaseTrainee):
             randomly held-out and not included in calculations.
         p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
+        rebalance_features : Collection of str, optional
+            The list of features whose values to use to rebalance case
+            weighting of the data and to store into weight_feature.
+            Cannot be used with ablation.
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}, optional
             Type of hyperparameter targeting.
             Valid options include:
@@ -1043,6 +1048,7 @@ class Trainee(BaseTrainee):
                 num_samples=num_samples,
                 analysis_sub_model_size=analysis_sub_model_size,
                 p_values=p_values,
+                rebalance_features=rebalance_features,
                 targeted_model=targeted_model,
                 use_deviations=use_deviations,
                 weight_feature=weight_feature,
