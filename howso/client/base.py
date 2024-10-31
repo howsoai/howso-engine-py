@@ -3639,6 +3639,7 @@ class AbstractHowsoClient(ABC):
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
+        rebalance_features: t.Optional[t.Collection[str]] = None,
         targeted_model: t.Optional[TargetedModel] = None,
         use_case_weights: t.Optional[bool] = None,
         use_deviations: t.Optional[bool] = None,
@@ -3683,6 +3684,10 @@ class AbstractHowsoClient(ABC):
             The number of samples used in calculating feature residuals.
         p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
+        rebalance_features : Collection[str], optional
+            The list of features whose values to use to rebalance case
+            weighting of the data and to store into weight_feature.
+            Cannot be used with ablation.
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}, optional
             Type of hyperparameter targeting.
             Valid options include:
@@ -3711,6 +3716,7 @@ class AbstractHowsoClient(ABC):
 
         util.validate_list_shape(context_features, 1, "context_features", "str")
         util.validate_list_shape(action_features, 1, "action_features", "str")
+        util.validate_list_shape(rebalance_features, 1, "rebalance_features", "str")
         util.validate_list_shape(p_values, 1, "p_values", "int")
         util.validate_list_shape(k_values, 1, "k_values", "float")
         util.validate_list_shape(dt_values, 1, "dt_values", "float")
@@ -3761,6 +3767,7 @@ class AbstractHowsoClient(ABC):
             num_samples=num_samples,
             analysis_sub_model_size=analysis_sub_model_size,
             p_values=p_values,
+            rebalance_features=rebalance_features,
             targeted_model=targeted_model,
             use_deviations=use_deviations,
             weight_feature=weight_feature,
@@ -3829,6 +3836,7 @@ class AbstractHowsoClient(ABC):
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
+        rebalance_features: t.Optional[t.Collection[str]] = None,
         targeted_model: t.Optional[TargetedModel] = None,
         use_deviations: t.Optional[bool] = None,
         use_case_weights: t.Optional[bool] = None,
@@ -3873,6 +3881,10 @@ class AbstractHowsoClient(ABC):
             When True, bypasses calculation of feature weights.
         bypass_hyperparameter_analysis : bool, optional
             When True, bypasses hyperparameter analysis.
+        rebalance_features : Collection[str], optional
+            The list of features whose values to use to rebalance case
+            weighting of the data and to store into weight_feature.
+            Cannot be used with ablation.
         targeted_model : Literal["omni_targeted", "single_targeted", "targetless"], optional
             Type of hyperparameter targeting.
             Valid options include:
@@ -3982,6 +3994,7 @@ class AbstractHowsoClient(ABC):
             "bypass_hyperparameter_analysis": bypass_hyperparameter_analysis,
             "bypass_calculate_feature_residuals": bypass_calculate_feature_residuals,
             "bypass_calculate_feature_weights": bypass_calculate_feature_weights,
+            "rebalance_features": rebalance_features,
             "targeted_model": targeted_model,
             "num_analysis_samples": num_analysis_samples,
             "analysis_sub_model_size": analysis_sub_model_size,
