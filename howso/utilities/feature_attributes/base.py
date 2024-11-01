@@ -413,7 +413,7 @@ class FeatureAttributesBase(dict):
                                  'preset ordinal features with their ordered values using '
                                  '`ordinal_feature_values`.')
             # Sanity check: booleans must be nominal
-            elif entries[feature_name].get('data_type') == 'boolean' and orig_type != 'nominal':
+            elif entries[feature_name].get('data_type') == 'boolean' and orig_type and orig_type != 'nominal':
                 warnings.warn(
                     f"Feature {feature_name} was preset as {orig_type} "
                     "but was detected to be a boolean. Booleans "
