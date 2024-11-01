@@ -249,8 +249,8 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
 
     types: dict, default None
         (Optional) Dict of features and their intended type (i.e., "nominal,"
-        "ordinal," or "continuous"), or types mapped to Iterables of feature
-        names. Any types provided here will override the types that would
+        "ordinal," or "continuous"), or types mapped to MutableSequences of
+        feature names. Any types provided here will override the types that would
         otherwise be inferred, and will direct ``infer_feature_attributes`` to
         compute the attributes accordingly.
 

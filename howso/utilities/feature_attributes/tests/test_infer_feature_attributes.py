@@ -569,6 +569,9 @@ def test_copy():
 ])
 def test_partial_features(features):
     """Test that filling a partial features dict works as expected."""
+    feature_attributes = {}
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
     df = pd.read_csv(stock_path)
     feature_attributes = infer_feature_attributes(df, time_feature_name='DATE', features=features)
 
@@ -773,7 +776,7 @@ def test_unsupported_data(datetime_min_max, float_min_max, int_min_max):
             df.at[1, feature] = val_2
         expected_unsupported[feature] = unsupported
 
-    features = infer_feature_attributes(df, tight_bounds=True)
+    features = infer_feature_attributes(df, tight_bounds=['DATE', 'CLOSE', 'VOLUME'])
 
     for feature in features.keys():
         if expected_unsupported.get(feature, False):
@@ -812,3 +815,26 @@ def test_json_yaml_features(value, is_json, is_yaml):
     else:
         assert features['sepal_width'].get('data_type') != 'json'
         assert features['sepal_width'].get('data_type') != 'yaml'
+
+
+@pytest.mark.parametrize('data, types, expected_types, is_valid', [
+    (pd.DataFrame({'a': [0, 1, 2, 0, 1, 2]}), dict(a='continuous'), dict(a='continuous'), True),
+    (pd.DataFrame({'a': [0, 1, 2], 'b': ['1', '2', '3']}, columns=['a', 'b']), dict(continuous=['a', 'b']),
+     dict(a='continuous', b='continuous'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7]}), dict(a='nominal'), dict(a='nominal'), True),
+    (pd.DataFrame({'a': [True, False, False, True]}), dict(a='continuous'), dict(a='nominal'), True),
+    (pd.DataFrame({'a': [True, False, False, True]}), dict(a='boolean'), {}, False),
+    (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(a='ordinal'), {}, False),
+])
+def test_preset_feature_types(data, types, expected_types, is_valid):
+    """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
+    features = {}
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if is_valid:
+            features = infer_feature_attributes(data, types=types)
+            for feature_name, expected_type in expected_types.items():
+                assert features[feature_name]['type'] == expected_type
+        else:
+            with pytest.raises(ValueError):
+                infer_feature_attributes(data, types=types)

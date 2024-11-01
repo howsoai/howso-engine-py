@@ -552,9 +552,11 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         return None, None
 
     def _infer_floating_point_attributes(self, feature_name: str) -> dict:
+        preset_feature_type = self.attributes.get(feature_name, {}).get('type')
         if (
                 self._is_primary_key(feature_name) or
-                self._is_foreign_key(feature_name)
+                self._is_foreign_key(feature_name) or
+                preset_feature_type == 'nominal'
         ):
             return {
                 'type': 'nominal',
@@ -570,7 +572,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         # Ensure we have at least one valid value before attempting to
         # introspect further.
-        if num_nulls < num_cases:
+        if num_nulls < num_cases and preset_feature_type not in ('continuous', 'ordinal'):
             # Determine if nominal by checking if number of uniques <= 2
             if (
                     self._get_num_uniques(feature_name) <= 2 and
@@ -700,6 +702,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         }
 
     def _infer_integer_attributes(self, feature_name: str) -> dict:
+        preset_feature_type = self.attributes.get(feature_name, {}).get('type')
         # Most primary keys will be integer types (but not all). These are
         # always treated as nominals.
         if (
@@ -717,7 +720,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         # has exactly the same length.
         num_uniques = self._get_num_uniques(feature_name)
         n_cases = self._get_num_cases()
-        if num_uniques < pow(n_cases, 0.5):
+        if num_uniques < pow(n_cases, 0.5) or preset_feature_type == 'nominal':
             guess_nominals = True
         else:
             # Find the largest and smallest non-null values in column.
@@ -756,9 +759,11 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         return attributes
 
     def _infer_string_attributes(self, feature_name: str) -> dict:
+        preset_feature_type = self.attributes.get(feature_name, {}).get('type')
         if (
                 self._is_primary_key(feature_name) or
-                self._is_foreign_key(feature_name)
+                self._is_foreign_key(feature_name) or
+                preset_feature_type == 'nominal'
         ):
             return {
                 'type': 'nominal',
