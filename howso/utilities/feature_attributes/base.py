@@ -381,31 +381,42 @@ class FeatureAttributesBase(dict):
         """
         raise NotImplementedError()
 
-    def merge(self, entries: dict[str, dict]):
+    @staticmethod
+    def merge(attributes: dict[str, dict], entries: dict[str, dict]) -> FeatureAttributesBase[str, dict]:
         """
-        Update the feature attributes with one or more new entries such that types are preserved.
+        Update the given attributes with one or more new entries such that types are preserved.
 
         Do not overwrite preexisting feature types if they exist. Other attributes will be merged
         regardless of their current values. Performs basic validation of incoming feature types.
 
         Parameters
         ----------
+        attributes: dict of str to dict
+            A feature attributes dictionary to accept new entries.
         entries: dict of str to dict
             The new feature attributes entries to validate and set, where keys are feature
             names and values are feature attributes.
 
+        Returns
+        -------
+        FeatureAttributesBase
+            A dict-like FeatureAttributesBase instance that is the merged result of the inputs.
+
         Raises
         ------
         ValueError
-            If the provided feature type is invalid
+            If any provided feature types are invalid.
         """
         # Avoid circular import
         from howso.utilities import validate_features
+        # Make copies
+        attributes = deepcopy(attributes)
+        entries = deepcopy(entries)
         # Do basic type validation
         validate_features(entries)
         # Compare to existing attributes
         for feature_name in entries.keys():
-            orig_type = self.get(feature_name, {}).get('type')
+            orig_type = attributes.get(feature_name, {}).get('type')
             new_type = entries[feature_name].get('type')
             # TODO 22059: Allow ordinals here when we can attempt to infer values
             if new_type == 'ordinal':
@@ -423,10 +434,12 @@ class FeatureAttributesBase(dict):
             elif orig_type and new_type:
                 del entries[feature_name]['type']
             # Finally, update the dict with all remaining attributes
-            if feature_name not in self.keys():
-                self[feature_name] = entries[feature_name]
+            if feature_name not in attributes.keys():
+                attributes[feature_name] = entries[feature_name]
             else:
-                self[feature_name].update(entries[feature_name])
+                attributes[feature_name].update(entries[feature_name])
+
+        return attributes
 
 
 class MultiTableFeatureAttributes(FeatureAttributesBase):
@@ -633,8 +646,11 @@ class InferFeatureAttributesBase(ABC):
                 else:
                     preset_types[k] = {'type': v}
 
+        # Make updates with the `merge` function
+        merge = FeatureAttributesBase.merge
+
         # Update the feature attributes dictionary with the user-defined base types
-        self.attributes.merge(preset_types)
+        self.attributes = merge(self.attributes, preset_types)
 
         feature_names_list = self._get_feature_names()
         for feature_name in feature_names_list:
@@ -645,7 +661,7 @@ class InferFeatureAttributesBase(ABC):
 
             # EXPLICITLY DECLARED ORDINALS
             if feature_name in ordinal_feature_values:
-                self.attributes.merge({feature_name: {
+                self.attributes = merge(self.attributes, {feature_name: {
                     'type': 'ordinal',
                     'bounds': {'allowed': ordinal_feature_values[feature_name]}
                 }})
@@ -664,7 +680,7 @@ class InferFeatureAttributesBase(ABC):
                 if feature_type == FeatureType.DATETIME:
                     # When feature is a datetime instance, we won't need to
                     # parse the datetime from a string using a custom format.
-                    self.attributes.merge({
+                    self.attributes = merge(self.attributes, {
                         feature_name: self._infer_datetime_attributes(feature_name)})
                     warnings.warn(
                         'Providing a datetime feature format for the feature '
@@ -674,7 +690,7 @@ class InferFeatureAttributesBase(ABC):
                 elif feature_type == FeatureType.DATE:
                     # When feature is a date instance, we won't need to
                     # parse the datetime from a string using a custom format.
-                    self.attributes.merge({
+                    self.attributes = merge(self.attributes, {
                         feature_name: self._infer_date_attributes(feature_name)})
                     warnings.warn(
                         'Providing a datetime feature format for the feature '
@@ -682,7 +698,7 @@ class InferFeatureAttributesBase(ABC):
                         'is already formatted as a date object. This custom '
                         'format will be ignored.')
                 elif feature_type == FeatureType.TIME:
-                    self.attributes.merge({
+                    self.attributes = merge(self.attributes, {
                         feature_name: self._infer_time_attributes(feature_name, user_dt_format)})
                 elif isinstance(user_dt_format, str):
                     # User passed only the format string
@@ -691,10 +707,10 @@ class InferFeatureAttributesBase(ABC):
                         for date_id in ['%m', '%d', '%y', "%z"])
                             and any(time_id in user_dt_format
                                     for time_id in ['%I', '%H', '%M', '%S', '%f', '%p'])):
-                        self.attributes.merge({
+                        self.attributes = merge(self.attributes, {
                             feature_name: self._infer_time_attributes(feature_name, user_dt_format)})
                     else:
-                        self.attributes.merge({feature_name: {
+                        self.attributes = merge(self.attributes, {feature_name: {
                             'type': 'continuous',
                             'data_type': 'formatted_date_time',
                             'date_time_format': user_dt_format,
@@ -705,7 +721,7 @@ class InferFeatureAttributesBase(ABC):
                 ):
                     # User passed format string and a locale string
                     dt_format, dt_locale = user_dt_format
-                    self.attributes.merge({feature_name: {
+                    self.attributes = merge(self.attributes, {feature_name: {
                         'type': 'continuous',
                         'data_type': 'formatted_date_time',
                         'date_time_format': dt_format,
@@ -721,42 +737,42 @@ class InferFeatureAttributesBase(ABC):
 
             # FLOATING POINT FEATURES
             elif feature_type == FeatureType.NUMERIC:
-                self.attributes.merge({
+                self.attributes = merge(self.attributes, {
                     feature_name: self._infer_floating_point_attributes(feature_name)})
 
             # IMPLICITLY DEFINED DATETIME FEATURES
             elif feature_type == FeatureType.DATETIME:
-                self.attributes.merge({
+                self.attributes = merge(self.attributes, {
                     feature_name: self._infer_datetime_attributes(feature_name)})
 
             # DATE ONLY FEATURES
             elif feature_type == FeatureType.DATE:
-                self.attributes.merge({
+                self.attributes = merge(self.attributes, {
                     feature_name: self._infer_date_attributes(feature_name)})
 
             # TIME ONLY FEATURES
             elif feature_type == FeatureType.TIME:
-                self.attributes.merge({
+                self.attributes = merge(self.attributes, {
                     feature_name: self._infer_time_attributes(feature_name)})
 
             # TIMEDELTA FEATURES
             elif feature_type == FeatureType.TIMEDELTA:
-                self.attributes.merge({
+                self.attributes = merge(self.attributes, {
                     feature_name: self._infer_timedelta_attributes(feature_name)})
 
             # INTEGER FEATURES
             elif feature_type == FeatureType.INTEGER:
-                self.attributes.merge({
+                self.attributes = merge(self.attributes, {
                     feature_name: self._infer_integer_attributes(feature_name)})
 
             # BOOLEAN FEATURES
             elif feature_type == FeatureType.BOOLEAN:
-                self.attributes.merge({
+                self.attributes = merge(self.attributes, {
                     feature_name: self._infer_boolean_attributes(feature_name)})
 
             # ALL OTHER FEATURES
             else:
-                self.attributes.merge({
+                self.attributes = merge(self.attributes, {
                     feature_name: self._infer_string_attributes(feature_name)})
 
             # Is column constrained to be unique?
