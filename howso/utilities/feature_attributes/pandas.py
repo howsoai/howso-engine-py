@@ -292,7 +292,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             column_filtered = self.data[feature_name].dropna()
 
             # Compute time-only feature bounds
-            if feature_attributes[feature_name]['data_type'] == 'formatted_time':
+            if feature_attributes[feature_name].get('data_type') == 'formatted_time':
                 # Loose bounds
                 if (
                     tight_bounds is None
@@ -495,7 +495,14 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return output or None
 
     def _infer_floating_point_attributes(self, feature_name: str) -> dict:
-        attributes: dict[str, t.Any] = {'type': 'continuous', 'data_type': 'number'}
+        preset_feature_type = self.attributes.get(feature_name, {}).get('type')
+        if preset_feature_type == 'nominal':
+            return {
+                'type': 'nominal',
+                'data_type': 'number',
+            }
+        else:
+            attributes: dict[str, t.Any] = {'type': 'continuous', 'data_type': 'number'}
 
         n_cases = self.data[feature_name].shape[0]
 
@@ -504,7 +511,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if self.data[feature_name].isna().sum() < n_cases:
 
             # determine if nominal by checking if number of uniques <= 2
-            if self.data[feature_name].nunique() <= 2 and n_cases > 10:
+            if (self.data[feature_name].nunique() <= 2 and n_cases > 10
+                    and preset_feature_type not in ('continuous', 'ordinal')):
                 return {
                     'type': 'nominal',
                     'data_type': 'number'
@@ -632,12 +640,13 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         }
 
     def _infer_integer_attributes(self, feature_name: str) -> dict:
+        preset_feature_type = self.attributes.get(feature_name, {}).get('type')
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
         num_uniques = self.data[feature_name].nunique()
         n_cases = int(self.data[feature_name].count())
-        if num_uniques < pow(n_cases, 0.5):
+        if num_uniques < pow(n_cases, 0.5) or preset_feature_type == 'nominal':
             guess_nominals = True
         else:
             # Find the largest and smallest non-null values in column.

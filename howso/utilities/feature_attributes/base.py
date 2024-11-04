@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Container, Iterable, Mapping
+from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence
 from copy import deepcopy
 from functools import singledispatchmethod
 import json
@@ -357,6 +357,7 @@ class FeatureAttributesBase(dict):
 
         Check that feature bounds and data types loosely describe the data. Optionally
         attempt to coerce the data into conformity.
+
         Parameters
         ----------
         data : Any
@@ -379,6 +380,66 @@ class FeatureAttributesBase(dict):
             None or the coerced DataFrame if 'coerce' is True and there were no errors.
         """
         raise NotImplementedError()
+
+    @staticmethod
+    def merge(attributes: dict[str, dict], entries: dict[str, dict]) -> FeatureAttributesBase[str, dict]:
+        """
+        Update the given attributes with one or more new entries such that types are preserved.
+
+        Do not overwrite preexisting feature types if they exist. Other attributes will be merged
+        regardless of their current values. Performs basic validation of incoming feature types.
+
+        Parameters
+        ----------
+        attributes: dict of str to dict
+            A feature attributes dictionary to accept new entries.
+        entries: dict of str to dict
+            The new feature attributes entries to validate and set, where keys are feature
+            names and values are feature attributes.
+
+        Returns
+        -------
+        FeatureAttributesBase
+            A dict-like FeatureAttributesBase instance that is the merged result of the inputs.
+
+        Raises
+        ------
+        ValueError
+            If any provided feature types are invalid.
+        """
+        # Avoid circular import
+        from howso.utilities import validate_features
+        # Make copies
+        attributes = deepcopy(attributes)
+        entries = deepcopy(entries)
+        # Do basic type validation
+        validate_features(entries)
+        # Compare to existing attributes
+        for feature_name in entries.keys():
+            orig_type = attributes.get(feature_name, {}).get('type')
+            new_type = entries[feature_name].get('type')
+            # TODO 22059: Allow ordinals here when we can attempt to infer values
+            if new_type == 'ordinal':
+                raise ValueError('Inferral of ordinal values is not yet supported. Please '
+                                 'preset ordinal features with their ordered values using '
+                                 '`ordinal_feature_values`.')
+            # Sanity check: booleans must be nominal
+            elif entries[feature_name].get('data_type') == 'boolean' and orig_type and orig_type != 'nominal':
+                warnings.warn(
+                    f"Feature {feature_name} was preset as {orig_type} "
+                    "but was detected to be a boolean. Booleans "
+                    "must be 'nominal', thus the type override will be ignored."
+                )
+            # In otherwise valid cases, ensure that existing types are not overwritten
+            elif orig_type and new_type:
+                del entries[feature_name]['type']
+            # Finally, update the dict with all remaining attributes
+            if feature_name not in attributes.keys():
+                attributes[feature_name] = entries[feature_name]
+            else:
+                attributes[feature_name].update(entries[feature_name])
+
+        return attributes
 
 
 class MultiTableFeatureAttributes(FeatureAttributesBase):
@@ -522,44 +583,47 @@ class InferFeatureAttributesBase(ABC):
     """
 
     def _process(self,  # noqa: C901
-                 features: t.Optional[dict[str, dict]] = None,
-                 infer_bounds: bool = True,
-                 tight_bounds: t.Optional[Iterable[str]] = None,
-                 mode_bound_features: t.Optional[Iterable[str]] = None,
-                 id_feature_name: t.Optional[str | Iterable[str]] = None,
                  attempt_infer_extended_nominals: bool = False,
-                 nominal_substitution_config: t.Optional[dict[str, dict]] = None,
-                 include_extended_nominal_probabilities: t.Optional[bool] = False,
                  datetime_feature_formats: t.Optional[dict] = None,
-                 ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
+                 features: t.Optional[dict[str, dict]] = None,
+                 id_feature_name: t.Optional[str | Iterable[str]] = None,
+                 include_extended_nominal_probabilities: t.Optional[bool] = False,
                  include_sample: bool = False,
+                 infer_bounds: bool = True,
                  max_workers: t.Optional[int] = None,
+                 mode_bound_features: t.Optional[Iterable[str]] = None,
+                 nominal_substitution_config: t.Optional[dict[str, dict]] = None,
+                 ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
+                 tight_bounds: t.Optional[Iterable[str]] = None,
+                 types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
                  ) -> dict:
         """
         Get inferred feature attributes for the parameters.
 
-        See `infer_feature_attributes` for full docstring.
+        See ``infer_feature_attributes`` for full docstring.
         """
-        if isinstance(tight_bounds, bool):
-            warnings.warn("Using booleans with 'tight_bounds' is deprecated. Please "
-                          "specify the features you would like tight bounds for as an "
-                          "iterable of strings.", DeprecationWarning)
-            if tight_bounds:
-                tight_bounds = self._get_feature_names()
-            else:
-                tight_bounds = None
-
-        if features and not isinstance(features, dict):
-            raise ValueError(
-                f"The parameter `features` needs to be a `dict` and not of "
-                f"type {type(features)}."
-            )
-
         if features:
-            feature_attributes: dict = serialize_models(features)
+            if not isinstance(features, dict):
+                raise ValueError(
+                    f"The parameter `features` needs to be a `dict` and not of "
+                    f"type {type(features)}."
+                )
+            elif types:
+                raise ValueError('The `features` parameter is deprecated. Please do not use it '
+                                 'in conjunction with the `types` parameter. Specify all types '
+                                 'using `types`, and perform other needed updates directly on '
+                                 'the resultant dict.')
+            else:
+                self.attributes = FeatureAttributesBase(serialize_models(features))
+                warnings.warn('The `features` parameter ("partial features") is deprecated. '
+                              'Please instead clobber the dict-like `FeatureAttributesBase` '
+                              'instance post-hoc with desired modifications. However, you can '
+                              'also guarantee certain feature types by calling '
+                              '`infer_feature_attributes` with the `types` parameter.',
+                              DeprecationWarning)
         else:
-            feature_attributes = dict()
+            self.attributes = FeatureAttributesBase({})
 
         if datetime_feature_formats is None:
             datetime_feature_formats = dict()
@@ -570,6 +634,24 @@ class InferFeatureAttributesBase(ABC):
         if dependent_features is None:
             dependent_features = dict()
 
+        # Preprocess user-defined feature types
+        preset_types = {}
+        # Check the `types` argument
+        if types:
+            # Can be either str -> str or str -> Iterable[str]
+            for k, v in types.items():
+                if isinstance(v, MutableSequence):
+                    for feat_name in v:
+                        preset_types[feat_name] = {'type': k}
+                else:
+                    preset_types[k] = {'type': v}
+
+        # Make updates with the `merge` function
+        merge = FeatureAttributesBase.merge
+
+        # Update the feature attributes dictionary with the user-defined base types
+        self.attributes = merge(self.attributes, preset_types)
+
         feature_names_list = self._get_feature_names()
         for feature_name in feature_names_list:
             # What type is this feature?
@@ -579,10 +661,10 @@ class InferFeatureAttributesBase(ABC):
 
             # EXPLICITLY DECLARED ORDINALS
             if feature_name in ordinal_feature_values:
-                feature_attributes[feature_name] = {
+                self.attributes = merge(self.attributes, {feature_name: {
                     'type': 'ordinal',
                     'bounds': {'allowed': ordinal_feature_values[feature_name]}
-                }
+                }})
 
             # EXPLICITLY DECLARED DATETIME & TIME FEATURES
             elif datetime_feature_formats.get(feature_name, None):
@@ -598,8 +680,8 @@ class InferFeatureAttributesBase(ABC):
                 if feature_type == FeatureType.DATETIME:
                     # When feature is a datetime instance, we won't need to
                     # parse the datetime from a string using a custom format.
-                    feature_attributes[feature_name] = (
-                        self._infer_datetime_attributes(feature_name))
+                    self.attributes = merge(self.attributes, {
+                        feature_name: self._infer_datetime_attributes(feature_name)})
                     warnings.warn(
                         'Providing a datetime feature format for the feature '
                         f'"{feature_name}" is not necessary because the data '
@@ -608,16 +690,16 @@ class InferFeatureAttributesBase(ABC):
                 elif feature_type == FeatureType.DATE:
                     # When feature is a date instance, we won't need to
                     # parse the datetime from a string using a custom format.
-                    feature_attributes[feature_name] = (
-                        self._infer_date_attributes(feature_name))
+                    self.attributes = merge(self.attributes, {
+                        feature_name: self._infer_date_attributes(feature_name)})
                     warnings.warn(
                         'Providing a datetime feature format for the feature '
                         f'"{feature_name}" is not necessary because the data '
                         'is already formatted as a date object. This custom '
                         'format will be ignored.')
                 elif feature_type == FeatureType.TIME:
-                    feature_attributes[feature_name] = (
-                        self._infer_time_attributes(feature_name, user_dt_format))
+                    self.attributes = merge(self.attributes, {
+                        feature_name: self._infer_time_attributes(feature_name, user_dt_format)})
                 elif isinstance(user_dt_format, str):
                     # User passed only the format string
                     # First see if it is likely a time-only feature
@@ -625,26 +707,26 @@ class InferFeatureAttributesBase(ABC):
                         for date_id in ['%m', '%d', '%y', "%z"])
                             and any(time_id in user_dt_format
                                     for time_id in ['%I', '%H', '%M', '%S', '%f', '%p'])):
-                        feature_attributes[feature_name] = (
-                            self._infer_time_attributes(feature_name, user_dt_format))
+                        self.attributes = merge(self.attributes, {
+                            feature_name: self._infer_time_attributes(feature_name, user_dt_format)})
                     else:
-                        feature_attributes[feature_name] = {
+                        self.attributes = merge(self.attributes, {feature_name: {
                             'type': 'continuous',
                             'data_type': 'formatted_date_time',
                             'date_time_format': user_dt_format,
-                        }
+                        }})
                 elif (
                     isinstance(user_dt_format, Collection) and
                     len(user_dt_format) == 2
                 ):
                     # User passed format string and a locale string
                     dt_format, dt_locale = user_dt_format
-                    feature_attributes[feature_name] = {
+                    self.attributes = merge(self.attributes, {feature_name: {
                         'type': 'continuous',
                         'data_type': 'formatted_date_time',
                         'date_time_format': dt_format,
                         'locale': dt_locale,
-                    }
+                    }})
                 else:
                     # Not really sure what they passed.
                     raise TypeError(
@@ -655,51 +737,51 @@ class InferFeatureAttributesBase(ABC):
 
             # FLOATING POINT FEATURES
             elif feature_type == FeatureType.NUMERIC:
-                feature_attributes[feature_name] = (
-                    self._infer_floating_point_attributes(feature_name))
+                self.attributes = merge(self.attributes, {
+                    feature_name: self._infer_floating_point_attributes(feature_name)})
 
             # IMPLICITLY DEFINED DATETIME FEATURES
             elif feature_type == FeatureType.DATETIME:
-                feature_attributes[feature_name] = (
-                    self._infer_datetime_attributes(feature_name))
+                self.attributes = merge(self.attributes, {
+                    feature_name: self._infer_datetime_attributes(feature_name)})
 
             # DATE ONLY FEATURES
             elif feature_type == FeatureType.DATE:
-                feature_attributes[feature_name] = (
-                    self._infer_date_attributes(feature_name))
+                self.attributes = merge(self.attributes, {
+                    feature_name: self._infer_date_attributes(feature_name)})
 
             # TIME ONLY FEATURES
             elif feature_type == FeatureType.TIME:
-                feature_attributes[feature_name] = (
-                    self._infer_time_attributes(feature_name))
+                self.attributes = merge(self.attributes, {
+                    feature_name: self._infer_time_attributes(feature_name)})
 
             # TIMEDELTA FEATURES
             elif feature_type == FeatureType.TIMEDELTA:
-                feature_attributes[feature_name] = (
-                    self._infer_timedelta_attributes(feature_name))
+                self.attributes = merge(self.attributes, {
+                    feature_name: self._infer_timedelta_attributes(feature_name)})
 
             # INTEGER FEATURES
             elif feature_type == FeatureType.INTEGER:
-                feature_attributes[feature_name] = (
-                    self._infer_integer_attributes(feature_name))
+                self.attributes = merge(self.attributes, {
+                    feature_name: self._infer_integer_attributes(feature_name)})
 
             # BOOLEAN FEATURES
             elif feature_type == FeatureType.BOOLEAN:
-                feature_attributes[feature_name] = (
-                    self._infer_boolean_attributes(feature_name))
+                self.attributes = merge(self.attributes, {
+                    feature_name: self._infer_boolean_attributes(feature_name)})
 
             # ALL OTHER FEATURES
             else:
-                feature_attributes[feature_name] = (
-                    self._infer_string_attributes(feature_name))
+                self.attributes = merge(self.attributes, {
+                    feature_name: self._infer_string_attributes(feature_name)})
 
             # Is column constrained to be unique?
             if self._has_unique_constraint(feature_name):
-                feature_attributes[feature_name]['unique'] = True
+                self.attributes[feature_name]['unique'] = True
 
             # Add original type to feature
             if feature_type is not None:
-                feature_attributes[feature_name]['original_type'] = {
+                self.attributes[feature_name]['original_type'] = {
                     'data_type': str(feature_type),
                     **typing_info
                 }
@@ -711,40 +793,40 @@ class InferFeatureAttributesBase(ABC):
                 partial_dependent_features = features[feature_name]['dependent_features']
             # Set dependent features: `dependent_features` + partial features dict, if provided
             if feature_name in dependent_features:
-                feature_attributes[feature_name]['dependent_features'] = list(
+                self.attributes[feature_name]['dependent_features'] = list(
                     set(partial_dependent_features + dependent_features[feature_name])
                 )
 
         if isinstance(id_feature_name, str):
-            self._add_id_attribute(feature_attributes, id_feature_name)
+            self._add_id_attribute(self.attributes, id_feature_name)
         elif isinstance(id_feature_name, Iterable):
             for id_feature in id_feature_name:
-                self._add_id_attribute(feature_attributes, id_feature)
+                self._add_id_attribute(self.attributes, id_feature)
         elif id_feature_name is not None:
             raise ValueError('ID feature must be of type `str` or `list[str], '
                              f'not {type(id_feature_name)}.')
 
         if infer_bounds:
-            for feature_name in feature_attributes:
+            for feature_name in self.attributes:
                 # Don't infer bounds for manually-specified nominal features
-                if features and features.get(feature_name, {}).get('type') == 'nominal':
+                if self.attributes[feature_name].get('type') == 'nominal':
                     continue
                 # Likewise, don't infer bounds for JSON/YAML features
                 elif any([
-                    feature_attributes[feature_name].get('data_type') in ['json', 'yaml'],
+                    self.attributes[feature_name].get('data_type') in ['json', 'yaml'],
                     features and features.get(feature_name, {}).get('data_type') in ['json', 'yaml']
                 ]):
                     continue
                 bounds = self._infer_feature_bounds(
-                    feature_attributes, feature_name,
+                    self.attributes, feature_name,
                     tight_bounds=tight_bounds,
                     mode_bound_features=mode_bound_features,
                 )
                 if bounds:
-                    feature_attributes[feature_name]['bounds'] = bounds  # noqa
+                    self.attributes[feature_name]['bounds'] = bounds  # noqa
 
         # Do any features contain data unsupported by the core?
-        self._check_unsupported_data(feature_attributes)
+        self._check_unsupported_data(self.attributes)
 
         # If requested, infer extended nominals.
         if attempt_infer_extended_nominals:
@@ -767,40 +849,40 @@ class InferFeatureAttributesBase(ABC):
                 for feature_name in feature_names_list:
                     if feature_name in aenp:
                         if len(aenp[feature_name]) > 0:
-                            feature_attributes[feature_name]['subtype'] = (max(
+                            self.attributes[feature_name]['subtype'] = (max(
                                 aenp[feature_name], key=aenp[feature_name].get))
 
                         if include_meta:
-                            feature_attributes[feature_name].update({
+                            self.attributes[feature_name].update({
                                 'extended_nominal_probabilities':
                                     all_probs[feature_name]
                             })
 
                     # If `subtype` is a nominal feature, assign it to 'int-id'
                     if (
-                        feature_attributes[feature_name]['type'] == 'nominal' and
-                        not feature_attributes[feature_name].get('subtype', None)
+                        self.attributes[feature_name]['type'] == 'nominal' and
+                        not self.attributes[feature_name].get('subtype', None)
                     ):
-                        feature_attributes[feature_name]['subtype'] = (
+                        self.attributes[feature_name]['subtype'] = (
                             nominal_default_subtype)
             except ImportError:
                 warnings.warn('Cannot infer extended nominals: not supported')
 
         # Insert a ``sample`` value (as string) for each feature, if possible.
         if include_sample:
-            for feature_name in feature_attributes.keys():
+            for feature_name in self.attributes.keys():
                 sample = self._get_random_value(feature_name, no_nulls=True)
                 if sample is not None:
                     sample = str(sample)
-                feature_attributes[feature_name]['sample'] = sample
+                self.attributes[feature_name]['sample'] = sample
 
         # Re-insert any partial features provided as an argument
         if features:
             for feature in features.keys():
                 for attribute, value in features[feature].items():
-                    feature_attributes[feature][attribute] = value
+                    self.attributes[feature][attribute] = value
 
-        return feature_attributes
+        return self.attributes
 
     @abstractmethod
     def __call__(self) -> FeatureAttributesBase:
