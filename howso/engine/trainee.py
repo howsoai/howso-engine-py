@@ -3164,13 +3164,12 @@ class Trainee(BaseTrainee):
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
 
-
         Returns
         -------
         dict[str, dict[str, float]]
             A map of detail names to maps of feature names to stat values.
         """
-        if isinstance(self.client, HowsoPandasClientMixin):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.react_aggregate(
                 trainee_id=self.id,
                 action_feature=action_feature,
@@ -3194,6 +3193,10 @@ class Trainee(BaseTrainee):
             )
         else:
             raise AssertionError("Client must have the 'react_aggregate' method.")
+
+    def get_prediction_stats(self, *args, **kwargs) -> DataFrame:
+        """Calls :meth:`react_aggregate` and returns the results as a `DataFrame`."""
+        return DataFrame(self.react_aggregate(*args, **kwargs)).T
 
     def get_params(
         self,
