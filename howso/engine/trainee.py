@@ -3749,7 +3749,8 @@ class Trainee(BaseTrainee):
                     }
                 )
                 # Response will have both directional/non-directional, need to only get what is necessary
-                feature_contribution_matrix[feature] = response.loc[[response_key]]
+                feature_contribution_matrix[feature] = DataFrame.from_dict(response[response_key], orient="index").T
+                print(feature_contribution_matrix[feature])
 
         matrix = concat(feature_contribution_matrix.values(), keys=feature_contribution_matrix.keys())
         matrix = matrix.droplevel(level=1)
