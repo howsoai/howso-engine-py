@@ -823,6 +823,10 @@ def test_json_yaml_features(value, is_json, is_yaml):
      dict(a='continuous', b='continuous'), True),
     (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7]}), dict(a='nominal'), dict(a='nominal'), True),
     (pd.DataFrame({'a': [True, False, False, True]}), dict(a='continuous'), dict(a='nominal'), True),
+    (pd.DataFrame({'nominal': [True, False, False, True]}), dict(nominal='nominal'), dict(nominal='nominal'), True),
+    (pd.DataFrame({'nominal': [True, False, False, True]}), dict(nominal=['nominal']), dict(nominal='nominal'), True),
+    (pd.DataFrame({'ordinal': [True, False, False, True]}), dict(ordinal='nominal'), dict(ordinal='nominal'), True),
+    (pd.DataFrame({'continuous': [True, False, False]}), dict(continuous='nominal'), dict(continuous='nominal'), True),
     (pd.DataFrame({'a': [True, False, False, True]}), dict(a='boolean'), {}, False),
     (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(a='ordinal'), {}, False),
 ])
