@@ -2938,7 +2938,7 @@ class Trainee(BaseTrainee):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> DataFrame:
+    ) -> dict[str, dict[str, float]]:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -3167,9 +3167,8 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        DataFrame
-            If specified, a DataFrame of feature name columns to stat value rows. Indexed
-            by the stat or detail type. The return type depends on the underlying client.
+        dict[str, dict[str, float]]
+            A map of detail names to maps of feature names to stat values.
         """
         if isinstance(self.client, HowsoPandasClientMixin):
             return self.client.react_aggregate(

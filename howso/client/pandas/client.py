@@ -139,17 +139,17 @@ class HowsoPandasClientMixin:
             rows.append(response['familiarity_conviction_removal'])
         return deserialize_to_dataframe(rows, index=index)
 
-    def react_aggregate(self, *args, **kwargs) -> DataFrame:
+    def react_aggregate(self, *args, **kwargs) -> dict[str, dict[str, float]]:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_aggregate`.
 
         Returns
         -------
-        DataFrame
-            A DataFrame of feature name columns to statistic value rows.
+        dict[str, dict[str, float]]
+            A map of detail names to maps of feature names to stat values.
         """
         response = super().react_aggregate(*args, **kwargs)
-        return pd.DataFrame(response)
+        return response
 
     def get_marginal_stats(self, *args, **kwargs) -> DataFrame:
         """
