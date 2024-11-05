@@ -3846,12 +3846,13 @@ class Trainee(BaseTrainee):
                     mda_matrix[feature] = self.react_aggregate(
                         action_feature=feature,
                         details={"feature_mda_robust": True}
-                    )
+                    )["feature_mda_robust"]
                 else:
                     mda_matrix[feature] = self.react_aggregate(
                         action_feature=feature,
                         details={"feature_mda_full": True}
-                    )
+                    )["feature_mda_full"]
+                mda_matrix[feature] = DataFrame.from_dict(mda_matrix[feature], orient="index").T
 
         matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
         matrix = matrix.droplevel(level=1)
