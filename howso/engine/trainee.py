@@ -3196,7 +3196,10 @@ class Trainee(BaseTrainee):
 
     def get_prediction_stats(self, *args, **kwargs) -> DataFrame:
         """Calls :meth:`react_aggregate` and returns the results as a `DataFrame`."""
-        return DataFrame(self.react_aggregate(*args, **kwargs)).T
+        if isinstance(self.client, HowsoPandasClientMixin):
+            return super().get_prediction_stats(self.id, *args, **kwargs)
+        else:
+            raise AssertionError("Client must have the `get_prediction_stats` method.")
 
     def get_params(
         self,
