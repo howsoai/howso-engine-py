@@ -2938,7 +2938,7 @@ class Trainee(BaseTrainee):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> DataFrame:
+    ) -> dict[str, dict[str, float]]:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -3164,14 +3164,12 @@ class Trainee(BaseTrainee):
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
 
-
         Returns
         -------
-        DataFrame
-            If specified, a DataFrame of feature name columns to stat value rows. Indexed
-            by the stat or detail type. The return type depends on the underlying client.
+        dict[str, dict[str, float]]
+            A map of detail names to maps of feature names to stat values.
         """
-        if isinstance(self.client, HowsoPandasClientMixin):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.react_aggregate(
                 trainee_id=self.id,
                 action_feature=action_feature,
@@ -3195,6 +3193,16 @@ class Trainee(BaseTrainee):
             )
         else:
             raise AssertionError("Client must have the 'react_aggregate' method.")
+
+    def get_prediction_stats(self, *args, **kwargs) -> DataFrame:
+        """Calls :meth:`react_aggregate` and returns the results as a `DataFrame`."""
+        if (
+            hasattr(self.client, "get_prediction_stats") and
+            isinstance(self.client.get_prediction_stats, t.Callable)
+        ):
+            return self.client.get_prediction_stats(self.id, *args, **kwargs)
+        else:
+            raise AssertionError("Client must have the `get_prediction_stats` method.")
 
     def get_params(
         self,
@@ -3750,7 +3758,8 @@ class Trainee(BaseTrainee):
                     }
                 )
                 # Response will have both directional/non-directional, need to only get what is necessary
-                feature_contribution_matrix[feature] = response.loc[[response_key]]
+                feature_contribution_matrix[feature] = DataFrame.from_dict(response[response_key], orient="index").T
+                print(feature_contribution_matrix[feature])
 
         matrix = concat(feature_contribution_matrix.values(), keys=feature_contribution_matrix.keys())
         matrix = matrix.droplevel(level=1)
@@ -3846,12 +3855,13 @@ class Trainee(BaseTrainee):
                     mda_matrix[feature] = self.react_aggregate(
                         action_feature=feature,
                         details={"feature_mda_robust": True}
-                    )
+                    )["feature_mda_robust"]
                 else:
                     mda_matrix[feature] = self.react_aggregate(
                         action_feature=feature,
                         details={"feature_mda_full": True}
-                    )
+                    )["feature_mda_full"]
+                mda_matrix[feature] = DataFrame.from_dict(mda_matrix[feature], orient="index").T
 
         matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
         matrix = matrix.droplevel(level=1)

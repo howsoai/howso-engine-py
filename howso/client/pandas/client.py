@@ -139,17 +139,9 @@ class HowsoPandasClientMixin:
             rows.append(response['familiarity_conviction_removal'])
         return deserialize_to_dataframe(rows, index=index)
 
-    def react_aggregate(self, *args, **kwargs) -> DataFrame:
-        """
-        Base: :func:`howso.client.AbstractHowsoClient.react_aggregate`.
-
-        Returns
-        -------
-        DataFrame
-            A DataFrame of feature name columns to statistic value rows.
-        """
-        response = super().react_aggregate(*args, **kwargs)
-        return pd.DataFrame(response)
+    def get_prediction_stats(self, trainee_id: str, *args, **kwargs) -> DataFrame:
+        """Calls :meth:`react_aggregate` and returns the results as a `DataFrame`."""
+        return DataFrame(super().react_aggregate(trainee_id, *args, **kwargs)).T
 
     def get_marginal_stats(self, *args, **kwargs) -> DataFrame:
         """
