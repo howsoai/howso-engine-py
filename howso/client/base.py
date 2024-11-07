@@ -1289,7 +1289,7 @@ class AbstractHowsoClient(ABC):
             return []
         return result
 
-    def delete_session(self, trainee_id: str, session: str | Session):
+    def delete_session(self, trainee_id: str, target_session: str | Session):
         """
         Delete a session from a Trainee.
 
@@ -1297,15 +1297,15 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to delete the session from.
-        session : str
+        target_session : str
             The session or session identifier to delete.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
-        if isinstance(session, Session):
-            session = session.id
+        if isinstance(target_session, Session):
+            target_session = target_session.id
         if self.configuration.verbose:
-            print(f'Deleting session {session} from Trainee with id: {trainee_id}')
-        self.execute(trainee_id, "delete_session", {"session": session})
+            print(f'Deleting session {target_session} from Trainee with id: {trainee_id}')
+        self.execute(trainee_id, "delete_session", {"target_session": target_session})
         self._auto_persist_trainee(trainee_id)
 
     def get_session_indices(self, trainee_id: str, session: str | Session) -> list[int]:

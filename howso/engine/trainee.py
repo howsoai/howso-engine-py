@@ -2143,21 +2143,21 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_sessions' method.")
 
-    def delete_session(self, session: str | BaseSession):
+    def delete_session(self, target_session: str | BaseSession):
         """
         Delete a session from the trainee.
 
         Parameters
         ----------
-        session : str or Session
+        target_session : str or Session
             The id or instance of the session to remove from the model.
         """
-        if isinstance(session, BaseSession):
-            session_id = session.id
+        if isinstance(target_session, BaseSession):
+            session_id = target_session.id
         else:
-            session_id = session
+            session_id = target_session
         if isinstance(self.client, AbstractHowsoClient):
-            self.client.delete_session(trainee_id=self.id, session=session_id)
+            self.client.delete_session(trainee_id=self.id, target_session=session_id)
         else:
             raise AssertionError("Client must have the 'delete_session' method.")
 
