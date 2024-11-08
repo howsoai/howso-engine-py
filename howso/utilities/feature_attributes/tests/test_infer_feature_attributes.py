@@ -836,9 +836,12 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if is_valid:
-            features = infer_feature_attributes(data, types=types)
+            features = infer_feature_attributes(data, types=types, )
             for feature_name, expected_type in expected_types.items():
+                # Make sure it is the correct type
                 assert features[feature_name]['type'] == expected_type
+                # All features in this test, including nominals, should have bounds (at the very least: `allow_null`)
+                assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
         else:
             with pytest.raises(ValueError):
                 infer_feature_attributes(data, types=types)
