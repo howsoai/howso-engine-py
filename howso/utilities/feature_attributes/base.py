@@ -624,6 +624,7 @@ class InferFeatureAttributesBase(ABC):
                               DeprecationWarning)
         else:
             self.attributes = FeatureAttributesBase({})
+            features = dict()
 
         if datetime_feature_formats is None:
             datetime_feature_formats = dict()
@@ -671,7 +672,7 @@ class InferFeatureAttributesBase(ABC):
                 # datetime_feature_formats is expected to either be only a
                 # single string (format) or a tuple of strings (format, locale)
                 user_dt_format = datetime_feature_formats[feature_name]
-                if features and 'date_time_format' in features.get(feature_name, {}):
+                if 'date_time_format' in features.get(feature_name, {}):
                     warnings.warn(f'Warning: date_time_format for {feature_name} '
                                   'provided in both `features` (ignored) and '
                                   '`datetime_feature_formats`.')
@@ -789,7 +790,7 @@ class InferFeatureAttributesBase(ABC):
             # DECLARED DEPENDENTS
             # First determine if there are any dependent features in the partial features dict
             partial_dependent_features = []
-            if features and 'dependent_features' in features.get(feature_name, {}):
+            if 'dependent_features' in features.get(feature_name, {}):
                 partial_dependent_features = features[feature_name]['dependent_features']
             # Set dependent features: `dependent_features` + partial features dict, if provided
             if feature_name in dependent_features:
@@ -807,20 +808,20 @@ class InferFeatureAttributesBase(ABC):
                              f'not {type(id_feature_name)}.')
 
         if infer_bounds:
-            for feature_name in self.attributes:
+            for feature_name, _attributes in self.attributes.items():
                 # Don't infer bounds for JSON/YAML features
-                if any([
-                    self.attributes[feature_name].get('data_type') in ['json', 'yaml'],
-                    features and features.get(feature_name, {}).get('data_type') in ['json', 'yaml']
-                ]):
+                if (
+                    _attributes.get('data_type') in ['json', 'yaml'] or
+                    features.get(feature_name, {}).get('data_type') in ['json', 'yaml']
+                ):
                     continue
                 bounds = self._infer_feature_bounds(
-                    self.attributes, feature_name,
+                    _attributes, feature_name,
                     tight_bounds=tight_bounds,
                     mode_bound_features=mode_bound_features,
                 )
                 if bounds:
-                    self.attributes[feature_name]['bounds'] = bounds  # noqa
+                    _attributes['bounds'] = bounds  # noqa
 
         # Do any features contain data unsupported by the core?
         self._check_unsupported_data(self.attributes)
