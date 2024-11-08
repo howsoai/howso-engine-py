@@ -808,11 +808,8 @@ class InferFeatureAttributesBase(ABC):
 
         if infer_bounds:
             for feature_name in self.attributes:
-                # Don't infer bounds for manually-specified nominal features
-                if self.attributes[feature_name].get('type') == 'nominal':
-                    continue
-                # Likewise, don't infer bounds for JSON/YAML features
-                elif any([
+                # Don't infer bounds for JSON/YAML features
+                if any([
                     self.attributes[feature_name].get('data_type') in ['json', 'yaml'],
                     features and features.get(feature_name, {}).get('data_type') in ['json', 'yaml']
                 ]):
