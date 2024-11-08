@@ -816,7 +816,7 @@ class InferFeatureAttributesBase(ABC):
                 ):
                     continue
                 bounds = self._infer_feature_bounds(
-                    _attributes, feature_name,
+                    self.attributes, feature_name,
                     tight_bounds=tight_bounds,
                     mode_bound_features=mode_bound_features,
                 )
