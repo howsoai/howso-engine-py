@@ -717,6 +717,9 @@ jobs:
 
     - name: Publish distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        # Experimental feature not yet compatible with our workflow
+        attestations: False
 
   init-devcontainers-release:
     if: inputs.build-type == 'release'
