@@ -747,14 +747,15 @@ class Trainee(BaseTrainee):
         *,
         ablated_cases_distribution_batch_size: int = 100,
         abs_threshold_map: AblationThresholdMap = None,
+        auto_ablation_influence_weight_entropy_threshold: float = 0.15,
         auto_ablation_weight_feature: str = ".case_weight",
         batch_size: int = 2_000,
         conviction_lower_threshold: t.Optional[float] = None,
         conviction_upper_threshold: t.Optional[float] = None,
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
-        influence_weight_entropy_threshold: float = 0.6,
         minimum_num_cases: int = 1_000,
+        reduce_data_influence_weight_entropy_threshold: float = 0.6,
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
@@ -769,7 +770,7 @@ class Trainee(BaseTrainee):
             have their API changed without deprecation.
 
         .. seealso::
-            The params ``influence_weight_entropy_threshold`` and ``auto_ablation_weight_feature`` that are
+            The params ``reduce_data_influence_weight_entropy_threshold`` and ``auto_ablation_weight_feature`` that are
             set using this endpoint are used as defaults by :meth:`reduce_data`.
 
         Parameters
@@ -778,6 +779,8 @@ class Trainee(BaseTrainee):
             When True, the :meth:`train` method will ablate cases that meet the set criteria.
         ablated_cases_distribution_batch_size: int, default 100
             Number of cases in a batch to distribute ablated cases' influence weights.
+        auto_ablation_influence_weight_entropy_threshold : float, default 0.15
+            The influence weight entropy quantile that a case must be beneath in order to be trained.
         auto_ablation_weight_feature : str, default ".case_weight"
             The weight feature that should be accumulated to when cases are ablated.
         batch_size: number, default 2,000
@@ -785,8 +788,6 @@ class Trainee(BaseTrainee):
             to recompute influence weight entropy.
         minimum_num_cases : int, default 1,000
             The threshold ofr the minimum number of cases at which the model should auto-ablate.
-        influence_weight_entropy_threshold : float, default 0.6
-            The influence weight entropy quantile that a case must be beneath in order to be trained.
         exact_prediction_features : Collection of str, optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
         residual_prediction_features : Collection of str, optional
@@ -795,6 +796,8 @@ class Trainee(BaseTrainee):
         tolerance_prediction_threshold_map : map of str to tuple of float, optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
+        reduce_data_influence_weight_entropy_threshold: float, default 0.6
+            The influence weight entropy quantile that a case must be above in order to not be removed.
         relative_prediction_threshold_map : map of str -> (float, float), optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= relative threshold
@@ -824,16 +827,18 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             self.client.set_auto_ablation_params(
                 trainee_id=self.id,
-                ablated_cases_distribution_batch_size=ablated_cases_distribution_batch_size,abs_threshold_map=abs_threshold_map,
+                ablated_cases_distribution_batch_size=ablated_cases_distribution_batch_size,
+                abs_threshold_map=abs_threshold_map,
                 auto_ablation_enabled=auto_ablation_enabled,
+                auto_ablation_influence_weight_entropy_threshold=auto_ablation_influence_weight_entropy_threshold,
                 auto_ablation_weight_feature=auto_ablation_weight_feature,
                 batch_size=batch_size,
                 conviction_lower_threshold=conviction_lower_threshold,
                 conviction_upper_threshold=conviction_upper_threshold,
                 delta_threshold_map=delta_threshold_map,
                 exact_prediction_features=exact_prediction_features,
-                influence_weight_entropy_threshold=influence_weight_entropy_threshold,
                 minimum_num_cases=minimum_num_cases,
+                reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
                 rel_threshold_map=rel_threshold_map,
                 relative_prediction_threshold_map=relative_prediction_threshold_map,
                 residual_prediction_features=residual_prediction_features,
@@ -879,7 +884,7 @@ class Trainee(BaseTrainee):
             which defaults to ".case_weight".
         influence_weight_entropy_threshold : float, optional
             The quantile of influence weight entropy above which cases will be removed. This defaults
-            to the value of ``influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
+            to the value of ``reduce_data_influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
             which defaults to 0.6.
         skip_auto_analyze : bool, default False
             Whether to skip auto-analyzing as cases are removed.
