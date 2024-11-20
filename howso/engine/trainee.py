@@ -1263,7 +1263,8 @@ class Trainee(BaseTrainee):
                 the boundary cases.
             - boundary_value_context_features : list of str, optional
                 If specified, boundary values will be computed for each
-                specified feature. These values indicate values that if used as
+                specified feature and returned under "boundary_values".
+                These values indicate values that if used as
                 contexts would alter the action values significantly. If
                 'boundary_value_action_outcome' is also specified, then the
                 boundary values will attempt to capture values nearest to the
