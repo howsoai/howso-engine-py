@@ -1568,12 +1568,12 @@ class AbstractHowsoClient(ABC):
             - boundary_value_context_features : list of str, optional
                 If specified, boundary values will be computed for each
                 specified feature and returned under "boundary_values".
-                These values indicate values that if used as
-                contexts would alter the action values significantly. If
-                'boundary_value_action_outcome' is also specified, then the
-                boundary values will attempt to capture values nearest to the
-                given contexts that alter the action values to satisfy the
-                conditions defined.
+                These values indicate values nearest to the given contexts
+                that when used as contexts will alter the action values
+                significantly. If 'boundary_value_action_outcome' is also
+                specified, then the boundary values will indicate the values
+                nearest to the given contexts that alter the action values to
+                satisfy the conditions defined.
             - boundary_value_action_outcome : dict, optional
                 A mapping of action feature names to conditions that will be
                 used to determine the boundary where boundary values will be
