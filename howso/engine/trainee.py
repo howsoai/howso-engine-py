@@ -837,7 +837,7 @@ class Trainee(BaseTrainee):
                 conviction_upper_threshold=conviction_upper_threshold,
                 delta_threshold_map=delta_threshold_map,
                 exact_prediction_features=exact_prediction_features,
-                minimum_num_cases=minimum_num_cases,
+                min_num_cases=min_num_cases,
                 reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
                 rel_threshold_map=rel_threshold_map,
                 relative_prediction_threshold_map=relative_prediction_threshold_map,
