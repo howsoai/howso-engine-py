@@ -349,7 +349,7 @@ class TestEngine:
         """Test `reduce_data`."""
         pre_reduction_cases = trainee.get_cases()
 
-        trainee.set_auto_ablation_params(minimum_num_cases=50)
+        trainee.set_auto_ablation_params(min_num_cases=50)
         trainee.reduce_data(influence_weight_entropy_threshold=0.5)
 
         post_reduction_cases = trainee.get_cases(features=[".case_weight"])
