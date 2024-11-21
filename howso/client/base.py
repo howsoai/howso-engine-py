@@ -553,12 +553,13 @@ class AbstractHowsoClient(ABC):
             in cases is applied in order to each of the cases in the series.
         skip_auto_analyze : bool, default False
             When true, the Trainee will not auto-analyze when appropriate.
-            Instead, the return dict will have a `status` key set to
-            "analyze" if an analyze is needed.
+            Instead, the return dict will have a "needs_analyze" flag if an
+            `analyze` is needed.
         skip_reduce_data : bool, default False
             When true, the Trainee will not call `reduce_data` when
-            appropriate. Instead, the return dict will have a `status` key set
-            to "reduce_data" if a call to `reduce_data` is recommended.
+            appropriate. Instead, the return dict will have a
+            "needs_data_reduction" flag if a call to `reduce_data` is
+            recommended.
         train_weights_only : bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -571,8 +572,9 @@ class AbstractHowsoClient(ABC):
         Returns
         -------
         dict
-            A dict containing `status` and `details` if there are important
-            messages to share from the Engine. Otherwise, an empty dict.
+            A dict containing variable keys if there are important messages to
+            share from the Engine, such as 'needs_analyze` and
+            'needs_data_reduction'. Otherwise, an empty dict.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
@@ -656,11 +658,9 @@ class AbstractHowsoClient(ABC):
                 })
 
                 if response and response.get('status') == 'analyze':
-                    status['status'] = 'analyze'
-                    status['details'] = 'An analyze is strongly recommended for this trainee.'
-                elif response and response.get('status') == 'reduce_data':
-                    status['status'] = 'reduce_data'
-                    status['details'] = 'Data reduction via `reduce_data` is recommended for this trainee.'
+                    status['needs_analyze'] = True
+                if response and response.get('status') == 'reduce_data':
+                    status['needs_data_reduction'] = True
 
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)

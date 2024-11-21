@@ -150,6 +150,7 @@ class Trainee(BaseTrainee):
         self._custom_save_path = None
         self._calculated_matrices = {}
         self._needs_analyze: bool = False
+        self._needs_data_reduction: bool = False
 
         # Allow passing project id or the project instance
         if isinstance(project, BaseProject):
@@ -310,6 +311,18 @@ class Trainee(BaseTrainee):
             A flag indicating if the Trainee needs to analyze.
         """
         return self._needs_analyze
+
+    @property
+    def needs_data_reduction(self) -> bool:
+        """
+        The flag indicating if the Trainee needs its data reduced.
+
+        Returns
+        -------
+        bool
+            A flag indicating if a call to `reduce_data` is recommended.
+        """
+        return self._needs_data_reduction
 
     @property
     def calculated_matrices(self) -> dict[str, DataFrame] | None:
@@ -683,12 +696,9 @@ class Trainee(BaseTrainee):
             applied in order to each of the cases in the series.
         skip_auto_analyze : bool, default False
             When true, the Trainee will not auto-analyze when appropriate.
-            Instead, the return dict will have a `status` key set to
-            "analyze" if an analyze is needed.
         skip_reduce_data : bool, default False
             When true, the Trainee will not call `reduce_data` when
-            appropriate. Instead, the return dict will have a `status` key set
-            to "reduce_data" if a call to `reduce_data` is recommended.
+            appropriate.
         train_weights_only:  bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -715,7 +725,8 @@ class Trainee(BaseTrainee):
                 train_weights_only=train_weights_only,
                 validate=validate,
             )
-            self._needs_analyze = True if status.get('status') == 'analyze' else False
+            self._needs_analyze = status.get('needs_analyze', False)
+            self._needs_data_reduction = status.get('needs_data_reduction', False)
         else:
             raise AssertionError("Client must have the 'train' method.")
 
