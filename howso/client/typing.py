@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Literal, NotRequired, Union
+from typing import Any, Literal, Union
 
 from pandas import DataFrame
-from typing_extensions import Sequence, TypeAlias, TypedDict
+from typing_extensions import NotRequired, Sequence, TypeAlias, TypedDict
 
 
 class Cases(TypedDict):
