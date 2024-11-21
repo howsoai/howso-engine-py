@@ -607,6 +607,32 @@ class HowsoEstimator(BaseEstimator):
             - boundary_cases_familiarity_convictions : bool, optional
                 If True, outputs familiarity conviction of addition for each of
                 the boundary cases.
+            - boundary_value_context_features : list of str, optional
+                If specified, boundary values will be computed for each
+                specified feature and returned under "boundary_values".
+                These values indicate values nearest to the given contexts
+                that when used as contexts will alter the action values
+                significantly. If 'boundary_value_action_outcome' is also
+                specified, then the boundary values will indicate the values
+                nearest to the given contexts that alter the action values to
+                satisfy the conditions defined.
+            - boundary_value_action_outcome : dict, optional
+                A mapping of action feature names to conditions that will be
+                used to determine the boundary where boundary values will be
+                searched for. Only used when 'boundary_value_context_features'
+                is also used.
+
+                .. NOTE::
+                    The dictionary keys are the feature name and values are one of:
+
+                        - None
+                        - A value, must match exactly.
+                        - An array of two numeric values, specifying an inclusive
+                          range. Only applicable to continuous and numeric ordinal
+                          features.
+                        - An array of string values, must match any of these values
+                          exactly. Only applicable to nominal and string ordinal
+                          features.
             - case_contributions_full : bool, optional
                 If true outputs each influential case's differences between the
                 predicted action feature value and the predicted action feature
