@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Literal, Union
+from typing import Any, Literal, NotRequired, Union
 
 from pandas import DataFrame
 from typing_extensions import Sequence, TypeAlias, TypedDict
@@ -37,13 +37,13 @@ class Evaluation(TypedDict):
     """A mapping of feature names to lists of values."""
 
 
-class Status(TypedDict):
-    """Representation of a status output from the Howso Engine."""
+class TrainStatus(TypedDict):
+    """Representation of a status output from AbstractHowsoClient.train."""
 
-    needs_analyze: bool
+    needs_analyze: NotRequired[bool]
     """Indicates whether the Trainee needs an analyze."""
 
-    needs_data_reduction: bool
+    needs_data_reduction: NotRequired[bool]
     """Indicates whether the Trainee recommends a call to `reduce_data`."""
 
 

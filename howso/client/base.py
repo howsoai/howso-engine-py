@@ -55,7 +55,7 @@ from .typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
-    Status,
+    TrainStatus,
     TabularData2D,
     TabularData3D,
     TargetedModel,
@@ -495,7 +495,7 @@ class AbstractHowsoClient(ABC):
         skip_reduce_data: bool = False,
         train_weights_only: bool = False,
         validate: bool = True,
-    ) -> Status:
+    ) -> TrainStatus:
         """
         Train one or more cases into a Trainee.
 
