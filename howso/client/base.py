@@ -553,12 +553,12 @@ class AbstractHowsoClient(ABC):
             in cases is applied in order to each of the cases in the series.
         skip_auto_analyze : bool, default False
             When true, the Trainee will not auto-analyze when appropriate.
-            Instead, the return dict will have an `output_status` key set to
+            Instead, the return dict will have a `status` key set to
             "analyze" if an analyze is needed.
         skip_reduce_data : bool, default False
-            When true, the Trainee will not call `reduce_data` when appropriate.
-            Instead, the return dict will have an `output_status` key set to
-            "reduce_data" if a call to `reduce_data` is recommended.
+            When true, the Trainee will not call `reduce_data` when
+            appropriate. Instead, the return dict will have a `status` key set
+            to "reduce_data" if a call to `reduce_data` is recommended.
         train_weights_only : bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
