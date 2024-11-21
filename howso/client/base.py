@@ -55,6 +55,7 @@ from .typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
+    TrainStatus,
     TabularData2D,
     TabularData3D,
     TargetedModel,
@@ -491,9 +492,10 @@ class AbstractHowsoClient(ABC):
         progress_callback: t.Optional[Callable] = None,
         series: t.Optional[str] = None,
         skip_auto_analyze: bool = False,
+        skip_reduce_data: bool = False,
         train_weights_only: bool = False,
         validate: bool = True,
-    ):
+    ) -> TrainStatus:
         """
         Train one or more cases into a Trainee.
 
@@ -552,7 +554,13 @@ class AbstractHowsoClient(ABC):
             in cases is applied in order to each of the cases in the series.
         skip_auto_analyze : bool, default False
             When true, the Trainee will not auto-analyze when appropriate.
-            Instead, the boolean response will be True if an analyze is needed.
+            Instead, the return dict will have a "needs_analyze" flag if an
+            `analyze` is needed.
+        skip_reduce_data : bool, default False
+            When true, the Trainee will not call `reduce_data` when
+            appropriate. Instead, the return dict will have a
+            "needs_data_reduction" flag if a call to `reduce_data` is
+            recommended.
         train_weights_only : bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -564,9 +572,10 @@ class AbstractHowsoClient(ABC):
 
         Returns
         -------
-        bool
-            Flag indicating if the Trainee needs to analyze. Only true if
-            auto-analyze is enabled and the conditions are met.
+        dict
+            A dict containing variable keys if there are important messages to
+            share from the Engine, such as 'needs_analyze` and
+            'needs_data_reduction'. Otherwise, an empty dict.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
@@ -613,7 +622,7 @@ class AbstractHowsoClient(ABC):
             features = internals.get_features_from_data(cases)
         serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True) or []
 
-        needs_analyze = False
+        status = {}
 
         if self.configuration.verbose:
             print(f'Training session(s) on Trainee with id: {trainee_id}')
@@ -645,10 +654,15 @@ class AbstractHowsoClient(ABC):
                     "series": series,
                     "session": self.active_session.id,
                     "skip_auto_analyze": skip_auto_analyze,
+                    "skip_reduce_data": skip_reduce_data,
                     "train_weights_only": train_weights_only,
                 })
+
                 if response and response.get('status') == 'analyze':
-                    needs_analyze = True
+                    status['needs_analyze'] = True
+                if response and response.get('status') == 'reduce_data':
+                    status['needs_data_reduction'] = True
+
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
@@ -663,7 +677,7 @@ class AbstractHowsoClient(ABC):
         self._store_session(trainee_id, self.active_session)
         self._auto_persist_trainee(trainee_id)
 
-        return needs_analyze
+        return status
 
     def impute(
         self,
@@ -4064,6 +4078,7 @@ class AbstractHowsoClient(ABC):
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         min_num_cases: int = 1_000,
+        max_num_cases: int = 500_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
@@ -4099,6 +4114,8 @@ class AbstractHowsoClient(ABC):
             to recompute influence weight entropy.
         min_num_cases : int, default 1,000
             The threshold of the minimum number of cases at which the model should auto-ablate.
+        max_num_cases: int, default 500,000
+            The threshold of the maximum number of cases at which the model should auto-reduce
         exact_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
         residual_prediction_features : Optional[List[str]], optional
@@ -4148,6 +4165,7 @@ class AbstractHowsoClient(ABC):
             delta_threshold_map=delta_threshold_map,
             exact_prediction_features=exact_prediction_features,
             min_num_cases=min_num_cases,
+            max_num_cases=max_num_cases,
             reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
             rel_threshold_map=rel_threshold_map,
             relative_prediction_threshold_map=relative_prediction_threshold_map,

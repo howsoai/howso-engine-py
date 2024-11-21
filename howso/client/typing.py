@@ -4,7 +4,7 @@ import os
 from typing import Any, Literal, Union
 
 from pandas import DataFrame
-from typing_extensions import Sequence, TypeAlias, TypedDict
+from typing_extensions import NotRequired, Sequence, TypeAlias, TypedDict
 
 
 class Cases(TypedDict):
@@ -35,6 +35,16 @@ class Evaluation(TypedDict):
 
     evaluated: dict[str, list[Any]]
     """A mapping of feature names to lists of values."""
+
+
+class TrainStatus(TypedDict):
+    """Representation of a status output from AbstractHowsoClient.train."""
+
+    needs_analyze: NotRequired[bool]
+    """Indicates whether the Trainee needs an analyze."""
+
+    needs_data_reduction: NotRequired[bool]
+    """Indicates whether the Trainee recommends a call to `reduce_data`."""
 
 
 CaseIndices: TypeAlias = Sequence[tuple[str, int]]
