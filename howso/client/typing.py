@@ -37,6 +37,16 @@ class Evaluation(TypedDict):
     """A mapping of feature names to lists of values."""
 
 
+class Status(TypedDict):
+    """Representation of a status output from the Howso Engine."""
+
+    needs_analyze: bool
+    """Indicates whether the Trainee needs an analyze."""
+
+    needs_data_reduction: bool
+    """Indicates whether the Trainee recommends a call to `reduce_data`."""
+
+
 CaseIndices: TypeAlias = Sequence[tuple[str, int]]
 """Sequence of ``case_indices`` tuples."""
 
