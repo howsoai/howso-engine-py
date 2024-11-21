@@ -628,6 +628,7 @@ class Trainee(BaseTrainee):
         progress_callback: t.Optional[Callable] = None,
         series: t.Optional[str] = None,
         skip_auto_analyze: bool = False,
+        skip_reduce_data: bool = False,
         train_weights_only: bool = False,
         validate: bool = True,
     ):
@@ -684,6 +685,10 @@ class Trainee(BaseTrainee):
             When true, the Trainee will not auto-analyze when appropriate.
             Instead, the 'needs_analyze' property of the Trainee will be
             updated.
+        skip_reduce_data : bool, default False
+            When true, the Trainee will not call `reduce_data` when appropriate.
+            Instead, the return dict will have an `output_status` key set to
+            "reduce_data" if a call to `reduce_data` is recommended.
         train_weights_only:  bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -694,8 +699,7 @@ class Trainee(BaseTrainee):
             the data and the features dictionary.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            self._needs_analyze = False
-            needs_analyze = self.client.train(
+            status = self.client.train(
                 trainee_id=self.id,
                 accumulate_weight_feature=accumulate_weight_feature,
                 batch_size=batch_size,
@@ -707,10 +711,11 @@ class Trainee(BaseTrainee):
                 progress_callback=progress_callback,
                 series=series,
                 skip_auto_analyze=skip_auto_analyze,
+                skip_reduce_data=skip_reduce_data,
                 train_weights_only=train_weights_only,
                 validate=validate,
             )
-            self._needs_analyze = needs_analyze
+            self._needs_analyze = True if status.get('status') == 'analyze' else False
         else:
             raise AssertionError("Client must have the 'train' method.")
 
@@ -755,6 +760,7 @@ class Trainee(BaseTrainee):
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         min_num_cases: int = 1_000,
+        max_num_cases: int = 500_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
@@ -788,6 +794,8 @@ class Trainee(BaseTrainee):
             to recompute influence weight entropy.
         min_num_cases : int, default 1,000
             The threshold ofr the minimum number of cases at which the model should auto-ablate.
+        max_num_cases: int, default 500,000
+            The threshold of the maximum number of cases at which the model should auto-reduce
         exact_prediction_features : Collection of str, optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
         residual_prediction_features : Collection of str, optional
@@ -838,6 +846,7 @@ class Trainee(BaseTrainee):
                 delta_threshold_map=delta_threshold_map,
                 exact_prediction_features=exact_prediction_features,
                 min_num_cases=min_num_cases,
+                max_num_cases=max_num_cases,
                 reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
                 rel_threshold_map=rel_threshold_map,
                 relative_prediction_threshold_map=relative_prediction_threshold_map,
