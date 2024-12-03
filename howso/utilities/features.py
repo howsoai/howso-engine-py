@@ -158,7 +158,10 @@ class FeatureSerializer:
                 "should be either a DataFrame or a list.")
 
         # Convert 1d list (single case) to 2d list for serialization
-        if len(result) > 0 and len(np.array(result).shape) == 1:
+        # We check if the first item in the serialized list is a list
+        # rather than converting to a numpy array and checking the shape to
+        # avoid the conversion of a (potentially quite large) list.
+        if len(result) > 0 and not isinstance(result[0], list):
             result = [result]
 
         # Serialize datetime objects
