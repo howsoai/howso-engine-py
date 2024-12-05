@@ -4,15 +4,15 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=requirements-3.9.txt
 #
-amalgam-lang==15.0.3 \
-    --hash=sha256:1dd9fc3c2df4ac5f47e479c0e16811ae75bf20466a025c7271cd0dc861d1d9ce \
-    --hash=sha256:4b1e16ff8b16f6c3cefe9699682074557233424e4fbdebfb09943a0a70e39085 \
-    --hash=sha256:593e0745e72dad4621d4c21407f09b81af408c15c5d8ef6747be04d7bb51a173 \
-    --hash=sha256:85cbe25827ec35855d3a4cb92e16e1b1151a67dea4a0ee81bccf71ab836cd569 \
-    --hash=sha256:965d4d3a854451d18637bb1f1032304a41082a0038a908893ecfa1c8cbc1fa89 \
-    --hash=sha256:98196185427a7ccca9fd60c0edb6f3052c73916547b2652c4ed25a9807f63ca3 \
-    --hash=sha256:aee04a424ef62d72b0473c9aa19710fbbce4a8a49c1a7de948af644bcfbf3304 \
-    --hash=sha256:eff21c2df952c6818b325ecdbf13405854ee1bb7d79c1082677235c0d0ea76d6
+amalgam-lang==15.0.4 \
+    --hash=sha256:126432b6ce198aa287d990f268ec673470d594851d09ccacbefe5cdef08647b8 \
+    --hash=sha256:5878ccc4e44bd4e3aa8cd2215e1e35c69ab685276cd9f594f8a2c05f7930541b \
+    --hash=sha256:60feaadb984a9d0b9a8302f91eecc09b63edf6e4f8b6a5bbe5f3e6eace52334b \
+    --hash=sha256:738889a8fd8e44504bdbfc494ddcfadc0b2f6e44258873fbfc0051dfb239743e \
+    --hash=sha256:7d2e851dd5ccb2e5c93ae762d7a57718fbc024770e48fa0e223cf11b33d810b2 \
+    --hash=sha256:7fc2c13c14bb418ccee2a66d38d1926d4d0259ed769a9e827ced8483eaa99d6e \
+    --hash=sha256:968709d377f276a8bbe140ba7c4900e577af5b6a95b1ed13daf4d5ebfd252c11 \
+    --hash=sha256:d9da8f960f5b8edfcfe8906c2751650a18bd6ee661ca74512fa54480d4d8753f
     # via howso-engine (pyproject.toml)
 certifi==2024.8.30 \
     --hash=sha256:922820b53db7a7257ffbda3f597266d435245903d80737e34f8a45ff3e3230d8 \
@@ -535,9 +535,9 @@ semantic-version==2.10.0 \
     --hash=sha256:bdabb6d336998cbb378d4b9db3a4b56a1e3235701dc05ea2690d9a997ed5041c \
     --hash=sha256:de78a3b8e0feda74cabc54aab2da702113e33ac9d9eb9d2389bcf1f58b7d9177
     # via howso-engine (pyproject.toml)
-six==1.16.0 \
-    --hash=sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926 \
-    --hash=sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254
+six==1.17.0 \
+    --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
+    --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
     # via python-dateutil
 typing-extensions==4.12.2 \
     --hash=sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d \
