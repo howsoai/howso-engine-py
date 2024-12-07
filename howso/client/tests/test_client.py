@@ -195,8 +195,6 @@ class TestDatetimeSerialization:
         trainee = trainee_builder.create(features=features, overwrite_trainee=True)
         try:
             yield trainee
-        except Exception:
-            raise
         finally:
             trainee_builder.delete(trainee)
 
