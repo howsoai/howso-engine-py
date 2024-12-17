@@ -849,8 +849,8 @@ class AbstractHowsoClient(ABC):
         precision: t.Optional[Precision] = None,
         preserve_session_data: bool = False,
         source_id: t.Optional[str] = None,
-        source_name_path: t.Optional[Collection[str]] = None,
-        target_name_path: t.Optional[Collection[str]] = None,
+        source_path: t.Optional[Collection[str]] = None,
+        target_path: t.Optional[Collection[str]] = None,
         target_id: t.Optional[str] = None
     ) -> int:
         """
@@ -915,17 +915,17 @@ class AbstractHowsoClient(ABC):
             When True, will move cases without cleaning up session data.
         source_id : str, optional
             The source trainee unique id from which to move cases. Ignored
-            if source_name_path is specified. If neither source_name_path nor
+            if source_path is specified. If neither source_path nor
             source_id are specified, moves cases from the trainee itself.
-        source_name_path : list of str, optional
+        source_path : list of str, optional
             List of strings specifying the user-friendly path of the child
             subtrainee from which to move cases.
-        target_name_path : list of str, optional
+        target_path : list of str, optional
             List of strings specifying the user-friendly path of the child
             subtrainee to move cases to.
         target_id : str, optional
             The target trainee id to move the cases to. Ignored if
-            target_name_path is specified. If neither target_name_path nor
+            target_path is specified. If neither target_path nor
             target_id are specified, moves cases to the trainee itself.
 
         Returns
@@ -963,8 +963,8 @@ class AbstractHowsoClient(ABC):
             "preserve_session_data": preserve_session_data,
             "session": self.active_session.id,
             "source_id": source_id,
-            "source_name_path": source_name_path,
-            "target_name_path": target_name_path
+            "source_path": source_path,
+            "target_path": target_path
         })
         self._auto_persist_trainee(trainee_id)
         if not result:
