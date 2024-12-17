@@ -2930,7 +2930,7 @@ class AbstractHowsoClient(ABC):
                 "context_values": contexts,
                 "continue_series": continue_series,
                 "continue_series_features": continue_series_features,
-                "continue_series_values": continue_series_values,
+                "continue_series_values": serialized_continue_series_values,
                 "initial_features": initial_features,
                 "initial_values": initial_values,
                 "final_time_steps": final_time_steps,

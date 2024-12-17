@@ -85,6 +85,20 @@ class FeatureAttributesBase(dict):
         """
         return json.dumps(self)
 
+    def to_dataframe(self, *, include_all: bool = False) -> pd.DataFrame:
+        """
+        Return a DataFrame of the feature attributes.
+
+        Among other reasons, this is useful for presenting feature attributes
+        in a Jupyter notebook or other medium.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame representation of the inferred feature attributes.
+        """
+        return NotImplementedError('Function not yet implemented for all subclasses of `FeatureAttributesBase`')
+
     def get_names(self, *, types: t.Optional[str | Container] = None,
                   without: t.Optional[Iterable[str]] = None,
                   ) -> list[str]:
