@@ -41,6 +41,7 @@ from howso.client.schemas import (
     TraineeVersion,
 )
 from howso.client.typing import LibraryType, Persistence
+from howso.direct.schemas import DirectTrainee
 from howso.utilities import internals
 
 # Client version
@@ -407,16 +408,18 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id : str
             The ID of the Trainee to persist.
         """
-        try:
-            trainee = self.trainee_cache.get(trainee_id)
-            if trainee.persistence == 'always':
-                self.amlg.store_entity(
-                    handle=trainee_id,
-                    file_path=self.resolve_trainee_filepath(trainee_id)
-                )
-        except KeyError:
-            # Trainee not cached, ignore
-            pass
+        trainee = self.trainee_cache.get(trainee_id)
+        if trainee is None:
+            return
+        if trainee.persistence != 'always':
+            return
+        if getattr(trainee, 'transactional', False):
+            return
+
+        self.amlg.store_entity(
+            handle=trainee_id,
+            file_path=self.resolve_trainee_filepath(trainee_id)
+        )
 
     def _store_session(self, trainee_id: str, session: Session):
         """Store session details in a Trainee."""
@@ -441,6 +444,20 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.is_tracing_enabled(trainee_id):
             # If tracing is enabled, log the trainee version
             self.execute(trainee_id, "get_trainee_version", {})
+
+    def _initialize_transactional_trainee(self, trainee_id: str):
+        # Create a temporary trainee and initialize it in the normal way, then clone it with transactional mode on.
+        tmp_id = str(uuid.uuid4())
+        self._initialize_trainee(tmp_id)
+        try:
+            cloned = self.amlg.clone_entity(tmp_id, trainee_id,
+                                            file_path=self.resolve_trainee_filepath(trainee_id),
+                                            persist=True,
+                                            json_file_params='{"transactional":true,"flatten":true}')
+            if not cloned:
+                raise HowsoError(f'Failed to initialize the Trainee "{trainee_id}"')
+        finally:
+            self.amlg.destroy_entity(handle=tmp_id)
 
     def _get_trainee_from_engine(self, trainee_id: str) -> Trainee:
         """
@@ -468,12 +485,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         persistence = metadata.get('persistence', 'allow')
         trainee_meta = metadata.get('metadata')
         trainee_name = metadata.get('name')
+        transactional = metadata.get('transactional', False)
 
-        return Trainee(
+        return DirectTrainee(
             name=trainee_name,
             id=trainee_id,
             persistence=persistence,
             metadata=trainee_meta,
+            transactional=transactional
         )
 
     def _get_trainee_thread_count(self, trainee_id: str) -> int:
@@ -733,8 +752,16 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             .. deprecated:: 31.0
                 Pass via `runtime` instead.
-        runtime : TraineeRuntime, optional
-            (Not implemented in this client)
+        runtime : TraineeDirectRuntimeOptions, optional
+            Additional backend-specific settings.
+
+            * `transactional`: if true, and `persistence='always'`, then write
+              out an incremental update on each action rather than the entire
+              state.  Generally results in faster operation at the cost of
+              increased disk utilization.
+
+            .. versionchanged:: 33.1
+                Supports the `transactional` parameter.
 
         Returns
         -------
@@ -749,6 +776,10 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if features is None:
             features = {}
+
+        if runtime is None:
+            runtime = {}
+        transactional = runtime.get('transactional', False)
 
         if library_type is not None:
             warnings.warn(
@@ -795,13 +826,17 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.configuration.verbose:
             print('Creating new Trainee')
         # Initialize Amalgam entity
-        self._initialize_trainee(trainee_id)
+        if transactional:
+            self._initialize_transactional_trainee(trainee_id)
+        else:
+            self._initialize_trainee(trainee_id)
 
         # Store the metadata
         trainee_metadata = dict(
             name=name,
             persistence=persistence,
-            metadata=metadata
+            metadata=metadata,
+            transactional=transactional
         )
         self.execute(trainee_id, "set_metadata", {"metadata": trainee_metadata})
 
@@ -812,11 +847,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         features = internals.postprocess_feature_attributes(features)
 
         # Cache and return the trainee
-        new_trainee = Trainee(
+        new_trainee = DirectTrainee(
             name=name,
             persistence=persistence,
             id=trainee_id,
-            metadata=metadata
+            metadata=metadata,
+            transactional=transactional
         )
         self.trainee_cache.set(new_trainee, feature_attributes=features)
         return new_trainee
@@ -835,7 +871,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         Trainee
             The `Trainee` object that was updated.
         """
-        instance = Trainee.from_dict(trainee) if isinstance(trainee, Mapping) else trainee
+        instance = DirectTrainee.from_dict(trainee) if isinstance(trainee, Mapping) else trainee
 
         if not instance.id:
             raise ValueError("A Trainee id is required.")
@@ -848,6 +884,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             'name': instance.name,
             'metadata': instance.metadata,
             'persistence': instance.persistence,
+            'transactional': getattr(instance, 'transactional', False)
         }
         self.execute(instance.id, "set_metadata", {"metadata": metadata})
 
@@ -1151,6 +1188,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_trainee_id: t.Optional[str] = None,
         *,
         library_type: t.Optional[LibraryType] = None,
+        persistence: t.Optional[Persistence] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
         runtime: t.Optional[TraineeRuntimeOptions] = None
     ) -> Trainee:
@@ -1174,6 +1212,12 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             .. deprecated:: 31.0
                 Pass via `runtime` instead.
+        persistence : {"allow", "always", "never"}, optional
+            The requested persistence state of the Trainee.  If not specified,
+            the new trainee will inherit the value from the original.
+
+            .. versionadded:: 33.1
+
         resources : dict, optional
             (Not Implemented) Customize the resources provisioned for the
             Trainee instance. If not specified, the new trainee will inherit
@@ -1181,11 +1225,17 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             .. deprecated:: 31.0
                 Pass via `runtime` instead.
-        runtime : TraineeRuntimeOptions, optional
-            Library type, resource requirements, and other runtime settings
-            for the new Trainee instance.  If not specified, the new trainee
-            will inherit the values from the original.  Not used in this
-            client implementation.
+        runtime : TraineeDirectRuntimeOptions, optional
+            Additional backend-specific settings.  If not specified, the new
+            trainee will inherit the values from the original.
+
+            * `transactional`: if true, and `persistence='always'`, then write
+              out an incremental update on each action rather than the entire
+              state.  Generally results in faster operation at the cost of
+              increased disk utilization.
+
+            .. versionchanged:: 33.1
+                Supports the `transactional` parameter.
 
         Returns
         -------
@@ -1213,9 +1263,25 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'The copy trainee parameter `resources` is deprecated and will be removed in '
                 'a future release. Please use `runtime` instead.', DeprecationWarning)
 
+        persistence = persistence or original_trainee.persistence
+        transactional = False
+        if persistence == 'always':
+            if runtime is not None and 'transactional' in runtime:
+                transactional = runtime['transactional']
+            else:
+                transactional = getattr(original_trainee, 'transactional', False)
+        if transactional:
+            persist = True
+            json_file_params = '{"transactional":true,"flatten":true}'
+        else:
+            persist = False
+            json_file_params = ""
+
         is_cloned = self.amlg.clone_entity(
             handle=trainee_id,
             clone_handle=new_trainee_id,
+            persist=persist,
+            json_file_params=json_file_params
         )
         if not is_cloned:
             raise HowsoError(
@@ -1224,13 +1290,15 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f'binaries or camls, or a Trainee "{new_trainee_name}" already exists.')
 
         # Create the copy trainee
-        new_trainee = deepcopy(original_trainee)
+        new_trainee = DirectTrainee.from_dict(original_trainee.to_dict())
         new_trainee.name = new_trainee_name
         new_trainee._id = new_trainee_id  # type: ignore
+        new_trainee._transactional = transactional
         metadata = {
             'name': new_trainee.name,
             'metadata': new_trainee.metadata,
-            'persistence': new_trainee.persistence,
+            'persistence': persistence,
+            'transactional': transactional
         }
         self.execute(new_trainee_id, "set_metadata", {"metadata": metadata})
         # Add new trainee to cache
@@ -1344,18 +1412,22 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.configuration.verbose:
             print(f'Saving Trainee with id: {trainee_id}')
 
+        transactional = False
         if trainee_id in self.trainee_cache:
             trainee = self.trainee_cache.get(trainee_id)
             if trainee.persistence == 'never':
                 raise AssertionError(
                     "Trainee is set to never persist. Update the trainee "
                     "persistence option to enable persistence.")
+            transactional = getattr(trainee, 'transactional', False)
             # Enable auto persistence
             trainee.persistence = 'always'
 
         self.amlg.store_entity(
             handle=trainee_id,
-            file_path=self.resolve_trainee_filepath(trainee_id)
+            file_path=self.resolve_trainee_filepath(trainee_id),
+            persist=transactional,
+            json_file_params='{"transactional":true,"flatten":true}' if transactional else ""
         )
 
     def begin_session(self, name: str | None = "default", metadata: t.Optional[Mapping] = None) -> Session:
