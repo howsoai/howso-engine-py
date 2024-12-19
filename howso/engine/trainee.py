@@ -453,6 +453,7 @@ class Trainee(BaseTrainee):
         name: t.Optional[str] = None,
         *,
         library_type: t.Optional[LibraryType] = None,
+        persistence: t.Optional[Persistence] = None,
         project: t.Optional[str | BaseProject] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
         runtime: t.Optional[TraineeRuntimeOptions] = None
@@ -470,6 +471,12 @@ class Trainee(BaseTrainee):
 
             .. deprecated:: 31.0
                 Pass via `runtime` instead.
+
+        persistence : {"allow", "always", "never"}, optional
+            The requested persistence state of the Trainee.  If not specified,
+            the new trainee will inherit the value from the original.
+
+            .. versionadded:: 33.1
 
         project : str or Project, optional
             The instance or id of the project to use for the new trainee.
@@ -500,6 +507,7 @@ class Trainee(BaseTrainee):
             "trainee_id": self.id,
             "new_trainee_name": name,
             "library_type": library_type,
+            "persistence": persistence,
             "resources": resources,
             "runtime": runtime,
         }
@@ -3694,9 +3702,7 @@ class Trainee(BaseTrainee):
         """
         if isinstance(schema, cls) and client is None:
             return schema
-        trainee_dict = schema.to_dict()
-        trainee_dict['client'] = client
-        return cls.from_dict(trainee_dict)
+        return cls.from_dict(dict(schema.to_dict(), client=client))
 
     @classmethod
     def from_dict(cls, schema: Mapping) -> Trainee:
@@ -3992,7 +3998,10 @@ def delete_trainee(
 
 def load_trainee(
     file_path: PathLike,
-    client: t.Optional[AbstractHowsoClient] = None
+    client: t.Optional[AbstractHowsoClient] = None,
+    *,
+    persistence: Persistence = 'allow',
+    runtime: t.Optional[TraineeRuntimeOptions] = None
 ) -> Trainee:
     """
     Load an existing trainee from disk.
@@ -4015,6 +4024,15 @@ def load_trainee(
 
     client : AbstractHowsoClient, optional
         The Howso client instance to use. Must have local disk access.
+    persistence : {"allow", "always", "never"}, default "allow"
+        The requested persistence state of the trainee.
+
+        .. versionadded:: 33.1
+
+    runtime : TraineeRuntimeOptions, optional
+        Runtime settings for this trainee, including resource requirements.
+
+        .. versionadded:: 33.1
 
     Returns
     -------
@@ -4022,6 +4040,7 @@ def load_trainee(
         The trainee instance.
     """
     client = client or get_client()
+    runtime = runtime or {}
 
     if not isinstance(client, LocalSaveableProtocol):
         raise HowsoError("The current client does not support loading a Trainee from file.")
@@ -4037,7 +4056,7 @@ def load_trainee(
     # file name.
     if file_path.suffix:
         # Check to make sure sure `.caml` file is provided
-        if file_path.suffix.lower() != '.caml':
+        if file_path.suffix.lower() not in ('.caml', '.amlg'):
             raise HowsoError(
                 'Filepath with a non `.caml` extension was provided.'
             )
@@ -4055,10 +4074,19 @@ def load_trainee(
         raise HowsoError(
             f'The specified directory "{file_path.parents[0]}" does not exist.')
 
-    status = client.amlg.load_entity(
-        handle=trainee_id,
-        file_path=str(file_path)
-    )
+    if persistence == 'always':
+        status = client.amlg.load_entity(
+            handle=trainee_id,
+            file_path=str(file_path),
+            persist=True,
+            json_file_params=('{"transactional":true,"flatten":true,"execute_on_load":true,'
+                              '"require_version_compatibility":true}')
+        )
+    else:
+        status = client.amlg.load_entity(
+            handle=trainee_id,
+            file_path=str(file_path)
+        )
     if not status.loaded:
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
 
