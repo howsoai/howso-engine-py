@@ -3694,9 +3694,7 @@ class Trainee(BaseTrainee):
         """
         if isinstance(schema, cls) and client is None:
             return schema
-        trainee_dict = schema.to_dict()
-        trainee_dict['client'] = client
-        return cls.from_dict(trainee_dict)
+        return cls.from_dict(dict(schema.to_dict(), client=client))
 
     @classmethod
     def from_dict(cls, schema: Mapping) -> Trainee:
@@ -3992,7 +3990,9 @@ def delete_trainee(
 
 def load_trainee(
     file_path: PathLike,
-    client: t.Optional[AbstractHowsoClient] = None
+    client: t.Optional[AbstractHowsoClient] = None,
+    *,
+    persistence: Persistence = 'allow',
 ) -> Trainee:
     """
     Load an existing trainee from disk.
@@ -4015,6 +4015,10 @@ def load_trainee(
 
     client : AbstractHowsoClient, optional
         The Howso client instance to use. Must have local disk access.
+    persistence : {"allow", "always", "never"}, default "allow"
+        The requested persistence state of the trainee.
+
+        .. versionadded:: 33.1
 
     Returns
     -------
@@ -4055,10 +4059,19 @@ def load_trainee(
         raise HowsoError(
             f'The specified directory "{file_path.parents[0]}" does not exist.')
 
-    status = client.amlg.load_entity(
-        handle=trainee_id,
-        file_path=str(file_path)
-    )
+    if persistence == 'always':
+        status = client.amlg.load_entity(
+            handle=trainee_id,
+            file_path=str(file_path),
+            persist=True,
+            json_file_params=('{"transactional":true,"flatten":true,"execute_on_load":true,'
+                              '"require_version_compatibility":true}')
+        )
+    else:
+        status = client.amlg.load_entity(
+            handle=trainee_id,
+            file_path=str(file_path)
+        )
     if not status.loaded:
         raise HowsoError(f"Trainee from file '{file_path}' not found.")
 
