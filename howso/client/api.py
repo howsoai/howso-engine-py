@@ -135,8 +135,8 @@ def get_api(engine_path: t.Optional[Path | str] = None) -> EngineApi:
                 if result[0] == 1 and isinstance(result[1], dict):
                     return EngineApi(result[1]["payload"])
         raise ValueError("Invalid response")
-    except Exception:
-        raise HowsoError('Failed to retrieve the Howso Engine API schema.')
+    except Exception as e:
+        raise HowsoError('Failed to retrieve the Howso Engine API schema.') from e
     finally:
         amlg.destroy_entity(entity_id)
         del amlg
