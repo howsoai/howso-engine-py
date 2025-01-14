@@ -12,6 +12,7 @@ from .features import (  # noqa: F401
     serialize_cases,
 )
 from .monitors import (
+    FrozenTimer,
     ProgressTimer,
     Timer,
 )
@@ -65,6 +66,7 @@ __all__ = [
     "FeatureAttributesBase",
     "FeatureType",
     "format_dataframe",
+    "FrozenTimer",
     "get_kwargs",
     "get_matrix_diff",
     "infer_feature_attributes",
