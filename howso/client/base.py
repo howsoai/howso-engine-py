@@ -658,9 +658,6 @@ class AbstractHowsoClient(ABC):
                     "train_weights_only": train_weights_only,
                 })
 
-                if response and response.get('status') == 'analyzed':
-                    self.execute(trainee_id, "get_params", {})
-
                 if response and response.get('status') == 'analyze':
                     status['needs_analyze'] = True
                 if response and response.get('status') == 'reduce_data':
