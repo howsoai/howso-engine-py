@@ -40,6 +40,12 @@ class Evaluation(TypedDict):
 class TrainStatus(TypedDict):
     """Representation of a status output from AbstractHowsoClient.train."""
 
+    num_trained: int
+    """The total number of trained cases (non-ablated)."""
+
+    ablated_indices: list[int]
+    """Indices of cases that were ablated. These indices correspond to the input cases."""
+
     needs_analyze: NotRequired[bool]
     """Indicates whether the Trainee needs an analyze."""
 

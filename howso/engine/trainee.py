@@ -55,6 +55,7 @@ from howso.client.typing import (
     TabularData2D,
     TabularData3D,
     TargetedModel,
+    TrainStatus,
 )
 from howso.engine.client import get_client
 from howso.engine.project import Project
@@ -640,11 +641,12 @@ class Trainee(BaseTrainee):
         input_is_substituted: bool = False,
         progress_callback: t.Optional[Callable] = None,
         series: t.Optional[str] = None,
+        skip_auto_ablation: bool = False,
         skip_auto_analyze: bool = False,
         skip_reduce_data: bool = False,
         train_weights_only: bool = False,
         validate: bool = True,
-    ):
+    ) -> TrainStatus:
         """
         Train one or more cases into the trainee (model).
 
@@ -694,6 +696,8 @@ class Trainee(BaseTrainee):
             this case are appended to all cases in the series. If cases is the
             same length as the series, the value of each case in cases is
             applied in order to each of the cases in the series.
+        skip_auto_ablation : bool, default False
+            When true, the Trainee will not auto-ablate when appropriate.
         skip_auto_analyze : bool, default False
             When true, the Trainee will not auto-analyze when appropriate.
         skip_reduce_data : bool, default False
@@ -707,6 +711,13 @@ class Trainee(BaseTrainee):
             Whether to validate the data against the provided feature
             attributes. Issues warnings if there are any discrepancies between
             the data and the features dictionary.
+
+        Returns
+        -------
+        TrainStatus
+            The status of the train including the number of trained cases,
+            ablated indices, and if the trainee needs data reduction or
+            analyze.
         """
         if isinstance(self.client, AbstractHowsoClient):
             status = self.client.train(
@@ -720,6 +731,7 @@ class Trainee(BaseTrainee):
                 input_is_substituted=input_is_substituted,
                 progress_callback=progress_callback,
                 series=series,
+                skip_auto_ablation=skip_auto_ablation,
                 skip_auto_analyze=skip_auto_analyze,
                 skip_reduce_data=skip_reduce_data,
                 train_weights_only=train_weights_only,
@@ -727,6 +739,7 @@ class Trainee(BaseTrainee):
             )
             self._needs_analyze = status.get('needs_analyze', False)
             self._needs_data_reduction = status.get('needs_data_reduction', False)
+            return status
         else:
             raise AssertionError("Client must have the 'train' method.")
 
@@ -762,18 +775,18 @@ class Trainee(BaseTrainee):
         auto_ablation_enabled: bool = False,
         *,
         ablated_cases_distribution_batch_size: int = 100,
-        abs_threshold_map: AblationThresholdMap = None,
+        abs_threshold_map: t.Optional[AblationThresholdMap] = None,
         auto_ablation_influence_weight_entropy_threshold: float = 0.15,
         auto_ablation_weight_feature: str = ".case_weight",
         batch_size: int = 2_000,
         conviction_lower_threshold: t.Optional[float] = None,
         conviction_upper_threshold: t.Optional[float] = None,
-        delta_threshold_map: AblationThresholdMap = None,
+        delta_threshold_map: t.Optional[AblationThresholdMap] = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         min_num_cases: int = 1_000,
         max_num_cases: int = 500_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
-        rel_threshold_map: AblationThresholdMap = None,
+        rel_threshold_map: t.Optional[AblationThresholdMap] = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
         tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,

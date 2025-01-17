@@ -491,6 +491,7 @@ class AbstractHowsoClient(ABC):
         input_is_substituted: bool = False,
         progress_callback: t.Optional[Callable] = None,
         series: t.Optional[str] = None,
+        skip_auto_ablation: bool = False,
         skip_auto_analyze: bool = False,
         skip_reduce_data: bool = False,
         train_weights_only: bool = False,
@@ -552,6 +553,8 @@ class AbstractHowsoClient(ABC):
             the value(s) of this case are appended to all cases in the series.
             If cases is the same length as the series, the value of each case
             in cases is applied in order to each of the cases in the series.
+        skip_auto_ablation : bool, default False
+            When true, the Trainee will not auto-ablate when appropriate.
         skip_auto_analyze : bool, default False
             When true, the Trainee will not auto-analyze when appropriate.
             Instead, the return dict will have a "needs_analyze" flag if an
@@ -573,9 +576,10 @@ class AbstractHowsoClient(ABC):
         Returns
         -------
         dict
-            A dict containing variable keys if there are important messages to
-            share from the Engine, such as 'needs_analyze` and
-            'needs_data_reduction'. Otherwise, an empty dict.
+            A dict containing the number of trained cases, ablated indices, and
+            a status key to signal if the model was auto-analyzed (analyzed),
+            needs to be analyzed (analyze), or needs data reduction
+            (reduce_data).
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
@@ -622,7 +626,7 @@ class AbstractHowsoClient(ABC):
             features = internals.get_features_from_data(cases)
         serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True) or []
 
-        status = {}
+        status = TrainStatus(num_trained=0, ablated_indices=[])
 
         if self.configuration.verbose:
             print(f'Training session(s) on Trainee with id: {trainee_id}')
@@ -653,15 +657,25 @@ class AbstractHowsoClient(ABC):
                     "input_is_substituted": input_is_substituted,
                     "series": series,
                     "session": self.active_session.id,
+                    "skip_auto_ablation": skip_auto_ablation,
                     "skip_auto_analyze": skip_auto_analyze,
                     "skip_reduce_data": skip_reduce_data,
                     "train_weights_only": train_weights_only,
                 })
 
-                if response and response.get('status') == 'analyze':
-                    status['needs_analyze'] = True
-                if response and response.get('status') == 'reduce_data':
-                    status['needs_data_reduction'] = True
+                if response:
+                    status["num_trained"] += response.get('num_trained') or 0
+                    if ablated_indices := response.get('ablated_indices', []):
+                        # Ablated indices are 0-based on the input cases.
+                        # Since we are batching, collate them to the full cases list
+                        status["ablated_indices"].extend([
+                            ablated_index + start
+                            for ablated_index in ablated_indices
+                        ])
+                    if response.get('status') == 'analyze':
+                        status['needs_analyze'] = True
+                    if response.get('status') == 'reduce_data':
+                        status['needs_data_reduction'] = True
 
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
@@ -4069,18 +4083,18 @@ class AbstractHowsoClient(ABC):
         auto_ablation_enabled: bool = False,
         *,
         ablated_cases_distribution_batch_size: int = 100,
-        abs_threshold_map: AblationThresholdMap = None,
+        abs_threshold_map: t.Optional[AblationThresholdMap] = None,
         auto_ablation_influence_weight_entropy_threshold: float = 0.15,
         auto_ablation_weight_feature: str = ".case_weight",
         batch_size: int = 2_000,
         conviction_lower_threshold: t.Optional[float] = None,
         conviction_upper_threshold: t.Optional[float] = None,
-        delta_threshold_map: AblationThresholdMap = None,
+        delta_threshold_map: t.Optional[AblationThresholdMap] = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         min_num_cases: int = 1_000,
         max_num_cases: int = 500_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
-        rel_threshold_map: AblationThresholdMap = None,
+        rel_threshold_map: t.Optional[AblationThresholdMap] = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
         tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
