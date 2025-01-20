@@ -307,8 +307,8 @@ class TestDatetimeSerialization:
         self.client.train(trainee.id, cases=df.values.tolist(),
                           features=df.columns.tolist())
         response = self.client.react_series(trainee.id,
-                                            contexts=[["2020-10-12T10:10:10.333"]],
-                                            context_features=["datetime"],
+                                            series_context_values=[[["2020-10-12T10:10:10.333"]]],
+                                            series_context_features=["datetime"],
                                             action_features=["nom"])
         assert isinstance(response, Reaction)
         assert response['action']['nom'].iloc[0] == "b"

@@ -1717,13 +1717,9 @@ class Trainee(BaseTrainee):
 
     def react_series(
         self,
-        contexts: t.Optional[TabularData2D] = None,
         *,
         action_features: t.Optional[Collection[str]] = None,
-        actions: t.Optional[TabularData2D] = None,
         batch_size: t.Optional[int] = None,
-        case_indices: t.Optional[CaseIndices] = None,
-        context_features: t.Optional[Collection[str]] = None,
         continue_series: bool = False,
         continue_series_features: t.Optional[Collection[str]] = None,
         continue_series_values: t.Optional[TabularData3D] = None,
@@ -1741,7 +1737,7 @@ class Trainee(BaseTrainee):
         initial_features: t.Optional[Collection[str]] = None,
         initial_values: t.Optional[TabularData2D] = None,
         input_is_substituted: bool = False,
-        leave_case_out: bool = False,
+        leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
@@ -1751,6 +1747,8 @@ class Trainee(BaseTrainee):
         progress_callback: t.Optional[Callable] = None,
         series_context_features: t.Optional[Collection[str]] = None,
         series_context_values: t.Optional[TabularData3D] = None,
+        series_id_features: t.Optional[Collection[str]] = None,
+        series_id_values: t.Optional[TabularData2D] = None,
         series_id_tracking: SeriesIDTracking = "fixed",
         series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
         substitute_output: bool = True,
@@ -1774,15 +1772,9 @@ class Trainee(BaseTrainee):
             See parameter ``contexts`` in :meth:`react`.
         action_features : list of str, optional
             See parameter ``action_features`` in :meth:`react`.
-        actions : DataFrame or 2-dimensional list of object, optional
-            See parameter ``actions`` in :meth:`react`.
         batch_size: int, optional
             Define the number of series to react to at once. If left
             unspecified, the batch size will be determined automatically.
-        case_indices : CaseIndices
-            See parameter ``case_indices`` in :meth:`react`.
-        context_features : list of str, optional
-            See parameter ``context_features`` in :meth:`react`.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
             starting new series. If ``initial_values`` provide series IDs, it
@@ -1847,8 +1839,9 @@ class Trainee(BaseTrainee):
             value to use for all series, or one per series.
         input_is_substituted : bool, default False
             See parameter ``input_is_substituted`` in :meth:`react`.
-        leave_case_out : bool, default False
-            See parameter ``leave_case_out`` in :meth:`react`.
+        leave_series_out: bool, default False
+            If True, the cases of the series specified with ``series_id_values`` are held out
+            of queries made during the react_series call.
         max_series_lengths : list of int, optional
             maximum size a series is allowed to be.  Default is
             3 * model_size, a 0 or less is no limit. If forecasting
@@ -1878,6 +1871,14 @@ class Trainee(BaseTrainee):
         series_context_values : list of list of list of object or list of DataFrame, optional
             3d list of context values, one for each feature for each row for each
             series. If specified, batch_size and max_series_lengths are ignored.
+        series_id_features: list[str], optional
+            The names of the features used to uniquely identify the cases that make up a series
+            trained into the Trainee. The order of feature names must correspond to the order
+            of values given in the sublists of ``series_id_values``.
+        series_id_values: list[list[object]], optional
+            A 2D list of ID feature values that each uniquely identify the cases of a trained
+            series. Used in combination with ``continue_series`` to select trained series to
+            forecast.
         series_id_tracking : {"fixed", "dynamic", "no"}, default "fixed"
             Controls how closely generated series should follow existing series (plural).
 
@@ -1924,11 +1925,7 @@ class Trainee(BaseTrainee):
             return self.client.react_series(
                 trainee_id=self.id,
                 action_features=action_features,
-                actions=actions,
                 batch_size=batch_size,
-                case_indices=case_indices,
-                contexts=contexts,
-                context_features=context_features,
                 continue_series=continue_series,
                 continue_series_features=continue_series_features,
                 continue_series_values=continue_series_values,
@@ -1946,7 +1943,6 @@ class Trainee(BaseTrainee):
                 initial_features=initial_features,
                 initial_values=initial_values,
                 input_is_substituted=input_is_substituted,
-                leave_case_out=leave_case_out,
                 max_series_lengths=max_series_lengths,
                 new_case_threshold=new_case_threshold,
                 num_series_to_generate=num_series_to_generate,
@@ -1956,6 +1952,9 @@ class Trainee(BaseTrainee):
                 progress_callback=progress_callback,
                 series_context_features=series_context_features,
                 series_context_values=series_context_values,
+                series_id_features=series_id_features,
+                series_id_values=series_id_values,
+                leave_series_out=leave_series_out,
                 series_id_tracking=series_id_tracking,
                 series_stop_maps=series_stop_maps,
                 substitute_output=substitute_output,
