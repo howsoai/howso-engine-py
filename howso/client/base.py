@@ -494,7 +494,7 @@ class AbstractHowsoClient(ABC):
         skip_auto_ablation: bool = False,
         skip_auto_analyze: bool = False,
         skip_reduce_data: bool = False,
-        train_weights_only: bool = False,
+        train_weights_only: bool | Collection[int] = False,
         validate: bool = True,
     ) -> TrainStatus:
         """
@@ -564,10 +564,10 @@ class AbstractHowsoClient(ABC):
             appropriate. Instead, the return dict will have a
             "needs_data_reduction" flag if a call to `reduce_data` is
             recommended.
-        train_weights_only : bool, default False
-            When true, and accumulate_weight_feature is provided,
-            will accumulate all of the cases' neighbor weights instead of
-            training the cases into the model.
+        train_weights_only : bool or list of int, default False
+            When true or a list of indices corresponding to the provided cases,
+            and accumulate_weight_feature is set, will accumulate the cases'
+            neighbor weights instead of training the cases into the model.
         validate : bool, default True
             Whether to validate the data against the provided feature
             attributes. Issues warnings if there are any discrepancies between
