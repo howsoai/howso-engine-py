@@ -1,18 +1,36 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 import typing as t
 
 
 __all__ = [
+    "FrozenTimer",
     "ProgressTimer",
     "Timer",
 ]
 
 
+@dataclass(frozen=True)
+class FrozenTimer():
+    """A typed dictionary of a Timer instance's state."""
+
+    message: str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    duration: timedelta | None = None
+
+
 class Timer:
     """
     Simple context manager to capture run duration of the inner context.
+
+    Parameters
+    ----------
+    message : str, default None
+        Optional. A string message. If provided, the Timer, when used as a
+        context manager, upon exit, will display this message and the duration.
 
     Usage::
 
@@ -90,6 +108,15 @@ class Timer:
     def __exit__(self, *args):
         """Context exit."""
         self.end()
+
+    def to_frozen_timer(self) -> FrozenTimer:
+        """Return the timer as a FrozenTimer instance."""
+        return FrozenTimer(
+            start_time=self.start_time,
+            end_time=self.end_time,
+            duration=self.duration,
+            message=self.message
+        )
 
 
 class ProgressTimer(Timer):
