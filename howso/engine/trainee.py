@@ -1721,8 +1721,6 @@ class Trainee(BaseTrainee):
         action_features: t.Optional[Collection[str]] = None,
         batch_size: t.Optional[int] = None,
         continue_series: bool = False,
-        continue_series_features: t.Optional[Collection[str]] = None,
-        continue_series_values: t.Optional[TabularData3D] = None,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
@@ -1734,8 +1732,6 @@ class Trainee(BaseTrainee):
         series_index: str = ".series",
         init_time_steps: t.Optional[list[t.Any]] = None,
         initial_batch_size: t.Optional[int] = None,
-        initial_features: t.Optional[Collection[str]] = None,
-        initial_values: t.Optional[TabularData2D] = None,
         input_is_substituted: bool = False,
         leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
@@ -1777,22 +1773,14 @@ class Trainee(BaseTrainee):
             unspecified, the batch size will be determined automatically.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
-            starting new series. If ``initial_values`` provide series IDs, it
-            will continue those explicitly specified IDs, otherwise it will
-            randomly select series to continue.
+            starting new series. If true, either ``series_context_values`` or
+            ``series_id_values`` must be specified. If ``series_id_values`` are
+            specified, then the trained series identified by the given ID
+            feature values will be forecasted.
             .. note::
 
                 Terminated series with terminators cannot be continued and
                 will result in null output.
-        continue_series_features : list of str, optional
-            The list of feature names corresponding to the values in each row of
-            ``continue_series_values``. This value is ignored if
-            ``continue_series_values`` is None.
-        continue_series_values : list of DataFrame or 3-dimensional list of object, optional
-            The set of series data to be forecasted with feature values in the
-            same order defined by ``continue_series_values``. The value of
-            ``continue_series`` will be ignored and treated as true if this value
-            is specified.
         derived_action_features : list of str, optional
             See parameter ``derived_action_features`` in :meth:`react`.
         derived_context_features : list of str, optional
@@ -1826,17 +1814,6 @@ class Trainee(BaseTrainee):
             the number will be determined automatically by the client. The
             number of series in following batches will be automatically
             adjusted. This value is ignored if ``batch_size`` is specified.
-        initial_features : list of str, optional
-            Features to condition just the first case in a series,
-            overwrites context_features and derived_context_features for that
-            first case. All specified initial features must be in one of:
-            context_features, action_features, derived_context_features or
-            derived_action_features. If provided a value that isn't in one of
-            those lists, it will be ignored.
-        initial_values : DataFrame or 2-dimensional list of object, optional
-            Values corresponding to the initial_features, used to condition
-            just the first case in each series. Must provide either exactly one
-            value to use for all series, or one per series.
         input_is_substituted : bool, default False
             See parameter ``input_is_substituted`` in :meth:`react`.
         leave_series_out: bool, default False
@@ -1851,7 +1828,7 @@ class Trainee(BaseTrainee):
         new_case_threshold : str, optional
             See parameter ``new_case_threshold`` in :meth:`react`.
         num_series_to_generate : int, default 1
-            The number of series to generate.
+            The number of series to generate when desired conviction is specified.
         ordered_by_specified_features : bool, default False
             See parameter ``ordered_by_specified_features`` in :meth:`react`.
         output_new_series_ids : bool, default True
@@ -1866,11 +1843,12 @@ class Trainee(BaseTrainee):
             is given a ProgressTimer containing metrics on the progress and
             timing of the react series operation, and the batch result.
         series_context_features : list of str, optional
-            List of context features corresponding to series_context_values, if
-            specified must not overlap with any initial_features or context_features.
+            List of context features corresponding to series_context_values.
         series_context_values : list of list of list of object or list of DataFrame, optional
-            3d list of context values, one for each feature for each row for each
-            series. If specified, batch_size and max_series_lengths are ignored.
+            3d-list of context values, one for each feature for each
+            row for each series. If ``continue_series`` is True, then this data will be
+            forecasted, otherwise this data will condition each row of the generated series.
+            If specified and not forecasting, then max_series_lengths are ignored.
         series_id_features: list[str], optional
             The names of the features used to uniquely identify the cases that make up a series
             trained into the Trainee. The order of feature names must correspond to the order
@@ -1927,8 +1905,6 @@ class Trainee(BaseTrainee):
                 action_features=action_features,
                 batch_size=batch_size,
                 continue_series=continue_series,
-                continue_series_features=continue_series_features,
-                continue_series_values=continue_series_values,
                 derived_action_features=derived_action_features,
                 derived_context_features=derived_context_features,
                 desired_conviction=desired_conviction,
@@ -1940,8 +1916,6 @@ class Trainee(BaseTrainee):
                 series_index=series_index,
                 init_time_steps=init_time_steps,
                 initial_batch_size=initial_batch_size,
-                initial_features=initial_features,
-                initial_values=initial_values,
                 input_is_substituted=input_is_substituted,
                 max_series_lengths=max_series_lengths,
                 new_case_threshold=new_case_threshold,

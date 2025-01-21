@@ -2567,7 +2567,7 @@ class AbstractHowsoClient(ABC):
         trainee_id : str
             The ID of the Trainee to react to.
         num_series_to_generate : int, default 1
-            The number of series to generate.
+            The number of series to generate when desired conviction is specified.
         final_time_steps : list of object, optional
             The time steps at which to end synthesis. Time-series
             only. Must provide either one for all series, or exactly one per
@@ -2576,17 +2576,6 @@ class AbstractHowsoClient(ABC):
             The time steps at which to begin synthesis. Time-series
             only. Must provide either one for all series, or exactly one per
             series.
-        initial_features : iterable of str, optional
-            List of features to condition just the first case in a
-            series, overwrites context_features and derived_context_features
-            for that first case. All specified initial features must be in one
-            of: context_features, action_features, derived_context_features or
-            derived_action_features. If provided a value that isn't in one of
-            those lists, it will be ignored.
-        initial_values : list of list of object, optional
-            2d list of values corresponding to the initial_features,
-            used to condition just the first case in each series. Must provide
-            either one for all series, or exactly one per series.
         series_stop_maps : list of dict of dict, optional
             A dictionary of feature name to stop conditions. Must provide either
             one for all series, or exactly one per series.
@@ -2609,22 +2598,14 @@ class AbstractHowsoClient(ABC):
             one per series.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
-            starting new series. If `initial_values` provide series IDs, it
-            will continue those explicitly specified IDs, otherwise it will
-            randomly select series to continue.
+            starting new series. If true, either ``series_context_values`` or
+            ``series_id_values`` must be specified. If ``series_id_values`` are
+            specified, then the trained series identified by the given ID
+            feature values will be forecasted.
             .. note::
 
                 Terminated series with terminators cannot be continued and
                 will result in null output.
-        continue_series_features : list of str, optional
-            The list of feature names corresponding to the values in each row of
-            `continue_series_values`. This value is ignored if
-            `continue_series_values` is None.
-        continue_series_values : list of list of list of object or list of pandas.DataFrame, default None
-            The set of series data to be forecasted with feature values in the
-            same order defined by `continue_series_values`. The value of
-            `continue_series` will be ignored and treated as true if this value
-            is specified.
         derived_context_features : iterable of str, optional
             List of context features whose values should be computed
             from the entire series in the specified order. Must be
@@ -2647,11 +2628,12 @@ class AbstractHowsoClient(ABC):
             is True. Only applies to generative reacts.
         series_context_features : iterable of str, optional
             List of context features corresponding to
-            series_context_values, if specified must not overlap with any
-            initial_features or context_features.
+            series_context_values.
         series_context_values : list of list of list of object or list of DataFrame, optional
             3d-list of context values, one for each feature for each
-            row for each series. If specified, max_series_lengths are ignored.
+            row for each series. If ``continue_series`` is True, then this data will be
+            forecasted, otherwise this data will condition each row of the generated series.
+            If specified and not forecasting, then max_series_lengths are ignored.
         output_new_series_ids : bool, default True
             If True, series ids are replaced with unique values on output.
             If False, will maintain or replace ids with existing trained values,
@@ -2741,8 +2723,6 @@ class AbstractHowsoClient(ABC):
 
             If `series_context_values` is not a 3d list of objects.
 
-            If `series_continue_values` is not a 3d list of objects.
-
             If `derived_action_features` is not a subset of `action_features`.
 
             If `new_case_threshold` is not one of {"max", "min", "most_similar"}.
@@ -2760,14 +2740,6 @@ class AbstractHowsoClient(ABC):
             raise ValueError(
                 "Improper shape of `series_context_values` values passed. "
                 "`series_context_values` must be a 3d list of object.")
-
-        # self._preprocess_react_parameters(
-        #     action_features=action_features,
-        #     desired_conviction=desired_conviction,
-        #     preserve_feature_values=preserve_feature_values,
-        #     trainee_id=trainee_id,
-        #     continue_series=continue_series,
-        # )
 
         if action_features is not None and derived_action_features is not None:
             if not set(derived_action_features).issubset(set(action_features)):
@@ -2816,11 +2788,6 @@ class AbstractHowsoClient(ABC):
             param_lengths = {1}
 
         if desired_conviction is None:
-            # Probably want the leave_series_out equivalent soon.
-            # if case_indices and not preserve_feature_values:
-            #     raise ValueError(
-            #         "For discriminative reacts, `preserve_feature_values` "
-            #         "is required when `case_indices` is specified.")
             total_size = max(param_lengths)
 
             react_params = {
@@ -2863,12 +2830,12 @@ class AbstractHowsoClient(ABC):
                     'value specified by `num_series_to_generate`.')
             total_size = num_series_to_generate
 
-            # self._preprocess_generate_parameters(
-            #     trainee_id,
-            #     action_features=action_features,
-            #     desired_conviction=desired_conviction,
-            #     num_cases_to_generate=num_series_to_generate,
-            # )
+            _ = self._preprocess_generate_parameters(
+                trainee_id,
+                action_features=action_features,
+                desired_conviction=desired_conviction,
+                num_cases_to_generate=num_series_to_generate,
+            )
 
             react_params = {
                 "num_series_to_generate": num_series_to_generate,
