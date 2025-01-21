@@ -1764,8 +1764,6 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        contexts : DataFrame or 2-dimensional list of object, optional
-            See parameter ``contexts`` in :meth:`react`.
         action_features : list of str, optional
             See parameter ``action_features`` in :meth:`react`.
         batch_size: int, optional

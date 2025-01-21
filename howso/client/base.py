@@ -2734,6 +2734,7 @@ class AbstractHowsoClient(ABC):
 
         util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
         util.validate_list_shape(series_stop_maps, 1, "series_stop_maps", "dict")
+        util.validate_list_shape(max_series_lengths, 1, "max_series_lengths", "num")
         util.validate_list_shape(series_context_features, 1, "series_context_features", "str")
 
         if series_context_values and util.num_list_dimensions(series_context_values) != 3:
