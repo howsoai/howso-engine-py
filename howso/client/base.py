@@ -649,6 +649,15 @@ class AbstractHowsoClient(ABC):
                     progress_callback(progress)
                 start = progress.current_tick
                 end = progress.current_tick + batch_size
+                if isinstance(train_weights_only, Collection):
+                    # Ensure the targeted indices match the batched cases
+                    batch_train_weights_only = [
+                        i - start
+                        for i in train_weights_only
+                        if start <= i < end
+                    ]
+                else:
+                    batch_train_weights_only = train_weights_only
                 response, in_size, out_size = self.execute_sized(trainee_id, "train", {
                     "cases": serialized_cases[start:end],
                     "accumulate_weight_feature": accumulate_weight_feature,
@@ -660,7 +669,7 @@ class AbstractHowsoClient(ABC):
                     "skip_auto_ablation": skip_auto_ablation,
                     "skip_auto_analyze": skip_auto_analyze,
                     "skip_reduce_data": skip_reduce_data,
-                    "train_weights_only": train_weights_only,
+                    "train_weights_only": batch_train_weights_only,
                 })
 
                 if response:
