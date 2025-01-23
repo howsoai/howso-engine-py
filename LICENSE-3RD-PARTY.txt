@@ -1,10 +1,10 @@
 Faker
-33.3.0
+34.0.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.12.8/lib/python3.12/site-packages/Faker-33.3.0.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.8/lib/python3.12/site-packages/Faker-34.0.0.dist-info/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -685,12 +685,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-2.2.1
+2.2.2
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.12.8/lib/python3.12/site-packages/numpy-2.2.1.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.12.8/lib/python3.12/site-packages/numpy-2.2.2.dist-info/LICENSE.txt
 Copyright (c) 2005-2024, NumPy Developers.
 All rights reserved.
 
@@ -3686,12 +3686,12 @@ PERFORMANCE OF THIS SOFTWARE.
 
 
 tzdata
-2024.2
+2025.1
 Apache Software License
 Python Software Foundation
 https://github.com/python/tzdata
 Provider of IANA time zone data
-/home/runner/.pyenv/versions/3.12.8/lib/python3.12/site-packages/tzdata-2024.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.12.8/lib/python3.12/site-packages/tzdata-2025.1.dist-info/LICENSE
 Apache Software License 2.0
 
 Copyright (c) 2020, Paul Ganssle (Google)
