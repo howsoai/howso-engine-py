@@ -1479,7 +1479,7 @@ class AbstractHowsoClient(ABC):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_model_residuals: bool = True,
+        use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -1913,9 +1913,9 @@ class AbstractHowsoClient(ABC):
             The name of a series store. If specified, will store an internal
             record of all react contexts for this session and series to be used
             later with train series.
-        use_regional_model_residuals : bool
-            If false uses model feature residuals, if True
-            recalculates regional model residuals.
+        use_regional_residuals : bool
+            If false uses global residuals, if True
+            calculates and uses regional residuals.
         feature_bounds_map : dict of dict
             A mapping of feature names to the bounds for the
             feature values to be generated in. For continuous features this
@@ -2148,7 +2148,7 @@ class AbstractHowsoClient(ABC):
                 "derived_action_features": derived_action_features,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
-                "use_regional_model_residuals": use_regional_model_residuals,
+                "use_regional_residuals": use_regional_residuals,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
                 "generate_new_cases": generate_new_cases,
@@ -2550,7 +2550,7 @@ class AbstractHowsoClient(ABC):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_model_residuals: bool = True,
+        use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None
     ) -> Reaction:
         """
@@ -2694,8 +2694,8 @@ class AbstractHowsoClient(ABC):
             See parameter ``preserve_feature_values`` in :meth:`AbstractHowsoClient.react`.
         new_case_threshold : str
             See parameter ``new_case_threshold`` in :meth:`AbstractHowsoClient.react`.
-        use_regional_model_residuals : bool
-            See parameter ``use_regional_model_residuals`` in :meth:`AbstractHowsoClient.react`.
+        use_regional_residuals : bool
+            See parameter ``use_regional_residuals`` in :meth:`AbstractHowsoClient.react`.
         feature_bounds_map: dict of dict
             See parameter ``feature_bounds_map`` in :meth:`AbstractHowsoClient.react`.
         generate_new_cases : {"always", "attempt", "no"}
@@ -2854,7 +2854,7 @@ class AbstractHowsoClient(ABC):
                 "series_id_features": series_id_features,
                 "series_id_values": series_id_values,
                 "leave_series_out": leave_series_out,
-                "use_regional_model_residuals": use_regional_model_residuals,
+                "use_regional_residuals": use_regional_residuals,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
                 "generate_new_cases": generate_new_cases,

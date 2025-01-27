@@ -1193,7 +1193,7 @@ class Trainee(BaseTrainee):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_model_residuals: bool = True,
+        use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -1664,9 +1664,9 @@ class Trainee(BaseTrainee):
             When True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
             be used if the Trainee has them.
-        use_regional_model_residuals : bool, default True
-            When false, uses model feature residuals. When True, recalculates
-            regional model residuals.
+        use_regional_residuals : bool, default True
+            When false, uses global residuals. When True, calculates and uses
+            regional residuals.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1711,7 +1711,7 @@ class Trainee(BaseTrainee):
             substitute_output=substitute_output,
             suppress_warning=suppress_warning,
             use_case_weights=use_case_weights,
-            use_regional_model_residuals=use_regional_model_residuals,
+            use_regional_residuals=use_regional_residuals,
             weight_feature=weight_feature,
         )
 
@@ -1750,7 +1750,7 @@ class Trainee(BaseTrainee):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_model_residuals: bool = True,
+        use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         """
@@ -1882,8 +1882,8 @@ class Trainee(BaseTrainee):
             See parameter ``suppress_warning`` in :meth:`react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
-        use_regional_model_residuals : bool, default True
-            See parameter ``use_regional_model_residuals`` in :meth:`react`.
+        use_regional_residuals : bool, default True
+            See parameter ``use_regional_residuals`` in :meth:`react`.
         weight_feature : str, optional
             See parameter ``weight_feature`` in :meth:`react`.
 
@@ -1932,7 +1932,7 @@ class Trainee(BaseTrainee):
                 substitute_output=substitute_output,
                 suppress_warning=suppress_warning,
                 use_case_weights=use_case_weights,
-                use_regional_model_residuals=use_regional_model_residuals,
+                use_regional_residuals=use_regional_residuals,
                 weight_feature=weight_feature,
             )
         else:
