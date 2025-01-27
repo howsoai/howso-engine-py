@@ -1,3 +1,0 @@
-(seq
-    (store "blah.amlg" (load "save_load_trainee.caml") (false))
-)
