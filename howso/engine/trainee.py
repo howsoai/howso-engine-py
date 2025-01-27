@@ -4056,7 +4056,7 @@ def load_trainee(
     # Ensure the path exists
     if not file_path.exists():
         raise HowsoError(
-            f'The specified Trainee file "{file_path}" does not exist.')
+            f'The specified Trainee file "{file_path.as_posix()}" does not exist.')
 
     if persistence == 'always':
         status = client.amlg.load_entity(
@@ -4073,7 +4073,7 @@ def load_trainee(
         )
     if not status.loaded:
         status_msg = status.message or "An unknown error occurred"
-        raise HowsoError(f'Failed to load Trainee file "{file_path}": {status_msg}')
+        raise HowsoError(f'Failed to load Trainee file "{file_path.as_posix()}": {status_msg}')
 
     base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore reportPrivateUsage
     client.trainee_cache.set(base_trainee)

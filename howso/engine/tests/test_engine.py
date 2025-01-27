@@ -222,7 +222,7 @@ class TestEngine:
     ])
     def test_load_status_message(self, mocker, monkeypatch, status_msg, expected_msg):
         """Test load_trainee raises status message from Amalgam."""
-        file_path = f"{Path.cwd()}/test_load.caml"
+        file_path = Path(Path.cwd(), "test_load.caml")
 
         monkeypatch.setattr(Path, "exists", lambda *args: True)
         mocker.patch(
@@ -232,7 +232,7 @@ class TestEngine:
 
         with pytest.raises(
             HowsoError,
-            match=f'Failed to load Trainee file "{re.escape(file_path)}": {expected_msg}'
+            match=f'Failed to load Trainee file "{file_path}": {expected_msg}'
         ):
             load_trainee(file_path=file_path)
 
