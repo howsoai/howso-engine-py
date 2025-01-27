@@ -2627,8 +2627,7 @@ class AbstractHowsoClient(ABC):
             attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
         series_context_features : iterable of str, optional
-            List of context features corresponding to
-            series_context_values.
+            List of context features corresponding to ``series_context_values``.
         series_context_values : list of list of list of object or list of DataFrame, optional
             3d-list of context values, one for each feature for each
             row for each series. If ``continue_series`` is True, then this data will be
