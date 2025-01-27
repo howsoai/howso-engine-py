@@ -1665,8 +1665,8 @@ class Trainee(BaseTrainee):
             ``weight_feature`` weight. If unspecified, case weights will
             be used if the Trainee has them.
         use_regional_residuals : bool, default True
-            When false, uses global residuals. When True, calculates and uses
-            regional residuals.
+            When False, uses global residuals. When True, calculates and uses
+            regional residuals, which may increase runtime noticably.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1841,17 +1841,17 @@ class Trainee(BaseTrainee):
             is given a ProgressTimer containing metrics on the progress and
             timing of the react series operation, and the batch result.
         series_context_features : list of str, optional
-            List of context features corresponding to series_context_values.
+            List of context features corresponding to ``series_context_values``.
         series_context_values : list of list of list of object or list of DataFrame, optional
             3d-list of context values, one for each feature for each
             row for each series. If ``continue_series`` is True, then this data will be
             forecasted, otherwise this data will condition each row of the generated series.
-            If specified and not forecasting, then max_series_lengths are ignored.
-        series_id_features: list[str], optional
+            If specified and not forecasting, then ``max_series_lengths`` are ignored.
+        series_id_features: list of str, optional
             The names of the features used to uniquely identify the cases that make up a series
             trained into the Trainee. The order of feature names must correspond to the order
             of values given in the sublists of ``series_id_values``.
-        series_id_values: list[list[object]], optional
+        series_id_values: list of list of object, optional
             A 2D list of ID feature values that each uniquely identify the cases of a trained
             series. Used in combination with ``continue_series`` to select trained series to
             forecast.

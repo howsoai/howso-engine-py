@@ -1914,8 +1914,8 @@ class AbstractHowsoClient(ABC):
             record of all react contexts for this session and series to be used
             later with train series.
         use_regional_residuals : bool
-            If false uses global residuals, if True
-            calculates and uses regional residuals.
+            If false uses global residuals, if True calculates and uses
+            regional residuals, which may increase runtime noticably.
         feature_bounds_map : dict of dict
             A mapping of feature names to the bounds for the
             feature values to be generated in. For continuous features this
@@ -2638,11 +2638,11 @@ class AbstractHowsoClient(ABC):
             If True, series ids are replaced with unique values on output.
             If False, will maintain or replace ids with existing trained values,
             but also allows output of series with duplicate existing ids.
-        series_id_features: list[str], optional
+        series_id_features: list of str, optional
             The names of the features used to uniquely identify the cases that make up a series
             trained into the Trainee. The order of feature names must correspond to the order
             of values given in the sublists of ``series_id_values``.
-        series_id_values: list[list[object]], optional
+        series_id_values: list of list of object, optional
             A 2D list of ID feature values that each uniquely identify the cases of a trained
             series. Used in combination with ``continue_series`` to select trained series to
             forecast.
