@@ -4047,17 +4047,16 @@ def load_trainee(
             )
     else:
         # Add the extension to the file_path
-        raise HowsoError(
-            'A `.caml` file must be provided.'
-        )
+        raise HowsoError('A `.caml` file must be provided.')
+
     # If path is not absolute, append it to the default directory.
     if not file_path.is_absolute():
         file_path = client.default_persist_path.joinpath(file_path)
 
-    # Ensure the parent path exists.
-    if not file_path.parents[0].exists(): # Noqa
+    # Ensure the path exists
+    if not file_path.exists():
         raise HowsoError(
-            f'The specified directory "{file_path.parents[0]}" does not exist.')
+            f'The specified Trainee file "{file_path.as_posix()}" does not exist.')
 
     if persistence == 'always':
         status = client.amlg.load_entity(
@@ -4073,12 +4072,10 @@ def load_trainee(
             file_path=str(file_path)
         )
     if not status.loaded:
-        raise HowsoError(f"Trainee from file '{file_path}' not found.")
+        status_msg = status.message or "An unknown error occurred"
+        raise HowsoError(f'Failed to load Trainee file "{file_path.as_posix()}": {status_msg}')
 
-    if isinstance(client, LocalSaveableProtocol):
-        base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore
-    else:
-        raise ValueError("Loading a Trainee from disk requires a client with disk access.")
+    base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore reportPrivateUsage
     client.trainee_cache.set(base_trainee)
     trainee = Trainee.from_schema(base_trainee, client=client)
     setattr(trainee, '_custom_save_path', file_path)

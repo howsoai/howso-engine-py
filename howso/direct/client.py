@@ -475,8 +475,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             file_path=str(self._howso_absolute_path)
         )
         if not status.loaded:
+            status_msg = status.message or "An unknown error occurred"
             raise HowsoError(
-                f'Failed to initialize the Trainee "{trainee_id}": {status.message}')
+                f'Failed to initialize the Trainee "{trainee_id}": {status_msg}')
         self.execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,
             "filepath": str(self._howso_dir) + '/',
@@ -1381,8 +1382,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             file_path=filepath
         )
         if not status.loaded:
+            status_msg = status.message or "An unknown error occurred"
             raise HowsoError(
-                f'Failed to acquire Trainee "{trainee_id}": {status.message}')
+                f'Failed to acquire Trainee "{trainee_id}": {status_msg}')
 
         # Cache the trainee details
         trainee = self._get_trainee_from_engine(trainee_id)
