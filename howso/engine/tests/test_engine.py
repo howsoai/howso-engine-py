@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from types import SimpleNamespace
 import typing as t
 
@@ -231,7 +232,7 @@ class TestEngine:
 
         with pytest.raises(
             HowsoError,
-            match=f'Failed to load Trainee file "{file_path}": {expected_msg}'
+            match=f'Failed to load Trainee file "{re.escape(file_path)}": {expected_msg}'
         ):
             load_trainee(file_path=file_path)
 
