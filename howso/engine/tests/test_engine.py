@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 import typing as t
 
 from pandas.testing import assert_frame_equal
@@ -211,6 +212,26 @@ class TestEngine:
         with pytest.raises(
             HowsoError,
             match='A `.caml` file must be provided.'
+        ):
+            load_trainee(file_path=file_path)
+
+    @pytest.mark.parametrize("status_msg, expected_msg", [
+        ("This is a test", "This is a test"),
+        ("", "An unknown error occurred"),
+    ])
+    def test_load_status_message(self, mocker, monkeypatch, status_msg, expected_msg):
+        """Test load_trainee raises status message from Amalgam."""
+        file_path = f"{Path.cwd()}/test_load.caml"
+
+        monkeypatch.setattr(Path, "exists", lambda *args: True)
+        mocker.patch(
+            "amalgam.api.Amalgam.load_entity",
+            return_value=SimpleNamespace(loaded=False, message=status_msg, version="")
+        )
+
+        with pytest.raises(
+            HowsoError,
+            match=f'Failed to load Trainee file "{file_path}": {expected_msg}'
         ):
             load_trainee(file_path=file_path)
 
