@@ -1479,7 +1479,7 @@ class AbstractHowsoClient(ABC):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_model_residuals: bool = True,
+        use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -1913,9 +1913,9 @@ class AbstractHowsoClient(ABC):
             The name of a series store. If specified, will store an internal
             record of all react contexts for this session and series to be used
             later with train series.
-        use_regional_model_residuals : bool
-            If false uses model feature residuals, if True
-            recalculates regional model residuals.
+        use_regional_residuals : bool
+            If false uses global residuals, if True calculates and uses
+            regional residuals, which may increase runtime noticably.
         feature_bounds_map : dict of dict
             A mapping of feature names to the bounds for the
             feature values to be generated in. For continuous features this
@@ -2148,7 +2148,7 @@ class AbstractHowsoClient(ABC):
                 "derived_action_features": derived_action_features,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
-                "use_regional_model_residuals": use_regional_model_residuals,
+                "use_regional_residuals": use_regional_residuals,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
                 "generate_new_cases": generate_new_cases,
@@ -2519,14 +2519,8 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         *,
         action_features: t.Optional[Collection[str]] = None,
-        actions: t.Optional[TabularData2D] = None,
         batch_size: t.Optional[int] = None,
-        case_indices: t.Optional[CaseIndices] = None,
-        contexts: t.Optional[TabularData2D] = None,
-        context_features: t.Optional[Collection[str]] = None,
         continue_series: bool = False,
-        continue_series_features: t.Optional[Collection[str]] = None,
-        continue_series_values: t.Optional[list[t.Any] | list[list[t.Any]]] = None,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
@@ -2537,10 +2531,8 @@ class AbstractHowsoClient(ABC):
         generate_new_cases: GenerateNewCases = "no",
         init_time_steps: t.Optional[list[t.Any]] = None,
         initial_batch_size: t.Optional[int] = None,
-        initial_features: t.Optional[Collection[str]] = None,
-        initial_values: t.Optional[TabularData2D] = None,
         input_is_substituted: bool = False,
-        leave_case_out: bool = False,
+        leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
@@ -2550,13 +2542,15 @@ class AbstractHowsoClient(ABC):
         progress_callback: t.Optional[Callable] = None,
         series_context_features: t.Optional[Collection[str]] = None,
         series_context_values: t.Optional[TabularData3D] = None,
+        series_id_features: t.Optional[Collection[str]] = None,
         series_id_tracking: SeriesIDTracking = "fixed",
+        series_id_values: t.Optional[TabularData2D] = None,
         series_index: t.Optional[str] = None,
         series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_model_residuals: bool = True,
+        use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None
     ) -> Reaction:
         """
@@ -2573,7 +2567,7 @@ class AbstractHowsoClient(ABC):
         trainee_id : str
             The ID of the Trainee to react to.
         num_series_to_generate : int, default 1
-            The number of series to generate.
+            The number of series to generate when desired conviction is specified.
         final_time_steps : list of object, optional
             The time steps at which to end synthesis. Time-series
             only. Must provide either one for all series, or exactly one per
@@ -2582,17 +2576,6 @@ class AbstractHowsoClient(ABC):
             The time steps at which to begin synthesis. Time-series
             only. Must provide either one for all series, or exactly one per
             series.
-        initial_features : iterable of str, optional
-            List of features to condition just the first case in a
-            series, overwrites context_features and derived_context_features
-            for that first case. All specified initial features must be in one
-            of: context_features, action_features, derived_context_features or
-            derived_action_features. If provided a value that isn't in one of
-            those lists, it will be ignored.
-        initial_values : list of list of object, optional
-            2d list of values corresponding to the initial_features,
-            used to condition just the first case in each series. Must provide
-            either one for all series, or exactly one per series.
         series_stop_maps : list of dict of dict, optional
             A dictionary of feature name to stop conditions. Must provide either
             one for all series, or exactly one per series.
@@ -2615,22 +2598,14 @@ class AbstractHowsoClient(ABC):
             one per series.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
-            starting new series. If `initial_values` provide series IDs, it
-            will continue those explicitly specified IDs, otherwise it will
-            randomly select series to continue.
+            starting new series. If true, either ``series_context_values`` or
+            ``series_id_values`` must be specified. If ``series_id_values`` are
+            specified, then the trained series identified by the given ID
+            feature values will be forecasted.
             .. note::
 
                 Terminated series with terminators cannot be continued and
                 will result in null output.
-        continue_series_features : list of str, optional
-            The list of feature names corresponding to the values in each row of
-            `continue_series_values`. This value is ignored if
-            `continue_series_values` is None.
-        continue_series_values : list of list of list of object or list of pandas.DataFrame, default None
-            The set of series data to be forecasted with feature values in the
-            same order defined by `continue_series_values`. The value of
-            `continue_series` will be ignored and treated as true if this value
-            is specified.
         derived_context_features : iterable of str, optional
             List of context features whose values should be computed
             from the entire series in the specified order. Must be
@@ -2652,16 +2627,27 @@ class AbstractHowsoClient(ABC):
             attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
         series_context_features : iterable of str, optional
-            List of context features corresponding to
-            series_context_values, if specified must not overlap with any
-            initial_features or context_features.
+            List of context features corresponding to ``series_context_values``.
         series_context_values : list of list of list of object or list of DataFrame, optional
             3d-list of context values, one for each feature for each
-            row for each series. If specified, max_series_lengths are ignored.
+            row for each series. If ``continue_series`` is True, then this data will be
+            forecasted, otherwise this data will condition each row of the generated series.
+            If specified and not forecasting, then max_series_lengths are ignored.
         output_new_series_ids : bool, default True
             If True, series ids are replaced with unique values on output.
             If False, will maintain or replace ids with existing trained values,
             but also allows output of series with duplicate existing ids.
+        series_id_features: list of str, optional
+            The names of the features used to uniquely identify the cases that make up a series
+            trained into the Trainee. The order of feature names must correspond to the order
+            of values given in the sublists of ``series_id_values``.
+        series_id_values: list of list of object, optional
+            A 2D list of ID feature values that each uniquely identify the cases of a trained
+            series. Used in combination with ``continue_series`` to select trained series to
+            forecast.
+        leave_series_out: bool, default False
+            If True, the cases of the series specified with ``series_id_values`` are held out
+            of queries made during the react_series call.
         series_id_tracking : {"dynamic", "fixed", "no"}, default "fixed"
             Controls how closely generated series should follow existing series (plural).
 
@@ -2689,14 +2675,8 @@ class AbstractHowsoClient(ABC):
             the number will be determined automatically. The number of series
             in following batches will be automatically adjusted. This value is
             ignored if ``batch_size`` is specified.
-        contexts: list of list of object or DataFrame
-            See parameter ``contexts`` in :meth:`AbstractHowsoClient.react`.
         action_features: iterable of str
             See parameter ``action_features`` in :meth:`AbstractHowsoClient.react`.
-        actions: list of list of object or DataFrame
-            See parameter ``actions`` in :meth:`AbstractHowsoClient.react`.
-        context_features: iterable of str
-            See parameter ``context_features`` in :meth:`AbstractHowsoClient.react`.
         input_is_substituted : bool, default False
             See parameter ``input_is_substituted`` in :meth:`AbstractHowsoClient.react`.
         substitute_output : bool
@@ -2709,16 +2689,12 @@ class AbstractHowsoClient(ABC):
             See parameter ``weight_feature`` in :meth:`AbstractHowsoClient.react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`AbstractHowsoClient.react`.
-        case_indices: iterable of sequence of str, int
-            See parameter ``case_indices`` in :meth:`AbstractHowsoClient.react`.
         preserve_feature_values : iterable of str
             See parameter ``preserve_feature_values`` in :meth:`AbstractHowsoClient.react`.
         new_case_threshold : str
             See parameter ``new_case_threshold`` in :meth:`AbstractHowsoClient.react`.
-        leave_case_out : bool
-            See parameter ``leave_case_out`` in :meth:`AbstractHowsoClient.react`.
-        use_regional_model_residuals : bool
-            See parameter ``use_regional_model_residuals`` in :meth:`AbstractHowsoClient.react`.
+        use_regional_residuals : bool
+            See parameter ``use_regional_residuals`` in :meth:`AbstractHowsoClient.react`.
         feature_bounds_map: dict of dict
             See parameter ``feature_bounds_map`` in :meth:`AbstractHowsoClient.react`.
         generate_new_cases : {"always", "attempt", "no"}
@@ -2746,8 +2722,6 @@ class AbstractHowsoClient(ABC):
 
             If `series_context_values` is not a 3d list of objects.
 
-            If `series_continue_values` is not a 3d list of objects.
-
             If `derived_action_features` is not a subset of `action_features`.
 
             If `new_case_threshold` is not one of {"max", "min", "most_similar"}.
@@ -2757,37 +2731,15 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
 
-        util.validate_list_shape(initial_features, 1, "initial_features", "str")
-        util.validate_list_shape(initial_values, 2, "initial_values", "list of object")
-        util.validate_list_shape(initial_features, 1, "max_series_lengths", "num")
+        util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
         util.validate_list_shape(series_stop_maps, 1, "series_stop_maps", "dict")
+        util.validate_list_shape(max_series_lengths, 1, "max_series_lengths", "num")
         util.validate_list_shape(series_context_features, 1, "series_context_features", "str")
 
-        if continue_series_values and util.num_list_dimensions(continue_series_values) != 3:
-            raise ValueError(
-                "Improper shape of `continue_series_values` values passed. "
-                "`continue_series_values` must be a 3d list of object.")
         if series_context_values and util.num_list_dimensions(series_context_values) != 3:
             raise ValueError(
                 "Improper shape of `series_context_values` values passed. "
                 "`series_context_values` must be a 3d list of object.")
-
-        if continue_series_values is not None:
-            continue_series = True
-
-        action_features, actions, context_features, contexts = (
-            self._preprocess_react_parameters(
-                action_features=action_features,
-                action_values=actions,
-                case_indices=case_indices,
-                context_features=context_features,
-                context_values=contexts,
-                desired_conviction=desired_conviction,
-                preserve_feature_values=preserve_feature_values,
-                trainee_id=trainee_id,
-                continue_series=continue_series,
-            )
-        )
 
         if action_features is not None and derived_action_features is not None:
             if not set(derived_action_features).issubset(set(action_features)):
@@ -2806,18 +2758,6 @@ class AbstractHowsoClient(ABC):
                 serialized_series_context_values.append(
                     serialize_cases(series, series_context_features, feature_attributes))
 
-        serialized_continue_series_values = None
-        if continue_series_values:
-            serialized_continue_series_values = []
-            for series in continue_series_values:
-                if continue_series_features is None:
-                    continue_series_features = internals.get_features_from_data(
-                        data=series,
-                        data_parameter="continue_series_values",
-                        features_parameter="continue_series_features")
-                serialized_continue_series_values.append(
-                    serialize_cases(series, continue_series_features, feature_attributes))
-
         if new_case_threshold not in [None, "min", "max", "most_similar"]:
             raise ValueError(
                 f"The value '{new_case_threshold}' specified for the parameter "
@@ -2825,22 +2765,11 @@ class AbstractHowsoClient(ABC):
                 " following values - ['min', 'max', 'most_similar',]"
             )
 
-        if initial_values is not None and initial_features is None:
-            initial_features = internals.get_features_from_data(
-                initial_values,
-                data_parameter='initial_values',
-                features_parameter='initial_features')
-        initial_values = serialize_cases(initial_values, initial_features, feature_attributes)
-
         # All of these params must be of length 1 or N
         # where N is the length of the largest
         one_or_more_params = [
-            contexts,
-            initial_values,
-            serialized_continue_series_values,
+            series_id_values,
             serialized_series_context_values,
-            case_indices,
-            actions,
             max_series_lengths,
             series_stop_maps,
         ]
@@ -2850,32 +2779,20 @@ class AbstractHowsoClient(ABC):
                 # Raise error if any of the params have different lengths
                 # greater than 1
                 raise ValueError(
-                    'When providing any of `contexts`, `actions`, '
-                    '`series_context_values`, `continue_series_values`, '
-                    '`case_indices`, `initial_values`, `max_series_lengths`, '
+                    'When providing any of '
+                    '`series_context_values`, `series_id_values`, '
+                    '`max_series_lengths`, '
                     'or `series_stop_maps`, each must be of length 1 or the same '
                     'length as each other.')
         else:
             param_lengths = {1}
 
         if desired_conviction is None:
-            if case_indices and not preserve_feature_values:
-                raise ValueError(
-                    "For discriminative reacts, `preserve_feature_values` "
-                    "is required when `case_indices` is specified.")
-            else:
-                total_size = max(param_lengths)
+            total_size = max(param_lengths)
 
             react_params = {
                 "action_features": action_features,
-                "action_values": actions,
-                "context_features": context_features,
-                "context_values": contexts,
                 "continue_series": continue_series,
-                "continue_series_features": continue_series_features,
-                "continue_series_values": serialized_continue_series_values,
-                "initial_features": initial_features,
-                "initial_values": initial_values,
                 "final_time_steps": final_time_steps,
                 "init_time_steps": init_time_steps,
                 "series_stop_maps": series_stop_maps,
@@ -2884,14 +2801,15 @@ class AbstractHowsoClient(ABC):
                 "derived_action_features": derived_action_features,
                 "series_context_features": series_context_features,
                 "series_context_values": serialized_series_context_values,
-                "case_indices": case_indices,
+                "series_id_features": series_id_features,
+                "series_id_values": series_id_values,
+                "leave_series_out": leave_series_out,
                 "preserve_feature_values": preserve_feature_values,
                 "new_case_threshold": new_case_threshold,
                 "input_is_substituted": input_is_substituted,
                 "substitute_output": substitute_output,
                 "weight_feature": weight_feature,
                 "use_case_weights": use_case_weights,
-                "leave_case_out": leave_case_out,
                 "details": details,
                 "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
                 "series_id_tracking": series_id_tracking,
@@ -2912,27 +2830,17 @@ class AbstractHowsoClient(ABC):
                     'value specified by `num_series_to_generate`.')
             total_size = num_series_to_generate
 
-            context_features, contexts = \
-                self._preprocess_generate_parameters(
-                    trainee_id,
-                    action_features=action_features,
-                    context_features=context_features,
-                    context_values=contexts,
-                    desired_conviction=desired_conviction,
-                    num_cases_to_generate=num_series_to_generate,
-                    case_indices=case_indices
-                )
+            _ = self._preprocess_generate_parameters(
+                trainee_id,
+                action_features=action_features,
+                desired_conviction=desired_conviction,
+                num_cases_to_generate=num_series_to_generate,
+            )
 
             react_params = {
                 "num_series_to_generate": num_series_to_generate,
                 "action_features": action_features,
-                "context_features": context_features,
-                "context_values": contexts,
                 "continue_series": continue_series,
-                "continue_series_features": continue_series_features,
-                "continue_series_values": serialized_continue_series_values,
-                "initial_features": initial_features,
-                "initial_values": initial_values,
                 "final_time_steps": final_time_steps,
                 "init_time_steps": init_time_steps,
                 "series_stop_maps": series_stop_maps,
@@ -2942,7 +2850,10 @@ class AbstractHowsoClient(ABC):
                 "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
                 "series_context_features": series_context_features,
                 "series_context_values": serialized_series_context_values,
-                "use_regional_model_residuals": use_regional_model_residuals,
+                "series_id_features": series_id_features,
+                "series_id_values": series_id_values,
+                "leave_series_out": leave_series_out,
+                "use_regional_residuals": use_regional_residuals,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
                 "generate_new_cases": generate_new_cases,
@@ -2953,8 +2864,6 @@ class AbstractHowsoClient(ABC):
                 "use_case_weights": use_case_weights,
                 "preserve_feature_values": preserve_feature_values,
                 "new_case_threshold": new_case_threshold,
-                "case_indices": case_indices,
-                "leave_case_out": leave_case_out,
                 "details": details,
                 "series_id_tracking": series_id_tracking,
                 "output_new_series_ids": output_new_series_ids,
@@ -3039,14 +2948,10 @@ class AbstractHowsoClient(ABC):
         temp_result = None
         accumulated_result = {'action_values': []}
 
-        actions = params.get('action_values')
-        contexts = params.get('context_values')
-        case_indices = params.get('case_indices')
-        initial_values = params.get('initial_values')
+        series_id_values = params.get('series_id_values')
         max_series_lengths = params.get('max_series_lengths')
         series_context_values = params.get('series_context_values')
         series_stop_maps = params.get('series_stop_maps')
-        continue_values = params.get('continue_series_values')
 
         with ProgressTimer(total_size) as progress:
             batch_scaler = None
@@ -3066,22 +2971,14 @@ class AbstractHowsoClient(ABC):
                 batch_start = progress.current_tick
                 batch_end = progress.current_tick + batch_size
 
-                if actions is not None and len(actions) > 1:
-                    params['action_values'] = actions[batch_start:batch_end]
-                if contexts is not None and len(contexts) > 1:
-                    params['context_values'] = contexts[batch_start:batch_end]
-                if case_indices is not None and len(case_indices) > 1:
-                    params['case_indices'] = case_indices[batch_start:batch_end]
-                if initial_values is not None and len(initial_values) > 1:
-                    params['initial_values'] = initial_values[batch_start:batch_end]
                 if max_series_lengths is not None and len(max_series_lengths) > 1:
                     params['max_series_lengths'] = max_series_lengths[batch_start:batch_end]
                 if series_context_values is not None and len(series_context_values) > 1:
                     params['series_context_values'] = series_context_values[batch_start:batch_end]
                 if series_stop_maps is not None and len(series_stop_maps) > 1:
                     params['series_stop_maps'] = series_stop_maps[batch_start:batch_end]
-                if continue_values is not None and len(continue_values) > 1:
-                    params['continue_series_values'] = continue_values[batch_start:batch_end]
+                if series_id_values is not None and len(series_id_values) > 1:
+                    params['series_id_values'] = series_id_values[batch_start:batch_end]
 
                 if params.get('desired_conviction') is not None:
                     params['num_series_to_generate'] = batch_size

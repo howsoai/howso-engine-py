@@ -1193,7 +1193,7 @@ class Trainee(BaseTrainee):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_model_residuals: bool = True,
+        use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -1664,9 +1664,9 @@ class Trainee(BaseTrainee):
             When True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
             be used if the Trainee has them.
-        use_regional_model_residuals : bool, default True
-            When false, uses model feature residuals. When True, recalculates
-            regional model residuals.
+        use_regional_residuals : bool, default True
+            When False, uses global residuals. When True, calculates and uses
+            regional residuals, which may increase runtime noticably.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1711,22 +1711,16 @@ class Trainee(BaseTrainee):
             substitute_output=substitute_output,
             suppress_warning=suppress_warning,
             use_case_weights=use_case_weights,
-            use_regional_model_residuals=use_regional_model_residuals,
+            use_regional_residuals=use_regional_residuals,
             weight_feature=weight_feature,
         )
 
     def react_series(
         self,
-        contexts: t.Optional[TabularData2D] = None,
         *,
         action_features: t.Optional[Collection[str]] = None,
-        actions: t.Optional[TabularData2D] = None,
         batch_size: t.Optional[int] = None,
-        case_indices: t.Optional[CaseIndices] = None,
-        context_features: t.Optional[Collection[str]] = None,
         continue_series: bool = False,
-        continue_series_features: t.Optional[Collection[str]] = None,
-        continue_series_values: t.Optional[TabularData3D] = None,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
@@ -1735,13 +1729,10 @@ class Trainee(BaseTrainee):
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
         final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
-        series_index: str = ".series",
         init_time_steps: t.Optional[list[t.Any]] = None,
         initial_batch_size: t.Optional[int] = None,
-        initial_features: t.Optional[Collection[str]] = None,
-        initial_values: t.Optional[TabularData2D] = None,
         input_is_substituted: bool = False,
-        leave_case_out: bool = False,
+        leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
@@ -1751,12 +1742,15 @@ class Trainee(BaseTrainee):
         progress_callback: t.Optional[Callable] = None,
         series_context_features: t.Optional[Collection[str]] = None,
         series_context_values: t.Optional[TabularData3D] = None,
+        series_id_features: t.Optional[Collection[str]] = None,
         series_id_tracking: SeriesIDTracking = "fixed",
+        series_id_values: t.Optional[TabularData2D] = None,
+        series_index: str = ".series",
         series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_model_residuals: bool = True,
+        use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         """
@@ -1770,37 +1764,21 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        contexts : DataFrame or 2-dimensional list of object, optional
-            See parameter ``contexts`` in :meth:`react`.
         action_features : list of str, optional
             See parameter ``action_features`` in :meth:`react`.
-        actions : DataFrame or 2-dimensional list of object, optional
-            See parameter ``actions`` in :meth:`react`.
         batch_size: int, optional
             Define the number of series to react to at once. If left
             unspecified, the batch size will be determined automatically.
-        case_indices : CaseIndices
-            See parameter ``case_indices`` in :meth:`react`.
-        context_features : list of str, optional
-            See parameter ``context_features`` in :meth:`react`.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
-            starting new series. If ``initial_values`` provide series IDs, it
-            will continue those explicitly specified IDs, otherwise it will
-            randomly select series to continue.
+            starting new series. If true, either ``series_context_values`` or
+            ``series_id_values`` must be specified. If ``series_id_values`` are
+            specified, then the trained series identified by the given ID
+            feature values will be forecasted.
             .. note::
 
                 Terminated series with terminators cannot be continued and
                 will result in null output.
-        continue_series_features : list of str, optional
-            The list of feature names corresponding to the values in each row of
-            ``continue_series_values``. This value is ignored if
-            ``continue_series_values`` is None.
-        continue_series_values : list of DataFrame or 3-dimensional list of object, optional
-            The set of series data to be forecasted with feature values in the
-            same order defined by ``continue_series_values``. The value of
-            ``continue_series`` will be ignored and treated as true if this value
-            is specified.
         derived_action_features : list of str, optional
             See parameter ``derived_action_features`` in :meth:`react`.
         derived_context_features : list of str, optional
@@ -1834,21 +1812,11 @@ class Trainee(BaseTrainee):
             the number will be determined automatically by the client. The
             number of series in following batches will be automatically
             adjusted. This value is ignored if ``batch_size`` is specified.
-        initial_features : list of str, optional
-            Features to condition just the first case in a series,
-            overwrites context_features and derived_context_features for that
-            first case. All specified initial features must be in one of:
-            context_features, action_features, derived_context_features or
-            derived_action_features. If provided a value that isn't in one of
-            those lists, it will be ignored.
-        initial_values : DataFrame or 2-dimensional list of object, optional
-            Values corresponding to the initial_features, used to condition
-            just the first case in each series. Must provide either exactly one
-            value to use for all series, or one per series.
         input_is_substituted : bool, default False
             See parameter ``input_is_substituted`` in :meth:`react`.
-        leave_case_out : bool, default False
-            See parameter ``leave_case_out`` in :meth:`react`.
+        leave_series_out: bool, default False
+            If True, the cases of the series specified with ``series_id_values`` are held out
+            of queries made during the react_series call.
         max_series_lengths : list of int, optional
             maximum size a series is allowed to be.  Default is
             3 * model_size, a 0 or less is no limit. If forecasting
@@ -1858,7 +1826,7 @@ class Trainee(BaseTrainee):
         new_case_threshold : str, optional
             See parameter ``new_case_threshold`` in :meth:`react`.
         num_series_to_generate : int, default 1
-            The number of series to generate.
+            The number of series to generate when desired conviction is specified.
         ordered_by_specified_features : bool, default False
             See parameter ``ordered_by_specified_features`` in :meth:`react`.
         output_new_series_ids : bool, default True
@@ -1873,11 +1841,20 @@ class Trainee(BaseTrainee):
             is given a ProgressTimer containing metrics on the progress and
             timing of the react series operation, and the batch result.
         series_context_features : list of str, optional
-            List of context features corresponding to series_context_values, if
-            specified must not overlap with any initial_features or context_features.
+            List of context features corresponding to ``series_context_values``.
         series_context_values : list of list of list of object or list of DataFrame, optional
-            3d list of context values, one for each feature for each row for each
-            series. If specified, batch_size and max_series_lengths are ignored.
+            3d-list of context values, one for each feature for each
+            row for each series. If ``continue_series`` is True, then this data will be
+            forecasted, otherwise this data will condition each row of the generated series.
+            If specified and not forecasting, then ``max_series_lengths`` are ignored.
+        series_id_features: list of str, optional
+            The names of the features used to uniquely identify the cases that make up a series
+            trained into the Trainee. The order of feature names must correspond to the order
+            of values given in the sublists of ``series_id_values``.
+        series_id_values: list of list of object, optional
+            A 2D list of ID feature values that each uniquely identify the cases of a trained
+            series. Used in combination with ``continue_series`` to select trained series to
+            forecast.
         series_id_tracking : {"fixed", "dynamic", "no"}, default "fixed"
             Controls how closely generated series should follow existing series (plural).
 
@@ -1905,8 +1882,8 @@ class Trainee(BaseTrainee):
             See parameter ``suppress_warning`` in :meth:`react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
-        use_regional_model_residuals : bool, default True
-            See parameter ``use_regional_model_residuals`` in :meth:`react`.
+        use_regional_residuals : bool, default True
+            See parameter ``use_regional_residuals`` in :meth:`react`.
         weight_feature : str, optional
             See parameter ``weight_feature`` in :meth:`react`.
 
@@ -1924,14 +1901,8 @@ class Trainee(BaseTrainee):
             return self.client.react_series(
                 trainee_id=self.id,
                 action_features=action_features,
-                actions=actions,
                 batch_size=batch_size,
-                case_indices=case_indices,
-                contexts=contexts,
-                context_features=context_features,
                 continue_series=continue_series,
-                continue_series_features=continue_series_features,
-                continue_series_values=continue_series_values,
                 derived_action_features=derived_action_features,
                 derived_context_features=derived_context_features,
                 desired_conviction=desired_conviction,
@@ -1943,10 +1914,7 @@ class Trainee(BaseTrainee):
                 series_index=series_index,
                 init_time_steps=init_time_steps,
                 initial_batch_size=initial_batch_size,
-                initial_features=initial_features,
-                initial_values=initial_values,
                 input_is_substituted=input_is_substituted,
-                leave_case_out=leave_case_out,
                 max_series_lengths=max_series_lengths,
                 new_case_threshold=new_case_threshold,
                 num_series_to_generate=num_series_to_generate,
@@ -1956,12 +1924,15 @@ class Trainee(BaseTrainee):
                 progress_callback=progress_callback,
                 series_context_features=series_context_features,
                 series_context_values=series_context_values,
+                series_id_features=series_id_features,
+                series_id_values=series_id_values,
+                leave_series_out=leave_series_out,
                 series_id_tracking=series_id_tracking,
                 series_stop_maps=series_stop_maps,
                 substitute_output=substitute_output,
                 suppress_warning=suppress_warning,
                 use_case_weights=use_case_weights,
-                use_regional_model_residuals=use_regional_model_residuals,
+                use_regional_residuals=use_regional_residuals,
                 weight_feature=weight_feature,
             )
         else:
