@@ -3624,7 +3624,6 @@ class AbstractHowsoClient(ABC):
         rebalance_features : Collection[str], optional
             The list of features whose values to use to rebalance case
             weighting of the data and to store into weight_feature.
-            Cannot be used with ablation.
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}, optional
             Type of hyperparameter targeting.
             Valid options include:
@@ -3821,7 +3820,6 @@ class AbstractHowsoClient(ABC):
         rebalance_features : Collection[str], optional
             The list of features whose values to use to rebalance case
             weighting of the data and to store into weight_feature.
-            Cannot be used with ablation.
         targeted_model : Literal["omni_targeted", "single_targeted", "targetless"], optional
             Type of hyperparameter targeting.
             Valid options include:
