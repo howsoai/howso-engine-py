@@ -3139,6 +3139,88 @@ class AbstractHowsoClient(ABC):
 
         return ret, in_size, out_size
 
+    def react_series_stationary(
+        self,
+        trainee_id: str,
+        action_features: Collection[str],
+        *,
+        context_features: t.Optional[Collection[str]] = None,
+        desired_conviction: t.Optional[float] = None,
+        input_is_substituted: bool = False,
+        series_context_features: t.Optional[Collection[str]] = None,
+        series_context_values: t.Optional[TabularData3D] = None,
+        series_id_features: t.Optional[Collection[str]] = None,
+        series_id_values: t.Optional[TabularData2D] = None,
+        use_case_weights: t.Optional[bool] = None,
+        use_derived_ts_features: bool = True,
+        use_regional_residuals: bool = True,
+        weight_feature: t.Optional[str] = None,
+    ):
+        """
+        React to series data predicting stationary feature values, values that
+        do not change over the timesteps of a series.
+
+        Parameters
+        ----------
+        action_features : collection of str
+            List of feature names specifying the features whose values to predict
+            for each specified series.
+        context_features : collection of str, optional
+            List of features names specifying what features will be used as contexts
+            to predict the values of the action features.
+        desired_conviction : float, optional
+            If specified will execute a generative react. If not
+            specified will executed a discriminative react. Conviction is the
+            ratio of expected surprisal to generated surprisal for each
+            feature generated, valid values are in the range of
+            :math:`(0, \\infty)`.
+        input_is_substituted : bool, default False
+            If True, assumes provided nominal feature values have
+            already been substituted.
+        series_context_features : list of str, optional
+            The list of feature names corresponding to the values in each row of
+            ``series_context_values``. This value is ignored if
+            ``series_context_values`` is not specified.
+        series_context_values : list of list of list of object, optional
+        series_id_features : list of str, optional
+        series_id_values : list of list of object, optional
+        use_case_weights : bool, optional
+        use_derived_ts_features : bool, default True
+        use_regional_residuals : bool, default True
+        weight_feature : str, optional
+        Returns
+        -------
+        dict of str to dict of str to float
+            A map of detail names to maps of feature names to stat values.
+
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        util.validate_list_shape(action_features, 1, "action_features", "str")
+        util.validate_list_shape(context_features, 1, "context_features", "str")
+        util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
+        util.validate_list_shape(series_context_values, 3, "series_context_values", "object")
+        util.validate_list_shape(series_id_values, 3, "series_id_values", "object")
+        if self.configuration.verbose:
+            print(f'Stationary series reacting on Trainee with id: {trainee_id}')
+        response = self.execute(trainee_id, "react_series_aggregate", {
+            "action_features": action_features,
+            "context_features": context_features,
+            "desired_conviction": desired_conviction,
+            "input_is_substituted": input_is_substituted,
+            "series_context_features": series_context_features,
+            "series_context_values": series_context_values,
+            "series_id_features": series_id_features,
+            "series_id_values": series_id_values,
+            "use_case_weights": use_case_weights,
+            "use_derived_ts_features": use_derived_ts_features,
+            "use_regional_residuals": use_regional_residuals,
+            "weight_feature": weight_feature,
+        })
+        if response is None:
+            response = dict()
+        self._auto_persist_trainee(trainee_id)
+        return response
+
     def react_into_features(
         self,
         trainee_id: str,
