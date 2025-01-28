@@ -3334,7 +3334,7 @@ class AbstractHowsoClient(ABC):
         batch_result, in_size, out_size = self.execute_sized(trainee_id, "react_series_stationary", params)
 
         if batch_result is None or batch_result.get('action_values') is None:
-            raise ValueError('Invalid parameters passed to react_series.')
+            raise ValueError('Invalid parameters passed to react_series_stationary.')
 
         ret = dict()
         batch_result = util.replace_doublemax_with_infinity(batch_result)
