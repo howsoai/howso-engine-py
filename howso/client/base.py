@@ -3151,20 +3151,20 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(series_context_features, 1, "series_context_features", "str")
         util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
 
-        if (series_id_values and series_context_values) or \
-           (not series_id_values and not series_context_values):
+        if (series_id_values is not None and series_context_values is not None) or \
+           (series_id_values is None and series_context_values is None):
             raise ValueError((
                 "Either `series_id_values` or `series_context_values` must be specified, "
                 "but not both."
             ))
 
-        if series_id_values:
+        if series_id_values is not None:
             total_size = len(series_id_values)
         else:
             total_size = len(series_context_values)
 
         serialized_series_context_values = None
-        if series_context_values:
+        if series_context_values is not None:
             serialized_series_context_values = []
             for series in series_context_values:
                 if series_context_features is None:
