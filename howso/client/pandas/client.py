@@ -197,7 +197,7 @@ class HowsoPandasClientMixin:
         **kwargs,
     ) -> DataFrame:
         """
-        Base: :func:`howso.client.AbstractHowsoClient.react_series`.
+        Base: :meth:`howso.client.AbstractHowsoClient.react_series_stationary`.
 
         Parameters
         ----------
@@ -206,9 +206,13 @@ class HowsoPandasClientMixin:
 
         Returns
         -------
-        DataFrame:
-            A DataFrame of action feature names to action values for each
-            series.
+        Reaction:
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A DataFrame of action values.
+
+                details -> dict or list
+                    An aggregated list of any requested details.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)

@@ -3155,10 +3155,9 @@ class AbstractHowsoClient(ABC):
         use_derived_ts_features: bool = True,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
-    ):
-        """
-        React to series data predicting stationary feature values, values that
-        do not change over the timesteps of a series.
+    ) -> Reaction:
+        r"""
+        React to series data predicting stationary feature values.
 
         Parameters
         ----------
@@ -3175,7 +3174,7 @@ class AbstractHowsoClient(ABC):
             specified will executed a discriminative react. Conviction is the
             ratio of expected surprisal to generated surprisal for each
             feature generated, valid values are in the range of
-            :math:`(0, \\infty)`.
+            :math:`(0, \infty)`.
         input_is_substituted : bool, default False
             If True, assumes provided nominal feature values have
             already been substituted.
@@ -3207,7 +3206,7 @@ class AbstractHowsoClient(ABC):
         use_regional_residuals : bool, default True
             If False, global residuals will be used in generative predictions.
             If True, regional residuals will be computed and used instead. This
-            may increase runtime noticably.
+            may increase runtime noticeable.
         weight_feature : str, optional
             The name of the weight feature to be used. Should be used in
             combination with ``use_case_weights``.
@@ -3217,14 +3216,24 @@ class AbstractHowsoClient(ABC):
         Reaction
             A MutableMapping (dict-like) with these keys -> values:
                 action -> pandas.DataFrame
-                    A data frame of action values.
+                    A DataFrame of action values.
                 details -> dict or list
                     A dict containing details.
 
+        Raises
+        ------
+        ValueError
+            If `action_features` is not a list of strings.
+            If `context_features` is not a list of strings.
+            If `series_context_features` is not a list of strings.
+            If `series_context_values` is not a 3d list of objects.
+            If `series_id_features` is not a list of strings.
+            If `series_id_values` is not a 2d list of objects.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         util.validate_list_shape(action_features, 1, "action_features", "str")
         util.validate_list_shape(context_features, 1, "context_features", "str")
+        util.validate_list_shape(series_context_features, 1, "series_context_features", "str")
         util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
         util.validate_list_shape(series_context_values, 3, "series_context_values", "object")
         util.validate_list_shape(series_id_values, 2, "series_id_values", "object")

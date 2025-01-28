@@ -1982,10 +1982,9 @@ class Trainee(BaseTrainee):
         use_derived_ts_features: bool = True,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
-    ):
-        """
-        React to series data predicting stationary feature values, values that
-        do not change over the timesteps of a series.
+    ) -> Reaction:
+        r"""
+        React to series data predicting stationary feature values.
 
         Parameters
         ----------
@@ -2002,7 +2001,7 @@ class Trainee(BaseTrainee):
             specified will executed a discriminative react. Conviction is the
             ratio of expected surprisal to generated surprisal for each
             feature generated, valid values are in the range of
-            :math:`(0, \\infty)`.
+            :math:`(0, \infty)`.
         input_is_substituted : bool, default False
             If True, assumes provided nominal feature values have
             already been substituted.
@@ -2034,7 +2033,7 @@ class Trainee(BaseTrainee):
         use_regional_residuals : bool, default True
             If False, global residuals will be used in generative predictions.
             If True, regional residuals will be computed and used instead. This
-            may increase runtime noticably.
+            may increase runtime noticeable.
         weight_feature : str, optional
             The name of the weight feature to be used. Should be used in
             combination with ``use_case_weights``.
@@ -2044,7 +2043,7 @@ class Trainee(BaseTrainee):
         Reaction
             A MutableMapping (dict-like) with these keys -> values:
                 action -> pandas.DataFrame
-                    A data frame of action values.
+                    A DataFrame of action values.
                 details -> dict or list
                     A dict containing details.
 
