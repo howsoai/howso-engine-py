@@ -3242,9 +3242,7 @@ class AbstractHowsoClient(ABC):
             If `action_features` is not a list of strings.
             If `context_features` is not a list of strings.
             If `series_context_features` is not a list of strings.
-            If `series_context_values` is not a 3d list of objects.
             If `series_id_features` is not a list of strings.
-            If `series_id_values` is not a 2d list of objects.
 
             If both `series_id_values` and `series_context_values` are
             specified.
@@ -3255,8 +3253,6 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(context_features, 1, "context_features", "str")
         util.validate_list_shape(series_context_features, 1, "series_context_features", "str")
         util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
-        util.validate_list_shape(series_context_values, 3, "series_context_values", "object")
-        util.validate_list_shape(series_id_values, 2, "series_id_values", "object")
 
         if (series_id_values and series_context_values) or \
            (not series_id_values and not series_context_values):
@@ -3399,7 +3395,7 @@ class AbstractHowsoClient(ABC):
                 if series_context_values is not None and len(series_context_values) > 1:
                     params['series_context_values'] = series_context_values[batch_start:batch_end]
 
-                temp_result, in_size, out_size = self._react_series(trainee_id, params)
+                temp_result, in_size, out_size = self._react_series_stationary(trainee_id, params)
 
                 internals.accumulate_react_result(accumulated_result, temp_result)
                 if batch_scaler is None or gen_batch_size is None:
