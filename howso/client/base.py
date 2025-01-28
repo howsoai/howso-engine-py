@@ -3151,17 +3151,20 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(series_context_features, 1, "series_context_features", "str")
         util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
 
-        if (series_id_values is not None and series_context_values is not None) or \
-           (series_id_values is None and series_context_values is None):
+        if (series_id_values is not None and series_context_values is not None):
             raise ValueError((
-                "Either `series_id_values` or `series_context_values` must be specified, "
-                "but not both."
+                "`series_id_values` and `series_context_values` cannot both be "
+                "specified."
             ))
 
         if series_id_values is not None:
             total_size = len(series_id_values)
-        else:
+        elif series_context_values is not None:
             total_size = len(series_context_values)
+        else:
+            raise ValueError((
+                "Either `series_id_values` or `series_context_values` must be specified."
+            ))
 
         serialized_series_context_values = None
         if series_context_values is not None:
@@ -3287,9 +3290,9 @@ class AbstractHowsoClient(ABC):
                 batch_start = progress.current_tick
                 batch_end = progress.current_tick + batch_size
 
-                if series_id_values is not None and len(series_id_values) > 1:
+                if series_id_values is not None:
                     params['series_id_values'] = series_id_values[batch_start:batch_end]
-                if series_context_values is not None and len(series_context_values) > 1:
+                if series_context_values is not None:
                     params['series_context_values'] = series_context_values[batch_start:batch_end]
 
                 temp_result, in_size, out_size = self._react_series_stationary(trainee_id, params)

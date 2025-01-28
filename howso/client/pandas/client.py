@@ -195,7 +195,7 @@ class HowsoPandasClientMixin:
         trainee_id: str,
         *args,
         **kwargs,
-    ) -> DataFrame:
+    ) -> Reaction:
         """
         Base: :meth:`howso.client.AbstractHowsoClient.react_series_stationary`.
 
