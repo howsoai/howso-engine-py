@@ -1967,6 +1967,107 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Trainee ID is needed for react_series.")
 
+    def react_series_stationary(
+        self,
+        action_features: Collection[str],
+        *,
+        context_features: t.Optional[Collection[str]] = None,
+        desired_conviction: t.Optional[float] = None,
+        input_is_substituted: bool = False,
+        series_context_features: t.Optional[Collection[str]] = None,
+        series_context_values: t.Optional[TabularData3D] = None,
+        series_id_features: t.Optional[Collection[str]] = None,
+        series_id_values: t.Optional[TabularData2D] = None,
+        use_case_weights: t.Optional[bool] = None,
+        use_derived_ts_features: bool = True,
+        use_regional_residuals: bool = True,
+        weight_feature: t.Optional[str] = None,
+    ):
+        """
+        React to series data predicting stationary feature values, values that
+        do not change over the timesteps of a series.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+        action_features : collection of str
+            List of feature names specifying the features whose values to predict
+            for each specified series.
+        context_features : collection of str, optional
+            List of features names specifying what features will be used as contexts
+            to predict the values of the action features.
+        desired_conviction : float, optional
+            If specified will execute a generative react. If not
+            specified will executed a discriminative react. Conviction is the
+            ratio of expected surprisal to generated surprisal for each
+            feature generated, valid values are in the range of
+            :math:`(0, \\infty)`.
+        input_is_substituted : bool, default False
+            If True, assumes provided nominal feature values have
+            already been substituted.
+        series_context_features : list of str, optional
+            The list of feature names corresponding to the values in each row of
+            ``series_context_values``. This value is ignored if
+            ``series_context_values`` is not specified.
+        series_context_values : list of list of list of object, optional
+            3d list of feature values defining a list of series, which are lists
+            of lists of values. When specified, the values are treated as a
+            series whose stationary feature values are to be predicted
+        series_id_features : list of str, optional
+            List of feature names corresponding to the values in each row of
+            ``series_id_values``. This value is ignored if ``series_id_values``
+            is not specified. If specified, all series ID features should be
+            contained within the given list.
+        series_id_values : list of list of object, optional
+            2d list of ID feature values. Each sublist should specify ID
+            feature values that can uniquely identify the cases making up a
+            single series.
+        use_case_weights : bool, optional
+            If True, then the Trainee will use case weights identified by the
+            name given in ``weight_feature``. If False, case weights will not
+            be used. If unspecified, case weights will be used if the Trainee
+            has them.
+        use_derived_ts_features : bool, default True
+            If True, then time-series features derived from features specified
+            as contexts will additionally be added as context features.
+        use_regional_residuals : bool, default True
+            If False, global residuals will be used in generative predictions.
+            If True, regional residuals will be computed and used instead. This
+            may increase runtime noticably.
+        weight_feature : str, optional
+            The name of the weight feature to be used. Should be used in
+            combination with ``use_case_weights``.
+
+        Returns
+        -------
+        Reaction
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
+                details -> dict or list
+                    A dict containing details.
+
+        """
+        if self.id:
+            return self.client.react_series_stationary(
+                trainee_id=self.id,
+                action_features=action_features,
+                context_features=context_features,
+                desired_conviction=desired_conviction,
+                input_is_substituted=input_is_substituted,
+                series_context_features=series_context_features,
+                series_context_values=series_context_values,
+                series_id_features=series_id_features,
+                series_id_values=series_id_values,
+                use_case_weights=use_case_weights,
+                use_derived_ts_features=use_derived_ts_features,
+                use_regional_residuals=use_regional_residuals,
+                weight_feature=weight_feature,
+            )
+        else:
+            raise ValueError("Trainee ID is needed for react_series_stationary.")
+
     def impute(
         self,
         *,

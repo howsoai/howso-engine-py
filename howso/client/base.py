@@ -3162,6 +3162,8 @@ class AbstractHowsoClient(ABC):
 
         Parameters
         ----------
+        trainee_id : str
+            The ID of the Trainee.
         action_features : collection of str
             List of feature names specifying the features whose values to predict
             for each specified series.
@@ -3182,16 +3184,42 @@ class AbstractHowsoClient(ABC):
             ``series_context_values``. This value is ignored if
             ``series_context_values`` is not specified.
         series_context_values : list of list of list of object, optional
+            3d list of feature values defining a list of series, which are lists
+            of lists of values. When specified, the values are treated as a
+            series whose stationary feature values are to be predicted
         series_id_features : list of str, optional
+            List of feature names corresponding to the values in each row of
+            ``series_id_values``. This value is ignored if ``series_id_values``
+            is not specified. If specified, all series ID features should be
+            contained within the given list.
         series_id_values : list of list of object, optional
+            2d list of ID feature values. Each sublist should specify ID
+            feature values that can uniquely identify the cases making up a
+            single series.
         use_case_weights : bool, optional
+            If True, then the Trainee will use case weights identified by the
+            name given in ``weight_feature``. If False, case weights will not
+            be used. If unspecified, case weights will be used if the Trainee
+            has them.
         use_derived_ts_features : bool, default True
+            If True, then time-series features derived from features specified
+            as contexts will additionally be added as context features.
         use_regional_residuals : bool, default True
+            If False, global residuals will be used in generative predictions.
+            If True, regional residuals will be computed and used instead. This
+            may increase runtime noticably.
         weight_feature : str, optional
+            The name of the weight feature to be used. Should be used in
+            combination with ``use_case_weights``.
+
         Returns
         -------
-        dict of str to dict of str to float
-            A map of detail names to maps of feature names to stat values.
+        Reaction
+            A MutableMapping (dict-like) with these keys -> values:
+                action -> pandas.DataFrame
+                    A data frame of action values.
+                details -> dict or list
+                    A dict containing details.
 
         """
         trainee_id = self._resolve_trainee(trainee_id).id
@@ -3199,10 +3227,10 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(context_features, 1, "context_features", "str")
         util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
         util.validate_list_shape(series_context_values, 3, "series_context_values", "object")
-        util.validate_list_shape(series_id_values, 3, "series_id_values", "object")
+        util.validate_list_shape(series_id_values, 2, "series_id_values", "object")
         if self.configuration.verbose:
             print(f'Stationary series reacting on Trainee with id: {trainee_id}')
-        response = self.execute(trainee_id, "react_series_aggregate", {
+        response = self.execute(trainee_id, "react_series_stationary", {
             "action_features": action_features,
             "context_features": context_features,
             "desired_conviction": desired_conviction,
@@ -3219,7 +3247,8 @@ class AbstractHowsoClient(ABC):
         if response is None:
             response = dict()
         self._auto_persist_trainee(trainee_id)
-        return response
+        response = internals.format_react_response(response)
+        return Reaction(response.get('action'), response.get('details'))
 
     def react_into_features(
         self,

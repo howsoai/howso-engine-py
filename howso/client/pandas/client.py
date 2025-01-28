@@ -190,6 +190,32 @@ class HowsoPandasClientMixin:
         response['action'] = format_dataframe(response.get("action"), feature_attributes)
         return response
 
+    def react_series_stationary(
+        self,
+        trainee_id: str,
+        *args,
+        **kwargs,
+    ) -> DataFrame:
+        """
+        Base: :func:`howso.client.AbstractHowsoClient.react_series`.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The trainee id.
+
+        Returns
+        -------
+        DataFrame:
+            A DataFrame of action feature names to action values for each
+            series.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self.resolve_feature_attributes(trainee_id)
+        response = super().react_series_stationary(trainee_id, *args, **kwargs)
+        response['action'] = format_dataframe(response.get("action"), feature_attributes)
+        return response
+
     def react(self, trainee_id, *args, **kwargs) -> Reaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react`.
