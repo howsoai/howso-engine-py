@@ -3250,6 +3250,7 @@ class AbstractHowsoClient(ABC):
             specified.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self.resolve_feature_attributes(trainee_id)
         util.validate_list_shape(action_features, 1, "action_features", "str")
         util.validate_list_shape(context_features, 1, "context_features", "str")
         util.validate_list_shape(series_context_features, 1, "series_context_features", "str")
@@ -3269,15 +3270,34 @@ class AbstractHowsoClient(ABC):
         else:
             total_size = len(series_context_values)
 
+        serialized_series_context_values = None
+        if series_context_values:
+            serialized_series_context_values = []
+            for series in series_context_values:
+                if series_context_features is None:
+                    series_context_features = internals.get_features_from_data(
+                        data=series,
+                        data_parameter="series_context_values",
+                        features_parameter="series_context_features")
+                serialized_series_context_values.append(
+                    serialize_cases(series, series_context_features, feature_attributes))
+
+        if series_id_values is not None and series_id_features is None:
+            series_id_features = internals.get_features_from_data(
+                series_id_values,
+                data_parameter='series_id_values',
+                features_parameter='series_id_features')
+        serialized_series_id_values = serialize_cases(series_id_values, series_id_features, feature_attributes)
+
         react_stationary_params = {
             "action_features": action_features,
             "context_features": context_features,
             "desired_conviction": desired_conviction,
             "input_is_substituted": input_is_substituted,
             "series_context_features": series_context_features,
-            "series_context_values": series_context_values,
+            "series_context_values": serialized_series_context_values,
             "series_id_features": series_id_features,
-            "series_id_values": series_id_values,
+            "series_id_values": serialized_series_id_values,
             "use_case_weights": use_case_weights,
             "use_derived_ts_features": use_derived_ts_features,
             "use_regional_residuals": use_regional_residuals,
@@ -3309,7 +3329,6 @@ class AbstractHowsoClient(ABC):
         if response is None:
             response = dict()
         self._auto_persist_trainee(trainee_id)
-        print(response)
         response = internals.format_react_response(response)
         return Reaction(response.get('action'), response.get('details'))
 
@@ -3376,7 +3395,7 @@ class AbstractHowsoClient(ABC):
                 batch_end = progress.current_tick + batch_size
 
                 if series_id_values is not None and len(series_id_values) > 1:
-                    params['max_series_lengths'] = series_id_values[batch_start:batch_end]
+                    params['series_id_values'] = series_id_values[batch_start:batch_end]
                 if series_context_values is not None and len(series_context_values) > 1:
                     params['series_context_values'] = series_context_values[batch_start:batch_end]
 
@@ -3426,7 +3445,7 @@ class AbstractHowsoClient(ABC):
 
         # batch_result always has action_features and action_values
         ret['action_features'] = batch_result.pop('action_features') or []
-        ret['action'] = batch_result.pop('action_values')
+        ret['action_values'] = batch_result.pop('action_values')
 
         # ensure all the details items are output as well
         for k, v in batch_result.items():
