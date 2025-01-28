@@ -48,8 +48,12 @@ class Schema(TypedDict):
     type: SchemaType
     default: NotRequired[t.Any]
     description: NotRequired[str]
-    enum: NotRequired[list[int | float | str]]
     required: NotRequired[bool]
+    enum: NotRequired[list[int | float | str]]
+    # Strings
+    min_length: NotRequired[int]
+    max_length: NotRequired[int]
+    pattern: NotRequired[str]
     # Numbers
     exclusive_max: NotRequired[int | float]
     exclusive_min: NotRequired[int | float]
@@ -81,6 +85,7 @@ class LabelDefinition(TypedDict):
     read_only: NotRequired[bool]
     statistically_idempotent: NotRequired[bool]
     use_active_session: NotRequired[bool]
+    protected: NotRequired[bool]
 
 
 class EngineApi(TypedDict):
