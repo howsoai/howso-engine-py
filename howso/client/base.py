@@ -3144,9 +3144,12 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         action_features: Collection[str],
         *,
+        batch_size: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
+        initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
+        progress_callback: t.Optional[Callable] = None,
         series_context_features: t.Optional[Collection[str]] = None,
         series_context_values: t.Optional[TabularData3D] = None,
         series_id_features: t.Optional[Collection[str]] = None,
@@ -3166,6 +3169,9 @@ class AbstractHowsoClient(ABC):
         action_features : collection of str
             List of feature names specifying the features whose values to predict
             for each specified series.
+        batch_size: int, optional
+            Define the number of series to react to at once. If left
+            unspecified, the batch size will be determined automatically.
         context_features : collection of str, optional
             List of features names specifying what features will be used as contexts
             to predict the values of the action features.
@@ -3175,9 +3181,19 @@ class AbstractHowsoClient(ABC):
             ratio of expected surprisal to generated surprisal for each
             feature generated, valid values are in the range of
             :math:`(0, \infty)`.
+        initial_batch_size: int, optional
+            The number of series to react to in the first batch. If unspecified,
+            the number will be determined automatically. The number of series
+            in following batches will be automatically adjusted. This value is
+            ignored if ``batch_size`` is specified.
         input_is_substituted : bool, default False
             If True, assumes provided nominal feature values have
             already been substituted.
+        progress_callback : callable, optional
+            A callback method that will be called before each
+            batched call to react series stationary and at the end of reacting.
+            The method is given a ProgressTimer containing metrics on the
+            progress and timing of the react series operation, and the batch result.
         series_context_features : list of str, optional
             The list of feature names corresponding to the values in each row of
             ``series_context_values``. This value is ignored if
@@ -3229,6 +3245,9 @@ class AbstractHowsoClient(ABC):
             If `series_context_values` is not a 3d list of objects.
             If `series_id_features` is not a list of strings.
             If `series_id_values` is not a 2d list of objects.
+
+            If both `series_id_values` and `series_context_values` are
+            specified.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         util.validate_list_shape(action_features, 1, "action_features", "str")
@@ -3237,9 +3256,20 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
         util.validate_list_shape(series_context_values, 3, "series_context_values", "object")
         util.validate_list_shape(series_id_values, 2, "series_id_values", "object")
-        if self.configuration.verbose:
-            print(f'Stationary series reacting on Trainee with id: {trainee_id}')
-        response = self.execute(trainee_id, "react_series_stationary", {
+
+        if (series_id_values and series_context_values) or \
+           (not series_id_values and not series_context_values):
+            raise ValueError((
+                "Either `series_id_values` or `series_context_values` must be specified, "
+                "but not both."
+            ))
+
+        if series_id_values:
+            total_size = len(series_id_values)
+        else:
+            total_size = len(series_context_values)
+
+        react_stationary_params = {
             "action_features": action_features,
             "context_features": context_features,
             "desired_conviction": desired_conviction,
@@ -3252,12 +3282,157 @@ class AbstractHowsoClient(ABC):
             "use_derived_ts_features": use_derived_ts_features,
             "use_regional_residuals": use_regional_residuals,
             "weight_feature": weight_feature,
-        })
+        }
+
+        if self._should_react_batch(react_stationary_params, total_size):
+            if self.configuration.verbose:
+                print(f'Batch stationary series reacting on trainee with id: {trainee_id}')
+            response = self._batch_react_series_stationary(
+                trainee_id,
+                react_stationary_params,
+                total_size=total_size,
+                batch_size=batch_size,
+                initial_batch_size=initial_batch_size,
+                progress_callback=progress_callback)
+        else:
+            if self.configuration.verbose:
+                print(f'Stationary series reacting on trainee with id: {trainee_id}')
+            with ProgressTimer(total_size) as progress:
+                if isinstance(progress_callback, Callable):
+                    progress_callback(progress, None)
+                response, _, _ = self._react_series_stationary(trainee_id, react_stationary_params)
+                progress.update(total_size)
+
+            if isinstance(progress_callback, Callable):
+                progress_callback(progress, response)
+
         if response is None:
             response = dict()
         self._auto_persist_trainee(trainee_id)
+        print(response)
         response = internals.format_react_response(response)
         return Reaction(response.get('action'), response.get('details'))
+
+    def _batch_react_series_stationary(  # noqa: C901
+        self,
+        trainee_id: str,
+        params: dict,
+        *,
+        batch_size: t.Optional[int] = None,
+        initial_batch_size: t.Optional[int] = None,
+        total_size: int,
+        progress_callback: t.Optional[Callable] = None
+    ):
+        """
+        Make react series stationary requests in batch.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to react to.
+        params : dict
+            The engine react series stationary parameters.
+        batch_size: int, optional
+            Define the number of series to react to at once. If left
+            unspecified, the batch size will be determined automatically.
+        initial_batch_size: int, optional
+            The number of series to react to in the first batch. If unspecified,
+            the number will be determined automatically. The number of series
+            in following batches will be automatically adjusted. This value is
+            ignored if ``batch_size`` is specified.
+        total_size : int
+            The total size of the data that will be batched.
+        progress_callback : callable, optional
+            A function to be called during batching to retrieve or
+            report progress metrics.
+
+        Returns
+        -------
+        dict
+            The `react_series_stationary` response.
+        """
+        temp_result = None
+        accumulated_result = {'action_values': []}
+
+        series_id_values = params.get('series_id_values')
+        series_context_values = params.get('series_context_values')
+
+        with ProgressTimer(total_size) as progress:
+            batch_scaler = None
+            gen_batch_size = None
+            if not batch_size:
+                if not initial_batch_size:
+                    start_batch_size = max(self._get_trainee_thread_count(trainee_id), 1)
+                else:
+                    start_batch_size = initial_batch_size
+                batch_scaler = self.batch_scaler_class(start_batch_size, progress)
+                gen_batch_size = batch_scaler.gen_batch_size()
+                batch_size = next(gen_batch_size, None)
+
+            while not progress.is_complete and batch_size is not None:
+                if isinstance(progress_callback, Callable):
+                    progress_callback(progress, temp_result)
+                batch_start = progress.current_tick
+                batch_end = progress.current_tick + batch_size
+
+                if series_id_values is not None and len(series_id_values) > 1:
+                    params['max_series_lengths'] = series_id_values[batch_start:batch_end]
+                if series_context_values is not None and len(series_context_values) > 1:
+                    params['series_context_values'] = series_context_values[batch_start:batch_end]
+
+                temp_result, in_size, out_size = self._react_series(trainee_id, params)
+
+                internals.accumulate_react_result(accumulated_result, temp_result)
+                if batch_scaler is None or gen_batch_size is None:
+                    progress.update(batch_size)
+                else:
+                    batch_size = batch_scaler.send(
+                        gen_batch_size,
+                        batch_scaler.SendOptions(None, (in_size, out_size)))
+
+        # Final call to callback on completion
+        if isinstance(progress_callback, Callable):
+            progress_callback(progress, temp_result)
+
+        return accumulated_result
+
+    def _react_series_stationary(self, trainee_id: str, params: dict):
+        """
+        Make a single react series stationary request.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee.
+        params : dict
+            The engine react series stationary parameters.
+
+        Returns
+        -------
+        dict
+            The react series stationary response.
+        int
+            The request payload size.
+        int
+            The response payload size.
+        """
+        batch_result, in_size, out_size = self.execute_sized(trainee_id, "react_series_stationary", params)
+
+        if batch_result is None or batch_result.get('action_values') is None:
+            raise ValueError('Invalid parameters passed to react_series.')
+
+        ret = dict()
+        batch_result = util.replace_doublemax_with_infinity(batch_result)
+
+        # batch_result always has action_features and action_values
+        ret['action_features'] = batch_result.pop('action_features') or []
+        ret['action'] = batch_result.pop('action_values')
+
+        # ensure all the details items are output as well
+        for k, v in batch_result.items():
+            ret[k] = [] if v is None else v
+
+        return ret, in_size, out_size
 
     def react_into_features(
         self,

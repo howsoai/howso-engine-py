@@ -1971,9 +1971,12 @@ class Trainee(BaseTrainee):
         self,
         action_features: Collection[str],
         *,
+        batch_size: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
+        initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
+        progress_callback: t.Optional[Callable] = None,
         series_context_features: t.Optional[Collection[str]] = None,
         series_context_values: t.Optional[TabularData3D] = None,
         series_id_features: t.Optional[Collection[str]] = None,
@@ -1993,6 +1996,9 @@ class Trainee(BaseTrainee):
         action_features : collection of str
             List of feature names specifying the features whose values to predict
             for each specified series.
+        batch_size: int, optional
+            Define the number of series to react to at once. If left
+            unspecified, the batch size will be determined automatically.
         context_features : collection of str, optional
             List of features names specifying what features will be used as contexts
             to predict the values of the action features.
@@ -2002,9 +2008,19 @@ class Trainee(BaseTrainee):
             ratio of expected surprisal to generated surprisal for each
             feature generated, valid values are in the range of
             :math:`(0, \infty)`.
+        initial_batch_size: int, optional
+            The number of series to react to in the first batch. If unspecified,
+            the number will be determined automatically. The number of series
+            in following batches will be automatically adjusted. This value is
+            ignored if ``batch_size`` is specified.
         input_is_substituted : bool, default False
             If True, assumes provided nominal feature values have
             already been substituted.
+        progress_callback : callable, optional
+            A callback method that will be called before each
+            batched call to react series stationary and at the end of reacting.
+            The method is given a ProgressTimer containing metrics on the
+            progress and timing of the react series operation, and the batch result.
         series_context_features : list of str, optional
             The list of feature names corresponding to the values in each row of
             ``series_context_values``. This value is ignored if
@@ -2052,9 +2068,12 @@ class Trainee(BaseTrainee):
             return self.client.react_series_stationary(
                 trainee_id=self.id,
                 action_features=action_features,
+                batch_size=batch_size,
                 context_features=context_features,
                 desired_conviction=desired_conviction,
+                initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
+                progress_callback=progress_callback,
                 series_context_features=series_context_features,
                 series_context_values=series_context_values,
                 series_id_features=series_id_features,
