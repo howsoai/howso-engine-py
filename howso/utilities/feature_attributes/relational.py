@@ -820,14 +820,20 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     if not feature_attributes[feature_name].get('cycle_length'):
                         raise ValueError(f'Error computing loose bounds for {feature_name}: '
                                          '`cycle_length` must be specified in attributes')
-                    return {'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
-                            'allow_null': allow_null}
+                    return {
+                        'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
+                        'actual_min': 0, 'actual_max': feature_attributes[feature_name]['cycle_length'],
+                        'allow_null': allow_null
+                    }
                 elif column_type in self.column_types.all_date_time_types:
                     # Expected to return a datetime.time object
                     min_time, max_time = (
                         self._get_min_max_values(feature_name))
-                    return {'min': time_to_seconds(min_time), 'max': time_to_seconds(max_time),
-                            'allow_null': allow_null}
+                    return {
+                        'min': time_to_seconds(min_time), 'max': time_to_seconds(max_time),
+                        'actual_min': time_to_seconds(min_time), 'actual_max': time_to_seconds(max_time),
+                        'allow_null': allow_null
+                    }
                 else:
                     raise ValueError(f'Error computing tight bounds for {feature_name}: '
                                      f'column type {column_type} not supported')
@@ -894,13 +900,14 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 min_value = self._value_to_number(min_value)
                 max_value = self._value_to_number(max_value)
 
+            actual_min_value = min_value
+            actual_max_value = max_value
+
             if (
                 min_value is not None and max_value is not None and
                 not isnan(min_value) and
                 not isnan(max_value)
             ):
-                actual_min_value = min_value
-                actual_max_value = max_value
                 if (
                     tight_bounds is None
                     or feature_name not in tight_bounds
@@ -936,14 +943,21 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 if format_dt is not None:
                     min_value = epoch_to_date(min_value, format_dt, min_date_tz)
                     max_value = epoch_to_date(max_value, format_dt, max_date_tz)
-                output = {'min': min_value, 'max': max_value, 'allow_null': allow_null}
+                output = {
+                    'min': min_value, 'max': max_value,
+                    'actual_min': actual_min_value, 'actual_max': actual_max_value,
+                    'allow_null': allow_null
+                }
             else:
                 # If no min/max were found from the data, use min/max size of
                 # the data type.
                 min_value, max_value = self._get_min_max_number_size_bounds(
                     feature_attributes, feature_name)
                 if min_value is not None and max_value is not None:
-                    output = {'min': min_value, 'max': max_value}
+                    output = {
+                        'min': min_value, 'max': max_value,
+                        'actual_min': actual_min_value, 'actual_max': actual_max_value,
+                    }
 
         else:
             output = {'allow_null': allow_null}

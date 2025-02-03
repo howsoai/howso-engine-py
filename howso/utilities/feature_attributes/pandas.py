@@ -301,8 +301,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     if not feature_attributes[feature_name].get('cycle_length'):
                         raise ValueError(f'Error computing loose bounds for {feature_name}: '
                                          '`cycle_length` must be specified in attributes')
-                    return {'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
-                            'allow_null': allow_null}
+                    return {
+                        'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
+                        'actual_min': 0, 'actual_max': feature_attributes[feature_name]['cycle_length'],
+                        'allow_null': allow_null
+                    }
                 # Tight bounds
                 else:
                     time_format = feature_attributes[feature_name].get('date_time_format')
@@ -314,7 +317,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     min_time = time_to_seconds(time_column.min().time())
                     max_time = time_to_seconds(time_column.max().time())
 
-                    return {'min': min_time, 'max': max_time, 'allow_null': allow_null}
+                    return {
+                        'min': min_time, 'max': max_time,
+                        'actual_min': min_time, 'actual_max': max_time,
+                        'allow_null': allow_null,
+                    }
 
             if (format_dt := feature_attributes[feature_name].get('date_time_format')) is not None:
                 min_date, max_date = None, None
@@ -424,7 +431,12 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
                     min_date = epoch_to_date(min_f, format_dt, min_date_tz)
                     max_date = epoch_to_date(max_f, format_dt, max_date_tz)
-                    return {'min': min_date, 'max': max_date}
+                    actual_min = epoch_to_date(actual_min_f, format_dt, min_date_tz)
+                    actual_max = epoch_to_date(actual_max_f, format_dt, max_date_tz)
+                    return {
+                        'min': min_date, 'max': max_date,
+                        'actual_min': actual_min, 'actual_max': actual_max
+                    }
                 except Exception:  # noqa: Intentionally broad
                     w_str = (f'Feature {feature_name} does not match the '
                              'provided date time format, unable to guess '
@@ -472,14 +484,22 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                                 elif actual_max_f == mode_f:
                                     max_f = actual_max_f
 
-                output = {'min': min_f, 'max': max_f, 'allow_null': allow_null}
+                output = {
+                    'min': min_f, 'max': max_f,
+                    'actual_min': actual_min_f, 'actual_max': actual_max_f,
+                    'allow_null': allow_null,
+                }
             else:
                 # If no min/max were found from the data, use min/max size of
                 # the data type.
                 min_value, max_value = self._get_min_max_number_size_bounds(
                     feature_attributes, feature_name)
                 if min_value is not None and max_value is not None:
-                    output = {'min': min_value, 'max': max_value, 'allow_null': allow_null}
+                    output = {
+                        'min': min_value, 'max': max_value,
+                        'actual_min': min_f, 'actual_max': max_f,
+                        'allow_null': allow_null,
+                    }
                 else:
                     output = {'allow_null': allow_null}
 
