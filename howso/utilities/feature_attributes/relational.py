@@ -822,7 +822,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                                          '`cycle_length` must be specified in attributes')
                     return {
                         'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
-                        'actual_min': 0, 'actual_max': feature_attributes[feature_name]['cycle_length'],
+                        'observed_min': 0, 'observed_max': feature_attributes[feature_name]['cycle_length'],
                         'allow_null': allow_null
                     }
                 elif column_type in self.column_types.all_date_time_types:
@@ -831,7 +831,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                         self._get_min_max_values(feature_name))
                     return {
                         'min': time_to_seconds(min_time), 'max': time_to_seconds(max_time),
-                        'actual_min': time_to_seconds(min_time), 'actual_max': time_to_seconds(max_time),
+                        'observed_min': time_to_seconds(min_time), 'observed_max': time_to_seconds(max_time),
                         'allow_null': allow_null
                     }
                 else:
@@ -945,7 +945,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     max_value = epoch_to_date(max_value, format_dt, max_date_tz)
                 output = {
                     'min': min_value, 'max': max_value,
-                    'actual_min': actual_min_value, 'actual_max': actual_max_value,
+                    'observed_min': actual_min_value, 'observed_max': actual_max_value,
                     'allow_null': allow_null
                 }
             else:
@@ -956,7 +956,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 if min_value is not None and max_value is not None:
                     output = {
                         'min': min_value, 'max': max_value,
-                        'actual_min': actual_min_value, 'actual_max': actual_max_value,
+                        'observed_min': actual_min_value, 'observed_max': actual_max_value,
                     }
 
         else:
