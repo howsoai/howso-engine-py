@@ -8,6 +8,7 @@ import json
 import logging
 import math
 import numbers
+from pathlib import Path
 import platform
 import typing as t
 import warnings
@@ -29,6 +30,10 @@ FLOAT_MIN = 2.2250738585072014 * math.pow(10, -308)
 INTEGER_MAX = int(math.pow(2, 53))
 LINUX_DT_MAX = '2262-04-11'
 WIN_DT_MAX = '6053-01-24'
+
+
+# Define a TypeVar which is FeatureAttributesBase or any subclass.
+FeatureAttributesBaseType = t.TypeVar('FeatureAttributesBaseType', bound='FeatureAttributesBase')
 
 
 class FeatureAttributesBase(dict):
@@ -74,16 +79,91 @@ class FeatureAttributesBase(dict):
         """
         return self.params
 
-    def to_json(self) -> str:
+    def to_json(self, archive: bool = False, json_path: t.Optional[Path] = None) -> str:
         """
         Get a JSON string representation of this FeatureAttributes object.
+
+        Parameters
+        ----------
+        archive : bool, default False
+            If True, the returned JSON includes 3 top-level keys:
+
+            - feature_attributes - A nested map of the inferred feature attributes.
+            - params - A map of parameters and their values used to infer the feature attributes.
+            - unsupported - A list of features not supported by the Howso Engine.
+
+            If False, only the nested map of the feature attributes is returned.
+
+        json_path : Path, optional
+            If provided, the JSON will be written to this path in addition to being returned.
 
         Returns
         -------
         String
             A JSON representation of the inferred feature attributes.
         """
-        return json.dumps(self)
+        if archive:
+            json_str = json.dumps({
+                "feature_attributes": self,
+                "params": self.params,
+                "unsupported": self.unsupported,
+            })
+        else:
+            json_str = json.dumps(self)
+
+        if json_path:
+            with open(json_path, mode="w") as fp:
+                fp.write(json_str)
+
+        return json_str
+
+    @classmethod
+    def from_json(
+        cls: type[FeatureAttributesBaseType],
+        json_str: t.Optional[str] = None,
+        *,
+        json_path: t.Optional[Path] = None
+    ) -> FeatureAttributesBaseType:
+        """
+        Reconstruct a FeatureAttributesBase from JSON.
+
+        Parameters
+        ----------
+        json_str : str, optional
+            A JSON object serialized to a string.
+        json_path : Path, optional
+            A path to a JSON file.
+
+        Returns
+        -------
+        FeatureAttributesBaseType
+            An instance of FeatureAttributesBase or any of its subclasses.
+        """
+        if json_path and json_str:
+            warnings.warn(
+                "The `json_str` parameter of `from_json` is ignored if the "
+                "`json_path` parameter is also provided.", UserWarning
+            )
+
+        if not json_path and not json_str:
+            warnings.warn(
+                "Either the `json_str` or `json_path` parameter of "
+                "`from_json` is required.", UserWarning
+            )
+
+        if json_path:
+            with open(json_path, mode="r") as fp:
+                obj_dict = json.load(fp)
+        else:
+            obj_dict = json.loads(json_str or "")
+
+        # If there are no top-level keys other than the archival_keys, it's an archive.
+        archival_keys = {"feature_attributes", "params", "unsupported"}
+        if not (set(obj_dict.keys()) - archival_keys):
+            return cls(**obj_dict)
+
+        # Else, it's just the feature_attributes.
+        return cls(feature_attributes=obj_dict)
 
     def to_dataframe(self, *, include_all: bool = False) -> pd.DataFrame:
         """
@@ -97,7 +177,7 @@ class FeatureAttributesBase(dict):
         pandas.DataFrame
             A DataFrame representation of the inferred feature attributes.
         """
-        return NotImplementedError('Function not yet implemented for all subclasses of `FeatureAttributesBase`')
+        raise NotImplementedError('Function not yet implemented for all subclasses of `FeatureAttributesBase`')
 
     def get_names(self, *, types: t.Optional[str | Container] = None,
                   without: t.Optional[Iterable[str]] = None,
@@ -396,7 +476,7 @@ class FeatureAttributesBase(dict):
         raise NotImplementedError()
 
     @staticmethod
-    def merge(attributes: dict[str, dict], entries: dict[str, dict]) -> FeatureAttributesBase[str, dict]:
+    def merge(attributes: dict[str, dict], entries: dict[str, dict]) -> FeatureAttributesBase:
         """
         Update the given attributes with one or more new entries such that types are preserved.
 
