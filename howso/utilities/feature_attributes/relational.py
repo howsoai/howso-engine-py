@@ -419,6 +419,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         If multiple values have the same mode all of them will be returned, as
         long as the count is a value greater than 1.
         """
+        result = None
         with session_scope(self.session_cls) as session:
             if db:
                 subquery = session.query(
