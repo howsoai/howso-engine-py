@@ -303,7 +303,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                                          '`cycle_length` must be specified in attributes')
                     return {
                         'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
-                        'actual_min': 0, 'actual_max': feature_attributes[feature_name]['cycle_length'],
+                        'observed_min': 0, 'observed_max': feature_attributes[feature_name]['cycle_length'],
                         'allow_null': allow_null
                     }
                 # Tight bounds
@@ -319,7 +319,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
                     return {
                         'min': min_time, 'max': max_time,
-                        'actual_min': min_time, 'actual_max': max_time,
+                        'observed_min': min_time, 'observed_max': max_time,
                         'allow_null': allow_null,
                     }
 
@@ -435,7 +435,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     actual_max = epoch_to_date(actual_max_f, format_dt, max_date_tz)
                     return {
                         'min': min_date, 'max': max_date,
-                        'actual_min': actual_min, 'actual_max': actual_max
+                        'observed_min': actual_min, 'observed_max': actual_max
                     }
                 except Exception:  # noqa: Intentionally broad
                     w_str = (f'Feature {feature_name} does not match the '
@@ -486,7 +486,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
                 output = {
                     'min': min_f, 'max': max_f,
-                    'actual_min': actual_min_f, 'actual_max': actual_max_f,
+                    'observed_min': actual_min_f, 'observed_max': actual_max_f,
                     'allow_null': allow_null,
                 }
             else:
@@ -497,7 +497,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 if min_value is not None and max_value is not None:
                     output = {
                         'min': min_value, 'max': max_value,
-                        'actual_min': min_f, 'actual_max': max_f,
+                        'observed_min': min_f, 'observed_max': max_f,
                         'allow_null': allow_null,
                     }
                 else:

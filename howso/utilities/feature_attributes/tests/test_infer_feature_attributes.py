@@ -269,27 +269,27 @@ def test_infer_time_features(data, is_time, expected_format):
 @pytest.mark.parametrize('data, tight_bounds, provided_format, expected_bounds, cycle_length', [
     (
         pd.DataFrame(["00:00:00", "23:59:59"], columns=['a']), ['a'], None,
-        {'min': 0, 'max': 86399, 'actual_min': 0, 'actual_max': 86399, 'allow_null': True}, 86400
+        {'min': 0, 'max': 86399, 'observed_min': 0, 'observed_max': 86399, 'allow_null': True}, 86400
     ),
     (
         pd.DataFrame(["03:00:00.0", "12:00:01.5"], columns=['a']), ['a'], None,
-        {'min': 10800, 'max': 43201.5, 'actual_min': 10800, 'actual_max': 43201.5, 'allow_null': True}, 86400
+        {'min': 10800, 'max': 43201.5, 'observed_min': 10800, 'observed_max': 43201.5, 'allow_null': True}, 86400
     ),
     (
         pd.DataFrame(["03:00:00.0", "12:00:01.5"], columns=['a']), None, None,
-        {'min': 0, 'max': 86400, 'actual_min': 0, 'actual_max': 86400, 'allow_null': True}, 86400
+        {'min': 0, 'max': 86400, 'observed_min': 0, 'observed_max': 86400, 'allow_null': True}, 86400
     ),
     (
         pd.DataFrame(["25:0", "30:0"], columns=['a']), ['a'], '%M:%S',
-        {'min': 1500, 'max': 1800, 'actual_min': 1500, 'actual_max': 1800, 'allow_null': True}, 3600
+        {'min': 1500, 'max': 1800, 'observed_min': 1500, 'observed_max': 1800, 'allow_null': True}, 3600
     ),
     (
         pd.DataFrame(["25.0", "30.5"], columns=['a']), None, '%S.%f',
-        {'min': 0, 'max': 60, 'actual_min': 0, 'actual_max': 60, 'allow_null': True}, 60
+        {'min': 0, 'max': 60, 'observed_min': 0, 'observed_max': 60, 'allow_null': True}, 60
     ),
     (
         pd.DataFrame(["5", "7"], columns=['a']), None, '%f',
-        {'min': 0, 'max': 1, 'actual_min': 0, 'actual_max': 1, 'allow_null': True}, 1
+        {'min': 0, 'max': 1, 'observed_min': 0, 'observed_max': 1, 'allow_null': True}, 1
     ),
 ])
 def test_infer_time_feature_bounds(data, tight_bounds, provided_format, expected_bounds, cycle_length):
@@ -372,37 +372,37 @@ def test_dependent_features(should_include, base_features, dependent_features):
 
 
 @pytest.mark.parametrize('tight_bounds, data, expected_bounds', [
-    (None, [2, 3, 4, 5, 6, 7], {'min': 1, 'max': 7, 'actual_min': 2, 'actual_max': 7, 'allow_null': False}),
-    (None, [2, 3, 4, 4, 5, 6, 6, 6, 6], {'min': 1, 'max': 6, 'actual_min': 2, 'actual_max': 6, 'allow_null': False}),
-    (None, [2, 3, 4, 4, 4, 4, 6, 6, 6, 6], {'min': 1, 'max': 6, 'actual_min': 2, 'actual_max': 6, 'allow_null': False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6], {'min': 2, 'max': 6, 'actual_min': 2, 'actual_max': 6, 'allow_null': False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6, 6], {'min': 1, 'max': 6, 'actual_min': 2, 'actual_max': 6, 'allow_null': False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 7], {'min': 2, 'max': 7, 'actual_min': 2, 'actual_max': 7, 'allow_null': False}),
+    (None, [2, 3, 4, 5, 6, 7], {'min': 1, 'max': 7, 'observed_min': 2, 'observed_max': 7, 'allow_null': False}),
+    (None, [2, 3, 4, 4, 5, 6, 6, 6, 6], {'min': 1, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),
+    (None, [2, 3, 4, 4, 4, 4, 6, 6, 6, 6], {'min': 1, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6], {'min': 2, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6, 6], {'min': 1, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 7], {'min': 2, 'max': 7, 'observed_min': 2, 'observed_max': 7, 'allow_null': False}),
     (None, [float('nan'), float('nan')], {'allow_null': True}),
-    (['a'], [2, 3, 4, 5, 6, 7], {'min': 2, 'max': 7, 'actual_min': 2, 'actual_max': 7, 'allow_null': False}),
-    (['a'], [2, 3, 4, None, 6, 7], {'min': 2, 'max': 7, 'actual_min': 2, 'actual_max': 7, 'allow_null': True}),
+    (['a'], [2, 3, 4, 5, 6, 7], {'min': 2, 'max': 7, 'observed_min': 2, 'observed_max': 7, 'allow_null': False}),
+    (['a'], [2, 3, 4, None, 6, 7], {'min': 2, 'max': 7, 'observed_min': 2, 'observed_max': 7, 'allow_null': True}),
     (
         ['a'],
         ['1905-01-01', '1904-05-03', '2020-01-15', '2000-04-26', '2000-04-24'],
-        {'min': '1904-05-03', 'max': '2020-01-15', 'actual_min': '1904-05-03', 'actual_max': '2020-01-15'}
+        {'min': '1904-05-03', 'max': '2020-01-15', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
     ),
     (
         None,
         ['1905-01-01', '1904-05-03', '2020-01-15', '2000-04-26', '2000-04-24'],
-        {'min': '1856-05-25', 'max': '2083-08-08', 'actual_min': '1904-05-03', 'actual_max': '2020-01-15'}
+        {'min': '1856-05-25', 'max': '2083-08-08', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
     ),
     (
         None,
         ['1905-01-01', '1904-05-03', '2020-01-15', '2020-01-15', '2020-01-15',
          '2020-01-15', '2000-04-26', '2000-04-24'],
-        {'min': '1856-05-25', 'max': '2020-01-15', 'actual_min': '1904-05-03', 'actual_max': '2020-01-15'}
+        {'min': '1856-05-25', 'max': '2020-01-15', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
     ),
     (
         None,
         ['1905-01-01', '1904-05-03', '1904-05-03', '1904-05-03', '1904-05-03',
          '2020-01-15', '2020-01-15', '2020-01-15', '2020-01-15', '2000-04-26',
          '2000-04-24'],
-        {'min': '1904-05-03', 'max': '2020-01-15', 'actual_min': '1904-05-03', 'actual_max': '2020-01-15'}
+        {'min': '1904-05-03', 'max': '2020-01-15', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
     ),
     (
         None,
@@ -411,21 +411,21 @@ def test_dependent_features(should_include, base_features, dependent_features):
          "1904-05-03T00:00:00+0500", "1904-05-03T00:00:00-0200",
          "1904-05-03T00:00:00+0500", "2022-01-15T00:00:00+0500"],
         {'min': '1904-05-03T00:00:00+0500', 'max': '2083-08-08T01:07:26+0500',
-         'actual_min': '1904-05-03T00:00:00+0500', 'actual_max': '2022-03-26T00:00:00+0500'}
+         'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
     ),
     (
         ['a'],
         [datetime.datetime(1905, 1, 1), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
         {'min': '1904-05-03T00:00:00', 'max': '2022-03-26T00:00:00',
-         'actual_min': '1904-05-03T00:00:00', 'actual_max': '2022-03-26T00:00:00'}
+         'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
     ),
     (
         None,
         [datetime.datetime(1905, 1, 1), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
         {'min': '1856-05-25T22:52:33', 'max': '2083-08-08T01:07:26',
-         'actual_min': '1904-05-03T00:00:00', 'actual_max': '2022-03-26T00:00:00'}
+         'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
     ),
     (
         None,
@@ -434,7 +434,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.datetime(1904, 5, 3), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
         {'min': '1904-05-03T00:00:00', 'max': '2083-08-08T01:07:26',
-         'actual_min': '1904-05-03T00:00:00', 'actual_max': '2022-03-26T00:00:00'}
+         'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
     ),
     (
         None,
@@ -447,7 +447,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.datetime(2020, 1, 15, tzinfo=pytz.FixedOffset(300)),
          datetime.datetime(2022, 3, 26, tzinfo=pytz.FixedOffset(300))],
         {'min': '1904-05-03T00:00:00+0500', 'max': '2083-08-08T01:07:26+0500',
-         'actual_min': '1904-05-03T00:00:00+0500', 'actual_max': '2022-03-26T00:00:00+0500'}
+         'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
     ),
     (
         None,
@@ -460,7 +460,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.datetime(2020, 1, 15, tzinfo=pytz.FixedOffset(300)),
          datetime.datetime(2022, 3, 26, tzinfo=pytz.FixedOffset(300))],
         {'min': '1904-05-03T00:00:00+0500', 'max': '2083-08-08T01:07:26+0500',
-         'actual_min': '1904-05-03T00:00:00+0500', 'actual_max': '2022-03-26T00:00:00+0500'}
+         'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
     ),
     (
         ['a'],
@@ -468,7 +468,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.timedelta(seconds=5), datetime.timedelta(days=1, seconds=30),
          datetime.timedelta(minutes=50), datetime.timedelta(days=5)],
         {'min': 5, 'max': 5 * 24 * 60 * 60,
-         'actual_min': 5, 'actual_max': 5 * 24 * 60 * 60,
+         'observed_min': 5, 'observed_max': 5 * 24 * 60 * 60,
          'allow_null': True, 'allow_null': True}
     ),
     (
@@ -479,7 +479,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.timedelta(days=5), datetime.timedelta(days=5),
          datetime.timedelta(days=5)],
         {'min': 2.718281828459045, 'max': 5 * 24 * 60 * 60,
-         'actual_min': 5, 'actual_max': 5 * 24 * 60 * 60,
+         'observed_min': 5, 'observed_max': 5 * 24 * 60 * 60,
          'allow_null': True, 'allow_null': True}
     ),
 ])
