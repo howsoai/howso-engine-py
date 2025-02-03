@@ -419,25 +419,27 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         If multiple values have the same mode all of them will be returned, as
         long as the count is a value greater than 1.
         """
+        result = None
         with session_scope(self.session_cls) as session:
-            subquery = session.query(
-                func.count(self.data.c[feature_name]).label('count')
-            ).group_by(self.data.c[feature_name]).subquery('all_counts')
-            max_count = session.query(
-                func.max(subquery.c.count).label('max_count')).scalar_subquery()
-            result = (
-                session.query(
-                    self.data.c[feature_name],
-                    func.count(self.data.c[feature_name]).label('num')
-                ).group_by(
-                    self.data.c[feature_name]
-                ).having(
-                    db.sql.and_(
-                        func.count(self.data.c[feature_name]) > 1,
-                        func.count(self.data.c[feature_name]) >= max_count
+            if db:
+                subquery = session.query(
+                    func.count(self.data.c[feature_name]).label('count')
+                ).group_by(self.data.c[feature_name]).subquery('all_counts')
+                max_count = session.query(
+                    func.max(subquery.c.count).label('max_count')).scalar_subquery()
+                result = (
+                    session.query(
+                        self.data.c[feature_name],
+                        func.count(self.data.c[feature_name]).label('num')
+                    ).group_by(
+                        self.data.c[feature_name]
+                    ).having(
+                        db.sql.and_(
+                            func.count(self.data.c[feature_name]) > 1,
+                            func.count(self.data.c[feature_name]) >= max_count
+                        )
                     )
                 )
-            )
 
         if result is None:
             return []
@@ -649,7 +651,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             'date_time_format': ISO_8601_DATE_FORMAT,
         }
 
-    def _infer_time_attributes(self, feature_name: str, user_time_format: str = None) -> dict:
+    def _infer_time_attributes(self, feature_name: str, user_time_format: t.Optional[str] = None) -> dict:
         # Import this here to avoid circular import
         from howso.client.exceptions import HowsoError
         # Although rare, it is plausible that a time field could be a
@@ -668,7 +670,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         else:
             first_non_null = self._get_first_non_null(feature_name)
             try:
-                time_format = infer_time_format(first_non_null)
+                time_format = infer_time_format(first_non_null)  # type: ignore reportArgumentType
             except ValueError as e:
                 raise HowsoError(f"Please specify the format of time feature '{feature_name}' in "
                                  "'datetime_feature_formats'") from e
@@ -774,7 +776,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         if self._is_iso8601_datetime_column(feature_name):
             # if datetime, determine the iso8601 format it's using
             sample = self._get_first_non_null(feature_name)
-            fmt = determine_iso_format(sample, feature_name)
+            fmt = determine_iso_format(sample, feature_name)  # type: ignore reportArgumentType
             return {
                 'type': 'continuous',
                 'data_type': 'formatted_date_time',
@@ -794,7 +796,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                               tight_bounds: t.Optional[Iterable[str]] = None,
                               mode_bound_features: t.Optional[list[str]] = None,
                               ) -> dict | None:
-        output = None
+        output = dict()
         allow_null = True
         original_type = feature_attributes[feature_name]['original_type']
         decimal_places = feature_attributes[feature_name].get('decimal_places')
@@ -831,8 +833,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                                      f'column type {column_type} not supported')
 
             if 'date_time_format' in feature_attributes[feature_name]:
-                format_dt = (
-                    feature_attributes[feature_name].get('date_time_format'))
+                format_dt = feature_attributes[feature_name].get('date_time_format')
 
                 if column_type in self.column_types.all_date_time_types:
                     # The datetime values are stored in a datetime column. We
@@ -849,8 +850,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     # This loop grabs all the distinct values, then converts
                     # them according to the `format_dt` to a proper datetime
                     # instance, then compares them to find min and max values.
-                    min_date_obj = datetime.max
-                    max_date_obj = datetime.min
+                    min_date_obj = datetime.datetime.max
+                    max_date_obj = datetime.datetime.min
 
                     try:
                         unique_values = self._get_unique_values(feature_name)
@@ -859,7 +860,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                         for dt_str, in unique_values:
                             # Parse using the `format_dt` into a datetime
                             if dt_str:  # skip any empty values
-                                date_obj = datetime.strptime(dt_str, format_dt)
+                                date_obj = datetime.datetime.strptime(dt_str, format_dt)
                                 min_date_obj = min(min_date_obj, date_obj)
                                 max_date_obj = max(max_date_obj, date_obj)
                         else:
@@ -955,7 +956,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return output
 
-    def _parse_column_type(self, full_type_str: str) -> tuple[str, dict]:
+    def _parse_column_type(self, full_type_str: str) -> tuple[str, dict] | None:
         """
         Determine column type from schema description of column.
 
@@ -974,33 +975,38 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         Returns
         -------
-        tuple : str, dict
+        tuple or None
             The base type string,
             A dictionary of the relevant parts. The 'type', and depending on
             the type, additional keys 'precision', 'scale', or 'length'.
+
+            If `full_type_str` cannot be matched fo the column, return None.
         """
         if '(' not in full_type_str:
             return full_type_str.upper(), {}
 
-        matched = COLUMN_TYPE_PATTERN.match(full_type_str)
-        type_str = matched.group('type').upper()
+        if matched := COLUMN_TYPE_PATTERN.match(full_type_str):
+            type_str = matched.group('type').upper()
 
-        if matched.group('precision') is None:
-            return_dict = {}
-        elif matched.group('scale') is None:
-            # Handles 'VARCHAR(255)' or 'INTEGER(16)', etc.
-            # length = int/string
-            # precision = float
-            numeric_types = self.column_types.floating_point_types
-            key = 'precision' if type_str in numeric_types else 'length'
-            return_dict = {key: int(matched.group('precision'))}
+            if matched.group('precision') is None:
+                return_dict = {}
+            elif matched.group('scale') is None:
+                # Handles 'VARCHAR(255)' or 'INTEGER(16)', etc.
+                # length = int/string
+                # precision = float
+                numeric_types = self.column_types.floating_point_types
+                key = 'precision' if type_str in numeric_types else 'length'
+                return_dict = {key: int(matched.group('precision'))}
+            else:
+                # Handles 'DECIMAL(p,s)' or 'NUMERIC(p,s)', etc.
+                precision = int(matched.group('precision'))
+                scale = int(matched.group('scale'))
+                return_dict = {'precision': precision, 'scale': scale}
+
+            return type_str, return_dict
+
         else:
-            # Handles 'DECIMAL(p,s)' or 'NUMERIC(p,s)', etc.
-            precision = int(matched.group('precision'))
-            scale = int(matched.group('scale'))
-            return_dict = {'precision': precision, 'scale': scale}
-
-        return type_str, return_dict
+            return None
 
 
 class InferFeatureAttributesSQLDatastore:

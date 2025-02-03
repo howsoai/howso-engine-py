@@ -5,10 +5,11 @@ import datetime
 import json
 from pathlib import Path
 import platform
+from tempfile import TemporaryDirectory
 import warnings
 
 from howso.utilities.feature_attributes import infer_feature_attributes
-from howso.utilities.feature_attributes.base import FLOAT_MAX, FLOAT_MIN, INTEGER_MAX
+from howso.utilities.feature_attributes.base import FeatureAttributesBase, FLOAT_MAX, FLOAT_MIN, INTEGER_MAX
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
 from howso.utilities.features import FeatureType
 import numpy as np
@@ -845,3 +846,42 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
         else:
             with pytest.raises(ValueError):
                 infer_feature_attributes(data, types=types)
+
+
+def test_archival():
+    """Test that archival of the FeatureAttributes instance works as expected."""
+    data = pd.DataFrame({
+        'a': [0, 1, 2, 3, 4, 5, 6, 7],
+        'b': ['apple', 'banana', 'banana', 'cherry', 'apple', 'apple', 'cherry', 'banana']
+    })
+    features = infer_feature_attributes(data, tight_bounds=['a'])
+    assert features['a']['type'] == 'continuous'
+    assert features['b']['type'] == 'nominal'
+
+    archive = features.to_json(archive=True)
+    new_features = FeatureAttributesBase.from_json(archive)
+
+    assert new_features['a']['type'] == 'continuous'
+    assert new_features['b']['type'] == 'nominal'
+    assert new_features.params['tight_bounds'] == ['a']
+
+
+def test_disk_archival():
+    """Test that archival of the FeatureAttributes instance to disk works as expected."""
+    data = pd.DataFrame({
+        'a': [0, 1, 2, 3, 4, 5, 6, 7],
+        'b': ['apple', 'banana', 'banana', 'cherry', 'apple', 'apple', 'cherry', 'banana']
+    })
+    features = infer_feature_attributes(data, tight_bounds=['a'])
+    assert features['a']['type'] == 'continuous'
+    assert features['b']['type'] == 'nominal'
+
+    with TemporaryDirectory() as tmp_dir:
+        json_path = Path(tmp_dir, "fa_archive.json")
+
+        features.to_json(archive=True, json_path=json_path)
+        new_features = FeatureAttributesBase.from_json(json_path=json_path)
+
+    assert new_features['a']['type'] == 'continuous'
+    assert new_features['b']['type'] == 'nominal'
+    assert new_features.params['tight_bounds'] == ['a']

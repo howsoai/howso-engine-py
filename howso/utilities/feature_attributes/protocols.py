@@ -199,3 +199,4 @@ class SQLRelationalDatastoreProtocol(DatastoreProtocol, t.Protocol):
     """Protocol for a SQL relational datastore object."""
 
     engine: int
+    graph: t.Any
