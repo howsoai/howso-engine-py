@@ -293,6 +293,15 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             # Compute time-only feature bounds
             if feature_attributes[feature_name].get('data_type') == 'formatted_time':
+                time_format = feature_attributes[feature_name].get('date_time_format')
+                if not time_format:
+                    raise ValueError(f'Error computing bounds for {feature_name}: '
+                                     f'`date_time_format` must be specified in attributes')
+                time_column = pd.to_datetime(self.data[feature_name],
+                                             format=time_format,
+                                             errors='coerce').dropna()
+                min_time = time_to_seconds(time_column.min().time())
+                max_time = time_to_seconds(time_column.max().time())
                 # Loose bounds
                 if (
                     tight_bounds is None
@@ -301,20 +310,18 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     if not feature_attributes[feature_name].get('cycle_length'):
                         raise ValueError(f'Error computing loose bounds for {feature_name}: '
                                          '`cycle_length` must be specified in attributes')
-                    return {'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
-                            'allow_null': allow_null}
+                    return {
+                        'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
+                        'observed_min': min_time, 'observed_max': max_time,
+                        'allow_null': allow_null
+                    }
                 # Tight bounds
                 else:
-                    time_format = feature_attributes[feature_name].get('date_time_format')
-                    if not time_format:
-                        raise ValueError(f'Error computing tight bounds for {feature_name}: '
-                                         '`date_time_format` must be specified in attributes')
-                    time_column = pd.to_datetime(self.data[feature_name], format=time_format,
-                                                 errors='coerce').dropna()
-                    min_time = time_to_seconds(time_column.min().time())
-                    max_time = time_to_seconds(time_column.max().time())
-
-                    return {'min': min_time, 'max': max_time, 'allow_null': allow_null}
+                    return {
+                        'min': min_time, 'max': max_time,
+                        'observed_min': min_time, 'observed_max': max_time,
+                        'allow_null': allow_null,
+                    }
 
             if (format_dt := feature_attributes[feature_name].get('date_time_format')) is not None:
                 min_date, max_date = None, None
@@ -372,8 +379,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     max_date_tz = max_date.tzinfo
 
                 try:
-                    actual_min_f = min_f = date_to_epoch(min_date, format_dt)
-                    actual_max_f = max_f = date_to_epoch(max_date, format_dt)
+                    observed_min_f = min_f = date_to_epoch(min_date, format_dt)
+                    observed_max_f = max_f = date_to_epoch(max_date, format_dt)
                     if (
                         tight_bounds is None
                         or feature_name not in tight_bounds
@@ -417,14 +424,19 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         for mode_value in col_modes:
                             if self.data[column == mode_value].shape[0] > 3:
                                 mode_f = date_to_epoch(mode_value, format_dt)
-                                if actual_min_f == mode_f:
-                                    min_f = actual_min_f
-                                elif actual_max_f == mode_f:
-                                    max_f = actual_max_f
+                                if observed_min_f == mode_f:
+                                    min_f = observed_min_f
+                                elif observed_max_f == mode_f:
+                                    max_f = observed_max_f
 
                     min_date = epoch_to_date(min_f, format_dt, min_date_tz)
                     max_date = epoch_to_date(max_f, format_dt, max_date_tz)
-                    return {'min': min_date, 'max': max_date}
+                    observed_min = epoch_to_date(observed_min_f, format_dt, min_date_tz)
+                    observed_max = epoch_to_date(observed_max_f, format_dt, max_date_tz)
+                    return {
+                        'min': min_date, 'max': max_date,
+                        'observed_min': observed_min, 'observed_max': observed_max
+                    }
                 except Exception:  # noqa: Intentionally broad
                     w_str = (f'Feature {feature_name} does not match the '
                              'provided date time format, unable to guess '
@@ -438,8 +450,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 max_f = _as_float(column_filtered.max(), column.dtype)
 
             if not (isnan(min_f) or isnan(max_f)):  # type: ignore
-                actual_min_f = min_f
-                actual_max_f = max_f
+                observed_min_f = min_f
+                observed_max_f = max_f
                 # set loose bounds if no tight bounds for all and this
                 # feature isn't on the tight bounds list
                 if (
@@ -447,7 +459,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     or feature_name not in tight_bounds
                 ):
                     min_f, max_f = self.infer_loose_feature_bounds(
-                        actual_min_f, actual_max_f  # type: ignore
+                        observed_min_f, observed_max_f  # type: ignore
                     )
                     # Check for mode bounds
                     if (
@@ -467,24 +479,54 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         for mode_value in col_modes:
                             if self.data[column == mode_value].shape[0] > 3:
                                 mode_f = _as_float(mode_value, column.dtype)
-                                if actual_min_f == mode_f:
-                                    min_f = actual_min_f
-                                elif actual_max_f == mode_f:
-                                    max_f = actual_max_f
+                                if observed_min_f == mode_f:
+                                    min_f = observed_min_f
+                                elif observed_max_f == mode_f:
+                                    max_f = observed_max_f
 
-                output = {'min': min_f, 'max': max_f, 'allow_null': allow_null}
+                output = {
+                    'min': min_f, 'max': max_f,
+                    'allow_null': allow_null,
+                }
+                if not isnan(observed_min_f):
+                    output.update(observed_min=observed_min_f)
+                if not isnan(observed_max_f):
+                    output.update(observed_max=observed_max_f)
+
             else:
                 # If no min/max were found from the data, use min/max size of
                 # the data type.
                 min_value, max_value = self._get_min_max_number_size_bounds(
                     feature_attributes, feature_name)
                 if min_value is not None and max_value is not None:
-                    output = {'min': min_value, 'max': max_value, 'allow_null': allow_null}
+                    output = {
+                        'min': min_value, 'max': max_value,
+                        'allow_null': allow_null,
+                    }
                 else:
                     output = {'allow_null': allow_null}
 
-        else:  # Ordinals
-            output = {'allow_null': allow_null}
+        else:  # Non-continuous
+            output: dict = {'allow_null': allow_null}
+
+            if feature_attributes[feature_name].get('type') == 'ordinal':
+                if is_integer_dtype(column.dtype) or is_float_dtype(column.dtype):
+                    # Numeric types are assumed to be ranked in natural order.
+                    column_filtered = self.data[feature_name].dropna()
+                    min_v = column_filtered.min()
+                    max_v = column_filtered.max()
+                    output.update({'observed_min': min_v, 'observed_max': max_v})
+
+                else:  # Objects/strings
+                    # For string ordinals, we can only rank them if they are given
+                    # a rank via the `allowed` key in `bounds`.
+                    if allowed := feature_attributes[feature_name].get('bounds', {}).get('allowed'):
+                        unique_values: set = self._get_unique_values(feature_name)
+                        # Find the first value in allowed_values present in unique_values
+                        observed_min = next((value for value in allowed if value in unique_values), None)
+                        # Find the last value in allowed_values present in unique_values
+                        observed_max = next((value for value in reversed(allowed) if value in unique_values), None)
+                        output.update({'observed_min': observed_min, 'observed_max': observed_max})
 
         if decimal_places is not None:
             if 'max' in output:
@@ -717,3 +759,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return {
             'type': 'nominal',
         }
+
+    def _get_unique_values(self, feature_name: str) -> set[t.Any]:
+        """Return the set of unique values for the given feature."""
+        return set(self.data[feature_name].unique())

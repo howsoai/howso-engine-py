@@ -513,8 +513,11 @@ class FeatureAttributesBase(dict):
             orig_type = attributes.get(feature_name, {}).get('type')
             new_type = entries[feature_name].get('type')
             # TODO 22059: Allow ordinals here when we can attempt to infer values
-            if new_type == 'ordinal':
-                raise ValueError('Inferral of ordinal values is not yet supported. Please '
+            if new_type == 'ordinal' and not (
+                attributes.get(feature_name, {}).get('bounds', {}).get('allowed') or
+                entries.get(feature_name, {}).get('bounds', {}).get('allowed')
+            ):
+                raise ValueError('Inference of ordinal values is not yet supported. Please '
                                  'preset ordinal features with their ordered values using '
                                  '`ordinal_feature_values`.')
             # Sanity check: booleans must be nominal
@@ -1436,3 +1439,7 @@ class InferFeatureAttributesBase(ABC):
     @abstractmethod
     def _get_feature_names(self) -> list[str]:
         """Get the names of the features/columns of the data."""
+
+    @abstractmethod
+    def _get_unique_values(self, feature_name: str) -> set[t.Any]:
+        """Get a set of the unique values for the given feature_name."""
