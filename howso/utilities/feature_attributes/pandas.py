@@ -501,7 +501,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 if min_value is not None and max_value is not None:
                     output = {
                         'min': min_value, 'max': max_value,
-                        'observed_min': min_f, 'observed_max': max_f,
                         'allow_null': allow_null,
                     }
                 else:
