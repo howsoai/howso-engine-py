@@ -851,6 +851,7 @@ def test_json_yaml_features(value, is_json, is_yaml):
     (pd.DataFrame({'ordinal': [True, False, False, True]}), dict(ordinal='nominal'), dict(ordinal='nominal'), True),
     (pd.DataFrame({'continuous': [True, False, False]}), dict(continuous='nominal'), dict(continuous='nominal'), True),
     (pd.DataFrame({'a': [True, False, False, True]}), dict(a='boolean'), {}, False),
+    (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(ordinal=['a']), {}, False),
     (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(a='ordinal'), {}, False),
 ])
 def test_preset_feature_types(data, types, expected_types, is_valid):
@@ -907,3 +908,55 @@ def test_disk_archival():
     assert new_features['a']['type'] == 'continuous'
     assert new_features['b']['type'] == 'nominal'
     assert new_features.params['tight_bounds'] == ['a']
+
+
+@pytest.mark.parametrize(
+    'series, ordinals, min_value, max_value', [
+        (  # ordinal strings
+            ['grape', 'apple', 'banana', 'banana', 'cherry', 'apple', 'apple', 'fig', 'cherry', 'banana'],
+            ['apple', 'banana', 'cherry'],
+            'apple', 'cherry'
+        ),
+        (  # ordinal strings, includes an empty string
+            ['**', '*', '***', '*', '****', '*****', '**', '', '****', '***'],
+            ['', '*', '**', '***', '****', '*****'],
+            '', '*****'
+        ),
+        (  # ordinal numerals
+            [4, 2, 1, 7, 3, 3, 8, 2, 1, 0],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            0, 8
+        ),
+        (  # ordinal numerals crossing zero
+            [-4, 2, 4, 7, -2, -6, 8, 2, 1, 0],
+            [-8, -6, -4, -2, 0, 2, 4, 6, 8],
+            -6, 8
+        ),
+        (  # ordinal numerals as strings.
+            ['4', '2', '1', '7', '3', '3', '8', '2', '1', '0'],
+            ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+            '1', '8'
+        ),
+        (  # ordinal numerals as string ordinals with unusual ordering
+            ['4', '2', '1', '7', '3', '3', '8', '2', '1', '0'],
+            ['5', '7', '3', '2', '4', '9', '10', '8', '6', '1'],
+            '7', '1'
+        ),
+        (  # floats as ordinals
+            [0.4, 0.2, 0.1, 0.7, 0.3, 0.3, 0.8, 0.2, 0.1, 0.0],
+            [0.1, 0.2, 0.3, 0.4, 5, 6, 7, 8, 9, 10],
+            0.0, 0.8
+        ),
+        (  # Dates as ordinals
+            ["1-Mar-2020", "1-Mar-2020", "1-Apr-2020", "1-Mar-2020", "1-Feb-2020", '1-Dec-2020', '1-Jul-2020'],
+            ["1-Jan-2020", "1-Feb-2020", "1-Mar-2020", "1-Apr-2020", "1-May-2020", "1-Jun-2020"],
+            '1-Feb-2020', '1-Apr-2020'
+        )
+    ]
+)
+def test_observed_ordinal_values(series, ordinals, min_value, max_value):
+    """Test that observed_min/max in ordinal features works as expected."""
+    data = pd.DataFrame({'a': series})
+    features = infer_feature_attributes(data, ordinal_feature_values={'a': ordinals})
+    assert features['a']['bounds']['observed_min'] == min_value
+    assert features['a']['bounds']['observed_max'] == max_value

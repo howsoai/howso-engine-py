@@ -372,7 +372,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return any([c['column_names'] == [feature_name] for c in uniques])
 
-    def _get_unique_values(self, feature_name: str) -> list[t.Any]:
+    def _get_unique_values(self, feature_name: str) -> set[t.Any]:
         """Get a list of all the unique values for a column."""
         with session_scope(self.session_cls) as session:
             distinct_values = (
@@ -380,7 +380,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                        .distinct()
                        .all()
             )
-        return distinct_values
+        return set(distinct_values)
 
     @classmethod
     def _value_to_number(cls, value: t.Any) -> t.Any:
@@ -891,28 +891,28 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     max_date_tz = max_date_obj.tzinfo
 
                 # Convert the found date bounds to float seconds since Epoch
-                min_value = date_to_epoch(min_date_obj, format_dt)
-                max_value = date_to_epoch(max_date_obj, format_dt)
+                min_v = date_to_epoch(min_date_obj, format_dt)
+                max_v = date_to_epoch(max_date_obj, format_dt)
 
             else:
-                min_value, max_value = (
+                min_v, max_v = (
                     self._get_min_max_values(feature_name))
-                min_value = self._value_to_number(min_value)
-                max_value = self._value_to_number(max_value)
+                min_v = self._value_to_number(min_v)
+                max_v = self._value_to_number(max_v)
 
-            observed_min_value = min_value
-            observed_max_value = max_value
+            observed_min_value = min_v
+            observed_max_value = max_v
 
             if (
-                min_value is not None and max_value is not None and
-                not isnan(min_value) and
-                not isnan(max_value)
+                min_v is not None and max_v is not None and
+                not isnan(min_v) and
+                not isnan(max_v)
             ):
                 if (
                     tight_bounds is None
                     or feature_name not in tight_bounds
                 ):
-                    min_value, max_value = (
+                    min_v, max_v = (
                         self.infer_loose_feature_bounds(observed_min_value,
                                                         observed_max_value))
 
@@ -936,31 +936,50 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                             else:
                                 mode_f = self._value_to_number(mode_value)
                             if observed_min_value == mode_f:
-                                min_value = observed_min_value
+                                min_v = observed_min_value
                             if observed_max_value == mode_f:
-                                max_value = observed_max_value
+                                max_v = observed_max_value
                 # If this is a datetime feature, convert back from epoch time
                 if format_dt is not None:
-                    min_value = epoch_to_date(min_value, format_dt, min_date_tz)
-                    max_value = epoch_to_date(max_value, format_dt, max_date_tz)
+                    min_v = epoch_to_date(min_v, format_dt, min_date_tz)
+                    max_v = epoch_to_date(max_v, format_dt, max_date_tz)
                 output = {
-                    'min': min_value, 'max': max_value,
+                    'min': min_v, 'max': max_v,
                     'observed_min': observed_min_value, 'observed_max': observed_max_value,
                     'allow_null': allow_null
                 }
             else:
                 # If no min/max were found from the data, use min/max size of
                 # the data type.
-                min_value, max_value = self._get_min_max_number_size_bounds(
+                min_v, max_v = self._get_min_max_number_size_bounds(
                     feature_attributes, feature_name)
-                if min_value is not None and max_value is not None:
+                if min_v is not None and max_v is not None:
                     output = {
-                        'min': min_value, 'max': max_value,
+                        'min': min_v, 'max': max_v,
                         'observed_min': observed_min_value, 'observed_max': observed_max_value,
                     }
 
-        else:
-            output = {'allow_null': allow_null}
+        else:  # Non-continuous
+            output: dict = {'allow_null': allow_null}
+
+            if (
+                original_type.get('data_type') == FeatureType.INTEGER.value or
+                original_type.get('data_type') == FeatureType.NUMERIC.value
+            ):
+                # Numeric types are assumed to be ranked in natural order.
+                min_v, max_v = self._get_min_max_values(feature_name)
+                output.update({"observed_min": min_v, "observed_max": max_v})
+
+            else:  # Objects/strings
+                # For string ordinals, we can only rank them if they are given
+                # a rank via the `allowed` key in `bounds`.
+                if allowed := feature_attributes[feature_name].get('bounds', {}).get('allowed'):
+                    unique_values: set = self._get_unique_values(feature_name)
+                    # Find the first value in allowed_values present in unique_values
+                    observed_min = next((value for value in allowed if value in unique_values), None)
+                    # Find the last value in allowed_values present in unique_values
+                    observed_max = next((value for value in reversed(allowed) if value in unique_values), None)
+                    output.update({'observed_min': observed_min, 'observed_max': observed_max})
 
         if decimal_places is not None:
             if 'max' in output:

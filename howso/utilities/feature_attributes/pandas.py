@@ -503,8 +503,27 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 else:
                     output = {'allow_null': allow_null}
 
-        else:  # Ordinals
-            output = {'allow_null': allow_null}
+        else:  # Non-continuous
+            output: dict = {'allow_null': allow_null}
+
+            if feature_attributes[feature_name].get('type') == 'ordinal':
+                if is_integer_dtype(column.dtype) or is_float_dtype(column.dtype):
+                    # Numeric types are assumed to be ranked in natural order.
+                    column_filtered = self.data[feature_name].dropna()
+                    min_v = column_filtered.min()
+                    max_v = column_filtered.max()
+                    output.update({'observed_min': min_v, 'observed_max': max_v})
+
+                else:  # Objects/strings
+                    # For string ordinals, we can only rank them if they are given
+                    # a rank via the `allowed` key in `bounds`.
+                    if allowed := feature_attributes[feature_name].get('bounds', {}).get('allowed'):
+                        unique_values: set = self._get_unique_values(feature_name)
+                        # Find the first value in allowed_values present in unique_values
+                        observed_min = next((value for value in allowed if value in unique_values), None)
+                        # Find the last value in allowed_values present in unique_values
+                        observed_max = next((value for value in reversed(allowed) if value in unique_values), None)
+                        output.update({'observed_min': observed_min, 'observed_max': observed_max})
 
         if decimal_places is not None:
             if 'max' in output:
@@ -737,3 +756,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return {
             'type': 'nominal',
         }
+
+    def _get_unique_values(self, feature_name: str) -> set[t.Any]:
+        """Return the set of unique values for the given feature."""
+        return set(self.data[feature_name].unique())
