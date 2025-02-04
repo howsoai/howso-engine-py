@@ -4477,18 +4477,19 @@ class AbstractHowsoClient(ABC):
         """
         Retrieve cases from a model given a Trainee id.
 
+        .. NOTE::
+            The order of the cases returned by this method is not guaranteed to
+            be the same as the order they were trained. However, the ".session"
+            and ".session_training_index" features may be requested, which will
+            provide the session id and the numeric index (or order) within that
+            session the cases were trained (respectively).
+
         Parameters
         ----------
         trainee_id : str
             The ID of the Trainee retrieve cases from.
         session : str, optional
             The session ID to retrieve cases for, in their trained order.
-
-            .. NOTE::
-                If a session is not provided, retrieves all feature values
-                for cases for all (unordered) sessions in the order they
-                were trained within each session.
-
         case_indices : Sequence of tuple of {str, int}, optional
             Sequence of tuples, of session id and index, where index is the
             original 0-based index of the case as it was trained into the
@@ -4558,6 +4559,15 @@ class AbstractHowsoClient(ABC):
         -------
         dict
             A cases object containing the feature names and cases.
+
+        Examples
+        --------
+        >>> # Get sorted cases by session
+        >>> result = client.get_cases(
+        >>>    trainee_id="my-trainee",
+        >>>    features=[".session", ".session_training_index", "a", "b"]
+        >>> )
+        >>> cases = sorted(result["cases"], key=lambda x: (x[0], x[1]))
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if case_indices is not None:
@@ -4567,8 +4577,6 @@ class AbstractHowsoClient(ABC):
             warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
 
         util.validate_list_shape(features, 1, "features", "str")
-        if session is None and case_indices is None:
-            warnings.warn("Calling get_cases without a session id does not guarantee case order.")
 
         # Convert session instance to id
         if (

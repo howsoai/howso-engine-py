@@ -2369,6 +2369,13 @@ class Trainee(BaseTrainee):
         """
         Get the trainee's cases.
 
+        .. NOTE::
+            The order of the cases returned by this method is not guaranteed to
+            be the same as the order they were trained. However, the ".session"
+            and ".session_training_index" features may be requested, which will
+            provide the session id and the numeric index (or order) within that
+            session the cases were trained (respectively).
+
         Parameters
         ----------
         case_indices : Sequence of (str, int), optional
@@ -2399,11 +2406,6 @@ class Trainee(BaseTrainee):
         session : str or Session, optional
             The id or instance of the session to retrieve training indices for
             from the model.
-
-            .. NOTE::
-                If a session is not provided, the order of the cases is not
-                guaranteed to be the same as the order they were trained into
-                the model.
 
         condition : dict, optional
             The condition map to select the cases to retrieve that meet all the
@@ -2459,6 +2461,15 @@ class Trainee(BaseTrainee):
         -------
         DataFrame
             The trainee's cases.
+
+        Examples
+        --------
+        >>> # Get sorted cases by session
+        >>> cases = trainee.get_cases(
+        >>>     features=[".session", ".session_training_index", "a", "b"]
+        >>> )
+        >>> cases = cases.sort_values(by=[".session", ".session_training_index"])
+        >>> cases = cases.reset_index(drop=True)
         """
         if isinstance(session, BaseSession):
             session_id = session.id

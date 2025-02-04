@@ -103,8 +103,8 @@ class TestEngine:
         Test that get_cases works as expected.
 
         Test that get_cases works with and without a session ID to
-        get the cases in the order they were trained. This functionality
-        only works in a single-user environment and assumes a single session.
+        get the cases. This functionality only works in a single-user environment
+        and assumes a single session.
         """
         c1 = trainee.get_cases()
 
@@ -367,7 +367,6 @@ class TestEngine:
 
         assert_frame_equal(matrix, saved_matrix)
 
-    @pytest.mark.filterwarnings("ignore:Calling get_cases*")
     def test_reduce_data(self, trainee):
         """Test `reduce_data`."""
         pre_reduction_cases = trainee.get_cases()
