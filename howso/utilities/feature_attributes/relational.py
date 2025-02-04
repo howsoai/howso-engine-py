@@ -958,6 +958,10 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                         'min': min_v, 'max': max_v,
                         'observed_min': observed_min_value, 'observed_max': observed_max_value,
                     }
+                    if observed_min_value:
+                        output.update(observed_min=observed_min_value)
+                    if observed_max_value:
+                        output.update(observed_max=observed_max_value)
 
         else:  # Non-continuous
             output: dict = {'allow_null': allow_null}

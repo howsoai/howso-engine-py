@@ -379,8 +379,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     max_date_tz = max_date.tzinfo
 
                 try:
-                    actual_min_f = min_f = date_to_epoch(min_date, format_dt)
-                    actual_max_f = max_f = date_to_epoch(max_date, format_dt)
+                    observed_min_f = min_f = date_to_epoch(min_date, format_dt)
+                    observed_max_f = max_f = date_to_epoch(max_date, format_dt)
                     if (
                         tight_bounds is None
                         or feature_name not in tight_bounds
@@ -424,15 +424,15 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         for mode_value in col_modes:
                             if self.data[column == mode_value].shape[0] > 3:
                                 mode_f = date_to_epoch(mode_value, format_dt)
-                                if actual_min_f == mode_f:
-                                    min_f = actual_min_f
-                                elif actual_max_f == mode_f:
-                                    max_f = actual_max_f
+                                if observed_min_f == mode_f:
+                                    min_f = observed_min_f
+                                elif observed_max_f == mode_f:
+                                    max_f = observed_max_f
 
                     min_date = epoch_to_date(min_f, format_dt, min_date_tz)
                     max_date = epoch_to_date(max_f, format_dt, max_date_tz)
-                    observed_min = epoch_to_date(actual_min_f, format_dt, min_date_tz)
-                    observed_max = epoch_to_date(actual_max_f, format_dt, max_date_tz)
+                    observed_min = epoch_to_date(observed_min_f, format_dt, min_date_tz)
+                    observed_max = epoch_to_date(observed_max_f, format_dt, max_date_tz)
                     return {
                         'min': min_date, 'max': max_date,
                         'observed_min': observed_min, 'observed_max': observed_max
@@ -450,8 +450,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 max_f = _as_float(column_filtered.max(), column.dtype)
 
             if not (isnan(min_f) or isnan(max_f)):  # type: ignore
-                actual_min_f = min_f
-                actual_max_f = max_f
+                observed_min_f = min_f
+                observed_max_f = max_f
                 # set loose bounds if no tight bounds for all and this
                 # feature isn't on the tight bounds list
                 if (
@@ -459,7 +459,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     or feature_name not in tight_bounds
                 ):
                     min_f, max_f = self.infer_loose_feature_bounds(
-                        actual_min_f, actual_max_f  # type: ignore
+                        observed_min_f, observed_max_f  # type: ignore
                     )
                     # Check for mode bounds
                     if (
@@ -479,16 +479,20 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         for mode_value in col_modes:
                             if self.data[column == mode_value].shape[0] > 3:
                                 mode_f = _as_float(mode_value, column.dtype)
-                                if actual_min_f == mode_f:
-                                    min_f = actual_min_f
-                                elif actual_max_f == mode_f:
-                                    max_f = actual_max_f
+                                if observed_min_f == mode_f:
+                                    min_f = observed_min_f
+                                elif observed_max_f == mode_f:
+                                    max_f = observed_max_f
 
                 output = {
                     'min': min_f, 'max': max_f,
-                    'observed_min': actual_min_f, 'observed_max': actual_max_f,
                     'allow_null': allow_null,
                 }
+                if observed_min_f and not isnan(observed_min_f):
+                    output.update(observed_min=observed_min_f)
+                if observed_max_f and not isnan(observed_max_f):
+                    output.update(observed_max=observed_max_f)
+
             else:
                 # If no min/max were found from the data, use min/max size of
                 # the data type.
