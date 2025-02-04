@@ -3525,13 +3525,8 @@ class AbstractHowsoClient(ABC):
                 robust (power set/permutations) set of remaining context features
                 for each prediction.
             - action_condition : map of str -> any, optional
-                A condition map to select the action set, which is the dataset for which
-                the prediction stats are for. If both ``action_condition`` and ``context_condition``
-                are provided, then all of the action cases selected by the ``action_condition``
-                will be excluded from the context set, which is the set being queried to make to
-                make predictions on the action set, effectively holding them out.
-                If only ``action_condition`` is specified, then only the single predicted case
-                will be left out.
+                A condition map to select the action set, which is the collection of cases
+                reacted to while computing the requested metrics.
 
                 .. NOTE::
                     The dictionary keys are the feature name and values are one of:
@@ -3558,11 +3553,8 @@ class AbstractHowsoClient(ABC):
                 If not specified "exact" will be used. Only used if ``action_condition``
                 is not None.
             - context_condition : map of str -> any, optional
-                A condition map to select the context set, which is the set being queried to make
-                to make predictions on the action set. If both ``action_condition`` and ``context_condition``
-                are provided,  then all of the cases from the action set, which is the dataset for which the
-                prediction stats are for, will be excluded from the context set, effectively holding them out.
-                If only ``action_condition`` is specified,  then only the single predicted case will be left out.
+                A condition map to select the context set, which is the collection of cases
+                available to make reactions while computing the requested metrics.
 
                 .. NOTE::
                     The dictionary keys are the feature name and values are one of:
