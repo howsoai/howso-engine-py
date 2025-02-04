@@ -488,9 +488,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     'min': min_f, 'max': max_f,
                     'allow_null': allow_null,
                 }
-                if observed_min_f and not isnan(observed_min_f):
+                if not isnan(observed_min_f):
                     output.update(observed_min=observed_min_f)
-                if observed_max_f and not isnan(observed_max_f):
+                if not isnan(observed_max_f):
                     output.update(observed_max=observed_max_f)
 
             else:

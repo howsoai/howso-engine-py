@@ -945,23 +945,19 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     max_v = epoch_to_date(max_v, format_dt, max_date_tz)
                 output = {
                     'min': min_v, 'max': max_v,
-                    'observed_min': observed_min_value, 'observed_max': observed_max_value,
                     'allow_null': allow_null
                 }
+                if not isnan(observed_min_value):
+                    output.update(observed_min=observed_min_value)
+                if not isnan(observed_max_value):
+                    output.update(observed_max=observed_max_value)
             else:
                 # If no min/max were found from the data, use min/max size of
                 # the data type.
                 min_v, max_v = self._get_min_max_number_size_bounds(
                     feature_attributes, feature_name)
                 if min_v is not None and max_v is not None:
-                    output = {
-                        'min': min_v, 'max': max_v,
-                        'observed_min': observed_min_value, 'observed_max': observed_max_value,
-                    }
-                    if observed_min_value:
-                        output.update(observed_min=observed_min_value)
-                    if observed_max_value:
-                        output.update(observed_max=observed_max_value)
+                    output = {'min': min_v, 'max': max_v}
 
         else:  # Non-continuous
             output: dict = {'allow_null': allow_null}
