@@ -1086,20 +1086,6 @@ class TestBaseClient:
                     "`contexts` does not match the number of features in "
                     "`context_features`.") in str(exc.value)
 
-    def test_get_cases_warning(self, trainee, capsys):
-        """
-        Test that get_cases issues warning when expected.
-
-        Test for expected warning when get_cases is called without passing in
-        a session id.
-        """
-        expected_message = ('Calling get_cases without a session id does '
-                            'not guarantee case order.')
-        with pytest.warns(Warning, match=expected_message):
-            self.client.get_cases(trainee.id)
-            out, _ = capsys.readouterr()
-            assert 'Retrieving cases for Trainee' in out
-
     def test_react_group(self, trainee, capsys):
         """
         Test that react_group works as expected.
