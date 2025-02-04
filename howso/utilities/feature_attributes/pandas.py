@@ -293,6 +293,15 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             # Compute time-only feature bounds
             if feature_attributes[feature_name].get('data_type') == 'formatted_time':
+                time_format = feature_attributes[feature_name].get('date_time_format')
+                if not time_format:
+                    raise ValueError(f'Error computing bounds for {feature_name}: '
+                                     f'`date_time_format` must be specified in attributes')
+                time_column = pd.to_datetime(self.data[feature_name],
+                                             format=time_format,
+                                             errors='coerce').dropna()
+                min_time = time_to_seconds(time_column.min().time())
+                max_time = time_to_seconds(time_column.max().time())
                 # Loose bounds
                 if (
                     tight_bounds is None
@@ -303,20 +312,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                                          '`cycle_length` must be specified in attributes')
                     return {
                         'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
-                        'observed_min': 0, 'observed_max': feature_attributes[feature_name]['cycle_length'],
+                        'observed_min': min_time, 'observed_max': max_time,
                         'allow_null': allow_null
                     }
                 # Tight bounds
                 else:
-                    time_format = feature_attributes[feature_name].get('date_time_format')
-                    if not time_format:
-                        raise ValueError(f'Error computing tight bounds for {feature_name}: '
-                                         '`date_time_format` must be specified in attributes')
-                    time_column = pd.to_datetime(self.data[feature_name], format=time_format,
-                                                 errors='coerce').dropna()
-                    min_time = time_to_seconds(time_column.min().time())
-                    max_time = time_to_seconds(time_column.max().time())
-
                     return {
                         'min': min_time, 'max': max_time,
                         'observed_min': min_time, 'observed_max': max_time,
@@ -431,11 +431,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
                     min_date = epoch_to_date(min_f, format_dt, min_date_tz)
                     max_date = epoch_to_date(max_f, format_dt, max_date_tz)
-                    actual_min = epoch_to_date(actual_min_f, format_dt, min_date_tz)
-                    actual_max = epoch_to_date(actual_max_f, format_dt, max_date_tz)
+                    observed_min = epoch_to_date(actual_min_f, format_dt, min_date_tz)
+                    observed_max = epoch_to_date(actual_max_f, format_dt, max_date_tz)
                     return {
                         'min': min_date, 'max': max_date,
-                        'observed_min': actual_min, 'observed_max': actual_max
+                        'observed_min': observed_min, 'observed_max': observed_max
                     }
                 except Exception:  # noqa: Intentionally broad
                     w_str = (f'Feature {feature_name} does not match the '

@@ -277,7 +277,7 @@ def test_infer_time_features(data, is_time, expected_format):
     ),
     (
         pd.DataFrame(["03:00:00.0", "12:00:01.5"], columns=['a']), None, None,
-        {'min': 0, 'max': 86400, 'observed_min': 0, 'observed_max': 86400, 'allow_null': True}, 86400
+        {'min': 0, 'max': 86400, 'observed_min': 10800.0, 'observed_max': 43201.5, 'allow_null': True}, 86400
     ),
     (
         pd.DataFrame(["25:0", "30:0"], columns=['a']), ['a'], '%M:%S',
@@ -285,11 +285,11 @@ def test_infer_time_features(data, is_time, expected_format):
     ),
     (
         pd.DataFrame(["25.0", "30.5"], columns=['a']), None, '%S.%f',
-        {'min': 0, 'max': 60, 'observed_min': 0, 'observed_max': 60, 'allow_null': True}, 60
+        {'min': 0, 'max': 60, 'observed_min': 25.0, 'observed_max': 30.5, 'allow_null': True}, 60
     ),
     (
         pd.DataFrame(["5", "7"], columns=['a']), None, '%f',
-        {'min': 0, 'max': 1, 'observed_min': 0, 'observed_max': 1, 'allow_null': True}, 1
+        {'min': 0, 'max': 1, 'observed_min': 0.5, 'observed_max': 0.7, 'allow_null': True}, 1
     ),
 ])
 def test_infer_time_feature_bounds(data, tight_bounds, provided_format, expected_bounds, cycle_length):

@@ -813,6 +813,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
             # Compute time-only feature bounds
             if feature_attributes[feature_name]['data_type'] == 'formatted_time':
+                min_time, max_time = (
+                    self._get_min_max_values(feature_name))
                 if (
                     tight_bounds is None
                     or feature_name not in tight_bounds
@@ -822,13 +824,11 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                                          '`cycle_length` must be specified in attributes')
                     return {
                         'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
-                        'observed_min': 0, 'observed_max': feature_attributes[feature_name]['cycle_length'],
+                        'observed_min': time_to_seconds(min_time), 'observed_max': time_to_seconds(max_time),
                         'allow_null': allow_null
                     }
                 elif column_type in self.column_types.all_date_time_types:
                     # Expected to return a datetime.time object
-                    min_time, max_time = (
-                        self._get_min_max_values(feature_name))
                     return {
                         'min': time_to_seconds(min_time), 'max': time_to_seconds(max_time),
                         'observed_min': time_to_seconds(min_time), 'observed_max': time_to_seconds(max_time),
@@ -900,8 +900,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 min_value = self._value_to_number(min_value)
                 max_value = self._value_to_number(max_value)
 
-            actual_min_value = min_value
-            actual_max_value = max_value
+            observed_min_value = min_value
+            observed_max_value = max_value
 
             if (
                 min_value is not None and max_value is not None and
@@ -913,8 +913,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     or feature_name not in tight_bounds
                 ):
                     min_value, max_value = (
-                        self.infer_loose_feature_bounds(actual_min_value,
-                                                        actual_max_value))
+                        self.infer_loose_feature_bounds(observed_min_value,
+                                                        observed_max_value))
 
                     if (
                         mode_bound_features is None or
@@ -935,17 +935,17 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                                 mode_f = date_to_epoch(mode_value, format_dt)
                             else:
                                 mode_f = self._value_to_number(mode_value)
-                            if actual_min_value == mode_f:
-                                min_value = actual_min_value
-                            if actual_max_value == mode_f:
-                                max_value = actual_max_value
+                            if observed_min_value == mode_f:
+                                min_value = observed_min_value
+                            if observed_max_value == mode_f:
+                                max_value = observed_max_value
                 # If this is a datetime feature, convert back from epoch time
                 if format_dt is not None:
                     min_value = epoch_to_date(min_value, format_dt, min_date_tz)
                     max_value = epoch_to_date(max_value, format_dt, max_date_tz)
                 output = {
                     'min': min_value, 'max': max_value,
-                    'observed_min': actual_min_value, 'observed_max': actual_max_value,
+                    'observed_min': observed_min_value, 'observed_max': observed_max_value,
                     'allow_null': allow_null
                 }
             else:
@@ -956,7 +956,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 if min_value is not None and max_value is not None:
                     output = {
                         'min': min_value, 'max': max_value,
-                        'observed_min': actual_min_value, 'observed_max': actual_max_value,
+                        'observed_min': observed_min_value, 'observed_max': observed_max_value,
                     }
 
         else:
