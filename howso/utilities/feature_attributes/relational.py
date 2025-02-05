@@ -13,9 +13,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from pandas.core.dtypes.common import (
-    is_float_dtype,
-)
+from pandas.core.dtypes.common import is_float_dtype
 
 from .base import InferFeatureAttributesBase, MultiTableFeatureAttributes, SingleTableFeatureAttributes
 from .protocols import (
