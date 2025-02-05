@@ -792,7 +792,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         }
 
     def _infer_feature_bounds(  # noqa: C901
-        self,  # noqa: C901
+        self,
         feature_attributes: Mapping[str, Mapping],
         feature_name: str,
         tight_bounds: t.Optional[Iterable[str]] = None,
