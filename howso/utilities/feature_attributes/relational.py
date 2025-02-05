@@ -13,6 +13,9 @@ import warnings
 
 import numpy as np
 import pandas as pd
+from pandas.core.dtypes.common import (
+    is_float_dtype,
+)
 
 from .base import InferFeatureAttributesBase, MultiTableFeatureAttributes, SingleTableFeatureAttributes
 from .protocols import (
@@ -790,12 +793,13 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             'type': 'nominal'
         }
 
-    def _infer_feature_bounds(self,  # noqa: C901
-                              feature_attributes: Mapping[str, Mapping],
-                              feature_name: str,
-                              tight_bounds: t.Optional[Iterable[str]] = None,
-                              mode_bound_features: t.Optional[list[str]] = None,
-                              ) -> dict | None:
+    def _infer_feature_bounds(  # noqa: C901
+        self,  # noqa: C901
+        feature_attributes: Mapping[str, Mapping],
+        feature_name: str,
+        tight_bounds: t.Optional[Iterable[str]] = None,
+        mode_bound_features: t.Optional[list[str]] = None,
+    ) -> dict | None:
         output = dict()
         allow_null = True
         original_type = feature_attributes[feature_name]['original_type']
@@ -943,6 +947,12 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 if format_dt is not None:
                     min_v = epoch_to_date(min_v, format_dt, min_date_tz)
                     max_v = epoch_to_date(max_v, format_dt, max_date_tz)
+
+                if is_float_dtype(min_v):
+                    min_v = float(min_v)
+                if is_float_dtype(max_v):
+                    max_v = float(max_v)
+
                 output = {
                     'min': min_v, 'max': max_v,
                     'allow_null': allow_null
