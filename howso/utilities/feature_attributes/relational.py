@@ -950,6 +950,10 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     min_v = float(min_v)
                 if is_float_dtype(max_v):
                     max_v = float(max_v)
+                if is_float_dtype(observed_min_value):
+                    observed_min_value = float(observed_min_value)
+                if is_float_dtype(observed_max_value):
+                    observed_max_value = float(observed_max_value)
 
                 output = {
                     'min': min_v, 'max': max_v,
