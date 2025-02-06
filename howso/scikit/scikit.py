@@ -789,6 +789,11 @@ class HowsoEstimator(BaseEstimator):
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses
                 full calculations, which uses leave-one-out for cases for computations.
+            - feature_deviations : bool, optional
+                If True, outputs computed feature deviations for all (context
+                and action) features locally around the prediction.
+                Uses only the context features of the reacted case to determine
+                that area.
             - hypothetical_values : dict, optional
                 A dictionary of feature name to feature value. If specified,
                 shows how a prediction could change in a what-if scenario where
