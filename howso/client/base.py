@@ -1465,6 +1465,7 @@ class AbstractHowsoClient(ABC):
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping] = None,
         generate_new_cases: GenerateNewCases = "no",
+        goal_features_map: t.Optional[Mapping] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
         into_series_store: t.Optional[str] = None,
@@ -1955,6 +1956,26 @@ class AbstractHowsoClient(ABC):
                 not guaranteed to be a new case (that is, a case not found
                 in original dataset.)
 
+        goal_features_map : dict of dict
+            A mapping of feature name to the goals for the feature which
+            force reevaluation of local data in reacts to pull the predicted
+            action values toward achieving the specified value or goal as
+            defined by this map. Valid keys in the map are:
+			"goal": "min" or "max", will make a prediction while minimizing or
+                maximizing the value for the feature or
+			"value" : somevalue, will make a prediction while approaching the
+                specified value
+			note: nominal features only support 'value', 'goal' is ignored.
+				  for non-nominals, if both are provided, only 'goal' is considered.
+
+            .. code-block::
+                :caption: Example goal features map:
+
+                {
+                    "feature_a" : { "goal": "max" },
+                    "feature_b" : { "value": 99 }
+                }
+
         ordered_by_specified_features : bool, default False
             If True order of generated feature values will match
             the order of specified features.
@@ -2106,6 +2127,7 @@ class AbstractHowsoClient(ABC):
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "goal_features_map": goal_features_map,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
                 "case_indices": case_indices,
@@ -2152,6 +2174,7 @@ class AbstractHowsoClient(ABC):
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
                 "generate_new_cases": generate_new_cases,
+                "goal_features_map": goal_features_map,
                 "ordered_by_specified_features": ordered_by_specified_features,
                 "preserve_feature_values": preserve_feature_values,
                 "new_case_threshold": new_case_threshold,
@@ -2529,6 +2552,7 @@ class AbstractHowsoClient(ABC):
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
         final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
+        goal_features_map: t.Optional[Mapping] = None,
         init_time_steps: t.Optional[list[t.Any]] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
@@ -2699,6 +2723,8 @@ class AbstractHowsoClient(ABC):
             See parameter ``feature_bounds_map`` in :meth:`AbstractHowsoClient.react`.
         generate_new_cases : {"always", "attempt", "no"}
             See parameter ``generate_new_cases`` in :meth:`AbstractHowsoClient.react`.
+        goal_features_map: dict of dict
+            See parameter ``goal_features_map`` in :meth:`AbstractHowsoClient.react`,
         ordered_by_specified_features : bool
             See parameter ``ordered_by_specified_features`` in :meth:`AbstractHowsoClient.react`.
         suppress_warning : bool
@@ -2803,6 +2829,7 @@ class AbstractHowsoClient(ABC):
                 "series_context_values": serialized_series_context_values,
                 "series_id_features": series_id_features,
                 "series_id_values": series_id_values,
+                "goal_features_map": goal_features_map,
                 "leave_series_out": leave_series_out,
                 "preserve_feature_values": preserve_feature_values,
                 "new_case_threshold": new_case_threshold,
@@ -2856,6 +2883,7 @@ class AbstractHowsoClient(ABC):
                 "use_regional_residuals": use_regional_residuals,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
+                "goal_features_map": goal_features_map,
                 "generate_new_cases": generate_new_cases,
                 "ordered_by_specified_features": ordered_by_specified_features,
                 "input_is_substituted": input_is_substituted,
@@ -3044,6 +3072,7 @@ class AbstractHowsoClient(ABC):
         batch_size: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
+        goal_features_map: t.Optional[Mapping] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
         progress_callback: t.Optional[Callable] = None,
@@ -3078,6 +3107,24 @@ class AbstractHowsoClient(ABC):
             ratio of expected surprisal to generated surprisal for each
             feature generated, valid values are in the range of
             :math:`(0, \infty)`.
+        goal_features_map : dict of dict
+            A mapping of feature name to the goals for the feature which
+            force reevaluation of local data in reacts to pull the predicted
+            action values toward achieving the specified value or goal as
+            defined by this map. Valid keys in the map are:
+			"goal": "min" or "max", will make a prediction while minimizing or maximizing the value for the feature or
+			"value" : somevalue, will make a prediction while approaching the specified value
+			note: nominal features only support 'value', 'goal' is ignored.
+				  for non-nominals, if both are provided, only 'goal' is considered.
+
+            .. code-block::
+                :caption: Example goal features map:
+
+                {
+                    "feature_a" : { "goal": "max" },
+                    "feature_b" : { "value": 99 }
+                }
+
         initial_batch_size: int, optional
             The number of series to react to in the first batch. If unspecified,
             the number will be determined automatically. The number of series
@@ -3197,6 +3244,7 @@ class AbstractHowsoClient(ABC):
             "use_case_weights": use_case_weights,
             "use_derived_ts_features": use_derived_ts_features,
             "use_regional_residuals": use_regional_residuals,
+            "goal_features_map": goal_features_map,
             "weight_feature": weight_feature,
         }
 

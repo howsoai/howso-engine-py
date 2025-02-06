@@ -1180,6 +1180,7 @@ class Trainee(BaseTrainee):
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
         generate_new_cases: GenerateNewCases = "no",
+        goal_features_map: t.Optional[Mapping] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
         into_series_store: t.Optional[str] = None,
@@ -1613,6 +1614,26 @@ class Trainee(BaseTrainee):
                   not guaranteed to be a new case (that is, a case not found
                   in original dataset.)
 
+        goal_features_map : dict of dict
+            A mapping of feature name to the goals for the feature which
+            force reevaluation of local data in reacts to pull the predicted
+            action values toward achieving the specified value or goal as
+            defined by this map. Valid keys in the map are:
+			"goal": "min" or "max", will make a prediction while minimizing or
+                maximizing the value for the feature or
+			"value" : somevalue, will make a prediction while approaching the
+                specified value
+			note: nominal features only support 'value', 'goal' is ignored.
+				  for non-nominals, if both are provided, only 'goal' is considered.
+
+            .. code-block::
+                :caption: Example goal features map:
+
+                {
+                    "feature_a" : { "goal": "max" },
+                    "feature_b" : { "value": 99 }
+                }
+
         initial_batch_size: int, optional
             Define the number of cases to react to in the first batch. If
             unspecified, a default defined by the ``react_initial_batch_size``
@@ -1696,6 +1717,7 @@ class Trainee(BaseTrainee):
             exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
             feature_bounds_map=feature_bounds_map,
             generate_new_cases=generate_new_cases,
+            goal_features_map=goal_features_map,
             initial_batch_size=initial_batch_size,
             input_is_substituted=input_is_substituted,
             into_series_store=into_series_store,
@@ -1728,6 +1750,7 @@ class Trainee(BaseTrainee):
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
         final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
+        goal_features_map: t.Optional[Mapping] = None,
         init_time_steps: t.Optional[list[t.Any]] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
@@ -1798,6 +1821,8 @@ class Trainee(BaseTrainee):
             exactly one per series.
         generate_new_cases : {"always", "attempt", "no"}, default "no"
             See parameter ``generate_new_cases`` in :meth:`react`.
+        goal_features_map : dict of dict, optional
+            See parameter ``goal_features_map`` in :meth:`react`.
         series_index : str, default ".series"
             When set to a string, will include the series index as a
             column in the returned DataFrame using the column name given.
@@ -1910,6 +1935,7 @@ class Trainee(BaseTrainee):
                 feature_bounds_map=feature_bounds_map,
                 final_time_steps=final_time_steps,
                 generate_new_cases=generate_new_cases,
+                goal_features_map=goal_features_map,
                 series_index=series_index,
                 init_time_steps=init_time_steps,
                 initial_batch_size=initial_batch_size,
@@ -1946,6 +1972,7 @@ class Trainee(BaseTrainee):
         desired_conviction: t.Optional[float] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
+        goal_features_map: t.Optional[Mapping] = None,
         progress_callback: t.Optional[Callable] = None,
         series_context_features: t.Optional[Collection[str]] = None,
         series_context_values: t.Optional[TabularData3D] = None,
@@ -1986,6 +2013,8 @@ class Trainee(BaseTrainee):
         input_is_substituted : bool, default False
             If True, assumes provided nominal feature values have
             already been substituted.
+        goal_features_map : dict of dict, optional
+            See parameter ``goal_features_map`` in :meth:`react_series`.
         progress_callback : callable, optional
             A callback method that will be called before each
             batched call to react series stationary and at the end of reacting.
@@ -2041,6 +2070,7 @@ class Trainee(BaseTrainee):
                 batch_size=batch_size,
                 context_features=context_features,
                 desired_conviction=desired_conviction,
+                goal_features_map=goal_features_map,
                 initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
                 progress_callback=progress_callback,
