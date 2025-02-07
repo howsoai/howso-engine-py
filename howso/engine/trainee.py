@@ -1619,15 +1619,14 @@ class Trainee(BaseTrainee):
             force reevaluation of local data in reacts to pull the predicted
             action values toward achieving the specified value or goal as
             defined by this map. Valid keys in the map are:
-			"goal": "min" or "max", will make a prediction while minimizing or
+            "goal": "min" or "max", will make a prediction while minimizing or
                 maximizing the value for the feature or
-			"value" : somevalue, will make a prediction while approaching the
+            "value" : somevalue, will make a prediction while approaching the
                 specified value
-			note: nominal features only support 'value', 'goal' is ignored.
-				  for non-nominals, if both are provided, only 'goal' is considered.
+            note: nominal features only support 'value', 'goal' is ignored.
+              for non-nominals, if both are provided, only 'goal' is considered.
 
-            .. code-block::
-                :caption: Example goal features map:
+            Example::
 
                 {
                     "feature_a" : { "goal": "max" },

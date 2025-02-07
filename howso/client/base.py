@@ -1961,12 +1961,12 @@ class AbstractHowsoClient(ABC):
             force reevaluation of local data in reacts to pull the predicted
             action values toward achieving the specified value or goal as
             defined by this map. Valid keys in the map are:
-			"goal": "min" or "max", will make a prediction while minimizing or
+            "goal": "min" or "max", will make a prediction while minimizing or
                 maximizing the value for the feature or
-			"value" : somevalue, will make a prediction while approaching the
+            "value" : somevalue, will make a prediction while approaching the
                 specified value
-			note: nominal features only support 'value', 'goal' is ignored.
-				  for non-nominals, if both are provided, only 'goal' is considered.
+            note: nominal features only support 'value', 'goal' is ignored.
+                 for non-nominals, if both are provided, only 'goal' is considered.
 
             .. code-block::
                 :caption: Example goal features map:
@@ -3107,24 +3107,8 @@ class AbstractHowsoClient(ABC):
             ratio of expected surprisal to generated surprisal for each
             feature generated, valid values are in the range of
             :math:`(0, \infty)`.
-        goal_features_map : dict of dict
-            A mapping of feature name to the goals for the feature which
-            force reevaluation of local data in reacts to pull the predicted
-            action values toward achieving the specified value or goal as
-            defined by this map. Valid keys in the map are:
-			"goal": "min" or "max", will make a prediction while minimizing or maximizing the value for the feature or
-			"value" : somevalue, will make a prediction while approaching the specified value
-			note: nominal features only support 'value', 'goal' is ignored.
-				  for non-nominals, if both are provided, only 'goal' is considered.
-
-            .. code-block::
-                :caption: Example goal features map:
-
-                {
-                    "feature_a" : { "goal": "max" },
-                    "feature_b" : { "value": 99 }
-                }
-
+        goal_features_map : dict of dict, optional
+            See :meth:`AbstractHowsoClient.react()`.
         initial_batch_size: int, optional
             The number of series to react to in the first batch. If unspecified,
             the number will be determined automatically. The number of series
