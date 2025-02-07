@@ -3108,7 +3108,7 @@ class AbstractHowsoClient(ABC):
             feature generated, valid values are in the range of
             :math:`(0, \infty)`.
         goal_features_map : dict of dict, optional
-            See :meth:`AbstractHowsoClient.react()`.
+            See parameter ``goal_features_map`` in :meth:`AbstractHowsoClient.react()`.
         initial_batch_size: int, optional
             The number of series to react to in the first batch. If unspecified,
             the number will be determined automatically. The number of series
