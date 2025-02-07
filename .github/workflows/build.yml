@@ -187,7 +187,7 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
 
-  pytest-macos-3-12-mt-arm64:
+  pytest-macos-3-13-mt-arm64:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -195,13 +195,13 @@ jobs:
       platform: 'macos-latest'
       platform-pretty: 'MacOS'
       amalgam-plat-arch: 'darwin-arm64'
-      python-version: '3.12'
+      python-version: '3.13'
       config-fp: './config/latest-mt-traces-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
 
-  pytest-macos-3-11-mt-amd64:
+  pytest-macos-3-10-mt-amd64:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -209,7 +209,7 @@ jobs:
       platform: 'macos-latest-large'
       platform-pretty: 'MacOS'
       amalgam-plat-arch: 'darwin-amd64'
-      python-version: '3.11'
+      python-version: '3.10'
       config-fp: './config/latest-mt-noavx-traces-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
@@ -673,8 +673,8 @@ jobs:
       - pytest-linux-3-9-st
       - pytest-linux-3-12-mt
       - pytest-windows-3-11-mt
-      - pytest-macos-3-12-mt-arm64
-      - pytest-macos-3-11-mt-amd64
+      - pytest-macos-3-13-mt-arm64
+      - pytest-macos-3-10-mt-amd64
       - install-verification-linux-amd64
       - install-verification-linux-arm64
       - install-verification-linux-arm64_8a
