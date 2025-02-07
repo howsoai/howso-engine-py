@@ -1957,10 +1957,14 @@ class AbstractHowsoClient(ABC):
                 in original dataset.)
 
         goal_features_map : dict of dict
-            A mapping of feature name to the goals for the feature which
-            force reevaluation of local data in reacts to pull the predicted
-            action values toward achieving the specified value or goal as
-            defined by this map. Valid keys in the map are:
+            A mapping of feature name to the goals for the feature, which will
+            cause the react to achieve the goals as appropriate for the context.
+            This is useful for conditioning responses when it is challenging or
+            impossible to know appropriate values ahead of time, such as
+            maximizing the reward or minimizing cost for reinforcement learning,
+            or conditioning a based on attempting to achieve some value.  Goal
+            features will reevaluate the inference for the given context
+            optimizing for the specified goals. Valid keys in the map are:
             "goal": "min" or "max", will make a prediction while minimizing or
                 maximizing the value for the feature or
             "value" : somevalue, will make a prediction while approaching the
