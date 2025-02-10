@@ -3134,30 +3134,30 @@ class Trainee(BaseTrainee):
                 Uses full calculations, which uses leave-one-out for features for
                 computations.
             - feature_residuals_full : bool, optional
-                For each feature in ``action_features``, use the context_features to predict
+                For each feature in ``action_features``, use the context features to predict
                 the feature and return the mean absolute error. When ``prediction_stats`` in
                 the ``details`` parameter is true, the Trainee will also calculate
                 the full feature residuals.
             - feature_residuals_robust : bool, optional
                 For each feature in ``action_features``, use the robust
-                (power set/permutations) set of all other context_features to predict
+                (power set/permutations) set of all other context features to predict
                 the feature and return the mean absolute error.
             - feature_contributions_full : bool, optional
-                For each context_feature, use the full set of all other
-                context_features to compute the mean absolute delta between
+                For each feature in ``context_features``, use the full set of all other
+                context features to compute the mean absolute delta between
                 prediction of action feature with and without the context features
                 in the model. Returns the mean absolute delta
                 under the key 'feature_contributions_full' and returns the mean
                 delta under the key 'directional_feature_contributions_full'.
             - feature_contributions_robust : bool, optional
-                For each context_feature, use the robust (power set/permutation)
+                For each feature in ``context_features``, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
                 delta between prediction of the action feature with and without the
                 context features in the model. Returns the mean absolute delta
                 under the key 'feature_contributions_robust' and returns the mean
                 delta under the key 'directional_feature_contributions_robust'.
             - feature_deviations : bool, optional
-                For each feature in ``action_features``, use the context_features
+                For each feature in ``action_features``, use the context features
                 and the feature being predicted as context to predict the feature
                 and return the mean absolute error.
             - feature_mda_full : bool, optional

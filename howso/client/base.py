@@ -3517,7 +3517,7 @@ class AbstractHowsoClient(ABC):
                 under the key 'feature_contributions_robust' and returns the mean
                 delta under the key 'directional_feature_contributions_robust'.
             - feature_deviations : bool, optional
-                For each feature in ``action_features``, use the context_features
+                For each feature in ``action_features``, use the context features
                 and the feature being predicted as context to predict the feature
                 and return the mean absolute error.
             - feature_mda_full : bool, optional
