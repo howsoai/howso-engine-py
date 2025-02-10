@@ -1962,18 +1962,20 @@ class AbstractHowsoClient(ABC):
             This is useful for conditioning responses when it is challenging or
             impossible to know appropriate values ahead of time, such as
             maximizing the reward or minimizing cost for reinforcement learning,
-            or conditioning a based on attempting to achieve some value.  Goal
+            or conditioning a based on attempting to achieve some value. Goal
             features will reevaluate the inference for the given context
             optimizing for the specified goals. Valid keys in the map are:
-            "goal": "min" or "max", will make a prediction while minimizing or
-                maximizing the value for the feature or
-            "value" : somevalue, will make a prediction while approaching the
-                specified value
-            note: nominal features only support 'value', 'goal' is ignored.
-                 for non-nominals, if both are provided, only 'goal' is considered.
 
-            .. code-block::
-                :caption: Example goal features map:
+                - "goal": "min" or "max", will make a prediction while minimizing or
+                  maximizing the value for the feature.
+                - "value" : somevalue, will make a prediction while approaching the
+                  specified value.
+
+            .. NOTE::
+                Nominal features only support "value", "goal" is ignored.
+                For non-nominals, if both are provided, only "goal" is considered.
+
+            Example::
 
                 {
                     "feature_a" : { "goal": "max" },
