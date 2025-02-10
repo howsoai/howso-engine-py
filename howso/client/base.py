@@ -1762,6 +1762,11 @@ class AbstractHowsoClient(ABC):
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses
                 full calculations, which uses leave-one-out for cases for computations.
+            - feature_deviations : bool, optional
+                If True, outputs computed feature deviations for all (context
+                and action) features locally around the prediction.
+                Uses only the context features of the reacted case to determine
+                that area.
             - hypothetical_values : dict, optional
                 A dictionary of feature name to feature value. If specified,
                 shows how a prediction could change in a what-if scenario where
@@ -3521,17 +3526,20 @@ class AbstractHowsoClient(ABC):
             values for Booleans will not be included in the data returned.
 
             - prediction_stats : bool, optional
-                If True outputs full feature prediction stats for all (context and action) features.
-                The prediction stats returned are set by the "selected_prediction_stats" parameter
-                in the `details` parameter. Uses full calculations, which uses leave-one-out for
-                features for computations.
+                If True outputs full feature prediction stats for all features in
+                ``action_features``. The prediction stats returned are set by the
+                "selected_prediction_stats" parameter in the `details` parameter.
+                Uses full calculations, which uses leave-one-out for features for
+                computations.
             - feature_residuals_full : bool, optional
-                For each context_feature, use the full set of all other context_features to predict
-                the feature. When ``prediction_stats`` in the ``details`` parameter is true, the
-                Trainee will also calculate the full feature residuals.
+                For each feature in ``action_features``, use the context_features to predict
+                the feature and return the mean absolute error. When ``prediction_stats`` in
+                the ``details`` parameter is true, the Trainee will also calculate
+                the full feature residuals.
             - feature_residuals_robust : bool, optional
-                For each context_feature, use the robust (power set/permutations) set of all other
-                context_features to predict the feature.
+                For each feature in ``action_features``, use the robust
+                (power set/permutations) set of all other context_features to predict
+                the feature and return the mean absolute error.
             - feature_contributions_full : bool, optional
                 For each context_feature, use the full set of all other
                 context_features to compute the mean absolute delta between
@@ -3546,6 +3554,10 @@ class AbstractHowsoClient(ABC):
                 context features in the model. Returns the mean absolute delta
                 under the key 'feature_contributions_robust' and returns the mean
                 delta under the key 'directional_feature_contributions_robust'.
+            - feature_deviations : bool, optional
+                For each feature in ``action_features``, use the context features
+                and the feature being predicted as context to predict the feature
+                and return the mean absolute error.
             - feature_mda_full : bool, optional
                 When True will compute Mean Decrease in Accuracy (MDA)
                 for each context feature at predicting the action feature. Drop
