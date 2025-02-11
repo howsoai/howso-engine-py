@@ -289,9 +289,6 @@ jobs:
         sudo apt-get install --no-install-recommends -y python3 python3-pip python-is-python3
         python --version
 
-        # Overwrite pip.conf so pypi is used, not piwheels
-        sudo echo "" > /etc/pip.conf
-
         echo "Installing Howso Engine..."
         # This environment is considered "externally managed," so use --break-system-packages to bypass
         # (safe in this use case)
