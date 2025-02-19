@@ -95,15 +95,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 feature_attributes: dict[str, t.Any] = dict()
                 unsupported: list[str] = list()
                 for future in as_completed(futures):
-                    try:
-                        response = future.result()
-                        feature_attributes.update(response[0])
-                        unsupported.extend(response[1])
-                    except Exception as e:
-                        warnings.warn(
-                            f"Infer_feature_attributes raised an exception "
-                            f"while processing '{futures[future]}' ({str(e)})."
-                        )
+                    response = future.result()
+                    feature_attributes.update(response[0])
+                    unsupported.extend(response[1])
 
             # Re-order the keys like the original dataframe
             feature_attributes = {
@@ -362,7 +356,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                                 max_date = dt_parse(max_date)
                         except Exception:  # noqa: Intentionally broad
                             warnings.warn(
-                                f'Feature {feature_name} does not match the '
+                                f'Feature "{feature_name}" does not match the '
                                 f'provided date time format, unable to guess '
                                 f'bounds.'
                             )
@@ -438,7 +432,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         'observed_min': observed_min, 'observed_max': observed_max
                     }
                 except Exception:  # noqa: Intentionally broad
-                    w_str = (f'Feature {feature_name} does not match the '
+                    w_str = (f'Feature "{feature_name}" does not match the '
                              'provided date time format, unable to guess '
                              'bounds.')
                     warnings.warn(w_str)
@@ -602,13 +596,13 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         attributes['decimal_places'] = decimals
                     else:
                         warnings.warn(
-                            f'Feature {feature_name} contains floating point '
+                            f'Feature "{feature_name}" contains floating point '
                             'values that exceed the maximum supported precision '
                             'of 64 bits.'
                         )
                 except AttributeError:
                     warnings.warn(
-                        f'Feature {feature_name} may contain floating point '
+                        f'Feature "{feature_name}" may contain floating point '
                         'values that exceed the maximum supported precision '
                         'of 64 bits.'
                     )
@@ -649,8 +643,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # If the type is datetime.time
         if isinstance(first_non_null, datetime.time):
             if user_time_format:
-                warnings.warn(f"Feature '{feature_name} is an instance of 'datetime.time', "
-                              "so the user-provided format will be ignored.")
+                warnings.warn(f'Feature "{feature_name}" is an instance of `datetime.time`, '
+                              'so the user-provided format will be ignored.')
             # Format string representation of datetime.time types
             time_format = '%H:%M:%S'
         # If the type is a string
@@ -660,8 +654,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             try:
                 time_format = infer_time_format(first_non_null)
             except ValueError as e:
-                raise HowsoError(f"Please specify the format of feature '{feature_name}' in "
-                                 "'datetime_feature_formats'") from e
+                raise HowsoError(f'Please specify the format of feature "{feature_name}" in '
+                                 '"datetime_feature_formats"') from e
         return {
             'type': 'continuous',
             'cycle_length': infer_time_feature_cycle_length(time_format),

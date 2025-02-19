@@ -172,6 +172,34 @@ def seconds_to_time(seconds: int | float | None, *,
     return time_value
 
 
+def is_valid_datetime_format(values: str | Iterable[str], time_format: str | None) -> bool:
+    """
+    Check if a date time format is valid against one or more string formatted date time values.
+
+    Parameters
+    ----------
+    value: str or Iterable of str
+        The value(s) to test the format against.
+    time_format: str
+        The format string to parse with.
+
+    Returns
+    -------
+    bool
+        True if the value(s) can be parsed using the provided format.
+    """
+    if not time_format:
+        return False
+    if isinstance(values, str):
+        values = [values]
+    try:
+        for v in values:
+            dt.datetime.strptime(v, time_format)
+        return True
+    except Exception:
+        return False
+
+
 def replace_none_with_nan(dat: Mapping) -> list[dict]:
     """
     Replace None values with NaN values.

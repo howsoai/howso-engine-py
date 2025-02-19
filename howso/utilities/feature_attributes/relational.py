@@ -878,7 +878,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                             return None
                     except Exception:  # noqa: Intentionally broad
                         warnings.warn(
-                            f'Feature {feature_name} does not match the '
+                            f'Feature "{feature_name}" does not match the '
                             f'provided date time format, unable to guess '
                             f'bounds.')
                         return None
