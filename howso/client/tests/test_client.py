@@ -13,12 +13,18 @@ import pytest
 
 import howso
 from howso.client import HowsoClient
-from howso.client.client import _check_isfile, get_configuration_path, get_howso_client_class, LEGACY_CONFIG_FILENAMES
+from howso.client.client import (
+    _check_isfile,  # type: ignore reportPrivateUsage
+    get_configuration_path,
+    get_howso_client_class,
+    LEGACY_CONFIG_FILENAMES
+)
 from howso.client.exceptions import HowsoApiError, HowsoConfigurationError, HowsoError
 from howso.client.protocols import ProjectClient
 from howso.client.schemas.reaction import Reaction
 from howso.direct import HowsoDirectClient
 from howso.utilities.testing import get_configurationless_test_client, get_test_options
+from howso.utilities.constants import _DEPRECATED_DETAIL_KEYS  # type: ignore reportPrivateUsage
 
 TEST_OPTIONS = get_test_options()
 
@@ -577,8 +583,8 @@ class TestClient:
                 ['similarity_conviction', ]
             ),
             (
-                {'feature_residuals_robust': True, },
-                ['feature_residuals_robust', ]
+                {'feature_robust_residuals': True, },
+                ['feature_robust_residuals', ]
             ),
         ]
         for audit_detail_set, keys_to_expect in details_sets:
@@ -589,6 +595,35 @@ class TestClient:
                                          details=audit_detail_set)
             details = response['details']
             assert (all(details[key] is not None for key in keys_to_expect))
+
+    @pytest.mark.parametrize('old_key,new_key', _DEPRECATED_DETAIL_KEYS.items())
+    def test_deprecated_detail_keys(self, trainee, old_key, new_key):
+        """Ensure using any of the deprecated keys raises a warning, but continues to work."""
+        # These keys shouldn't be tested like this:
+        if new_key in [
+            "feature_full_directional_prediction_contributions",
+            "feature_robust_directional_prediction_contributions",
+            "feature_full_accuracy_contributions_permutation",
+            "feature_robust_accuracy_contributions_permutation",
+        ]:
+            return True
+
+        with pytest.warns(DeprecationWarning) as record:
+            reaction = self.client.react(
+                trainee.id,
+                contexts=[['1']],
+                context_features=['penguin'],
+                action_features=['play'],
+                details={old_key: True}
+            )
+        assert len(record) == 1
+        assert f"'{old_key}' is deprecated" in str(record[0].message)
+
+        # We DO want the old_key to be present during the deprecation period.
+        assert old_key in reaction.get('details', {}).keys()
+
+        # We do NOT want the new_key present during the deprecation period.
+        assert new_key not in reaction.get('details', {}).keys()
 
     def test_get_version(self):
         """Test get_version()."""

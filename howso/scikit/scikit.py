@@ -633,48 +633,34 @@ class HowsoEstimator(BaseEstimator):
                         - An array of string values, must match any of these values
                           exactly. Only applicable to nominal and string ordinal
                           features.
-            - case_contributions_full : bool, optional
-                If true outputs each influential case's differences between the
-                predicted action feature value and the predicted action feature
-                value if each individual case were not included. Uses only the
-                context features of the reacted case to determine that area.
-                Uses full calculations, which uses leave-one-out for cases for
-                computations.
-            - case_contributions_robust : bool, optional
-                If true outputs each influential case's differences between the
-                predicted action feature value and the predicted action feature
-                value if each individual case were not included. Uses only the
-                context features of the reacted case to determine that area.
-                Uses robust calculations, which uses uniform sampling from
-                the power set of all combinations of cases.
-            - case_feature_residuals_full : bool, optional
-                If True, outputs feature residuals for all (context and action)
-                features for just the specified case. Uses leave-one-out for
-                each feature, while using the others to predict the left out
-                feature with their corresponding values from this case. Uses
-                full calculations, which uses leave-one-out for cases for
-                computations.
-            - case_feature_residuals_robust : bool, optional
-                If True, outputs feature residuals for all (context and action)
-                features for just the specified case. Uses leave-one-out for
-                each feature, while using the others to predict the left out
-                feature with their corresponding values from this case. Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions.
-            - case_mda_robust : bool, optional
+            - case_full_accuracy_contributions : bool, optional
                 If True, outputs each influential case's mean decrease in
                 accuracy of predicting the action feature in the local model
                 area, as if each individual case were included versus not
                 included. Uses only the context features of the reacted case to
                 determine that area. Uses robust calculations, which uses
                 uniform sampling from the power set of all combinations of cases.
-            - case_mda_full : bool, optional
+            - case_full_accuracy_contributions : bool, optional
                 If True, outputs each influential case's mean decrease in
                 accuracy of predicting the action feature in the local model
                 area, as if each individual case were included versus not
                 included. Uses only the context features of the reacted case to
                 determine that area. Uses full calculations, which uses
                 leave-one-out for cases for  computations.
+            - case_full_prediction_contributions : bool, optional
+                If true outputs each influential case's differences between the
+                predicted action feature value and the predicted action feature
+                value if each individual case were not included. Uses only the
+                context features of the reacted case to determine that area.
+                Uses full calculations, which uses leave-one-out for cases for
+                computations.
+            - case_robust_prediction_contributions : bool, optional
+                If true outputs each influential case's differences between the
+                predicted action feature value and the predicted action feature
+                value if each individual case were not included. Uses only the
+                context features of the reacted case to determine that area.
+                Uses robust calculations, which uses uniform sampling from
+                the power set of all combinations of cases.
             - categorical_action_probabilities : bool, optional
                 If True, outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
@@ -706,34 +692,41 @@ class HowsoEstimator(BaseEstimator):
                 distance (relative surprisal) in between the closest two cases
                 in the local area. All distances are computed using only the
                 specified context features.
-            - feature_contributions_robust : bool, optional
-                If True outputs each context feature's absolute and directional
-                differences between the predicted action feature value and the
-                predicted action feature value if each context were not in the
-                model for all context features in the local model area Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions. Directional feature
-                contributions are returned under the key
-                'directional_feature_contributions_robust'.
-            - feature_contributions_full : bool, optional
+            - features : list of str, optional
+                A list of feature names that specifies for what features will
+                per-feature details be computed (residuals, contributions,
+                mda, etc.). This should generally preserve compute, but will
+                not when computing details robustly. Details will be computed
+                for all context and action features if this value is not
+                specified.
+            - feature_deviations : bool, optional
+                If True, outputs computed feature deviations for all (context
+                and action) features locally around the prediction.
+                Uses only the context features of the reacted case to determine
+                that area.
+            - feature_full_accuracy_contributions : bool, optional
+                If True, outputs each context feature's mean decrease in
+                accuracy of predicting the action feature given the context.
+                Uses only the context features of the reacted case to determine
+                that area. Uses full calculations, which uses leave-one-out
+                for cases for computations.
+            - feature_full_accuracy_contributions_ex_post : bool, optional
+                If True, outputs each context feature's mean decrease in
+                accuracy of predicting the action feature as an explanation detail
+                given that the specified prediction was already made as
+                specified by the action value. Uses both context and action
+                features of the reacted case to determine that area. Uses
+                full calculations, which uses leave-one-out for cases for
+                computations.
+            - feature_full_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context were not in the
                 model for all context features in the local model area. Uses
                 full calculations, which uses leave-one-out for cases for
                 computations. Directional feature contributions are returned
-                under the key 'directional_feature_contributions_full'.
-            - case_feature_contributions_robust: bool, optional
-                If True outputs each context feature's absolute and directional
-                differences between the predicted action feature value and the
-                predicted action feature value if each context feature were not
-                in the model for all context features in this case, using only
-                the values from this specific case. Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions.
-                Directional case feature contributions are returned under the
-                'case_directional_feature_contributions_robust' key.
-            - case_feature_contributions_full: bool, optional
+                under the key 'feature_full_directional_prediction_contributions'.
+            - feature_full_prediction_contributions_for_case: bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context feature were not
@@ -743,19 +736,51 @@ class HowsoEstimator(BaseEstimator):
                 computations. Directional case feature
                 contributions are returned under the
                 'case_directional_feature_contributions_full' key.
-            - feature_mda_robust : bool, optional
+            - feature_full_residual_convictions_for_case : bool, optional
+                If True, outputs this case's feature residual convictions for
+                the region around the prediction. Uses only the context
+                features of the reacted case to determine that region.
+                Computed as: region feature residual divided by case feature
+                residual. Uses full calculations, which uses leave-one-out
+                for cases for computations.
+            - feature_full_residuals : bool, optional
+                If True, outputs feature residuals for all (context and action)
+                features locally around the prediction. Uses only the context
+                features of the reacted case to determine that area. Uses
+                full calculations, which uses leave-one-out for cases for computations.
+            - feature_full_residuals_for_case : bool, optional
+                If True, outputs feature residuals for all (context and action)
+                features for just the specified case. Uses leave-one-out for
+                each feature, while using the others to predict the left out
+                feature with their corresponding values from this case. Uses
+                full calculations, which uses leave-one-out for cases for
+                computations.
+            - feature_robust_prediction_contributions : bool, optional
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context were not in the
+                model for all context features in the local model area Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions. Directional feature
+                contributions are returned under the key
+                'feature_robust_directional_prediction_contributions'.
+            - feature_robust_prediction_contributions_for_case: bool, optional
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context feature were not
+                in the model for all context features in this case, using only
+                the values from this specific case. Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions.
+                Directional case feature contributions are returned under the
+                'case_directional_feature_contributions_robust' key.
+            - feature_robust_accuracy_contributions : bool, optional
                 If True, outputs each context feature's mean decrease in
                 accuracy of predicting the action feature given the context.
                 Uses only the context features of the reacted case to determine
                 that area. Uses robust calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
-            - feature_mda_full : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature given the context.
-                Uses only the context features of the reacted case to determine
-                that area. Uses full calculations, which uses leave-one-out
-                for cases for computations.
-            - feature_mda_ex_post_robust : bool, optional
+            - feature_robust_accuracy_contributions_ex_post : bool, optional
                 If True, outputs each context feature's mean decrease in
                 accuracy of predicting the action feature as an explanation detail
                 given that the specified prediction was already made as
@@ -763,37 +788,30 @@ class HowsoEstimator(BaseEstimator):
                 features of the reacted case to determine that area. Uses
                 robust calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
-            - feature_mda_ex_post_full : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation detail
-                given that the specified prediction was already made as
-                specified by the action value. Uses both context and action
-                features of the reacted case to determine that area. Uses
-                full calculations, which uses leave-one-out for cases for
-                computations.
-            - features : list of str, optional
-                A list of feature names that specifies for what features will
-                per-feature details be computed (residuals, contributions,
-                mda, etc.). This should generally preserve compute, but will
-                not when computing details robustly. Details will be computed
-                for all context and action features if this value is not
-                specified.
-            - feature_residual_robust : bool, optional
+            - feature_robust_residual_convictions_for_case : bool, optional
+                If True, outputs this case's feature residual convictions for
+                the region around the prediction. Uses only the context
+                features of the reacted case to determine that region.
+                Computed as: region feature residual divided by case feature
+                residual. Uses robust calculations, which uses uniform sampling
+                from the power set of features as the contexts for predictions.
+            - feature_robust_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses robust
                 calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
-            - feature_residuals_full : bool, optional
+            - feature_robust_residuals_for_case : bool, optional
                 If True, outputs feature residuals for all (context and action)
-                features locally around the prediction. Uses only the context
-                features of the reacted case to determine that area. Uses
-                full calculations, which uses leave-one-out for cases for computations.
-            - feature_deviations : bool, optional
-                If True, outputs computed feature deviations for all (context
-                and action) features locally around the prediction.
-                Uses only the context features of the reacted case to determine
-                that area.
+                features for just the specified case. Uses leave-one-out for
+                each feature, while using the others to predict the left out
+                feature with their corresponding values from this case. Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions.
+            - generate_attempts : bool, optional
+                If True outputs the number of attempts taken to generate each
+                case. Only applicable when 'generate_new_cases' is "always" or
+                "attempt".
             - hypothetical_values : dict, optional
                 A dictionary of feature name to feature value. If specified,
                 shows how a prediction could change in a what-if scenario where
@@ -813,20 +831,6 @@ class HowsoEstimator(BaseEstimator):
             - influential_cases_raw_weights : bool, optional
                 If True, outputs the surprisal for each of the influential
                 cases.
-            - case_feature_residual_convictions_robust : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the region around the prediction. Uses only the context
-                features of the reacted case to determine that region.
-                Computed as: region feature residual divided by case feature
-                residual. Uses robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
-            - case_feature_residual_convictions_full : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the region around the prediction. Uses only the context
-                features of the reacted case to determine that region.
-                Computed as: region feature residual divided by case feature
-                residual. Uses full calculations, which uses leave-one-out
-                for cases for computations.
             - most_similar_cases : bool, optional
                 If True, outputs an automatically determined (when
                 'num_most_similar_cases' is not specified) relevant number of
@@ -877,7 +881,7 @@ class HowsoEstimator(BaseEstimator):
                   for each class for the action feature.
                 - mda : Mean decrease in accuracy when each feature is dropped
                   from the model, applies to all features.
-                - feature_mda_permutation_full : Mean decrease in accuracy that used
+                - feature_full_accuracy_contributions_permutation : Mean decrease in accuracy that used
                   scrambling of feature values instead of dropping each
                   feature, applies to all features.
                 - precision : Precision (positive predictive) value for nominal
@@ -900,13 +904,9 @@ class HowsoEstimator(BaseEstimator):
                 for all computations. This is defined as expected (local)
                 distance contribution divided by reacted case distance
                 contribution.
-            - generate_attempts : bool, optional
-                If True outputs the number of attempts taken to generate each
-                case. Only applicable when 'generate_new_cases' is "always" or
-                "attempt".
 
             >>> details = {'num_most_similar_cases': 5,
-            ...            'feature_residuals_full': True}
+            ...            'feature_full_residuals': True}
 
 
         Returns
@@ -923,9 +923,9 @@ class HowsoEstimator(BaseEstimator):
         if details is None:
             details = {
                 'num_boundary_cases': 3,
-                'case_feature_residuals_robust': True,
-                'feature_mda_robust': True,
-                'feature_residuals_robust': True,
+                'feature_robust_residuals_for_case': True,
+                'feature_robust_accuracy_contributions': True,
+                'feature_robust_residuals': True,
                 'influential_cases': True,
                 'num_most_similar_cases': 3,
             }
