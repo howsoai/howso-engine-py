@@ -5,18 +5,18 @@ import platform
 import warnings
 
 from dateutil import parser
-import howso.utilities as utils
-from howso.utilities import (
-    format_confusion_matrix,
-    get_kwargs,
-    get_matrix_diff,
-    LocaleOverride,
-    matrix_processing,
-)
 import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 import pytest
+
+from howso.utilities import (
+    format_confusion_matrix,
+    get_kwargs,
+    LocaleOverride,
+    matrix_processing,
+)
+import howso.utilities as utils
 
 from . import has_locales
 
@@ -301,25 +301,6 @@ def test_determine_iso_format(date_str, format_str):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         assert format_str == utils.determine_iso_format(date_str, "_")
-
-
-def test_get_matrix_diff():
-    """Tests that `get_matrix_diff` works properly."""
-    df = pd.DataFrame({
-        'a': [1, 2, 3],
-        'b': [4, 5, 6],
-        'c': [7, 8, 9]
-    }, index=['a', 'b', 'c']).T
-
-    differences_dict = get_matrix_diff(df)
-
-    correct_dict = {
-        ('a', 'c'): 4,
-        ('a', 'b'): 2,
-        ('b', 'c'): 2
-    }
-
-    assert differences_dict == correct_dict
 
 
 @pytest.mark.parametrize(
