@@ -24,7 +24,7 @@ from howso.client.protocols import ProjectClient
 from howso.client.schemas.reaction import Reaction
 from howso.direct import HowsoDirectClient
 from howso.utilities.testing import get_configurationless_test_client, get_test_options
-from howso.utilities.constants import _DEPRECATED_DETAIL_KEYS  # type: ignore reportPrivateUsage
+from howso.utilities.constants import _RENAMED_DETAIL_KEYS  # type: ignore reportPrivateUsage
 
 TEST_OPTIONS = get_test_options()
 
@@ -596,7 +596,7 @@ class TestClient:
             details = response['details']
             assert (all(details[key] is not None for key in keys_to_expect))
 
-    @pytest.mark.parametrize('old_key,new_key', _DEPRECATED_DETAIL_KEYS.items())
+    @pytest.mark.parametrize('old_key,new_key', _RENAMED_DETAIL_KEYS.items())
     def test_deprecated_detail_keys(self, trainee, old_key, new_key):
         """Ensure using any of the deprecated keys raises a warning, but continues to work."""
         # These keys shouldn't be tested like this:

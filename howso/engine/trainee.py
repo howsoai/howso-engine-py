@@ -1414,7 +1414,7 @@ class Trainee(BaseTrainee):
                 full calculations, which uses leave-one-out for cases for
                 computations. Directional case feature
                 contributions are returned under the
-                'case_directional_feature_contributions_full' key.
+                'feature_full_directional_prediction_contributions_for_case' key.
             - feature_full_residual_convictions_for_case : bool, optional
                 If True, outputs this case's feature residual convictions for
                 the region around the prediction. Uses only the context
@@ -1558,11 +1558,6 @@ class Trainee(BaseTrainee):
                   this is 1 - the average categorical action probability of each case's
                   correct classes. Categorical action probabilities are the probabilities
                   for each class for the action feature.
-                - mda : Mean decrease in accuracy when each feature is dropped
-                  from the model, applies to all features.
-                - feature_full_accuracy_contributions_permutation : Mean decrease in accuracy that used
-                  scrambling of feature values instead of dropping each
-                  feature, applies to all features.
                 - precision : Precision (positive predictive) value for nominal
                   features only.
                 - r2 : The r-squared coefficient of determination, for
@@ -3276,11 +3271,6 @@ class Trainee(BaseTrainee):
                   this is 1 - the average categorical action probability of each case's
                   correct classes. Categorical action probabilities are the probabilities
                   for each class for the action feature.
-                - mda : Mean decrease in accuracy when each feature is dropped
-                  from the model, applies to all features.
-                - feature_full_accuracy_contributions_permutation : Mean decrease in accuracy that used
-                  scrambling of feature values instead of dropping each
-                  feature, applies to all features.
                 - precision : Precision (positive predictive) value for nominal
                   features only.
                 - r2 : The r-squared coefficient of determination, for

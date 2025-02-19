@@ -1,5 +1,5 @@
 # These keys were deprecated on 18-FEB-2025
-_DEPRECATED_DETAIL_KEYS = {
+_RENAMED_DETAIL_KEYS = {
     "case_contributions_full": "case_full_prediction_contributions",
     "case_contributions_robust": "case_robust_prediction_contributions",
     "case_feature_contributions_full": "feature_full_prediction_contributions_for_case",
@@ -20,6 +20,6 @@ _DEPRECATED_DETAIL_KEYS = {
     "feature_mda_robust": "feature_robust_accuracy_contributions",
     "feature_mda_permutation_full": "feature_full_accuracy_contributions_permutation",
     "feature_mda_permutation_robust": "feature_robust_accuracy_contributions_permutation",
-    "feature_residuals_full": "feature_full_residuals_for_case",
-    "feature_residuals_robust": "feature_robust_residuals_for_case",
+    "feature_residuals_full": "feature_full_residuals",
+    "feature_residuals_robust": "feature_robust_residuals",
 }

@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from howso.utilities.constants import _DEPRECATED_DETAIL_KEYS  # type: ignore reportPrivateUsage
+from howso.utilities.constants import _RENAMED_DETAIL_KEYS  # type: ignore reportPrivateUsage
 
 
 __all__ = [
@@ -50,22 +50,21 @@ class Reaction(abc.MutableMapping):
         "boundary_cases",
         "boundary_cases_familiarity_convictions",
         "boundary_values",
-        "case_directional_feature_contributions_full",
-        "case_directional_feature_contributions_robust",
         "case_full_accuracy_contributions",
-        "case_full_accuracy_contributions",
+        "case_full_prediction_contributions",
+        "case_robust_accuracy_contributions",
+        "case_robust_prediction_contributions",
         "categorical_action_probabilities",
         "context_values",
         "derivation_parameters",
         "distance_contribution",
         "distance_ratio_parts",
         "distance_ratio",
-        "feature_case_contributions_full",
-        "feature_case_contributions_robust",
         "feature_deviations",
         "feature_full_accuracy_contributions_ex_post",
         "feature_full_accuracy_contributions",
         "feature_full_directional_prediction_contributions",
+        "feature_full_directional_prediction_contributions_for_case",
         "feature_full_prediction_contributions_for_case",
         "feature_full_prediction_contributions",
         "feature_full_residual_convictions_for_case",
@@ -74,6 +73,7 @@ class Reaction(abc.MutableMapping):
         "feature_robust_accuracy_contributions_ex_post",
         "feature_robust_accuracy_contributions",
         "feature_robust_directional_prediction_contributions",
+        "feature_robust_directional_prediction_contributions_for_case",
         "feature_robust_prediction_contributions_for_case",
         "feature_robust_prediction_contributions",
         "feature_robust_residual_convictions_for_case",
@@ -96,7 +96,7 @@ class Reaction(abc.MutableMapping):
 
     # These detail keys are deprecated, but should be treated as KNOWN_KEYs
     # during the deprecation period.
-    KNOWN_KEYS |= set(_DEPRECATED_DETAIL_KEYS.keys())
+    KNOWN_KEYS |= set(_RENAMED_DETAIL_KEYS.keys())
 
     def __init__(self,
                  action: t.Optional[pd.DataFrame | list | dict] = None,

@@ -21,7 +21,7 @@ import numpy as np
 from pandas import DataFrame
 
 from howso.utilities import internals, utilities as util
-from howso.utilities.constants import _DEPRECATED_DETAIL_KEYS  # type: ignore reportPrivateUsage
+from howso.utilities.constants import _RENAMED_DETAIL_KEYS  # type: ignore reportPrivateUsage
 from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
@@ -1708,7 +1708,7 @@ class AbstractHowsoClient(ABC):
                 full calculations, which uses leave-one-out for cases for
                 computations. Directional case feature
                 contributions are returned under the
-                'case_directional_feature_contributions_full' key.
+                'feature_full_directional_prediction_contributions_for_case' key.
             - feature_full_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
@@ -1852,11 +1852,6 @@ class AbstractHowsoClient(ABC):
                   this is 1 - the average categorical action probability of each case's
                   correct classes. Categorical action probabilities are the probabilities
                   for each class for the action feature.
-                - mda : Mean decrease in accuracy when each feature is dropped
-                  from the model, applies to all features.
-                - feature_full_accuracy_contributions_permutation : Mean decrease in accuracy that used
-                  scrambling of feature values instead of dropping each
-                  feature, applies to all features.
                 - precision : Precision (positive predictive) value for nominal
                   features only.
                 - r2 : The r-squared coefficient of determination, for
@@ -2062,8 +2057,8 @@ class AbstractHowsoClient(ABC):
         deprecated_keys_used = []
         if details is not None:
             details = dict(details)  # Makes it mutable.
-            deprecated_keys_used = list(set(details.keys()) & set(_DEPRECATED_DETAIL_KEYS.keys()))
-            replacements = [_DEPRECATED_DETAIL_KEYS[key] for key in deprecated_keys_used]
+            deprecated_keys_used = list(set(details.keys()) & set(_RENAMED_DETAIL_KEYS.keys()))
+            replacements = [_RENAMED_DETAIL_KEYS[key] for key in deprecated_keys_used]
             if deprecated_keys_used:
                 used_str = ", ".join(deprecated_keys_used)
                 replace_str = ", ".join(replacements)
@@ -2264,7 +2259,7 @@ class AbstractHowsoClient(ABC):
         # Convert new detail keys that were used back to the requested ones.
         if detail_response := response.get('details'):
             for key in deprecated_keys_used:
-                new_key = _DEPRECATED_DETAIL_KEYS[key]
+                new_key = _RENAMED_DETAIL_KEYS[key]
                 if new_key in detail_response:
                     detail_response[key] = detail_response[new_key]
                     del detail_response[new_key]
@@ -3670,17 +3665,12 @@ class AbstractHowsoClient(ABC):
                   total number of predictions.
                 - confusion_matrix : A sparse map of actual feature value to a map of
                   predicted feature value to counts.
-                - feature_full_accuracy_contributions_permutation : Mean decrease in accuracy that used
-                  scrambling of feature values instead of dropping each
-                  feature, applies to all features.
                 - mae : Mean absolute error. For continuous features, this is
                   calculated as the mean of absolute values of the difference
                   between the actual and predicted values. For nominal features,
                   this is 1 - the average categorical action probability of each case's
                   correct classes. Categorical action probabilities are the probabilities
                   for each class for the action feature.
-                - mda : Mean decrease in accuracy when each feature is dropped
-                  from the model, applies to all features.
                 - precision : Precision (positive predictive) value for nominal
                   features only.
                 - r2 : The r-squared coefficient of determination, for
