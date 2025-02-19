@@ -2256,7 +2256,7 @@ class AbstractHowsoClient(ABC):
                 suppress_warning=suppress_warning
             )
 
-        # Convert new detail keys that were used back to the requested ones.
+        # Convert new detail keys that were returned back to the requested ones
         if detail_response := response.get('details'):
             for key in deprecated_keys_used:
                 new_key = _RENAMED_DETAIL_KEYS[key]
@@ -3762,6 +3762,32 @@ class AbstractHowsoClient(ABC):
                 if context_condition_precision not in self.SUPPORTED_PRECISION_VALUES:
                     warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("context_condition_precision"))
 
+        # Issue Deprecation Warnings on these old Details keys:
+        deprecated_keys_used = []
+        if details is not None:
+            details = dict(details)  # Makes it mutable.
+            deprecated_keys_used = list(set(details.keys()) & set(_RENAMED_DETAIL_KEYS.keys()))
+            replacements = [_RENAMED_DETAIL_KEYS[key] for key in deprecated_keys_used]
+            if deprecated_keys_used:
+                used_str = ", ".join(deprecated_keys_used)
+                replace_str = ", ".join(replacements)
+                if len(deprecated_keys_used) == 1:
+                    warnings.warn(
+                        f"The detail key '{used_str}' is deprecated and will "
+                        f"be removed in a future release. Use '{replace_str}' "
+                        f"instead.", DeprecationWarning
+                    )
+                else:
+                    warnings.warn(
+                        f"These detail keys are deprecated: [{used_str}] "
+                        f"and will be removed in a future release. Use these "
+                        f"respective replacements instead: [{replace_str}]."
+                    )
+            # Convert the keys in the details payload.
+            for old_key, new_key in zip(deprecated_keys_used, replacements):
+                details[new_key] = details[old_key]
+                del details[old_key]
+
         if self.configuration.verbose:
             print(f'Reacting into aggregate trained cases of Trainee with id: {trainee_id}')
 
@@ -3787,6 +3813,14 @@ class AbstractHowsoClient(ABC):
         })
         if stats is None:
             stats = dict()
+
+        # Convert new detail keys that were returned back to the requested ones
+        else:
+            for key in deprecated_keys_used:
+                new_key = _RENAMED_DETAIL_KEYS[key]
+                if new_key in stats:
+                    stats[key] = stats[new_key]
+                    del stats[new_key]
 
         self._auto_persist_trainee(trainee_id)
         return stats

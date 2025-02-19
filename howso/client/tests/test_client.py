@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 import importlib.metadata
 import json
 import os
@@ -597,7 +598,7 @@ class TestClient:
             assert (all(details[key] is not None for key in keys_to_expect))
 
     @pytest.mark.parametrize('old_key,new_key', _RENAMED_DETAIL_KEYS.items())
-    def test_deprecated_detail_keys(self, trainee, old_key, new_key):
+    def test_deprecated_detail_keys_react(self, trainee, old_key, new_key):
         """Ensure using any of the deprecated keys raises a warning, but continues to work."""
         # These keys shouldn't be tested like this:
         if new_key in [
@@ -616,6 +617,8 @@ class TestClient:
                 action_features=['play'],
                 details={old_key: True}
             )
+
+        # Check that the correct warning was raised.
         assert len(record) == 1
         assert f"'{old_key}' is deprecated" in str(record[0].message)
 
@@ -624,6 +627,55 @@ class TestClient:
 
         # We do NOT want the new_key present during the deprecation period.
         assert new_key not in reaction.get('details', {}).keys()
+
+    @pytest.mark.parametrize('old_key,new_key', _RENAMED_DETAIL_KEYS.items())
+    def test_deprecated_detail_keys_react_aggregate(self, trainee, old_key, new_key):
+        """Ensure using any of the deprecated keys raises a warning, but continues to work."""
+        # These keys shouldn't be tested like this:
+        if new_key in {
+            "case_full_prediction_contributions",
+            "case_robust_prediction_contributions",
+            "feature_full_prediction_contributions_for_case",
+            "feature_robust_prediction_contributions_for_case",
+            "feature_full_residual_convictions_for_case",
+            "feature_robust_residual_convictions_for_case",
+            "feature_full_residuals_for_case",
+            "feature_robust_residuals_for_case",
+            "case_full_accuracy_contributions",
+            "case_robust_accuracy_contributions",
+            "feature_full_directional_prediction_contributions",
+            "feature_robust_directional_prediction_contributions",
+            "feature_full_accuracy_contributions_ex_post",
+            "feature_robust_accuracy_contributions_ex_post",
+        }:
+            return
+
+        with pytest.warns(DeprecationWarning) as record:
+
+            response = self.client.react_aggregate(
+                trainee.id,
+                action_feature='penguin',
+                num_samples=1,
+                details={old_key: True}
+            )
+
+        # Check that the correct warning was raised.
+        assert len(record)
+        # There may be multiple warnings. Ensure at least one of them contains
+        # the deprecation message.
+        assert any([
+            f"'{old_key}' is deprecated" in str(r.message)
+            for r in record
+        ])
+
+        # No point in testing further if we didn't get back a Mapping instance.
+        assert isinstance(response, Mapping), "react_aggregate did not return a Mapping."
+
+        # We DO want the old_key to be present during the deprecation period.
+        assert old_key in response.keys()
+
+        # We do NOT want the new_key present during the deprecation period.
+        assert new_key not in response.keys()
 
     def test_get_version(self):
         """Test get_version()."""
