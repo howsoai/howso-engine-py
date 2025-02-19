@@ -21,7 +21,7 @@ import numpy as np
 from pandas import DataFrame
 
 from howso.utilities import internals, utilities as util
-from howso.utilities.constants import _RENAMED_DETAIL_KEYS  # type: ignore reportPrivateUsage
+from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # type: ignore reportPrivateUsage
 from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
@@ -2262,6 +2262,12 @@ class AbstractHowsoClient(ABC):
                 if new_key in detail_response:
                     detail_response[key] = detail_response[new_key]
                     del detail_response[new_key]
+                if key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
+                    # This key has multiple return keys that should be renamed to the old:
+                    for extra_old_key, extra_new_key in _RENAMED_DETAIL_KEYS_EXTRA[key]['additional_keys'].items():
+                        if extra_new_key in detail_response:
+                            detail_response[extra_old_key] = detail_response[extra_new_key]
+                            del detail_response[extra_new_key]
 
         return Reaction(response.get('action'), detail_response)
 
@@ -3498,7 +3504,7 @@ class AbstractHowsoClient(ABC):
         })
         self._auto_persist_trainee(trainee_id)
 
-    def react_aggregate(
+    def react_aggregate(  # noqa: C901
         self,
         trainee_id: str,
         *,
@@ -3821,6 +3827,13 @@ class AbstractHowsoClient(ABC):
                 if new_key in stats:
                     stats[key] = stats[new_key]
                     del stats[new_key]
+
+                if key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
+                    # This key has multiple return keys that should be renamed to the old:
+                    for extra_old_key, extra_new_key in _RENAMED_DETAIL_KEYS_EXTRA[key]['additional_keys'].items():
+                        if extra_new_key in stats:
+                            stats[extra_old_key] = stats[extra_new_key]
+                            del stats[extra_new_key]
 
         self._auto_persist_trainee(trainee_id)
         return stats

@@ -25,7 +25,7 @@ from howso.client.protocols import ProjectClient
 from howso.client.schemas.reaction import Reaction
 from howso.direct import HowsoDirectClient
 from howso.utilities.testing import get_configurationless_test_client, get_test_options
-from howso.utilities.constants import _RENAMED_DETAIL_KEYS  # type: ignore reportPrivateUsage
+from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # type: ignore reportPrivateUsage
 
 TEST_OPTIONS = get_test_options()
 
@@ -610,6 +610,10 @@ class TestClient:
             return True
 
         with pytest.warns(DeprecationWarning) as record:
+            self.client.train(
+                trainee.id, [[1, 2], [1, 2], [1, 2]],
+                features=['penguin', 'play']
+            )
             reaction = self.client.react(
                 trainee.id,
                 contexts=[['1']],
@@ -619,14 +623,26 @@ class TestClient:
             )
 
         # Check that the correct warning was raised.
-        assert len(record) == 1
-        assert f"'{old_key}' is deprecated" in str(record[0].message)
+        assert len(record)
+        # There may be multiple warnings. Ensure at least one of them contains
+        # the deprecation message.
+        assert any([
+            f"'{old_key}' is deprecated" in str(r.message)
+            for r in record
+        ])
 
         # We DO want the old_key to be present during the deprecation period.
         assert old_key in reaction.get('details', {}).keys()
 
         # We do NOT want the new_key present during the deprecation period.
         assert new_key not in reaction.get('details', {}).keys()
+
+        # Some keys request multiple keys to be returned, these too should be
+        # converted to the old names if the old name was originally used.
+        if old_key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
+            for old_extra_key, new_extra_key in _RENAMED_DETAIL_KEYS_EXTRA[old_key]["additional_keys"].items():
+                assert new_extra_key not in reaction.get('details', {}).keys()
+                assert old_extra_key in reaction.get('details', {}).keys()
 
     @pytest.mark.parametrize('old_key,new_key', _RENAMED_DETAIL_KEYS.items())
     def test_deprecated_detail_keys_react_aggregate(self, trainee, old_key, new_key):
@@ -651,7 +667,10 @@ class TestClient:
             return
 
         with pytest.warns(DeprecationWarning) as record:
-
+            self.client.train(
+                trainee.id, [[1, 2], [1, 2], [1, 2]],
+                features=['penguin', 'play']
+            )
             response = self.client.react_aggregate(
                 trainee.id,
                 action_feature='penguin',
@@ -676,6 +695,13 @@ class TestClient:
 
         # We do NOT want the new_key present during the deprecation period.
         assert new_key not in response.keys()
+
+        # Some keys request multiple keys to be returned, these too should be
+        # converted to the old names if the old name was originally used.
+        if old_key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
+            for old_extra_key, new_extra_key in _RENAMED_DETAIL_KEYS_EXTRA[old_key]["additional_keys"].items():
+                assert new_extra_key not in response.keys()
+                assert old_extra_key in response.keys()
 
     def test_get_version(self):
         """Test get_version()."""
