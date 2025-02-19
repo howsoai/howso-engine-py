@@ -2071,7 +2071,8 @@ class AbstractHowsoClient(ABC):
                     warnings.warn(
                         f"These detail keys are deprecated: [{used_str}] "
                         f"and will be removed in a future release. Use these "
-                        f"respective replacements instead: [{replace_str}]."
+                        f"respective replacements instead: [{replace_str}].",
+                        DeprecationWarning
                     )
             # Convert the keys in the details payload.
             for old_key, new_key in zip(deprecated_keys_used, replacements):
@@ -3787,7 +3788,8 @@ class AbstractHowsoClient(ABC):
                     warnings.warn(
                         f"These detail keys are deprecated: [{used_str}] "
                         f"and will be removed in a future release. Use these "
-                        f"respective replacements instead: [{replace_str}]."
+                        f"respective replacements instead: [{replace_str}].",
+                        DeprecationWarning
                     )
             # Convert the keys in the details payload.
             for old_key, new_key in zip(deprecated_keys_used, replacements):
