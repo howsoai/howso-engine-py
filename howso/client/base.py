@@ -20,8 +20,8 @@ import warnings
 import numpy as np
 from pandas import DataFrame
 
-from howso.utilities import internals
-from howso.utilities import utilities as util
+from howso.utilities import internals, utilities as util
+from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # type: ignore reportPrivateUsage
 from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
@@ -1606,48 +1606,34 @@ class AbstractHowsoClient(ABC):
                         - An array of string values, must match any of these values
                           exactly. Only applicable to nominal and string ordinal
                           features.
-            - case_contributions_full : bool, optional
+            - case_full_accuracy_contributions : bool, optional
+                If True, outputs each influential case's accuracy contributions
+                of predicting the action feature in the local model area, as if
+                each individual case were included versus not included. Uses
+                only the context features of the reacted case to determine that
+                area. Uses full calculations, which uses leave-one-out for
+                cases for  computations.
+            - case_full_prediction_contributions : bool, optional
                 If true outputs each influential case's differences between the
                 predicted action feature value and the predicted action feature
                 value if each individual case were not included. Uses only the
                 context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out for cases for
                 computations.
-            - case_contributions_robust : bool, optional
+            - case_robust_accuracy_contributions : bool, optional
+                If True, outputs each influential case's accuracy contributions
+                of predicting the action feature in the local model
+                area, as if each individual case were included versus not
+                included. Uses only the context features of the reacted case to
+                determine that area. Uses robust calculations, which uses
+                uniform sampling from the power set of all combinations of cases.
+            - case_robust_prediction_contributions : bool, optional
                 If true outputs each influential case's differences between the
                 predicted action feature value and the predicted action feature
                 value if each individual case were not included. Uses only the
                 context features of the reacted case to determine that area.
                 Uses robust calculations, which uses uniform sampling from
                 the power set of all combinations of cases.
-            - case_feature_residuals_full : bool, optional
-                If True, outputs feature residuals for all (context and action)
-                features for just the specified case. Uses leave-one-out for
-                each feature, while using the others to predict the left out
-                feature with their corresponding values from this case. Uses
-                full calculations, which uses leave-one-out for cases for
-                computations.
-            - case_feature_residuals_robust : bool, optional
-                If True, outputs feature residuals for all (context and action)
-                features for just the specified case. Uses leave-one-out for
-                each feature, while using the others to predict the left out
-                feature with their corresponding values from this case. Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions.
-            - case_mda_robust : bool, optional
-                If True, outputs each influential case's mean decrease in
-                accuracy of predicting the action feature in the local model
-                area, as if each individual case were included versus not
-                included. Uses only the context features of the reacted case to
-                determine that area. Uses robust calculations, which uses
-                uniform sampling from the power set of all combinations of cases.
-            - case_mda_full : bool, optional
-                If True, outputs each influential case's mean decrease in
-                accuracy of predicting the action feature in the local model
-                area, as if each individual case were included versus not
-                included. Uses only the context features of the reacted case to
-                determine that area. Uses full calculations, which uses
-                leave-one-out for cases for  computations.
             - categorical_action_probabilities : bool, optional
                 If True, outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
@@ -1679,34 +1665,40 @@ class AbstractHowsoClient(ABC):
                 distance (relative surprisal) in between the closest two cases
                 in the local area. All distances are computed using only the
                 specified context features.
-            - feature_contributions_robust : bool, optional
-                If True outputs each context feature's absolute and directional
-                differences between the predicted action feature value and the
-                predicted action feature value if each context were not in the
-                model for all context features in the local model area Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions. Directional feature
-                contributions are returned under the key
-                'directional_feature_contributions_robust'.
-            - feature_contributions_full : bool, optional
+            - features : list of str, optional
+                A list of feature names that specifies for what features will
+                per-feature details be computed (residuals, contributions,
+                mda, etc.). This should generally preserve compute, but will
+                not when computing details robustly. Details will be computed
+                for all context and action features if this value is not
+                specified.
+            - feature_deviations : bool, optional
+                If True, outputs computed feature deviations for all (context
+                and action) features locally around the prediction.
+                Uses only the context features of the reacted case to determine
+                that area.
+            - feature_full_accuracy_contributions : bool, optional
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature given the context. Uses only
+                the context features of the reacted case to determine that
+                area. Uses full calculations, which uses leave-one-out for
+                cases for computations.
+            - feature_full_accuracy_contributions_ex_post : bool, optional
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature as an explanation detail given
+                that the specified prediction was already made as specified by
+                the action value. Uses both context and action features of the
+                reacted case to determine that area. Uses full calculations,
+                which uses leave-one-out for cases for computations.
+            - feature_full_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context were not in the
                 model for all context features in the local model area. Uses
                 full calculations, which uses leave-one-out for cases for
                 computations. Directional feature contributions are returned
-                under the key 'directional_feature_contributions_full'.
-            - case_feature_contributions_robust: bool, optional
-                If True outputs each context feature's absolute and directional
-                differences between the predicted action feature value and the
-                predicted action feature value if each context feature were not
-                in the model for all context features in this case, using only
-                the values from this specific case. Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions.
-                Directional case feature contributions are returned under the
-                'case_directional_feature_contributions_robust' key.
-            - case_feature_contributions_full: bool, optional
+                under the key 'feature_full_directional_prediction_contributions'.
+            - feature_full_prediction_contributions_for_case: bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context feature were not
@@ -1715,58 +1707,83 @@ class AbstractHowsoClient(ABC):
                 full calculations, which uses leave-one-out for cases for
                 computations. Directional case feature
                 contributions are returned under the
-                'case_directional_feature_contributions_full' key.
-            - feature_mda_robust : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature given the context.
-                Uses only the context features of the reacted case to determine
-                that area. Uses robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
-            - feature_mda_full : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature given the context.
-                Uses only the context features of the reacted case to determine
-                that area. Uses full calculations, which uses leave-one-out
+                'feature_full_directional_prediction_contributions_for_case' key.
+            - feature_full_residuals : bool, optional
+                If True, outputs feature residuals for all (context and action)
+                features locally around the prediction. Uses only the context
+                features of the reacted case to determine that area. Uses
+                full calculations, which uses leave-one-out for cases for computations.
+            - feature_full_residual_convictions_for_case : bool, optional
+                If True, outputs this case's feature residual convictions for
+                the region around the prediction. Uses only the context
+                features of the reacted case to determine that region.
+                Computed as: region feature residual divided by case feature
+                residual. Uses full calculations, which uses leave-one-out
                 for cases for computations.
-            - feature_mda_ex_post_robust : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation detail
-                given that the specified prediction was already made as
-                specified by the action value. Uses both context and action
-                features of the reacted case to determine that area. Uses
-                robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
-            - feature_mda_ex_post_full : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation detail
-                given that the specified prediction was already made as
-                specified by the action value. Uses both context and action
-                features of the reacted case to determine that area. Uses
+            - feature_full_residuals_for_case : bool, optional
+                If True, outputs feature residuals for all (context and action)
+                features for just the specified case. Uses leave-one-out for
+                each feature, while using the others to predict the left out
+                feature with their corresponding values from this case. Uses
                 full calculations, which uses leave-one-out for cases for
                 computations.
-            - features : list of str, optional
-                A list of feature names that specifies for what features will
-                per-feature details be computed (residuals, contributions,
-                mda, etc.). This should generally preserve compute, but will
-                not when computing details robustly. Details will be computed
-                for all context and action features if this value is not
-                specified.
-            - feature_residual_robust : bool, optional
+            - feature_robust_accuracy_contributions : bool, optional
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature given the context. Uses only
+                the context features of the reacted case to determine that
+                area. Uses robust calculations, which uses uniform sampling
+                from the power set of features as the contexts for predictions.
+            - feature_robust_accuracy_contributions_ex_post : bool, optional
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature as an explanation detail given
+                that the specified prediction was already made as specified by
+                the action value. Uses both context and action features of the
+                reacted case to determine that area. Uses robust calculations,
+                which uses uniform sampling from the power set of features as
+                the contexts for predictions.
+            - feature_robust_prediction_contributions : bool, optional
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context were not in the
+                model for all context features in the local model area Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions. Directional feature
+                contributions are returned under the key
+                'feature_robust_directional_prediction_contributions'.
+            - feature_robust_prediction_contributions_for_case: bool, optional
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context feature were not
+                in the model for all context features in this case, using only
+                the values from this specific case. Uses robust calculations,
+                which uses uniform sampling from the power set of features as
+                the contexts for predictions. Directional case prediction
+                contributions are returned under the
+                'feature_robust_directional_feature_contributions_for_case' key.
+            - feature_robust_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses robust
                 calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
-            - feature_residuals_full : bool, optional
+            - feature_robust_residual_convictions_for_case : bool, optional
+                If True, outputs this case's feature residual convictions for
+                the region around the prediction. Uses only the context
+                features of the reacted case to determine that region.
+                Computed as: region feature residual divided by case feature
+                residual. Uses robust calculations, which uses uniform sampling
+                from the power set of features as the contexts for predictions.
+            - feature_robust_residuals_for_case : bool, optional
                 If True, outputs feature residuals for all (context and action)
-                features locally around the prediction. Uses only the context
-                features of the reacted case to determine that area. Uses
-                full calculations, which uses leave-one-out for cases for computations.
-            - feature_deviations : bool, optional
-                If True, outputs computed feature deviations for all (context
-                and action) features locally around the prediction.
-                Uses only the context features of the reacted case to determine
-                that area.
+                features for just the specified case. Uses leave-one-out for
+                each feature, while using the others to predict the left out
+                feature with their corresponding values from this case. Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions.
+            - generate_attempts : bool, optional
+                If True outputs the number of attempts taken to generate each
+                case. Only applicable when 'generate_new_cases' is "always" or
+                "attempt".
             - hypothetical_values : dict, optional
                 A dictionary of feature name to feature value. If specified,
                 shows how a prediction could change in a what-if scenario where
@@ -1786,20 +1803,6 @@ class AbstractHowsoClient(ABC):
             - influential_cases_raw_weights : bool, optional
                 If True, outputs the surprisal for each of the influential
                 cases.
-            - case_feature_residual_convictions_robust : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the region around the prediction. Uses only the context
-                features of the reacted case to determine that region.
-                Computed as: region feature residual divided by case feature
-                residual. Uses robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
-            - case_feature_residual_convictions_full : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the region around the prediction. Uses only the context
-                features of the reacted case to determine that region.
-                Computed as: region feature residual divided by case feature
-                residual. Uses full calculations, which uses leave-one-out
-                for cases for computations.
             - most_similar_cases : bool, optional
                 If True, outputs an automatically determined (when
                 'num_most_similar_cases' is not specified) relevant number of
@@ -1848,11 +1851,6 @@ class AbstractHowsoClient(ABC):
                   this is 1 - the average categorical action probability of each case's
                   correct classes. Categorical action probabilities are the probabilities
                   for each class for the action feature.
-                - mda : Mean decrease in accuracy when each feature is dropped
-                  from the model, applies to all features.
-                - feature_mda_permutation_full : Mean decrease in accuracy that used
-                  scrambling of feature values instead of dropping each
-                  feature, applies to all features.
                 - precision : Precision (positive predictive) value for nominal
                   features only.
                 - r2 : The r-squared coefficient of determination, for
@@ -1873,13 +1871,9 @@ class AbstractHowsoClient(ABC):
                 for all computations. This is defined as expected (local)
                 distance contribution divided by reacted case distance
                 contribution.
-            - generate_attempts : bool, optional
-                If True outputs the number of attempts taken to generate each
-                case. Only applicable when 'generate_new_cases' is "always" or
-                "attempt".
 
             >>> details = {'num_most_similar_cases': 5,
-            ...            'feature_residuals_full': True}
+            ...            'feature_full_residuals': True}
 
         desired_conviction : float
             If specified will execute a generative react. If not
@@ -1973,7 +1967,7 @@ class AbstractHowsoClient(ABC):
 
                 - "goal": "min" or "max", will make a prediction while minimizing or
                   maximizing the value for the feature.
-                - "value" : somevalue, will make a prediction while approaching the
+                - "value" : some value, will make a prediction while approaching the
                   specified value.
 
             .. NOTE::
@@ -2057,6 +2051,33 @@ class AbstractHowsoClient(ABC):
                 trainee_id=trainee_id
             )
         )
+
+        # Issue Deprecation Warnings on these old Details keys:
+        deprecated_keys_used = []
+        if details is not None:
+            details = dict(details)  # Makes it mutable.
+            deprecated_keys_used = list(set(details.keys()) & set(_RENAMED_DETAIL_KEYS.keys()))
+            replacements = [_RENAMED_DETAIL_KEYS[key] for key in deprecated_keys_used]
+            if deprecated_keys_used:
+                used_str = ", ".join(deprecated_keys_used)
+                replace_str = ", ".join(replacements)
+                if len(deprecated_keys_used) == 1:
+                    warnings.warn(
+                        f"The detail key '{used_str}' is deprecated and will "
+                        f"be removed in a future release. Use '{replace_str}' "
+                        f"instead.", DeprecationWarning
+                    )
+                else:
+                    warnings.warn(
+                        f"These detail keys are deprecated: [{used_str}] "
+                        f"and will be removed in a future release. Use these "
+                        f"respective replacements instead: [{replace_str}].",
+                        DeprecationWarning
+                    )
+            # Convert the keys in the details payload.
+            for old_key, new_key in zip(deprecated_keys_used, replacements):
+                details[new_key] = details[old_key]
+                del details[old_key]
 
         if post_process_values is not None and post_process_features is None:
             post_process_features = internals.get_features_from_data(
@@ -2235,7 +2256,21 @@ class AbstractHowsoClient(ABC):
                 suppress_warning=suppress_warning
             )
 
-        return Reaction(response.get('action'), response.get('details'))
+        # Convert new detail keys that were returned back to the requested ones
+        if detail_response := response.get('details'):
+            for key in deprecated_keys_used:
+                new_key = _RENAMED_DETAIL_KEYS[key]
+                if new_key in detail_response:
+                    detail_response[key] = detail_response[new_key]
+                    del detail_response[new_key]
+                if key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
+                    # This key has multiple return keys that should be renamed to the old:
+                    for extra_old_key, extra_new_key in _RENAMED_DETAIL_KEYS_EXTRA[key]['additional_keys'].items():
+                        if extra_new_key in detail_response:
+                            detail_response[extra_old_key] = detail_response[extra_new_key]
+                            del detail_response[extra_new_key]
+
+        return Reaction(response.get('action'), detail_response)
 
     def _batch_react(
         self,
@@ -3470,7 +3505,7 @@ class AbstractHowsoClient(ABC):
         })
         self._auto_persist_trainee(trainee_id)
 
-    def react_aggregate(
+    def react_aggregate(  # noqa: C901
         self,
         trainee_id: str,
         *,
@@ -3531,49 +3566,50 @@ class AbstractHowsoClient(ABC):
                 "selected_prediction_stats" parameter in the `details` parameter.
                 Uses full calculations, which uses leave-one-out for features for
                 computations.
-            - feature_residuals_full : bool, optional
+            - feature_full_residuals : bool, optional
                 For each feature in ``action_features``, use the context_features to predict
                 the feature and return the mean absolute error. When ``prediction_stats`` in
                 the ``details`` parameter is true, the Trainee will also calculate
                 the full feature residuals.
-            - feature_residuals_robust : bool, optional
+            - feature_robust_residuals : bool, optional
                 For each feature in ``action_features``, use the robust
                 (power set/permutations) set of all other context_features to predict
                 the feature and return the mean absolute error.
-            - feature_contributions_full : bool, optional
+            - feature_full_prediction_contributions : bool, optional
                 For each context_feature, use the full set of all other
                 context_features to compute the mean absolute delta between
                 prediction of action feature with and without the context features
                 in the model. Returns the mean absolute delta
-                under the key 'feature_contributions_full' and returns the mean
-                delta under the key 'directional_feature_contributions_full'.
-            - feature_contributions_robust : bool, optional
+                under the key 'feature_full_prediction_contributions' and returns the mean
+                delta under the key 'feature_full_directional_prediction_contributions'.
+            - feature_robust_prediction_contributions : bool, optional
                 For each context_feature, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
                 delta between prediction of the action feature with and without the
                 context features in the model. Returns the mean absolute delta
-                under the key 'feature_contributions_robust' and returns the mean
-                delta under the key 'directional_feature_contributions_robust'.
+                under the key 'feature_robust_prediction_contributions' and returns the mean
+                delta under the key 'feature_robust_directional_prediction_contributions'.
             - feature_deviations : bool, optional
                 For each feature in ``action_features``, use the context features
                 and the feature being predicted as context to predict the feature
                 and return the mean absolute error.
-            - feature_mda_full : bool, optional
-                When True will compute Mean Decrease in Accuracy (MDA)
-                for each context feature at predicting the action feature. Drop
-                each feature and use the full set of remaining context features
-                for each prediction.
-            - feature_mda_robust : bool, optional
-                Compute Mean Decrease in Accuracy MDA by dropping each feature and using the
-                robust (power set/permutations) set of remaining context features
-                for each prediction.
-            - feature_mda_permutation_full : bool, optional
-                Compute MDA by scrambling each feature and using the
-                full set of remaining context features for each prediction.
-            - feature_mda_permutation_robust : bool, optional
-                Compute MDA by scrambling each feature and using the
-                robust (power set/permutations) set of remaining context features
-                for each prediction.
+            - feature_full_accuracy_contributions : bool, optional
+                When True will compute accuracy contributions for each context
+                feature at predicting the action feature. Drop each feature and
+                use the full set of remaining context features for each
+                prediction.
+            - feature_robust_accuracy_contributions : bool, optional
+                Compute accuracy contributions by dropping each feature and
+                using the robust (power set/permutations) set of remaining
+                context features for each prediction.
+            - feature_full_accuracy_contributions_permutation : bool, optional
+                Compute accuracy contributions by scrambling each feature and
+                using the full set of remaining context features for each
+                prediction.
+            - feature_robust_accuracy_contributions_permutation : bool, optional
+                Compute accuracy contributions by scrambling each feature and
+                using the robust (power set/permutations) set of remaining
+                context features for each prediction.
             - action_condition : map of str -> any, optional
                 A condition map to select the action set, which is the collection of cases
                 reacted to while computing the requested metrics.
@@ -3642,11 +3678,6 @@ class AbstractHowsoClient(ABC):
                   this is 1 - the average categorical action probability of each case's
                   correct classes. Categorical action probabilities are the probabilities
                   for each class for the action feature.
-                - mda : Mean decrease in accuracy when each feature is dropped
-                  from the model, applies to all features.
-                - feature_mda_permutation_full : Mean decrease in accuracy that used
-                  scrambling of feature values instead of dropping each
-                  feature, applies to all features.
                 - precision : Precision (positive predictive) value for nominal
                   features only.
                 - r2 : The r-squared coefficient of determination, for
@@ -3738,6 +3769,33 @@ class AbstractHowsoClient(ABC):
                 if context_condition_precision not in self.SUPPORTED_PRECISION_VALUES:
                     warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("context_condition_precision"))
 
+        # Issue Deprecation Warnings on these old Details keys:
+        deprecated_keys_used = []
+        if details is not None:
+            details = dict(details)  # Makes it mutable.
+            deprecated_keys_used = list(set(details.keys()) & set(_RENAMED_DETAIL_KEYS.keys()))
+            replacements = [_RENAMED_DETAIL_KEYS[key] for key in deprecated_keys_used]
+            if deprecated_keys_used:
+                used_str = ", ".join(deprecated_keys_used)
+                replace_str = ", ".join(replacements)
+                if len(deprecated_keys_used) == 1:
+                    warnings.warn(
+                        f"The detail key '{used_str}' is deprecated and will "
+                        f"be removed in a future release. Use '{replace_str}' "
+                        f"instead.", DeprecationWarning
+                    )
+                else:
+                    warnings.warn(
+                        f"These detail keys are deprecated: [{used_str}] "
+                        f"and will be removed in a future release. Use these "
+                        f"respective replacements instead: [{replace_str}].",
+                        DeprecationWarning
+                    )
+            # Convert the keys in the details payload.
+            for old_key, new_key in zip(deprecated_keys_used, replacements):
+                details[new_key] = details[old_key]
+                del details[old_key]
+
         if self.configuration.verbose:
             print(f'Reacting into aggregate trained cases of Trainee with id: {trainee_id}')
 
@@ -3763,6 +3821,21 @@ class AbstractHowsoClient(ABC):
         })
         if stats is None:
             stats = dict()
+
+        # Convert new detail keys that were returned back to the requested ones
+        else:
+            for key in deprecated_keys_used:
+                new_key = _RENAMED_DETAIL_KEYS[key]
+                if new_key in stats:
+                    stats[key] = stats[new_key]
+                    del stats[new_key]
+
+                if key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
+                    # This key has multiple return keys that should be renamed to the old:
+                    for extra_old_key, extra_new_key in _RENAMED_DETAIL_KEYS_EXTRA[key]['additional_keys'].items():
+                        if extra_new_key in stats:
+                            stats[extra_old_key] = stats[extra_new_key]
+                            del stats[extra_new_key]
 
         self._auto_persist_trainee(trainee_id)
         return stats
