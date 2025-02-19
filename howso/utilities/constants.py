@@ -23,3 +23,30 @@ _RENAMED_DETAIL_KEYS = {
     "feature_residuals_full": "feature_full_residuals",
     "feature_residuals_robust": "feature_robust_residuals",
 }
+
+_RENAMED_DETAIL_KEYS_EXTRA = {
+    "case_feature_contributions_full": {
+        "new_key": "feature_full_prediction_contributions_for_case",
+        "additional_keys": {
+            "case_directional_feature_contributions_full": "feature_full_directional_prediction_contributions_for_case",
+        },
+    },
+    "case_feature_contributions_robust": {
+        "new_key": "feature_robust_prediction_contributions_for_case",
+        "additional_keys": {
+            "case_directional_feature_contributions_robust": "feature_robust_directional_prediction_contributions_for_case",
+        },
+    },
+    "feature_contributions_full": {
+        "new_key": "feature_full_prediction_contributions",
+        "additional_keys": {
+            "directional_feature_contributions_full": "feature_full_directional_prediction_contributions",
+        },
+    },
+    "feature_contributions_robust": {
+        "new_key": "feature_robust_prediction_contributions",
+        "additional_keys": {
+            "directional_feature_contributions_robust": "feature_robust_directional_prediction_contributions",
+        },
+    },
+}

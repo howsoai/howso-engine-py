@@ -1607,12 +1607,12 @@ class AbstractHowsoClient(ABC):
                           exactly. Only applicable to nominal and string ordinal
                           features.
             - case_full_accuracy_contributions : bool, optional
-                If True, outputs each influential case's mean decrease in
-                accuracy of predicting the action feature in the local model
-                area, as if each individual case were included versus not
-                included. Uses only the context features of the reacted case to
-                determine that area. Uses full calculations, which uses
-                leave-one-out for cases for  computations.
+                If True, outputs each influential case's accuracy contributions
+                of predicting the action feature in the local model area, as if
+                each individual case were included versus not included. Uses
+                only the context features of the reacted case to determine that
+                area. Uses full calculations, which uses leave-one-out for
+                cases for  computations.
             - case_full_prediction_contributions : bool, optional
                 If true outputs each influential case's differences between the
                 predicted action feature value and the predicted action feature
@@ -1621,8 +1621,8 @@ class AbstractHowsoClient(ABC):
                 Uses full calculations, which uses leave-one-out for cases for
                 computations.
             - case_robust_accuracy_contributions : bool, optional
-                If True, outputs each influential case's mean decrease in
-                accuracy of predicting the action feature in the local model
+                If True, outputs each influential case's accuracy contributions
+                of predicting the action feature in the local model
                 area, as if each individual case were included versus not
                 included. Uses only the context features of the reacted case to
                 determine that area. Uses robust calculations, which uses
@@ -1678,19 +1678,18 @@ class AbstractHowsoClient(ABC):
                 Uses only the context features of the reacted case to determine
                 that area.
             - feature_full_accuracy_contributions : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature given the context.
-                Uses only the context features of the reacted case to determine
-                that area. Uses full calculations, which uses leave-one-out
-                for cases for computations.
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature given the context. Uses only
+                the context features of the reacted case to determine that
+                area. Uses full calculations, which uses leave-one-out for
+                cases for computations.
             - feature_full_accuracy_contributions_ex_post : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation detail
-                given that the specified prediction was already made as
-                specified by the action value. Uses both context and action
-                features of the reacted case to determine that area. Uses
-                full calculations, which uses leave-one-out for cases for
-                computations.
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature as an explanation detail given
+                that the specified prediction was already made as specified by
+                the action value. Uses both context and action features of the
+                reacted case to determine that area. Uses full calculations,
+                which uses leave-one-out for cases for computations.
             - feature_full_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
@@ -1729,19 +1728,19 @@ class AbstractHowsoClient(ABC):
                 full calculations, which uses leave-one-out for cases for
                 computations.
             - feature_robust_accuracy_contributions : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature given the context.
-                Uses only the context features of the reacted case to determine
-                that area. Uses robust calculations, which uses uniform sampling
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature given the context. Uses only
+                the context features of the reacted case to determine that
+                area. Uses robust calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
             - feature_robust_accuracy_contributions_ex_post : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation detail
-                given that the specified prediction was already made as
-                specified by the action value. Uses both context and action
-                features of the reacted case to determine that area. Uses
-                robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature as an explanation detail given
+                that the specified prediction was already made as specified by
+                the action value. Uses both context and action features of the
+                reacted case to determine that area. Uses robust calculations,
+                which uses uniform sampling from the power set of features as
+                the contexts for predictions.
             - feature_robust_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
@@ -1756,11 +1755,11 @@ class AbstractHowsoClient(ABC):
                 differences between the predicted action feature value and the
                 predicted action feature value if each context feature were not
                 in the model for all context features in this case, using only
-                the values from this specific case. Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions.
-                Directional case feature contributions are returned under the
-                'case_directional_feature_contributions_robust' key.
+                the values from this specific case. Uses robust calculations,
+                which uses uniform sampling from the power set of features as
+                the contexts for predictions. Directional case prediction
+                contributions are returned under the
+                'case_robust_directional_feature_contributions' key.
             - feature_robust_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
@@ -3588,21 +3587,22 @@ class AbstractHowsoClient(ABC):
                 and the feature being predicted as context to predict the feature
                 and return the mean absolute error.
             - feature_full_accuracy_contributions : bool, optional
-                When True will compute Mean Decrease in Accuracy (MDA)
-                for each context feature at predicting the action feature. Drop
-                each feature and use the full set of remaining context features
-                for each prediction.
+                When True will compute accuracy contributions for each context
+                feature at predicting the action feature. Drop each feature and
+                use the full set of remaining context features for each
+                prediction.
             - feature_robust_accuracy_contributions : bool, optional
-                Compute Mean Decrease in Accuracy MDA by dropping each feature and using the
-                robust (power set/permutations) set of remaining context features
-                for each prediction.
+                Compute accuracy contributions by dropping each feature and
+                using the robust (power set/permutations) set of remaining
+                context features for each prediction.
             - feature_full_accuracy_contributions_permutation : bool, optional
-                Compute MDA by scrambling each feature and using the
-                full set of remaining context features for each prediction.
+                Compute accuracy contributions by scrambling each feature and
+                using the full set of remaining context features for each
+                prediction.
             - feature_robust_accuracy_contributions_permutation : bool, optional
-                Compute MDA by scrambling each feature and using the
-                robust (power set/permutations) set of remaining context features
-                for each prediction.
+                Compute accuracy contributions by scrambling each feature and
+                using the robust (power set/permutations) set of remaining
+                context features for each prediction.
             - action_condition : map of str -> any, optional
                 A condition map to select the action set, which is the collection of cases
                 reacted to while computing the requested metrics.

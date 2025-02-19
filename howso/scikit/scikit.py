@@ -634,19 +634,19 @@ class HowsoEstimator(BaseEstimator):
                           exactly. Only applicable to nominal and string ordinal
                           features.
             - case_full_accuracy_contributions : bool, optional
-                If True, outputs each influential case's mean decrease in
-                accuracy of predicting the action feature in the local model
-                area, as if each individual case were included versus not
-                included. Uses only the context features of the reacted case to
-                determine that area. Uses robust calculations, which uses
-                uniform sampling from the power set of all combinations of cases.
+                If True, outputs each influential case's accuracy contributions
+                of predicting the action feature in the local model area, as if
+                each individual case were included versus not included. Uses
+                only the context features of the reacted case to determine that
+                area. Uses robust calculations, which uses uniform sampling
+                from the power set of all combinations of cases.
             - case_full_accuracy_contributions : bool, optional
-                If True, outputs each influential case's mean decrease in
-                accuracy of predicting the action feature in the local model
-                area, as if each individual case were included versus not
-                included. Uses only the context features of the reacted case to
-                determine that area. Uses full calculations, which uses
-                leave-one-out for cases for  computations.
+                If True, outputs each influential case's accuracy contributions
+                of predicting the action feature in the local model area, as if
+                each individual case were included versus not included. Uses
+                only the context features of the reacted case to determine that
+                area. Uses full calculations, which uses leave-one-out for
+                cases for  computations.
             - case_full_prediction_contributions : bool, optional
                 If true outputs each influential case's differences between the
                 predicted action feature value and the predicted action feature
@@ -705,14 +705,14 @@ class HowsoEstimator(BaseEstimator):
                 Uses only the context features of the reacted case to determine
                 that area.
             - feature_full_accuracy_contributions : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature given the context.
-                Uses only the context features of the reacted case to determine
-                that area. Uses full calculations, which uses leave-one-out
-                for cases for computations.
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature given the context. Uses only
+                the context features of the reacted case to determine that
+                area. Uses full calculations, which uses leave-one-out for
+                cases for computations.
             - feature_full_accuracy_contributions_ex_post : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation detail
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature as an explanation detail
                 given that the specified prediction was already made as
                 specified by the action value. Uses both context and action
                 features of the reacted case to determine that area. Uses
@@ -769,20 +769,20 @@ class HowsoEstimator(BaseEstimator):
                 differences between the predicted action feature value and the
                 predicted action feature value if each context feature were not
                 in the model for all context features in this case, using only
-                the values from this specific case. Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions.
-                Directional case feature contributions are returned under the
-                'case_directional_feature_contributions_robust' key.
+                the values from this specific case. Uses robust calculations,
+                which uses uniform sampling from the power set of features as
+                the contexts for predictions. Directional case prediction
+                contributions are returned under the
+                'case_robust_directional_feature_contributions' key.
             - feature_robust_accuracy_contributions : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature given the context.
-                Uses only the context features of the reacted case to determine
-                that area. Uses robust calculations, which uses uniform sampling
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature given the context. Uses only
+                the context features of the reacted case to determine that
+                area. Uses robust calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
             - feature_robust_accuracy_contributions_ex_post : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation detail
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature as an explanation detail
                 given that the specified prediction was already made as
                 specified by the action value. Uses both context and action
                 features of the reacted case to determine that area. Uses
