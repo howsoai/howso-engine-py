@@ -1465,7 +1465,7 @@ class Trainee(BaseTrainee):
                 which uses uniform sampling from the power set of features as
                 the contexts for predictions. Directional case prediction
                 contributions are returned under the
-                'case_robust_directional_feature_contributions' key.
+                'feature_robust_directional_feature_contributions_for_case' key.
             - feature_robust_residual_convictions_for_case : bool, optional
                 If True, outputs this case's feature residual convictions for
                 the region around the prediction. Uses only the context

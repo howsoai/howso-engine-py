@@ -1759,7 +1759,7 @@ class AbstractHowsoClient(ABC):
                 which uses uniform sampling from the power set of features as
                 the contexts for predictions. Directional case prediction
                 contributions are returned under the
-                'case_robust_directional_feature_contributions' key.
+                'feature_robust_directional_feature_contributions_for_case' key.
             - feature_robust_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context

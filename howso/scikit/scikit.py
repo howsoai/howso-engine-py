@@ -773,7 +773,7 @@ class HowsoEstimator(BaseEstimator):
                 which uses uniform sampling from the power set of features as
                 the contexts for predictions. Directional case prediction
                 contributions are returned under the
-                'case_robust_directional_feature_contributions' key.
+                'feature_robust_directional_feature_contributions_for_case' key.
             - feature_robust_accuracy_contributions : bool, optional
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature given the context. Uses only
