@@ -905,7 +905,7 @@ class InferFeatureAttributesBase(ABC):
             raise ValueError('ID feature must be of type `str` or `list[str], '
                              f'not {type(id_feature_name)}.')
 
-        self._validate_datetimes()
+        self._validate_date_times()
 
         if infer_bounds:
             for feature_name, _attributes in self.attributes.items():
@@ -1178,15 +1178,15 @@ class InferFeatureAttributesBase(ABC):
                 if omit:
                     self.unsupported.append(feature_name)
 
-    def _validate_datetimes(self):
-        """Validate datetime features are configured correctly."""
+    def _validate_date_times(self):
+        """Validate date time features are configured correctly."""
         for feature_name, attributes in self.attributes.items():
             dt_format = attributes.get("date_time_format")
             data_type = attributes.get("data_type")
-            if not dt_format and data_type == "formatted_date_time":
+            if not dt_format and data_type in {"formatted_date_time", "formatted_time"}:
                 raise ValueError(
                     f'The feature "{feature_name}" must have a `date_time_format` defined '
-                    'when its `data_type` is "formatted_date_time".'
+                    f'when its `data_type` is "{data_type}".'
                 )
 
     @staticmethod

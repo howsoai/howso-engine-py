@@ -300,6 +300,8 @@ def test_infer_time_feature_bounds(data, tight_bounds, provided_format, expected
     assert 'cycle_length' in features['a']
     assert features['a']['cycle_length'] == cycle_length
     assert features['a']['bounds'] == expected_bounds
+    assert features['a']['date_time_format'] is not None
+    assert features['a']['data_type'] == "formatted_time"
 
 
 @pytest.mark.parametrize('data, data_type', [
@@ -960,3 +962,45 @@ def test_observed_ordinal_values(series, ordinals, min_value, max_value):
     features = infer_feature_attributes(data, ordinal_feature_values={'a': ordinals})
     assert features['a']['bounds']['observed_min'] == min_value
     assert features['a']['bounds']['observed_max'] == max_value
+
+
+def test_formatted_date_time():
+    """Test formatted_date_time is set when a datetime, and raises when no date_time_format is specified."""
+    data = pd.DataFrame({
+        'a': [0, 1, 2, 3],
+        'time': ['10-10', '04-25', '10-30', '12-01'],
+        'custom': ['2010/10/10', '2010/10/11', '2010/10/12', '2010/10/14'],
+        'iso': ['2010-10-10', '2010-10-11', '2010-10-12', '2010-10-14']
+    })
+
+    # When data_type is formatted_date_time, a date_time_format must be set
+    with pytest.raises(
+        ValueError,
+        match='must have a `date_time_format` defined when its `data_type` is "formatted_date_time"'
+    ):
+        infer_feature_attributes(data, features={
+            'custom': {
+                "data_type": "formatted_date_time"
+            }
+        })
+
+    # When data_type is formatted_time, a date_time_format must be set
+    with pytest.raises(
+        ValueError,
+        match='must have a `date_time_format` defined when its `data_type` is "formatted_time"'
+    ):
+        infer_feature_attributes(data, features={
+            'time': {
+                "data_type": "formatted_time"
+            }
+        })
+
+    # Verify formatted_date_time is set when a date_time_format is configured
+    with warnings.catch_warnings():
+        warnings.filterwarnings("error")
+        features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"})
+        assert features['a']['data_type'] != "formatted_date_time"
+        # custom feature dates should be formatted_date_time
+        assert features['custom']['data_type'] == "formatted_date_time"
+        # auto detected iso dates should be formatted_date_time
+        assert features['iso']['data_type'] == "formatted_date_time"
