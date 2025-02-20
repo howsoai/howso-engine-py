@@ -796,7 +796,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         feature_attributes: Mapping[str, Mapping],
         feature_name: str,
         tight_bounds: t.Optional[Iterable[str]] = None,
-        mode_bound_features: t.Optional[list[str]] = None,
+        mode_bound_features: t.Optional[Iterable[str]] = None,
     ) -> dict | None:
         output = dict()
         allow_null = True

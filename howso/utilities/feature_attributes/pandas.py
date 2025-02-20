@@ -187,9 +187,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             elif self._is_character_dtype(dtype):
                 if getattr(dtype, 'kind', None) != 'U':
-                    warnings.warn(f'The column "{feature_name}" contained '
-                                  'bytes, original encoding of this column '
-                                  'is not be guaranteed.')
+                    warnings.warn(
+                        f'The column "{feature_name}" contained bytes, original '
+                        'encoding of this column is not be guaranteed.'
+                    )
                 return FeatureType.STRING, {}
 
             else:
@@ -203,9 +204,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         return FeatureType.TIME, {}
                     return FeatureType.STRING, {}
                 elif isinstance(first_non_null, bytes):
-                    warnings.warn(f'The column "{feature_name}" contained '
-                                  'bytes, original encoding of this column '
-                                  'is not be guaranteed.')
+                    warnings.warn(
+                        f'The column "{feature_name}" contained bytes, original '
+                        'encoding of this column is not be guaranteed.'
+                    )
                     return FeatureType.STRING, {}
                 elif isinstance(first_non_null, datetime.datetime):
                     return FeatureType.DATETIME, {}
@@ -261,8 +263,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         tight_bounds: t.Optional[Iterable[str]] = None,
         mode_bound_features: t.Optional[Iterable[str]] = None,
     ) -> dict | None:
+        from howso.client.exceptions import DatetimeFormatWarning
         output: dict[str, t.Any] = dict()
         allow_null = True
+        warned_dt_format = False
         column = self.data[feature_name]
         decimal_places = feature_attributes[feature_name].get('decimal_places')
         # only integers by default do not allow nulls
@@ -334,7 +338,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         # slower, but more thorough method.
                         warnings.warn(
                             f"Falling back to a more robust (albeit slower) check for feature "
-                            f"bounds due to Pandas raising the following exception:\n\n{str(e)}."
+                            f"bounds due to Pandas raising the following exception:\n\n{str(e)}.",
+                            DatetimeFormatWarning
                         )
                         try:
                             min_date_sec = np.inf
@@ -355,11 +360,14 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                             if isinstance(max_date, str):
                                 max_date = dt_parse(max_date)
                         except Exception:  # noqa: Intentionally broad
-                            warnings.warn(
-                                f'Feature "{feature_name}" does not match the '
-                                f'provided date time format, unable to guess '
-                                f'bounds.'
-                            )
+                            if not warned_dt_format:
+                                warnings.warn(
+                                    f'Feature "{feature_name}" does not match the '
+                                    f'provided date time format, unable to guess '
+                                    f'bounds.',
+                                    DatetimeFormatWarning
+                                )
+                                warned_dt_format = True
                             return None
 
                 if pd.isnull(min_date) or pd.isnull(max_date):
@@ -432,10 +440,13 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         'observed_min': observed_min, 'observed_max': observed_max
                     }
                 except Exception:  # noqa: Intentionally broad
-                    w_str = (f'Feature "{feature_name}" does not match the '
-                             'provided date time format, unable to guess '
-                             'bounds.')
-                    warnings.warn(w_str)
+                    if not warned_dt_format:
+                        warnings.warn(
+                            f'Feature "{feature_name}" does not match the '
+                            'provided date time format, unable to guess bounds.',
+                            DatetimeFormatWarning
+                        )
+                        warned_dt_format = True
                     max_f = np.nan
                     min_f = np.nan
 
@@ -501,7 +512,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     output = {'allow_null': allow_null}
 
         else:  # Non-continuous
-            output: dict = {'allow_null': allow_null}
+            output = {'allow_null': allow_null}
 
             if feature_attributes[feature_name].get('type') == 'ordinal':
                 if is_integer_dtype(column.dtype) or is_float_dtype(column.dtype):
@@ -643,8 +654,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # If the type is datetime.time
         if isinstance(first_non_null, datetime.time):
             if user_time_format:
-                warnings.warn(f'Feature "{feature_name}" is an instance of `datetime.time`, '
-                              'so the user-provided format will be ignored.')
+                warnings.warn(
+                    f'Feature "{feature_name}" is an instance of `datetime.time`, '
+                    'the user-provided time format string will be ignored.'
+                )
             # Format string representation of datetime.time types
             time_format = '%H:%M:%S'
         # If the type is a string

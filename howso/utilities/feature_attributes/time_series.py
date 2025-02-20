@@ -19,7 +19,7 @@ from pandas.core.dtypes.common import is_string_dtype
 
 from .base import SingleTableFeatureAttributes
 from .pandas import InferFeatureAttributesDataFrame
-from ..utilities import date_to_epoch, yield_dataframe_as_chunks
+from ..utilities import date_to_epoch, is_valid_datetime_format, yield_dataframe_as_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -124,8 +124,7 @@ class InferFeatureAttributesTimeSeries:
 
         time_feature_deltas = None
         for f_name in feature_names:
-            if features[f_name]['type'] == "continuous" and \
-                    'time_series' in features[f_name]:
+            if features[f_name]['type'] == "continuous" and 'time_series' in features[f_name]:
                 # Set delta_max for all continuous features to the observed maximum
                 # difference between two values times e.
                 dt_format = features[f_name].get('date_time_format')
@@ -142,9 +141,10 @@ class InferFeatureAttributesTimeSeries:
                     old_derived_orders = num_derived_orders
                     num_derived_orders = num_orders - 1
                     warnings.warn(
-                        f"Overwriting the `derived_orders` value of {old_derived_orders} "
-                        f"for {f_name} with {num_derived_orders} because it must "
-                        f"be smaller than the 'orders' value of {num_orders}.")
+                        f'Overwriting the `derived_orders` value of {old_derived_orders} '
+                        f'for "{f_name}" with {num_derived_orders} because it must '
+                        f'be smaller than the "orders" value of {num_orders}.',
+                    )
                 if num_derived_orders > 0:
                     features[f_name]['time_series']['derived_orders'] = num_derived_orders
 
@@ -713,12 +713,16 @@ class InferFeatureAttributesTimeSeries:
             # which is not applicable to time feature.
             features[self.time_feature_name].pop('subtype', None)
 
-            # if the time feature has no datetime and is stored as a string,
-            # convert to an int for comparison since it's continuous
-            if (
-                'date_time_format' not in features[self.time_feature_name] and
-                is_string_dtype(self.data[self.time_feature_name].dtype)
-            ):
+            if dt_format := features[self.time_feature_name].get("date_time_format"):
+                # if a datetime format is defined, ensure values can be parsed with it
+                test_value = infer._get_random_value(self.time_feature_name, no_nulls=True)
+                if test_value is not None and not is_valid_datetime_format(str(test_value), dt_format):
+                    raise ValueError(
+                        f'The date time format "{dt_format}" does not match the data of the time feature '
+                        f'"{self.time_feature_name}". Data sample: "{test_value}"')
+            elif is_string_dtype(self.data[self.time_feature_name].dtype):
+                # if the time feature has no datetime format and is stored as a string,
+                # convert to an int for comparison since it's continuous
                 self.data[self.time_feature_name] = self.data[self.time_feature_name].astype(float)
 
             # time feature cannot be null

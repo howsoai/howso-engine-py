@@ -375,67 +375,59 @@ def determine_iso_format(str_date: str, fname: str) -> str:  # noqa: C901
     str
         The ISO_8601 format string that most matches the passed in date.
     """
+    # prevent circular import
+    from howso.client.exceptions import DatetimeFormatWarning
     # parse with the standard parser first to support single digit month/day
     dt_object = dt_parse(str_date)
+    format_checks = [ISO_8601_FORMAT, ISO_8601_FORMAT_FRACTIONAL]
+    # support variants without T separator
+    format_checks.extend([f.replace("T", " ") for f in format_checks])
+    warning_text: str = (
+        f'Feature "{fname}" is a datetime but may not work '
+        'properly if user does not specify the correct format.'
+    )
+
     if dt_object.tzinfo is None:
-        # warn user if this date format is a subset of the ISO_8601
-        warn_user = True
-
-        try:
-            # do a stricter check for iso format
-            isoparse(str_date)
-        except Exception:  # noqa: Intentionally broad
-            # user was already warned, don't warn them again
-            warn_user = False
-
         if len(str_date) <= 10:
-            try:
-                dt.datetime.strptime(str_date, ISO_8601_DATE_FORMAT)
-                return ISO_8601_DATE_FORMAT
-            except ValueError:
-                if warn_user:
-                    warnings.warn(f"Feature {fname} is a datetime but may not "
-                                  f"work properly if user doesn't specify "
-                                  f"the correct format.")
-                return ISO_8601_FORMAT
+            # Check for date only
+            for fmt in [ISO_8601_DATE_FORMAT, "%Y%m%d"]:
+                if is_valid_datetime_format(str_date, fmt):
+                    return fmt
 
-        try:
-            dt.datetime.strptime(str_date, ISO_8601_FORMAT_FRACTIONAL)
-            return ISO_8601_FORMAT_FRACTIONAL
-        except ValueError:
-            pass
+        for fmt in format_checks:
+            if is_valid_datetime_format(str_date, fmt):
+                return fmt
 
-        try:
-            dt.datetime.strptime(str_date, ISO_8601_FORMAT)
-            return ISO_8601_FORMAT
-        except ValueError:
-            if warn_user:
-                warnings.warn(f"Feature {fname} is a datetime but may not "
-                              f"work properly if user doesn't specify "
-                              f"the correct format.")
-            return ISO_8601_FORMAT
+        warnings.warn(warning_text, DatetimeFormatWarning)
+        return ISO_8601_FORMAT
 
     # detect iso formats ending in Z, signifying UTC
     if (
         dt_object.utcoffset() == dt.timedelta(0) and
         DATETIME_UTC_Z_PATTERN.findall(str_date)
     ):
-        try:
-            dt.datetime.strptime(str_date, ISO_8601_FORMAT_FRACTIONAL + "Z")
-            return ISO_8601_FORMAT_FRACTIONAL + "Z"
-        except ValueError:
-            return ISO_8601_FORMAT + "Z"
+        for fmt in format_checks:
+            if is_valid_datetime_format(str_date, fmt + "Z"):
+                return fmt + "Z"
+        warnings.warn(warning_text, DatetimeFormatWarning)
+        return ISO_8601_FORMAT + "Z"
 
-    # date has time zone info, determine whether it's an offset
-    if isinstance(dt_object.tzinfo, tzoffset):
-        return "%Y-%m-%dT%H:%M:%S%z"
-
+    # if date has time zone info, determine whether it's an offset.
     # offsets of +0000 or -0000 won't parse as a TZ offset, but
     # the format still matches using %z, thus check if last char is '0'
-    if str_date[-1] == '0':
-        return "%Y-%m-%dT%H:%M:%S%z"
+    if isinstance(dt_object.tzinfo, tzoffset) or str_date[-1] == '0':
+        for fmt in format_checks:
+            if is_valid_datetime_format(str_date, fmt + "%z"):
+                return fmt + "%z"
+        warnings.warn(warning_text, DatetimeFormatWarning)
+        return ISO_8601_FORMAT + "%z"
 
-    return "%Y-%m-%dT%H:%M:%S%Z"
+    else:
+        for fmt in format_checks:
+            if is_valid_datetime_format(str_date, fmt + "%Z"):
+                return fmt + "%Z"
+        warnings.warn(warning_text, DatetimeFormatWarning)
+        return ISO_8601_FORMAT + "%Z"
 
 
 def validate_list_shape(values: Collection | None, dimensions: int,

@@ -1,10 +1,11 @@
 from math import e
 
-from howso.utilities import infer_feature_attributes
 import numpy as np
 import pandas as pd
 import pytest
 
+from howso.client.exceptions import DatetimeFormatWarning
+from howso.utilities import infer_feature_attributes
 from . import NOMINAL_SUBSTITUTION_AVAILABLE
 
 
@@ -115,11 +116,11 @@ class TestInferFeatureAttributes:
         ]).transpose(), columns=['nom', 'datetime'])
 
         # dates are a subset ISO format, show different warning
-        with pytest.warns() as warn:
+        with pytest.warns(DatetimeFormatWarning) as warn:
             feature_attribs = infer_feature_attributes(df)
             assert str(warn[0].message) == (
-                "Feature datetime is a datetime but may not work properly if "
-                "user doesn't specify the correct format.")
+                'Feature "datetime" is a datetime but may not work properly if '
+                "user does not specify the correct format.")
             assert feature_attribs['datetime']['type'] == 'continuous'
             assert feature_attribs['datetime']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
 

@@ -237,3 +237,7 @@ class HowsoWarning(UserWarning):
 
 class UnsupportedArgumentWarning(HowsoWarning):
     """Warning for when unsupported arguments are supplied to an endpoint."""
+
+
+class DatetimeFormatWarning(HowsoWarning):
+    """A warning for potential problems with datetime formats."""
