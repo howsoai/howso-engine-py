@@ -186,6 +186,11 @@ class InferFeatureAttributesTimeSeries:
                                     temp_results.append(response)
                             except ValueError:
                                 # Cannot calculate deltas if date format is invalid, warn and continue
+                                if f_name == self.time_feature_name:
+                                    raise ValueError(
+                                        f'The date time format "{dt_format}" does not match the data of the '
+                                        f'time feature "{self.time_feature_name}".'
+                                    )
                                 warnings.warn(
                                     f'Feature "{f_name}" does not match the '
                                     f'provided date time format, unable to infer '
@@ -203,6 +208,11 @@ class InferFeatureAttributesTimeSeries:
                             df_c[f_name] = _apply_date_to_epoch(df_c, f_name, dt_format)
                         except ValueError:
                             # Cannot calculate deltas if date format is invalid, warn and continue
+                            if f_name == self.time_feature_name:
+                                raise ValueError(
+                                    f'The date time format "{dt_format}" does not match the data of the '
+                                    f'time feature "{self.time_feature_name}".'
+                                )
                             warnings.warn(
                                 f'Feature "{f_name}" does not match the '
                                 f'provided date time format, unable to infer '
