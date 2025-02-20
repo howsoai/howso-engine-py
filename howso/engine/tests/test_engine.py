@@ -319,54 +319,6 @@ class TestEngine:
         ):
             delete_trainee(file_path=file_path)
 
-    def test_get_contribution_matrix(self, trainee):
-        """Test `get_contribution_matrix`."""
-        matrix = trainee.get_contribution_matrix(
-            normalize=True,
-            fill_diagonal=True
-        )
-        assert len(matrix) == 5
-        assert len(matrix.columns) == 5
-
-        # The raw matrix is saved in the trainee. This section
-        # tests to make sure the matrix processing parameters are
-        # passed through correctly.
-        saved_matrix = trainee.calculated_matrices
-        assert len(saved_matrix['contribution']) == 5
-        assert len(saved_matrix['contribution'].columns) == 5
-
-        saved_matrix = matrix_processing(
-            saved_matrix['contribution'],
-            normalize=True,
-            fill_diagonal=True
-        )
-
-        assert_frame_equal(matrix, saved_matrix)
-
-    def test_get_mda_matrix(self, trainee):
-        """Test `get_mda_matrix`."""
-        matrix = trainee.get_mda_matrix(
-            absolute=True,
-            fill_diagonal=True
-        )
-        assert len(matrix) == 5
-        assert len(matrix.columns) == 5
-
-        # The raw matrix is saved in the trainee. This section
-        # tests to make sure the matrix processing parameters are
-        # passed through correctly.
-        saved_matrix = trainee.calculated_matrices
-        assert len(saved_matrix['mda']) == 5
-        assert len(saved_matrix['mda'].columns) == 5
-
-        saved_matrix = matrix_processing(
-            saved_matrix['mda'],
-            absolute=True,
-            fill_diagonal=True
-        )
-
-        assert_frame_equal(matrix, saved_matrix)
-
     def test_reduce_data(self, trainee):
         """Test `reduce_data`."""
         pre_reduction_cases = trainee.get_cases()

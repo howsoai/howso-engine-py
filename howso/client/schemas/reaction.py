@@ -9,6 +9,9 @@ import warnings
 import numpy as np
 import pandas as pd
 
+from howso.utilities.constants import _RENAMED_DETAIL_KEYS  # type: ignore reportPrivateUsage
+
+
 __all__ = [
     "Reaction"
 ]
@@ -44,23 +47,56 @@ class Reaction(abc.MutableMapping):
 
     SPECIAL_KEYS = {"action_features", }
     KNOWN_KEYS = {
-        "case_directional_feature_contributions_full", "case_directional_feature_contributions_robust",
-        "directional_feature_contributions_full", "directional_feature_contributions_robust",
-        "boundary_cases_familiarity_convictions", "boundary_cases",
-        "boundary_values", "feature_case_contributions_full",
-        "feature_case_contributions_robust", "case_feature_contributions_full",
-        "case_feature_contributions_robust", "case_feature_residuals_robust", "case_feature_residuals_full",
-        "case_mda_full", "case_mda_robust", "categorical_action_probabilities", "context_values",
-        "derivation_parameters", "distance_contribution", "distance_ratio_parts", "distance_ratio",
-        "feature_contributions_full", "feature_contributions_robust", "feature_deviations",
-        "feature_mda_ex_post_full", "feature_mda_ex_post_robust", "feature_mda_robust", "feature_mda_full",
-        "feature_residuals_full", "feature_residuals_robust", "generate_attempts", "series_generate_attempts",
-        "hypothetical_values", "influential_cases_familiarity_convictions", "influential_cases_raw_weights",
-        "influential_cases", "case_feature_residual_convictions_full",
-        "case_feature_residual_convictions_robust", "most_similar_case_indices", "most_similar_cases",
-        "observational_errors", "prediction_stats", "outlying_feature_values", "robust_influences",
+        "boundary_cases",
+        "boundary_cases_familiarity_convictions",
+        "boundary_values",
+        "case_full_accuracy_contributions",
+        "case_full_prediction_contributions",
+        "case_robust_accuracy_contributions",
+        "case_robust_prediction_contributions",
+        "categorical_action_probabilities",
+        "context_values",
+        "derivation_parameters",
+        "distance_contribution",
+        "distance_ratio_parts",
+        "distance_ratio",
+        "feature_deviations",
+        "feature_full_accuracy_contributions_ex_post",
+        "feature_full_accuracy_contributions",
+        "feature_full_directional_prediction_contributions",
+        "feature_full_directional_prediction_contributions_for_case",
+        "feature_full_prediction_contributions_for_case",
+        "feature_full_prediction_contributions",
+        "feature_full_residual_convictions_for_case",
+        "feature_full_residuals_for_case",
+        "feature_full_residuals",
+        "feature_robust_accuracy_contributions_ex_post",
+        "feature_robust_accuracy_contributions",
+        "feature_robust_directional_prediction_contributions",
+        "feature_robust_directional_prediction_contributions_for_case",
+        "feature_robust_prediction_contributions_for_case",
+        "feature_robust_prediction_contributions",
+        "feature_robust_residual_convictions_for_case",
+        "feature_robust_residuals_for_case",
+        "feature_robust_residuals",
+        "generate_attempts",
+        "hypothetical_values",
+        "influential_cases_familiarity_convictions",
+        "influential_cases_raw_weights",
+        "influential_cases",
+        "most_similar_case_indices",
+        "most_similar_cases",
+        "observational_errors",
+        "outlying_feature_values",
+        "prediction_stats",
+        "robust_influences",
+        "series_generate_attempts",
         "similarity_conviction",
     }
+
+    # These detail keys are deprecated, but should be treated as KNOWN_KEYs
+    # during the deprecation period.
+    KNOWN_KEYS |= set(_RENAMED_DETAIL_KEYS.keys())
 
     def __init__(self,
                  action: t.Optional[pd.DataFrame | list | dict] = None,

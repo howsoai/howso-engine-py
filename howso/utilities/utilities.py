@@ -1,10 +1,19 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+from collections.abc import (
+    Callable,
+    Collection,
+    Iterable,
+    Mapping,
+    Sequence,
+)
 import datetime as dt
 import inspect
 import locale as python_locale
-from math import ceil, isnan
+from math import (
+    ceil,
+    isnan,
+)
 import re
 import sys
 import threading
@@ -1348,46 +1357,6 @@ def matrix_processing( # noqa
             matrix.iloc[i, i] = fill_diagonal_value
 
     return matrix
-
-
-def get_matrix_diff(matrix: pd.DataFrame) -> dict:
-    """
-    Calculates the absolute value of a matrix for feature pairs.
-
-    Parameters
-    ----------
-    matrix : DataFrame
-        The matrix in DataFrame format.
-
-    Returns
-    -------
-    dict
-        Sorted dictionary of absolute differences between the feature value pairs. The values
-        are stored in a dictionary with keys consisting of a tuple of the features.
-    """
-    if matrix.shape[0] != matrix.shape[1]:
-        raise ValueError(
-            f"Invalid matrix shape: ({matrix.shape[0]}, {matrix.shape[1]}), "
-            "matrix must be square."
-        )
-
-    # Ensures sorting
-    matrix = matrix.sort_index(axis=0)
-    matrix = matrix.sort_index(axis=1)
-
-    differences_dict = {}
-
-    features = matrix.columns
-    for i, row in enumerate(features):
-        for col in features[i + 1:]:
-            key = (row, col)
-            abs_diff = abs(matrix.loc[row, col] - matrix.loc[col, row])  # type: ignore
-            differences_dict[key] = abs_diff
-
-    # Sort dictionary
-    differences_dict = {k: v for k, v in sorted(differences_dict.items(), key=lambda item: item[1], reverse=True)}
-
-    return differences_dict
 
 
 def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tuple[np.ndarray, list[str]]:
