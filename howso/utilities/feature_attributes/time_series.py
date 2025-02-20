@@ -110,6 +110,8 @@ class InferFeatureAttributesTimeSeries:
             Returns dictionary of {`type`: "feature type"}} with column names
             in passed in df as key.
         """
+        # prevent circular import
+        from howso.client.exceptions import DatetimeFormatWarning
         # iterate over all features, ensuring that the time feature is the first
         # one to be processed so that its deltas are cached
         feature_names = set(features.keys())
@@ -178,13 +180,36 @@ class InferFeatureAttributesTimeSeries:
                                 futures[future] = f_name
 
                             temp_results = []
-                            for future in as_completed(futures):
-                                response = future.result()
-                                temp_results.append(response)
+                            try:
+                                for future in as_completed(futures):
+                                    response = future.result()
+                                    temp_results.append(response)
+                            except ValueError:
+                                # Cannot calculate deltas if date format is invalid, warn and continue
+                                warnings.warn(
+                                    f'Feature "{f_name}" does not match the '
+                                    f'provided date time format, unable to infer '
+                                    f'time series delta min/max.',
+                                    DatetimeFormatWarning
+                                )
+                                for future in futures:
+                                    if not future.done():
+                                        future.cancel()
+                                continue
 
                         df_c[f_name] = pd.concat(temp_results)
                     else:
-                        df_c[f_name] = _apply_date_to_epoch(df_c, f_name, dt_format)
+                        try:
+                            df_c[f_name] = _apply_date_to_epoch(df_c, f_name, dt_format)
+                        except ValueError:
+                            # Cannot calculate deltas if date format is invalid, warn and continue
+                            warnings.warn(
+                                f'Feature "{f_name}" does not match the '
+                                f'provided date time format, unable to infer '
+                                f'time series delta min/max.',
+                                DatetimeFormatWarning
+                            )
+                            continue
 
                     # use Pandas' diff() to pull all the deltas for this feature
                     if isinstance(id_feature_name, list):
