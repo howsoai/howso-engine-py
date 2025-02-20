@@ -1140,7 +1140,7 @@ class InferFeatureAttributesBase(ABC):
             if (orig_type in ['integer', 'numeric'] or 'date_time_format' in
                     feature_attributes[feature_name]):
                 # Get feature bounds
-                with warnings.catch_warnings(category=UserWarning):
+                with warnings.catch_warnings():
                     # Prevent duplication of raised warnings, since we do not nee to raise them here
                     # and infer bounds was likely already called previously
                     warnings.simplefilter("ignore")
