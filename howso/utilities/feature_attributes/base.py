@@ -1105,8 +1105,8 @@ class InferFeatureAttributesBase(ABC):
         base_min_bound = max_bound - new_range
         base_max_bound = min_bound + new_range
 
-        new_min_bound = max(0, base_min_bound) if min_bound > 0 else base_min_bound
-        new_max_bound = min(0, base_max_bound) if max_bound < 0 else base_max_bound
+        new_min_bound = max(0, base_min_bound) if min_bound >= 0 else base_min_bound
+        new_max_bound = min(0, base_max_bound) if max_bound <= 0 else base_max_bound
 
         return new_min_bound, new_max_bound
 
