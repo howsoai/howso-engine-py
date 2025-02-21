@@ -1096,10 +1096,12 @@ class InferFeatureAttributesBase(ABC):
         #       looked like max_loose_bounds = exp(ln(max_bounds) + 0.5), but this
         #       could leak privacy since the actual bounds would be
         #       reverse-engineer-able.
-        assert min_bound <= max_bound, \
-            "Feature min_bound cannot be larger than max_bound"
+        if min_bound > max_bound:
+            raise AssertionError(
+                "Feature min_bound cannot be larger than max_bound"
+            )
         scale_factor = 0.5
-        value_range = max(0.0, max_bound - min_bound)
+        value_range = max_bound - min_bound
         new_range = np.exp(np.log(value_range) + scale_factor)
 
         base_min_bound = max_bound - new_range
