@@ -181,29 +181,31 @@ def seconds_to_time(seconds: int | float | None, *,
     return time_value
 
 
-def is_valid_datetime_format(values: str | Iterable[str], time_format: str | None) -> bool:
+def is_valid_datetime_format(value: t.Any, time_format: str | None) -> bool:
     """
     Check if a date time format is valid against one or more string formatted date time values.
 
     Parameters
     ----------
-    value: str or Iterable of str
-        The value(s) to test the format against.
+    value: Any
+        The value to test the format against. If the value is already a kind
+        of date object the format is assumed valid since it can be used to
+        serialize the value to string.
     time_format: str
         The format string to parse with.
 
     Returns
     -------
     bool
-        True if the value(s) can be parsed using the provided format.
+        True if the value can be parsed using the provided format.
     """
     if not time_format:
         return False
-    if isinstance(values, str):
-        values = [values]
+    if isinstance(value, (dt.date, dt.datetime, dt.time, np.datetime64)):
+        # Value is a date/time type
+        return True
     try:
-        for v in values:
-            dt.datetime.strptime(v, time_format)
+        dt.datetime.strptime(str(value), time_format)
         return True
     except Exception:
         return False
@@ -706,9 +708,9 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
                         bad_format = True
                         if warn and feature_name not in warned_features:
                             warnings.warn(
-                                f"{feature_name} has values with incorrect "
-                                f"datetime format, should be {dt_format}. "
-                                f"This feature may not work properly."
+                                f'"{feature_name}" has values with an incorrect '
+                                f'datetime format, should be "{dt_format}". '
+                                f'This feature may not work properly.'
                             )
                             warned_features.add(feature_name)
 

@@ -607,7 +607,7 @@ class TestClient:
             "feature_full_accuracy_contributions_permutation",
             "feature_robust_accuracy_contributions_permutation",
         ]:
-            return True
+            return
 
         with pytest.warns(DeprecationWarning) as record:
             self.client.train(

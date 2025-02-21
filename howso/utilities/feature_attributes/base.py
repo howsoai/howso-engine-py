@@ -237,6 +237,7 @@ class FeatureAttributesBase(dict):
         max_bound = bounds.get('max')
         # Get unique values but exclude NoneTypes
         unique_values = series.dropna().unique()
+        additional_errors = 0
 
         if bounds.get('allowed'):
             # Check nominal bounds
@@ -257,17 +258,29 @@ class FeatureAttributesBase(dict):
                 for value in unique_values:
                     epoch = date_to_epoch(value, time_format=attributes['date_time_format'])
                     if (max_bound and epoch > max_bound_epoch) or (min_bound and epoch < min_bound_epoch):
-                        errors.append(f"'{feature}' has a value outside of bounds (min: {min_bound}, "
-                                      f"max: {max_bound}): {value}")
+                        if len(errors) < 5:
+                            errors.append(
+                                f'"{feature}" has a value outside of bounds '
+                                f'(min: {min_bound}, max: {max_bound}): {value}'
+                            )
+                        else:
+                            additional_errors += 1
             except ValueError as err:
                 errors.append(f'Could not validate datetime bounds due to the following error: {err}')
         elif min_bound or max_bound:
             # Check int/float bounds
             for value in unique_values:
                 if (max_bound and float(value) > float(max_bound)) or (min_bound and float(value) < float(min_bound)):
-                    errors.append(f"'{feature}' has a value outside of bounds (min: {min_bound}, "
-                                  f"max: {max_bound}): {value}")
-
+                    if len(errors) < 5:
+                        errors.append(
+                            f'"{feature}" has a value outside of bounds '
+                            f'(min: {min_bound}, max: {max_bound}): {value}'
+                        )
+                    else:
+                        additional_errors += 1
+        if additional_errors > 0:
+            errors.append(
+                f'"{feature}" had {additional_errors} additional values outside of bounds that were not displayed.')
         return errors
 
     def _validate_dtype(self, data: pd.DataFrame, feature: str,  # noqa: C901
