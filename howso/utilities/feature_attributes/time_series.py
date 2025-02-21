@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from concurrent.futures import (
     as_completed,
     Future,
@@ -130,8 +130,14 @@ class InferFeatureAttributesTimeSeries:
                 # Set delta_max for all continuous features to the observed maximum
                 # difference between two values times e.
                 dt_format = features[f_name].get('date_time_format')
-                if isinstance(datetime_feature_formats, dict):
-                    dt_format = datetime_feature_formats.get(f_name, dt_format)
+                if dt_format is None and isinstance(datetime_feature_formats, dict):
+                    dt_format = datetime_feature_formats.get(f_name)
+                    if (
+                        not isinstance(dt_format, str) and
+                        isinstance(dt_format, Collection) and
+                        len(dt_format) == 2
+                    ):
+                        dt_format, _ = dt_format  # (format, locale)
 
                 # number of derivation orders, default to 1
                 num_orders = orders_of_derivatives.get(f_name, 1)
@@ -751,7 +757,7 @@ class InferFeatureAttributesTimeSeries:
             if dt_format := features[self.time_feature_name].get("date_time_format"):
                 # if a datetime format is defined, ensure values can be parsed with it
                 test_value = infer._get_random_value(self.time_feature_name, no_nulls=True)
-                if test_value is not None and not is_valid_datetime_format(str(test_value), dt_format):
+                if test_value is not None and not is_valid_datetime_format(test_value, dt_format):
                     raise ValueError(
                         f'The date time format "{dt_format}" does not match the data of the time feature '
                         f'"{self.time_feature_name}". Data sample: "{test_value}"')

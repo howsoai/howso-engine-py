@@ -267,9 +267,12 @@ def test_invalid_time_feature_format():
     time_feature_name = "date"
 
     with pytest.raises(ValueError, match="does not match the data of the time feature"):
-        infer_feature_attributes(
-            df,
-            time_feature_name=time_feature_name,
-            id_feature_name="ID",
-            datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"}  # invalid format
-        )
+        with warnings.catch_warnings():
+            # warnings are expected
+            warnings.filterwarnings("ignore")
+            infer_feature_attributes(
+                df,
+                time_feature_name=time_feature_name,
+                id_feature_name="ID",
+                datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"}  # invalid format
+            )

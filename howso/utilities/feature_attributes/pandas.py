@@ -436,10 +436,17 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     max_date = epoch_to_date(max_f, format_dt, max_date_tz)
                     observed_min = epoch_to_date(observed_min_f, format_dt, min_date_tz)
                     observed_max = epoch_to_date(observed_max_f, format_dt, max_date_tz)
-                    return {
-                        'min': min_date, 'max': max_date,
-                        'observed_min': observed_min, 'observed_max': observed_max
-                    }
+
+                    output = {'observed_min': observed_min, 'observed_max': observed_max}
+                    if date_to_epoch(min_date, format_dt) <= date_to_epoch(max_date, format_dt):
+                        output.update(min=min_date, max=max_date)
+                    else:
+                        warnings.warn(
+                            f'Feature "{feature_name}" bounds could not be computed. '
+                            'This is likely due to a constrained date time format.'
+                        )
+
+                    return output
                 except Exception:  # noqa: Intentionally broad
                     if not warned_dt_format:
                         warnings.warn(

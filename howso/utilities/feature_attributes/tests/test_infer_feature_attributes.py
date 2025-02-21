@@ -674,7 +674,7 @@ def test_validate_dataframe():
     df['class'] = df['class'].astype(pd.CategoricalDtype(categories=unique))
     df = features.validate(df, coerce=True, raise_errors=True)
     assert df is not None
-    assert pd.api.types.is_categorical_dtype(df['class'])
+    assert isinstance(df['class'].dtype, pd.CategoricalDtype)
 
 
 @pytest.mark.parametrize("ftype, data_type, decimal_places, bounds, date_time_format, expected_dtype", [
@@ -1004,3 +1004,11 @@ def test_formatted_date_time():
         assert features['custom']['data_type'] == "formatted_date_time"
         # auto detected iso dates should be formatted_date_time
         assert features['iso']['data_type'] == "formatted_date_time"
+
+
+def test_constrained_date_bounds():
+    """Constrained datetime formats may make bounds undeterminable."""
+    df = pd.DataFrame([["01"], ["02"]], columns=["date"])
+    with pytest.warns(match="bounds could not be computed. This is likely due to a constrained date time format"):
+        # Loose bounds may cause min bound to be > max bound if the date format is constrained
+        infer_feature_attributes(df, datetime_feature_formats={"date": "%m"})
