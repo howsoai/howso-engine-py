@@ -1098,22 +1098,17 @@ class InferFeatureAttributesBase(ABC):
         #       reverse-engineer-able.
         assert min_bound <= max_bound, \
             "Feature min_bound cannot be larger than max_bound"
+        scale_factor = 0.5
+        value_range = max_bound - min_bound
+        new_range = np.exp(np.log(value_range) + scale_factor)
 
-        if min_bound < 0:
-            # for negative min_bound boundary values:  e^ceil(ln(num))
-            min_bound = -np.exp(np.ceil(np.log(-min_bound)))
-        elif min_bound > 0:
-            # for positive min_bound boundary values:  e^floor(ln(num))
-            min_bound = np.exp(np.floor(np.log(min_bound)))
+        base_min_bound = max_bound - new_range
+        base_max_bound = min_bound + new_range
 
-        if max_bound < 0:
-            # for negative max_bound boundary values: e^floor(ln(num))
-            max_bound = -np.exp(np.floor(np.log(-max_bound)))
-        elif max_bound > 0:
-            # for positive max_bound boundary values: e^ceil(ln(num))
-            max_bound = np.exp(np.ceil(np.log(max_bound)))
+        new_min_bound = max(0, base_min_bound) if min_bound > 0 else base_min_bound
+        new_max_bound = min(0, base_max_bound) if max_bound < 0 else base_max_bound
 
-        return min_bound, max_bound
+        return new_min_bound, new_max_bound
 
     @staticmethod
     def _get_datetime_max():
