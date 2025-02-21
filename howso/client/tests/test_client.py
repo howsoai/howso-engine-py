@@ -242,8 +242,8 @@ class TestDatetimeSerialization:
             # There might be other UserWarnings but assert that at least one
             # of them has the correct message.
             assert any([str(warning.message) == (
-                "datetime has values with incorrect datetime format, should "
-                "be %Y-%m-%dT%H:%M:%S. This feature may not work properly.")
+                '"datetime" has values with an incorrect datetime format, should '
+                'be "%Y-%m-%dT%H:%M:%S". This feature may not work properly.')
                 for warning in warning_list])
 
         case_response = self.client.get_cases(
@@ -271,8 +271,8 @@ class TestDatetimeSerialization:
         with pytest.warns(UserWarning) as warning_list:
             self.client.train(trainee.id, df.values.tolist(), df.columns.tolist())
             assert any([str(warning.message) == (
-                "datetime has values with incorrect datetime format, should "
-                "be %H %Y. This feature may not work properly.")
+                '"datetime" has values with an incorrect datetime format, should '
+                'be "%H %Y". This feature may not work properly.')
                 for warning in warning_list])
 
         case_response = self.client.get_cases(
