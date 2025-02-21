@@ -523,9 +523,9 @@ class FeatureAttributesBase(dict):
             # Sanity check: booleans must be nominal
             elif entries[feature_name].get('data_type') == 'boolean' and orig_type and orig_type != 'nominal':
                 warnings.warn(
-                    f"Feature {feature_name} was preset as {orig_type} "
-                    "but was detected to be a boolean. Booleans "
-                    "must be 'nominal', thus the type override will be ignored."
+                    f'Feature "{feature_name}" was preset as {orig_type} '
+                    'but was detected to be a boolean. Booleans '
+                    'must be "nominal", thus the type override will be ignored.'
                 )
             # In otherwise valid cases, ensure that existing types are not overwritten
             elif orig_type and new_type:
@@ -770,9 +770,10 @@ class InferFeatureAttributesBase(ABC):
                 # single string (format) or a tuple of strings (format, locale)
                 user_dt_format = datetime_feature_formats[feature_name]
                 if 'date_time_format' in features.get(feature_name, {}):
-                    warnings.warn(f'Warning: date_time_format for {feature_name} '
-                                  'provided in both `features` (ignored) and '
-                                  '`datetime_feature_formats`.')
+                    warnings.warn(
+                        f'The date_time_format for "{feature_name}" was provided in '
+                        'both `features` (ignored) and `datetime_feature_formats`.'
+                    )
                     del features[feature_name]['date_time_format']
 
                 if feature_type == FeatureType.DATETIME:
@@ -903,6 +904,8 @@ class InferFeatureAttributesBase(ABC):
         elif id_feature_name is not None:
             raise ValueError('ID feature must be of type `str` or `list[str], '
                              f'not {type(id_feature_name)}.')
+
+        self._validate_date_times()
 
         if infer_bounds:
             for feature_name, _attributes in self.attributes.items():
@@ -1137,8 +1140,15 @@ class InferFeatureAttributesBase(ABC):
             if (orig_type in ['integer', 'numeric'] or 'date_time_format' in
                     feature_attributes[feature_name]):
                 # Get feature bounds
-                bounds = self._infer_feature_bounds(feature_attributes, feature_name,
-                                                    tight_bounds=feature_names)
+                with warnings.catch_warnings():
+                    # Prevent duplication of raised warnings, since we do not nee to raise them here
+                    # and infer bounds was likely already called previously
+                    warnings.simplefilter("ignore")
+                    bounds = self._infer_feature_bounds(
+                        feature_attributes,
+                        feature_name=feature_name,
+                        tight_bounds=feature_names
+                    )
                 if not bounds or bounds.get('min') is None or bounds.get('max') is None:
                     continue
                 omit = False
@@ -1167,6 +1177,17 @@ class InferFeatureAttributesBase(ABC):
                 # Keep track of unsupported data internally
                 if omit:
                     self.unsupported.append(feature_name)
+
+    def _validate_date_times(self):
+        """Validate date time features are configured correctly."""
+        for feature_name, attributes in self.attributes.items():
+            dt_format = attributes.get("date_time_format")
+            data_type = attributes.get("data_type")
+            if not dt_format and data_type in {"formatted_date_time", "formatted_time"}:
+                raise ValueError(
+                    f'The feature "{feature_name}" must have a `date_time_format` defined '
+                    f'when its `data_type` is "{data_type}".'
+                )
 
     @staticmethod
     def _is_datetime(string: str):

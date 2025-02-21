@@ -796,7 +796,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         feature_attributes: Mapping[str, Mapping],
         feature_name: str,
         tight_bounds: t.Optional[Iterable[str]] = None,
-        mode_bound_features: t.Optional[list[str]] = None,
+        mode_bound_features: t.Optional[Iterable[str]] = None,
     ) -> dict | None:
         output = dict()
         allow_null = True
@@ -878,7 +878,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                             return None
                     except Exception:  # noqa: Intentionally broad
                         warnings.warn(
-                            f'Feature {feature_name} does not match the '
+                            f'Feature "{feature_name}" does not match the '
                             f'provided date time format, unable to guess '
                             f'bounds.')
                         return None

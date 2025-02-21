@@ -19,14 +19,14 @@ from pandas.core.dtypes.common import is_string_dtype
 
 from .base import SingleTableFeatureAttributes
 from .pandas import InferFeatureAttributesDataFrame
-from ..utilities import date_to_epoch, yield_dataframe_as_chunks
+from ..utilities import date_to_epoch, is_valid_datetime_format, yield_dataframe_as_chunks
 
 logger = logging.getLogger(__name__)
 
 SMALLEST_TIME_DELTA = 0.001
 
 
-def _apply_chunks_shard(df: pd.DataFrame, feature_name: str, dt_format: str):
+def _apply_date_to_epoch(df: pd.DataFrame, feature_name: str, dt_format: str):
     """Internal function to aid multiprocessing of series feature attributes."""
     return df[feature_name].apply(lambda x: date_to_epoch(x, dt_format))
 
@@ -43,7 +43,7 @@ class InferFeatureAttributesTimeSeries:
 
     def _infer_delta_min_and_max(  # noqa: C901
         self,
-        features: t.Optional[dict] = None,
+        features: dict,
         datetime_feature_formats: t.Optional[dict] = None,
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         orders_of_derivatives: t.Optional[dict] = None,
@@ -110,6 +110,8 @@ class InferFeatureAttributesTimeSeries:
             Returns dictionary of {`type`: "feature type"}} with column names
             in passed in df as key.
         """
+        # prevent circular import
+        from howso.client.exceptions import DatetimeFormatWarning
         # iterate over all features, ensuring that the time feature is the first
         # one to be processed so that its deltas are cached
         feature_names = set(features.keys())
@@ -124,14 +126,12 @@ class InferFeatureAttributesTimeSeries:
 
         time_feature_deltas = None
         for f_name in feature_names:
-            if features[f_name]['type'] == "continuous" and \
-                    'time_series' in features[f_name]:
+            if features[f_name]['type'] == "continuous" and 'time_series' in features[f_name]:
                 # Set delta_max for all continuous features to the observed maximum
                 # difference between two values times e.
+                dt_format = features[f_name].get('date_time_format')
                 if isinstance(datetime_feature_formats, dict):
-                    dt_format = datetime_feature_formats.get(f_name)
-                else:
-                    dt_format = features[f_name].get('date_time_format')
+                    dt_format = datetime_feature_formats.get(f_name, dt_format)
 
                 # number of derivation orders, default to 1
                 num_orders = orders_of_derivatives.get(f_name, 1)
@@ -143,9 +143,10 @@ class InferFeatureAttributesTimeSeries:
                     old_derived_orders = num_derived_orders
                     num_derived_orders = num_orders - 1
                     warnings.warn(
-                        f"Overwriting the `derived_orders` value of {old_derived_orders} "
-                        f"for {f_name} with {num_derived_orders} because it must "
-                        f"be smaller than the 'orders' value of {num_orders}.")
+                        f'Overwriting the `derived_orders` value of {old_derived_orders} '
+                        f'for "{f_name}" with {num_derived_orders} because it must '
+                        f'be smaller than the "orders" value of {num_orders}.',
+                    )
                 if num_derived_orders > 0:
                     features[f_name]['time_series']['derived_orders'] = num_derived_orders
 
@@ -163,7 +164,7 @@ class InferFeatureAttributesTimeSeries:
                         max_workers = 0
                     if max_workers is None or max_workers >= 1:
                         if max_workers is None:
-                            max_workers = os.cpu_count()
+                            max_workers = os.cpu_count() or 1
                         mp_context = mp.get_context("spawn")
                         futures: dict[Future, str] = dict()
 
@@ -171,7 +172,7 @@ class InferFeatureAttributesTimeSeries:
                             df_chunks_generator = yield_dataframe_as_chunks(df_c, max_workers)
                             for chunk in df_chunks_generator:
                                 future = pool.submit(
-                                    _apply_chunks_shard,
+                                    _apply_date_to_epoch,
                                     df=chunk,
                                     feature_name=f_name,
                                     dt_format=dt_format
@@ -179,19 +180,46 @@ class InferFeatureAttributesTimeSeries:
                                 futures[future] = f_name
 
                             temp_results = []
-                            for future in as_completed(futures):
-                                try:
+                            try:
+                                for future in as_completed(futures):
                                     response = future.result()
                                     temp_results.append(response)
-                                except Exception as exception:
-                                    warnings.warn(
-                                        f"Infer_feature_attributes raised an exception "
-                                        f"while processing '{futures[future]}' ({str(exception)})."
+                            except ValueError:
+                                # Cannot calculate deltas if date format is invalid, warn and continue
+                                if f_name == self.time_feature_name:
+                                    raise ValueError(
+                                        f'The date time format "{dt_format}" does not match the data of the '
+                                        f'time feature "{self.time_feature_name}".'
                                     )
+                                warnings.warn(
+                                    f'Feature "{f_name}" does not match the '
+                                    f'provided date time format, unable to infer '
+                                    f'time series delta min/max.',
+                                    DatetimeFormatWarning
+                                )
+                                for future in futures:
+                                    if not future.done():
+                                        future.cancel()
+                                continue
 
                         df_c[f_name] = pd.concat(temp_results)
                     else:
-                        df_c[f_name] = df_c[f_name].apply(lambda x: date_to_epoch(x, dt_format))
+                        try:
+                            df_c[f_name] = _apply_date_to_epoch(df_c, f_name, dt_format)
+                        except ValueError:
+                            # Cannot calculate deltas if date format is invalid, warn and continue
+                            if f_name == self.time_feature_name:
+                                raise ValueError(
+                                    f'The date time format "{dt_format}" does not match the data of the '
+                                    f'time feature "{self.time_feature_name}".'
+                                )
+                            warnings.warn(
+                                f'Feature "{f_name}" does not match the '
+                                f'provided date time format, unable to infer '
+                                f'time series delta min/max.',
+                                DatetimeFormatWarning
+                            )
+                            continue
 
                     # use Pandas' diff() to pull all the deltas for this feature
                     if isinstance(id_feature_name, list):
@@ -241,6 +269,8 @@ class InferFeatureAttributesTimeSeries:
 
                         # remove NaNs
                         no_nan_rates = [x for x in rates if isnan(x) is False]
+                        if len(no_nan_rates) == 0:
+                            continue
 
                         # TODO: 15550: support user-specified min/max values
                         rate_max = max(no_nan_rates)
@@ -262,11 +292,14 @@ class InferFeatureAttributesTimeSeries:
                         if order > 1:
                             deltas = deltas.diff(1)
 
-                        delta_max = max(deltas.dropna())
+                        no_nan_deltas: pd.Series = deltas.dropna()
+                        if len(no_nan_deltas) == 0:
+                            continue
+                        delta_max = max(no_nan_deltas)
                         delta_max = delta_max * e if delta_max > 0 else delta_max / e
                         features[f_name]['time_series']['delta_max'].append(delta_max)
 
-                        delta_min = min(deltas.dropna())
+                        delta_min = min(no_nan_deltas)
                         # don't allow the time series time feature to go back in time
                         # TODO: 15550: support user-specified min/max values
                         if f_name == self.time_feature_name:
@@ -278,7 +311,7 @@ class InferFeatureAttributesTimeSeries:
         return features
 
     def _set_rate_delta_bounds(self, btype: str, bounds: dict, features: dict):
-        """Set optinally-specified rate/delta bounds in the features dict."""
+        """Set optimally-specified rate/delta bounds in the features dict."""
         for feature in bounds.keys():
             # Check for any problems
             if feature not in features.keys():
@@ -553,7 +586,7 @@ class InferFeatureAttributesTimeSeries:
 
         mode_bound_features : list of str, default None
             (Optional) Explicit list of feature names to use mode bounds for
-            when infering loose bounds. If None, assumes all features except the
+            when inferring loose bounds. If None, assumes all features except the
             time feature. A mode bound is used instead of a loose bound when the
             mode for the feature is the same as an original bound, as it may
             represent an application-specific min/max.
@@ -609,10 +642,9 @@ class InferFeatureAttributesTimeSeries:
 
         Returns
         -------
-        FeautreAttributesBase
-
-        A subclass of FeatureAttributesBase that extends `dict`, thus providing
-        dict-like access to feature attributes and useful helper methods.
+        FeatureAttributesBase
+            A subclass of FeatureAttributesBase that extends `dict`, thus providing
+            dict-like access to feature attributes and useful helper methods.
         """
         infer = InferFeatureAttributesDataFrame(self.data)
 
@@ -643,7 +675,7 @@ class InferFeatureAttributesTimeSeries:
         if isinstance(time_invariant_features, str):
             time_invariant_features = [time_invariant_features]
         elif isinstance(time_invariant_features, Iterable):
-            time_invariant_features = time_invariant_features
+            time_invariant_features = list(time_invariant_features)
         else:
             time_invariant_features = []
 
@@ -669,7 +701,7 @@ class InferFeatureAttributesTimeSeries:
             if self.data[f_name].isnull().sum() == len(self.data[f_name]):
                 time_invariant_features.append(f_name)
 
-            if time_invariant_features == [] or f_name not in time_invariant_features:
+            if f_name not in time_invariant_features:
                 if time_series_types_override and f_name in time_series_types_override:
                     features[f_name]['time_series'] = {
                         'type': time_series_types_override[f_name]
@@ -716,12 +748,16 @@ class InferFeatureAttributesTimeSeries:
             # which is not applicable to time feature.
             features[self.time_feature_name].pop('subtype', None)
 
-            # if the time feature has no datetime and is stored as a string,
-            # convert to an int for comparison since it's continuous
-            if (
-                    'date_time_format' not in features[self.time_feature_name] and
-                    is_string_dtype(self.data[self.time_feature_name].dtype)
-            ):
+            if dt_format := features[self.time_feature_name].get("date_time_format"):
+                # if a datetime format is defined, ensure values can be parsed with it
+                test_value = infer._get_random_value(self.time_feature_name, no_nulls=True)
+                if test_value is not None and not is_valid_datetime_format(str(test_value), dt_format):
+                    raise ValueError(
+                        f'The date time format "{dt_format}" does not match the data of the time feature '
+                        f'"{self.time_feature_name}". Data sample: "{test_value}"')
+            elif is_string_dtype(self.data[self.time_feature_name].dtype):
+                # if the time feature has no datetime format and is stored as a string,
+                # convert to an int for comparison since it's continuous
                 self.data[self.time_feature_name] = self.data[self.time_feature_name].astype(float)
 
             # time feature cannot be null

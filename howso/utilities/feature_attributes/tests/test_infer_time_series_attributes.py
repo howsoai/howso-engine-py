@@ -259,3 +259,17 @@ def test_infer_features_attributes_tight_bounds_dependent_functionality():
     assert features["f1"]["dependent_features"] == ["f2"]
     assert features["f3"]["bounds"]["max"] == f3_max
     assert features["f3"]["bounds"]["min"] == f3_min
+
+
+def test_invalid_time_feature_format():
+    """Validates that an invalid time feature date_time_format raises."""
+    df = pd.read_csv(data_path)
+    time_feature_name = "date"
+
+    with pytest.raises(ValueError, match="does not match the data of the time feature"):
+        infer_feature_attributes(
+            df,
+            time_feature_name=time_feature_name,
+            id_feature_name="ID",
+            datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"}  # invalid format
+        )

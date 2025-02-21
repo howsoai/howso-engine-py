@@ -28,7 +28,6 @@ from howso.utilities.feature_attributes.base import (
 )
 from howso.utilities.features import serialize_cases
 from howso.utilities.monitors import ProgressTimer
-
 from .exceptions import (
     HowsoError,
     UnsupportedArgumentWarning,
@@ -55,10 +54,10 @@ from .typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
-    TrainStatus,
     TabularData2D,
     TabularData3D,
     TargetedModel,
+    TrainStatus,
 )
 
 if t.TYPE_CHECKING:
