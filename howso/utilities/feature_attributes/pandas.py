@@ -189,7 +189,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 if getattr(dtype, 'kind', None) != 'U':
                     warnings.warn(
                         f'The column "{feature_name}" contained bytes, original '
-                        'encoding of this column is not be guaranteed.'
+                        'encoding of this column cannot be guaranteed.'
                     )
                 return FeatureType.STRING, {}
 
@@ -206,7 +206,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 elif isinstance(first_non_null, bytes):
                     warnings.warn(
                         f'The column "{feature_name}" contained bytes, original '
-                        'encoding of this column is not be guaranteed.'
+                        'encoding of this column cannot be guaranteed.'
                     )
                     return FeatureType.STRING, {}
                 elif isinstance(first_non_null, datetime.datetime):
@@ -263,6 +263,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         tight_bounds: t.Optional[Iterable[str]] = None,
         mode_bound_features: t.Optional[Iterable[str]] = None,
     ) -> dict | None:
+        # prevent circular import
         from howso.client.exceptions import DatetimeFormatWarning
         output: dict[str, t.Any] = dict()
         allow_null = True
