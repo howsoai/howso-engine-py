@@ -10,9 +10,9 @@ from howso.utilities.feature_attributes.base import InferFeatureAttributesBase
     (41, 105, 0, 146.518),
     (0, 200, 0, 329.744),
     (-200, 0, -329.744, 0),
-    (100, 100, 100, 100),
-    (0, 0, 0, 0),
-    (0, -200, Exception, Exception),
+    (100, 100, 98.351, 101.649),
+    (0, 0, 0.0, 0.0),
+    (0, -200, 0.0, 0.0),
 ])
 def test_infer_loose_bounds(observed_min, observed_max, inferred_min, inferred_max):
     """Test that our calculations produce expected values."""

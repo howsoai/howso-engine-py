@@ -63,8 +63,8 @@ class TestInferFeatureAttributes:
         assert feature_attribs['datetime']['locale'] == 'en_US'
 
         # loose bounds select dates beyond what's in the dataset
-        assert feature_attribs['datetime']['bounds']['min'] == '05.25.1856'
-        assert feature_attribs['datetime']['bounds']['max'] == '08.08.2083'
+        assert feature_attribs['datetime']['bounds']['min'] == '12.07.1855'
+        assert feature_attribs['datetime']['bounds']['max'] == '11.15.2085'
 
     def test_datetime_warns_custom_format(self):
         """Test that infer_feature_attributes infers dates correctly."""

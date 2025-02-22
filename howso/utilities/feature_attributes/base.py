@@ -1098,11 +1098,14 @@ class InferFeatureAttributesBase(ABC):
         #       reverse-engineer-able.
         if min_bound > max_bound:
             raise AssertionError(
-                "Feature min_bound cannot be larger than max_bound"
+                "Feature min_bound cannot be larger than max_bound."
             )
         scale_factor = 0.5
         value_range = max_bound - min_bound
-        new_range = np.exp(np.log(value_range) + scale_factor)
+        if value_range == 0.0:
+            new_range = np.exp(scale_factor)
+        else:
+            new_range = np.exp(np.log(value_range) + scale_factor)
 
         base_min_bound = max_bound - new_range
         base_max_bound = min_bound + new_range
