@@ -502,7 +502,7 @@ A library to handle automated deprecations
 
 
 humanize
-4.12.0
+4.12.1
 UNKNOWN
 Jason Moiron <jmoiron@jmoiron.net>
 https://github.com/python-humanize/humanize
