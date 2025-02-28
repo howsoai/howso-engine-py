@@ -3513,6 +3513,7 @@ class AbstractHowsoClient(ABC):
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         details: t.Optional[dict] = None,
+        features_to_derive: t.Optional(Collection[str]) = None,
         feature_influences_action_feature: t.Optional[str] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
         num_robust_influence_samples: t.Optional[int] = None,
@@ -3691,6 +3692,11 @@ class AbstractHowsoClient(ABC):
                   continuous features only. Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
                   actual value. The minimum gap for each feature is the smallest difference between two values
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
+        features_to_derive: list of str, optional
+            List of feature names whose values should be derived rather than interpolated from influential
+            cases when predicted. If unspecified, then the features that have derivation logic defined will
+            automatically be chosen to be derived. Specifying an empty list will ensure that all features
+            are interpolated rather than derived.
         feature_influences_action_feature : str, optional
             When feature influences such as contributions and mda, use this feature as
             the action feature.  If not provided, will default to the ``action_feature`` if provided.
@@ -3805,6 +3811,7 @@ class AbstractHowsoClient(ABC):
             "context_features": context_features,
             "confusion_matrix_min_count": confusion_matrix_min_count,
             "details": details,
+            "features_to_derive": features_to_derive,
             "feature_influences_action_feature": feature_influences_action_feature,
             "hyperparameter_param_path": hyperparameter_param_path,
             "num_robust_influence_samples": num_robust_influence_samples,
