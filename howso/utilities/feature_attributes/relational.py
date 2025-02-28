@@ -948,7 +948,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 if format_dt is not None:
                     min_v = epoch_to_date(min_v, format_dt, min_date_tz)
                     max_v = epoch_to_date(max_v, format_dt, max_date_tz)
-                    if date_to_epoch(min_date, format_dt) > date_to_epoch(max_date, format_dt):
+                    if date_to_epoch(min_v, format_dt) > date_to_epoch(max_v, format_dt):
                         warnings.warn(
                             f'Feature "{feature_name}" bounds could not be computed. '
                             'This is likely due to a constrained date time format.'

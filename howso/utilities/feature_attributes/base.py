@@ -1092,10 +1092,6 @@ class InferFeatureAttributesBase(ABC):
             Tuple (min_bound, max_bound) of loose bounds around the provided tight
             min and max_bound bounds
         """
-        # NOTE: It was considered to use a smoother bounds-expansion function that
-        #       looked like max_loose_bounds = exp(ln(max_bounds) + 0.5), but this
-        #       could leak privacy since the actual bounds would be
-        #       reverse-engineer-able.
         if min_bound > max_bound:
             raise AssertionError(
                 "Feature min_bound cannot be larger than max_bound."
