@@ -1179,6 +1179,7 @@ class Trainee(BaseTrainee):
         details: t.Optional[Mapping[str, t.Any]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
+        feature_post_process_code_map: t.Optional[Mapping] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
         initial_batch_size: t.Optional[int] = None,
@@ -1599,6 +1600,15 @@ class Trainee(BaseTrainee):
                     "feature_c": {"max": 1}
                 }
 
+        feature_post_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the feature they are mapped from.
+            The custom code is evaluated just after a feature value is predicted
+            or synthesized to update the value of the feature, meaning that the
+            resulting value will be used as part of the context for following
+            action features. The custom code will have access to all context
+            feature values and previously generated action feature values.
+
         generate_new_cases : {"always", "attempt", "no"}, default "no"
             This parameter takes in a string that may be one of the following:
 
@@ -1721,6 +1731,7 @@ class Trainee(BaseTrainee):
             details=details,
             exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
             feature_bounds_map=feature_bounds_map,
+            feature_post_process_code_map=feature_post_process_code_map,
             generate_new_cases=generate_new_cases,
             goal_features_map=goal_features_map,
             initial_batch_size=initial_batch_size,
@@ -1753,6 +1764,7 @@ class Trainee(BaseTrainee):
         details: t.Optional[Mapping[str, t.Any]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
+        feature_post_process_code_map: t.Optional[Mapping] = None,
         final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -1820,6 +1832,16 @@ class Trainee(BaseTrainee):
             is True. Only applies to generative reacts.
         feature_bounds_map : map of str -> map of str -> object, optional
             See parameter ``feature_bounds_map`` in :meth:`react`.
+        feature_post_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the feature they are mapped from.
+            The custom code is evaluated just after a feature value is predicted
+            or synthesized to update the value of the feature, meaning that the
+            resulting value will be used as part of the context for following
+            action features. The custom code will have access to all context
+            feature values and previously generated action feature values of
+            the timestep being generated, as well as the feature values of all
+            previously generated timesteps.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
             Time-series only. Must provide either one for all series, or
@@ -1938,6 +1960,7 @@ class Trainee(BaseTrainee):
                 details=details,
                 exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
                 feature_bounds_map=feature_bounds_map,
+                feature_post_process_code_map=feature_post_process_code_map,
                 final_time_steps=final_time_steps,
                 generate_new_cases=generate_new_cases,
                 goal_features_map=goal_features_map,

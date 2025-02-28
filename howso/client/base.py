@@ -1463,6 +1463,7 @@ class AbstractHowsoClient(ABC):
         details: t.Optional[Mapping] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping] = None,
+        feature_post_process_code_map: t.Optional[Mapping] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
         initial_batch_size: t.Optional[int] = None,
@@ -1932,6 +1933,15 @@ class AbstractHowsoClient(ABC):
                     "feature_c": {"max": 1}
                 }
 
+        feature_post_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the feature they are mapped from.
+            The custom code is evaluated just after a feature value is predicted
+            or synthesized to update the value of the feature, meaning that the
+            resulting value will be used as part of the context for following
+            action features. The custom code will have access to all context
+            feature values and previously generated action feature values.
+
         generate_new_cases : {"always", "attempt", "no"}, default "no"
             (Optional) Whether to generate new cases.
 
@@ -2158,6 +2168,7 @@ class AbstractHowsoClient(ABC):
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "feature_post_process_code_map": feature_post_process_code_map,
                 "goal_features_map": goal_features_map,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
@@ -2199,6 +2210,7 @@ class AbstractHowsoClient(ABC):
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "feature_post_process_code_map": feature_post_process_code_map,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
                 "use_regional_residuals": use_regional_residuals,
@@ -2595,6 +2607,7 @@ class AbstractHowsoClient(ABC):
         details: t.Optional[Mapping] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
+        feature_post_process_code_map: t.Optional[Mapping] = None,
         final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -2695,6 +2708,16 @@ class AbstractHowsoClient(ABC):
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
+        feature_post_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the feature they are mapped from.
+            The custom code is evaluated just after a feature value is predicted
+            or synthesized to update the value of the feature, meaning that the
+            resulting value will be used as part of the context for following
+            action features. The custom code will have access to all context
+            feature values and previously generated action feature values of
+            the timestep being generated, as well as the feature values of all
+            previously generated timesteps.
         series_context_features : iterable of str, optional
             List of context features corresponding to ``series_context_values``.
         series_context_values : list of list of list of object or list of DataFrame, optional
@@ -2864,6 +2887,7 @@ class AbstractHowsoClient(ABC):
             react_params = {
                 "action_features": action_features,
                 "continue_series": continue_series,
+                "feature_post_process_code_map": feature_post_process_code_map,
                 "final_time_steps": final_time_steps,
                 "init_time_steps": init_time_steps,
                 "series_stop_maps": series_stop_maps,
@@ -2913,6 +2937,7 @@ class AbstractHowsoClient(ABC):
                 "num_series_to_generate": num_series_to_generate,
                 "action_features": action_features,
                 "continue_series": continue_series,
+                "feature_post_process_code_map": feature_post_process_code_map,
                 "final_time_steps": final_time_steps,
                 "init_time_steps": init_time_steps,
                 "series_stop_maps": series_stop_maps,
