@@ -4,15 +4,15 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --generate-hashes --no-emit-index-url --output-file=requirements-3.13-dev.txt
 #
-amalgam-lang==18.0.2 \
-    --hash=sha256:069072d84fd2da33f8b0403194cf1d096931bfd2e4d36df20294bcecffbf749b \
-    --hash=sha256:1ae753fb0041c8289f88a7fa989c3696721b185c1e276649cd5294c19daecf68 \
-    --hash=sha256:3fa030e6689d5ebf5a05759c0fa04fcac2dbaa7d30607cf6c04eece7133ac5b9 \
-    --hash=sha256:4087a703ef1b835089157da6c401933077ec415206384c57bcb4a100f2778fee \
-    --hash=sha256:40a41faf09ca7f0af0949060592a1c5401b90ab078e694ad154e4f195378ca5a \
-    --hash=sha256:92abd3002c210d5e4c2e1b964f6767c856cbc9ed22207094b140e31d3f6de2e7 \
-    --hash=sha256:955cc2912eb7cf504ae1f6794b6431a0b8ecd69eaae08c064d7e4da7f1fd741c \
-    --hash=sha256:b0f1a299289c3480ead511c0619c7e2761ab62bd7ba26c29df5a9c5e48f56b0a
+amalgam-lang==18.0.3 \
+    --hash=sha256:067af299058c7377aaeb63a8efafcc60c94bb190f1faee975d13631ef7a68c70 \
+    --hash=sha256:4c0a2355cb87d7f7d7a35e4eb9ed6e62a07a49f403ca3cc901a52b1560961573 \
+    --hash=sha256:5a8f38215749557403ae70f15ae708b6c9d39b825f3e08bc9d582663a0297db8 \
+    --hash=sha256:7700a0e82c79610ba777cb485c039ef741760979e9b1048dc2fd1e40d10325d5 \
+    --hash=sha256:bde484f77d593ea7eac11ec931d4332ee9206f7169ac474391560ccadb86230a \
+    --hash=sha256:c3e53f94fa5e554a9981adc06aed6318335d1307da5aff903c1c6c6dc6fa68c0 \
+    --hash=sha256:c4afbb93b9c28b7c992bc55f8e617c8223c1fbc60634822ff30e0266f6556d64 \
+    --hash=sha256:d1236820a21b0a02893362cc361747496e298ef72f23edabaa27bf5f075deb43
     # via howso-engine (pyproject.toml)
 astroid==3.3.8 \
     --hash=sha256:187ccc0c248bfbba564826c26f070494f7bc964fd286b6d9fff4420e55de828c \
@@ -337,9 +337,9 @@ iniconfig==2.0.0 \
     --hash=sha256:2d91e135bf72d31a410b17c16da610a82cb55f6b0477d1a902134b24a455b8b3 \
     --hash=sha256:b6a85871a79d2e3b22d2d1b94ac2824226a63c6b741c88f7ae975f18b6778374
     # via pytest
-isort==6.0.0 \
-    --hash=sha256:567954102bb47bb12e0fae62606570faacddd441e45683968c8d1734fb1af892 \
-    --hash=sha256:75d9d8a1438a9432a7d7b54f2d3b45cad9a4a0fdba43617d9873379704a8bdf1
+isort==6.0.1 \
+    --hash=sha256:1cb5df28dfbc742e490c5e41bad6da41b805b0a8be7bc93cd0fb2a8a890ac450 \
+    --hash=sha256:2dc5d7f65c9678d94c88dfc29161a320eec67328bc97aad576874cb4be1e9615
     # via pylint
 joblib==1.4.2 \
     --hash=sha256:06d478d5674cbc267e7496a410ee875abd68e4340feff4490bcb7afb88060ae6 \
@@ -835,9 +835,9 @@ pip==25.0.1 \
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==75.8.0 \
-    --hash=sha256:c5afc8f407c626b8313a86e10311dd3f661c6cd9c09d4bf8c15c0e11f9f2b0e6 \
-    --hash=sha256:e3982f444617239225d675215d51f6ba05f845d4eec313da4418fdbb56fb27e3
+setuptools==75.8.2 \
+    --hash=sha256:4880473a969e5f23f2a2be3646b2dfd84af9028716d398e46192f84bc36900d2 \
+    --hash=sha256:558e47c15f1811c1fa7adbd0096669bf76c1d3f433f58324df69f3f5ecac4e8f
     # via
     #   flake8-import-order
     #   pip-tools
