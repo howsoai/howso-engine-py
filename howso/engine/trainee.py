@@ -989,6 +989,7 @@ class Trainee(BaseTrainee):
         targeted_model: t.Optional[TargetedModel] = None,
         use_case_weights: t.Optional[bool] = None,
         use_deviations: t.Optional[bool] = None,
+        use_sdm: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
         **kwargs
     ):
@@ -1049,6 +1050,13 @@ class Trainee(BaseTrainee):
             be used if the Trainee has them.
         use_deviations : bool, default False
             When True, uses deviations for LK metric in queries.
+        use_sdm : bool, optional, default is True
+            When True, will compute and use a sparse deviation matrix (SDM) for
+            each nominal feature in all similarity queries. Enabling SDM will
+            typically incur a small to moderate penalty on speed when using
+            nominal features in inference in exchange for yielding higher
+            quality inference. The magnitude of the changes are dependent on
+            relationships among the data and the task at hand.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1075,6 +1083,7 @@ class Trainee(BaseTrainee):
                 rebalance_features=rebalance_features,
                 targeted_model=targeted_model,
                 use_deviations=use_deviations,
+                use_sdm=use_sdm,
                 weight_feature=weight_feature,
                 **kwargs
             )
