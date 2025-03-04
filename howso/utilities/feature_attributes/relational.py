@@ -965,13 +965,24 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     observed_max_value = float(observed_max_value)
 
                 output = {'allow_null': allow_null}
-                if not isnan(min_v):
+                if min_v and isinstance(min_v, str):
                     output.update(min=min_v)
-                if not isnan(max_v):
+                elif not isnan(min_v):
+                    output.update(min=min_v)
+
+                if max_v and isinstance(max_v, str):
                     output.update(max=max_v)
-                if not isnan(observed_min_value):
+                elif not isnan(max_v):
+                    output.update(max=max_v)
+
+                if observed_min_value and isinstance(observed_min_value, str):
                     output.update(observed_min=observed_min_value)
-                if not isnan(observed_max_value):
+                elif not isnan(observed_min_value):
+                    output.update(observed_min=observed_min_value)
+
+                if observed_max_value and isinstance(observed_max_value, str):
+                    output.update(observed_min=observed_max_value)
+                elif not isnan(observed_max_value):
                     output.update(observed_max=observed_max_value)
             else:
                 # If no min/max were found from the data, use min/max size of
