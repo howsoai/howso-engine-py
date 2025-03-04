@@ -3454,7 +3454,19 @@ class Trainee(BaseTrainee):
             that were computed in this mode.
         weight_feature : str, optional
             If specified, will find and return the best analyzed hyperparameters
-            that were analyzed using this weight feaure.
+            that were analyzed using this weight feature.
+        numerical_precision : str, optional
+            Sets the preference for performance vs. computational accuracy.
+            Valid values are:
+                - "recompute_precise" : default value, will use fast
+                  computation for finding similar cases but recompute their
+                  exact similarities and influences precisely.
+                - "precise" : will always use high precision computation for
+                  finding similar cases and computing similarities
+                  and influences.
+                - "fast" : will always use a fast approach for all computations
+                  which will use faster, but lower precision
+                  numeric operations.
 
         Returns
         -------
