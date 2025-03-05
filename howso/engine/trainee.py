@@ -1195,7 +1195,6 @@ class Trainee(BaseTrainee):
         input_is_substituted: bool = False,
         into_series_store: t.Optional[str] = None,
         leave_case_out: bool = False,
-        new_case_threshold: NewCaseThreshold = "min",
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
         preserve_feature_values: t.Optional[Collection[str]] = None,
@@ -1675,15 +1674,6 @@ class Trainee(BaseTrainee):
             When True and specified along with ``case_indices``, each individual
             react will respectively ignore the corresponding case specified
             by ``case_indices`` by leaving it out.
-        new_case_threshold : {"max", "min", "most_similar"}, default "min"
-            Distance to determine the privacy cutoff.
-
-            Possible values:
-
-                - min: minimum distance in the original local space.
-                - max: maximum distance in the original local space.
-                - most_similar: distance between the nearest neighbor to the nearest
-                  neighbor in the original space.
         num_cases_to_generate : int, default 1
             The number of cases to generate.
         ordered_by_specified_features : bool, default False
@@ -1747,7 +1737,6 @@ class Trainee(BaseTrainee):
             input_is_substituted=input_is_substituted,
             into_series_store=into_series_store,
             leave_case_out=leave_case_out,
-            new_case_threshold=new_case_threshold,
             num_cases_to_generate=num_cases_to_generate,
             ordered_by_specified_features=ordered_by_specified_features,
             post_process_features=post_process_features,
@@ -1782,7 +1771,6 @@ class Trainee(BaseTrainee):
         input_is_substituted: bool = False,
         leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
-        new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
         output_new_series_ids: bool = True,
@@ -1883,8 +1871,6 @@ class Trainee(BaseTrainee):
             with ``continue_series``, this defines the maximum length of the
             forecast. Must provide either one for all series, or exactly
             one per series.
-        new_case_threshold : str, optional
-            See parameter ``new_case_threshold`` in :meth:`react`.
         num_series_to_generate : int, default 1
             The number of series to generate when desired conviction is specified.
         ordered_by_specified_features : bool, default False
@@ -1978,7 +1964,6 @@ class Trainee(BaseTrainee):
                 initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
                 max_series_lengths=max_series_lengths,
-                new_case_threshold=new_case_threshold,
                 num_series_to_generate=num_series_to_generate,
                 ordered_by_specified_features=ordered_by_specified_features,
                 output_new_series_ids=output_new_series_ids,
