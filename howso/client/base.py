@@ -4064,7 +4064,7 @@ class AbstractHowsoClient(ABC):
         targeted_model: t.Optional[TargetedModel] = None,
         use_case_weights: t.Optional[bool] = None,
         use_deviations: t.Optional[bool] = None,
-        use_sdm: t.Optional[bool] = None,
+        use_sdm: t.Optional[bool] = True,
         weight_feature: t.Optional[str] = None,
         **kwargs
     ):
@@ -4127,14 +4127,13 @@ class AbstractHowsoClient(ABC):
             will be used if the Trainee has them.
         use_deviations : bool, optional
             When True, uses deviations for LK metric in queries.
-        use_sdm : bool, default None,
+        use_sdm : bool, default True,
             When True, Howso Engine will compute and use a sparse deviation
             matrix (SDM) for each nominal feature in all similarity queries.
             Enabling SDM will typically incur a small to moderate penalty on
             speed when using nominal features in inference in exchange for
             yielding higher quality inference. The magnitude of the changes are
             dependent on relationships among the data and the task at hand.
-            Howso Engine will default to True, if left unset.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -4270,7 +4269,7 @@ class AbstractHowsoClient(ABC):
         targeted_model: t.Optional[TargetedModel] = None,
         use_deviations: t.Optional[bool] = None,
         use_case_weights: t.Optional[bool] = None,
-        use_sdm: t.Optional[bool] = None,
+        use_sdm: t.Optional[bool] = True,
         weight_feature: t.Optional[str] = None,
         **kwargs
     ):
@@ -4343,14 +4342,13 @@ class AbstractHowsoClient(ABC):
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
             will be used if the Trainee has them.
-        use_sdm : bool, default None,
+        use_sdm : bool, default True,
             When True, Howso Engine will compute and use a sparse deviation
             matrix (SDM) for each nominal feature in all similarity queries.
             Enabling SDM will typically incur a small to moderate penalty on
             speed when using nominal features in inference in exchange for
             yielding higher quality inference. The magnitude of the changes are
             dependent on relationships among the data and the task at hand.
-            Howso Engine will default to True, if left unset.
         weight_feature : str
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -5446,6 +5444,18 @@ class AbstractHowsoClient(ABC):
         weight_feature : str, optional
             If specified, will find and return the best analyzed hyperparameters
             that were analyzed using this weight feature.
+        numerical_precision : str, optional
+            Sets the preference for performance vs. computational accuracy.
+            Valid values are:
+                - "recompute_precise" : default value, will use fast
+                  computation for finding similar cases but recompute their
+                  exact similarities and influences precisely.
+                - "precise" : will always use high precision computation for
+                  finding similar cases and computing similarities
+                  and influences.
+                - "fast" : will always use a fast approach for all computations
+                  which will use faster, but lower precision
+                  numeric operations.
 
         Returns
         -------
