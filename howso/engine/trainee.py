@@ -1678,6 +1678,8 @@ class Trainee(BaseTrainee):
             When True and specified along with ``case_indices``, each individual
             react will respectively ignore the corresponding case specified
             by ``case_indices`` by leaving it out.
+        new_case_sensitivity_bandwidth : int, default 0
+            TODO
         new_case_threshold : {"max", "min", "most_similar"}, default "min"
             Distance to determine the privacy cutoff.
 
