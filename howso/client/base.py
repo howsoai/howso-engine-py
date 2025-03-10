@@ -3540,6 +3540,7 @@ class AbstractHowsoClient(ABC):
         details: t.Optional[dict] = None,
         features_to_derive: t.Optional(Collection[str]) = None,
         feature_influences_action_feature: t.Optional[str] = None,
+        goal_features_map: t.Optional[Mapping] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
         num_robust_influence_samples: t.Optional[int] = None,
         num_robust_residual_samples: t.Optional[int] = None,
@@ -3727,6 +3728,29 @@ class AbstractHowsoClient(ABC):
             the action feature.  If not provided, will default to the ``action_feature`` if provided.
             If ``action_feature`` is not provided and feature influences ``details`` are
             selected, this feature must be provided.
+        goal_features_map : dict of dict, optional
+            A mapping of feature name to the goals for the feature, which will
+            cause each internal prediction to achieve the goals as appropriate
+            for the given context. This functions similarly to the same parameter
+            in ``AbstractHowsoClient.react``, but is used in every prediction made
+            while computing the desired metrics.
+            Valid keys in the map are:
+
+                - "goal": "min" or "max", will make a prediction while minimizing or
+                  maximizing the value for the feature.
+                - "value" : somevalue, will make a prediction while approaching the
+                  specified value.
+
+            .. NOTE::
+                Nominal features only support "value", "goal" is ignored.
+                For non-nominals, if both are provided, only "goal" is considered.
+
+            Example::
+
+                {
+                    "feature_a" : { "goal": "max" },
+                    "feature_b" : { "value": 99 }
+                }
         hyperparameter_param_path : iterable of str, optional.
             Full path for hyperparameters to use for computation. If specified
             for any residual computations, takes precedence over action_feature
@@ -3838,6 +3862,7 @@ class AbstractHowsoClient(ABC):
             "details": details,
             "features_to_derive": features_to_derive,
             "feature_influences_action_feature": feature_influences_action_feature,
+            "goal_features_map": goal_features_map,
             "hyperparameter_param_path": hyperparameter_param_path,
             "num_robust_influence_samples": num_robust_influence_samples,
             "num_robust_residual_samples": num_robust_residual_samples,
