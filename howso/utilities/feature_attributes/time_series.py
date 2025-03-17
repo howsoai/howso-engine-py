@@ -755,6 +755,10 @@ class InferFeatureAttributesTimeSeries:
                     # If lag_list is specified, lags is not used
                     if 'num_lags' in features[f_name]['time_series']:
                         del features[f_name]['time_series']['num_lags']
+                    if isinstance(f_lags, int):
+                        f_lags = [f_lags]
+                    elif not isinstance(f_lags, list):
+                        raise TypeError(f'Unsupported type for {f_name} lags value (must be list)')
                     features[f_name]['time_series']['lags'] = f_lags
 
         if self.time_feature_name in features:

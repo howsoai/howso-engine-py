@@ -4,6 +4,7 @@ from pathlib import Path
 import warnings
 
 from howso import client
+from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
 import pandas as pd
 import pytest
@@ -277,6 +278,7 @@ def test_invalid_time_feature_format():
                 datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"}  # invalid format
             )
 
+
 @pytest.mark.parametrize('data, types, expected_types, is_valid', [
     (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'), dict(b='continuous'), True),
     (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'), dict(a='continuous'), True),
@@ -298,3 +300,17 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
         else:
             with pytest.raises(ValueError):
                 infer_feature_attributes(data, types=types)
+
+
+def test_lags():
+    """Validates that `lags` can be set as an argument for time series IFA."""
+    df = pd.read_csv(data_path)
+
+    # The below should not raise any exceptions
+    lags = {"date": 0}
+    fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags=lags)
+    Trainee(features=fa)
+
+    # Ensure that an invalid lags value raises a helpful TypeError
+    with pytest.raises(TypeError):
+        fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags={"date": '0'})
