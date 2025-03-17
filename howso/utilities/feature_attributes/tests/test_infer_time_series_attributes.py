@@ -276,3 +276,25 @@ def test_invalid_time_feature_format():
                 id_feature_name="ID",
                 datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"}  # invalid format
             )
+
+@pytest.mark.parametrize('data, types, expected_types, is_valid', [
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'), dict(b='continuous'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'), dict(a='continuous'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'), dict(b='nominal'), True),
+    (pd.DataFrame({'a': [True, False, False, True], 'b': [False, True, False, True]}), dict(b='continuous'), dict(b='nominal'), True),
+])
+def test_preset_feature_types(data, types, expected_types, is_valid):
+    """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
+    features = {}
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if is_valid:
+            features = infer_feature_attributes(data, types=types, time_feature_name='a')
+            for feature_name, expected_type in expected_types.items():
+                # Make sure it is the correct type
+                assert features[feature_name]['type'] == expected_type
+                # All features in this test, including nominals, should have bounds (at the very least: `allow_null`)
+                assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
+        else:
+            with pytest.raises(ValueError):
+                infer_feature_attributes(data, types=types)
