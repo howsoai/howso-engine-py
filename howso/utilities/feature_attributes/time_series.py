@@ -358,6 +358,7 @@ class InferFeatureAttributesTimeSeries:
         time_feature_is_universal: t.Optional[bool] = None,
         time_series_type_default: t.Optional[str] = 'rate',
         time_series_types_override: t.Optional[dict] = None,
+        types: t.Optional[dict[str, str] | dict[str, t.MutableSequence[str]]] = None,
         orders_of_derivatives: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
         mode_bound_features: t.Optional[Iterable[str]] = None,
@@ -576,6 +577,21 @@ class InferFeatureAttributesTimeSeries:
             one of 'rate' or 'delta', used to override time_series_type_default
             for the specified features.
 
+        types: dict, default None
+            (Optional) Dict of features and their intended type (i.e., "nominal,"
+            "ordinal," or "continuous"), or types mapped to MutableSequences of
+            feature names. Any types provided here will override the types that would
+            otherwise be inferred, and will direct ``infer_feature_attributes`` to
+            compute the attributes accordingly.
+
+            Example::
+
+                {
+                    "feature_1": "nominal",
+                    "feature_2": "ordinal",
+                    "continuous": ["feature_3", "feature_4", "feature_5"]
+                }
+
         orders_of_derivatives : dict, default None
             (Optional) Dict of features and their corresponding order of
             derivatives for the specified type (delta/rate). If provided will
@@ -672,7 +688,8 @@ class InferFeatureAttributesTimeSeries:
             include_sample=include_sample,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
             mode_bound_features=mode_bound_features,
-            max_workers=max_workers
+            max_workers=max_workers,
+            types=types,
         )
 
         # Add any features with unsupported data to this object's list
