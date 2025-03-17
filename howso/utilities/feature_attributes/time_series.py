@@ -677,18 +677,18 @@ class InferFeatureAttributesTimeSeries:
             ]
 
         features = infer(
-            features=features,
-            infer_bounds=infer_bounds,
+            attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             datetime_feature_formats=datetime_feature_formats,
             dependent_features=dependent_features,
-            attempt_infer_extended_nominals=attempt_infer_extended_nominals,
-            nominal_substitution_config=nominal_substitution_config,
-            include_extended_nominal_probabilities=include_extended_nominal_probabilities,
+            features=features,
             id_feature_name=id_feature_name,
+            include_extended_nominal_probabilities=include_extended_nominal_probabilities,
             include_sample=include_sample,
-            tight_bounds=set(tight_bounds) if tight_bounds else None,
-            mode_bound_features=mode_bound_features,
+            infer_bounds=infer_bounds,
             max_workers=max_workers,
+            mode_bound_features=mode_bound_features,
+            nominal_substitution_config=nominal_substitution_config,
+            tight_bounds=set(tight_bounds) if tight_bounds else None,
             types=types,
         )
 
