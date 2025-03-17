@@ -344,29 +344,29 @@ class InferFeatureAttributesTimeSeries:
 
     def _process(  # noqa: C901
         self,
-        features: t.Optional[dict] = None,
-        infer_bounds: bool = True,
-        id_feature_name: t.Optional[str | Iterable[str]] = None,
-        time_invariant_features: t.Optional[Iterable[str]] = None,
-        datetime_feature_formats: t.Optional[dict] = None,
-        dependent_features: t.Optional[dict] = None,
-        tight_bounds: t.Optional[Iterable[str]] = None,
         attempt_infer_extended_nominals: bool = False,
-        nominal_substitution_config: t.Optional[dict[str, dict]] = None,
+        datetime_feature_formats: t.Optional[dict] = None,
+        delta_boundaries: t.Optional[dict] = None,
+        dependent_features: t.Optional[dict] = None,
+        derived_orders: t.Optional[dict] = None,
+        features: t.Optional[dict] = None,
+        id_feature_name: t.Optional[str | Iterable[str]] = None,
         include_extended_nominal_probabilities: t.Optional[bool] = False,
         include_sample: bool = False,
+        infer_bounds: bool = True,
+        lags: t.Optional[list | dict] = None,
+        max_workers: t.Optional[int] = None,
+        mode_bound_features: t.Optional[Iterable[str]] = None,
+        nominal_substitution_config: t.Optional[dict[str, dict]] = None,
+        num_lags: t.Optional[int | dict] = None,
+        orders_of_derivatives: t.Optional[dict] = None,
+        rate_boundaries: t.Optional[dict] = None,
+        time_invariant_features: t.Optional[Iterable[str]] = None,
+        tight_bounds: t.Optional[Iterable[str]] = None,
         time_feature_is_universal: t.Optional[bool] = None,
         time_series_type_default: t.Optional[str] = 'rate',
         time_series_types_override: t.Optional[dict] = None,
         types: t.Optional[dict[str, str] | dict[str, t.MutableSequence[str]]] = None,
-        orders_of_derivatives: t.Optional[dict] = None,
-        derived_orders: t.Optional[dict] = None,
-        mode_bound_features: t.Optional[Iterable[str]] = None,
-        lags: t.Optional[list | dict] = None,
-        num_lags: t.Optional[int | dict] = None,
-        rate_boundaries: t.Optional[dict] = None,
-        delta_boundaries: t.Optional[dict] = None,
-        max_workers: t.Optional[int] = None,
     ) -> dict:
         """
         Infer time series attributes.
@@ -677,18 +677,18 @@ class InferFeatureAttributesTimeSeries:
             ]
 
         features = infer(
-            features=features,
-            infer_bounds=infer_bounds,
+            attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             datetime_feature_formats=datetime_feature_formats,
             dependent_features=dependent_features,
-            attempt_infer_extended_nominals=attempt_infer_extended_nominals,
-            nominal_substitution_config=nominal_substitution_config,
-            include_extended_nominal_probabilities=include_extended_nominal_probabilities,
+            features=features,
             id_feature_name=id_feature_name,
+            include_extended_nominal_probabilities=include_extended_nominal_probabilities,
             include_sample=include_sample,
-            tight_bounds=set(tight_bounds) if tight_bounds else None,
-            mode_bound_features=mode_bound_features,
+            infer_bounds=infer_bounds,
             max_workers=max_workers,
+            mode_bound_features=mode_bound_features,
+            nominal_substitution_config=nominal_substitution_config,
+            tight_bounds=set(tight_bounds) if tight_bounds else None,
             types=types,
         )
 
@@ -755,6 +755,10 @@ class InferFeatureAttributesTimeSeries:
                     # If lag_list is specified, lags is not used
                     if 'num_lags' in features[f_name]['time_series']:
                         del features[f_name]['time_series']['num_lags']
+                    if isinstance(f_lags, int):
+                        f_lags = [f_lags]
+                    elif not isinstance(f_lags, list):
+                        raise TypeError(f'Unsupported type for {f_name} lags value (must be list)')
                     features[f_name]['time_series']['lags'] = f_lags
 
         if self.time_feature_name in features:
