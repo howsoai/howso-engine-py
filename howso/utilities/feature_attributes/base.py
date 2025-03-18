@@ -218,8 +218,8 @@ class FeatureAttributesBase(dict):
             if without is None or key not in without
         ]
 
-    def _validate_bounds(self, data: pd.DataFrame, feature: str,
-                         attributes: dict) -> list[str]:  # noqa: C901
+    def _validate_bounds(self, data: pd.DataFrame, feature: str,  # noqa: C901
+                         attributes: dict) -> list[str]:
         """Validate the feature bounds of the provided DataFrame."""
         # Import here to avoid circular import
         from howso.utilities import date_to_epoch
@@ -816,9 +816,9 @@ class InferFeatureAttributesBase(ABC):
                     # User passed only the format string
                     # First see if it is likely a time-only feature
                     if (not any(date_id in user_dt_format
-                        for date_id in ['%m', '%d', '%y', "%z"])
+                        for date_id in ['%m', '%d', '%y', '%z', '%D', '%F', '%Y', '%G', '%C'])
                             and any(time_id in user_dt_format
-                                    for time_id in ['%I', '%H', '%M', '%S', '%f', '%p'])):
+                                    for time_id in ['%R', '%T', '%I', '%X', '%r', '%H', '%M', '%S', '%f', '%p'])):
                         self.attributes = merge(self.attributes, {
                             feature_name: self._infer_time_attributes(feature_name, user_dt_format)})
                     else:

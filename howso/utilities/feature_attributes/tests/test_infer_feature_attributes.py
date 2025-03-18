@@ -229,37 +229,41 @@ def test_get_feature_type(data, expected_type):
     assert original_type == expected_type
 
 
-@pytest.mark.parametrize('data, is_time, expected_format', [
-    (pd.DataFrame(["08:08:08"], columns=['a']), True, '%H:%M:%S'),
-    (pd.DataFrame(["8:8:8"], columns=['a']), True, '%H:%M:%S'),
-    (pd.DataFrame(["8:59:59am"], columns=['a']), True, '%I:%M:%S%p'),
-    (pd.DataFrame(["01:00:00"], columns=['a']), True, '%H:%M:%S'),
-    (pd.DataFrame(["23:59:59"], columns=['a']), True, '%H:%M:%S'),
-    (pd.DataFrame(["23:59:59.59"], columns=['a']), True, '%H:%M:%S.%f'),
-    (pd.DataFrame(["2:30 am"], columns=['a']), True, '%I:%M %p'),
-    (pd.DataFrame(["2:01 pm"], columns=['a']), True, '%I:%M %p'),
-    (pd.DataFrame(["4:25"], columns=['a']), True, '%H:%M'),
-    (pd.DataFrame(["20:00"], columns=['a']), True, '%H:%M'),
-    (pd.DataFrame(["1am"], columns=['a']), True, '%I%p'),
-    (pd.DataFrame(["12 pm"], columns=['a']), True, '%I %p'),
-    (pd.DataFrame([datetime.time(15)], columns=['a']), True, '%H:%M:%S'),
-    (pd.DataFrame(["-01:01:01"], columns=['a']), False, None),
-    (pd.DataFrame(["24:0:0"], columns=['a']), False, None),
-    (pd.DataFrame(["59:0:0"], columns=['a']), False, None),
-    (pd.DataFrame(["3:60"], columns=['a']), False, None),
-    (pd.DataFrame(["12 o'clock"], columns=['a']), False, None),
-    (pd.DataFrame(["10pm is the time"], columns=['a']), False, None),
-    (pd.DataFrame(["8.5:32:32"], columns=['a']), False, None),
-    (pd.DataFrame([["2020-01-01T10:00:00"]], columns=['a']), False, None),
-    (pd.DataFrame([["2020-01-01"]], columns=['a']), False, None),
+@pytest.mark.parametrize('data, is_time, expected_format, provided_format', [
+    (pd.DataFrame(["08:08:08"], columns=['a']), True, '%H:%M:%S', None),
+    (pd.DataFrame(["8:8:8"], columns=['a']), True, '%H:%M:%S', None),
+    (pd.DataFrame(["8:59:59am"], columns=['a']), True, '%I:%M:%S%p', None),
+    (pd.DataFrame(["01:00:00"], columns=['a']), True, '%H:%M:%S', None),
+    (pd.DataFrame(["23:59:59"], columns=['a']), True, '%H:%M:%S', None),
+    (pd.DataFrame(["23:59:59.59"], columns=['a']), True, '%H:%M:%S.%f', None),
+    (pd.DataFrame(["2:30 am"], columns=['a']), True, '%I:%M %p', None),
+    (pd.DataFrame(["2:01 pm"], columns=['a']), True, '%I:%M %p', None),
+    (pd.DataFrame(["4:25"], columns=['a']), True, '%H:%M', None),
+    (pd.DataFrame(["20:00"], columns=['a']), True, '%H:%M', None),
+    (pd.DataFrame(["1am"], columns=['a']), True, '%I%p', None),
+    (pd.DataFrame(["12 pm"], columns=['a']), True, '%I %p', None),
+    (pd.DataFrame([datetime.time(15)], columns=['a']), True, '%H:%M:%S', None),
+    (pd.DataFrame(["-01:01:01"], columns=['a']), False, None, None),
+    (pd.DataFrame(["24:0:0"], columns=['a']), False, None, None),
+    (pd.DataFrame(["59:0:0"], columns=['a']), False, None, None),
+    (pd.DataFrame(["3:60"], columns=['a']), False, None, None),
+    (pd.DataFrame(["12 o'clock"], columns=['a']), False, None, None),
+    (pd.DataFrame(["10pm is the time"], columns=['a']), False, None, None),
+    (pd.DataFrame(["8.5:32:32"], columns=['a']), False, None, None),
+    (pd.DataFrame([["2020-01-01T10:00:00"]], columns=['a']), False, None, None),
+    (pd.DataFrame([["2020-01-01"]], columns=['a']), False, None, None),
+    (pd.DataFrame(["08/03/1999 23:59:59"], columns=['a']), False, None, '%M/%D/%Y %H:%M:%S'),
+    (pd.DataFrame(["5"], columns=['a']), False, None, '%C'),
+    (pd.DataFrame(["1999 23"], columns=['a']), False, None, '%Y %H'),
 ])
-def test_infer_time_features(data, is_time, expected_format):
+def test_infer_time_features(data, is_time, expected_format, provided_format):
     """Test IFA against many possible valid and invalid time-only features."""
     ifa = InferFeatureAttributesDataFrame(data)
     feature_type, _ = ifa._get_feature_type('a')
     if is_time:
         assert feature_type == FeatureType.TIME
-        features = infer_feature_attributes(data, tight_bounds=['a'])
+        features = infer_feature_attributes(data, tight_bounds=['a'],
+                                            datetime_feature_formats={'a': provided_format})
         assert features['a']['type'] == 'continuous'
         assert features['a']['date_time_format'] == expected_format
     else:
