@@ -25,8 +25,8 @@ from howso.utilities.internals import serialize_models
 logger = logging.getLogger(__name__)
 
 # Format string tokens for datetime and time-only features
-DATE_TOKENS = ['%m', '%d', '%y', '%z', '%D', '%F', '%Y', '%G', '%C']
-TIME_TOKENS = ['%R', '%T', '%I', '%X', '%r', '%H', '%M', '%S', '%f', '%p']
+DATE_TOKENS = {'%m', '%d', '%y', '%z', '%D', '%F', '%Y', '%G', '%C'}
+TIME_TOKENS = {'%R', '%T', '%I', '%X', '%r', '%H', '%M', '%S', '%f', '%p'}
 # Maximum/minimum data sizes for integers, floats, datetimes supported by the core
 FLOAT_MAX = 1.7976931348623157 * math.pow(10, 308)
 FLOAT_MIN = 2.2250738585072014 * math.pow(10, -308)
