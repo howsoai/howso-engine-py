@@ -3546,7 +3546,6 @@ class AbstractHowsoClient(ABC):
         num_robust_influence_samples_per_case: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         prediction_stats_action_feature: t.Optional[str] = None,
-        residuals_hyperparameter_feature: t.Optional[str] = None,
         robust_hyperparameters: t.Optional[bool] = None,
         sample_model_fraction: t.Optional[float] = None,
         sub_model_size: t.Optional[int] = None,
@@ -3748,12 +3747,6 @@ class AbstractHowsoClient(ABC):
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
             If specified overrides sample_model_fraction.```
-        residuals_hyperparameter_feature : str, optional
-            When calculating residuals and prediction stats, uses this target
-            features's hyperparameters. The trainee must have been analyzed with
-            this feature as the action feature first. If not provided, by default
-            residuals and prediction stats uses targetless hyperparameters. Targetless
-            hyperparameters may also be selected using an empty string: "".
         robust_hyperparameters : bool, optional
             When specified, will attempt to return residuals that were
             computed using hyperparameters with the specified robust or
@@ -3832,7 +3825,6 @@ class AbstractHowsoClient(ABC):
         stats = self.execute(trainee_id, "react_aggregate", {
             "action_feature": action_feature,
             "action_features": action_features,
-            "residuals_hyperparameter_feature": residuals_hyperparameter_feature,
             "context_features": context_features,
             "confusion_matrix_min_count": confusion_matrix_min_count,
             "details": details,
