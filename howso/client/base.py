@@ -5423,6 +5423,8 @@ class AbstractHowsoClient(ABC):
                 - "fast" : will always use a fast approach for all computations
                   which will use faster, but lower precision
                   numeric operations.
+                - "fastest" : same as "fast" but will additionally use a faster
+                  approach specific for generative reacts.
 
         Returns
         -------
