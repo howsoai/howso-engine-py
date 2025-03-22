@@ -1479,6 +1479,7 @@ class AbstractHowsoClient(ABC):
         progress_callback: t.Optional[Callable] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
+        use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
@@ -2023,6 +2024,9 @@ class AbstractHowsoClient(ABC):
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
             is True. Only applies to generative reacts.
+        use_aggregation_based_differential_privacy : bool, default False
+            If True this changes generative output to use aggregation instead
+            of selection (the default approach) before adding noise.
 
         Returns
         -------
@@ -2215,6 +2219,7 @@ class AbstractHowsoClient(ABC):
                 "post_process_values": post_process_values,
                 "use_regional_residuals": use_regional_residuals,
                 "desired_conviction": desired_conviction,
+                "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy,
                 "feature_bounds_map": feature_bounds_map,
                 "generate_new_cases": generate_new_cases,
                 "goal_features_map": goal_features_map,
@@ -2631,6 +2636,7 @@ class AbstractHowsoClient(ABC):
         series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
+        use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None
@@ -2779,6 +2785,9 @@ class AbstractHowsoClient(ABC):
             See parameter ``desired_conviction`` in :meth:`AbstractHowsoClient.react`.
         weight_feature : str
             See parameter ``weight_feature`` in :meth:`AbstractHowsoClient.react`.
+        use_aggregation_based_differential_privacy : bool, default False
+            See paramater ``use_aggregation_based_differential_privacy`` in
+            :meth:`AbstractHowsoClient.react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`AbstractHowsoClient.react`.
         preserve_feature_values : iterable of str
@@ -2909,7 +2918,7 @@ class AbstractHowsoClient(ABC):
                 "details": details,
                 "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
                 "series_id_tracking": series_id_tracking,
-                "output_new_series_ids": output_new_series_ids,
+                "output_new_series_ids": output_new_series_ids
             }
 
         else:
@@ -2965,6 +2974,7 @@ class AbstractHowsoClient(ABC):
                 "details": details,
                 "series_id_tracking": series_id_tracking,
                 "output_new_series_ids": output_new_series_ids,
+                "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy
             }
 
         if batch_size or self._should_react_batch(react_params, total_size):
@@ -3150,6 +3160,7 @@ class AbstractHowsoClient(ABC):
         series_context_values: t.Optional[TabularData3D] = None,
         series_id_features: t.Optional[Collection[str]] = None,
         series_id_values: t.Optional[TabularData2D] = None,
+        use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_derived_ts_features: bool = True,
         use_regional_residuals: bool = True,
@@ -3209,6 +3220,9 @@ class AbstractHowsoClient(ABC):
             2d list of ID feature values. Each sublist should specify ID
             feature values that can uniquely identify the cases making up a
             single series.
+        use_aggregation_based_differential_privacy : bool, default False
+            If True this changes generative output to use aggregation instead
+            of selection (the default approach) before adding noise.
         use_case_weights : bool, optional
             If True, then the Trainee will use case weights identified by the
             name given in ``weight_feature``. If False, case weights will not
@@ -3290,6 +3304,7 @@ class AbstractHowsoClient(ABC):
             "action_features": action_features,
             "context_features": context_features,
             "desired_conviction": desired_conviction,
+            "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy,
             "input_is_substituted": input_is_substituted,
             "series_context_features": series_context_features,
             "series_context_values": serialized_series_context_values,
