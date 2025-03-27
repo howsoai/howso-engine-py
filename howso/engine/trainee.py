@@ -989,6 +989,7 @@ class Trainee(BaseTrainee):
         targeted_model: t.Optional[TargetedModel] = None,
         use_case_weights: t.Optional[bool] = None,
         use_deviations: t.Optional[bool] = None,
+        use_sdm: t.Optional[bool] = True,
         weight_feature: t.Optional[str] = None,
         **kwargs
     ):
@@ -1049,6 +1050,13 @@ class Trainee(BaseTrainee):
             be used if the Trainee has them.
         use_deviations : bool, default False
             When True, uses deviations for LK metric in queries.
+        use_sdm : bool, default True,
+            When True, Howso Engine will compute and use a sparse deviation
+            matrix (SDM) for each nominal feature in all similarity queries.
+            Enabling SDM will typically incur a small to moderate penalty on
+            speed when using nominal features in inference in exchange for
+            yielding higher quality inference. The magnitude of the changes are
+            dependent on relationships among the data and the task at hand.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1075,6 +1083,7 @@ class Trainee(BaseTrainee):
                 rebalance_features=rebalance_features,
                 targeted_model=targeted_model,
                 use_deviations=use_deviations,
+                use_sdm=use_sdm,
                 weight_feature=weight_feature,
                 **kwargs
             )
@@ -1179,6 +1188,7 @@ class Trainee(BaseTrainee):
         details: t.Optional[Mapping[str, t.Any]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
+        feature_post_process_code_map: t.Optional[Mapping] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
         initial_batch_size: t.Optional[int] = None,
@@ -1192,6 +1202,7 @@ class Trainee(BaseTrainee):
         progress_callback: t.Optional[Callable] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
+        use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
@@ -1312,48 +1323,34 @@ class Trainee(BaseTrainee):
                         - An array of string values, must match any of these values
                           exactly. Only applicable to nominal and string ordinal
                           features.
-            - case_contributions_full : bool, optional
+            - case_full_accuracy_contributions : bool, optional
+                If True, outputs each influential case's accuracy contributions
+                of predicting the action feature in the local model area, as if
+                each individual case were included versus not included. Uses
+                only the context features of the reacted case to determine that
+                area. Uses full calculations, which uses leave-one-out for
+                cases for  computations.
+            - case_full_prediction_contributions : bool, optional
                 If true outputs each influential case's differences between the
                 predicted action feature value and the predicted action feature
                 value if each individual case were not included. Uses only the
                 context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out for cases for
                 computations.
-            - case_contributions_robust : bool, optional
+            - case_robust_accuracy_contributions : bool, optional
+                If True, outputs each influential case's accuracy contributions
+                of predicting the action feature in the local model area, as if
+                each individual case were included versus not included. Uses
+                only the context features of the reacted case to determine that
+                area. Uses robust calculations, which uses uniform sampling
+                from the power set of all combinations of cases.
+            - case_robust_prediction_contributions : bool, optional
                 If true outputs each influential case's differences between the
                 predicted action feature value and the predicted action feature
                 value if each individual case were not included. Uses only the
                 context features of the reacted case to determine that area.
                 Uses robust calculations, which uses uniform sampling from
                 the power set of all combinations of cases.
-            - case_feature_residuals_full : bool, optional
-                If True, outputs feature residuals for all (context and action)
-                features for just the specified case. Uses leave-one-out for
-                each feature, while using the others to predict the left out
-                feature with their corresponding values from this case. Uses
-                full calculations, which uses leave-one-out for cases for
-                computations.
-            - case_feature_residuals_robust : bool, optional
-                If True, outputs feature residuals for all (context and action)
-                features for just the specified case. Uses leave-one-out for
-                each feature, while using the others to predict the left out
-                feature with their corresponding values from this case. Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions.
-            - case_mda_robust : bool, optional
-                If True, outputs each influential case's mean decrease in
-                accuracy of predicting the action feature in the local model
-                area, as if each individual case were included versus not
-                included. Uses only the context features of the reacted case to
-                determine that area. Uses robust calculations, which uses
-                uniform sampling from the power set of all combinations of cases.
-            - case_mda_full : bool, optional
-                If True, outputs each influential case's mean decrease in
-                accuracy of predicting the action feature in the local model
-                area, as if each individual case were included versus not
-                included. Uses only the context features of the reacted case to
-                determine that area. Uses full calculations, which uses
-                leave-one-out for cases for  computations.
             - categorical_action_probabilities : bool, optional
                 If True, outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
@@ -1385,34 +1382,40 @@ class Trainee(BaseTrainee):
                 distance (relative surprisal) in between the closest two cases
                 in the local area. All distances are computed using only the
                 specified context features.
-            - feature_contributions_robust : bool, optional
-                If True outputs each context feature's absolute and directional
-                differences between the predicted action feature value and the
-                predicted action feature value if each context were not in the
-                model for all context features in the local model area Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions. Directional feature
-                contributions are returned under the key
-                'directional_feature_contributions_robust'.
-            - feature_contributions_full : bool, optional
+            - features : list of str, optional
+                A list of feature names that specifies for what features will
+                per-feature details be computed (residuals, contributions,
+                mda, etc.). This should generally preserve compute, but will
+                not when computing details robustly. Details will be computed
+                for all context and action features if this value is not
+                specified.
+            - feature_deviations : bool, optional
+                If True, outputs computed feature deviations for all (context
+                and action) features locally around the prediction.
+                Uses only the context features of the reacted case to determine
+                that area.
+            - feature_full_accuracy_contributions : bool, optional
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature given the context. Uses only
+                the context features of the reacted case to determine that
+                area. Uses full calculations, which uses leave-one-out for
+                cases for computations.
+            - feature_full_accuracy_contributions_ex_post : bool, optional
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature as an explanation detail given
+                that the specified prediction was already made as specified by
+                the action value. Uses both context and action features of the
+                reacted case to determine that area. Uses full calculations,
+                which uses leave-one-out for cases for computations.
+            - feature_full_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context were not in the
                 model for all context features in the local model area. Uses
                 full calculations, which uses leave-one-out for cases for
                 computations. Directional feature contributions are returned
-                under the key 'directional_feature_contributions_full'.
-            - case_feature_contributions_robust: bool, optional
-                If True outputs each context feature's absolute and directional
-                differences between the predicted action feature value and the
-                predicted action feature value if each context feature were not
-                in the model for all context features in this case, using only
-                the values from this specific case. Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions.
-                Directional case feature contributions are returned under the
-                'case_directional_feature_contributions_robust' key.
-            - case_feature_contributions_full: bool, optional
+                under the key 'feature_full_directional_prediction_contributions'.
+            - feature_full_prediction_contributions_for_case: bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context feature were not
@@ -1421,58 +1424,83 @@ class Trainee(BaseTrainee):
                 full calculations, which uses leave-one-out for cases for
                 computations. Directional case feature
                 contributions are returned under the
-                'case_directional_feature_contributions_full' key.
-            - feature_mda_robust : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature given the context.
-                Uses only the context features of the reacted case to determine
-                that area. Uses robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
-            - feature_mda_full : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature given the context.
-                Uses only the context features of the reacted case to determine
-                that area. Uses full calculations, which uses leave-one-out
+                'feature_full_directional_prediction_contributions_for_case' key.
+            - feature_full_residual_convictions_for_case : bool, optional
+                If True, outputs this case's feature residual convictions for
+                the region around the prediction. Uses only the context
+                features of the reacted case to determine that region.
+                Computed as: region feature residual divided by case feature
+                residual. Uses full calculations, which uses leave-one-out
                 for cases for computations.
-            - feature_mda_ex_post_robust : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation detail
-                given that the specified prediction was already made as
-                specified by the action value. Uses both context and action
+            - feature_full_residuals : bool, optional
+                If True, outputs feature residuals for all (context and action)
+                features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses
-                robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
-            - feature_mda_ex_post_full : bool, optional
-                If True, outputs each context feature's mean decrease in
-                accuracy of predicting the action feature as an explanation detail
-                given that the specified prediction was already made as
-                specified by the action value. Uses both context and action
-                features of the reacted case to determine that area. Uses
+                full calculations, which uses leave-one-out for cases for computations.
+            - feature_full_residuals_for_case : bool, optional
+                If True, outputs feature residuals for all (context and action)
+                features for just the specified case. Uses leave-one-out for
+                each feature, while using the others to predict the left out
+                feature with their corresponding values from this case. Uses
                 full calculations, which uses leave-one-out for cases for
                 computations.
-            - features : list of str, optional
-                A list of feature names that specifies for what features will
-                per-feature details be computed (residuals, contributions,
-                mda, etc.). This should generally preserve compute, but will
-                not when computing details robustly. Details will be computed
-                for all context and action features if this value is not
-                specified.
-            - feature_residual_robust : bool, optional
+            - feature_robust_accuracy_contributions : bool, optional
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature given the context. Uses only
+                the context features of the reacted case to determine that
+                area. Uses robust calculations, which uses uniform sampling
+                from the power set of features as the contexts for predictions.
+            - feature_robust_accuracy_contributions_ex_post : bool, optional
+                If True, outputs each context feature's accuracy contributions
+                of predicting the action feature as an explanation detail given
+                that the specified prediction was already made as specified by
+                the action value. Uses both context and action features of the
+                reacted case to determine that area. Uses robust calculations,
+                which uses uniform sampling from the power set of features as
+                the contexts for predictions.
+            - feature_robust_prediction_contributions : bool, optional
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context were not in the
+                model for all context features in the local model area Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions. Directional feature
+                contributions are returned under the key
+                'feature_robust_directional_prediction_contributions'.
+            - feature_robust_prediction_contributions_for_case: bool, optional
+                If True outputs each context feature's absolute and directional
+                differences between the predicted action feature value and the
+                predicted action feature value if each context feature were not
+                in the model for all context features in this case, using only
+                the values from this specific case. Uses robust calculations,
+                which uses uniform sampling from the power set of features as
+                the contexts for predictions. Directional case prediction
+                contributions are returned under the
+                'feature_robust_directional_feature_contributions_for_case' key.
+            - feature_robust_residual_convictions_for_case : bool, optional
+                If True, outputs this case's feature residual convictions for
+                the region around the prediction. Uses only the context
+                features of the reacted case to determine that region.
+                Computed as: region feature residual divided by case feature
+                residual. Uses robust calculations, which uses uniform sampling
+                from the power set of features as the contexts for predictions.
+            - feature_robust_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses robust
                 calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
-            - feature_residuals_full : bool, optional
+            - feature_robust_residuals_for_case : bool, optional
                 If True, outputs feature residuals for all (context and action)
-                features locally around the prediction. Uses only the context
-                features of the reacted case to determine that area. Uses
-                full calculations, which uses leave-one-out for cases for computations.
-            - feature_deviations : bool, optional
-                If True, outputs computed feature deviations for all (context
-                and action) features locally around the prediction.
-                Uses only the context features of the reacted case to determine
-                that area.
+                features for just the specified case. Uses leave-one-out for
+                each feature, while using the others to predict the left out
+                feature with their corresponding values from this case. Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions.
+            - generate_attempts : bool, optional
+                If True outputs the number of attempts taken to generate each
+                case. Only applicable when 'generate_new_cases' is "always" or
+                "attempt".
             - hypothetical_values : dict, optional
                 A dictionary of feature name to feature value. If specified,
                 shows how a prediction could change in a what-if scenario where
@@ -1492,20 +1520,6 @@ class Trainee(BaseTrainee):
             - influential_cases_raw_weights : bool, optional
                 If True, outputs the surprisal for each of the influential
                 cases.
-            - case_feature_residual_convictions_robust : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the region around the prediction. Uses only the context
-                features of the reacted case to determine that region.
-                Computed as: region feature residual divided by case feature
-                residual. Uses robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
-            - case_feature_residual_convictions_full : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the region around the prediction. Uses only the context
-                features of the reacted case to determine that region.
-                Computed as: region feature residual divided by case feature
-                residual. Uses full calculations, which uses leave-one-out
-                for cases for computations.
             - most_similar_cases : bool, optional
                 If True, outputs an automatically determined (when
                 'num_most_similar_cases' is not specified) relevant number of
@@ -1554,11 +1568,6 @@ class Trainee(BaseTrainee):
                   this is 1 - the average categorical action probability of each case's
                   correct classes. Categorical action probabilities are the probabilities
                   for each class for the action feature.
-                - mda : Mean decrease in accuracy when each feature is dropped
-                  from the model, applies to all features.
-                - feature_mda_permutation_full : Mean decrease in accuracy that used
-                  scrambling of feature values instead of dropping each
-                  feature, applies to all features.
                 - precision : Precision (positive predictive) value for nominal
                   features only.
                 - r2 : The r-squared coefficient of determination, for
@@ -1579,10 +1588,6 @@ class Trainee(BaseTrainee):
                 for all computations. This is defined as expected (local)
                 distance contribution divided by reacted case distance
                 contribution.
-            - generate_attempts : bool, optional
-                If True outputs the number of attempts taken to generate each
-                case. Only applicable when 'generate_new_cases' is "always" or
-                "attempt".
 
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
@@ -1604,6 +1609,15 @@ class Trainee(BaseTrainee):
                     "feature_b" : {"min": 1, "max": 5},
                     "feature_c": {"max": 1}
                 }
+
+        feature_post_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the feature they are mapped from.
+            The custom code is evaluated just after a feature value is predicted
+            or synthesized to update the value of the feature, meaning that the
+            resulting value will be used as part of the context for following
+            action features. The custom code will have access to all context
+            feature values and previously generated action feature values.
 
         generate_new_cases : {"always", "attempt", "no"}, default "no"
             This parameter takes in a string that may be one of the following:
@@ -1691,6 +1705,9 @@ class Trainee(BaseTrainee):
             applicable if a substitution value map has been set.
         suppress_warning : bool, default False
             When True, warnings will not be displayed.
+        use_aggregation_based_differential_privacy : bool, default False
+            If True this changes generative output to use aggregation instead
+            of selection (the default approach) before adding noise.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
@@ -1727,6 +1744,7 @@ class Trainee(BaseTrainee):
             details=details,
             exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
             feature_bounds_map=feature_bounds_map,
+            feature_post_process_code_map=feature_post_process_code_map,
             generate_new_cases=generate_new_cases,
             goal_features_map=goal_features_map,
             initial_batch_size=initial_batch_size,
@@ -1742,6 +1760,7 @@ class Trainee(BaseTrainee):
             progress_callback=progress_callback,
             substitute_output=substitute_output,
             suppress_warning=suppress_warning,
+            use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
             use_case_weights=use_case_weights,
             use_regional_residuals=use_regional_residuals,
             weight_feature=weight_feature,
@@ -1759,6 +1778,7 @@ class Trainee(BaseTrainee):
         details: t.Optional[Mapping[str, t.Any]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
+        feature_post_process_code_map: t.Optional[Mapping] = None,
         final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -1782,6 +1802,7 @@ class Trainee(BaseTrainee):
         series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
+        use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
@@ -1826,6 +1847,16 @@ class Trainee(BaseTrainee):
             is True. Only applies to generative reacts.
         feature_bounds_map : map of str -> map of str -> object, optional
             See parameter ``feature_bounds_map`` in :meth:`react`.
+        feature_post_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the feature they are mapped from.
+            The custom code is evaluated just after a feature value is predicted
+            or synthesized to update the value of the feature, meaning that the
+            resulting value will be used as part of the context for following
+            action features. The custom code will have access to all context
+            feature values and previously generated action feature values of
+            the timestep being generated, as well as the feature values of all
+            previously generated timesteps.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
             Time-series only. Must provide either one for all series, or
@@ -1915,6 +1946,9 @@ class Trainee(BaseTrainee):
             See parameter ``substitute_output`` in :meth:`react`.
         suppress_warning : bool, default False
             See parameter ``suppress_warning`` in :meth:`react`.
+        use_aggregation_based_differential_privacy : bool, default False
+            See paramater ``use_aggregation_based_differential_privacy`` in
+            :meth:`react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
         use_regional_residuals : bool, default True
@@ -1944,6 +1978,7 @@ class Trainee(BaseTrainee):
                 details=details,
                 exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
                 feature_bounds_map=feature_bounds_map,
+                feature_post_process_code_map=feature_post_process_code_map,
                 final_time_steps=final_time_steps,
                 generate_new_cases=generate_new_cases,
                 goal_features_map=goal_features_map,
@@ -1967,6 +2002,7 @@ class Trainee(BaseTrainee):
                 series_stop_maps=series_stop_maps,
                 substitute_output=substitute_output,
                 suppress_warning=suppress_warning,
+                use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
                 use_case_weights=use_case_weights,
                 use_regional_residuals=use_regional_residuals,
                 weight_feature=weight_feature,
@@ -1989,6 +2025,7 @@ class Trainee(BaseTrainee):
         series_context_values: t.Optional[TabularData3D] = None,
         series_id_features: t.Optional[Collection[str]] = None,
         series_id_values: t.Optional[TabularData2D] = None,
+        use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_derived_ts_features: bool = True,
         use_regional_residuals: bool = True,
@@ -2048,6 +2085,9 @@ class Trainee(BaseTrainee):
             2d list of ID feature values. Each sublist should specify ID
             feature values that can uniquely identify the cases making up a
             single series.
+        use_aggregation_based_differential_privacy : bool, default False
+            If True this changes generative output to use aggregation instead
+            of selection (the default approach) before adding noise.
         use_case_weights : bool, optional
             If True, then the Trainee will use case weights identified by the
             name given in ``weight_feature``. If False, case weights will not
@@ -2081,6 +2121,7 @@ class Trainee(BaseTrainee):
                 batch_size=batch_size,
                 context_features=context_features,
                 desired_conviction=desired_conviction,
+                use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
                 goal_features_map=goal_features_map,
                 initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
@@ -3117,6 +3158,7 @@ class Trainee(BaseTrainee):
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         details: t.Optional[dict] = None,
+        features_to_derive: t.Optional[Collection[[str]]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
         num_robust_influence_samples: t.Optional[int] = None,
@@ -3124,7 +3166,6 @@ class Trainee(BaseTrainee):
         num_robust_influence_samples_per_case: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         prediction_stats_action_feature: t.Optional[str] = None,
-        residuals_hyperparameter_feature: t.Optional[str] = None,
         robust_hyperparameters: t.Optional[bool] = None,
         sample_model_fraction: t.Optional[float] = None,
         sub_model_size: t.Optional[int] = None,
@@ -3163,55 +3204,6 @@ class Trainee(BaseTrainee):
             different audit details. Omitted keys, values set to None, or False
             values for Booleans will not be included in the data returned.
 
-            - prediction_stats : bool, optional
-                If True outputs full feature prediction stats for all features in
-                ``action_features``. The prediction stats returned are set by the
-                "selected_prediction_stats" parameter in the `details` parameter.
-                Uses full calculations, which uses leave-one-out for features for
-                computations.
-            - feature_residuals_full : bool, optional
-                For each feature in ``action_features``, use the context features to predict
-                the feature and return the mean absolute error. When ``prediction_stats`` in
-                the ``details`` parameter is true, the Trainee will also calculate
-                the full feature residuals.
-            - feature_residuals_robust : bool, optional
-                For each feature in ``action_features``, use the robust
-                (power set/permutations) set of all other context features to predict
-                the feature and return the mean absolute error.
-            - feature_contributions_full : bool, optional
-                For each feature in ``context_features``, use the full set of all other
-                context features to compute the mean absolute delta between
-                prediction of action feature with and without the context features
-                in the model. Returns the mean absolute delta
-                under the key 'feature_contributions_full' and returns the mean
-                delta under the key 'directional_feature_contributions_full'.
-            - feature_contributions_robust : bool, optional
-                For each feature in ``context_features``, use the robust (power set/permutation)
-                set of all other context_features to compute the mean absolute
-                delta between prediction of the action feature with and without the
-                context features in the model. Returns the mean absolute delta
-                under the key 'feature_contributions_robust' and returns the mean
-                delta under the key 'directional_feature_contributions_robust'.
-            - feature_deviations : bool, optional
-                For each feature in ``action_features``, use the context features
-                and the feature being predicted as context to predict the feature
-                and return the mean absolute error.
-            - feature_mda_full : bool, optional
-                When True will compute Mean Decrease in Accuracy (MDA)
-                for each context feature at predicting the action feature. Drop
-                each feature and use the full set of remaining context features
-                for each prediction.
-            - feature_mda_robust : bool, optional
-                Compute Mean Decrease in Accuracy MDA by dropping each feature and using the
-                robust (power set/permutations) set of remaining context features
-                for each prediction.
-            - feature_mda_permutation_full : bool, optional
-                Compute MDA by scrambling each feature and using the
-                full set of remaining context features for each prediction.
-            - feature_mda_permutation_robust : bool, optional
-                Compute MDA by scrambling each feature and using the
-                robust (power set/permutations) set of remaining context features
-                for each prediction.
             - action_condition : map of str -> any, optional
                 A condition map to select the action set, which is the collection of cases
                 reacted to while computing the requested metrics.
@@ -3262,6 +3254,56 @@ class Trainee(BaseTrainee):
                 The precision to use when selecting cases with the ``context_condition``.
                 If not specified "exact" will be used. Only used if ``context_condition``
                 is not None.
+            - feature_deviations : bool, optional
+                For each feature in ``action_features``, use the context features
+                and the feature being predicted as context to predict the feature
+                and return the mean absolute error.
+            - feature_full_accuracy_contributions : bool, optional
+                When True will compute accuracy contributions for each context
+                feature at predicting the action feature. Drop each feature and
+                use the full set of remaining context features for each
+                prediction.
+            - feature_full_accuracy_contributions_permutation : bool, optional
+                Compute accuracy contributions by scrambling each feature and
+                using the full set of remaining context features for each
+                prediction.
+            - feature_full_prediction_contributions : bool, optional
+                For each feature in ``context_features``, use the full set of all other
+                context features to compute the mean absolute delta between
+                prediction of action feature with and without the context features
+                in the model. Returns the mean absolute delta
+                under the key 'feature_full_prediction_contributions' and returns the mean
+                delta under the key 'feature_full_directional_prediction_contributions'.
+            - feature_full_residuals : bool, optional
+                For each feature in ``action_features``, use the context features to predict
+                the feature and return the mean absolute error. When ``prediction_stats`` in
+                the ``details`` parameter is true, the Trainee will also calculate
+                the full feature residuals.
+            - feature_robust_accuracy_contributions : bool, optional
+                Compute accuracy contributions by dropping each feature and
+                using the robust (power set/permutations) set of remaining
+                context features for each prediction.
+            - feature_robust_accuracy_contributions_permutation : bool, optional
+                Compute accuracy contributions by scrambling each feature and
+                using the robust (power set/permutations) set of remaining
+                context features for each prediction.
+            - feature_robust_prediction_contributions : bool, optional
+                For each feature in ``context_features``, use the robust (power set/permutation)
+                set of all other context_features to compute the mean absolute
+                delta between prediction of the action feature with and without the
+                context features in the model. Returns the mean absolute delta
+                under the key 'feature_robust_prediction_contributions' and returns the mean
+                delta under the key 'feature_robust_directional_prediction_contributions'.
+            - feature_robust_residuals : bool, optional
+                For each feature in ``action_features``, use the robust
+                (power set/permutations) set of all other context features to predict
+                the feature and return the mean absolute error.
+            - prediction_stats : bool, optional
+                If True outputs full feature prediction stats for all features in
+                ``action_features``. The prediction stats returned are set by the
+                "selected_prediction_stats" parameter in the `details` parameter.
+                Uses full calculations, which uses leave-one-out for features for
+                computations.
             - selected_prediction_stats : list, optional
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
@@ -3276,11 +3318,6 @@ class Trainee(BaseTrainee):
                   this is 1 - the average categorical action probability of each case's
                   correct classes. Categorical action probabilities are the probabilities
                   for each class for the action feature.
-                - mda : Mean decrease in accuracy when each feature is dropped
-                  from the model, applies to all features.
-                - feature_mda_permutation_full : Mean decrease in accuracy that used
-                  scrambling of feature values instead of dropping each
-                  feature, applies to all features.
                 - precision : Precision (positive predictive) value for nominal
                   features only.
                 - r2 : The r-squared coefficient of determination, for
@@ -3295,6 +3332,11 @@ class Trainee(BaseTrainee):
                   continuous features only. Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
                   actual value. The minimum gap for each feature is the smallest difference between two values
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
+        features_to_derive: list of str, optional
+            List of feature names whose values should be derived rather than interpolated from influential
+            cases when predicted. If unspecified, then the features that have derivation logic defined will
+            automatically be chosen to be derived. Specifying an empty list will ensure that all features
+            are interpolated rather than derived.
         feature_influences_action_feature : str, optional
             When feature influences such as contributions and mda, use this feature as
             the action feature.  If not provided, will default to the ``action_feature`` if provided.
@@ -3321,12 +3363,6 @@ class Trainee(BaseTrainee):
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
             If specified overrides sample_model_fraction.```
-        residuals_hyperparameter_feature : str, optional
-            When calculating residuals and prediction stats, uses this target
-            features's hyperparameters. The trainee must have been analyzed with
-            this feature as the action feature first. If not provided, by default
-            residuals and prediction stats uses targetless hyperparameters. Targetless
-            hyperparameters can also be selected using an empty string: "".
         robust_hyperparameters : bool, optional
             When specified, will attempt to return residuals that were
             computed using hyperparameters with the specified robust or
@@ -3368,6 +3404,7 @@ class Trainee(BaseTrainee):
                 context_features=context_features,
                 confusion_matrix_min_count=confusion_matrix_min_count,
                 details=details,
+                features_to_derive=features_to_derive,
                 feature_influences_action_feature=feature_influences_action_feature,
                 hyperparameter_param_path=hyperparameter_param_path,
                 num_robust_influence_samples=num_robust_influence_samples,
@@ -3375,7 +3412,6 @@ class Trainee(BaseTrainee):
                 num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
                 num_samples=num_samples,
                 prediction_stats_action_feature=prediction_stats_action_feature,
-                residuals_hyperparameter_feature=residuals_hyperparameter_feature,
                 robust_hyperparameters=robust_hyperparameters,
                 sample_model_fraction=sample_model_fraction,
                 sub_model_size=sub_model_size,
@@ -3424,7 +3460,21 @@ class Trainee(BaseTrainee):
             that were computed in this mode.
         weight_feature : str, optional
             If specified, will find and return the best analyzed hyperparameters
-            that were analyzed using this weight feaure.
+            that were analyzed using this weight feature.
+        numerical_precision : str, optional
+            Sets the preference for performance vs. computational accuracy.
+            Valid values are:
+                - "recompute_precise" : default value, will use fast
+                  computation for finding similar cases but recompute their
+                  exact similarities and influences precisely.
+                - "precise" : will always use high precision computation for
+                  finding similar cases and computing similarities
+                  and influences.
+                - "fast" : will always use a fast approach for all computations
+                  which will use faster, but lower precision
+                  numeric operations.
+                - "fastest" : same as "fast" but will additionally use a faster
+                  approach specific for generative reacts.
 
         Returns
         -------
@@ -3880,193 +3930,6 @@ class Trainee(BaseTrainee):
         except HowsoApiError as error:
             if error.status != 404:
                 raise
-
-    def get_contribution_matrix(
-        self,
-        features: t.Optional[Iterable[str]] = None,
-        *,
-        directional: bool = False,
-        robust: bool = True,
-        targeted: bool = False,
-        normalize: bool = True,
-        fill_diagonal: bool = True,
-        fill_diagonal_value: float | int = 1,
-    ) -> DataFrame:
-        """
-        Gets the Feature Contribution matrix.
-
-        Parameters
-        ----------
-        features : iterable of str, optional
-            An iterable of feature names. If features are not provided, then the
-            default trainee features will be used.
-        directional : bool, default False
-            Whether to get the matrix for the directional feature contributions or the absolute feature
-            contributions.
-        robust : bool, default True
-            Whether to use robust calculations.
-        targeted : bool, default False
-            Whether to do a targeted re-analyze before each feature's contribution is calculated.
-        normalize : bool, default False
-            Whether to normalize the matrix row wise. If True, normalizes each row by dividing each value
-                by the sum of the values in the row, so the fractional values sum to 1.
-        fill_diagonal : bool, default False
-            Whether to fill in the diagonals of the matrix. If set to true,
-            the diagonal values will be filled in based on the ``fill_diagonal_value`` value.
-        fill_diagonal_value : bool, default 1
-            The value to fill in the diagonals with. ``fill_diagonal`` must be set to True in order
-            for the diagonal values to be filled in. If `fill_diagonal is set to false, then this
-            parameter will be ignored.
-
-        Returns
-        -------
-        DataFrame
-            The Feature Contribution matrix in a DataFrame.
-        """
-        feature_contribution_matrix = {}
-        details_key = f"feature_contributions_{'robust' if robust else 'full'}"
-        response_key = f"{'directional_' if directional else ''}{details_key}"
-        if not features:
-            features = self.features
-        for feature in features:
-            context_features = [context_feature for context_feature in features if context_feature != feature]
-            if targeted:
-                self.analyze(action_features=[feature], context_features=context_features)
-            # Suppresses expected warnings when trainee is targetless
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    "Results may be inaccurate because trainee has not been analyzed*",
-                    category=HowsoWarning
-                )
-                response = self.react_aggregate(
-                    context_features=context_features,
-                    action_feature=feature,
-                    details={
-                        details_key: True
-                    }
-                )
-                # Response will have both directional/non-directional, need to only get what is necessary
-                feature_contribution_matrix[feature] = DataFrame.from_dict(response[response_key], orient="index").T
-                print(feature_contribution_matrix[feature])
-
-        matrix = concat(feature_contribution_matrix.values(), keys=feature_contribution_matrix.keys())
-        matrix = matrix.droplevel(level=1)
-        # Stores the preprocessed matrix, useful if the user wants a different form of processing
-        # after calculation.
-        self._calculated_matrices['contribution'] = deepcopy(matrix)
-        matrix = matrix_processing(
-            matrix,
-            normalize=normalize,
-            normalize_method="fractional",
-            fill_diagonal=fill_diagonal,
-            fill_diagonal_value=fill_diagonal_value
-        )
-
-        return matrix
-
-    def get_mda_matrix(
-        self,
-        features: t.Optional[Iterable[str]] = None,
-        *,
-        robust: bool = True,
-        targeted: bool = False,
-        normalize: bool = False,
-        normalize_method: NormalizeMethod | Callable | Iterable[
-            NormalizeMethod | Callable
-        ] = "relative",
-        absolute: bool = False,
-        fill_diagonal: bool = True,
-        fill_diagonal_value: float | int = 1,
-    ) -> DataFrame:
-        """
-        Gets the Mean Decrease in Accuracy (MDA) matrix.
-
-        Parameters
-        ----------
-        features : iterable of str, optional
-            An iterable of feature names. If features are not provided, then the default trainee
-            features will be used.
-        robust : bool, default True
-            Whether to use robust calculations.
-        targeted : bool, default False
-            Whether to do a targeted re-analyze before each feature's contribution is calculated.
-        normalize : bool, default False
-            Whether to normalize the matrix row wise. Normalization method is set by the ``normalize_method``
-            parameter.
-        normalize_method : str or callable or iterable of str or callable, default "relative"
-            The normalization method. The method may either one of the strings below that correspond to a
-            default method or a custom callable.
-
-            These methods may be passed in as an individual string or in a iterable where they will
-            be processed sequentially.
-
-            Default Methods:
-            - 'relative': normalizes each row by dividing each value by the maximum absolute value in the row.
-            - 'fractional': normalizes each row by dividing each value by the sum of the values in the row, so the
-              relative values sum to 1.
-            - 'fractional_absolute': normalizes each row by dividing each value by the sum of absolute values in
-              the row.
-
-            Custom Callable:
-            - If a custom Callable is provided, then it will be passed onto the DataFrame apply function:
-                ``matrix.apply(Callable)``
-        absolute : bool, default False
-            Whether to transform the matrix values into the absolute values.
-        fill_diagonal : bool, default False
-            Whether to fill in the diagonals of the matrix. If set to true,
-            the diagonal values will be filled in based on the ``fill_diagonal_value`` value.
-        fill_diagonal_value : bool, default 1
-            The value to fill in the diagonals with. ``fill_diagonal`` must be set to True in order
-            for the diagonal values to be filled in. If `fill_diagonal is set to false, then this
-            parameter will be ignored.
-
-        Returns
-        -------
-        DataFrame
-            The MDA matrix in a DataFrame.
-        """
-        mda_matrix = {}
-        if not features:
-            features = self.features
-        for feature in features:
-            if targeted:
-                context_features = [context_feature for context_feature in features if context_feature != feature]
-                self.analyze(action_features=[feature], context_features=context_features)
-            # Suppresses expected warnings when trainee is targetless
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    "Results may be inaccurate because trainee has not been analyzed*",
-                    category=HowsoWarning
-                )
-                if robust:
-                    mda_matrix[feature] = self.react_aggregate(
-                        action_feature=feature,
-                        details={"feature_mda_robust": True}
-                    )["feature_mda_robust"]
-                else:
-                    mda_matrix[feature] = self.react_aggregate(
-                        action_feature=feature,
-                        details={"feature_mda_full": True}
-                    )["feature_mda_full"]
-                mda_matrix[feature] = DataFrame.from_dict(mda_matrix[feature], orient="index").T
-
-        matrix = concat(mda_matrix.values(), keys=mda_matrix.keys())
-        matrix = matrix.droplevel(level=1)
-        # Stores the preprocessed matrix, useful if the user wants a different form of processing
-        # after calculation.
-        self._calculated_matrices['mda'] = deepcopy(matrix)
-        matrix = matrix_processing(
-            matrix,
-            normalize=normalize,
-            normalize_method=normalize_method,
-            absolute=absolute,
-            fill_diagonal=fill_diagonal,
-            fill_diagonal_value=fill_diagonal_value
-        )
-
-        return matrix
 
 
 def delete_trainee(

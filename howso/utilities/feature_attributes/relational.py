@@ -796,8 +796,10 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         feature_attributes: Mapping[str, Mapping],
         feature_name: str,
         tight_bounds: t.Optional[Iterable[str]] = None,
-        mode_bound_features: t.Optional[list[str]] = None,
+        mode_bound_features: t.Optional[Iterable[str]] = None,
     ) -> dict | None:
+        # prevent circular import
+        from howso.client.exceptions import DatetimeFormatWarning
         output = dict()
         allow_null = True
         original_type = feature_attributes[feature_name]['original_type']
@@ -878,9 +880,10 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                             return None
                     except Exception:  # noqa: Intentionally broad
                         warnings.warn(
-                            f'Feature {feature_name} does not match the '
-                            f'provided date time format, unable to guess '
-                            f'bounds.')
+                            f'Feature "{feature_name}" does not match the '
+                            'provided date time format, unable to guess bounds.',
+                            DatetimeFormatWarning
+                        )
                         return None
 
                 # Capture the timezone information, so it can be included
@@ -945,6 +948,12 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 if format_dt is not None:
                     min_v = epoch_to_date(min_v, format_dt, min_date_tz)
                     max_v = epoch_to_date(max_v, format_dt, max_date_tz)
+                    if date_to_epoch(min_v, format_dt) > date_to_epoch(max_v, format_dt):
+                        warnings.warn(
+                            f'Feature "{feature_name}" bounds could not be computed. '
+                            'This is likely due to a constrained date time format.'
+                        )
+                        min_v, max_v = None, None
 
                 if is_float_dtype(min_v):
                     min_v = float(min_v)
@@ -955,13 +964,25 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 if is_float_dtype(observed_max_value):
                     observed_max_value = float(observed_max_value)
 
-                output = {
-                    'min': min_v, 'max': max_v,
-                    'allow_null': allow_null
-                }
-                if not isnan(observed_min_value):
+                output = {'allow_null': allow_null}
+                if min_v and isinstance(min_v, str):
+                    output.update(min=min_v)
+                elif not isnan(min_v):
+                    output.update(min=min_v)
+
+                if max_v and isinstance(max_v, str):
+                    output.update(max=max_v)
+                elif not isnan(max_v):
+                    output.update(max=max_v)
+
+                if observed_min_value and isinstance(observed_min_value, str):
                     output.update(observed_min=observed_min_value)
-                if not isnan(observed_max_value):
+                elif not isnan(observed_min_value):
+                    output.update(observed_min=observed_min_value)
+
+                if observed_max_value and isinstance(observed_max_value, str):
+                    output.update(observed_min=observed_max_value)
+                elif not isnan(observed_max_value):
                     output.update(observed_max=observed_max_value)
             else:
                 # If no min/max were found from the data, use min/max size of

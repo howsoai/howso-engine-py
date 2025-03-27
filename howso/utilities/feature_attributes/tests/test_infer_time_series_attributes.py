@@ -4,6 +4,7 @@ from pathlib import Path
 import warnings
 
 from howso import client
+from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
 import pandas as pd
 import pytest
@@ -259,3 +260,57 @@ def test_infer_features_attributes_tight_bounds_dependent_functionality():
     assert features["f1"]["dependent_features"] == ["f2"]
     assert features["f3"]["bounds"]["max"] == f3_max
     assert features["f3"]["bounds"]["min"] == f3_min
+
+
+def test_invalid_time_feature_format():
+    """Validates that an invalid time feature date_time_format raises."""
+    df = pd.read_csv(data_path)
+    time_feature_name = "date"
+
+    with pytest.raises(ValueError, match="does not match the data of the time feature"):
+        with warnings.catch_warnings():
+            # warnings are expected
+            warnings.filterwarnings("ignore")
+            infer_feature_attributes(
+                df,
+                time_feature_name=time_feature_name,
+                id_feature_name="ID",
+                datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"}  # invalid format
+            )
+
+
+@pytest.mark.parametrize('data, types, expected_types, is_valid', [
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'), dict(b='continuous'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'), dict(a='continuous'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'), dict(b='nominal'), True),
+    (pd.DataFrame({'a': [True, False, False, True], 'b': [False, True, False, True]}), dict(b='continuous'), dict(b='nominal'), True),
+])
+def test_preset_feature_types(data, types, expected_types, is_valid):
+    """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
+    features = {}
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if is_valid:
+            features = infer_feature_attributes(data, types=types, time_feature_name='a')
+            for feature_name, expected_type in expected_types.items():
+                # Make sure it is the correct type
+                assert features[feature_name]['type'] == expected_type
+                # All features in this test, including nominals, should have bounds (at the very least: `allow_null`)
+                assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
+        else:
+            with pytest.raises(ValueError):
+                infer_feature_attributes(data, types=types)
+
+
+def test_lags():
+    """Validates that `lags` can be set as an argument for time series IFA."""
+    df = pd.read_csv(data_path)
+
+    # The below should not raise any exceptions
+    lags = {"date": 0}
+    fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags=lags)
+    Trainee(features=fa)
+
+    # Ensure that an invalid lags value raises a helpful TypeError
+    with pytest.raises(TypeError):
+        fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags={"date": '0'})

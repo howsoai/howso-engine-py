@@ -1,10 +1,19 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+from collections.abc import (
+    Callable,
+    Collection,
+    Iterable,
+    Mapping,
+    Sequence,
+)
 import datetime as dt
 import inspect
 import locale as python_locale
-from math import ceil, isnan
+from math import (
+    ceil,
+    isnan,
+)
 import re
 import sys
 import threading
@@ -170,6 +179,36 @@ def seconds_to_time(seconds: int | float | None, *,
     if tzinfo:
         return time_value.replace(tzinfo=tzinfo)
     return time_value
+
+
+def is_valid_datetime_format(value: t.Any, time_format: str | None) -> bool:
+    """
+    Check if a date time format is valid against one or more string formatted date time values.
+
+    Parameters
+    ----------
+    value: Any
+        The value to test the format against. If the value is already a kind
+        of date object the format is assumed valid since it can be used to
+        serialize the value to string.
+    time_format: str
+        The format string to parse with.
+
+    Returns
+    -------
+    bool
+        True if the value can be parsed using the provided format.
+    """
+    if not time_format:
+        return False
+    if isinstance(value, (dt.date, dt.datetime, dt.time, np.datetime64)):
+        # Value is a date/time type
+        return True
+    try:
+        dt.datetime.strptime(str(value), time_format)
+        return True
+    except Exception:
+        return False
 
 
 def replace_none_with_nan(dat: Mapping) -> list[dict]:
@@ -347,67 +386,59 @@ def determine_iso_format(str_date: str, fname: str) -> str:  # noqa: C901
     str
         The ISO_8601 format string that most matches the passed in date.
     """
+    # prevent circular import
+    from howso.client.exceptions import DatetimeFormatWarning
     # parse with the standard parser first to support single digit month/day
     dt_object = dt_parse(str_date)
+    format_checks = [ISO_8601_FORMAT, ISO_8601_FORMAT_FRACTIONAL]
+    # support variants without T separator
+    format_checks.extend([f.replace("T", " ") for f in format_checks])
+    warning_text: str = (
+        f'Feature "{fname}" is a datetime but may not work '
+        'properly if user does not specify the correct format.'
+    )
+
     if dt_object.tzinfo is None:
-        # warn user if this date format is a subset of the ISO_8601
-        warn_user = True
-
-        try:
-            # do a stricter check for iso format
-            isoparse(str_date)
-        except Exception:  # noqa: Intentionally broad
-            # user was already warned, don't warn them again
-            warn_user = False
-
         if len(str_date) <= 10:
-            try:
-                dt.datetime.strptime(str_date, ISO_8601_DATE_FORMAT)
-                return ISO_8601_DATE_FORMAT
-            except ValueError:
-                if warn_user:
-                    warnings.warn(f"Feature {fname} is a datetime but may not "
-                                  f"work properly if user doesn't specify "
-                                  f"the correct format.")
-                return ISO_8601_FORMAT
+            # Check for date only
+            for fmt in [ISO_8601_DATE_FORMAT, "%Y%m%d"]:
+                if is_valid_datetime_format(str_date, fmt):
+                    return fmt
 
-        try:
-            dt.datetime.strptime(str_date, ISO_8601_FORMAT_FRACTIONAL)
-            return ISO_8601_FORMAT_FRACTIONAL
-        except ValueError:
-            pass
+        for fmt in format_checks:
+            if is_valid_datetime_format(str_date, fmt):
+                return fmt
 
-        try:
-            dt.datetime.strptime(str_date, ISO_8601_FORMAT)
-            return ISO_8601_FORMAT
-        except ValueError:
-            if warn_user:
-                warnings.warn(f"Feature {fname} is a datetime but may not "
-                              f"work properly if user doesn't specify "
-                              f"the correct format.")
-            return ISO_8601_FORMAT
+        warnings.warn(warning_text, DatetimeFormatWarning)
+        return ISO_8601_FORMAT
 
     # detect iso formats ending in Z, signifying UTC
     if (
         dt_object.utcoffset() == dt.timedelta(0) and
         DATETIME_UTC_Z_PATTERN.findall(str_date)
     ):
-        try:
-            dt.datetime.strptime(str_date, ISO_8601_FORMAT_FRACTIONAL + "Z")
-            return ISO_8601_FORMAT_FRACTIONAL + "Z"
-        except ValueError:
-            return ISO_8601_FORMAT + "Z"
+        for fmt in format_checks:
+            if is_valid_datetime_format(str_date, fmt + "Z"):
+                return fmt + "Z"
+        warnings.warn(warning_text, DatetimeFormatWarning)
+        return ISO_8601_FORMAT + "Z"
 
-    # date has time zone info, determine whether it's an offset
-    if isinstance(dt_object.tzinfo, tzoffset):
-        return "%Y-%m-%dT%H:%M:%S%z"
-
+    # if date has time zone info, determine whether it's an offset.
     # offsets of +0000 or -0000 won't parse as a TZ offset, but
     # the format still matches using %z, thus check if last char is '0'
-    if str_date[-1] == '0':
-        return "%Y-%m-%dT%H:%M:%S%z"
+    if isinstance(dt_object.tzinfo, tzoffset) or str_date[-1] == '0':
+        for fmt in format_checks:
+            if is_valid_datetime_format(str_date, fmt + "%z"):
+                return fmt + "%z"
+        warnings.warn(warning_text, DatetimeFormatWarning)
+        return ISO_8601_FORMAT + "%z"
 
-    return "%Y-%m-%dT%H:%M:%S%Z"
+    else:
+        for fmt in format_checks:
+            if is_valid_datetime_format(str_date, fmt + "%Z"):
+                return fmt + "%Z"
+        warnings.warn(warning_text, DatetimeFormatWarning)
+        return ISO_8601_FORMAT + "%Z"
 
 
 def validate_list_shape(values: Collection | None, dimensions: int,
@@ -677,9 +708,9 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
                         bad_format = True
                         if warn and feature_name not in warned_features:
                             warnings.warn(
-                                f"{feature_name} has values with incorrect "
-                                f"datetime format, should be {dt_format}. "
-                                f"This feature may not work properly."
+                                f'"{feature_name}" has values with an incorrect '
+                                f'datetime format, should be "{dt_format}". '
+                                f'This feature may not work properly.'
                             )
                             warned_features.add(feature_name)
 
@@ -1328,46 +1359,6 @@ def matrix_processing( # noqa
             matrix.iloc[i, i] = fill_diagonal_value
 
     return matrix
-
-
-def get_matrix_diff(matrix: pd.DataFrame) -> dict:
-    """
-    Calculates the absolute value of a matrix for feature pairs.
-
-    Parameters
-    ----------
-    matrix : DataFrame
-        The matrix in DataFrame format.
-
-    Returns
-    -------
-    dict
-        Sorted dictionary of absolute differences between the feature value pairs. The values
-        are stored in a dictionary with keys consisting of a tuple of the features.
-    """
-    if matrix.shape[0] != matrix.shape[1]:
-        raise ValueError(
-            f"Invalid matrix shape: ({matrix.shape[0]}, {matrix.shape[1]}), "
-            "matrix must be square."
-        )
-
-    # Ensures sorting
-    matrix = matrix.sort_index(axis=0)
-    matrix = matrix.sort_index(axis=1)
-
-    differences_dict = {}
-
-    features = matrix.columns
-    for i, row in enumerate(features):
-        for col in features[i + 1:]:
-            key = (row, col)
-            abs_diff = abs(matrix.loc[row, col] - matrix.loc[col, row])  # type: ignore
-            differences_dict[key] = abs_diff
-
-    # Sort dictionary
-    differences_dict = {k: v for k, v in sorted(differences_dict.items(), key=lambda item: item[1], reverse=True)}
-
-    return differences_dict
 
 
 def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tuple[np.ndarray, list[str]]:

@@ -5,18 +5,18 @@ import platform
 import warnings
 
 from dateutil import parser
-import howso.utilities as utils
-from howso.utilities import (
-    format_confusion_matrix,
-    get_kwargs,
-    get_matrix_diff,
-    LocaleOverride,
-    matrix_processing,
-)
 import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 import pytest
+
+from howso.utilities import (
+    format_confusion_matrix,
+    get_kwargs,
+    LocaleOverride,
+    matrix_processing,
+)
+import howso.utilities as utils
 
 from . import has_locales
 
@@ -287,39 +287,27 @@ def test_build_react_series_df():
 
 @pytest.mark.parametrize('date_str, format_str', (
     ("2020-01-01", "%Y-%m-%d"),
+    ("20200101", "%Y%m%d"),
     ("2020-01-01T20:10:10", "%Y-%m-%dT%H:%M:%S"),
+    ("2020-01-01 20:10:10", "%Y-%m-%d %H:%M:%S"),
     ("2020-01-01T20:10:10.123", "%Y-%m-%dT%H:%M:%S.%f"),
+    ("2020-01-01 20:10:10.123", "%Y-%m-%d %H:%M:%S.%f"),
     ("2020-01-01T20:10:10+0000", "%Y-%m-%dT%H:%M:%S%z"),
     ("2020-01-01T20:10:10-0000", "%Y-%m-%dT%H:%M:%S%z"),
     ("2020-01-01T20:10:10+05:00", "%Y-%m-%dT%H:%M:%S%z"),
+    ("2020-01-01T20:10:10.123+0430", "%Y-%m-%dT%H:%M:%S.%f%z"),
+    ("2020-01-01 20:10:10.123+0430", "%Y-%m-%d %H:%M:%S.%f%z"),
     ("2020-01-01T20:10:10UTC", "%Y-%m-%dT%H:%M:%S%Z"),
+    ("2020-01-01 20:10:10UTC", "%Y-%m-%d %H:%M:%S%Z"),
     ("2020-01-01T20:10:10Z", "%Y-%m-%dT%H:%M:%SZ"),
     ("2020-01-01T20:10:10.123Z", "%Y-%m-%dT%H:%M:%S.%fZ"),
+    ("2020-01-01 20:10:10.123Z", "%Y-%m-%d %H:%M:%S.%fZ"),
 ))
 def test_determine_iso_format(date_str, format_str):
     """Tests utils.determine_iso_format."""
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         assert format_str == utils.determine_iso_format(date_str, "_")
-
-
-def test_get_matrix_diff():
-    """Tests that `get_matrix_diff` works properly."""
-    df = pd.DataFrame({
-        'a': [1, 2, 3],
-        'b': [4, 5, 6],
-        'c': [7, 8, 9]
-    }, index=['a', 'b', 'c']).T
-
-    differences_dict = get_matrix_diff(df)
-
-    correct_dict = {
-        ('a', 'c'): 4,
-        ('a', 'b'): 2,
-        ('b', 'c'): 2
-    }
-
-    assert differences_dict == correct_dict
 
 
 @pytest.mark.parametrize(

@@ -1,10 +1,11 @@
 from math import e
 
-from howso.utilities import infer_feature_attributes
 import numpy as np
 import pandas as pd
 import pytest
 
+from howso.client.exceptions import DatetimeFormatWarning
+from howso.utilities import infer_feature_attributes
 from . import NOMINAL_SUBSTITUTION_AVAILABLE
 
 
@@ -62,8 +63,8 @@ class TestInferFeatureAttributes:
         assert feature_attribs['datetime']['locale'] == 'en_US'
 
         # loose bounds select dates beyond what's in the dataset
-        assert feature_attribs['datetime']['bounds']['min'] == '05.25.1856'
-        assert feature_attribs['datetime']['bounds']['max'] == '08.08.2083'
+        assert feature_attribs['datetime']['bounds']['min'] == '12.07.1855'
+        assert feature_attribs['datetime']['bounds']['max'] == '11.15.2085'
 
     def test_datetime_warns_custom_format(self):
         """Test that infer_feature_attributes infers dates correctly."""
@@ -115,11 +116,11 @@ class TestInferFeatureAttributes:
         ]).transpose(), columns=['nom', 'datetime'])
 
         # dates are a subset ISO format, show different warning
-        with pytest.warns() as warn:
+        with pytest.warns(DatetimeFormatWarning) as warn:
             feature_attribs = infer_feature_attributes(df)
             assert str(warn[0].message) == (
-                "Feature datetime is a datetime but may not work properly if "
-                "user doesn't specify the correct format.")
+                'Feature "datetime" is a datetime but may not work properly if '
+                "user does not specify the correct format.")
             assert feature_attribs['datetime']['type'] == 'continuous'
             assert feature_attribs['datetime']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
 

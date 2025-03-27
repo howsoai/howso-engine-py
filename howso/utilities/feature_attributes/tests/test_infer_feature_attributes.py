@@ -229,37 +229,41 @@ def test_get_feature_type(data, expected_type):
     assert original_type == expected_type
 
 
-@pytest.mark.parametrize('data, is_time, expected_format', [
-    (pd.DataFrame(["08:08:08"], columns=['a']), True, '%H:%M:%S'),
-    (pd.DataFrame(["8:8:8"], columns=['a']), True, '%H:%M:%S'),
-    (pd.DataFrame(["8:59:59am"], columns=['a']), True, '%I:%M:%S%p'),
-    (pd.DataFrame(["01:00:00"], columns=['a']), True, '%H:%M:%S'),
-    (pd.DataFrame(["23:59:59"], columns=['a']), True, '%H:%M:%S'),
-    (pd.DataFrame(["23:59:59.59"], columns=['a']), True, '%H:%M:%S.%f'),
-    (pd.DataFrame(["2:30 am"], columns=['a']), True, '%I:%M %p'),
-    (pd.DataFrame(["2:01 pm"], columns=['a']), True, '%I:%M %p'),
-    (pd.DataFrame(["4:25"], columns=['a']), True, '%H:%M'),
-    (pd.DataFrame(["20:00"], columns=['a']), True, '%H:%M'),
-    (pd.DataFrame(["1am"], columns=['a']), True, '%I%p'),
-    (pd.DataFrame(["12 pm"], columns=['a']), True, '%I %p'),
-    (pd.DataFrame([datetime.time(15)], columns=['a']), True, '%H:%M:%S'),
-    (pd.DataFrame(["-01:01:01"], columns=['a']), False, None),
-    (pd.DataFrame(["24:0:0"], columns=['a']), False, None),
-    (pd.DataFrame(["59:0:0"], columns=['a']), False, None),
-    (pd.DataFrame(["3:60"], columns=['a']), False, None),
-    (pd.DataFrame(["12 o'clock"], columns=['a']), False, None),
-    (pd.DataFrame(["10pm is the time"], columns=['a']), False, None),
-    (pd.DataFrame(["8.5:32:32"], columns=['a']), False, None),
-    (pd.DataFrame([["2020-01-01T10:00:00"]], columns=['a']), False, None),
-    (pd.DataFrame([["2020-01-01"]], columns=['a']), False, None),
+@pytest.mark.parametrize('data, is_time, expected_format, provided_format', [
+    (pd.DataFrame(["08:08:08"], columns=['a']), True, '%H:%M:%S', None),
+    (pd.DataFrame(["8:8:8"], columns=['a']), True, '%H:%M:%S', None),
+    (pd.DataFrame(["8:59:59am"], columns=['a']), True, '%I:%M:%S%p', None),
+    (pd.DataFrame(["01:00:00"], columns=['a']), True, '%H:%M:%S', None),
+    (pd.DataFrame(["23:59:59"], columns=['a']), True, '%H:%M:%S', None),
+    (pd.DataFrame(["23:59:59.59"], columns=['a']), True, '%H:%M:%S.%f', None),
+    (pd.DataFrame(["2:30 am"], columns=['a']), True, '%I:%M %p', None),
+    (pd.DataFrame(["2:01 pm"], columns=['a']), True, '%I:%M %p', None),
+    (pd.DataFrame(["4:25"], columns=['a']), True, '%H:%M', None),
+    (pd.DataFrame(["20:00"], columns=['a']), True, '%H:%M', None),
+    (pd.DataFrame(["1am"], columns=['a']), True, '%I%p', None),
+    (pd.DataFrame(["12 pm"], columns=['a']), True, '%I %p', None),
+    (pd.DataFrame([datetime.time(15)], columns=['a']), True, '%H:%M:%S', None),
+    (pd.DataFrame(["-01:01:01"], columns=['a']), False, None, None),
+    (pd.DataFrame(["24:0:0"], columns=['a']), False, None, None),
+    (pd.DataFrame(["59:0:0"], columns=['a']), False, None, None),
+    (pd.DataFrame(["3:60"], columns=['a']), False, None, None),
+    (pd.DataFrame(["12 o'clock"], columns=['a']), False, None, None),
+    (pd.DataFrame(["10pm is the time"], columns=['a']), False, None, None),
+    (pd.DataFrame(["8.5:32:32"], columns=['a']), False, None, None),
+    (pd.DataFrame([["2020-01-01T10:00:00"]], columns=['a']), False, None, None),
+    (pd.DataFrame([["2020-01-01"]], columns=['a']), False, None, None),
+    (pd.DataFrame(["08/03/1999 23:59:59"], columns=['a']), False, None, '%M/%D/%Y %H:%M:%S'),
+    (pd.DataFrame(["5"], columns=['a']), False, None, '%C'),
+    (pd.DataFrame(["1999 23"], columns=['a']), False, None, '%Y %H'),
 ])
-def test_infer_time_features(data, is_time, expected_format):
+def test_infer_time_features(data, is_time, expected_format, provided_format):
     """Test IFA against many possible valid and invalid time-only features."""
     ifa = InferFeatureAttributesDataFrame(data)
     feature_type, _ = ifa._get_feature_type('a')
     if is_time:
         assert feature_type == FeatureType.TIME
-        features = infer_feature_attributes(data, tight_bounds=['a'])
+        features = infer_feature_attributes(data, tight_bounds=['a'],
+                                            datetime_feature_formats={'a': provided_format})
         assert features['a']['type'] == 'continuous'
         assert features['a']['date_time_format'] == expected_format
     else:
@@ -300,6 +304,8 @@ def test_infer_time_feature_bounds(data, tight_bounds, provided_format, expected
     assert 'cycle_length' in features['a']
     assert features['a']['cycle_length'] == cycle_length
     assert features['a']['bounds'] == expected_bounds
+    assert features['a']['date_time_format'] is not None
+    assert features['a']['data_type'] == "formatted_time"
 
 
 @pytest.mark.parametrize('data, data_type', [
@@ -372,12 +378,12 @@ def test_dependent_features(should_include, base_features, dependent_features):
 
 
 @pytest.mark.parametrize('tight_bounds, data, expected_bounds', [
-    (None, [2, 3, 4, 5, 6, 7], {'min': 1, 'max': 7, 'observed_min': 2, 'observed_max': 7, 'allow_null': False}),
-    (None, [2, 3, 4, 4, 5, 6, 6, 6, 6], {'min': 1, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),
-    (None, [2, 3, 4, 4, 4, 4, 6, 6, 6, 6], {'min': 1, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6], {'min': 2, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6, 6], {'min': 1, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 7], {'min': 2, 'max': 7, 'observed_min': 2, 'observed_max': 7, 'allow_null': False}),
+    (None, [2, 3, 4, 5, 6, 7], {'min': 0, 'max': 10, 'observed_min': 2, 'observed_max': 7, 'allow_null': False}),
+    (None, [2, 3, 4, 4, 5, 6, 6, 6, 6], {'min': 0, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),  # noqa: E501
+    (None, [2, 3, 4, 4, 4, 4, 6, 6, 6, 6], {'min': 0, 'max': 6.0, 'observed_min': 2.0, 'observed_max': 6.0, 'allow_null': False}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6], {'min': 2.0, 'max': 6.0, 'observed_min': 2.0, 'observed_max': 6.0, 'allow_null': False}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6, 6], {'min': 0, 'max': 6.0, 'observed_min': 2.0, 'observed_max': 6.0, 'allow_null': False}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 7], {'min': 2.0, 'max': 10.0, 'observed_min': 2.0, 'observed_max': 7.0, 'allow_null': False}),  # noqa: E501
     (None, [float('nan'), float('nan')], {'allow_null': True}),
     (['a'], [2, 3, 4, 5, 6, 7], {'min': 2, 'max': 7, 'observed_min': 2, 'observed_max': 7, 'allow_null': False}),
     (['a'], [2, 3, 4, None, 6, 7], {'min': 2, 'max': 7, 'observed_min': 2, 'observed_max': 7, 'allow_null': True}),
@@ -389,13 +395,13 @@ def test_dependent_features(should_include, base_features, dependent_features):
     (
         None,
         ['1905-01-01', '1904-05-03', '2020-01-15', '2000-04-26', '2000-04-24'],
-        {'min': '1856-05-25', 'max': '2083-08-08', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
+        {'min': '1829-04-11', 'max': '2095-02-04', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
     ),
     (
         None,
         ['1905-01-01', '1904-05-03', '2020-01-15', '2020-01-15', '2020-01-15',
          '2020-01-15', '2000-04-26', '2000-04-24'],
-        {'min': '1856-05-25', 'max': '2020-01-15', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
+        {'min': '1829-04-11', 'max': '2020-01-15', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
     ),
     (
         None,
@@ -410,7 +416,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          "1904-05-03T00:00:00+0500", "1904-05-03T00:00:00+0500",
          "1904-05-03T00:00:00+0500", "1904-05-03T00:00:00-0200",
          "1904-05-03T00:00:00+0500", "2022-01-15T00:00:00+0500"],
-        {'min': '1904-05-03T00:00:00+0500', 'max': '2083-08-08T01:07:26+0500',
+        {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
          'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
     ),
     (
@@ -424,7 +430,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
         None,
         [datetime.datetime(1905, 1, 1), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1856-05-25T22:52:33', 'max': '2083-08-08T01:07:26',
+        {'min': '1827-11-08T09:55:14', 'max': '2098-09-17T14:04:45',
          'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
     ),
     (
@@ -433,7 +439,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.datetime(1904, 5, 3), datetime.datetime(1904, 5, 3),
          datetime.datetime(1904, 5, 3), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1904-05-03T00:00:00', 'max': '2083-08-08T01:07:26',
+        {'min': '1904-05-03T00:00:00', 'max': '2098-09-17T14:04:45',
          'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
     ),
     (
@@ -446,7 +452,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
          datetime.datetime(2020, 1, 15, tzinfo=pytz.FixedOffset(300)),
          datetime.datetime(2022, 3, 26, tzinfo=pytz.FixedOffset(300))],
-        {'min': '1904-05-03T00:00:00+0500', 'max': '2083-08-08T01:07:26+0500',
+        {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
          'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
     ),
     (
@@ -459,7 +465,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
          datetime.datetime(2020, 1, 15, tzinfo=pytz.FixedOffset(300)),
          datetime.datetime(2022, 3, 26, tzinfo=pytz.FixedOffset(300))],
-        {'min': '1904-05-03T00:00:00+0500', 'max': '2083-08-08T01:07:26+0500',
+        {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
          'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
     ),
     (
@@ -478,8 +484,8 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.timedelta(minutes=50), datetime.timedelta(days=5),
          datetime.timedelta(days=5), datetime.timedelta(days=5),
          datetime.timedelta(days=5)],
-        {'min': 2.718281828459045, 'max': 5 * 24 * 60 * 60,
-         'observed_min': 5, 'observed_max': 5 * 24 * 60 * 60,
+        {'min': 0, 'max': 5 * 24 * 60 * 60.0,
+         'observed_min': 5.0, 'observed_max': 5 * 24 * 60 * 60.0,
          'allow_null': True, 'allow_null': True}
     ),
 ])
@@ -672,7 +678,7 @@ def test_validate_dataframe():
     df['class'] = df['class'].astype(pd.CategoricalDtype(categories=unique))
     df = features.validate(df, coerce=True, raise_errors=True)
     assert df is not None
-    assert pd.api.types.is_categorical_dtype(df['class'])
+    assert isinstance(df['class'].dtype, pd.CategoricalDtype)
 
 
 @pytest.mark.parametrize("ftype, data_type, decimal_places, bounds, date_time_format, expected_dtype", [
@@ -960,3 +966,53 @@ def test_observed_ordinal_values(series, ordinals, min_value, max_value):
     features = infer_feature_attributes(data, ordinal_feature_values={'a': ordinals})
     assert features['a']['bounds']['observed_min'] == min_value
     assert features['a']['bounds']['observed_max'] == max_value
+
+
+def test_formatted_date_time():
+    """Test formatted_date_time is set when a datetime, and raises when no date_time_format is specified."""
+    data = pd.DataFrame({
+        'a': [0, 1, 2, 3],
+        'time': ['10-10', '04-25', '10-30', '12-01'],
+        'custom': ['2010/10/10', '2010/10/11', '2010/10/12', '2010/10/14'],
+        'iso': ['2010-10-10', '2010-10-11', '2010-10-12', '2010-10-14']
+    })
+
+    # When data_type is formatted_date_time, a date_time_format must be set
+    with pytest.raises(
+        ValueError,
+        match='must have a `date_time_format` defined when its `data_type` is "formatted_date_time"'
+    ):
+        infer_feature_attributes(data, features={
+            'custom': {
+                "data_type": "formatted_date_time"
+            }
+        })
+
+    # When data_type is formatted_time, a date_time_format must be set
+    with pytest.raises(
+        ValueError,
+        match='must have a `date_time_format` defined when its `data_type` is "formatted_time"'
+    ):
+        infer_feature_attributes(data, features={
+            'time': {
+                "data_type": "formatted_time"
+            }
+        })
+
+    # Verify formatted_date_time is set when a date_time_format is configured
+    with warnings.catch_warnings():
+        warnings.filterwarnings("error")
+        features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"})
+        assert features['a']['data_type'] != "formatted_date_time"
+        # custom feature dates should be formatted_date_time
+        assert features['custom']['data_type'] == "formatted_date_time"
+        # auto detected iso dates should be formatted_date_time
+        assert features['iso']['data_type'] == "formatted_date_time"
+
+
+def test_constrained_date_bounds():
+    """Constrained datetime formats may make bounds undeterminable."""
+    df = pd.DataFrame([["01"], ["02"]], columns=["date"])
+    with pytest.warns(match="bounds could not be computed. This is likely due to a constrained date time format"):
+        # Loose bounds may cause min bound to be > max bound if the date format is constrained
+        infer_feature_attributes(df, datetime_feature_formats={"date": "%m"})

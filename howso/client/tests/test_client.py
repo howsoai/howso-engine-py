@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 import importlib.metadata
 import json
 import os
@@ -13,12 +14,18 @@ import pytest
 
 import howso
 from howso.client import HowsoClient
-from howso.client.client import _check_isfile, get_configuration_path, get_howso_client_class, LEGACY_CONFIG_FILENAMES
+from howso.client.client import (
+    _check_isfile,  # type: ignore reportPrivateUsage
+    get_configuration_path,
+    get_howso_client_class,
+    LEGACY_CONFIG_FILENAMES
+)
 from howso.client.exceptions import HowsoApiError, HowsoConfigurationError, HowsoError
 from howso.client.protocols import ProjectClient
 from howso.client.schemas.reaction import Reaction
 from howso.direct import HowsoDirectClient
 from howso.utilities.testing import get_configurationless_test_client, get_test_options
+from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # type: ignore reportPrivateUsage
 
 TEST_OPTIONS = get_test_options()
 
@@ -235,8 +242,8 @@ class TestDatetimeSerialization:
             # There might be other UserWarnings but assert that at least one
             # of them has the correct message.
             assert any([str(warning.message) == (
-                "datetime has values with incorrect datetime format, should "
-                "be %Y-%m-%dT%H:%M:%S. This feature may not work properly.")
+                '"datetime" has values with an incorrect datetime format, should '
+                'be "%Y-%m-%dT%H:%M:%S". This feature may not work properly.')
                 for warning in warning_list])
 
         case_response = self.client.get_cases(
@@ -264,8 +271,8 @@ class TestDatetimeSerialization:
         with pytest.warns(UserWarning) as warning_list:
             self.client.train(trainee.id, df.values.tolist(), df.columns.tolist())
             assert any([str(warning.message) == (
-                "datetime has values with incorrect datetime format, should "
-                "be %H %Y. This feature may not work properly.")
+                '"datetime" has values with an incorrect datetime format, should '
+                'be "%H %Y". This feature may not work properly.')
                 for warning in warning_list])
 
         case_response = self.client.get_cases(
@@ -577,8 +584,8 @@ class TestClient:
                 ['similarity_conviction', ]
             ),
             (
-                {'feature_residuals_robust': True, },
-                ['feature_residuals_robust', ]
+                {'feature_robust_residuals': True, },
+                ['feature_robust_residuals', ]
             ),
         ]
         for audit_detail_set, keys_to_expect in details_sets:
@@ -589,6 +596,112 @@ class TestClient:
                                          details=audit_detail_set)
             details = response['details']
             assert (all(details[key] is not None for key in keys_to_expect))
+
+    @pytest.mark.parametrize('old_key,new_key', _RENAMED_DETAIL_KEYS.items())
+    def test_deprecated_detail_keys_react(self, trainee, old_key, new_key):
+        """Ensure using any of the deprecated keys raises a warning, but continues to work."""
+        # These keys shouldn't be tested like this:
+        if new_key in [
+            "feature_full_directional_prediction_contributions",
+            "feature_robust_directional_prediction_contributions",
+            "feature_full_accuracy_contributions_permutation",
+            "feature_robust_accuracy_contributions_permutation",
+        ]:
+            return
+
+        with pytest.warns(DeprecationWarning) as record:
+            self.client.train(
+                trainee.id, [[1, 2], [1, 2], [1, 2]],
+                features=['penguin', 'play']
+            )
+            reaction = self.client.react(
+                trainee.id,
+                contexts=[['1']],
+                context_features=['penguin'],
+                action_features=['play'],
+                details={old_key: True}
+            )
+
+        # Check that the correct warning was raised.
+        assert len(record)
+        # There may be multiple warnings. Ensure at least one of them contains
+        # the deprecation message.
+        assert any([
+            f"'{old_key}' is deprecated" in str(r.message)
+            for r in record
+        ])
+
+        # We DO want the old_key to be present during the deprecation period.
+        assert old_key in reaction.get('details', {}).keys()
+
+        # We do NOT want the new_key present during the deprecation period.
+        assert new_key not in reaction.get('details', {}).keys()
+
+        # Some keys request multiple keys to be returned, these too should be
+        # converted to the old names if the old name was originally used.
+        if old_key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
+            for old_extra_key, new_extra_key in _RENAMED_DETAIL_KEYS_EXTRA[old_key]["additional_keys"].items():
+                assert new_extra_key not in reaction.get('details', {}).keys()
+                assert old_extra_key in reaction.get('details', {}).keys()
+
+    @pytest.mark.parametrize('old_key,new_key', _RENAMED_DETAIL_KEYS.items())
+    def test_deprecated_detail_keys_react_aggregate(self, trainee, old_key, new_key):
+        """Ensure using any of the deprecated keys raises a warning, but continues to work."""
+        # These keys shouldn't be tested like this:
+        if new_key in {
+            "case_full_prediction_contributions",
+            "case_robust_prediction_contributions",
+            "feature_full_prediction_contributions_for_case",
+            "feature_robust_prediction_contributions_for_case",
+            "feature_full_residual_convictions_for_case",
+            "feature_robust_residual_convictions_for_case",
+            "feature_full_residuals_for_case",
+            "feature_robust_residuals_for_case",
+            "case_full_accuracy_contributions",
+            "case_robust_accuracy_contributions",
+            "feature_full_directional_prediction_contributions",
+            "feature_robust_directional_prediction_contributions",
+            "feature_full_accuracy_contributions_ex_post",
+            "feature_robust_accuracy_contributions_ex_post",
+        }:
+            return
+
+        with pytest.warns(DeprecationWarning) as record:
+            self.client.train(
+                trainee.id, [[1, 2], [1, 2], [1, 2]],
+                features=['penguin', 'play']
+            )
+            response = self.client.react_aggregate(
+                trainee.id,
+                action_feature='penguin',
+                num_samples=1,
+                details={old_key: True}
+            )
+
+        # Check that the correct warning was raised.
+        assert len(record)
+        # There may be multiple warnings. Ensure at least one of them contains
+        # the deprecation message.
+        assert any([
+            f"'{old_key}' is deprecated" in str(r.message)
+            for r in record
+        ])
+
+        # No point in testing further if we didn't get back a Mapping instance.
+        assert isinstance(response, Mapping), "react_aggregate did not return a Mapping."
+
+        # We DO want the old_key to be present during the deprecation period.
+        assert old_key in response.keys()
+
+        # We do NOT want the new_key present during the deprecation period.
+        assert new_key not in response.keys()
+
+        # Some keys request multiple keys to be returned, these too should be
+        # converted to the old names if the old name was originally used.
+        if old_key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
+            for old_extra_key, new_extra_key in _RENAMED_DETAIL_KEYS_EXTRA[old_key]["additional_keys"].items():
+                assert new_extra_key not in response.keys()
+                assert old_extra_key in response.keys()
 
     def test_get_version(self):
         """Test get_version()."""

@@ -24,6 +24,9 @@ from howso.utilities.internals import serialize_models
 
 logger = logging.getLogger(__name__)
 
+# Format string tokens for datetime and time-only features
+DATE_TOKENS = {'%m', '%d', '%y', '%z', '%D', '%F', '%Y', '%G', '%C'}
+TIME_TOKENS = {'%R', '%T', '%I', '%X', '%r', '%H', '%M', '%S', '%f', '%p'}
 # Maximum/minimum data sizes for integers, floats, datetimes supported by the core
 FLOAT_MAX = 1.7976931348623157 * math.pow(10, 308)
 FLOAT_MIN = 2.2250738585072014 * math.pow(10, -308)
@@ -218,8 +221,8 @@ class FeatureAttributesBase(dict):
             if without is None or key not in without
         ]
 
-    def _validate_bounds(self, data: pd.DataFrame, feature: str,
-                         attributes: dict) -> list[str]:  # noqa: C901
+    def _validate_bounds(self, data: pd.DataFrame, feature: str,  # noqa: C901
+                         attributes: dict) -> list[str]:
         """Validate the feature bounds of the provided DataFrame."""
         # Import here to avoid circular import
         from howso.utilities import date_to_epoch
@@ -237,6 +240,7 @@ class FeatureAttributesBase(dict):
         max_bound = bounds.get('max')
         # Get unique values but exclude NoneTypes
         unique_values = series.dropna().unique()
+        additional_errors = 0
 
         if bounds.get('allowed'):
             # Check nominal bounds
@@ -257,17 +261,29 @@ class FeatureAttributesBase(dict):
                 for value in unique_values:
                     epoch = date_to_epoch(value, time_format=attributes['date_time_format'])
                     if (max_bound and epoch > max_bound_epoch) or (min_bound and epoch < min_bound_epoch):
-                        errors.append(f"'{feature}' has a value outside of bounds (min: {min_bound}, "
-                                      f"max: {max_bound}): {value}")
+                        if len(errors) < 5:
+                            errors.append(
+                                f'"{feature}" has a value outside of bounds '
+                                f'(min: {min_bound}, max: {max_bound}): {value}'
+                            )
+                        else:
+                            additional_errors += 1
             except ValueError as err:
                 errors.append(f'Could not validate datetime bounds due to the following error: {err}')
         elif min_bound or max_bound:
             # Check int/float bounds
             for value in unique_values:
                 if (max_bound and float(value) > float(max_bound)) or (min_bound and float(value) < float(min_bound)):
-                    errors.append(f"'{feature}' has a value outside of bounds (min: {min_bound}, "
-                                  f"max: {max_bound}): {value}")
-
+                    if len(errors) < 5:
+                        errors.append(
+                            f'"{feature}" has a value outside of bounds '
+                            f'(min: {min_bound}, max: {max_bound}): {value}'
+                        )
+                    else:
+                        additional_errors += 1
+        if additional_errors > 0:
+            errors.append(
+                f'"{feature}" had {additional_errors} additional values outside of bounds that were not displayed.')
         return errors
 
     def _validate_dtype(self, data: pd.DataFrame, feature: str,  # noqa: C901
@@ -523,9 +539,9 @@ class FeatureAttributesBase(dict):
             # Sanity check: booleans must be nominal
             elif entries[feature_name].get('data_type') == 'boolean' and orig_type and orig_type != 'nominal':
                 warnings.warn(
-                    f"Feature {feature_name} was preset as {orig_type} "
-                    "but was detected to be a boolean. Booleans "
-                    "must be 'nominal', thus the type override will be ignored."
+                    f'Feature "{feature_name}" was preset as {orig_type} '
+                    'but was detected to be a boolean. Booleans '
+                    'must be "nominal", thus the type override will be ignored.'
                 )
             # In otherwise valid cases, ensure that existing types are not overwritten
             elif orig_type and new_type:
@@ -770,9 +786,10 @@ class InferFeatureAttributesBase(ABC):
                 # single string (format) or a tuple of strings (format, locale)
                 user_dt_format = datetime_feature_formats[feature_name]
                 if 'date_time_format' in features.get(feature_name, {}):
-                    warnings.warn(f'Warning: date_time_format for {feature_name} '
-                                  'provided in both `features` (ignored) and '
-                                  '`datetime_feature_formats`.')
+                    warnings.warn(
+                        f'The date_time_format for "{feature_name}" was provided in '
+                        'both `features` (ignored) and `datetime_feature_formats`.'
+                    )
                     del features[feature_name]['date_time_format']
 
                 if feature_type == FeatureType.DATETIME:
@@ -802,9 +819,9 @@ class InferFeatureAttributesBase(ABC):
                     # User passed only the format string
                     # First see if it is likely a time-only feature
                     if (not any(date_id in user_dt_format
-                        for date_id in ['%m', '%d', '%y', "%z"])
+                        for date_id in DATE_TOKENS)
                             and any(time_id in user_dt_format
-                                    for time_id in ['%I', '%H', '%M', '%S', '%f', '%p'])):
+                                    for time_id in TIME_TOKENS)):
                         self.attributes = merge(self.attributes, {
                             feature_name: self._infer_time_attributes(feature_name, user_dt_format)})
                     else:
@@ -903,6 +920,8 @@ class InferFeatureAttributesBase(ABC):
         elif id_feature_name is not None:
             raise ValueError('ID feature must be of type `str` or `list[str], '
                              f'not {type(id_feature_name)}.')
+
+        self._validate_date_times()
 
         if infer_bounds:
             for feature_name, _attributes in self.attributes.items():
@@ -1076,28 +1095,24 @@ class InferFeatureAttributesBase(ABC):
             Tuple (min_bound, max_bound) of loose bounds around the provided tight
             min and max_bound bounds
         """
-        # NOTE: It was considered to use a smoother bounds-expansion function that
-        #       looked like max_loose_bounds = exp(ln(max_bounds) + 0.5), but this
-        #       could leak privacy since the actual bounds would be
-        #       reverse-engineer-able.
-        assert min_bound <= max_bound, \
-            "Feature min_bound cannot be larger than max_bound"
+        if min_bound > max_bound:
+            raise AssertionError(
+                "Feature min_bound cannot be larger than max_bound."
+            )
+        scale_factor = 0.5
+        value_range = max_bound - min_bound
+        if value_range == 0.0:
+            new_range = np.exp(scale_factor)
+        else:
+            new_range = np.exp(np.log(value_range) + scale_factor)
 
-        if min_bound < 0:
-            # for negative min_bound boundary values:  e^ceil(ln(num))
-            min_bound = -np.exp(np.ceil(np.log(-min_bound)))
-        elif min_bound > 0:
-            # for positive min_bound boundary values:  e^floor(ln(num))
-            min_bound = np.exp(np.floor(np.log(min_bound)))
+        base_min_bound = max_bound - new_range
+        base_max_bound = min_bound + new_range
 
-        if max_bound < 0:
-            # for negative max_bound boundary values: e^floor(ln(num))
-            max_bound = -np.exp(np.floor(np.log(-max_bound)))
-        elif max_bound > 0:
-            # for positive max_bound boundary values: e^ceil(ln(num))
-            max_bound = np.exp(np.ceil(np.log(max_bound)))
+        new_min_bound = max(0, base_min_bound) if min_bound >= 0 else base_min_bound
+        new_max_bound = min(0, base_max_bound) if max_bound <= 0 else base_max_bound
 
-        return min_bound, max_bound
+        return new_min_bound, new_max_bound
 
     @staticmethod
     def _get_datetime_max():
@@ -1137,8 +1152,15 @@ class InferFeatureAttributesBase(ABC):
             if (orig_type in ['integer', 'numeric'] or 'date_time_format' in
                     feature_attributes[feature_name]):
                 # Get feature bounds
-                bounds = self._infer_feature_bounds(feature_attributes, feature_name,
-                                                    tight_bounds=feature_names)
+                with warnings.catch_warnings():
+                    # Prevent duplication of raised warnings, since we do not nee to raise them here
+                    # and infer bounds was likely already called previously
+                    warnings.simplefilter("ignore")
+                    bounds = self._infer_feature_bounds(
+                        feature_attributes,
+                        feature_name=feature_name,
+                        tight_bounds=feature_names
+                    )
                 if not bounds or bounds.get('min') is None or bounds.get('max') is None:
                     continue
                 omit = False
@@ -1167,6 +1189,17 @@ class InferFeatureAttributesBase(ABC):
                 # Keep track of unsupported data internally
                 if omit:
                     self.unsupported.append(feature_name)
+
+    def _validate_date_times(self):
+        """Validate date time features are configured correctly."""
+        for feature_name, attributes in self.attributes.items():
+            dt_format = attributes.get("date_time_format")
+            data_type = attributes.get("data_type")
+            if not dt_format and data_type in {"formatted_date_time", "formatted_time"}:
+                raise ValueError(
+                    f'The feature "{feature_name}" must have a `date_time_format` defined '
+                    f'when its `data_type` is "{data_type}".'
+                )
 
     @staticmethod
     def _is_datetime(string: str):
