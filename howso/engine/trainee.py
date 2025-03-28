@@ -1202,6 +1202,7 @@ class Trainee(BaseTrainee):
         progress_callback: t.Optional[Callable] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
+        use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
@@ -1704,6 +1705,9 @@ class Trainee(BaseTrainee):
             applicable if a substitution value map has been set.
         suppress_warning : bool, default False
             When True, warnings will not be displayed.
+        use_aggregation_based_differential_privacy : bool, default False
+            If True this changes generative output to use aggregation instead
+            of selection (the default approach) before adding noise.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
@@ -1756,6 +1760,7 @@ class Trainee(BaseTrainee):
             progress_callback=progress_callback,
             substitute_output=substitute_output,
             suppress_warning=suppress_warning,
+            use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
             use_case_weights=use_case_weights,
             use_regional_residuals=use_regional_residuals,
             weight_feature=weight_feature,
@@ -1797,6 +1802,7 @@ class Trainee(BaseTrainee):
         series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
+        use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
@@ -1940,6 +1946,9 @@ class Trainee(BaseTrainee):
             See parameter ``substitute_output`` in :meth:`react`.
         suppress_warning : bool, default False
             See parameter ``suppress_warning`` in :meth:`react`.
+        use_aggregation_based_differential_privacy : bool, default False
+            See paramater ``use_aggregation_based_differential_privacy`` in
+            :meth:`react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
         use_regional_residuals : bool, default True
@@ -1993,6 +2002,7 @@ class Trainee(BaseTrainee):
                 series_stop_maps=series_stop_maps,
                 substitute_output=substitute_output,
                 suppress_warning=suppress_warning,
+                use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
                 use_case_weights=use_case_weights,
                 use_regional_residuals=use_regional_residuals,
                 weight_feature=weight_feature,
@@ -2015,6 +2025,7 @@ class Trainee(BaseTrainee):
         series_context_values: t.Optional[TabularData3D] = None,
         series_id_features: t.Optional[Collection[str]] = None,
         series_id_values: t.Optional[TabularData2D] = None,
+        use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_derived_ts_features: bool = True,
         use_regional_residuals: bool = True,
@@ -2074,6 +2085,9 @@ class Trainee(BaseTrainee):
             2d list of ID feature values. Each sublist should specify ID
             feature values that can uniquely identify the cases making up a
             single series.
+        use_aggregation_based_differential_privacy : bool, default False
+            If True this changes generative output to use aggregation instead
+            of selection (the default approach) before adding noise.
         use_case_weights : bool, optional
             If True, then the Trainee will use case weights identified by the
             name given in ``weight_feature``. If False, case weights will not
@@ -2107,6 +2121,7 @@ class Trainee(BaseTrainee):
                 batch_size=batch_size,
                 context_features=context_features,
                 desired_conviction=desired_conviction,
+                use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
                 goal_features_map=goal_features_map,
                 initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
@@ -3152,7 +3167,6 @@ class Trainee(BaseTrainee):
         num_robust_influence_samples_per_case: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         prediction_stats_action_feature: t.Optional[str] = None,
-        residuals_hyperparameter_feature: t.Optional[str] = None,
         robust_hyperparameters: t.Optional[bool] = None,
         sample_model_fraction: t.Optional[float] = None,
         sub_model_size: t.Optional[int] = None,
@@ -3373,12 +3387,6 @@ class Trainee(BaseTrainee):
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
             If specified overrides sample_model_fraction.```
-        residuals_hyperparameter_feature : str, optional
-            When calculating residuals and prediction stats, uses this target
-            features's hyperparameters. The trainee must have been analyzed with
-            this feature as the action feature first. If not provided, by default
-            residuals and prediction stats uses targetless hyperparameters. Targetless
-            hyperparameters can also be selected using an empty string: "".
         robust_hyperparameters : bool, optional
             When specified, will attempt to return residuals that were
             computed using hyperparameters with the specified robust or
@@ -3429,7 +3437,6 @@ class Trainee(BaseTrainee):
                 num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
                 num_samples=num_samples,
                 prediction_stats_action_feature=prediction_stats_action_feature,
-                residuals_hyperparameter_feature=residuals_hyperparameter_feature,
                 robust_hyperparameters=robust_hyperparameters,
                 sample_model_fraction=sample_model_fraction,
                 sub_model_size=sub_model_size,
@@ -3491,6 +3498,8 @@ class Trainee(BaseTrainee):
                 - "fast" : will always use a fast approach for all computations
                   which will use faster, but lower precision
                   numeric operations.
+                - "fastest" : same as "fast" but will additionally use a faster
+                  approach specific for generative reacts.
 
         Returns
         -------

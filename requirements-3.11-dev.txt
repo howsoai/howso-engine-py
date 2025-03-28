@@ -4,19 +4,19 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --generate-hashes --no-emit-index-url --output-file=requirements-3.11-dev.txt
 #
-amalgam-lang==18.0.4 \
-    --hash=sha256:0d48535f6e028a476859b3802348e8c2ae940f12302a74cf57c4d7cac4fe588c \
-    --hash=sha256:1ad0c55acbfc95debc5fdcd159c12b40d8e5caaf7f61449a2198cdb1cfcb9b1e \
-    --hash=sha256:2ba3609ea229a369f2133830ff0d0ec5cc13a19298c1da8a65c04dd4cc474d65 \
-    --hash=sha256:5505298a234369d8f4dad44343263b196f5ba62240c4ffb01030a6b8516d4b8d \
-    --hash=sha256:625b837a54533b648633a3c28aacb550d977fc7c9fd848a207525347ab675d94 \
-    --hash=sha256:6d2a840059a4f3b75e7af379e24c2969e982d718f9316874e7d26827fc774b7d \
-    --hash=sha256:b5aa8719da1bf599b3957faf8c23f0681b0d7b1bddb7ea47f061a4e3a5442764 \
-    --hash=sha256:c1e8862d91cbb9d30efdecc5cb6c71d296d0ccada6a98ee3c9b91bcf6649d3eb
+amalgam-lang==18.1.1 \
+    --hash=sha256:1bcd60c795997dc85a18d1da66e91c7bb93b47e29e507353cec4aeb1d236beec \
+    --hash=sha256:2589e4db6ad40e6e423285278bcc7d444b5d6ec88b15b74c7169615e21c8fb0d \
+    --hash=sha256:2a00edcc8e78eb4bbf7a0315d4c14a3408c4d50d147dea75457ae154c97cfb30 \
+    --hash=sha256:88abfb584137c06efbc6ea13ac30c6c84ea363a70ab2087c7c1e476d4594debc \
+    --hash=sha256:95e50172508e15876f82c9d49e0d204b30d6a6253d8e0224bea3f8cb1bd1b7d1 \
+    --hash=sha256:a106d1452a2d1e03a2a870e1fa2fc88f48fd320c6478407a3a9bb44643a56577 \
+    --hash=sha256:e51e9d3422a2037f62eca365ccbe52eb1d37c4ea7b1ee7b210f936b1381cc464 \
+    --hash=sha256:f0898f777a10116f90bda582c1aaea0e3b5f28974955dabca743cd7a3ded699e
     # via howso-engine (pyproject.toml)
-astroid==3.3.8 \
-    --hash=sha256:187ccc0c248bfbba564826c26f070494f7bc964fd286b6d9fff4420e55de828c \
-    --hash=sha256:a88c7994f914a4ea8572fac479459f4955eeccc877be3f2d959a33273b0cf40b
+astroid==3.3.9 \
+    --hash=sha256:622cc8e3048684aa42c820d9d218978021c3c3d174fb03a9f0d615921744f550 \
+    --hash=sha256:d05bfd0acba96a7bd43e222828b7d9bc1e138aaeb0649707908d3702a9831248
     # via pylint
 build==1.2.2.post1 \
     --hash=sha256:1d61c0887fa860c01971625baae8bdd338e517b836a2f70dd1f7aa3a6b2fc5b5 \
@@ -311,9 +311,9 @@ execnet==2.1.1 \
     --hash=sha256:26dee51f1b80cebd6d0ca8e74dd8745419761d3bef34163928cbebbdc4749fdc \
     --hash=sha256:5189b52c6121c24feae288166ab41b32549c7e2348652736540b9e6e7d4e72e3
     # via pytest-xdist
-faker==36.1.1 \
-    --hash=sha256:7cb2bbd4c8f040e4a340ae4019e9a48b6cf1db6a71bda4e5a61d8d13b7bef28d \
-    --hash=sha256:ad1f1be7fd692ec0256517404a9d7f007ab36ac5d4674082fa72404049725eaa
+faker==37.0.0 \
+    --hash=sha256:2598f78b76710a4ed05e197dda5235be409b4c291ba5c9c7514989cfbc7a5144 \
+    --hash=sha256:d2e4e2a30d459a8ec0ae52a552aa51c48973cb32cf51107dee90f58a8322a880
     # via howso-engine (pyproject.toml)
 flake8==3.9.2 \
     --hash=sha256:07528381786f2a6237b061f6e96610a4167b226cb926e2aa2b6b1d78057c576b \
@@ -565,9 +565,9 @@ pip-tools==7.4.1 \
     --hash=sha256:4c690e5fbae2f21e87843e89c26191f0d9454f362d8acdbd695716493ec8b3a9 \
     --hash=sha256:864826f5073864450e24dbeeb85ce3920cdfb09848a3d69ebf537b521f14bcc9
     # via howso-engine (pyproject.toml)
-pipdeptree==2.25.0 \
-    --hash=sha256:029bcdcbd2e0130ec33b222c7833b8b5e52f674760dcf2df40b4ae6ff007a74f \
-    --hash=sha256:c1657cd0e143b6a17a496a97566daf1e29dc2ff5b87dc83f7e5589305fe92139
+pipdeptree==2.25.1 \
+    --hash=sha256:8fb788c97b8b605bdd105a6eb847bd762caa49c4942176b31eee162ba2cc7389 \
+    --hash=sha256:ed691b02b890e595d5f394cdc1c2726476ec1754375515c79af6de3c3e18523c
     # via howso-engine (pyproject.toml)
 platformdirs==4.3.6 \
     --hash=sha256:357fb2acbc885b0419afd3ce3ed34564c13c9b95c89360cd9563f73aa5e2b907 \
@@ -608,9 +608,9 @@ pyjwt==2.10.1 \
     --hash=sha256:3cc5772eb20009233caf06e9d8a0577824723b44e6648ee0a2aedb6cf9381953 \
     --hash=sha256:dcdd193e30abefd5debf142f9adfcdd2b58004e644f25406ffaebd50bd98dacb
     # via howso-engine (pyproject.toml)
-pylint==3.3.4 \
-    --hash=sha256:289e6a1eb27b453b08436478391a48cd53bb0efb824873f949e709350f3de018 \
-    --hash=sha256:74ae7a38b177e69a9b525d0794bd8183820bfa7eb68cc1bee6e8ed22a42be4ce
+pylint==3.3.5 \
+    --hash=sha256:38d0f784644ed493d91f76b5333a0e370a1c1bc97c22068a77523b4bf1e82c31 \
+    --hash=sha256:7cb170929a371238530b2eeea09f5f28236d106b70308c3d46a9c0cf11634633
     # via howso-engine (pyproject.toml)
 pyproject-hooks==1.2.0 \
     --hash=sha256:1e859bd5c40fae9448642dd871adf459e5e2084186e8d2c2a79a824c970da1f8 \
@@ -805,9 +805,9 @@ snowballstemmer==2.2.0 \
     --hash=sha256:09b16deb8547d3412ad7b590689584cd0fe25ec8db3be37788be3810cbf19cb1 \
     --hash=sha256:c8e1716e83cc398ae16824e5572ae04e0d9fc2c6b985fb0f900f5f0c96ecba1a
     # via pydocstyle
-threadpoolctl==3.5.0 \
-    --hash=sha256:082433502dd922bf738de0d8bcc4fdcbf0979ff44c42bd40f5af8a282f6fa107 \
-    --hash=sha256:56c1e26c150397e58c4926da8eeee87533b1e32bef131bd4bf6a2f45f3185467
+threadpoolctl==3.6.0 \
+    --hash=sha256:43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb \
+    --hash=sha256:8ab8b4aa3491d812b623328249fab5302a68d2d71745c8a4c719a2fcaba9f44e
     # via scikit-learn
 tomlkit==0.13.2 \
     --hash=sha256:7a974427f6e119197f670fbbbeae7bef749a6c14e793db934baefc1b5f03efde \
@@ -839,9 +839,9 @@ pip==25.0.1 \
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==75.8.2 \
-    --hash=sha256:4880473a969e5f23f2a2be3646b2dfd84af9028716d398e46192f84bc36900d2 \
-    --hash=sha256:558e47c15f1811c1fa7adbd0096669bf76c1d3f433f58324df69f3f5ecac4e8f
+setuptools==76.0.0 \
+    --hash=sha256:199466a166ff664970d0ee145839f5582cb9bca7a0a3a2e795b6a9cb2308e9c6 \
+    --hash=sha256:43b4ee60e10b0d0ee98ad11918e114c70701bc6051662a9a675a0496c1a158f4
     # via
     #   flake8-import-order
     #   pip-tools
