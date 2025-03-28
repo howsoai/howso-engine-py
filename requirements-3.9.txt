@@ -224,13 +224,13 @@ deprecation==2.1.0 \
     --hash=sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff \
     --hash=sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a
     # via howso-engine (pyproject.toml)
-faker==37.0.0 \
-    --hash=sha256:2598f78b76710a4ed05e197dda5235be409b4c291ba5c9c7514989cfbc7a5144 \
-    --hash=sha256:d2e4e2a30d459a8ec0ae52a552aa51c48973cb32cf51107dee90f58a8322a880
+faker==37.1.0 \
+    --hash=sha256:ad9dc66a3b84888b837ca729e85299a96b58fdaef0323ed0baace93c9614af06 \
+    --hash=sha256:dc2f730be71cb770e9c715b13374d80dbcee879675121ab51f9683d262ae9a1c
     # via howso-engine (pyproject.toml)
-humanize==4.12.1 \
-    --hash=sha256:1338ba97415c96556758a6e2f65977ed406dddf4620d4c6db9bbdfd07f0f1232 \
-    --hash=sha256:86014ca5c52675dffa1d404491952f1f5bf03b07c175a51891a343daebf01fea
+humanize==4.12.2 \
+    --hash=sha256:ce0715740e9caacc982bb89098182cf8ded3552693a433311c6a4ce6f4e12a2c \
+    --hash=sha256:e4e44dced598b7e03487f3b1c6fd5b1146c30ea55a110e71d5d4bca3e094259e
     # via howso-engine (pyproject.toml)
 idna==3.10 \
     --hash=sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9 \
@@ -440,9 +440,9 @@ python-dateutil==2.9.0.post0 \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
     # via pandas
-pytz==2025.1 \
-    --hash=sha256:89dd22dca55b46eac6eda23b2d72721bf1bdfef212645d81513ef5d03038de57 \
-    --hash=sha256:c2db42be2a2518b28e65f9207c4d05e6ff547d1efa4086469ef855e4ab70178e
+pytz==2025.2 \
+    --hash=sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3 \
+    --hash=sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00
     # via pandas
 pyyaml==6.0.2 \
     --hash=sha256:01179a4a8559ab5de078078f37e5c1a30d76bb88519906844fd7bdea1b7729ff \
@@ -515,15 +515,15 @@ six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
     # via python-dateutil
-typing-extensions==4.12.2 \
-    --hash=sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d \
-    --hash=sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8
+typing-extensions==4.13.0 \
+    --hash=sha256:0a4ac55a5820789d87e297727d229866c9650f6521b64206413c4fbada24d95b \
+    --hash=sha256:c8dd92cc0d6425a97c18fbb9d1954e5ff92c1ca881a309c45f06ebc0b79058e5
     # via
     #   howso-engine (pyproject.toml)
     #   rich
-tzdata==2025.1 \
-    --hash=sha256:24894909e88cdb28bd1636c6887801df64cb485bd593f2fd83ef29075a81d694 \
-    --hash=sha256:7e127113816800496f027041c570f50bcd464a020098a3b6b199517772303639
+tzdata==2025.2 \
+    --hash=sha256:1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8 \
+    --hash=sha256:b60a638fcc0daffadf82fe0f57e53d06bdec2f36c4df66280ae79bce6bd6f2b9
     # via
     #   faker
     #   pandas
