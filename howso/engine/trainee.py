@@ -3168,6 +3168,8 @@ class Trainee(BaseTrainee):
         details: t.Optional[dict] = None,
         features_to_derive: t.Optional[Collection[[str]]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
+        goal_dependent_features: t.Optional[Collection[str]] = None,
+        goal_features_map: t.Optional[Mapping] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
         num_robust_influence_samples: t.Optional[int] = None,
         num_robust_residual_samples: t.Optional[int] = None,
@@ -3350,6 +3352,37 @@ class Trainee(BaseTrainee):
             the action feature.  If not provided, will default to the ``action_feature`` if provided.
             If ``action_feature`` is not provided and feature influences ``details`` are
             selected, this feature must be provided.
+        goal_dependent_features : list of str, optional
+            A list of features that will not be ignored in the goal-biased sampling process used when
+            ``goal_features_map`` is specified. Specifically, when the similar cases are ranked by
+            by their optimization of the goal, the features specified here will be included in the
+            function to additionally bias selection towards cases that maintain the values of the
+            originally sampled case. Only used when ``goal_features_map`` is specified.
+        goal_features_map : dict of dict, optional
+            A mapping of feature name to the goals for the feature, which will
+            be used to bias the sampling of cases used to compute the desired
+            metrics. A collection of cases are sampled, then each case's most
+            similar cases are found and the case that optimizes the goal is selected.
+            This process builds a collection of cases that are randomly sampled
+            from the model that are biased towards the specified goal.
+
+            Valid keys in the map are:
+
+                - "goal": "min" or "max", will make a prediction while minimizing or
+                  maximizing the value for the feature.
+                - "value" : somevalue, will make a prediction while approaching the
+                  specified value.
+
+            .. NOTE::
+                Nominal features only support "value", "goal" is ignored.
+                For non-nominals, if both are provided, only "goal" is considered.
+
+            Example::
+
+                {
+                    "feature_a" : { "goal": "max" },
+                    "feature_b" : { "value": 99 }
+                }
         hyperparameter_param_path : Collection of str, optional.
             Full path for hyperparameters to use for computation. If specified
             for any residual computations, takes precedence over action_feature
@@ -3414,6 +3447,7 @@ class Trainee(BaseTrainee):
                 details=details,
                 features_to_derive=features_to_derive,
                 feature_influences_action_feature=feature_influences_action_feature,
+                goal_features_map=goal_features_map,
                 hyperparameter_param_path=hyperparameter_param_path,
                 num_robust_influence_samples=num_robust_influence_samples,
                 num_robust_residual_samples=num_robust_residual_samples,
