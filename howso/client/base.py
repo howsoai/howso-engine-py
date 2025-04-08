@@ -4294,7 +4294,7 @@ class AbstractHowsoClient(ABC):
             The values for k (number of cases making up the local space) to
             grid search during analysis. If a value is a list of values,
             treats that inner list as a tuple of: influence cutoff percentage,
-            minimum K and maximum K.
+            minimum K, maximum K and extra K.
         p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
         bypass_calculate_feature_residuals : bool, optional
