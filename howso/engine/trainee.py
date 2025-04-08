@@ -980,7 +980,7 @@ class Trainee(BaseTrainee):
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
-        k_values: t.Optional[Collection[int|Collection[int]]] = None,
+        k_values: t.Optional[Collection[int|Collection[int|float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         analysis_sub_model_size: t.Optional[int] = None,
@@ -1016,7 +1016,7 @@ class Trainee(BaseTrainee):
         k_folds : int, optional
             The number of cross validation folds to do. A value of 1 does
             hold-one-out instead of k-fold.
-        k_values : Collection of int or collection of int, optional
+        k_values : Collection of int or collection of int or float, optional
             The values for k (number of cases making up the local space) to
             grid search during analysis. If a value is a list of values,
             treats that inner list as a tuple of: influence cutoff percentage,
