@@ -3082,7 +3082,7 @@ class Trainee(BaseTrainee):
     def react_into_features(
         self,
         *,
-        analyze: bool = False,
+        analyze: bool = None,
         distance_contribution: str | bool = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,
@@ -3099,7 +3099,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        analyze: bool, default False
+        analyze: bool, default None
             When set to True, will enable auto_analyze, and run analyze with
             these specified features computing their values.
         distance_contribution : bool or str, default False

@@ -3470,7 +3470,7 @@ class AbstractHowsoClient(ABC):
         self,
         trainee_id: str,
         *,
-        analyze: bool = False,
+        analyze: bool = None,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
@@ -3489,7 +3489,7 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to calculate and store conviction for.
-        analyze: bool, default False
+        analyze: bool, default None
             When set to True, will enable auto_analyze, and run analyze with
             these specified features computing their values.
         features : iterable of str, optional
