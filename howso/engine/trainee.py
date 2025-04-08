@@ -980,7 +980,7 @@ class Trainee(BaseTrainee):
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
-        k_values: t.Optional[Collection[int]] = None,
+        k_values: t.Optional[Collection[int|Collection[int]]] = None,
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         analysis_sub_model_size: t.Optional[int] = None,
@@ -1016,8 +1016,11 @@ class Trainee(BaseTrainee):
         k_folds : int, optional
             The number of cross validation folds to do. A value of 1 does
             hold-one-out instead of k-fold.
-        k_values : Collection of int, optional
-            The k value hyperparameters to analyze with.
+        k_values : Collection of int or collection of int, optional
+            The values for k (number of cases making up the local space) to
+            grid search during analysis. If a value is a list of values,
+            treats that inner list as a tuple of: influence cutoff percentage,
+            minimum K and maximum K.
         num_analysis_samples : int, optional
             Specifies the number of observations to be considered for
             analysis.
@@ -3079,6 +3082,7 @@ class Trainee(BaseTrainee):
     def react_into_features(
         self,
         *,
+        auto_analyze: bool = False,
         distance_contribution: str | bool = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,
@@ -3095,6 +3099,9 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
+        auto_analyze: bool, default False
+            When set to True, will enable auto_analyze, and run analyze with
+            these specified features computing their values.
         distance_contribution : bool or str, default False
             The name of the feature to store distance contribution.
             If set to True the values will be stored to the feature
@@ -3136,6 +3143,7 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             self.client.react_into_features(
                 trainee_id=self.id,
+                auto_analyze=auto_analyze,
                 distance_contribution=distance_contribution,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,

@@ -3470,6 +3470,7 @@ class AbstractHowsoClient(ABC):
         self,
         trainee_id: str,
         *,
+        auto_analyze: bool = False,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
@@ -3488,6 +3489,9 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to calculate and store conviction for.
+        auto_analyze: bool, default False
+            When set to True, will enable auto_analyze, and run analyze with
+            these specified features computing their values.
         features : iterable of str, optional
             An iterable of features to calculate convictions.
         familiarity_conviction_addition : bool or str, default False
@@ -3531,6 +3535,7 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Reacting into features on Trainee with id: {trainee_id}')
         self.execute(trainee_id, "react_into_features", {
+            "auto_analyze": auto_analyze,
             "features": features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
@@ -4038,7 +4043,7 @@ class AbstractHowsoClient(ABC):
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
-        k_values: t.Optional[Collection[int]] = None,
+        k_values: t.Optional[Collection[int|Collection[int]]] = None,
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
@@ -4076,10 +4081,13 @@ class AbstractHowsoClient(ABC):
             When True, will compute and use inverse of residuals as
             feature weights.
         k_folds : int, default 6
-            The number of cross validation folds to do.
-        k_values : Collection of int, optional
             The number of cross validation folds to do. A value of 1 does
             hold-one-out instead of k-fold.
+        k_values : Collection of int or collection of int, optional
+            The values for k (number of cases making up the local space) to
+            grid search during analysis. If a value is a list of values,
+            treats that inner list as a tuple of: influence cutoff percentage,
+            minimum K and maximum K.
         num_analysis_samples : int, optional
             If the dataset size to too large, analyze on (randomly sampled)
             subset of data. The `num_analysis_samples` specifies the number of
@@ -4243,7 +4251,7 @@ class AbstractHowsoClient(ABC):
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
-        k_values: t.Optional[Collection[int]] = None,
+        k_values: t.Optional[Collection[int|Collection[int]]] = None,
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
@@ -4282,9 +4290,11 @@ class AbstractHowsoClient(ABC):
             The number of samples used in calculating feature residuals.
         dt_values : Collection of float, optional
             The dt value hyperparameters to analyze with.
-        k_values : Collection of int, optional
-            The number of cross validation folds to do. A value of 1 does
-            hold-one-out instead of k-fold.
+        k_values : Collection of int or collection of int, optional
+            The values for k (number of cases making up the local space) to
+            grid search during analysis. If a value is a list of values,
+            treats that inner list as a tuple of: influence cutoff percentage,
+            minimum K and maximum K.
         p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
         bypass_calculate_feature_residuals : bool, optional
