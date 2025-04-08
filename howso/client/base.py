@@ -3470,7 +3470,7 @@ class AbstractHowsoClient(ABC):
         self,
         trainee_id: str,
         *,
-        auto_analyze: bool = False,
+        analyze: bool = False,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
@@ -3489,7 +3489,7 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to calculate and store conviction for.
-        auto_analyze: bool, default False
+        analyze: bool, default False
             When set to True, will enable auto_analyze, and run analyze with
             these specified features computing their values.
         features : iterable of str, optional
@@ -3535,7 +3535,7 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Reacting into features on Trainee with id: {trainee_id}')
         self.execute(trainee_id, "react_into_features", {
-            "auto_analyze": auto_analyze,
+            "analyze": analyze,
             "features": features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
@@ -4087,7 +4087,7 @@ class AbstractHowsoClient(ABC):
             The values for k (number of cases making up the local space) to
             grid search during analysis. If a value is a list of values,
             treats that inner list as a tuple of: influence cutoff percentage,
-            minimum K and maximum K.
+            minimum K, maximum K and extra K.
         num_analysis_samples : int, optional
             If the dataset size to too large, analyze on (randomly sampled)
             subset of data. The `num_analysis_samples` specifies the number of

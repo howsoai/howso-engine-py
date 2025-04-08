@@ -1020,7 +1020,7 @@ class Trainee(BaseTrainee):
             The values for k (number of cases making up the local space) to
             grid search during analysis. If a value is a list of values,
             treats that inner list as a tuple of: influence cutoff percentage,
-            minimum K and maximum K.
+            minimum K, maximum K and extra K.
         num_analysis_samples : int, optional
             Specifies the number of observations to be considered for
             analysis.
@@ -3082,7 +3082,7 @@ class Trainee(BaseTrainee):
     def react_into_features(
         self,
         *,
-        auto_analyze: bool = False,
+        analyze: bool = False,
         distance_contribution: str | bool = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,
@@ -3099,7 +3099,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        auto_analyze: bool, default False
+        analyze: bool, default False
             When set to True, will enable auto_analyze, and run analyze with
             these specified features computing their values.
         distance_contribution : bool or str, default False
@@ -3143,7 +3143,7 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             self.client.react_into_features(
                 trainee_id=self.id,
-                auto_analyze=auto_analyze,
+                analyze=analyze,
                 distance_contribution=distance_contribution,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,

@@ -508,7 +508,7 @@ class HowsoEstimator(BaseEstimator):
         self,
         features=None,
         *,
-        auto_analyze=False,
+        analyze=False,
         distance_contribution=False,
         familiarity_conviction_addition=False,
         familiarity_conviction_removal=False,
@@ -526,7 +526,7 @@ class HowsoEstimator(BaseEstimator):
         ----------
         features : list of str
             A list of the feature names to use when calculating conviction.
-        auto_analyze: bool, default False
+        analyze: bool, default False
             When set to True, will enable auto_analyze, and run analyze with
             these specified features computing their values.
         distance_contribution : bool or str, default False
@@ -572,7 +572,7 @@ class HowsoEstimator(BaseEstimator):
         # Call conviction store on the trainee.
         self.trainee.react_into_features(
             features=features,
-            auto_analyze=auto_analyze,
+            analyze=analyze,
             distance_contribution=distance_contribution,
             familiarity_conviction_addition=familiarity_conviction_addition,
             familiarity_conviction_removal=familiarity_conviction_removal,
