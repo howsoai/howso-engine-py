@@ -3312,12 +3312,12 @@ Python HTTP for Humans.
 
 
 rich
-13.9.4
+14.0.0
 MIT License
 Will McGugan
 https://github.com/Textualize/rich
 Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal
-/home/runner/.pyenv/versions/3.13.2/lib/python3.13/site-packages/rich-13.9.4.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.2/lib/python3.13/site-packages/rich-14.0.0.dist-info/LICENSE
 Copyright (c) 2020 Will McGugan
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -3398,12 +3398,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 typing_extensions
-4.13.0
+4.13.1
 UNKNOWN
 "Guido van Rossum, Jukka Lehtosalo, Łukasz Langa, Michael Lee" <levkivskyi@gmail.com>
 https://github.com/python/typing_extensions
 Backported and Experimental Type Hints for Python 3.8+
-/home/runner/.pyenv/versions/3.13.2/lib/python3.13/site-packages/typing_extensions-4.13.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.2/lib/python3.13/site-packages/typing_extensions-4.13.1.dist-info/licenses/LICENSE
 A. HISTORY OF THE SOFTWARE
 ==========================
 
