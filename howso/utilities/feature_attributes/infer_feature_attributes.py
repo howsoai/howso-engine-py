@@ -5,9 +5,10 @@ import typing as t
 
 import pandas as pd
 
+from .abstract_data import InferFeatureAttributesAbstractData
 from .base import FeatureAttributesBase
 from .pandas import InferFeatureAttributesDataFrame
-from .protocols import SQLRelationalDatastoreProtocol, TableNameProtocol
+from .protocols import IFACompatibleADCProtocol, SQLRelationalDatastoreProtocol, TableNameProtocol
 from .relational import InferFeatureAttributesSQLDatastore
 from .time_series import InferFeatureAttributesTimeSeries
 
@@ -339,7 +340,9 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
             raise TypeError("'tables' is a required parameter if 'data' implements "
                             "SQLRelationalDatastoreProtocol.")
         infer = InferFeatureAttributesSQLDatastore(data, tables)
+    elif isinstance(data, IFACompatibleADCProtocol):
+        infer = InferFeatureAttributesAbstractData(data)
     else:
-        raise NotImplementedError('Data not recognized as a DataFrame or compatible datastore.')
+        raise NotImplementedError('Data not recognized as a DataFrame, AbstractData class, or compatible datastore.')
 
     return infer(**kwargs)

@@ -45,6 +45,26 @@ class SessionProtocol(t.Protocol):
 class AbstractDataProtocol(t.Protocol):
     """Protocol for an abstract data file object."""
 
+    @property
+    def foreign_keys(self) -> str | Iterable[str] | None:
+        """Return the foreign key(s) of the table."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def headers(self) -> list[str]:
+        """Return a list of the column names of the table."""
+
+    @property
+    def name(self) -> str:
+        """Return a meaningful name for this data."""
+        raise NotImplementedError
+
+    @property
+    def primary_keys(self) -> str | Iterable[str] | None:
+        """Return the primary key(s) of the table."""
+        raise NotImplementedError
+
     @abstractmethod
     def get_row_count(self):
         """Get the number of rows in a file."""
@@ -56,7 +76,7 @@ class AbstractDataProtocol(t.Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def get_group_map(self, column_name: str) -> dict[t.Any, int]:
+    def get_group_map(self, column_name: t.Hashable) -> dict[t.Any, int]:
         """Get the group map."""
         raise NotImplementedError
 
@@ -81,7 +101,7 @@ class AbstractDataProtocol(t.Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def yield_grouped_chunk(self, column_name: str,
+    def yield_grouped_chunk(self, column_name: t.Hashable,
                             groups: Iterable[Iterable[t.Any]]
                             ) -> Generator[pd.DataFrame, None, None]:
         """Provide a grouped chunk generator."""
@@ -91,6 +111,71 @@ class AbstractDataProtocol(t.Protocol):
     def map_keys(self, chunk: pd.DataFrame) -> pd.DataFrame:
         """Map keys to a chunk."""
         raise NotImplementedError
+
+    @abstractmethod
+    def get_unique_count(self, column_name: t.Hashable) -> int:
+        """Get the number of unique values in the provided column."""
+
+    @abstractmethod
+    def is_unique(self, column_name: t.Hashable) -> bool:
+        """Return whether the given column contains only unique values."""
+
+    @abstractmethod
+    def contains_nulls(self, column_name: t.Hashable) -> bool:
+        """Return whether the given column contains any null values."""
+
+
+@t.runtime_checkable
+class IFACompatibleADCProtocol(t.Protocol):
+    """
+    Protocol for an abstract data file object with extended functionality.
+
+    Includes functions that make it compatible with `infer_feature_attributes`.
+    """
+
+    @abstractmethod
+    def get_decimal_places(self, column_name: t.Hashable) -> int:
+        """Get the number of decimal places for values in the given column, if applicable."""
+
+    @abstractmethod
+    def get_random_value(self, column_name: t.Hashable, no_nulls: bool = False):
+        """
+        Return a random sample from the given DataFrame column.
+
+        The return type is determined by the column type.
+
+        if `no_nulls` is set, select a random value from the set of non-null
+        values, if any. If there are no such non-nulls, this will return None.
+        """
+
+    @abstractmethod
+    def get_min_max_values(self, column_name: t.Hashable) -> tuple[t.Any, t.Any]:
+        """Get the smallest and largest values in the given column."""
+
+    @abstractmethod
+    def get_num_cases(self, column_name: t.Hashable) -> int:
+        """Return the number of non-null cases in the given column."""
+
+    @abstractmethod
+    def get_mode(self, column_name: t.Hashable) -> list[tuple[t.Any, int]]:
+        """
+        Get the most common value in the given feature/column.
+
+        If multiple values have the same mode all of them will be returned, as
+        long as the count is a value greater than 1.
+        """
+
+    @abstractmethod
+    def get_column_dtype(self, column_name: str) -> str:
+        """Get the dtype of the given column."""
+
+    @abstractmethod
+    def get_first_non_null(self, column_name: str) -> str:
+        """Get the first non-null value in the given column."""
+
+    @abstractmethod
+    def get_null_count(self, column_name) -> int:
+        """Get the number of nulls in the given column."""
 
 
 class RelationshipProtocol(t.Protocol):

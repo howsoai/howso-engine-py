@@ -20,7 +20,7 @@ jobs:
     uses: "howsoai/.github/.github/workflows/compile-requirements.yml@main"
     secrets: inherit
     with:
-      extras: 'dev scikit'
+      extras: 'dev scikit connectors'
 
   build:
     needs: ['gen-requirements']
