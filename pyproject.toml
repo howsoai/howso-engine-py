@@ -59,6 +59,7 @@ dev = [
    "flake8-docstrings",
    "flake8-import-order",
    "flake8~=3.0",
+   "mongomock",
    "pip-tools",
    "pipdeptree",
    "pmlb",
