@@ -3577,7 +3577,7 @@ class AbstractHowsoClient(ABC):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[str, dict[str, float | dict[str, float]]]:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
