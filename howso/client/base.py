@@ -3909,11 +3909,13 @@ class AbstractHowsoClient(ABC):
 
         if num_robust_influence_samples is not None:
             num_robust_accuracy_contributions_samples = num_robust_influence_samples
+            num_robust_accuracy_contributions_permutation_samples = num_robust_influence_samples
             num_robust_prediction_contributions_samples = num_robust_influence_samples
             # Deprecated on 04/09/2025
             warnings.warn(
                 "The parameter `num_robust_influence_samples` is deprecated and will "
                 "be removed in a future release. Use `num_robust_accuracy_contributions_samples` "
+                "`num_robust_accuracy_contributions_permutation_samples` "
                 "or `num_robust_prediction_contributions_samples` instead.",
                 DeprecationWarning
             )
