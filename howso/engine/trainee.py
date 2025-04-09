@@ -3172,7 +3172,9 @@ class Trainee(BaseTrainee):
         goal_features_map: t.Optional[Mapping] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
         num_robust_accuracy_contributions_permutation_samples: t.Optional[int] = None,
-        num_robust_accuracy_contribution_samples: t.Optional[int] = None,
+        num_robust_accuracy_contributions_samples: t.Optional[int] = None,
+        num_robust_influence_samples: t.Optional[int] = None,
+        num_robust_influence_samples_per_case: t.Optional[int] = None,
         num_robust_prediction_contributions_samples: t.Optional[int] = None,
         num_robust_prediction_contributions_samples_per_case: t.Optional[int] = None,
         num_robust_residual_samples: t.Optional[int] = None,
@@ -3394,12 +3396,32 @@ class Trainee(BaseTrainee):
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions (with permutation).
             Defaults to 300 when unspecified.
-        num_robust_accuracy_contribution_samples : int, optional
+        num_robust_accuracy_contributions_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions. Defaults to the
             lesser value of either 10,000 or the number of cases multiplied by
             2^(number of features) when unspecified.
-        num_robust_prediction_contribution_samples : int, optional
+        num_robust_influence_samples : int, optional
+            Total sample size of model to use (using sampling with replacement)
+            when computing robust accuracy contributions and robust prediction
+            contributions. Will overwrite the values of
+            `num_robust_accuracy_contributions_samples`,
+            `num_robust_prediction_contributions_samples`, and
+            `num_robust_accuracy_contributions_permutation_samples`.
+
+            .. deprecated:: 37.3
+                Use one or more of ``num_robust_accuracy_contributions_samples``,
+                ``num_robust_prediction_contributions_samples``, and
+                ``num_robust_accuracy_contributions_permutation_samples`` instead.
+        num_robust_influence_samples_per_case : int, optional
+            Specifies the number of robust samples to use for each case for
+            robust prediction contribution computations.
+            Defaults to 300 + 2 * (number of features).
+
+            .. deprecated:: 37.3
+                Use ``num_robust_prediction_contributions_samples_per_case``
+                instead.
+        num_robust_prediction_contributions_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             when computing robust prediction contributions. Defaults to 300
             when unspecified.
@@ -3462,7 +3484,9 @@ class Trainee(BaseTrainee):
                 goal_features_map=goal_features_map,
                 hyperparameter_param_path=hyperparameter_param_path,
                 num_robust_accuracy_contributions_permutation_samples=num_robust_accuracy_contributions_permutation_samples,  # noqa: E501
-                num_robust_accuracy_contribution_samples=num_robust_accuracy_contribution_samples,
+                num_robust_accuracy_contributions_samples=num_robust_accuracy_contributions_samples,
+                num_robust_influence_samples=num_robust_influence_samples,
+                num_robust_influence_samples_per_case=num_robust_influence_samples_per_case,
                 num_robust_prediction_contributions_samples=num_robust_prediction_contributions_samples,
                 num_robust_prediction_contributions_samples_per_case=num_robust_prediction_contributions_samples_per_case,  # noqa: E501
                 num_robust_residual_samples=num_robust_residual_samples,
