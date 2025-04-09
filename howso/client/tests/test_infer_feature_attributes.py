@@ -39,7 +39,7 @@ class TestInferFeatureAttributes:
         """Test that infer_feature_attributes infers dates correctly."""
         df = pd.DataFrame(data=np.asarray([
             ["1.2", "3.4", "5.0"],
-            ['2020-10-12T10:10:10', 'okay not really a date', 'that first value is a fluke']
+            ['not a date', 'also not a date', 'still not a date']
         ]).transpose(), columns=['nom', 'not_actually_datetime'])
         feature_attribs = infer_feature_attributes(df)
 

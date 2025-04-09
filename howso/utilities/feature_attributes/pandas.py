@@ -254,7 +254,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         elif len(cases) == 1:
             return cases.iloc[0]
         else:
-            return cases.iloc[1 + np.random.randint(len(cases) - 1)]
+            return cases.iloc[np.random.randint(len(cases))]
 
     def _infer_feature_bounds(  # noqa: C901
         self,

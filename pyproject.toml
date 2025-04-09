@@ -51,11 +51,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+connectors = [
+    "howso-engine-connectors~=1.0",
+]
 dev = [
    "dill~=0.0",
    "flake8-docstrings",
    "flake8-import-order",
    "flake8~=3.0",
+   "mongomock",
    "pip-tools",
    "pipdeptree",
    "pmlb",
@@ -88,6 +92,7 @@ packages = ["howso"]
 profile = "google"
 known_first_party = [
     "howso.client",
+    "howso.connectors",
     "howso.direct",
     "howso.engine",
     "howso.scikit",
