@@ -3864,8 +3864,9 @@ class AbstractHowsoClient(ABC):
 
         Returns
         -------
-        dict of str to dict of str to float
-            A map of detail names to maps of feature names to stat values.
+        dict[str, dict[str, float | dict[str, float]]]
+            A map of detail names to maps of feature names to stat values or
+            another map of feature names to stat values.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         util.validate_list_shape(context_features, 1, "context_features", "str")

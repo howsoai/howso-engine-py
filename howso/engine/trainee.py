@@ -3468,8 +3468,9 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        dict[str, dict[str, float]]
-            A map of detail names to maps of feature names to stat values.
+        dict[str, dict[str, float | dict[str, float]]]
+            A map of detail names to maps of feature names to stat values or
+            another map of feature names to stat values.
         """
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.react_aggregate(
