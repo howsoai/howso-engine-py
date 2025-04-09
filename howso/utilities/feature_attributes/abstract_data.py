@@ -49,7 +49,7 @@ except ImportError:
 
 
 class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
-    """Support inferring feature attributes for Pandas DataFrames."""
+    """Infer feature attributes from AbstractData classes."""
 
     def __init__(self, data: AbstractDataProtocol):  # type: ignore reportMissingSuperCall
         """
