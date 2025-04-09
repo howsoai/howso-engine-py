@@ -4170,7 +4170,7 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(action_features, 1, "action_features", "str")
         util.validate_list_shape(rebalance_features, 1, "rebalance_features", "str")
         util.validate_list_shape(p_values, 1, "p_values", "int")
-        util.validate_list_shape(k_values, 1, "k_values", "float")
+        util.validate_list_shape(k_values, 2, "k_values", "float")
         util.validate_list_shape(dt_values, 1, "dt_values", "float")
 
         if targeted_model not in ['single_targeted', 'omni_targeted', 'targetless', None]:
