@@ -1198,6 +1198,7 @@ class Trainee(BaseTrainee):
         input_is_substituted: bool = False,
         into_series_store: t.Optional[str] = None,
         leave_case_out: bool = False,
+        new_case_sensitivity_bandwidth: int = 0,
         new_case_threshold: NewCaseThreshold = "min",
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
@@ -1528,6 +1529,8 @@ class Trainee(BaseTrainee):
                 'num_most_similar_cases' is not specified) relevant number of
                 similar cases, which will first include the influential cases.
                 Uses only the context features of the reacted case.
+            - new_case_sensitivity_bandwidth : int, optional
+                TODO
             - num_boundary_cases : int, optional
                 Outputs this manually specified number of boundary cases.
             - num_most_similar_cases : int, optional
@@ -1679,6 +1682,8 @@ class Trainee(BaseTrainee):
             When True and specified along with ``case_indices``, each individual
             react will respectively ignore the corresponding case specified
             by ``case_indices`` by leaving it out.
+        new_case_sensitivity_bandwidth : int, default 0
+            TODO
         new_case_threshold : {"max", "min", "most_similar"}, default "min"
             Distance to determine the privacy cutoff.
 
@@ -1754,6 +1759,7 @@ class Trainee(BaseTrainee):
             input_is_substituted=input_is_substituted,
             into_series_store=into_series_store,
             leave_case_out=leave_case_out,
+            new_case_sensitivity_bandwidth=new_case_sensitivity_bandwidth,
             new_case_threshold=new_case_threshold,
             num_cases_to_generate=num_cases_to_generate,
             ordered_by_specified_features=ordered_by_specified_features,
@@ -1790,6 +1796,7 @@ class Trainee(BaseTrainee):
         input_is_substituted: bool = False,
         leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
+        new_case_sensitivity_bandwidth: int = 0,
         new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
@@ -1892,6 +1899,8 @@ class Trainee(BaseTrainee):
             with ``continue_series``, this defines the maximum length of the
             forecast. Must provide either one for all series, or exactly
             one per series.
+        new_case_sensitivity_bandwidth : int, default 0
+            See parameter ``new_case_sensitivity_bandwidth`` in :meth:`react`.
         new_case_threshold : str, optional
             See parameter ``new_case_threshold`` in :meth:`react`.
         num_series_to_generate : int, default 1
@@ -1990,6 +1999,7 @@ class Trainee(BaseTrainee):
                 initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
                 max_series_lengths=max_series_lengths,
+                new_case_sensitivity_bandwidth=new_case_sensitivity_bandwidth,
                 new_case_threshold=new_case_threshold,
                 num_series_to_generate=num_series_to_generate,
                 ordered_by_specified_features=ordered_by_specified_features,
