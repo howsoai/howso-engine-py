@@ -3563,9 +3563,13 @@ class AbstractHowsoClient(ABC):
         goal_dependent_features: t.Optional[Collection[str]] = None,
         goal_features_map: t.Optional[Mapping] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
+        num_robust_accuracy_contributions_permutation_samples: t.Optional[int] = None,
+        num_robust_accuracy_contributions_samples: t.Optional[int] = None,
         num_robust_influence_samples: t.Optional[int] = None,
-        num_robust_residual_samples: t.Optional[int] = None,
         num_robust_influence_samples_per_case: t.Optional[int] = None,
+        num_robust_prediction_contributions_samples: t.Optional[int] = None,
+        num_robust_prediction_contributions_samples_per_case: t.Optional[int] = None,
+        num_robust_residual_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         prediction_stats_action_feature: t.Optional[str] = None,
         robust_hyperparameters: t.Optional[bool] = None,
@@ -3573,7 +3577,7 @@ class AbstractHowsoClient(ABC):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[str, dict[str, float | dict[str, float]]]:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -3784,18 +3788,48 @@ class AbstractHowsoClient(ABC):
             for any residual computations, takes precedence over action_feature
             parameter.  Can be set to a 'paramPath' value from the results of
             'get_params()' for a specific set of hyperparameters.
+        num_robust_accuracy_contributions_permutation_samples : int, optional
+            Total sample size of model to use (using sampling with replacement)
+            when computing robust accuracy contributions (with permutation).
+            Defaults to 300 when unspecified.
+        num_robust_accuracy_contributions_samples : int, optional
+            Total sample size of model to use (using sampling with replacement)
+            when computing robust accuracy contributions. Defaults to the
+            lesser value of either 10,000 or the number of cases multiplied by
+            2^(number of features) when unspecified.
         num_robust_influence_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
-            for robust contribution computation. Defaults to 300.
+            when computing robust accuracy contributions and robust prediction
+            contributions. Will overwrite the values of
+            `num_robust_accuracy_contributions_samples`,
+            `num_robust_prediction_contributions_samples`, and
+            `num_robust_accuracy_contributions_permutation_samples`.
+
+            .. deprecated:: 37.3
+                Use one or more of ``num_robust_accuracy_contributions_samples``,
+                ``num_robust_prediction_contributions_samples``, and
+                ``num_robust_accuracy_contributions_permutation_samples`` instead.
+        num_robust_influence_samples_per_case : int, optional
+            Specifies the number of robust samples to use for each case for
+            robust prediction contribution computations.
+            Defaults to 300 + 2 * (number of features).
+
+            .. deprecated:: 37.3
+                Use ``num_robust_prediction_contributions_samples_per_case``
+                instead.
+        num_robust_prediction_contributions_samples : int, optional
+            Total sample size of model to use (using sampling with replacement)
+            when computing robust prediction contributions. Defaults to 300
+            when unspecified.
+        num_robust_prediction_contributions_samples_per_case : int, optional
+            Specifies the number of robust samples to use for each case for
+            robust prediction contribution computations. Defaults to 300 +
+            2 * (number of features) when unspecified.
         num_robust_residual_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             for robust mda and residual computation.
             Defaults to 1000 * (1 + log(number of features)).  Note: robust mda
             will be updated to use num_robust_influence_samples in a future release.
-        num_robust_influence_samples_per_case : int, optional
-            Specifies the number of robust samples to use for each case for
-            robust contribution computations.
-            Defaults to 300 + 2 * (number of features).
         num_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
@@ -3830,8 +3864,9 @@ class AbstractHowsoClient(ABC):
 
         Returns
         -------
-        dict of str to dict of str to float
-            A map of detail names to maps of feature names to stat values.
+        dict[str, dict[str, float | dict[str, float]]]
+            A map of detail names to maps of feature names to stat values or
+            another map of feature names to stat values.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         util.validate_list_shape(context_features, 1, "context_features", "str")
@@ -3872,6 +3907,29 @@ class AbstractHowsoClient(ABC):
                 details[new_key] = details[old_key]
                 del details[old_key]
 
+        if num_robust_influence_samples is not None:
+            num_robust_accuracy_contributions_samples = num_robust_influence_samples
+            num_robust_accuracy_contributions_permutation_samples = num_robust_influence_samples
+            num_robust_prediction_contributions_samples = num_robust_influence_samples
+            # Deprecated on 04/09/2025
+            warnings.warn(
+                "The parameter `num_robust_influence_samples` is deprecated and will "
+                "be removed in a future release. Use `num_robust_accuracy_contributions_samples` "
+                "`num_robust_accuracy_contributions_permutation_samples` "
+                "or `num_robust_prediction_contributions_samples` instead.",
+                DeprecationWarning
+            )
+
+        if num_robust_influence_samples_per_case is not None:
+            num_robust_prediction_contributions_samples_per_case = num_robust_influence_samples_per_case
+            # Deprecated on 04/09/2025
+            warnings.warn(
+                "The parameter `num_robust_influence_samples_per_case` is deprecated and will "
+                "be removed in a future release. Use "
+                "`num_robust_prediction_contributions_samples_per_case` instead.",
+                DeprecationWarning
+            )
+
         if self.configuration.verbose:
             print(f'Reacting into aggregate trained cases of Trainee with id: {trainee_id}')
 
@@ -3885,9 +3943,11 @@ class AbstractHowsoClient(ABC):
             "feature_influences_action_feature": feature_influences_action_feature,
             "goal_features_map": goal_features_map,
             "hyperparameter_param_path": hyperparameter_param_path,
-            "num_robust_influence_samples": num_robust_influence_samples,
+            "num_robust_accuracy_contributions_permutation_samples": num_robust_accuracy_contributions_permutation_samples,  # noqa: E501
+            "num_robust_accuracy_contributions_samples": num_robust_accuracy_contributions_samples,
+            "num_robust_prediction_contributions_samples": num_robust_prediction_contributions_samples,
+            "num_robust_prediction_contributions_samples_per_case": num_robust_prediction_contributions_samples_per_case,  # noqa: E501
             "num_robust_residual_samples": num_robust_residual_samples,
-            "num_robust_influence_samples_per_case": num_robust_influence_samples_per_case,
             "num_samples": num_samples,
             "prediction_stats_action_feature": prediction_stats_action_feature,
             "robust_hyperparameters": robust_hyperparameters,
