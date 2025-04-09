@@ -382,12 +382,12 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
                 if min_v and isinstance(min_v, str):
                     output.update(min=min_v)
-                elif min_v and not isnan(min_v):
+                elif min_v is not None and not isnan(min_v):
                     output.update(min=min_v)
 
                 if max_v and isinstance(max_v, str):
                     output.update(max=max_v)
-                elif max_v and not isnan(max_v):
+                elif max_v is not None and not isnan(max_v):
                     output.update(max=max_v)
 
                 if observed_min_value and isinstance(observed_min_value, str):
