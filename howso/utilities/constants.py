@@ -5,7 +5,6 @@ _RENAMED_DETAIL_KEYS = {
     "case_feature_contributions_full": "feature_full_prediction_contributions_for_case",
     "case_feature_contributions_robust": "feature_robust_prediction_contributions_for_case",
     "case_feature_residual_convictions_full": "feature_full_residual_convictions_for_case",
-    "case_feature_residual_convictions_robust": "feature_robust_residual_convictions_for_case",
     "case_feature_residuals_full": "feature_full_residuals_for_case",
     "case_feature_residuals_robust": "feature_robust_residuals_for_case",
     "case_mda_full": "case_full_accuracy_contributions",
