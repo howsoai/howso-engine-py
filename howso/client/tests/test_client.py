@@ -654,7 +654,6 @@ class TestClient:
             "feature_full_prediction_contributions_for_case",
             "feature_robust_prediction_contributions_for_case",
             "feature_full_residual_convictions_for_case",
-            "feature_robust_residual_convictions_for_case",
             "feature_full_residuals_for_case",
             "feature_robust_residuals_for_case",
             "case_full_accuracy_contributions",

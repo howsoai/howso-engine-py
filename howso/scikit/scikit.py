@@ -793,13 +793,6 @@ class HowsoEstimator(BaseEstimator):
                 features of the reacted case to determine that area. Uses
                 robust calculations, which uses uniform sampling
                 from the power set of features as the contexts for predictions.
-            - feature_robust_residual_convictions_for_case : bool, optional
-                If True, outputs this case's feature residual convictions for
-                the region around the prediction. Uses only the context
-                features of the reacted case to determine that region.
-                Computed as: region feature residual divided by case feature
-                residual. Uses robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
             - feature_robust_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context

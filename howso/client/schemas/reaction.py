@@ -76,7 +76,6 @@ class Reaction(abc.MutableMapping):
         "feature_robust_directional_prediction_contributions_for_case",
         "feature_robust_prediction_contributions_for_case",
         "feature_robust_prediction_contributions",
-        "feature_robust_residual_convictions_for_case",
         "feature_robust_residuals_for_case",
         "feature_robust_residuals",
         "generate_attempts",
