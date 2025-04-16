@@ -2774,6 +2774,16 @@ class AbstractHowsoClient(ABC):
             See parameter ``substitute_output`` in :meth:`AbstractHowsoClient.react`.
         details: dict, optional
             See parameter ``details`` in :meth:`AbstractHowsoClient.react`.
+
+            Additional ``react_series`` only details:
+
+                - series_uncertainty : bool, optional
+                    If True, outputs the estimated uncertainty of each continuous feature
+                    for each timestep of each series based on generative internal forecasts.
+                - series_uncertainty_num_samples : int, optional
+                    If specified, will set the number of generative forecasts used to estimate
+                    the uncertainty reported by the 'series_uncertainty' detail. Defaults to 30
+                    when unspecified.
         desired_conviction: float
             See parameter ``desired_conviction`` in :meth:`AbstractHowsoClient.react`.
         weight_feature : str

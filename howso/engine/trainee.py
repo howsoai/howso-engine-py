@@ -1837,6 +1837,16 @@ class Trainee(BaseTrainee):
             See parameter ``desired_conviction`` in :meth:`react`.
         details : map of str to object
             See parameter ``details`` in :meth:`react`.
+
+            Additional ``react_series`` only details:
+
+                - series_uncertainty : bool, optional
+                    If True, outputs the estimated uncertainty of each continuous feature
+                    for each timestep of each series based on generative internal forecasts.
+                - series_uncertainty_num_samples : int, optional
+                    If specified, will set the number of generative forecasts used to estimate
+                    the uncertainty reported by the 'series_uncertainty' detail. Defaults to 30
+                    when unspecified.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
