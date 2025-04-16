@@ -608,8 +608,11 @@ class FeatureSerializer:
             return column
 
     @classmethod
-    def format_string_column(cls, column: pd.Series, feature: Mapping
-                             ) -> pd.Series:
+    def format_string_column(
+        cls, 
+        column: pd.Series,
+        feature: Mapping  # noqa: ARG003
+    ) -> pd.Series:
         """
         Format string column.
 
@@ -629,8 +632,11 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_unknown_column(cls, column: pd.Series, feature: Mapping
-                              ) -> pd.Series:
+    def format_unknown_column(
+        cls, 
+        column: pd.Series,
+        feature: Mapping  # noqa: ARG003
+    ) -> pd.Series:
         """
         Format unknown typed column.
 
