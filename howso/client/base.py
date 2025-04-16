@@ -2778,8 +2778,8 @@ class AbstractHowsoClient(ABC):
             Additional ``react_series`` only details:
 
                 - series_uncertainty : bool, optional
-                    If True, outputs the estimated uncertainty of each continuous feature
-                    for each timestep of each series based on generative internal forecasts.
+                    If True, outputs the MAD of each continuous feature for each timestep of each
+                    generated series based on internal generative forecasts.
                 - series_uncertainty_num_samples : int, optional
                     If specified, will set the number of generative forecasts used to estimate
                     the uncertainty reported by the 'series_uncertainty' detail. Defaults to 30
