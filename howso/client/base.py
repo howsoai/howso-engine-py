@@ -3934,6 +3934,7 @@ class AbstractHowsoClient(ABC):
             "details": details,
             "features_to_derive": features_to_derive,
             "feature_influences_action_feature": feature_influences_action_feature,
+            "goal_dependent_features": goal_dependent_features,
             "goal_features_map": goal_features_map,
             "hyperparameter_param_path": hyperparameter_param_path,
             "num_robust_accuracy_contributions_permutation_samples": num_robust_accuracy_contributions_permutation_samples,  # noqa: E501
