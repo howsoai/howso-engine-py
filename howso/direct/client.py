@@ -829,15 +829,15 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'a future release. Please use `runtime` instead.', DeprecationWarning)
 
         # Check that the id is usable for saving later.
-        if name:
+        if trainee_id:
             for sequence in self.BAD_TRAINEE_NAME_CHARS:
-                if sequence in name:
+                if sequence in trainee_id:
                     success = False
                     reason = f'"{sequence}" is not permitted in trainee names'
                     break
             else:
                 success, reason = True, 'OK'
-            proposed_path: Path = self.default_persist_path.joinpath(name)
+            proposed_path: Path = self.default_persist_path.joinpath(trainee_id)
             if success:
                 success, reason = self.check_name_valid_for_save(
                     proposed_path, clobber=overwrite_trainee)
