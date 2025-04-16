@@ -703,7 +703,7 @@ class AbstractHowsoClient(ABC):
             A list of feature names to impute.
             If not specified, features will be used (see above)
         batch_size : int, default 1
-            Larger batch size will increase accuracy and decrease speed.
+            Smaller batch size will increase accuracy and decrease speed.
             Batch size indicates how many rows to fill before recomputing
             conviction.
 
