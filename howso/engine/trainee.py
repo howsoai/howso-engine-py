@@ -1710,7 +1710,7 @@ class Trainee(BaseTrainee):
             be used if the Trainee has them.
         use_regional_residuals : bool, default True
             When False, uses global residuals. When True, calculates and uses
-            regional residuals, which may increase runtime noticably.
+            regional residuals, which may increase runtime noticeably.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1943,7 +1943,7 @@ class Trainee(BaseTrainee):
         suppress_warning : bool, default False
             See parameter ``suppress_warning`` in :meth:`react`.
         use_aggregation_based_differential_privacy : bool, default False
-            See paramater ``use_aggregation_based_differential_privacy`` in
+            See parameter ``use_aggregation_based_differential_privacy`` in
             :meth:`react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.

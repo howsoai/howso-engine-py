@@ -1,3 +1,21 @@
 {
-  "cSpell.words": ["pyright"]
+  "cSpell.words": [
+    "autouse",
+    "caml",
+    "camls",
+    "dateutil",
+    "finfo",
+    "howsoai",
+    "iinfo",
+    "isoparse",
+    "issubdtype",
+    "itemsize",
+    "jsonifiable",
+    "pyright",
+    "pytest",
+    "setosa",
+    "SMAPE",
+    "subdtype",
+    "targetless"
+  ]
 }
