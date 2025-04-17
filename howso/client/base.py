@@ -21,7 +21,7 @@ import numpy as np
 from pandas import DataFrame
 
 from howso.utilities import internals, utilities as util
-from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # type: ignore reportPrivateUsage
+from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # type: ignore reportPrivateUsage noqa: E501
 from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
@@ -2777,12 +2777,13 @@ class AbstractHowsoClient(ABC):
 
             Additional ``react_series`` only details:
 
-                - series_uncertainty : bool, optional
-                    If True, outputs the MAD of each continuous feature for each timestep of each
+                - series_residuals : bool, optional
+                    If True, outputs the mean absolute deviation (MAD) of each continuous
+                    feature as the estimated uncertainty for each timestep of each
                     generated series based on internal generative forecasts.
-                - series_uncertainty_num_samples : int, optional
+                - series_residuals_num_samples : int, optional
                     If specified, will set the number of generative forecasts used to estimate
-                    the uncertainty reported by the 'series_uncertainty' detail. Defaults to 30
+                    the uncertainty reported by the 'series_residuals' detail. Defaults to 30
                     when unspecified.
         desired_conviction: float
             See parameter ``desired_conviction`` in :meth:`AbstractHowsoClient.react`.
