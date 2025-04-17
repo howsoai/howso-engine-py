@@ -21,7 +21,7 @@ import numpy as np
 from pandas import DataFrame
 
 from howso.utilities import internals, utilities as util
-from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # type: ignore reportPrivateUsage
+from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # noqa: E501 type: ignore reportPrivateUsage
 from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
@@ -2774,6 +2774,17 @@ class AbstractHowsoClient(ABC):
             See parameter ``substitute_output`` in :meth:`AbstractHowsoClient.react`.
         details: dict, optional
             See parameter ``details`` in :meth:`AbstractHowsoClient.react`.
+
+            Additional ``react_series`` only details:
+
+                - series_residuals : bool, optional
+                    If True, outputs the mean absolute deviation (MAD) of each continuous
+                    feature as the estimated uncertainty for each timestep of each
+                    generated series based on internal generative forecasts.
+                - series_residuals_num_samples : int, optional
+                    If specified, will set the number of generative forecasts used to estimate
+                    the uncertainty reported by the 'series_residuals' detail. Defaults to 30
+                    when unspecified.
         desired_conviction: float
             See parameter ``desired_conviction`` in :meth:`AbstractHowsoClient.react`.
         weight_feature : str
@@ -4131,7 +4142,7 @@ class AbstractHowsoClient(ABC):
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
-        k_values: t.Optional[Collection[int|Collection[int|float]]] = None,
+        k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
@@ -4339,7 +4350,7 @@ class AbstractHowsoClient(ABC):
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
-        k_values: t.Optional[Collection[int|Collection[int|float]]] = None,
+        k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,

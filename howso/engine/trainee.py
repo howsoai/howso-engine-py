@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import (
     Callable,
     Collection,
-    Iterable,
     Mapping,
     MutableMapping,
 )
@@ -14,7 +13,6 @@ import uuid
 import warnings
 
 from pandas import (
-    concat,
     DataFrame,
     Index,
 )
@@ -23,7 +21,6 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.exceptions import (
     HowsoApiError,
     HowsoError,
-    HowsoWarning,
 )
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import (
@@ -47,7 +44,6 @@ from howso.client.typing import (
     LibraryType,
     Mode,
     NewCaseThreshold,
-    NormalizeMethod,
     PathLike,
     Persistence,
     Precision,
@@ -59,7 +55,6 @@ from howso.client.typing import (
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
-from howso.utilities import matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 
 __all__ = [
@@ -980,7 +975,7 @@ class Trainee(BaseTrainee):
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
-        k_values: t.Optional[Collection[int|Collection[int|float]]] = None,
+        k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         analysis_sub_model_size: t.Optional[int] = None,
@@ -1837,6 +1832,17 @@ class Trainee(BaseTrainee):
             See parameter ``desired_conviction`` in :meth:`react`.
         details : map of str to object
             See parameter ``details`` in :meth:`react`.
+
+            Additional ``react_series`` only details:
+
+                - series_residuals : bool, optional
+                    If True, outputs the mean absolute deviation (MAD) of each continuous
+                    feature as the estimated uncertainty for each timestep of each
+                    generated series based on internal generative forecasts.
+                - series_residuals_num_samples : int, optional
+                    If specified, will set the number of generative forecasts used to estimate
+                    the uncertainty reported by the 'series_residuals' detail. Defaults to 30
+                    when unspecified.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
