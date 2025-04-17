@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from amalgam.api import Amalgam
+from howso.client.exceptions import HowsoError
 from howso.direct import HowsoDirectClient
 from howso.utilities.testing import get_configurationless_test_client
 
@@ -25,10 +26,40 @@ def test_direct_client(client: HowsoDirectClient):
     ('./banana.txt', True),
     ('./ba\nana.txt', True),
     ('./bañän🤣a.txt', True),
+    ('./banana\0.txt', False),
 ))
 def test_check_name_valid_for_save(client, filename, truthiness):
     """Ensure that the internal function `check_name_valid_for_save` works."""
     assert client.check_name_valid_for_save(filename, clobber=True)[0] == truthiness
+
+
+@pytest.mark.parametrize(
+    ("trainee_id", "trainee_name", "truthiness"),
+    (
+        (None, "banana", True),
+        (None, "ba\nana", True),
+        (None, "bañän🤣a", True),
+        (None, "abc/test", False),
+        (None, "abc:test", False),
+        (None, "abc\0test", False),
+        ("foo", "abc/test", True),
+        ("foo", "abc:test", True),
+        ("foo", "abc", True),
+        ("abc:test", "foo", False),
+        ("abc/test", "foo", False),
+    ),
+)
+def test_trainee_valid_for_save(client, trainee_id, trainee_name, truthiness):
+    """Ensure trainee filename validation applies to id or name as expected."""
+    if truthiness:
+        try:
+            trainee = client.create_trainee(id=trainee_id, name=trainee_name)
+            assert trainee is not None
+        finally:
+            client.delete_trainee(trainee_id or trainee_name)
+    else:
+        with pytest.raises(HowsoError, match="Trainee file name"):
+            trainee = client.create_trainee(id=trainee_id, name=trainee_name)
 
 
 def test_persistence_always(client: HowsoDirectClient, tmp_path: Path):
