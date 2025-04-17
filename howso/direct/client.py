@@ -833,7 +833,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             for sequence in self.BAD_TRAINEE_NAME_CHARS:
                 if sequence in trainee_id:
                     success = False
-                    if id == name:
+                    if trainee_id == name:
                         reason = f'"{sequence}" is not permitted in trainee names when no id is specified'
                     else:
                         reason = f'"{sequence}" is not permitted in trainee ids'
