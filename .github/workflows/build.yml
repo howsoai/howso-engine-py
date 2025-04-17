@@ -157,7 +157,7 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
       # enable-pyright: true
-      # enable-ruff: true
+      enable-ruff: true
 
   pytest-linux-3-12-mt:
     needs: ["metadata", "build"]
@@ -173,7 +173,7 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
       # enable-pyright: true
-      # enable-ruff: true
+      enable-ruff: true
 
   pytest-windows-3-11-mt:
     needs: ["metadata", "build"]
@@ -189,7 +189,7 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
       # enable-pyright: true
-      # enable-ruff: true
+      enable-ruff: true
 
   pytest-macos-3-13-mt-arm64:
     needs: ["metadata", "build"]
@@ -205,7 +205,7 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
       # enable-pyright: true
-      # enable-ruff: true
+      enable-ruff: true
 
   pytest-macos-3-10-mt-amd64:
     needs: ["metadata", "build"]
@@ -221,7 +221,7 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
       # enable-pyright: true
-      # enable-ruff: true
+      enable-ruff: true
 
   install-verification-linux-amd64:
     needs: ["metadata", "build"]
