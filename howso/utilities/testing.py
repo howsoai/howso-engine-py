@@ -74,9 +74,7 @@ def get_configurationless_test_client(
 
         # Once we stop supporting 3.9 and lower, we can parenthesize these.
         # See: https://docs.python.org/3.10/whatsnew/3.10.html#parenthesized-context-managers
-        with (
-            patch('howso.client.client.get_configuration_path') as mocked_fn,
-            patch.dict('os.environ', modified_environ, clear=True)
-        ):
+        with patch('howso.client.client.get_configuration_path') as mocked_fn, \
+             patch.dict('os.environ', modified_environ, clear=True):
             mocked_fn.return_value = None
             return client_class(**kwargs)
