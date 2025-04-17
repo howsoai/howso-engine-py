@@ -59,16 +59,19 @@ dev = [
    "flake8-docstrings",
    "flake8-import-order",
    "flake8~=3.0",
+   "flake8-unused-arguments",
    "mongomock",
    "pip-tools",
    "pipdeptree",
    "pmlb",
    "pycodestyle",
    "pylint",
+   "pyright",
    "pytest<8.0",
    "pytest-cov",
    "pytest-xdist",
    "pytest-mock~=1.0,<1.14.0",
+   "ruff",
 ]
 no-telemetry = [
     "howso-engine-no-telemetry",
@@ -115,3 +118,21 @@ split_penalty_for_added_line_split = 300
 
 # version is managed by setuptools_scm
 [tool.setuptools_scm]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    # "E",
+    # Pyflakes
+    # "F",
+    # pyupgrade
+    # "UP",
+    # flake8-bugbear
+    # "B",
+    # flake8-simplify
+    # "SIM",
+    # flake-8-unused-args
+    "ARG",
+    # isort
+    # "I",
+]

@@ -130,7 +130,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     'your DataFrame to use string column names.')
         return feature_names
 
-    def _has_unique_constraint(self, feature_name: str) -> bool:
+    def _has_unique_constraint(self, feature_name: str) -> bool: # noqa ARG002
         # This always returns False for DataFrames, which don't support such
         # constraints.
         return False
@@ -648,7 +648,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             'date_time_format': dt_format,
         }
 
-    def _infer_date_attributes(self, feature_name: str) -> dict:
+    def _infer_date_attributes(self, feature_name: str) -> dict: # noqa ARG002
         return {
             'type': 'continuous',
             'data_type': 'formatted_date_time',
@@ -684,13 +684,13 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             'date_time_format': time_format,
         }
 
-    def _infer_timedelta_attributes(self, feature_name: str) -> dict:
+    def _infer_timedelta_attributes(self, feature_name: str) -> dict: # noqa ARG002
         return {
             'type': 'continuous',
             'data_type': 'number',
         }
 
-    def _infer_boolean_attributes(self, feature_name: str) -> dict:
+    def _infer_boolean_attributes(self, feature_name: str) -> dict: # noqa ARG002
         return {
             'type': 'nominal',
             'data_type': 'boolean',
@@ -770,7 +770,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             return self._infer_unknown_attributes(feature_name)
 
-    def _infer_unknown_attributes(self, feature_name: str) -> dict:
+    def _infer_unknown_attributes(self, feature_name: str) -> dict: # noqa ARG002
         return {
             'type': 'nominal',
         }

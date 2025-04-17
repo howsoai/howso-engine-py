@@ -54,7 +54,7 @@ class TestEngine:
             ([11, 41, 102], [[0, 0, 0], [0, 0, 0], [0, 0, 0]]),
         ],
     )
-    def test_distances_same(self, trainee, features, case_indices, expected):
+    def test_distances_same(self, trainee, case_indices, expected):
         """
         Test that get_distances returns values as expected.
 
@@ -80,7 +80,7 @@ class TestEngine:
             ([2, 3, 4], [[0, 0, 0], [0, 0, 0], [0, 0, 0]]),
         ],
     )
-    def test_distances_different(self, trainee, features, case_indices, unexpected):
+    def test_distances_different(self, trainee, case_indices, unexpected):
         """
         Test that get_distances returns values as expected.
 
@@ -224,7 +224,7 @@ class TestEngine:
         """Test load_trainee raises status message from Amalgam."""
         file_path = Path(Path.cwd(), "test_load.caml")
 
-        monkeypatch.setattr(Path, "exists", lambda *args: True)
+        monkeypatch.setattr(Path, "exists", lambda *args: True)  # noqa ARG005
         mocker.patch(
             "amalgam.api.Amalgam.load_entity",
             return_value=SimpleNamespace(loaded=False, message=status_msg, version="")

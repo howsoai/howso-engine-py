@@ -508,7 +508,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             'date_time_format': dt_format,
         }
 
-    def _infer_date_attributes(self, feature_name: str) -> dict:
+    def _infer_date_attributes(self, feature_name: str) -> dict: # noqa ARG002
         return {
             'type': 'continuous',
             'data_type': 'formatted_date_time',
@@ -544,13 +544,13 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             'date_time_format': time_format,
         }
 
-    def _infer_timedelta_attributes(self, feature_name: str) -> dict:
+    def _infer_timedelta_attributes(self, feature_name: str) -> dict: # noqa ARG002
         return {
             'type': 'continuous',
             'data_type': 'number',
         }
 
-    def _infer_boolean_attributes(self, feature_name: str) -> dict:
+    def _infer_boolean_attributes(self, feature_name: str) -> dict: # noqa ARG002
         return {
             'type': 'nominal',
             'data_type': 'boolean',
@@ -629,7 +629,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         else:
             return self._infer_unknown_attributes(feature_name)
 
-    def _infer_unknown_attributes(self, feature_name: str) -> dict:
+    def _infer_unknown_attributes(self, feature_name: str) -> dict: # noqa ARG002
         return {
             'type': 'nominal',
         }

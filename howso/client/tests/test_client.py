@@ -450,7 +450,7 @@ class TestClient:
         copy_features = self.client.get_feature_attributes(new_trainee.id)
         assert orig_features == copy_features
 
-    def test_trainee_conviction(self, trainee, trainee_builder):
+    def test_trainee_conviction(self, trainee):
         """
         Test the /copy/{trainee_id} endpoint.
 
