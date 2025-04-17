@@ -378,7 +378,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             return data
         except HowsoError:
             raise
-        except Exception:
+        except Exception: # Deliberately broad
             raise HowsoError('Failed to deserialize the Howso Engine response.')
 
     def _resolve_trainee(self, trainee_id: str, **kwargs) -> DirectTrainee:  # noqa ARG002
