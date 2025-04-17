@@ -474,8 +474,11 @@ class FeatureSerializer:
             return column.apply(partial(seconds_to_time, tzinfo=tz))
 
     @classmethod
-    def format_boolean_column(cls, column: pd.Series, feature: Mapping
-                              ) -> pd.Series:
+    def format_boolean_column(
+        cls,
+        column: pd.Series,
+        feature: Mapping # noqa ARG003
+    ) -> pd.Series:
         """
         Format boolean column.
 

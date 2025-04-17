@@ -698,7 +698,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             'data_type': 'number',
         }
 
-    def _infer_boolean_attributes(self, feature_name: str) -> dict:
+    def _infer_boolean_attributes(self, feature_name: str) -> dict: # noqa ARG002
         return {
             'type': 'nominal',
             'data_type': 'boolean',
@@ -786,7 +786,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         else:
             return self._infer_unknown_attributes(feature_name)
 
-    def _infer_unknown_attributes(self, feature_name: str) -> dict:
+    def _infer_unknown_attributes(self, feature_name: str) -> dict: # noqa ARG002
         return {
             'type': 'nominal'
         }

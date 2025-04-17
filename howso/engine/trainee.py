@@ -777,7 +777,7 @@ class Trainee(BaseTrainee):
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
         tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
-        **kwargs
+        **kwargs # noqa ARG002
     ):
         """
         Set trainee parameters for auto-ablation.

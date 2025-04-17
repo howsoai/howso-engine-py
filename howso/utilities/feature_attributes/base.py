@@ -301,7 +301,7 @@ class FeatureAttributesBase(dict):
                 if coerce:
                     coerced_df[feature] = series
                 is_valid = True
-            except Exception: # noqa: Intentionally broad
+            except Exception: # Intentionally broad
                 pass
         elif expected_dtype == 'datetime64':
             try:
@@ -317,7 +317,7 @@ class FeatureAttributesBase(dict):
                     else:
                         coerced_df[feature] = series
                 is_valid = True
-            except Exception: # noqa: Intentionally broad
+            except Exception: # Intentionally broad
                 pass
         else:
             # Else, compare the dtype directly
@@ -334,7 +334,7 @@ class FeatureAttributesBase(dict):
                     # If this happens, there is a null value, thus a float dtype is OK
                     if pd.api.types.is_float_dtype(series):
                         is_valid = True
-                except Exception: # noqa: Intentionally broad
+                except Exception: # Intentionally broad
                     pass
 
         # Raise warnings if the types do not match
@@ -617,7 +617,7 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
         """
         return feature_name in self.unsupported
 
-    def to_dataframe(self, *, include_all: bool = False) -> pd.DataFrame:
+    def to_dataframe(self, *, include_all: bool = False) -> pd.DataFrame:  # noqa ARG002
         """
         Return a DataFrame of the feature attributes.
 
@@ -704,7 +704,7 @@ class InferFeatureAttributesBase(ABC):
                  include_extended_nominal_probabilities: t.Optional[bool] = False,
                  include_sample: bool = False,
                  infer_bounds: bool = True,
-                 max_workers: t.Optional[int] = None,
+                 max_workers: t.Optional[int] = None,  # noqa ARG002
                  mode_bound_features: t.Optional[Iterable[str]] = None,
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
@@ -1228,7 +1228,7 @@ class InferFeatureAttributesBase(ABC):
         try:
             dt_parse(string)
             return True
-        except Exception:  # noqa: Intentionally broad
+        except Exception: # Intentionally broad
             return False
 
     def _is_iso8601_datetime_column(self, feature: str) -> bool:
@@ -1264,7 +1264,7 @@ class InferFeatureAttributesBase(ABC):
                 if not self._is_datetime(rand_val):
                     return False
                 isoparse(rand_val)
-        except Exception:  # noqa: Intentionally broad
+        except Exception: # Intentionally broad
             return False
 
         # No issues; it's valid

@@ -138,7 +138,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         train_initial_batch_size: int = 100,
         verbose: bool = False,
         version_check: bool = True,
-        **kwargs
+        **kwargs  # noqa ARG002
     ):
         global _VERSION_CHECKED
 
@@ -378,10 +378,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             return data
         except HowsoError:
             raise
-        except Exception:  # noqa: Deliberately broad
+        except Exception:
             raise HowsoError('Failed to deserialize the Howso Engine response.')
 
-    def _resolve_trainee(self, trainee_id: str, **kwargs) -> DirectTrainee:
+    def _resolve_trainee(self, trainee_id: str, **kwargs) -> DirectTrainee:  # noqa ARG002
         """
         Resolve a Trainee and acquire its resources.
 
@@ -538,7 +538,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             file_size=file_size
         )
 
-    def _get_trainee_thread_count(self, trainee_id: str) -> int:
+    def _get_trainee_thread_count(self, trainee_id: str) -> int: # noqa ARG002
         """
         Get the number of available cpu threads a Trainee has access to.
 
@@ -612,7 +612,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             return None
         return path.stat().st_size
 
-    def execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:
+    def execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:  # noqa ARG002
         """
         Execute a label in Howso engine.
 
@@ -638,7 +638,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError('Invalid payload - please check for infinity or NaN values') from err
         return self._deserialize(label, result)
 
-    def execute_sized(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> tuple[t.Any, int, int]:
+    def execute_sized(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> tuple[t.Any, int, int]:  # noqa ARG002
         """
         Execute a label in Howso engine and return the request and response sizes.
 
@@ -668,7 +668,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError('Invalid payload - please check for infinity or NaN values') from err
         return self._deserialize(label, result), len(json_payload), len(result)
 
-    def is_tracing_enabled(self, trainee_id: str) -> bool:
+    def is_tracing_enabled(self, trainee_id: str) -> bool: # noqa ARG002
         """
         Get if tracing is enabled for Trainee.
 
@@ -747,7 +747,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 ):
                     return False, 'Cannot write to this path'
 
-        except Exception as e:  # noqa: Deliberately broad
+        except Exception as e: # Deliberately broad
             return False, f'Exception {e} while checking file'
         else:
             return True, 'OK'
@@ -759,13 +759,13 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         id: t.Optional[str | uuid.UUID] = None,
         library_type: t.Optional[LibraryType] = None,
-        max_wait_time: t.Optional[int | float] = None,
+        max_wait_time: t.Optional[int | float] = None,  # noqa ARG002
         metadata: t.Optional[MutableMapping[str, t.Any]] = None,
         overwrite_trainee: bool = False,
         persistence: Persistence = "allow",
-        project: t.Optional[str | Project] = None,
+        project: t.Optional[str | Project] = None,  # noqa ARG002
         resources: t.Optional[Mapping[str, t.Any]] = None,
-        runtime: t.Optional[TraineeRuntimeOptions] = None,
+        runtime: t.Optional[TraineeRuntimeOptions] = None, # noqa ARG002
     ) -> Trainee:
         """
         Create a Trainee on the Howso service.
@@ -853,7 +853,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     self.configuration.verbose,
                     f'Deleting existing Trainee "{trainee_id}" before creating.')
                 self.amlg.destroy_entity(trainee_id)
-            except Exception:  # noqa: Deliberately broad
+            except Exception: # Deliberately broad
                 util.dprint(
                     self.configuration.verbose,
                     f'Unable to delete Trainee "{trainee_id}". Continuing.')
@@ -1243,7 +1243,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         *,
         library_type: t.Optional[LibraryType] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
-        runtime: t.Optional[TraineeRuntimeOptions] = None
+        runtime: t.Optional[TraineeRuntimeOptions] = None # noqa ARG002
     ) -> Trainee:
         """
         Copies a trainee to a new trainee id in the Howso service.
@@ -1346,7 +1346,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         *,
-        max_wait_time: t.Optional[int | float] = None
+        max_wait_time: t.Optional[int | float] = None  # noqa ARG002
     ):
         """
         Acquire resources for a trainee in the Howso service.
@@ -1508,7 +1508,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         search_terms: t.Optional[str] = None,
         *,
         trainee: t.Optional[str | Trainee] = None,
-        **kwargs
+        **kwargs # noqa ARG002
     ) -> list[Session]:
         """
         Return a list of all accessible sessions.
