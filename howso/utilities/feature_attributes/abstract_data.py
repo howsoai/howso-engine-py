@@ -62,8 +62,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         """
         if not AbstractData:
             raise ImportError("The howso-engine-connectors package must installed to use "
-                              "infer_feature_attributes with AbstractData classes. You can use "
-                              "the 'connectors' extra when installing howso-engine.")
+                              "infer_feature_attributes with AbstractData classes.")
         self.adc = data
         # Keep track of features that contain unsupported data
         self.unsupported = []

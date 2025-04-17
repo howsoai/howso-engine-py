@@ -51,9 +51,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-connectors = [
-    "howso-engine-connectors~=1.0",
-]
 dev = [
    "dill~=0.0",
    "flake8-docstrings",
