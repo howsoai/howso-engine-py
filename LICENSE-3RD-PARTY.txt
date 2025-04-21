@@ -685,12 +685,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-2.2.4
+2.2.5
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.13.3/lib/python3.13/site-packages/numpy-2.2.4.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.3/lib/python3.13/site-packages/numpy-2.2.5.dist-info/LICENSE.txt
 Copyright (c) 2005-2024, NumPy Developers.
 All rights reserved.
 
@@ -1665,12 +1665,12 @@ License: LGPL-2.1-or-later
 
 
 packaging
-24.2
+25.0
 Apache Software License; BSD License
 Donald Stufft <donald@stufft.io>
 https://github.com/pypa/packaging
 Core utilities for Python packages
-/home/runner/.pyenv/versions/3.13.3/lib/python3.13/site-packages/packaging-24.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.3/lib/python3.13/site-packages/packaging-25.0.dist-info/licenses/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to this software is made
 under the terms of *both* these licenses.
