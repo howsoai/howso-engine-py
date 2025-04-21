@@ -1202,7 +1202,7 @@ class Trainee(BaseTrainee):
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -1703,9 +1703,9 @@ class Trainee(BaseTrainee):
             When True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
             be used if the Trainee has them.
-        use_regional_residuals : bool, default True
-            When False, uses global residuals. When True, calculates and uses
-            regional residuals, which may increase runtime noticably.
+        use_differential_privacy : bool, default False
+            If True will use differentially private approach to adding noise
+            during generative reacts.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1753,7 +1753,7 @@ class Trainee(BaseTrainee):
             suppress_warning=suppress_warning,
             use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
             use_case_weights=use_case_weights,
-            use_regional_residuals=use_regional_residuals,
+            use_differential_privacy=use_differential_privacy,
             weight_feature=weight_feature,
         )
 
@@ -1795,7 +1795,7 @@ class Trainee(BaseTrainee):
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         """
@@ -1953,8 +1953,8 @@ class Trainee(BaseTrainee):
             :meth:`react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
-        use_regional_residuals : bool, default True
-            See parameter ``use_regional_residuals`` in :meth:`react`.
+        use_differential_privacy : bool, default True
+            See parameter ``use_differential_privacy`` in :meth:`react`.
         weight_feature : str, optional
             See parameter ``weight_feature`` in :meth:`react`.
 
@@ -2006,7 +2006,7 @@ class Trainee(BaseTrainee):
                 suppress_warning=suppress_warning,
                 use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
                 use_case_weights=use_case_weights,
-                use_regional_residuals=use_regional_residuals,
+                use_differential_privacy=use_differential_privacy,
                 weight_feature=weight_feature,
             )
         else:
@@ -2030,7 +2030,7 @@ class Trainee(BaseTrainee):
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_derived_ts_features: bool = True,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -2098,10 +2098,9 @@ class Trainee(BaseTrainee):
         use_derived_ts_features : bool, default True
             If True, then time-series features derived from features specified
             as contexts will additionally be added as context features.
-        use_regional_residuals : bool, default True
-            If False, global residuals will be used in generative predictions.
-            If True, regional residuals will be computed and used instead. This
-            may increase runtime noticeable.
+        use_differential_privacy : bool, default False
+            If True will use differentially private approach to adding noise
+            during generative reacts.
         weight_feature : str, optional
             The name of the weight feature to be used. Should be used in
             combination with ``use_case_weights``.
@@ -2134,7 +2133,7 @@ class Trainee(BaseTrainee):
                 series_id_values=series_id_values,
                 use_case_weights=use_case_weights,
                 use_derived_ts_features=use_derived_ts_features,
-                use_regional_residuals=use_regional_residuals,
+                use_differential_privacy=use_differential_privacy,
                 weight_feature=weight_feature,
             )
         else:

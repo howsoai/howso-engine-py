@@ -1481,7 +1481,7 @@ class AbstractHowsoClient(ABC):
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -1907,9 +1907,9 @@ class AbstractHowsoClient(ABC):
             The name of a series store. If specified, will store an internal
             record of all react contexts for this session and series to be used
             later with train series.
-        use_regional_residuals : bool
-            If false uses global residuals, if True calculates and uses
-            regional residuals, which may increase runtime noticably.
+        use_differential_privacy : bool, default False
+            If True will use differentially private approach to adding noise
+            during generative reacts.
         feature_bounds_map : dict of dict
             A mapping of feature names to the bounds for the
             feature values to be generated in. For continuous features this
@@ -2210,7 +2210,7 @@ class AbstractHowsoClient(ABC):
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
-                "use_regional_residuals": use_regional_residuals,
+                "use_differential_privacy": use_differential_privacy,
                 "desired_conviction": desired_conviction,
                 "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy,
                 "feature_bounds_map": feature_bounds_map,
@@ -2631,7 +2631,7 @@ class AbstractHowsoClient(ABC):
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None
     ) -> Reaction:
         """
@@ -2798,8 +2798,8 @@ class AbstractHowsoClient(ABC):
             See parameter ``preserve_feature_values`` in :meth:`AbstractHowsoClient.react`.
         new_case_threshold : str
             See parameter ``new_case_threshold`` in :meth:`AbstractHowsoClient.react`.
-        use_regional_residuals : bool
-            See parameter ``use_regional_residuals`` in :meth:`AbstractHowsoClient.react`.
+        use_differential_privacy : bool
+            See parameter ``use_differential_privacy`` in :meth:`AbstractHowsoClient.react`.
         feature_bounds_map: dict of dict
             See parameter ``feature_bounds_map`` in :meth:`AbstractHowsoClient.react`.
         generate_new_cases : {"always", "attempt", "no"}
@@ -2963,7 +2963,7 @@ class AbstractHowsoClient(ABC):
                 "series_id_features": series_id_features,
                 "series_id_values": series_id_values,
                 "leave_series_out": leave_series_out,
-                "use_regional_residuals": use_regional_residuals,
+                "use_differential_privacy": use_differential_privacy,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
                 "goal_features_map": goal_features_map,
@@ -3167,7 +3167,7 @@ class AbstractHowsoClient(ABC):
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_derived_ts_features: bool = True,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -3235,10 +3235,9 @@ class AbstractHowsoClient(ABC):
         use_derived_ts_features : bool, default True
             If True, then time-series features derived from features specified
             as contexts will additionally be added as context features.
-        use_regional_residuals : bool, default True
-            If False, global residuals will be used in generative predictions.
-            If True, regional residuals will be computed and used instead. This
-            may increase runtime noticeable.
+        use_differential_privacy : bool, default False
+            If True will use differentially private approach to adding noise
+            during generative reacts.
         weight_feature : str, optional
             The name of the weight feature to be used. Should be used in
             combination with ``use_case_weights``.
@@ -3316,7 +3315,7 @@ class AbstractHowsoClient(ABC):
             "series_id_values": serialized_series_id_values,
             "use_case_weights": use_case_weights,
             "use_derived_ts_features": use_derived_ts_features,
-            "use_regional_residuals": use_regional_residuals,
+            "use_differential_privacy": use_differential_privacy,
             "goal_features_map": goal_features_map,
             "weight_feature": weight_feature,
         }
