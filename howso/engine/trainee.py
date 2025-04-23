@@ -1794,6 +1794,7 @@ class Trainee(BaseTrainee):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
+        use_all_features: bool = True,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
@@ -1949,8 +1950,13 @@ class Trainee(BaseTrainee):
         suppress_warning : bool, default False
             See parameter ``suppress_warning`` in :meth:`react`.
         use_aggregation_based_differential_privacy : bool, default False
-            See paramater ``use_aggregation_based_differential_privacy`` in
+            See parameter ``use_aggregation_based_differential_privacy`` in
             :meth:`react`.
+        use_all_features: bool, default True
+            If True, values are generated for every trained feature and derived feature
+            internally during the generation of the series. If False, then values are only
+            generated for features specified as action features and the features necessary
+            to derive them, reducing the expected runtime but possibly reducing accuracy.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
         use_regional_residuals : bool, default True
@@ -2005,6 +2011,7 @@ class Trainee(BaseTrainee):
                 substitute_output=substitute_output,
                 suppress_warning=suppress_warning,
                 use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
+                use_all_features=use_all_features,
                 use_case_weights=use_case_weights,
                 use_regional_residuals=use_regional_residuals,
                 weight_feature=weight_feature,
