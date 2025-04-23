@@ -2889,7 +2889,7 @@ class Trainee(BaseTrainee):
         self,
         *,
         case_indices: t.Optional[CaseIndices] = None,
-        conditions: t.Optional[list[dict]] = None,
+        conditions: t.Optional[list[Mapping]] = None,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
@@ -2915,7 +2915,7 @@ class Trainee(BaseTrainee):
             the session training indices that uniquely identify trained cases.
             Each sublist defines a set of trained cases to react to. Only one of
             ``case_indices``, ``conditions``, or ``new_cases`` may be specified.
-        conditions: a list of mappings, optional
+        conditions: a list of Mapping, optional
             A list of mappings that define conditions which will select sets of
             trained cases to react to. Only one of ``case_indices``,
             ``conditions``, or ``new_cases`` may be specified.
