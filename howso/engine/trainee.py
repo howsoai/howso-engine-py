@@ -2915,7 +2915,7 @@ class Trainee(BaseTrainee):
             the session training indices that uniquely identify trained cases.
             Each sublist defines a set of trained cases to react to. Only one of
             ``case_indices``, ``conditions``, or ``new_cases`` may be specified.
-        conditions: a list of Mapping, optional
+        conditions: list of Mapping, optional
             A list of mappings that define conditions which will select sets of
             trained cases to react to. Only one of ``case_indices``,
             ``conditions``, or ``new_cases`` may be specified.

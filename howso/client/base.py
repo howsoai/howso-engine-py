@@ -4024,7 +4024,7 @@ class AbstractHowsoClient(ABC):
             the session training indices that uniquely identify trained cases.
             Each sublist defines a set of trained cases to react to. Only one of
             ``case_indices``, ``conditions``, or ``new_cases`` may be specified.
-        conditions: a list of Mapping, optional
+        conditions: list of Mapping, optional
             A list of mappings that define conditions which will select sets of
             trained cases to react to. Only one of ``case_indices``,
             ``conditions``, or ``new_cases`` may be specified.
@@ -4102,7 +4102,8 @@ class AbstractHowsoClient(ABC):
                 if features is None:
                     features = internals.get_features_from_data(group)
                 serialized_cases.append(serialize_cases(group, features, feature_attributes))
-        elif case_indices is not None:
+
+        if case_indices is not None:
             util.validate_case_indices(case_indices)
 
         if self.configuration.verbose:
