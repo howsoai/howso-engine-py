@@ -2880,13 +2880,15 @@ class Trainee(BaseTrainee):
 
     def react_group(
         self,
-        new_cases: TabularData3D,
         *,
+        case_indices: t.Optional[CaseIndices] = None,
+        conditions: t.Optional[list[dict]] = None,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
+        new_cases: t.Optional[TabularData3D] = None,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
         use_case_weights: t.Optional[bool] = None,
@@ -2901,6 +2903,30 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
+        case_indices: list of lists of tuples of {str, int}, optional
+            A list of lists of case indices tuples containing the session ID and
+            the session training indices that uniquely identify trained cases.
+            Each sublist defines a set of trained cases to react to. Only one of
+            ``case_indices``, ``conditions``, or ``new_cases`` may be specified.
+        conditions: a list of mappings, optional
+            A list of mappings that define conditions which will select sets of
+            trained cases to react to. Only one of ``case_indices``,
+            ``conditions``, or ``new_cases`` may be specified.
+
+            Each condition mapping will select trained cases that meet all the
+            provided conditions.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         distance_contributions : bool, default False
             Calculate and output distance contribution ratios in
             the output dict for each case.
@@ -2918,9 +2944,13 @@ class Trainee(BaseTrainee):
         kl_divergence_removal : bool, default False
             Calculate and output KL divergence of removing the
             specified cases.
-        new_cases : list of DataFrame or 3-dimensional list of object
-            Specify a **set** using a list of cases to compute the conviction
-            of groups of cases as shown in the following example.
+        new_cases : list of DataFrame or 3-dimensional list of object, optional
+            Specify a **set** using a list of cases to compute the conviction of
+            groups of cases as shown in the following example. If given as a list,
+            feature values in each list representing a case should be ordered
+            following the order of feature names given to the "features"
+            parameter. Only one of ``case_indices``, ``conditions``, or
+            ``new_cases`` may be specified.
 
             Example::
 
@@ -2950,6 +2980,8 @@ class Trainee(BaseTrainee):
             return self.client.react_group(
                 trainee_id=self.id,
                 new_cases=new_cases,
+                case_indices=case_indices,
+                conditions=conditions,
                 features=features,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
