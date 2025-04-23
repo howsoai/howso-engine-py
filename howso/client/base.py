@@ -2630,6 +2630,7 @@ class AbstractHowsoClient(ABC):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
+        use_all_features: bool = True,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None
@@ -2766,6 +2767,11 @@ class AbstractHowsoClient(ABC):
             the number will be determined automatically. The number of series
             in following batches will be automatically adjusted. This value is
             ignored if ``batch_size`` is specified.
+        use_all_features: bool, default True
+            If True, values are generated for every trained feature and derived feature
+            internally during the generation of the series. If False, then values are only
+            generated for features specified as action features and the features necessary
+            to derive them, reducing the expected runtime but possibly reducing accuracy.
         action_features: iterable of str
             See parameter ``action_features`` in :meth:`AbstractHowsoClient.react`.
         input_is_substituted : bool, default False
@@ -2790,7 +2796,7 @@ class AbstractHowsoClient(ABC):
         weight_feature : str
             See parameter ``weight_feature`` in :meth:`AbstractHowsoClient.react`.
         use_aggregation_based_differential_privacy : bool, default False
-            See paramater ``use_aggregation_based_differential_privacy`` in
+            See parameter ``use_aggregation_based_differential_privacy`` in
             :meth:`AbstractHowsoClient.react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`AbstractHowsoClient.react`.
@@ -2922,7 +2928,8 @@ class AbstractHowsoClient(ABC):
                 "details": details,
                 "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
                 "series_id_tracking": series_id_tracking,
-                "output_new_series_ids": output_new_series_ids
+                "output_new_series_ids": output_new_series_ids,
+                "use_all_features": use_all_features,
             }
 
         else:
@@ -2963,6 +2970,7 @@ class AbstractHowsoClient(ABC):
                 "series_id_features": series_id_features,
                 "series_id_values": series_id_values,
                 "leave_series_out": leave_series_out,
+                "use_all_features": use_all_features,
                 "use_regional_residuals": use_regional_residuals,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
