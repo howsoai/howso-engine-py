@@ -9,7 +9,10 @@ import mongomock
 import pandas as pd
 import pytest
 
-from howso.connectors.abstract_data import MongoDBData
+try:
+    from howso.connectors.abstract_data import MongoDBData
+except ModuleNotFoundError:
+    pytest.skip("howso-engine-connectors not installed")
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
 from howso.utilities.features import FeatureType
