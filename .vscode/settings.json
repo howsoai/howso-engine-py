@@ -7,6 +7,7 @@
     "finfo",
     "howsoai",
     "iinfo",
+    "isinstance",
     "isoparse",
     "issubdtype",
     "itemsize",

@@ -119,20 +119,56 @@ split_penalty_for_added_line_split = 300
 # version is managed by setuptools_scm
 [tool.setuptools_scm]
 
+# Linting and static analysis tools
+
+[tool.pyright]
+typeCheckingMode = "strict"
+reportMissingTypeStubs = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
+reportPrivateUsage = "none"
+
+[tool.ruff]
+line-length = 119
+indent-width = 4
+
 [tool.ruff.lint]
 select = [
-    # pycodestyle
-    # "E",
-    # Pyflakes
-    # "F",
-    # pyupgrade
-    # "UP",
-    # flake8-bugbear
-    # "B",
-    # flake8-simplify
-    # "SIM",
+    # "E", # pycodestyle
+    # "W", # pycodestyle warnings
+    # "D", # pycodestyle docstrings
+    # "F", # Pyflakes
+    # "UP", # pyupgrade
+    # "B", # flake8-bugbear
+    # "SIM", # flake8-simplify
     # flake-8-unused-args
-    "ARG",
-    # isort
-    # "I",
+    "ARG", # Unused arguments
+    # "I", # isort Intentionally left out
+    # "C", # flake8-comprehensions
 ]
+ignore = [
+    "D100", # Missing docstring in public module
+    "D104", # Missing docstring in public package
+    "D107", # Missing docstring in __init__
+    "UP038", # Prefer X | Y over (X, Y) in isinstance (ignore since its slower)
+    "UP007", # Allow Optional[T] instead of forcing T | None
+    "UP035", # Allow deprecated imports. Required for from typing_extensions import TypeAlias and 3.9 support.
+]
+
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
