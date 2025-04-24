@@ -20,14 +20,19 @@ import warnings
 import numpy as np
 from pandas import DataFrame
 
-from howso.utilities import internals, utilities as util
-from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # noqa: E501 type: ignore reportPrivateUsage
+from howso.utilities import internals
+from howso.utilities import utilities as util
+from howso.utilities.constants import (  # noqa: E501 type: ignore reportPrivateUsage
+    _RENAMED_DETAIL_KEYS,
+    _RENAMED_DETAIL_KEYS_EXTRA,
+)
 from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
 )
 from howso.utilities.features import serialize_cases
 from howso.utilities.monitors import ProgressTimer
+
 from .exceptions import (
     HowsoError,
     UnsupportedArgumentWarning,
@@ -3482,7 +3487,7 @@ class AbstractHowsoClient(ABC):
         self,
         trainee_id: str,
         *,
-        analyze: bool = None,
+        analyze: t.Optional[bool] = None,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
@@ -3560,6 +3565,10 @@ class AbstractHowsoClient(ABC):
             "use_case_weights": use_case_weights,
         })
         self._auto_persist_trainee(trainee_id)
+
+        # Update trainee in cache
+        cached_trainee = self.trainee_cache.get_item(trainee_id)
+        cached_trainee["feature_attributes"] = self.get_feature_attributes(trainee_id)
 
     def react_aggregate(  # noqa: C901
         self,

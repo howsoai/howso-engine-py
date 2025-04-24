@@ -14,18 +14,28 @@ import pytest
 
 import howso
 from howso.client import HowsoClient
+from howso.client.client import _check_isfile  # type: ignore reportPrivateUsage
 from howso.client.client import (
-    _check_isfile,  # type: ignore reportPrivateUsage
     get_configuration_path,
     get_howso_client_class,
-    LEGACY_CONFIG_FILENAMES
+    LEGACY_CONFIG_FILENAMES,
 )
-from howso.client.exceptions import HowsoApiError, HowsoConfigurationError, HowsoError
+from howso.client.exceptions import (
+    HowsoApiError,
+    HowsoConfigurationError,
+    HowsoError,
+)
 from howso.client.protocols import ProjectClient
 from howso.client.schemas.reaction import Reaction
 from howso.direct import HowsoDirectClient
-from howso.utilities.testing import get_configurationless_test_client, get_test_options
-from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # type: ignore reportPrivateUsage
+from howso.utilities.constants import (  # type: ignore reportPrivateUsage
+    _RENAMED_DETAIL_KEYS,
+    _RENAMED_DETAIL_KEYS_EXTRA,
+)
+from howso.utilities.testing import (
+    get_configurationless_test_client,
+    get_test_options,
+)
 
 TEST_OPTIONS = get_test_options()
 
@@ -946,6 +956,13 @@ class TestBaseClient:
         """Test the that output is the expected type: int."""
         number_cases = self.client.get_num_training_cases(trainee.id)
         assert isinstance(number_cases, int)
+
+    def test_react_into_features_updated_feature_attributes(self, trainee):
+        """Test that react_into_features updates the feature attributes."""
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
+        trainee_cache = self.client.trainee_cache.get_item(trainee.id)
+
+        assert 'familiarity_conviction_addition' in trainee_cache.get('feature_attributes', {}).keys()
 
     def test_react_into_features_verbose(self, trainee, capsys):
         """
