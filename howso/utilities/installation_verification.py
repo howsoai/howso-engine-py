@@ -576,7 +576,7 @@ def generate_dataframe(*, client: AbstractHowsoClient,
     return df, elapsed_time
 
 
-def check_not_emulated():
+def check_not_emulated(*, registry: InstallationCheckRegistry): # noqa ARG001
     """
     Check that the installation is not running under emulation on MacOS.
 
