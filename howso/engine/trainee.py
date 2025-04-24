@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import (
     Callable,
     Collection,
-    Iterable,
     Mapping,
     MutableMapping,
 )
@@ -14,7 +13,6 @@ import uuid
 import warnings
 
 from pandas import (
-    concat,
     DataFrame,
     Index,
 )
@@ -23,7 +21,6 @@ from howso.client.base import AbstractHowsoClient
 from howso.client.exceptions import (
     HowsoApiError,
     HowsoError,
-    HowsoWarning,
 )
 from howso.client.pandas import HowsoPandasClientMixin
 from howso.client.protocols import (
@@ -47,7 +44,6 @@ from howso.client.typing import (
     LibraryType,
     Mode,
     NewCaseThreshold,
-    NormalizeMethod,
     PathLike,
     Persistence,
     Precision,
@@ -59,7 +55,6 @@ from howso.client.typing import (
 from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
-from howso.utilities import matrix_processing
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 
 __all__ = [
@@ -980,7 +975,7 @@ class Trainee(BaseTrainee):
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
-        k_values: t.Optional[Collection[int|Collection[int|float]]] = None,
+        k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         analysis_sub_model_size: t.Optional[int] = None,
@@ -1799,6 +1794,7 @@ class Trainee(BaseTrainee):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
+        use_all_features: bool = True,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None,
@@ -1837,6 +1833,17 @@ class Trainee(BaseTrainee):
             See parameter ``desired_conviction`` in :meth:`react`.
         details : map of str to object
             See parameter ``details`` in :meth:`react`.
+
+            Additional ``react_series`` only details:
+
+                - series_residuals : bool, optional
+                    If True, outputs the mean absolute deviation (MAD) of each continuous
+                    feature as the estimated uncertainty for each timestep of each
+                    generated series based on internal generative forecasts.
+                - series_residuals_num_samples : int, optional
+                    If specified, will set the number of generative forecasts used to estimate
+                    the uncertainty reported by the 'series_residuals' detail. Defaults to 30
+                    when unspecified.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
@@ -1945,6 +1952,11 @@ class Trainee(BaseTrainee):
         use_aggregation_based_differential_privacy : bool, default False
             See parameter ``use_aggregation_based_differential_privacy`` in
             :meth:`react`.
+        use_all_features: bool, default True
+            If True, values are generated for every trained feature and derived feature
+            internally during the generation of the series. If False, then values are only
+            generated for features specified as action features and the features necessary
+            to derive them, reducing the expected runtime but possibly reducing accuracy.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
         use_regional_residuals : bool, default True
@@ -1999,6 +2011,7 @@ class Trainee(BaseTrainee):
                 substitute_output=substitute_output,
                 suppress_warning=suppress_warning,
                 use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
+                use_all_features=use_all_features,
                 use_case_weights=use_case_weights,
                 use_regional_residuals=use_regional_residuals,
                 weight_feature=weight_feature,
@@ -2762,7 +2775,7 @@ class Trainee(BaseTrainee):
                 )
                 self._features = self.client.resolve_feature_attributes(self.id)
             else:
-                raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
+                raise ValueError("Trainee ID is needed for 'remove_feature'.")
         else:
             raise AssertionError("Client must have the 'remove_feature' method.")
 
@@ -2874,13 +2887,15 @@ class Trainee(BaseTrainee):
 
     def react_group(
         self,
-        new_cases: TabularData3D,
         *,
+        case_indices: t.Optional[CaseIndices] = None,
+        conditions: t.Optional[list[Mapping]] = None,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
+        new_cases: t.Optional[TabularData3D] = None,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
         use_case_weights: t.Optional[bool] = None,
@@ -2895,6 +2910,30 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
+        case_indices: list of lists of tuples of {str, int}, optional
+            A list of lists of case indices tuples containing the session ID and
+            the session training indices that uniquely identify trained cases.
+            Each sublist defines a set of trained cases to react to. Only one of
+            ``case_indices``, ``conditions``, or ``new_cases`` may be specified.
+        conditions: list of Mapping, optional
+            A list of mappings that define conditions which will select sets of
+            trained cases to react to. Only one of ``case_indices``,
+            ``conditions``, or ``new_cases`` may be specified.
+
+            Each condition mapping will select trained cases that meet all the
+            provided conditions.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         distance_contributions : bool, default False
             Calculate and output distance contribution ratios in
             the output dict for each case.
@@ -2912,9 +2951,13 @@ class Trainee(BaseTrainee):
         kl_divergence_removal : bool, default False
             Calculate and output KL divergence of removing the
             specified cases.
-        new_cases : list of DataFrame or 3-dimensional list of object
-            Specify a **set** using a list of cases to compute the conviction
-            of groups of cases as shown in the following example.
+        new_cases : list of DataFrame or 3-dimensional list of object, optional
+            Specify a **set** using a list of cases to compute the conviction of
+            groups of cases as shown in the following example. If given as a list,
+            feature values in each list representing a case should be ordered
+            following the order of feature names given to the "features"
+            parameter. Only one of ``case_indices``, ``conditions``, or
+            ``new_cases`` may be specified.
 
             Example::
 
@@ -2944,6 +2987,8 @@ class Trainee(BaseTrainee):
             return self.client.react_group(
                 trainee_id=self.id,
                 new_cases=new_cases,
+                case_indices=case_indices,
+                conditions=conditions,
                 features=features,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
@@ -3148,6 +3193,7 @@ class Trainee(BaseTrainee):
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
             )
+            self._features = self.client.resolve_feature_attributes(self.id)
         else:
             raise AssertionError("Client must have the 'react_into_features' method.")
 

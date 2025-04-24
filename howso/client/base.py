@@ -20,14 +20,19 @@ import warnings
 import numpy as np
 from pandas import DataFrame
 
-from howso.utilities import internals, utilities as util
-from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # type: ignore reportPrivateUsage
+from howso.utilities import internals
+from howso.utilities import utilities as util
+from howso.utilities.constants import (  # noqa: E501 type: ignore reportPrivateUsage
+    _RENAMED_DETAIL_KEYS,
+    _RENAMED_DETAIL_KEYS_EXTRA,
+)
 from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
 )
 from howso.utilities.features import serialize_cases
 from howso.utilities.monitors import ProgressTimer
+
 from .exceptions import (
     HowsoError,
     UnsupportedArgumentWarning,
@@ -2630,6 +2635,7 @@ class AbstractHowsoClient(ABC):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
+        use_all_features: bool = True,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
         weight_feature: t.Optional[str] = None
@@ -2766,6 +2772,11 @@ class AbstractHowsoClient(ABC):
             the number will be determined automatically. The number of series
             in following batches will be automatically adjusted. This value is
             ignored if ``batch_size`` is specified.
+        use_all_features: bool, default True
+            If True, values are generated for every trained feature and derived feature
+            internally during the generation of the series. If False, then values are only
+            generated for features specified as action features and the features necessary
+            to derive them, reducing the expected runtime but possibly reducing accuracy.
         action_features: iterable of str
             See parameter ``action_features`` in :meth:`AbstractHowsoClient.react`.
         input_is_substituted : bool, default False
@@ -2774,12 +2785,23 @@ class AbstractHowsoClient(ABC):
             See parameter ``substitute_output`` in :meth:`AbstractHowsoClient.react`.
         details: dict, optional
             See parameter ``details`` in :meth:`AbstractHowsoClient.react`.
+
+            Additional ``react_series`` only details:
+
+                - series_residuals : bool, optional
+                    If True, outputs the mean absolute deviation (MAD) of each continuous
+                    feature as the estimated uncertainty for each timestep of each
+                    generated series based on internal generative forecasts.
+                - series_residuals_num_samples : int, optional
+                    If specified, will set the number of generative forecasts used to estimate
+                    the uncertainty reported by the 'series_residuals' detail. Defaults to 30
+                    when unspecified.
         desired_conviction: float
             See parameter ``desired_conviction`` in :meth:`AbstractHowsoClient.react`.
         weight_feature : str
             See parameter ``weight_feature`` in :meth:`AbstractHowsoClient.react`.
         use_aggregation_based_differential_privacy : bool, default False
-            See paramater ``use_aggregation_based_differential_privacy`` in
+            See parameter ``use_aggregation_based_differential_privacy`` in
             :meth:`AbstractHowsoClient.react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`AbstractHowsoClient.react`.
@@ -2911,7 +2933,8 @@ class AbstractHowsoClient(ABC):
                 "details": details,
                 "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
                 "series_id_tracking": series_id_tracking,
-                "output_new_series_ids": output_new_series_ids
+                "output_new_series_ids": output_new_series_ids,
+                "use_all_features": use_all_features,
             }
 
         else:
@@ -2952,6 +2975,7 @@ class AbstractHowsoClient(ABC):
                 "series_id_features": series_id_features,
                 "series_id_values": series_id_values,
                 "leave_series_out": leave_series_out,
+                "use_all_features": use_all_features,
                 "use_regional_residuals": use_regional_residuals,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
@@ -3463,7 +3487,7 @@ class AbstractHowsoClient(ABC):
         self,
         trainee_id: str,
         *,
-        analyze: bool = None,
+        analyze: t.Optional[bool] = None,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
@@ -3541,6 +3565,10 @@ class AbstractHowsoClient(ABC):
             "use_case_weights": use_case_weights,
         })
         self._auto_persist_trainee(trainee_id)
+
+        # Update trainee in cache
+        cached_trainee = self.trainee_cache.get_item(trainee_id)
+        cached_trainee["feature_attributes"] = self.get_feature_attributes(trainee_id)
 
     def react_aggregate(  # noqa: C901
         self,
@@ -3974,14 +4002,16 @@ class AbstractHowsoClient(ABC):
     def react_group(
         self,
         trainee_id: str,
-        new_cases: TabularData3D,
         *,
+        case_indices: t.Optional[CaseIndices] = None,
+        conditions: t.Optional[list[Mapping]] = None,
         features: t.Optional[Collection[str]] = None,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
+        new_cases: t.Optional[TabularData3D] = None,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
         weight_feature: t.Optional[str] = None,
@@ -3998,13 +4028,30 @@ class AbstractHowsoClient(ABC):
         trainee_id : str
             The trainee id.
 
-        new_cases : list of list of list of object or list of DataFrame
-            Specify a **set** using a list of cases to compute the conviction of
-            groups of cases as shown in the following example.
+        case_indices: list of lists of tuples of {str, int}, optional
+            A list of lists of case indices tuples containing the session ID and
+            the session training indices that uniquely identify trained cases.
+            Each sublist defines a set of trained cases to react to. Only one of
+            ``case_indices``, ``conditions``, or ``new_cases`` may be specified.
+        conditions: list of Mapping, optional
+            A list of mappings that define conditions which will select sets of
+            trained cases to react to. Only one of ``case_indices``,
+            ``conditions``, or ``new_cases`` may be specified.
 
-            >>> [ [[1, 2, 3], [4, 5, 6], [7, 8, 9]], # Group 1
-            >>>   [[1, 2, 3]] ] # Group 2
+            Each condition mapping will select trained cases that meet all the
+            provided conditions.
 
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         features : Collection of str, optional
             The feature names to consider while calculating convictions.
         distance_contributions : bool, default False
@@ -4022,6 +4069,16 @@ class AbstractHowsoClient(ABC):
         kl_divergence_removal : bool, default False
             Calculate and output KL divergence of removing the
             specified cases.
+        new_cases : list of list of list of object or list of DataFrame, optional
+            Specify a **set** using a list of cases to compute the conviction of
+            groups of cases as shown in the following example. If given as a list,
+            feature values in each list representing a case should be ordered
+            following the order of feature names given to the "features"
+            parameter. Only one of ``case_indices``, ``conditions``, or
+            ``new_cases`` may be specified.
+
+            >>> [ [[1, 2, 3], [4, 5, 6], [7, 8, 9]], # Group 1
+            >>>   [[1, 2, 3]] ] # Group 2
         p_value_of_addition : bool, default False
             If true will output p value of addition.
         p_value_of_removal : bool, default False
@@ -4043,22 +4100,28 @@ class AbstractHowsoClient(ABC):
         feature_attributes = self.resolve_feature_attributes(trainee_id)
         serialized_cases = None
 
-        if util.num_list_dimensions(new_cases) != 3:
-            raise ValueError(
-                "Improper shape of `new_cases` values passed. "
-                "`new_cases` must be a 3d list of object.")
+        if new_cases is not None:
+            if util.num_list_dimensions(new_cases) != 3:
+                raise ValueError(
+                    "Improper shape of `new_cases` values passed. "
+                    "`new_cases` must be a 3d list of object.")
 
-        serialized_cases = []
-        for group in new_cases:
-            if features is None:
-                features = internals.get_features_from_data(group)
-            serialized_cases.append(serialize_cases(group, features, feature_attributes))
+            serialized_cases = []
+            for group in new_cases:
+                if features is None:
+                    features = internals.get_features_from_data(group)
+                serialized_cases.append(serialize_cases(group, features, feature_attributes))
+
+        if case_indices is not None:
+            util.validate_case_indices(case_indices)
 
         if self.configuration.verbose:
             print(f'Reacting to a set of cases on Trainee with id: {trainee_id}')
         result = self.execute(trainee_id, "react_group", {
             "features": features,
             "new_cases": serialized_cases,
+            "conditions": conditions,
+            "case_indices": case_indices,
             "distance_contributions": distance_contributions,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
@@ -4131,7 +4194,7 @@ class AbstractHowsoClient(ABC):
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
-        k_values: t.Optional[Collection[int|Collection[int|float]]] = None,
+        k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
@@ -4339,7 +4402,7 @@ class AbstractHowsoClient(ABC):
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
-        k_values: t.Optional[Collection[int|Collection[int|float]]] = None,
+        k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,

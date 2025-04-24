@@ -709,3 +709,4 @@ jobs:
       check-cache: false
       workflow-name: build.yml
       payload: '{"howso-engine-version": "${{ needs.metadata.outputs.version }}", "build-type": "release"}'
+      continue-on-error: true
