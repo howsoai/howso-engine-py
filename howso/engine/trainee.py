@@ -2775,7 +2775,7 @@ class Trainee(BaseTrainee):
                 )
                 self._features = self.client.resolve_feature_attributes(self.id)
             else:
-                raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
+                raise ValueError("Trainee ID is needed for 'remove_feature'.")
         else:
             raise AssertionError("Client must have the 'remove_feature' method.")
 
@@ -3193,6 +3193,7 @@ class Trainee(BaseTrainee):
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
             )
+            self._features = self.client.resolve_feature_attributes(self.id)
         else:
             raise AssertionError("Client must have the 'react_into_features' method.")
 
