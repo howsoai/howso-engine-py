@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
+from typing import Iterable
 import warnings
 
 from howso.utilities.feature_attributes import infer_feature_attributes
@@ -568,7 +569,6 @@ def test_get_names_types(types, num):
     df = pd.read_csv(iris_path)
     features = infer_feature_attributes(df)
     names = features.get_names(types=types)
-    print(names)
     assert len(names) == num
 
 
@@ -578,7 +578,6 @@ def test_copy():
     f_orig = infer_feature_attributes(df)
     f_copy = copy(f_orig)
 
-    print(f_copy.keys())
     assert f_copy.params == f_orig.params
     orig = f_orig['sepal_width']['bounds']['min']
     assert f_copy['sepal_width']['bounds']['min'] == orig
@@ -875,6 +874,34 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
         else:
             with pytest.raises(ValueError):
                 infer_feature_attributes(data, types=types)
+
+
+def test_preset_feature_types_with_multiprocessing():
+    """Test that the `types` parameter behaves well with multiprocessing enabled."""
+    df = pd.read_csv(stock_path)
+    # Identified continuous features
+    continuous = ['CLOSE']
+    # Everything else is nominal, in this case.
+    nominals = [f for f in df.columns if f not in continuous]
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=2)
+    assert features is not None
+
+
+def test_feature_order():
+    """Test that `infer_feature_attributes` returns features in same order as the DataFrame columns."""
+    def same_order(one: Iterable, two: Iterable) -> bool:
+        for idx, k in enumerate(one):
+            if idx >= len(two) or k != two[idx]:
+                return False
+        return True
+    df = pd.read_csv(stock_path)
+    continuous = ['CLOSE']
+    nominals = [f for f in df.columns if f not in continuous]
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=2)
+    assert same_order(features.keys(), df.columns)
+    # Try it without multiprocessing as well
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous})
+    assert same_order(features.keys(), df.columns)
 
 
 def test_archival():

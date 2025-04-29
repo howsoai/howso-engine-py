@@ -756,6 +756,10 @@ class InferFeatureAttributesBase(ABC):
             for k, v in types.items():
                 if isinstance(v, MutableSequence):
                     for feat_name in v:
+                        if feat_name not in self.data.columns:
+                            # In case of multiprocessing, don't set the feature type
+                            # if it is not in this worker's data
+                            continue
                         preset_types[feat_name] = {'type': k}
                 else:
                     preset_types[k] = {'type': v}
@@ -925,6 +929,11 @@ class InferFeatureAttributesBase(ABC):
 
         if infer_bounds:
             for feature_name, _attributes in self.attributes.items():
+                # If multiprocessing is enabled, this InferFeatureAttributes instance may not have
+                # access to all columns in the data, though they could still be present in the
+                # attributes dictionary in some circumstances.
+                if feature_name not in self.data.columns:
+                    continue
                 # Don't infer bounds for JSON/YAML features
                 if (
                     _attributes.get('data_type') in ['json', 'yaml'] or
@@ -996,7 +1005,12 @@ class InferFeatureAttributesBase(ABC):
                 for attribute, value in features[feature].items():
                     self.attributes[feature][attribute] = value
 
-        return self.attributes
+        # Re-order the keys like the original dataframe
+        ordered_attributes = {
+            k: self.attributes[k] for k in self.data.columns
+        }
+
+        return ordered_attributes
 
     @abstractmethod
     def __call__(self) -> FeatureAttributesBase:
