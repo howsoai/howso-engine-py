@@ -772,7 +772,7 @@ class Trainee(BaseTrainee):
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
         tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
-        **kwargs
+        **kwargs # noqa ARG002
     ):
         """
         Set trainee parameters for auto-ablation.
@@ -1705,7 +1705,7 @@ class Trainee(BaseTrainee):
             be used if the Trainee has them.
         use_regional_residuals : bool, default True
             When False, uses global residuals. When True, calculates and uses
-            regional residuals, which may increase runtime noticably.
+            regional residuals, which may increase runtime noticeably.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
