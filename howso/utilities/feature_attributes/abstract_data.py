@@ -63,7 +63,9 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         if not AbstractData:
             raise ImportError("The howso-engine-connectors package must installed to use "
                               "infer_feature_attributes with AbstractData classes.")
-        self.adc = data
+        self.data = data
+        # Accessed in the IFA base class as 'columns' instead of 'headers'
+        self.data.columns = self.data.headers
         # Keep track of features that contain unsupported data
         self.unsupported = []
 
@@ -75,23 +77,23 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         )
 
     def _is_primary_key(self, feature_name: str) -> bool:
-        if self.adc.primary_keys is not None:
-            return feature_name in self.adc.primary_keys
+        if self.data.primary_keys is not None:
+            return feature_name in self.data.primary_keys
         return False
 
     def _is_foreign_key(self, feature_name: str) -> bool:
-        if self.adc.foreign_keys is not None:
-            return feature_name in self.adc.foreign_keys
+        if self.data.foreign_keys is not None:
+            return feature_name in self.data.foreign_keys
         return False
 
     def _get_num_features(self) -> int:
-        return len(self.adc.headers)
+        return len(self.data.headers)
 
     def _get_num_cases(self, feature_name: str) -> int:
-        return self.adc.get_num_cases(feature_name)
+        return self.data.get_num_cases(feature_name)
 
     def _get_feature_names(self) -> list[str]:
-        return self.adc.headers
+        return self.data.headers
 
     def _has_unique_constraint(self, feature_name: str) -> bool:
         """Return True if the given feature_name has a unique constraint."""
@@ -105,7 +107,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # feature attribute could cause a data science disaster.
         inspector = None
         try:
-            inspector = self.adc.get_inspector()
+            inspector = self.data.get_inspector()
             uniques = inspector.get_unique_constraints(self.table_name.table,
                                                        schema=self.data.schema)
         except (AttributeError, NotImplementedError):
@@ -125,7 +127,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # Import this here to avoid circular import
         from howso.client.exceptions import HowsoError
 
-        dtype = self.adc.get_column_dtype(feature_name)
+        dtype = self.data.get_column_dtype(feature_name)
 
         if is_float_dtype(dtype):
             typing_info = {}
@@ -202,7 +204,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         return FeatureType.UNKNOWN, {}
 
     def _get_first_non_null(self, feature_name: str) -> t.Any | None:
-        return self.adc.get_first_non_null(feature_name)
+        return self.data.get_first_non_null(feature_name)
 
     def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
         """
@@ -213,7 +215,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         if `no_nulls` is set, select a random value from the set of non-null
         values, if any. If there are no such non-nulls, this will return None.
         """
-        return self.adc.get_random_value(feature_name, no_nulls=no_nulls)
+        return self.data.get_random_value(feature_name, no_nulls=no_nulls)
 
     @classmethod
     def _value_to_number(cls, value: t.Any) -> t.Any:
@@ -259,7 +261,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                     raise ValueError(f'Error computing bounds for {feature_name}: '
                                      f'`date_time_format` must be specified in attributes')
                 min_time, max_time = (
-                    self.adc.get_min_max_values(feature_name))
+                    self.data.get_min_max_values(feature_name))
                 # Min/max values from ADC are raw; convert to datetime.time
                 if not isinstance(min_time, datetime.time):
                     min_time = pd.to_datetime(min_time, format=time_format, errors='coerce').time()
@@ -291,7 +293,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
                 # Trust that the ADC can handle finding min/max datetimes
                 min_date_obj, max_date_obj = (
-                    self.adc.get_min_max_values(feature_name))
+                    self.data.get_min_max_values(feature_name))
 
                 # Min/max values from ADC are raw; convert to datetime.time
                 if not isinstance(min_date_obj, datetime.datetime):
@@ -314,7 +316,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
             else:
                 min_v, max_v = (
-                    self.adc.get_min_max_values(feature_name))
+                    self.data.get_min_max_values(feature_name))
                 min_v = self._value_to_number(min_v)
                 max_v = self._value_to_number(max_v)
 
@@ -342,7 +344,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                         # bound, set that appropriate bound to the mode value
                         # since in this case, it probably represents an
                         # application-specific min/max.
-                        col_modes = self.adc.get_mode(feature_name)
+                        col_modes = self.data.get_mode(feature_name)
 
                         for mode_value, mode_count in col_modes:
                             if mode_count < 4:
@@ -416,7 +418,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 original_type.get('data_type') == FeatureType.NUMERIC.value
             ):
                 # Numeric types are assumed to be ranked in natural order.
-                min_v, max_v = self.adc.get_min_max_values(feature_name)
+                min_v, max_v = self.data.get_min_max_values(feature_name)
                 output.update({"observed_min": min_v, "observed_max": max_v})
 
             else:  # Objects/strings
@@ -448,22 +450,22 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         else:
             attributes: dict[str, t.Any] = {'type': 'continuous', 'data_type': 'number'}
 
-        n_cases = self.adc.get_num_cases(feature_name)
-        n_nulls = self.adc.get_null_count(feature_name)
+        n_cases = self.data.get_num_cases(feature_name)
+        n_nulls = self.data.get_null_count(feature_name)
 
         # Ensure we have at least one valid value before attempting to
         # introspect further.
         if n_nulls < n_cases:
 
             # determine if nominal by checking if number of uniques <= 2
-            if (self.adc.get_unique_count(feature_name) <= 2 and n_cases > 10
+            if (self.data.get_unique_count(feature_name) <= 2 and n_cases > 10
                     and preset_feature_type not in ('continuous', 'ordinal')):
                 return {
                     'type': 'nominal',
                     'data_type': 'number'
                 }
 
-            decimals = self.adc.get_decimal_places(feature_name)
+            decimals = self.data.get_decimal_places(feature_name)
             if decimals is None:
                 warnings.warn(f'Cannot compute decimal places for feature "{feature_name}')
             elif decimals <= 8:
@@ -488,7 +490,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 'type': 'nominal',
             }
 
-        dtype = self.adc.get_column_dtype(feature_name)
+        dtype = self.data.get_column_dtype(feature_name)
         dt_format = ISO_8601_FORMAT
         if pd.api.types.is_datetime64tz_dtype(dtype):
             # Include timezone offset in format
@@ -560,14 +562,14 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
-        num_uniques = self.adc.get_unique_count(feature_name)
-        n_cases = self.adc.get_num_cases(feature_name)
+        num_uniques = self.data.get_unique_count(feature_name)
+        n_cases = self.data.get_num_cases(feature_name)
         if num_uniques < pow(n_cases, 0.5) or preset_feature_type == 'nominal':
             guess_nominals = True
         else:
             # Find the largest and smallest non-null values in column.
             try:
-                col_min, col_max = self.adc.get_min_max_values(feature_name)
+                col_min, col_max = self.data.get_min_max_values(feature_name)
             except TypeError:
                 # Column is all None?
                 guess_nominals = False
@@ -635,4 +637,4 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
     def _get_unique_values(self, feature_name: str) -> set[t.Any]:
         """Return the set of unique values for the given feature."""
-        return self.adc.get_unique_values(feature_name)
+        return self.data.get_unique_values(feature_name)
