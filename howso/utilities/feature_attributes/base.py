@@ -1007,8 +1007,7 @@ class InferFeatureAttributesBase(ABC):
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
-        for k in self.data.columns:
-            fname = k
+        for fname in self.data.columns:
             # Check to see if the key is a sqlalchemy Column
             if hasattr(fname, 'name'):
                 fname = fname.name
