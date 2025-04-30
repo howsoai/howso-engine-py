@@ -1007,7 +1007,7 @@ class InferFeatureAttributesBase(ABC):
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {
-            k: self.attributes[k] for k in self.data.columns
+            k: self.attributes[k] for k in self.data.columns if k in self.attributes
         }
 
         return ordered_attributes
