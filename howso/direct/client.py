@@ -159,12 +159,6 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Show deprecation warnings to the user.
         warnings.filterwarnings("default", category=DeprecationWarning)
 
-        # Set minimum batch size to match available CPUs. NOTE: If necessary
-        # the value returned by os.cpu_count() can be overridden with
-        # `-X cpu_count` when starting Python or with the environment
-        # variable PYTHON_CPU_COUNT as per the Python documentation.
-        self.batch_scaler_class.size_limits = (os.cpu_count() or 1, None)
-
         # Load configuration
         config_path = get_configuration_path(config_path, verbose)
         self.configuration = HowsoConfiguration(config_path, verbose=verbose)
@@ -201,6 +195,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         logger.debug(f'Using Howso Engine file: {self._howso_absolute_path}')
 
         self.__init_amalgam(amalgam)
+
+        # Set minimum batch size to match the set Amalgam thread count.
+        self.batch_scaler_class.size_limits = (self.amlg.get_max_num_threads(), None)
+
         self.begin_session()
 
     def __init_amalgam(self, options: t.Optional[Mapping[str, t.Any]] = None):
