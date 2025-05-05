@@ -897,10 +897,10 @@ def test_feature_order():
     df = pd.read_csv(stock_path)
     continuous = ['CLOSE']
     nominals = [f for f in df.columns if f not in continuous]
-    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=2)
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=10)
     assert same_order(features.keys(), df.columns)
     # Try it without multiprocessing as well
-    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous})
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=0)
     assert same_order(features.keys(), df.columns)
 
 

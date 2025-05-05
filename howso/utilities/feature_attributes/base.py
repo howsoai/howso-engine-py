@@ -1006,9 +1006,15 @@ class InferFeatureAttributesBase(ABC):
                     self.attributes[feature][attribute] = value
 
         # Re-order the keys like the original dataframe
-        ordered_attributes = {
-            k: self.attributes[k] for k in self.data.columns
-        }
+        ordered_attributes = {}
+        for fname in self.data.columns:
+            # Check to see if the key is a sqlalchemy Column
+            if hasattr(fname, 'name'):
+                fname = fname.name
+            if fname not in self.attributes.keys():
+                warnings.warn(f'Feature {fname} exists in provided data but was not computed in feature attributes')
+                continue
+            ordered_attributes[fname] = self.attributes[fname]
 
         return ordered_attributes
 
