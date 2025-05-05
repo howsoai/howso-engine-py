@@ -198,6 +198,8 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         # Set minimum batch size to match the set Amalgam thread count.
         self.batch_scaler_class.size_limits = (self.amlg.get_max_num_threads(), None)
+        # Set the scaling multipliers to use multiples of the number of cores.
+        self.batch_scaler_class.size_multiplier = (2.0, 0.5)
         # Set the minimum batch memory size to 50MBs as the default.
         self.batch_scaler_class.memory_limits = (50_000_000, 50_000_000)
 
