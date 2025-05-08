@@ -666,9 +666,11 @@ class BatchScalingManager:
     # Prevent raising batch size when the size of the request or response
     # (respectively) is within this range of the limit.
     memory_limit_thresholds: tuple[float, float] = (0.1, 0.1)  # 10%
-    # The rate at which batches are scaled up and down (respectively)
-    # See: https://en.wikipedia.org/wiki/Golden_ratio
-    size_multiplier: tuple[float, float] = (1.618, 0.809)
+    # The rate at which batches are scaled up and down (respectively).
+    # Using a whole multiplier (and its reciprocal) here ensures that the
+    # batch_size is always an integer multiple of the number of threads,
+    # which uses the available hardware more efficiently.
+    size_multiplier: tuple[float, float] = (2.0, 0.5)
 
     class SendOptions(t.NamedTuple):
         """Options that can be passed to the generator."""
@@ -680,6 +682,7 @@ class BatchScalingManager:
         """Initialize a new BatchScalingManager instance."""
         self.starting_size = starting_size
         self.progress = progress_monitor
+        self._previous_minimum_size = self.size_limits[0]
 
     @staticmethod
     def send(
@@ -765,6 +768,7 @@ class BatchScalingManager:
                 max_in_mem - (max_in_mem * mem_in_threshold) <= in_mem
             ):
                 adjust = 0
+
         # Adjust based on response size
         if max_out_mem and out_mem:
             if out_mem > max_out_mem:
@@ -793,6 +797,19 @@ class BatchScalingManager:
                 batch_size = math.floor(batch_size * self.size_multiplier[1])
             else:
                 batch_size = math.floor(batch_size / self.size_multiplier[1])
+
+        if self._previous_minimum_size != self.size_limits[0]:
+            # The batch processes (_batch_react, etc.) will adjust the minimum
+            # batch_size to the number of available threads. If this happens,
+            # adjust the batch_size, to ensure that if the trainee's
+            # thread_count changes during a batch process, the batch_size
+            # remains a product of the minimum batch size and some integer
+            # power of the multiplier.
+            scale = max(math.log(batch_size / self.size_limits[0], self.size_multiplier[0]), 1)
+            scale = math.ceil(scale) if adjust == 1 else math.floor(scale)
+            batch_size = round(self.size_multiplier[0] ** scale)
+            self._previous_minimum_size = self.size_limits[0]
+
         return batch_size
 
     def clamp(self, batch_size: int, batch_offset: int, total: int) -> int:
