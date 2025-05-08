@@ -853,7 +853,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 success, reason = self.check_name_valid_for_save(
                     proposed_path, clobber=overwrite_trainee)
             if not success:
-                raise HowsoError(
+                warnings.warn(
                     f'Trainee file name "{proposed_path}" is not valid for '
                     f'saving (reason: {reason}).')
 
