@@ -3579,8 +3579,9 @@ class AbstractHowsoClient(ABC):
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         details: t.Optional[dict] = None,
-        features_to_derive: t.Optional(Collection[str]) = None,
+        features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
+        forecast_window_length: t.Optional[int] = None,
         goal_dependent_features: t.Optional[Collection[str]] = None,
         goal_features_map: t.Optional[Mapping] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
@@ -3773,6 +3774,12 @@ class AbstractHowsoClient(ABC):
             the action feature.  If not provided, will default to the ``action_feature`` if provided.
             If ``action_feature`` is not provided and feature influences ``details`` are
             selected, this feature must be provided.
+        forecast_window_length : float, optional
+            A value specifing a length of time of which to measure the accuracy of forecasts over. When
+            specified, returned prediction statistics and full residuals will be measuring the accuracy
+            of forecasts of this specified length. The given value should be on the scale as the Trainee's
+            time feature (seconds when the time feature uses datetime strings). When evaluating forecasts,
+            the error of the series ID features and time feature will not be evaluated nor returned.
         goal_dependent_features : list of str, optional
             A list of features that will not be ignored in the goal-biased sampling process used when
             ``goal_features_map`` is specified. Specifically, when the similar cases are ranked by
@@ -3962,6 +3969,7 @@ class AbstractHowsoClient(ABC):
             "details": details,
             "features_to_derive": features_to_derive,
             "feature_influences_action_feature": feature_influences_action_feature,
+            "forecast_window_length": forecast_window_length,
             "goal_dependent_features": goal_dependent_features,
             "goal_features_map": goal_features_map,
             "hyperparameter_param_path": hyperparameter_param_path,
