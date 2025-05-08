@@ -115,7 +115,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     """
 
     #: The characters which are disallowed from being a part of a Trainee name or ID.
-    BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':'}
+    BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':', '\0'}
 
     #: The supported values of precision for methods that accept it
     SUPPORTED_PRECISION_VALUES = ["exact", "similar"]
