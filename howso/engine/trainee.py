@@ -3397,7 +3397,7 @@ class Trainee(BaseTrainee):
             If ``action_feature`` is not provided and feature influences ``details`` are
             selected, this feature must be provided.
         forecast_window_length : float, optional
-            A value specifing a length of time of which to measure the accuracy of forecasts over. When
+            A value specifing a length of time over which to measure the accuracy of forecasts. When
             specified, returned prediction statistics and full residuals will be measuring the accuracy
             of forecasts of this specified length. The given value should be on the scale as the Trainee's
             time feature (seconds when the time feature uses datetime strings). When evaluating forecasts,
