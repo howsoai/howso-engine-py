@@ -115,7 +115,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     """
 
     #: The characters which are disallowed from being a part of a Trainee name or ID.
-    BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':'}
+    BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':', '\0'}
 
     #: The supported values of precision for methods that accept it
     SUPPORTED_PRECISION_VALUES = ["exact", "similar"]
@@ -829,8 +829,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'The create trainee parameter `resources` is deprecated and will be removed in '
                 'a future release. Please use `runtime` instead.', DeprecationWarning)
 
-        # Check that the id is usable for saving later.
         if trainee_id:
+            # Ensure there are no invalid characters in the ID
             for sequence in self.BAD_TRAINEE_NAME_CHARS:
                 if sequence in trainee_id:
                     success = False
@@ -841,14 +841,18 @@ class HowsoDirectClient(AbstractHowsoClient):
                     break
             else:
                 success, reason = True, 'OK'
+
             proposed_path: Path = self.default_persist_path.joinpath(trainee_id)
             if success:
-                success, reason = self.check_name_valid_for_save(
+                # Check that the id is usable for saving later.
+                can_save, reason = self.check_name_valid_for_save(
                     proposed_path, clobber=overwrite_trainee)
-            if not success:
+                if not can_save:
+                    warnings.warn(f'Trainee file name "{proposed_path}" cannot be saved to the '
+                                  f'filesystem (reason: {reason})')
+            else:
                 raise HowsoError(
-                    f'Trainee file name "{proposed_path}" is not valid for '
-                    f'saving (reason: {reason}).')
+                    f'Trainee file name "{proposed_path}" is not valid (reason: {reason}).')
 
         # If overwriting the trainee, attempt to delete it first.
         if overwrite_trainee:
