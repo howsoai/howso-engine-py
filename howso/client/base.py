@@ -4022,6 +4022,7 @@ class AbstractHowsoClient(ABC):
         new_cases: t.Optional[TabularData3D] = None,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
+        similarity_conviction: bool = False,
         weight_feature: t.Optional[str] = None,
         use_case_weights: t.Optional[bool] = None,
     ) -> dict:
@@ -4091,6 +4092,9 @@ class AbstractHowsoClient(ABC):
             If true will output p value of addition.
         p_value_of_removal : bool, default False
             If true will output p value of removal.
+        similarity_conviction : bool, default False
+            If true will output the mean similarity conviction of the group's
+            cases.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -4137,6 +4141,7 @@ class AbstractHowsoClient(ABC):
             "kl_divergence_removal": kl_divergence_removal,
             "p_value_of_addition": p_value_of_addition,
             "p_value_of_removal": p_value_of_removal,
+            "similarity_conviction": similarity_conviction,
             "weight_feature": weight_feature,
             "use_case_weights": use_case_weights,
         })
