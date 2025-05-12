@@ -3581,7 +3581,7 @@ class AbstractHowsoClient(ABC):
         details: t.Optional[dict] = None,
         features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
-        forecast_window_length: t.Optional[int] = None,
+        forecast_window_length: t.Optional[float] = None,
         goal_dependent_features: t.Optional[Collection[str]] = None,
         goal_features_map: t.Optional[Mapping] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
