@@ -765,6 +765,7 @@ class Trainee(BaseTrainee):
         conviction_upper_threshold: t.Optional[float] = None,
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
+        influence_weight_entropy_sample_size: int = 2_000,
         min_num_cases: int = 1_000,
         max_num_cases: int = 500_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
@@ -804,6 +805,9 @@ class Trainee(BaseTrainee):
             The threshold of the maximum number of cases at which the model should auto-reduce
         exact_prediction_features : Collection of str, optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
+        influence_weight_entropy_sample_size : int, default 2,000
+            Maximum number of cases to sample without replacement for computing the influence
+            weight entropy threshold.
         residual_prediction_features : Collection of str, optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
@@ -851,6 +855,7 @@ class Trainee(BaseTrainee):
                 conviction_upper_threshold=conviction_upper_threshold,
                 delta_threshold_map=delta_threshold_map,
                 exact_prediction_features=exact_prediction_features,
+                influence_weight_entropy_sample_size=influence_weight_entropy_sample_size,
                 min_num_cases=min_num_cases,
                 max_num_cases=max_num_cases,
                 reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
