@@ -58,12 +58,8 @@ features_3 = {
     }
 }
 
-# Partially defined "ordered" dict
-features_4 = OrderedDict(
-    (f_name, features_3[f_name]) for f_name in features_3
-)
 
-
+# TODO parameterize for each ADC class
 @patch("howso.connectors.abstract_data.mongodb_data.MongoClient", new=mongomock.MongoClient)
 def df_to_mongo_adc(df: pd.DataFrame) -> MongoDBData:
     """Helper function to convert a Pandas DataFrame to a MongoDB ADC w/ mocked MongoDB instance."""
