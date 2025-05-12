@@ -734,7 +734,10 @@ class BatchScalingManager:
             )
 
             # Quantize to a multiple of the minimum batch size (number of cores)
-            quantized_batch_size = round(batch_size / self.size_limits[0]) * self.size_limits[0]
+            quantized_batch_size = max(
+                round(batch_size / self.size_limits[0]) * self.size_limits[0],
+                self.size_limits[0]
+            )
 
             # Here's where the generator yields the batch size to use.
             options = yield quantized_batch_size
