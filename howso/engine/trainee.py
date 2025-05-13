@@ -2903,6 +2903,7 @@ class Trainee(BaseTrainee):
         new_cases: t.Optional[TabularData3D] = None,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
+        similarity_conviction: bool = False,
         use_case_weights: t.Optional[bool] = None,
         features: t.Optional[Collection[str]] = None,
         weight_feature: t.Optional[str] = None,
@@ -2975,6 +2976,9 @@ class Trainee(BaseTrainee):
             If true will output :math:`p` value of addition.
         p_value_of_removal : bool, default False
             If true will output :math:`p` value of removal.
+        similarity_conviction : bool, default False
+            If true will output the mean similarity conviction of the group's
+            cases.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
@@ -3001,6 +3005,7 @@ class Trainee(BaseTrainee):
                 kl_divergence_removal=kl_divergence_removal,
                 p_value_of_addition=p_value_of_addition,
                 p_value_of_removal=p_value_of_removal,
+                similarity_conviction=similarity_conviction,
                 distance_contributions=distance_contributions,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
@@ -3212,7 +3217,7 @@ class Trainee(BaseTrainee):
         details: t.Optional[dict] = None,
         features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
-        forecast_window_length: t.Optional[int] = None,
+        forecast_window_length: t.Optional[float] = None,
         goal_dependent_features: t.Optional[Collection[str]] = None,
         goal_features_map: t.Optional[Mapping] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
