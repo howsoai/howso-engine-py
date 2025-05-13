@@ -654,21 +654,35 @@ class BatchScalingManager:
         A progress timer instance to use for scaling.
     """
 
+    # Internal to this class, `batch_size` is maintained as a floating point
+    # value for scaling accuracy and to prevent potential "traps" where the
+    # multiplier isn't enough to increase/decrease the amount to overcome the
+    # rounding to the nearest multiple of the minimum batch size.
+
     # Threshold by which batch sizes will be increased/decreased until
     # request-response time falls between these two times
     time_threshold: tuple[datetime.timedelta, datetime.timedelta] = (
-        datetime.timedelta(seconds=60), datetime.timedelta(seconds=75))
-    # The batch size min and max (respectively)
+        datetime.timedelta(seconds=60),
+        datetime.timedelta(seconds=75),
+    )
+
+    # The batch size minimum and maximum (respectively). None as the maximum
+    # means no limit. For best results, the minimum batch size should be
+    # equal to the number of processor threads (cores) available to the
+    # receiving trainee.
     size_limits: tuple[int, t.Optional[int]] = (1, None)
+
     # Limit by memory usage of request or response size (respectively)
     # In bytes, zero means no limit.
-    memory_limits: tuple[int, int] = (10_000_000, 10_000_000)  # 10MB
+    memory_limits: tuple[int, int] = (50_000_000, 50_000_000)  # 50MB
+
     # Prevent raising batch size when the size of the request or response
     # (respectively) is within this range of the limit.
     memory_limit_thresholds: tuple[float, float] = (0.1, 0.1)  # 10%
+
     # The rate at which batches are scaled up and down (respectively)
     # See: https://en.wikipedia.org/wiki/Golden_ratio
-    size_multiplier: tuple[float, float] = (1.618, 0.809)
+    size_multiplier: tuple[float, float] = (1.618, 0.5)
 
     class SendOptions(t.NamedTuple):
         """Options that can be passed to the generator."""
@@ -676,25 +690,28 @@ class BatchScalingManager:
         tick_duration: t.Optional[datetime.timedelta]
         memory_sizes: t.Optional[tuple[int, int]]
 
-    def __init__(self, starting_size: int, progress_monitor: "ProgressTimer"):
+    def __init__(  # type: ignore reportMissingSuperCall
+        self,
+        starting_size: int,
+        progress_monitor: ProgressTimer
+    ) -> None:
         """Initialize a new BatchScalingManager instance."""
         self.starting_size = starting_size
         self.progress = progress_monitor
 
     @staticmethod
     def send(
-        gen: Generator[int, t.Optional["SendOptions"], None],
-        options: SendOptions
+        gen: Generator[int, t.Optional[SendOptions], None], options: SendOptions
     ) -> int | None:
-        """Helper to send to generator and return None when stopped."""
+        """Send to generator and return None when stopped."""
         try:
             return gen.send(options)
         except StopIteration:
             return None
 
-    def gen_batch_size(self) -> Generator[int, t.Optional["SendOptions"], None]:
+    def gen_batch_size(self) -> Generator[int, t.Optional[SendOptions], None]:
         """
-        Returns a generator to get the next batch size.
+        Return a generator to get the next batch size.
 
         When using "send" options with a tick_duration, progress updating must
         be done manually and the last tick duration should be provided as
@@ -703,37 +720,62 @@ class BatchScalingManager:
         request and/or response can be provided via "send" to scale based on
         memory usage.
         """
+        _previous_minimum_batch_size: float = self.size_limits[0]  # The number of threads available
+
         if not self.progress.has_started:
             raise ValueError("Batching has not yet started")
 
-        batch_size = self.starting_size
+        # batch_size is maintained as floating point.
+        batch_size: float = self.starting_size
         while not self.progress.has_ended and not self.progress.is_complete:
-            batch_size = self.clamp(batch_size, self.progress.current_tick,
-                                    self.progress.total_ticks)
-            options = yield batch_size
+            # If necessary, clamp to the given size_limit boundaries.
+            batch_size = self.clamp(
+                batch_size, self.progress.current_tick, self.progress.total_ticks
+            )
+
+            # Quantize to a multiple of the minimum batch size (number of cores)
+            quantized_batch_size = max(
+                round(batch_size / self.size_limits[0]) * self.size_limits[0],
+                self.size_limits[0]
+            )
+
+            # Here's where the generator yields the batch size to use.
+            options = yield quantized_batch_size
+
+            # Prepare for the new batch size...
             tick_duration = options.tick_duration if options else None
             memory_sizes = options.memory_sizes if options else None
 
             if tick_duration is None:
                 # If send is not used, automatically update progress
                 tick_duration = self.progress.tick_duration
-                self.progress.update(batch_size)
+                self.progress.update(quantized_batch_size)
+
+            if _previous_minimum_batch_size != self.size_limits[0]:
+                # There's been a change in the minimum size limits (number of
+                # available threads). Approximate a new batch size based on
+                # the new number of threads available. This allows scaling to
+                # more quickly adapt to changes in the number of threads
+                # available.
+                _batch_size_per_core = batch_size / _previous_minimum_batch_size
+                batch_size = _batch_size_per_core * self.size_limits[0]
+                _previous_minimum_batch_size = self.size_limits[0]
 
             batch_size = self.scale(batch_size, tick_duration, memory_sizes)
         return None
 
     def scale(
         self,
-        batch_size: int,
+        batch_size: float,
         batch_duration: t.Optional[datetime.timedelta],
-        memory_sizes: t.Optional[tuple[int, int]]
-    ) -> int:
+        memory_sizes: t.Optional[tuple[int, int]],
+    ) -> float:
         """
         Scale batch size based on duration or memory size of the batch.
 
         Parameters
         ----------
-        batch_size : int
+        batch_size : float
             The current batch size.
         batch_duration : datetime.timedelta or None
             The time the last batch took to complete.
@@ -761,17 +803,18 @@ class BatchScalingManager:
             if in_mem > max_in_mem:
                 adjust = -1
             elif (
-                adjust is None and
-                max_in_mem - (max_in_mem * mem_in_threshold) <= in_mem
+                adjust is None
+                and max_in_mem - (max_in_mem * mem_in_threshold) <= in_mem
             ):
                 adjust = 0
+
         # Adjust based on response size
         if max_out_mem and out_mem:
             if out_mem > max_out_mem:
                 adjust = -1
             elif (
-                adjust is None and
-                max_out_mem - (max_out_mem * mem_out_threshold) <= out_mem
+                adjust is None
+                and max_out_mem - (max_out_mem * mem_out_threshold) <= out_mem
             ):
                 adjust = 0
 
@@ -786,22 +829,23 @@ class BatchScalingManager:
 
         if adjust == 1:
             # Raise batch size
-            batch_size = math.ceil(batch_size * self.size_multiplier[0])
+            batch_size = batch_size * self.size_multiplier[0]
         elif adjust == -1:
             # Lower batch size
             if self.size_multiplier[1] < 1:
-                batch_size = math.floor(batch_size * self.size_multiplier[1])
+                batch_size = batch_size * self.size_multiplier[1]
             else:
-                batch_size = math.floor(batch_size / self.size_multiplier[1])
+                batch_size = batch_size / self.size_multiplier[1]
+
         return batch_size
 
-    def clamp(self, batch_size: int, batch_offset: int, total: int) -> int:
+    def clamp(self, batch_size: int | float, batch_offset: int, total: int) -> float:
         """
         Clamp batch size between min/max allowed value.
 
         Parameters
         ----------
-        batch_size : int
+        batch_size : int | float
             The current batch size.
         batch_offset : int
             The current batch offset.
@@ -810,13 +854,12 @@ class BatchScalingManager:
 
         Returns
         -------
-        int
+        float
             The new batch size.
         """
         # Clamp batch size to the minimum requested batch size, but
         # ensure it does not exceed total number of items batched
-        batch_size = min(max(batch_size, self.size_limits[0]),
-                         total - batch_offset)
+        batch_size = min(max(batch_size, self.size_limits[0]), total - batch_offset)
         if self.size_limits[1]:
             # Limit batch size to maximum value
             batch_size = min(batch_size, self.size_limits[1])

@@ -2337,8 +2337,11 @@ class AbstractHowsoClient(ABC):
             gen_batch_size = None
             batch_scaler = None
             if not batch_size:
+                if not initial_batch_size:
+                    start_batch_size = max(self._get_trainee_thread_count(trainee_id), 1)
+                else:
+                    start_batch_size = initial_batch_size
                 # Scale the batch size automatically
-                start_batch_size = initial_batch_size or self.react_initial_batch_size
                 batch_scaler = self.batch_scaler_class(start_batch_size, progress)
                 gen_batch_size = batch_scaler.gen_batch_size()
                 batch_size = next(gen_batch_size, None)
@@ -2366,9 +2369,16 @@ class AbstractHowsoClient(ABC):
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
+                    # Ensure the minimum batch size continues to match the
+                    # number of threads,even over scaling events.
+                    batch_scaler.size_limits = (
+                        max(self._get_trainee_thread_count(trainee_id), 1),
+                        batch_scaler.size_limits[1]
+                    )
                     batch_size = batch_scaler.send(
                         gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size)))
+                        batch_scaler.SendOptions(None, (in_size, out_size))
+                    )
 
         # Final call to callback on completion
         if isinstance(progress_callback, Callable):
@@ -3113,6 +3123,12 @@ class AbstractHowsoClient(ABC):
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
+                    # Ensure the minimum batch size continues to match the
+                    # number of threads,even over scaling events.
+                    batch_scaler.size_limits = (
+                        max(self._get_trainee_thread_count(trainee_id), 1),
+                        batch_scaler.size_limits[1]
+                    )
                     batch_size = batch_scaler.send(
                         gen_batch_size,
                         batch_scaler.SendOptions(None, (in_size, out_size)))
@@ -3435,6 +3451,12 @@ class AbstractHowsoClient(ABC):
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
+                    # Ensure the minimum batch size continues to match the
+                    # number of threads,even over scaling events.
+                    batch_scaler.size_limits = (
+                        max(self._get_trainee_thread_count(trainee_id), 1),
+                        batch_scaler.size_limits[1]
+                    )
                     batch_size = batch_scaler.send(
                         gen_batch_size,
                         batch_scaler.SendOptions(None, (in_size, out_size)))
@@ -4630,6 +4652,7 @@ class AbstractHowsoClient(ABC):
         conviction_upper_threshold: t.Optional[float] = None,
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
+        influence_weight_entropy_sample_size: int = 2_000,
         min_num_cases: int = 1_000,
         max_num_cases: int = 500_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
@@ -4671,6 +4694,9 @@ class AbstractHowsoClient(ABC):
             The threshold of the maximum number of cases at which the model should auto-reduce
         exact_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
+        influence_weight_entropy_sample_size : int, default 2,000
+            Maximum number of cases to sample without replacement for computing the influence
+            weight entropy threshold.
         residual_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
@@ -4717,6 +4743,7 @@ class AbstractHowsoClient(ABC):
             conviction_upper_threshold=conviction_upper_threshold,
             delta_threshold_map=delta_threshold_map,
             exact_prediction_features=exact_prediction_features,
+            influence_weight_entropy_sample_size=influence_weight_entropy_sample_size,
             min_num_cases=min_num_cases,
             max_num_cases=max_num_cases,
             reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
