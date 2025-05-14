@@ -3493,7 +3493,7 @@ class Trainee(BaseTrainee):
         num_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
-            If specified overrides sample_model_fraction.```
+            If specified overrides ``sample_model_fraction``.
         robust_hyperparameters : bool, optional
             When specified, will attempt to return residuals that were
             computed using hyperparameters with the specified robust or
