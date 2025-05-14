@@ -739,8 +739,11 @@ class BatchScalingManager:
                 self.size_limits[0]
             )
 
+            # Trim so we don't exceed the total size with this batch
+            remaining = self.progress.total_ticks - self.progress.current_tick
+
             # Here's where the generator yields the batch size to use.
-            options = yield quantized_batch_size
+            options = yield min(remaining, quantized_batch_size)
 
             # Prepare for the new batch size...
             tick_duration = options.tick_duration if options else None
