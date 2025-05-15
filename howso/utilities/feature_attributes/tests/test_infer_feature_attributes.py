@@ -1027,12 +1027,15 @@ def test_formatted_date_time():
         })
 
     # Verify formatted_date_time is set when a date_time_format is configured
-    features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"})
-    assert features['a']['data_type'] != "formatted_date_time"
-    # custom feature dates should be formatted_date_time
-    assert features['custom']['data_type'] == "formatted_date_time"
-    # auto detected iso dates should be formatted_date_time
-    assert features['iso']['data_type'] == "formatted_date_time"
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"},
+                                            default_time_zone="UTC")
+        assert features['a']['data_type'] != "formatted_date_time"
+        # custom feature dates should be formatted_date_time
+        assert features['custom']['data_type'] == "formatted_date_time"
+        # auto detected iso dates should be formatted_date_time
+        assert features['iso']['data_type'] == "formatted_date_time"
 
 
 def test_default_time_zone():
