@@ -6,7 +6,7 @@
 #
 amalgam-lang==19.0.3
     # via howso-engine (pyproject.toml)
-astroid==3.3.9
+astroid==3.3.10
     # via pylint
 build==1.2.2.post1
     # via pip-tools
@@ -18,7 +18,7 @@ cffi==1.17.1
     # via cryptography
 charset-normalizer==3.4.2
     # via requests
-click==8.1.8
+click==8.2.0
     # via pip-tools
 coverage[toml]==7.8.0
     # via pytest-cov
@@ -32,7 +32,7 @@ dill==0.4.0
     #   pylint
 execnet==2.1.1
     # via pytest-xdist
-faker==37.1.0
+faker==37.3.0
     # via howso-engine (pyproject.toml)
 flake8==3.9.2
     # via
@@ -87,7 +87,7 @@ pipdeptree==2.26.1
     # via howso-engine (pyproject.toml)
 platformdirs==4.3.8
     # via pylint
-pluggy==1.5.0
+pluggy==1.6.0
     # via pytest
 pmlb==1.0.1.post3
     # via howso-engine (pyproject.toml)
@@ -150,7 +150,7 @@ sentinels==1.0.0
     # via mongomock
 six==1.17.0
     # via python-dateutil
-snowballstemmer==3.0.0.1
+snowballstemmer==3.0.1
     # via pydocstyle
 threadpoolctl==3.6.0
     # via scikit-learn
@@ -172,7 +172,7 @@ pip==25.1.1
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==80.3.1
+setuptools==80.7.1
     # via
     #   flake8-import-order
     #   pip-tools
