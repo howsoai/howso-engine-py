@@ -54,6 +54,11 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
                 "start_time": "%H:%M:%S %p",
             }
 
+    default_time_zone : str, default None
+        (Optional) For any datetime feature, the fallback time zone if one is not provided in
+        ``datetime_feature_formats`` and it is not inferred from the data. If not specified, the
+        Howso Engine will default to UTC.
+
     delta_boundaries : dict, default None
         (Optional) For time series, specify the delta boundaries in the form
         {"feature" : {"min|max" : {order : value}}}. Works with partial values

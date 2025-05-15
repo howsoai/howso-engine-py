@@ -698,6 +698,7 @@ class InferFeatureAttributesBase(ABC):
     def _process(self,  # noqa: C901
                  attempt_infer_extended_nominals: bool = False,
                  datetime_feature_formats: t.Optional[dict] = None,
+                 default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
                  features: t.Optional[dict[str, dict]] = None,
                  id_feature_name: t.Optional[str | Iterable[str]] = None,
@@ -747,6 +748,8 @@ class InferFeatureAttributesBase(ABC):
 
         if dependent_features is None:
             dependent_features = dict()
+
+        self.default_time_zone = default_time_zone
 
         # Preprocess user-defined feature types
         preset_types = {}
@@ -915,6 +918,10 @@ class InferFeatureAttributesBase(ABC):
                 self.attributes[feature_name]['dependent_features'] = list(
                     set(partial_dependent_features + dependent_features[feature_name])
                 )
+
+            # Set default time if provided
+            if self.default_time_zone is not None:
+                self.attributes[feature_name]['default_time_zone'] = self.default_time_zone
 
         if isinstance(id_feature_name, str):
             self._add_id_attribute(self.attributes, id_feature_name)
@@ -1220,6 +1227,14 @@ class InferFeatureAttributesBase(ABC):
                     f'The feature "{feature_name}" must have a `date_time_format` defined '
                     f'when its `data_type` is "{data_type}".'
                 )
+            elif dt_format and data_type in {"formatted_date_time", "formatted_time"}:
+                # If the date/time format does not include a time zone, warn the user that
+                # the default of UTC will be used.
+                if '%z' not in dt_format and '%Z' not in dt_format and not self.default_time_zone:
+                    warnings.warn(f'The provided or inferred `date_time_format` for feature '
+                                  f'"{feature_name}" does not include a time zone. Defaulting to '
+                                  'UTC. To change the default, please specify the '
+                                  '`default_time_zone` argument to `infer_feature_attributes`.')
 
     @staticmethod
     def _is_datetime(string: str):

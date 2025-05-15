@@ -1037,6 +1037,29 @@ def test_formatted_date_time():
         assert features['iso']['data_type'] == "formatted_date_time"
 
 
+def test_default_time_zone():
+    """Test that ``infer_feature_attributes`` correctly handles default time zones."""
+    data = pd.DataFrame({
+        'custom': ['2010/10/10 7:30', '2010/10/11 8:45', '2010/10/12 9:00', '2010/10/14 12:00'],
+    })
+
+    # No default time zone or time zone identifier in format string; warning should be raised
+    with pytest.warns(match="does not include a time zone. Defaulting to UTC. To change the default, please specify"):
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M"})
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        # Providing a default_time_zone should prevent the error
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M"}, default_time_zone="EST")
+        data = pd.DataFrame({
+            'custom': ['2010/10/10 07:30 EST', '2010/10/11 08:45 EST', '2010/10/12 09:00 EST'],
+            'custom2': ['2010/10/10 07:30 -0500', '2010/10/11 08:45 -0500', '2010/10/12 09:00 -0500'],
+        })
+        # Providing data with a time zone and corresponding format string identifier should prevent the error
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M %Z",
+                                                                 "custom2": "%Y/%m/%d %H:%M %z"})
+
+
 def test_constrained_date_bounds():
     """Constrained datetime formats may make bounds undeterminable."""
     df = pd.DataFrame([["01"], ["02"]], columns=["date"])
