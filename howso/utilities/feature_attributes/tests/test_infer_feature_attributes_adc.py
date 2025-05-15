@@ -456,7 +456,8 @@ def test_formatted_date_time():
     # Verify formatted_date_time is set when a date_time_format is configured
     with warnings.catch_warnings():
         warnings.filterwarnings("error")
-        features = infer_feature_attributes(adc, datetime_feature_formats={"custom": "%Y/%m/%d"})
+        features = infer_feature_attributes(adc, datetime_feature_formats={"custom": "%Y/%m/%d"},
+                                            default_time_zone="UTC")
         assert features['a']['data_type'] != "formatted_date_time"
         # custom feature dates should be formatted_date_time
         assert features['custom']['data_type'] == "formatted_date_time"

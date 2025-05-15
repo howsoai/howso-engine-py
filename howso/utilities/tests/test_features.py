@@ -9,6 +9,7 @@ from howso.utilities import infer_feature_attributes
 from howso.utilities.features import FeatureSerializer, FeatureType
 from howso.utilities.internals import sanitize_for_json
 from howso.utilities.utilities import LocaleOverride
+
 import numpy as np
 import pandas as pd
 from pandas.core.dtypes.common import (
@@ -93,7 +94,7 @@ def test_feature_deserialization(data_format, data, original_type):
         warnings.simplefilter("error", append=True)
         columns = ['a']
         df = pd.DataFrame(pd.Series(data, name='a'))
-        features = infer_feature_attributes(df)
+        features = infer_feature_attributes(df, default_time_zone="UTC")
         if data_format == "numpy":
             df_numpy = np.array(data)
             df_numpy = np.array([[value] for value in df_numpy])
@@ -150,6 +151,7 @@ def test_feature_deserialization(data_format, data, original_type):
 ])
 def test_feature_deserialization_number_conversions(data, original_type,
                                                     expected_dtype):
+    """Test the deserialization of number conversions."""
     if expected_dtype in ['longdouble', 'float128', 'float256']:
         if not hasattr(np, expected_dtype):
             pytest.skip('Unsupported platform')
@@ -215,13 +217,14 @@ def test_date_feature_serialization(
     valid_dtype,
     expected_data
 ):
+    """Test the serialization of date features."""
     # No warnings should be raised
     with warnings.catch_warnings():
         warnings.simplefilter(action="ignore", category=FutureWarning)
         warnings.simplefilter("error", append=True)
         columns = ['a']
         df = pd.DataFrame(pd.Series(data, name='a'))
-        features = infer_feature_attributes(df)
+        features = infer_feature_attributes(df, default_time_zone="UTC")
         features['a']['date_time_format'] = dt_format
         if data_format == "numpy":
             df_numpy = np.array(data)
