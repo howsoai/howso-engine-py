@@ -1230,7 +1230,10 @@ class InferFeatureAttributesBase(ABC):
             elif dt_format and data_type in {"formatted_date_time", "formatted_time"}:
                 # If the date/time format does not include a time zone, warn the user that
                 # the default of UTC will be used.
-                if '%z' not in dt_format and '%Z' not in dt_format and not self.default_time_zone:
+                if not any('%z' in dt_format,
+                           '%Z' in dt_format,
+                           dt_format[-1] == 'Z',  # Last char of 'Z' is ISO8601 identifier for UTC
+                           self.default_time_zone is not None):
                     warnings.warn(f'The provided or inferred `date_time_format` for feature '
                                   f'"{feature_name}" does not include a time zone. Defaulting to '
                                   'UTC. To change the default, please specify the '
