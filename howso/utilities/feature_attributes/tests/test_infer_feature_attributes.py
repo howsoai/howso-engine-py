@@ -1042,11 +1042,24 @@ def test_default_time_zone():
     """Test that ``infer_feature_attributes`` correctly handles default time zones."""
     data = pd.DataFrame({
         'custom': ['2010/10/10 7:30', '2010/10/11 8:45', '2010/10/12 9:00', '2010/10/14 12:00'],
+        'custom2': ['2002/10/10 3:30', '2000/10/11 10:45', '2013/10/12 5:00', '2014/10/14 11:00'],
+        'custom3': ['2010/10/10 07:30 -0500', '2010/10/11 08:45 -0500', '2010/10/12 09:00 -0500',
+                    '2012/12/12 06:00 -0500'],
     })
 
     # No default time zone or time zone identifier in format string; warning should be raised
-    with pytest.warns(match="does not include a time zone. Defaulting to UTC. To change the default, please specify"):
-        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M"})
+    with pytest.warns(match="features do not include a time zone and will default to UTC"):
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
+                                                                 "custom2": "%Y/%m/%d %H:%M"})
+        # Also try with multiprocessing
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
+                                                                 "custom2": "%Y/%m/%d %H:%M"}, max_workers=2)
+
+    # Using UTC offsets should also result in an error
+    with pytest.warns(match="The following features are using UTC offsets"):
+        infer_feature_attributes(data, datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"})
+        # Also try with multiprocessing
+        infer_feature_attributes(data, datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"}, max_workers=2)
 
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -1054,11 +1067,11 @@ def test_default_time_zone():
         infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M"}, default_time_zone="EST")
         data = pd.DataFrame({
             'custom': ['2010/10/10 07:30 EST', '2010/10/11 08:45 EST', '2010/10/12 09:00 EST'],
-            'custom2': ['2010/10/10 07:30 -0500', '2010/10/11 08:45 -0500', '2010/10/12 09:00 -0500'],
+            'custom2': ['2010/10/10 07:30 GMT', '2010/10/11 08:45 GMT', '2010/10/12 09:00 GMT'],
         })
         # Providing data with a time zone and corresponding format string identifier should prevent the error
         infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M %Z",
-                                                                 "custom2": "%Y/%m/%d %H:%M %z"})
+                                                                 "custom2": "%Y/%m/%d %H:%M %Z"})
 
 
 def test_constrained_date_bounds():
