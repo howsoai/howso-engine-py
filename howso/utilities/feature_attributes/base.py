@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence
 from copy import deepcopy
+import datetime
 from functools import singledispatchmethod
 import json
 import logging
@@ -17,6 +18,7 @@ from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
 import numpy as np
 import pandas as pd
+import pytz
 import yaml
 
 from howso.utilities.features import FeatureType
@@ -1129,7 +1131,7 @@ class InferFeatureAttributesBase(ABC):
             for feature_name in utc_offset_features:
                 msg += f'\n\t- {feature_name}'
             msg += (
-                'This could lead to unexpected results due to daylight savings time. We recommend '
+                '\nThis could lead to unexpected results due to daylight savings time. We recommend '
                 'using explicit time zone strings, e.g., "GMT", which are represented by the "%Z" '
                 'identifier.')
             warnings.warn(msg)
@@ -1272,6 +1274,12 @@ class InferFeatureAttributesBase(ABC):
                             self.default_time_zone is not None]):
                     self.missing_tz_features.append(feature_name)
                 elif '%z' in dt_format:
+                    rand_val = self._get_random_value(feature_name)
+                    if isinstance(rand_val, datetime.datetime):
+                        # Some datetime objects might have a time zone attribute not visible as a string
+                        if getattr(rand_val, 'tzinfo', None) is not None and not isinstance(rand_val.tzinfo,
+                                                                                            pytz._FixedOffset):
+                            continue
                     # Warn in case of UTC offset -- could lead to unexpected results due to time zone
                     # differences
                     self.utc_offset_features.append(feature_name)
