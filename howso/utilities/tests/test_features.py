@@ -34,7 +34,7 @@ from . import has_locales
     ([datetime.datetime.fromisoformat("2022-01-01T10:00:00-05:00")],
      {'data_type': str(FeatureType.DATETIME)}, False),
     ([datetime.datetime(2022, 1, 1, 10, 0, 0, tzinfo=pytz.timezone("EST"))],
-     {'data_type': str(FeatureType.DATETIME), 'timezone': 'EST'}, False),
+     {'data_type': str(FeatureType.DATETIME), 'timezone': 'ET'}, False),
     ([datetime.date.fromisoformat("2022-01-01")],
      {'data_type': str(FeatureType.DATE)}, False),
     ([datetime.timedelta(days=1, seconds=60)],
