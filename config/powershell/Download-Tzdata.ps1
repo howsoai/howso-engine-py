@@ -33,7 +33,9 @@ function Download-Tzdata {
         New-Item -ItemType Directory -Force -Path "$TzDataPath" | Out-Null
         $LocalTarGz = "$Path/tzdata.tar.gz"
         $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri "https://data.iana.org/time-zones/releases/tzdata2024a.tar.gz" -Outfile "$LocalTarGz"
+        # Sleep a random time to not bother the web server if many jobs going at once
+        Start-Sleep -Seconds (Get-Random -Minimum 0 -Maximum 10)
+        Invoke-WebRequest -Uri "https://data.iana.org/time-zones/releases/tzdata2025b.tar.gz" -Outfile "$LocalTarGz"
         $ProgressPreference = 'Continue'
         Invoke-NativeCommand -Cmd "tar" -Arguments @("-xzf", "$LocalTarGz", "-C", "$TzDataPath")
         Remove-Item -Path "$LocalTarGz"
