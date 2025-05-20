@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence
 from copy import deepcopy
+import datetime
 from functools import singledispatchmethod
 import json
 import logging
@@ -17,6 +18,7 @@ from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
 import numpy as np
 import pandas as pd
+import pytz
 import yaml
 
 from howso.utilities.features import FeatureType
@@ -698,6 +700,7 @@ class InferFeatureAttributesBase(ABC):
     def _process(self,  # noqa: C901
                  attempt_infer_extended_nominals: bool = False,
                  datetime_feature_formats: t.Optional[dict] = None,
+                 default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
                  features: t.Optional[dict[str, dict]] = None,
                  id_feature_name: t.Optional[str | Iterable[str]] = None,
@@ -747,6 +750,8 @@ class InferFeatureAttributesBase(ABC):
 
         if dependent_features is None:
             dependent_features = dict()
+
+        self.default_time_zone = default_time_zone
 
         # Preprocess user-defined feature types
         preset_types = {}
@@ -915,6 +920,10 @@ class InferFeatureAttributesBase(ABC):
                 self.attributes[feature_name]['dependent_features'] = list(
                     set(partial_dependent_features + dependent_features[feature_name])
                 )
+
+            # Set default time if provided
+            if self.default_time_zone is not None:
+                self.attributes[feature_name]['default_time_zone'] = self.default_time_zone
 
         if isinstance(id_feature_name, str):
             self._add_id_attribute(self.attributes, id_feature_name)
@@ -1094,6 +1103,40 @@ class InferFeatureAttributesBase(ABC):
         """
 
     @staticmethod
+    def emit_time_zone_warnings(missing_tz_features: Iterable[str], utc_offset_features: Iterable[str]) -> None:
+        """
+        Raise warnings about features with missing time zone information, or features using UTC offsets.
+
+        Parameters
+        ----------
+        missing_tz_features : Iterable of str
+            An Iterable of feature names indicating which features should be included
+            in the warning about missing time zone information.
+        utc_offset_features : Iterable of str
+            An Iterable of feature names indicating which features should be included
+            in the warning about using UTC offsets.
+        """
+        if missing_tz_features:
+            msg = (
+                'The provided or inferred `date_time_formats` for the following '
+                'features do not include a time zone and will default to UTC:')
+            for feature_name in missing_tz_features:
+                msg += f'\n\t- {feature_name}'
+            msg += (
+                '\nTo change the default time zone, please specify the `default_time_zone` '
+                'argument to `infer_feature_attributes`.')
+            warnings.warn(msg)
+        if utc_offset_features:
+            msg = 'The following features are using UTC offsets (%z) for their time zones:'
+            for feature_name in utc_offset_features:
+                msg += f'\n\t- {feature_name}'
+            msg += (
+                '\nThis could lead to unexpected results due to daylight savings time. We recommend '
+                'using explicit time zone strings, e.g., "GMT", which are represented by the "%Z" '
+                'identifier.')
+            warnings.warn(msg)
+
+    @staticmethod
     def infer_loose_feature_bounds(min_bound: int | float,
                                    max_bound: int | float
                                    ) -> tuple[float, float]:
@@ -1220,6 +1263,26 @@ class InferFeatureAttributesBase(ABC):
                     f'The feature "{feature_name}" must have a `date_time_format` defined '
                     f'when its `data_type` is "{data_type}".'
                 )
+            elif dt_format and data_type in {"formatted_date_time", "formatted_time"}:
+                # If the date/time format does not include a time zone, warn the user that
+                # the default of UTC will be used. However, due to potential multiprocessing,
+                # and to avoid an excess of warnings if done per-feature, stash the offending
+                # features and do a single warning later on.
+                if not any(['%z' in dt_format,
+                            '%Z' in dt_format,
+                            dt_format[-1] == 'Z',  # Last char of 'Z' is ISO8601 identifier for UTC
+                            self.default_time_zone is not None]):
+                    self.missing_tz_features.append(feature_name)
+                elif '%z' in dt_format:
+                    rand_val = self._get_random_value(feature_name)
+                    if isinstance(rand_val, datetime.datetime):
+                        # Some datetime objects might have a time zone attribute not visible as a string
+                        if getattr(rand_val, 'tzinfo', None) is not None and not isinstance(rand_val.tzinfo,
+                                                                                            pytz._FixedOffset):
+                            continue
+                    # Warn in case of UTC offset -- could lead to unexpected results due to time zone
+                    # differences
+                    self.utc_offset_features.append(feature_name)
 
     @staticmethod
     def _is_datetime(string: str):

@@ -274,10 +274,18 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         self.datastore = parent_datastore
         # Keep track of features that contain unsupported data
         self.unsupported = []
+        # Keep track of any features that are missing time zone information
+        # If a `default_time_zone` is provided, this list should stay empty
+        self.missing_tz_features = []
+        # Keep track of any features that use UTC offsets, as these could lead
+        # to unexpected results due to daylight savings time in some time zones
+        self.utc_offset_features = []
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return the feature attributes."""
-        return SingleTableFeatureAttributes(self._process(**kwargs), kwargs,
+        feature_attributes = self._process(**kwargs)
+        self.emit_time_zone_warnings(self.missing_tz_features, self.utc_offset_features)
+        return SingleTableFeatureAttributes(feature_attributes, kwargs,
                                             unsupported=self.unsupported)
 
     def _is_primary_key(self, feature_name: str) -> bool:
