@@ -1,4 +1,5 @@
 from math import e
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -179,7 +180,8 @@ class TestInferFeatureAttributes:
         # 4d. Make sure "time" has no subtypes
         assert not features["time"].get("subtype", None)
 
-    def test_infer_time_series(self):
+    @pytest.mark.parametrize(("default_time_zone", ), [("EST", ), ("UTC", ), (None, )])
+    def test_infer_time_series(self, default_time_zone):
         """
         Test test_infer_time_series.
 
@@ -196,7 +198,14 @@ class TestInferFeatureAttributes:
         }
         df = pd.DataFrame(data)
 
-        features = infer_feature_attributes(df, time_feature_name="time", id_feature_name="ID")
+        ifa_kwargs: dict[Any, Any] = dict(
+            time_feature_name="time",
+            id_feature_name="ID",
+        )
+        if default_time_zone:
+            ifa_kwargs.update(default_time_zone="EST")
+
+        features = infer_feature_attributes(df, **ifa_kwargs)
 
         # 1. Verify time series types
         assert features["time"]["time_series"]["type"] == 'delta'
