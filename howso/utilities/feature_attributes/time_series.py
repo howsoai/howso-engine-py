@@ -346,6 +346,7 @@ class InferFeatureAttributesTimeSeries:
         self,
         attempt_infer_extended_nominals: bool = False,
         datetime_feature_formats: t.Optional[dict] = None,
+        default_time_zone: t.Optional[str] = None,
         delta_boundaries: t.Optional[dict] = None,
         dependent_features: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
@@ -679,6 +680,7 @@ class InferFeatureAttributesTimeSeries:
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             datetime_feature_formats=datetime_feature_formats,
+            default_time_zone=default_time_zone,
             dependent_features=dependent_features,
             features=features,
             id_feature_name=id_feature_name,
