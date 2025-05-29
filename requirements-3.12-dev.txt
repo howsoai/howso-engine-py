@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --no-emit-index-url --output-file=requirements-3.12-dev.txt
 #
-amalgam-lang==19.1.0
+amalgam-lang==19.1.1
     # via howso-engine (pyproject.toml)
 astroid==3.3.10
     # via pylint
@@ -20,9 +20,9 @@ charset-normalizer==3.4.2
     # via requests
 click==8.2.1
     # via pip-tools
-coverage[toml]==7.8.1
+coverage[toml]==7.8.2
     # via pytest-cov
-cryptography==45.0.2
+cryptography==45.0.3
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
@@ -50,7 +50,7 @@ iniconfig==2.1.0
     # via pytest
 isort==6.0.1
     # via pylint
-joblib==1.5.0
+joblib==1.5.1
     # via scikit-learn
 markdown-it-py==3.0.0
     # via rich
@@ -122,7 +122,7 @@ pytest-cov==6.1.1
     # via howso-engine (pyproject.toml)
 pytest-mock==1.13.0
     # via howso-engine (pyproject.toml)
-pytest-xdist==3.6.1
+pytest-xdist==3.7.0
     # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via pandas
@@ -172,7 +172,7 @@ pip==25.1.1
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==80.8.0
+setuptools==80.9.0
     # via
     #   flake8-import-order
     #   pip-tools
