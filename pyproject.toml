@@ -43,6 +43,7 @@ dependencies = [
    "pandas",
    "pyjwt~=2.0",
    "pyyaml~=6.0",
+   "pydantic~=2.1",
    "requests>=2.0,<3.0",
    "rich>=12.5.1",
    "semantic-version~=2.0",
@@ -112,3 +113,7 @@ split_penalty_for_added_line_split = 300
 
 # version is managed by setuptools_scm
 [tool.setuptools_scm]
+
+[[tool.uv.index]]
+name = "artifactory"
+url = "https://dpbuild.jfrog.io/artifactory/api/pypi/vpypi-edge/simple"
