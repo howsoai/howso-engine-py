@@ -124,6 +124,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# UV
+uv.lock
+
 # Idea
 .idea
 *.iml
