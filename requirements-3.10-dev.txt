@@ -18,11 +18,11 @@ cffi==1.17.1
     # via cryptography
 charset-normalizer==3.4.2
     # via requests
-click==8.2.0
+click==8.2.1
     # via pip-tools
-coverage[toml]==7.8.0
+coverage[toml]==7.8.2
     # via pytest-cov
-cryptography==44.0.3
+cryptography==45.0.3
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
@@ -52,7 +52,7 @@ iniconfig==2.1.0
     # via pytest
 isort==6.0.1
     # via pylint
-joblib==1.5.0
+joblib==1.5.1
     # via scikit-learn
 markdown-it-py==3.0.0
     # via rich
@@ -66,7 +66,7 @@ mmh3==5.1.0
     # via howso-engine (pyproject.toml)
 mongomock==4.3.0
     # via howso-engine (pyproject.toml)
-numpy==2.2.5
+numpy==2.2.6
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
@@ -124,7 +124,7 @@ pytest-cov==6.1.1
     # via howso-engine (pyproject.toml)
 pytest-mock==1.13.0
     # via howso-engine (pyproject.toml)
-pytest-xdist==3.6.1
+pytest-xdist==3.7.0
     # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via pandas
@@ -185,7 +185,7 @@ pip==25.1.1
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==80.7.1
+setuptools==80.9.0
     # via
     #   flake8-import-order
     #   pip-tools
