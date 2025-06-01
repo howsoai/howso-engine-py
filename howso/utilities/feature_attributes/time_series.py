@@ -346,6 +346,7 @@ class InferFeatureAttributesTimeSeries:
         self,
         attempt_infer_extended_nominals: bool = False,
         datetime_feature_formats: t.Optional[dict] = None,
+        default_time_zone: t.Optional[str] = None,
         delta_boundaries: t.Optional[dict] = None,
         dependent_features: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
@@ -377,6 +378,95 @@ class InferFeatureAttributesTimeSeries:
 
         Parameters
         ----------
+        attempt_infer_extended_nominals : bool, default False
+            (Optional) If set to True, detections of extended nominals will be
+            attempted. If the detection fails, the categorical variables will
+            be set to `int-id` subtype.
+
+            .. note ::
+                Please refer to `kwargs` for other parameters related to
+                extended nominals.
+
+        datetime_feature_formats : dict, default None
+            (Optional) Dict defining a custom (non-ISO8601) datetime format and
+            an optional locale for features with datetimes.  By default datetime
+            features are assumed to be in ISO8601 format.  Non-English datetimes
+            must have locales specified.  If locale is omitted, the default
+            system locale is used. The keys are the feature name, and the values
+            are a tuple of date time format and locale string:
+
+            Examples::
+
+                {
+                    "start_date" : ("%Y-%m-%d %A %H.%M.%S", "es_ES"),
+                    "end_date" : "%Y-%m-%d"
+                }
+
+        default_time_zone : str, default None
+            (Optional) The fallback time zone for any datetime feature if one is not provided in
+            ``datetime_feature_formats`` and it is not inferred from the data. If not specified
+            anywhere, the Howso Engine will default to UTC.
+
+        delta_boundaries : dict, default None
+            (Optional) For time series, specify the delta boundaries in the form
+            {"feature" : {"min|max" : {order : value}}}. Works with partial values
+            by specifying only particular order of derivatives you would like to
+            overwrite. Invalid orders will be ignored.
+
+            Examples::
+
+                {
+                    "stock_value": {
+                        "min": {
+                            '0' : 0.178,
+                            '1': 3.4582e-3,
+                            '2': None
+                        }
+                    }
+                }
+
+        dependent_features : dict, optional
+            Dict mapping a feature to a list of other feature(s) that it depends on or
+            that are dependent on it. This restricts the cases that can be selected as
+            neighbors (such as in :meth:`~howso.engine.Trainee.react`) to ones that
+            satisfy the dependency, if possible. If this is not possible, either due to
+            insufficient data which satisfy the dependency or because dependencies are
+            probabilistic, the dependency may not be maintained. Be aware that dependencies
+            introduce further constraints to data and so several dependencies or dependencies
+            on already constrained datasets may restrict which operations are possible while
+            maintaining the dependency. As a rule of thumb, sets of features that have
+            dependency relationships should generally not include more than 1 continuous feature,
+            unless the continuous features have a small number of values that are commonly used.
+
+            Examples:
+                If there's a feature name 'measurement' that contains
+                measurements such as BMI, heart rate and weight, while the
+                feature 'measurement_amount' contains the numerical values
+                corresponding to the measurement, dependent features could be
+                passed in as follows:
+
+                .. code-block:: json
+
+                    {
+                        "measurement": [ "measurement_amount" ]
+                    }
+
+                Since dependence directionality is not important, this will
+                also work:
+
+                .. code-block:: json
+
+                    {
+                        "measurement_amount": [ "measurement" ]
+                    }
+
+        derived_orders : dict, default None
+            (Optional) Dict of features to the number of orders of derivatives
+            that should be derived instead of synthesized. For example, for a
+            feature with a 3rd order of derivative, setting its derived_orders
+            to 2 will synthesize the 3rd order derivative value, and then use
+            that synthed value to derive the 2nd and 1st order.
+
         features : dict or None, defaults to None
             (Optional) A partially filled features dict. If partially filled
             attributes for a feature are passed in, those parameters will be
@@ -452,12 +542,72 @@ class InferFeatureAttributesTimeSeries:
                 ...     }
                 ... }
 
+        id_feature_name : str or list of str default None
+            (Optional) The name(s) of the ID feature(s).
+
+        include_extended_nominal_probabilities : bool, default False
+            (Optional) If true, extended nominal probabilities will be appended
+            as metadata into the feature object.
+
+        include_sample: bool, default False
+            If True, include a ``sample`` field containing a sample of the data
+            from each feature in the output feature attributes dictionary.
+
         infer_bounds : bool, default True
             (Optional) If True, bounds will be inferred for the features if the
             feature column has at least one non NaN value
 
-        delta_boundaries : dict, default None
-            (Optional) For time series, specify the delta boundaries in the form
+        lags : list or dict, default None
+            (Optional) A list containing the specific indices of the desired lag
+            features to derive for each feature (not including the series time
+            feature). Specifying derived lag features for the feature specified by
+            time_feature_name must be done using a dictionary. A dictionary can be
+            used to specify a list of specific lag  indices for specific features.
+            For example: {"feature1": [1, 3, 5]} would derive three different
+            lag features for feature1. The resulting lag features hold values
+            1, 3, and 5 time steps behind the current time step respectively.
+
+            .. note ::
+                Using the lags parameter will override the num_lags parameter per
+                feature
+
+            .. note ::
+                A lag feature is a feature that provides a "lagging value" to a
+                case by holding the value of a feature from a previous time step.
+                These lag features allow for cases to hold more temporal information.
+
+        mode_bound_features : list of str, default None
+            (Optional) Explicit list of feature names to use mode bounds for
+            when inferring loose bounds. If None, assumes all features except the
+            time feature. A mode bound is used instead of a loose bound when the
+            mode for the feature is the same as an original bound, as it may
+            represent an application-specific min/max.
+
+        nominal_substitution_config : dict of dicts, default None
+            (Optional) Configuration of the nominal substitution engine
+            and the nominal generators and detectors.
+
+        num_lags : int or dict, default None
+            (Optional) An integer specifying the number of lag features to
+            derive for each feature (not including the series time feature).
+            Specifying derived lag features for the feature specified by
+            time_feature_name must be done using a dictionary. A dictionary can be
+            used to specify numbers of lags for specific features. Features that
+            are not specified will default to 1 lag feature.
+
+            .. note ::
+                The num_lags parameter will be overridden by the lags parameter per
+                feature.
+
+        orders_of_derivatives : dict, default None
+            (Optional) Dict of features and their corresponding order of
+            derivatives for the specified type (delta/rate). If provided will
+            generate the specified number of derivatives and boundary values. If
+            set to 0, will not generate any delta/rate features. By default all
+            continuous features have an order value of 1.
+
+        rate_boundaries : dict, default None
+            (Optional) For time series, specify the rate boundaries in the form
             {"feature" : {"min|max" : {order : value}}}. Works with partial values
             by specifying only particular order of derivatives you would like to
             overwrite. Invalid orders will be ignored.
@@ -474,86 +624,12 @@ class InferFeatureAttributesTimeSeries:
                     }
                 }
 
-        dependent_features : dict, optional
-            Dict mapping a feature to a list of other feature(s) that it depends on or
-            that are dependent on it. This restricts the cases that can be selected as
-            neighbors (such as in :meth:`~howso.engine.Trainee.react`) to ones that
-            satisfy the dependency, if possible. If this is not possible, either due to
-            insufficient data which satisfy the dependency or because dependencies are
-            probabilistic, the dependency may not be maintained. Be aware that dependencies
-            introduce further constraints to data and so several dependencies or dependencies
-            on already constrained datasets may restrict which operations are possible while
-            maintaining the dependency. As a rule of thumb, sets of features that have
-            dependency relationships should generally not include more than 1 continuous feature,
-            unless the continuous features have a small number of values that are commonly used.
-
-            Examples:
-                If there's a feature name 'measurement' that contains
-                measurements such as BMI, heart rate and weight, while the
-                feature 'measurement_amount' contains the numerical values
-                corresponding to the measurement, dependent features could be
-                passed in as follows:
-
-                .. code-block:: json
-
-                    {
-                        "measurement": [ "measurement_amount" ]
-                    }
-
-                Since dependence directionality is not important, this will
-                also work:
-
-                .. code-block:: json
-
-                    {
-                        "measurement_amount": [ "measurement" ]
-                    }
-
-        id_feature_name : str or list of str default None
-            (Optional) The name(s) of the ID feature(s).
-
-        time_invariant_features : list of str, default None
-            (Optional) Names of time-invariant features.
-
-        datetime_feature_formats : dict, default None
-            (Optional) Dict defining a custom (non-ISO8601) datetime format and
-            an optional locale for features with datetimes.  By default datetime
-            features are assumed to be in ISO8601 format.  Non-English datetimes
-            must have locales specified.  If locale is omitted, the default
-            system locale is used. The keys are the feature name, and the values
-            are a tuple of date time format and locale string:
-
-            Examples::
-
-                {
-                    "start_date" : ("%Y-%m-%d %A %H.%M.%S", "es_ES"),
-                    "end_date" : "%Y-%m-%d"
-                }
-
         tight_bounds: Iterable of str, default None
             (Optional) Set tight min and max bounds for the features
             specified in the Iterable.
 
-        attempt_infer_extended_nominals : bool, default False
-            (Optional) If set to True, detections of extended nominals will be
-            attempted. If the detection fails, the categorical variables will
-            be set to `int-id` subtype.
-
-            .. note ::
-                Please refer to `kwargs` for other parameters related to
-                extended nominals.
-
-        nominal_substitution_config : dict of dicts, default None
-            (Optional) Configuration of the nominal substitution engine
-            and the nominal generators and detectors.
-
-        include_extended_nominal_probabilities : bool, default False
-            (Optional) If true, extended nominal probabilities will be appended
-            as metadata into the feature object.
-
-        include_sample: bool, default False
-            If True, include a ``sample`` field containing a sample of the data
-            from each feature in the output feature attributes dictionary.
+        time_invariant_features : list of str, default None
+            (Optional) Names of time-invariant features.
 
         time_feature_is_universal : bool, optional
             If True, the time feature will be treated as universal and future data
@@ -592,76 +668,6 @@ class InferFeatureAttributesTimeSeries:
                     "continuous": ["feature_3", "feature_4", "feature_5"]
                 }
 
-        orders_of_derivatives : dict, default None
-            (Optional) Dict of features and their corresponding order of
-            derivatives for the specified type (delta/rate). If provided will
-            generate the specified number of derivatives and boundary values. If
-            set to 0, will not generate any delta/rate features. By default all
-            continuous features have an order value of 1.
-
-        derived_orders : dict, default None
-            (Optional) Dict of features to the number of orders of derivatives
-            that should be derived instead of synthesized. For example, for a
-            feature with a 3rd order of derivative, setting its derived_orders
-            to 2 will synthesize the 3rd order derivative value, and then use
-            that synthed value to derive the 2nd and 1st order.
-
-        mode_bound_features : list of str, default None
-            (Optional) Explicit list of feature names to use mode bounds for
-            when inferring loose bounds. If None, assumes all features except the
-            time feature. A mode bound is used instead of a loose bound when the
-            mode for the feature is the same as an original bound, as it may
-            represent an application-specific min/max.
-
-        lags : list or dict, default None
-            (Optional) A list containing the specific indices of the desired lag
-            features to derive for each feature (not including the series time
-            feature). Specifying derived lag features for the feature specified by
-            time_feature_name must be done using a dictionary. A dictionary can be
-            used to specify a list of specific lag  indices for specific features.
-            For example: {"feature1": [1, 3, 5]} would derive three different
-            lag features for feature1. The resulting lag features hold values
-            1, 3, and 5 timesteps behind the current timestep respectively.
-
-            .. note ::
-                Using the lags parameter will override the num_lags parameter per
-                feature
-
-            .. note ::
-                A lag feature is a feature that provides a "lagging value" to a
-                case by holding the value of a feature from a previous timestep.
-                These lag features allow for cases to hold more temporal information.
-
-        num_lags : int or dict, default None
-            (Optional) An integer specifying the number of lag features to
-            derive for each feature (not including the series time feature).
-            Specifying derived lag features for the feature specified by
-            time_feature_name must be done using a dictionary. A dictionary can be
-            used to specify numbers of lags for specific features. Features that
-            are not specified will default to 1 lag feature.
-
-            .. note ::
-                The num_lags parameter will be overridden by the lags parameter per
-                feature.
-
-        rate_boundaries : dict, default None
-            (Optional) For time series, specify the rate boundaries in the form
-            {"feature" : {"min|max" : {order : value}}}. Works with partial values
-            by specifying only particular order of derivatives you would like to
-            overwrite. Invalid orders will be ignored.
-
-            Examples::
-
-                {
-                    "stock_value": {
-                        "min": {
-                            '0' : 0.178,
-                            '1': 3.4582e-3,
-                            '2': None
-                        }
-                    }
-                }
-
         Returns
         -------
         FeatureAttributesBase
@@ -679,6 +685,7 @@ class InferFeatureAttributesTimeSeries:
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             datetime_feature_formats=datetime_feature_formats,
+            default_time_zone=default_time_zone,
             dependent_features=dependent_features,
             features=features,
             id_feature_name=id_feature_name,
