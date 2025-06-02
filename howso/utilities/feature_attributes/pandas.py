@@ -25,6 +25,7 @@ from pandas.core.dtypes.common import (
 import pytz
 
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
+from .models import InferFeatureAttributesArgs
 from ..features import FeatureType
 from ..utilities import (
     date_to_epoch,
@@ -44,18 +45,22 @@ logger = logging.getLogger(__name__)
 SMALLEST_TIME_DELTA = 0.001
 
 
-def _shard(data: pd.DataFrame, *, kwargs: dict[str, t.Any]):
+def _shard(
+    data: pd.DataFrame,
+    *,
+    args: t.Optional[InferFeatureAttributesArgs],
+):
     """Internal function to aid multiprocessing of feature attributes."""
     ifr_inst = InferFeatureAttributesDataFrame(data)
     # Filter out features that are not related to this shard.
-    _kwargs = kwargs.copy()
-    if _kwargs.get("features") is not None:
-        _kwargs['features'] = {
-            k: v for k, v in _kwargs["features"].items()
+    _args = args.model_copy()
+    if _args.features is not None:
+        _args.features = {
+            k: v for k, v in _args.features.items()
             if k in data.columns
         }
 
-    feature_attributes = ifr_inst._process(**_kwargs)  # type: ignore reportPrivateUsage
+    feature_attributes = ifr_inst._process(args=_args)  # type: ignore reportPrivateUsage
     return feature_attributes, ifr_inst.unsupported, ifr_inst.missing_tz_features, ifr_inst.utc_offset_features
 
 
@@ -81,21 +86,27 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # to unexpected results due to daylight savings time in some time zones
         self.utc_offset_features = []
 
-    def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
+    def __call__(self,
+        *,
+        args: t.Optional[InferFeatureAttributesArgs] = None,
+        **kwargs
+    ) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
-        max_workers = kwargs.pop("max_workers", None)
+        _args = args or InferFeatureAttributesArgs()
+        merged_args = _args.merge_kwargs(**kwargs)
+
         # The default with be to not use multiprocessing if the product of rows
         # and columns is less than 25M.
-        if prod(self.data.shape) < 25_000_000 and max_workers is None:
-            max_workers = 0
+        if prod(self.data.shape) < 25_000_000 and merged_args.max_workers is None:
+            merged_args.max_workers = 0
 
-        if max_workers is None or max_workers >= 1:
+        if merged_args.max_workers is None or merged_args.max_workers >= 1:
             mp_context = mp.get_context("spawn")
             futures: dict[Future, str] = dict()
 
-            with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
+            with ProcessPoolExecutor(max_workers=merged_args.max_workers, mp_context=mp_context) as pool:
                 for f in self.data.columns:
-                    future = pool.submit(_shard, self.data[[f]], kwargs=kwargs)
+                    future = pool.submit(_shard, self.data[[f]], args=merged_args)
                     futures[future] = f
 
                 feature_attributes: dict[str, t.Any] = dict()
@@ -122,7 +133,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             )
 
         else:
-            feature_attributes = self._process(**kwargs)
+            feature_attributes = self._process(args=merged_args)
             self.emit_time_zone_warnings(self.missing_tz_features, self.utc_offset_features)
             return SingleTableFeatureAttributes(
                 feature_attributes, params=kwargs,

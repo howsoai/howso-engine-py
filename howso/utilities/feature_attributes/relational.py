@@ -16,6 +16,7 @@ import pandas as pd
 from pandas.core.dtypes.common import is_float_dtype
 
 from .base import InferFeatureAttributesBase, MultiTableFeatureAttributes, SingleTableFeatureAttributes
+from .models import InferFeatureAttributesArgs
 from .protocols import (
     SessionProtocol,
     SQLRelationalDatastoreProtocol,
@@ -281,9 +282,17 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         # to unexpected results due to daylight savings time in some time zones
         self.utc_offset_features = []
 
-    def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
+    def __call__(
+        self,
+        *,
+        args: t.Optional[InferFeatureAttributesArgs] = None,
+        **kwargs
+    ) -> SingleTableFeatureAttributes:
         """Process and return the feature attributes."""
-        feature_attributes = self._process(**kwargs)
+        args = args or InferFeatureAttributesArgs()
+        merged_args = args.merge_kwargs(**kwargs)
+
+        feature_attributes = self._process(merged_args)
         self.emit_time_zone_warnings(self.missing_tz_features, self.utc_offset_features)
         return SingleTableFeatureAttributes(feature_attributes, kwargs,
                                             unsupported=self.unsupported)
@@ -1100,9 +1109,17 @@ class InferFeatureAttributesSQLDatastore:
         self._metadata = MetaData()
         self.table_names = table_names
 
-    def __call__(self, **kwargs) -> MultiTableFeatureAttributes:
+    def __call__(
+        self,
+        *,
+        args: t.Optional[InferFeatureAttributesArgs] = None,
+        **kwargs
+    ) -> MultiTableFeatureAttributes:
         """Process feature attributes for all tables in the datastore, returned as one object."""
         # Infer feature attributes for each table in the datastore
+        _args = args or InferFeatureAttributesArgs()
+        merged_args = _args.merge_kwargs(**kwargs)
+
         feature_attributes = {}
 
         for table_name in self.table_names:
@@ -1114,7 +1131,7 @@ class InferFeatureAttributesSQLDatastore:
                                                                     self.column_types,
                                                                     self.session_cls,
                                                                     self.datastore)
-            table_attributes = infer_table_attributes(**kwargs)
+            table_attributes = infer_table_attributes(args=merged_args)
             feature_attributes[str(table_name)] = table_attributes
 
-        return MultiTableFeatureAttributes(feature_attributes, kwargs)
+        return MultiTableFeatureAttributes(feature_attributes, args=merged_args)

@@ -23,6 +23,7 @@ import yaml
 
 from howso.utilities.features import FeatureType
 from howso.utilities.internals import serialize_models
+from .models import InferFeatureAttributesArgs
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,14 @@ FeatureAttributesBaseType = t.TypeVar('FeatureAttributesBaseType', bound='Featur
 class FeatureAttributesBase(dict):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
-    def __init__(self, feature_attributes: Mapping, params: dict = {}, unsupported: list[str] = []):
+    def __init__(
+        self,
+        feature_attributes: Mapping,
+        params: t.Optional[dict] = None,
+        unsupported: t.Optional[list[str]] = None,
+        *,
+        args: t.Optional[InferFeatureAttributesArgs] = None
+    ):
         """
         Instantiate this FeatureAttributesBase object.
 
@@ -58,11 +66,15 @@ class FeatureAttributesBase(dict):
             (Optional) A list of features that contain data that is unsupported by the engine.
 
         """
-        if not isinstance(feature_attributes, Mapping):
+        # Initialize defaults outside function signature
+        args = args or InferFeatureAttributesArgs()
+        if feature_attributes and not isinstance(feature_attributes, Mapping):
             raise TypeError('Provided feature attributes must be a Mapping.')
-        self.params = params
-        self.update(feature_attributes)
-        self.unsupported = unsupported
+        merged_args = args.merge_kwargs(**feature_attributes)
+        
+        self.params = params or {}
+        self.update(merged_args.model_dump()) # TODO refactor in a breaking change someday?
+        self.unsupported = unsupported or []
 
     def __copy__(self) -> "FeatureAttributesBase":
         """Return a (deep)copy of this instance of FeatureAttributesBase."""
@@ -698,40 +710,29 @@ class InferFeatureAttributesBase(ABC):
     """
 
     def _process(self,  # noqa: C901
-                 attempt_infer_extended_nominals: bool = False,
-                 datetime_feature_formats: t.Optional[dict] = None,
-                 default_time_zone: t.Optional[str] = None,
-                 dependent_features: t.Optional[dict[str, list[str]]] = None,
-                 features: t.Optional[dict[str, dict]] = None,
-                 id_feature_name: t.Optional[str | Iterable[str]] = None,
-                 include_extended_nominal_probabilities: t.Optional[bool] = False,
-                 include_sample: bool = False,
-                 infer_bounds: bool = True,
-                 max_workers: t.Optional[int] = None,
-                 mode_bound_features: t.Optional[Iterable[str]] = None,
-                 nominal_substitution_config: t.Optional[dict[str, dict]] = None,
-                 ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
-                 tight_bounds: t.Optional[Iterable[str]] = None,
-                 types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
+                 *,
+                 args: t.Optional[InferFeatureAttributesArgs] = None,
+                 **kwargs,
                  ) -> dict:
         """
         Get inferred feature attributes for the parameters.
-
-        See ``infer_feature_attributes`` for full docstring.
         """
-        if features:
-            if not isinstance(features, dict):
+        args = args or InferFeatureAttributesArgs()
+        merged_args = args.merge_kwargs(**kwargs)
+
+        if merged_args.features:
+            if not isinstance(merged_args.features, dict):
                 raise ValueError(
                     f"The parameter `features` needs to be a `dict` and not of "
-                    f"type {type(features)}."
+                    f"type {type(merged_args.features)}."
                 )
-            elif types:
+            elif merged_args.types:
                 raise ValueError('The `features` parameter is deprecated. Please do not use it '
                                  'in conjunction with the `types` parameter. Specify all types '
                                  'using `types`, and perform other needed updates directly on '
                                  'the resultant dict.')
             else:
-                self.attributes = FeatureAttributesBase(serialize_models(features))
+                self.attributes = FeatureAttributesBase(serialize_models(merged_args.features))
                 warnings.warn('The `features` parameter ("partial features") is deprecated. '
                               'Please instead clobber the dict-like `FeatureAttributesBase` '
                               'instance post-hoc with desired modifications. However, you can '
@@ -740,25 +741,25 @@ class InferFeatureAttributesBase(ABC):
                               DeprecationWarning)
         else:
             self.attributes = FeatureAttributesBase({})
-            features = dict()
+            merged_args.features = dict()
 
-        if datetime_feature_formats is None:
+        if merged_args.datetime_feature_formats is None:
             datetime_feature_formats = dict()
 
-        if ordinal_feature_values is None:
+        if merged_args.ordinal_feature_values is None:
             ordinal_feature_values = dict()
 
-        if dependent_features is None:
+        if merged_args.dependent_features is None:
             dependent_features = dict()
 
-        self.default_time_zone = default_time_zone
+        self.default_time_zone = merged_args.default_time_zone
 
         # Preprocess user-defined feature types
         preset_types = {}
         # Check the `types` argument
-        if types:
+        if merged_args.types:
             # Can be either str -> str or str -> Iterable[str]
-            for k, v in types.items():
+            for k, v in merged_args.types.items():
                 if isinstance(v, MutableSequence):
                     for feat_name in v:
                         if feat_name not in self.data.columns:
@@ -790,16 +791,16 @@ class InferFeatureAttributesBase(ABC):
                 }})
 
             # EXPLICITLY DECLARED DATETIME & TIME FEATURES
-            elif datetime_feature_formats.get(feature_name, None):
+            elif merged_args.datetime_feature_formats:
                 # datetime_feature_formats is expected to either be only a
                 # single string (format) or a tuple of strings (format, locale)
-                user_dt_format = datetime_feature_formats[feature_name]
-                if 'date_time_format' in features.get(feature_name, {}):
+                user_dt_format = merged_args.datetime_feature_formats[feature_name]
+                if 'date_time_format' in merged_args.features.get(feature_name, {}):
                     warnings.warn(
                         f'The date_time_format for "{feature_name}" was provided in '
                         'both `features` (ignored) and `datetime_feature_formats`.'
                     )
-                    del features[feature_name]['date_time_format']
+                    del merged_args.features[feature_name]['date_time_format']
 
                 if feature_type == FeatureType.DATETIME:
                     # When feature is a datetime instance, we won't need to
@@ -913,8 +914,8 @@ class InferFeatureAttributesBase(ABC):
             # DECLARED DEPENDENTS
             # First determine if there are any dependent features in the partial features dict
             partial_dependent_features = []
-            if 'dependent_features' in features.get(feature_name, {}):
-                partial_dependent_features = features[feature_name]['dependent_features']
+            if 'dependent_features' in merged_args.features.get(feature_name, {}):
+                partial_dependent_features = merged_args.features[feature_name]['dependent_features']
             # Set dependent features: `dependent_features` + partial features dict, if provided
             if feature_name in dependent_features:
                 self.attributes[feature_name]['dependent_features'] = list(
@@ -925,18 +926,18 @@ class InferFeatureAttributesBase(ABC):
             if self.default_time_zone is not None:
                 self.attributes[feature_name]['default_time_zone'] = self.default_time_zone
 
-        if isinstance(id_feature_name, str):
-            self._add_id_attribute(self.attributes, id_feature_name)
-        elif isinstance(id_feature_name, Iterable):
-            for id_feature in id_feature_name:
+        if isinstance(merged_args.id_feature_name, str):
+            self._add_id_attribute(self.attributes, merged_args.id_feature_name)
+        elif isinstance(merged_args.id_feature_name, Iterable):
+            for id_feature in merged_args.id_feature_name:
                 self._add_id_attribute(self.attributes, id_feature)
-        elif id_feature_name is not None:
+        elif merged_args.id_feature_name is not None:
             raise ValueError('ID feature must be of type `str` or `list[str], '
-                             f'not {type(id_feature_name)}.')
+                             f'not {type(merged_args.id_feature_name)}.')
 
         self._validate_date_times()
 
-        if infer_bounds:
+        if merged_args.infer_bounds:
             for feature_name, _attributes in self.attributes.items():
                 # If multiprocessing is enabled, this InferFeatureAttributes instance may not have
                 # access to all columns in the data, though they could still be present in the
@@ -946,13 +947,13 @@ class InferFeatureAttributesBase(ABC):
                 # Don't infer bounds for JSON/YAML features
                 if (
                     _attributes.get('data_type') in ['json', 'yaml'] or
-                    features.get(feature_name, {}).get('data_type') in ['json', 'yaml']
+                    merged_args.features.get(feature_name, {}).get('data_type') in ['json', 'yaml']
                 ):
                     continue
                 bounds = self._infer_feature_bounds(
                     self.attributes, feature_name,
-                    tight_bounds=tight_bounds,
-                    mode_bound_features=mode_bound_features,
+                    tight_bounds=merged_args.tight_bounds,
+                    mode_bound_features=merged_args.mode_bound_features,
                 )
                 if bounds:
                     _attributes['bounds'] = bounds  # noqa
@@ -961,7 +962,7 @@ class InferFeatureAttributesBase(ABC):
         self._check_unsupported_data(self.attributes)
 
         # If requested, infer extended nominals.
-        if attempt_infer_extended_nominals:
+        if merged_args.attempt_infer_extended_nominals:
             # Attempt to import the NominalDetectionEngine.
             try:
                 from howso.nominal_substitution import (
@@ -969,11 +970,11 @@ class InferFeatureAttributesBase(ABC):
                 )
                 # Grab whether the user wants the probabilities saved in the feature
                 # metadata.
-                include_meta = include_extended_nominal_probabilities
+                include_meta = merged_args.include_extended_nominal_probabilities
 
                 # Get the assigned extended nominal probabilities (aenp) and all
                 # probabilities.
-                nde = NominalDetectionEngine(nominal_substitution_config)
+                nde = NominalDetectionEngine(merged_args.nominal_substitution_config)
                 aenp, all_probs = nde.detect(self.data)
 
                 nominal_default_subtype = 'int-id'
@@ -1001,7 +1002,7 @@ class InferFeatureAttributesBase(ABC):
                 warnings.warn('Cannot infer extended nominals: not supported')
 
         # Insert a ``sample`` value (as string) for each feature, if possible.
-        if include_sample:
+        if merged_args.include_sample:
             for feature_name in self.attributes.keys():
                 sample = self._get_random_value(feature_name, no_nulls=True)
                 if sample is not None:
@@ -1009,9 +1010,9 @@ class InferFeatureAttributesBase(ABC):
                 self.attributes[feature_name]['sample'] = sample
 
         # Re-insert any partial features provided as an argument
-        if features:
-            for feature in features.keys():
-                for attribute, value in features[feature].items():
+        if merged_args.features:
+            for feature in merged_args.features.keys():
+                for attribute, value in merged_args.features[feature].items():
                     self.attributes[feature][attribute] = value
 
         # Re-order the keys like the original dataframe

@@ -11,6 +11,7 @@ import warnings
 
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.base import FeatureAttributesBase, FLOAT_MAX, FLOAT_MIN, INTEGER_MAX
+from howso.utilities.feature_attributes.models import InferFeatureAttributesArgs
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
 from howso.utilities.features import FeatureType
 import numpy as np
@@ -263,8 +264,13 @@ def test_infer_time_features(data, is_time, expected_format, provided_format):
     feature_type, _ = ifa._get_feature_type('a')
     if is_time:
         assert feature_type == FeatureType.TIME
-        features = infer_feature_attributes(data, tight_bounds=['a'],
-                                            datetime_feature_formats={'a': provided_format})
+        features = infer_feature_attributes(
+            data,
+            args=InferFeatureAttributesArgs(
+                tight_bounds=['a'],
+                datetime_feature_formats={'a': provided_format}
+            )
+        )
         assert features['a']['type'] == 'continuous'
         assert features['a']['date_time_format'] == expected_format
     else:
@@ -299,8 +305,13 @@ def test_infer_time_features(data, is_time, expected_format, provided_format):
 ])
 def test_infer_time_feature_bounds(data, tight_bounds, provided_format, expected_bounds, cycle_length):
     """Test that IFA correctly calculates the bounds and cycle length of time-only features."""
-    features = infer_feature_attributes(data, tight_bounds=tight_bounds,
-                                        datetime_feature_formats={'a': provided_format})
+    features = infer_feature_attributes(
+        data, 
+        args=InferFeatureAttributesArgs(
+            tight_bounds=tight_bounds,
+            datetime_feature_formats={'a': provided_format}
+        )
+    )
     assert features['a']['type'] == 'continuous'
     assert 'cycle_length' in features['a']
     assert features['a']['cycle_length'] == cycle_length
@@ -354,9 +365,15 @@ def test_column_names(should_fail, data):
      None),
 ])
 def test_dependent_features(should_include, base_features, dependent_features):
-    """Test depdendent features are added to feature attributes dict."""
+    """Test dependent features are added to feature attributes dict."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df, features=base_features, dependent_features=dependent_features)
+    features = infer_feature_attributes(
+        df, 
+        args=InferFeatureAttributesArgs(
+            features=base_features,
+            dependent_features=dependent_features
+        )
+    )
 
     if should_include:
         # Should include dependent features
@@ -493,7 +510,7 @@ def test_dependent_features(should_include, base_features, dependent_features):
 def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
     """Test the infer_feature_bounds() method."""
     df = pd.DataFrame(pd.Series(data), columns=['a'])
-    features = infer_feature_attributes(df, tight_bounds=tight_bounds)
+    features = infer_feature_attributes(df, args=InferFeatureAttributesArgs(tight_bounds=tight_bounds))
     assert features['a']['type'] == 'continuous'
     assert 'bounds' in features['a']
     assert features['a']['bounds'] == expected_bounds
@@ -510,7 +527,7 @@ def test_to_json(features: dict) -> None:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inferred_features = infer_feature_attributes(df, features=features)
+        inferred_features = infer_feature_attributes(df, args=InferFeatureAttributesArgs(features=features))
 
     to_json = inferred_features.to_json()
     assert isinstance(to_json, str)
@@ -530,7 +547,7 @@ def test_to_json(features: dict) -> None:
 def test_get_parameters(partial_features):
     """Test the get_parameters() method."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df, features=partial_features)
+    features = infer_feature_attributes(df, args=InferFeatureAttributesArgs(features=partial_features))
 
     # Verify dependent_features
     assert 'features' in features.get_parameters()
@@ -601,7 +618,13 @@ def test_partial_features(features):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
     df = pd.read_csv(stock_path)
-    feature_attributes = infer_feature_attributes(df, time_feature_name='DATE', features=features)
+    feature_attributes = infer_feature_attributes(
+        df,
+        args=InferFeatureAttributesArgs(
+            time_feature_name='DATE',
+            features=features
+        )
+    )
 
     # Ensure that the partial features remain
     for feature in features.keys():
@@ -625,7 +648,7 @@ def test_tight_bounds(tight_bounds):
     df = pd.read_csv(stock_path)
     features = infer_feature_attributes(df, tight_bounds=tight_bounds)
 
-    all_tight_bounds = infer_feature_attributes(df, tight_bounds=features.get_names())
+    all_tight_bounds = infer_feature_attributes(df, args=InferFeatureAttributesArgs(tight_bounds=features.get_names()))
     no_tight_bounds = infer_feature_attributes(df)
 
     for feature in features.keys():
@@ -651,11 +674,11 @@ def test_validate_dataframe():
     assert features.validate(df, raise_errors=True) is None
     # Example timeseries dataset
     df = pd.read_csv(ts_path)
-    features = infer_feature_attributes(df, time_feature_name='date')
+    features = infer_feature_attributes(df, args=InferFeatureAttributesArgs(time_feature_name='date'))
     assert features.validate(df, raise_errors=True) is None
     # Mini stock data dataset
     df = pd.read_csv(stock_path)
-    features = infer_feature_attributes(df, time_feature_name='DATE')
+    features = infer_feature_attributes(df, args=InferFeatureAttributesArgs(time_feature_name='DATE'))
     assert features.validate(df, raise_errors=True) is None
     # Also try this one with a non-ts infer
     df = pd.read_csv(stock_path)
@@ -711,7 +734,7 @@ def test_validate_df_multiple_dtypes(ftype, data_type, decimal_places, bounds, d
         feature = 'SYMBOL'
     # Infer the feature attributes like normal, but replace the attributes for the chosen feature
     # with our parameter attributes, which should also be considered valid.
-    attrs = infer_feature_attributes(df, time_feature_name='DATE')
+    attrs = infer_feature_attributes(df, args=InferFeatureAttributesArgs(time_feature_name='DATE'))
     attrs[feature] = {
         'type': ftype,
         'data_type': data_type,
@@ -746,7 +769,7 @@ def test_validate_df_missing_features(extra_attrs, success):
     exempt from raising warnings that the feature is missing.
     """
     df = pd.read_csv(stock_path)
-    attrs = infer_feature_attributes(df, time_feature_name='DATE')
+    attrs = infer_feature_attributes(df, args=InferFeatureAttributesArgs(time_feature_name='DATE'))
     # Add a would-be derived/computed feature
     attrs['to_be_computed'] = {"type": "continuous"}
     attrs['to_be_computed'].update(extra_attrs)
@@ -804,7 +827,7 @@ def test_unsupported_data(datetime_min_max, float_min_max, int_min_max):
             df.at[1, feature] = val_2
         expected_unsupported[feature] = unsupported
 
-    features = infer_feature_attributes(df, tight_bounds=['DATE', 'CLOSE', 'VOLUME'])
+    features = infer_feature_attributes(df, args=InferFeatureAttributesArgs(tight_bounds=['DATE', 'CLOSE', 'VOLUME']))
 
     for feature in features.keys():
         if expected_unsupported.get(feature, False):
@@ -865,7 +888,7 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if is_valid:
-            features = infer_feature_attributes(data, types=types, )
+            features = infer_feature_attributes(data, args=InferFeatureAttributesArgs(types=types))
             for feature_name, expected_type in expected_types.items():
                 # Make sure it is the correct type
                 assert features[feature_name]['type'] == expected_type
@@ -873,7 +896,7 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
                 assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
         else:
             with pytest.raises(ValueError):
-                infer_feature_attributes(data, types=types)
+                infer_feature_attributes(data, args=InferFeatureAttributesArgs(types=types))
 
 
 def test_preset_feature_types_with_multiprocessing():
@@ -883,7 +906,13 @@ def test_preset_feature_types_with_multiprocessing():
     continuous = ['CLOSE']
     # Everything else is nominal, in this case.
     nominals = [f for f in df.columns if f not in continuous]
-    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=2)
+    features = infer_feature_attributes(
+        df, 
+        args=InferFeatureAttributesArgs(
+            types={"nominal": nominals, "continuous": continuous},
+            max_workers=2
+        )
+    )
     assert features is not None
 
 
@@ -897,10 +926,14 @@ def test_feature_order():
     df = pd.read_csv(stock_path)
     continuous = ['CLOSE']
     nominals = [f for f in df.columns if f not in continuous]
-    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=10)
+    features = infer_feature_attributes(df, args=InferFeatureAttributesArgs(
+        types={"nominal": nominals, "continuous": continuous}, max_workers=10
+    ))
     assert same_order(features.keys(), df.columns)
     # Try it without multiprocessing as well
-    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=0)
+    features = infer_feature_attributes(df, args=InferFeatureAttributesArgs(
+        types={"nominal": nominals, "continuous": continuous}, max_workers=0
+    ))
     assert same_order(features.keys(), df.columns)
 
 
@@ -990,7 +1023,7 @@ def test_disk_archival():
 def test_observed_ordinal_values(series, ordinals, min_value, max_value):
     """Test that observed_min/max in ordinal features works as expected."""
     data = pd.DataFrame({'a': series})
-    features = infer_feature_attributes(data, ordinal_feature_values={'a': ordinals})
+    features = infer_feature_attributes(data, args=InferFeatureAttributesArgs(ordinal_feature_values={'a': ordinals}))
     assert features['a']['bounds']['observed_min'] == min_value
     assert features['a']['bounds']['observed_max'] == max_value
 
@@ -1009,28 +1042,40 @@ def test_formatted_date_time():
         ValueError,
         match='must have a `date_time_format` defined when its `data_type` is "formatted_date_time"'
     ):
-        infer_feature_attributes(data, features={
-            'custom': {
-                "data_type": "formatted_date_time"
-            }
-        })
+        infer_feature_attributes(
+            data,
+            args=InferFeatureAttributesArgs(features={
+                'custom': {
+                    "data_type": "formatted_date_time"
+                }
+            
+            })
+        )
 
     # When data_type is formatted_time, a date_time_format must be set
     with pytest.raises(
         ValueError,
         match='must have a `date_time_format` defined when its `data_type` is "formatted_time"'
     ):
-        infer_feature_attributes(data, features={
+        infer_feature_attributes(
+            data, 
+            args=InferFeatureAttributesArgs(features={
             'time': {
                 "data_type": "formatted_time"
-            }
-        })
+                }
+            })
+        )
 
     # Verify formatted_date_time is set when a date_time_format is configured
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"},
-                                            default_time_zone="UTC")
+        features = infer_feature_attributes(
+            data, 
+            args=InferFeatureAttributesArgs(
+                datetime_feature_formats={"custom": "%Y/%m/%d"},
+                default_time_zone="UTC"
+            )
+        )
         assert features['a']['data_type'] != "formatted_date_time"
         # custom feature dates should be formatted_date_time
         assert features['custom']['data_type'] == "formatted_date_time"
@@ -1049,29 +1094,66 @@ def test_default_time_zone():
 
     # No default time zone or time zone identifier in format string; warning should be raised
     with pytest.warns(match="features do not include a time zone and will default to UTC"):
-        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
-                                                                 "custom2": "%Y/%m/%d %H:%M"})
+        infer_feature_attributes(
+            data,
+            args=InferFeatureAttributesArgs(
+                datetime_feature_formats={
+                    "custom": "%Y/%m/%d %H:%M",
+                    "custom2": "%Y/%m/%d %H:%M"
+                }
+            )
+        )
         # Also try with multiprocessing
-        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
-                                                                 "custom2": "%Y/%m/%d %H:%M"}, max_workers=2)
-
+        infer_feature_attributes(
+            data,
+            args=InferFeatureAttributesArgs(
+                datetime_feature_formats={
+                    "custom": "%Y/%m/%d %H:%M",
+                    "custom2": "%Y/%m/%d %H:%M"
+                },
+                max_workers=2
+            )
+        )
     # Using UTC offsets should also result in a warning
     with pytest.warns(match="The following features are using UTC offsets"):
-        infer_feature_attributes(data, datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"})
-        # Also try with multiprocessing
-        infer_feature_attributes(data, datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"}, max_workers=2)
-
+        infer_feature_attributes(
+            data,
+            args=InferFeatureAttributesArgs(
+                datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"}
+            )
+        )
+        # Also try with multiprocessing)
+        infer_feature_attributes(
+            data,
+            args=InferFeatureAttributesArgs(
+                datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"},
+                max_workers=2
+            )
+        )
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         # Providing a default_time_zone should prevent the warning
-        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M"}, default_time_zone="EST")
+        infer_feature_attributes(
+            data,
+            args=InferFeatureAttributesArgs(
+                datetime_feature_formats={"custom": "%Y/%m/%d %H:%M"},
+                default_time_zone="EST"
+            )
+        )
         data = pd.DataFrame({
             'custom': ['2010/10/10 07:30 EST', '2010/10/11 08:45 EST', '2010/10/12 09:00 EST'],
             'custom2': ['2010/10/10 07:30 GMT', '2010/10/11 08:45 GMT', '2010/10/12 09:00 GMT'],
         })
         # Providing data with a time zone and corresponding format string identifier should prevent the error
-        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M %Z",
-                                                                 "custom2": "%Y/%m/%d %H:%M %Z"})
+        infer_feature_attributes(
+            data,
+            args=InferFeatureAttributesArgs(
+                datetime_feature_formats={
+                    "custom": "%Y/%m/%d %H:%M %Z",
+                    "custom2": "%Y/%m/%d %H:%M %Z"
+                }
+            )
+        )
 
 
 def test_constrained_date_bounds():
@@ -1079,4 +1161,4 @@ def test_constrained_date_bounds():
     df = pd.DataFrame([["01"], ["02"]], columns=["date"])
     with pytest.warns(match="bounds could not be computed. This is likely due to a constrained date time format"):
         # Loose bounds may cause min bound to be > max bound if the date format is constrained
-        infer_feature_attributes(df, datetime_feature_formats={"date": "%m"})
+        infer_feature_attributes(df, args=InferFeatureAttributesArgs(datetime_feature_formats={"date": "%m"}))
