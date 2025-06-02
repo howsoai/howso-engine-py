@@ -3283,15 +3283,11 @@ class Trainee(BaseTrainee):
                         - An array of string values, must match any of these values
                         exactly. Only applicable to nominal and string ordinal
                         features.
-            - action_num_cases : int, optional
-                The maximum amount of cases to use to calculate prediction stats.
-                If not specified, the limit will be k cases if precision is
-                "similar", or 1000 cases if precision is "exact". Works with or
-                without ``action_condition``.
-                -If ``action_condition`` is set:
-                    If None, will be set to k if precision is "similar" or no limit if precision is "exact".
-                - If ``action_condition`` is not set:
-                    If None, will be set to the Howso default limit of 2000.
+            - action_num_samples : int, optional
+                The maximum number of action cases used in calculating conditional prediction stats.
+                If ``action_condition`` is set and no value is specified, will use k if precision is "similar" or
+                no limit if precision is "exact". If ``action_condition`` is not set and no value is specified,
+                will be set to the default limit of 2000.
             - action_condition_precision : {"exact", "similar"}, optional
                 The precision to use when selecting cases with the ``action_condition``.
                 If not specified "exact" will be used. Only used if ``action_condition``
@@ -3311,7 +3307,7 @@ class Trainee(BaseTrainee):
                         - An array of string values, must match any of these values
                         exactly. Only applicable to nominal and string ordinal
                         features.
-            - context_precision_num_cases : int, optional
+            - context_condition_num_samples : int, optional
                 Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
                 If None, will be set to k.
             - context_condition_precision : {"exact", "similar"}, optional
@@ -3396,6 +3392,8 @@ class Trainee(BaseTrainee):
                   continuous features only. Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
                   actual value. The minimum gap for each feature is the smallest difference between two values
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
+            - estimated_residual_lower_bound : bool, optional
+                When True, computes and outputs estimated lower bound of residuals for specified action features.
         features_to_derive: list of str, optional
             List of feature names whose values should be derived rather than interpolated from influential
             cases when predicted. If unspecified, then the features that have derivation logic defined will
