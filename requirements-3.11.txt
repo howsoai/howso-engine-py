@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --no-emit-index-url --output-file=requirements-3.11.txt
 #
-amalgam-lang==19.1.1
+amalgam-lang==20.0.0
     # via howso-engine (pyproject.toml)
 certifi==2025.4.26
     # via
@@ -36,7 +36,7 @@ numpy==2.2.6
     #   pandas
 packaging==25.0
     # via deprecation
-pandas==2.2.3
+pandas==2.3.0
     # via howso-engine (pyproject.toml)
 pycparser==2.22
     # via cffi
@@ -58,7 +58,7 @@ semantic-version==2.10.0
     # via howso-engine (pyproject.toml)
 six==1.17.0
     # via python-dateutil
-typing-extensions==4.13.2
+typing-extensions==4.14.0
     # via howso-engine (pyproject.toml)
 tzdata==2025.2
     # via

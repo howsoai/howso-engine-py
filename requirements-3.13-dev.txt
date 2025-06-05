@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --no-emit-index-url --output-file=requirements-3.13-dev.txt
 #
-amalgam-lang==19.1.1
+amalgam-lang==20.0.0
     # via howso-engine (pyproject.toml)
 astroid==3.3.10
     # via pylint
@@ -77,7 +77,7 @@ packaging==25.0
     #   mongomock
     #   pipdeptree
     #   pytest
-pandas==2.2.3
+pandas==2.3.0
     # via
     #   howso-engine (pyproject.toml)
     #   pmlb
@@ -154,9 +154,9 @@ snowballstemmer==3.0.1
     # via pydocstyle
 threadpoolctl==3.6.0
     # via scikit-learn
-tomlkit==0.13.2
+tomlkit==0.13.3
     # via pylint
-typing-extensions==4.13.2
+typing-extensions==4.14.0
     # via howso-engine (pyproject.toml)
 tzdata==2025.2
     # via
