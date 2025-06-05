@@ -165,7 +165,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.debug = debug
         self._trace_enabled = bool(trace)
         self._trace_filename = f"howso_{internals.random_handle()}_execution.trace"
-        self._howso_dir = Path("C:\\Users\\ChristopherHazard\\Desktop\\Howso_repos\\howso-engine") #Path(howso_path).expanduser()
+        self._howso_dir = Path(howso_path).expanduser()
         self._howso_filename = howso_fname
         self._howso_ext = Path(self._howso_filename).suffix or ".caml"
         self._react_generative_batch_threshold = 1
