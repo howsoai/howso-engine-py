@@ -165,7 +165,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.debug = debug
         self._trace_enabled = bool(trace)
         self._trace_filename = f"howso_{internals.random_handle()}_execution.trace"
-        self._howso_dir = Path(howso_path).expanduser()
+        self._howso_dir = Path("C:\\Users\\ChristopherHazard\\Desktop\\Howso_repos\\howso-engine") #Path(howso_path).expanduser()
         self._howso_filename = howso_fname
         self._howso_ext = Path(self._howso_filename).suffix or ".caml"
         self._react_generative_batch_threshold = 1
@@ -479,6 +479,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             status_msg = status.message or "An unknown error occurred"
             raise HowsoError(
                 f'Failed to initialize the Trainee "{trainee_id}": {status_msg}')
+        
+        self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
+
         self.execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,
             "filepath": str(self._howso_dir) + '/',
@@ -1393,6 +1396,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             status_msg = status.message or "An unknown error occurred"
             raise HowsoError(
                 f'Failed to acquire Trainee "{trainee_id}": {status_msg}')
+
+        self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
 
         # Cache the trainee details
         trainee = self._get_trainee_from_engine(trainee_id)
