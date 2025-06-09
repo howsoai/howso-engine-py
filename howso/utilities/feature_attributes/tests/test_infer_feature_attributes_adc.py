@@ -67,11 +67,7 @@ features_4 = OrderedDict(
 @patch("howso.connectors.abstract_data.mongodb_data.MongoClient", new=mongomock.MongoClient)
 def df_to_mongo_adc(df: pd.DataFrame) -> MongoDBData:
     """Helper function to convert a Pandas DataFrame to a MongoDB ADC w/ mocked MongoDB instance."""
-    adc = MongoDBData(
-        uri="mongodb://localhost",
-        database_name="test_db",
-        collection_name="test_collection"
-    )
+    adc = MongoDBData("mongodb://localhost#test_collection")
     # Populate the mocked MongoDB with the provided DataFrame
     adc._collection.insert_many(df.to_dict(orient="records"))
     return adc
