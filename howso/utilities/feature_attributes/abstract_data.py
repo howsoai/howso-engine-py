@@ -116,16 +116,16 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         inspector = None
         try:
             inspector = self.data.get_inspector()
-            uniques = inspector.get_unique_constraints(self.table_name.table,
-                                                       schema=self.data.schema)
+            uniques = inspector.get_unique_constraints(self.data.table_name.table,
+                                                       schema=self.data.table_name.schema)
         except (AttributeError, NotImplementedError):
             # Non-SQL ADCs will not have the get_inspector() method implemented
             if inspector is None:
                 return False
             # MSSQL is not currently supported in sqlalchemy for get_unique_constraints;
             # however, get_indexes can also be used to identify UNIQUE constraints
-            indexes = inspector.get_indexes(self.table_name.table,
-                                            schema=self.data.schema)
+            indexes = inspector.get_indexes(self.data.table_name.table,
+                                            schema=self.data.table_name.schema)
             return any([c['column_names'] == [feature_name] and c['unique'] for c in indexes])
 
         return any([c['column_names'] == [feature_name] for c in uniques])
@@ -193,7 +193,37 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 if re.match(TIME_PATTERN, first_non_null) or re.match(SIMPLE_TIME_PATTERN,
                                                                       first_non_null):
                     return FeatureType.TIME, {}
-                return FeatureType.STRING, {}
+                # Explicitely declared formatted_date_time/time; don't try to guess
+                attrs = getattr(self, 'attributes', {}).get(feature_name, {})
+                if any([
+                    attrs.get('data_type') == 'formatted_date_time',
+                    attrs.get('data_type') == 'formatted_time',
+                    getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None,
+                ]):
+                    return FeatureType.STRING, {}
+                # Depending on the data source, datetimes/timedeltas could easily be strings.
+                # See if the string can be converted to a Pandas datetime/timedelta.
+                try:
+                    converted_dtype = pd.to_datetime(pd.Series([first_non_null])).dtype
+                    # Unfortunately, Pandas does not differentiate between datetimes and "pure" dates.
+                    # If the below code executes, that means Pandas recognizes the value as a datetime,
+                    # but we now need to check if the 'time' component is zero. If so, we can cast to
+                    # a Numpy datetime64[D] dtype.
+                    converted_val = pd.to_datetime(first_non_null)
+                    if converted_val.time() == pd.Timestamp(0).time() and converted_val.tz is None:
+                        converted_dtype = np.datetime64(converted_val, 'D').dtype
+                    typing_info = {}
+                    if converted_dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
+                        return FeatureType.DATE, {}
+                    elif isinstance(converted_dtype, pd.DatetimeTZDtype):
+                        if isinstance(converted_dtype.tz, pytz.BaseTzInfo) and converted_dtype.tz.zone:
+                            # If using a named time zone capture it, otherwise
+                            # rely on the offset in the iso8601 format
+                            typing_info['timezone'] = converted_dtype.tz.zone
+                    return FeatureType.DATETIME, typing_info
+                except Exception:
+                    # TODO: need to account for timedeltas?
+                    return FeatureType.STRING, {}
             elif isinstance(first_non_null, bytes):
                 warnings.warn(
                     f'The column "{feature_name}" contained bytes, original '
@@ -270,6 +300,15 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                                      f'`date_time_format` must be specified in attributes')
                 min_time, max_time = (
                     self.data.get_min_max_values(feature_name))
+                # Fractional seconds must be normalized to six decimal places for use with Pandas
+                # when the data is represented as a float
+                if '%f' in time_format and original_type.get('data_type') == FeatureType.NUMERIC.value:
+                    try:
+                        min_time = f"{float(min_time):06.6f}"
+                        max_time = f"{float(max_time):06.6f}"
+                    except (TypeError, ValueError):
+                        # Not a float, do nothing
+                        pass
                 # Min/max values from ADC are raw; convert to datetime.time
                 if not isinstance(min_time, datetime.time):
                     min_time = pd.to_datetime(min_time, format=time_format, errors='coerce').time()
@@ -286,14 +325,14 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                     return {
                         'min': 0, 'max': feature_attributes[feature_name]['cycle_length'],
                         'observed_min': time_to_seconds(min_time), 'observed_max': time_to_seconds(max_time),
-                        'allow_null': allow_null
+                        'allow_null': True
                     }
                 else:
                     # Tight bounds
                     return {
                         'min': time_to_seconds(min_time), 'max': time_to_seconds(max_time),
                         'observed_min': time_to_seconds(min_time), 'observed_max': time_to_seconds(max_time),
-                        'allow_null': allow_null
+                        'allow_null': True
                     }
 
             if 'date_time_format' in feature_attributes[feature_name]:
@@ -503,7 +542,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         if pd.api.types.is_datetime64tz_dtype(dtype):
             # Include timezone offset in format
             dt_format += '%z'
-        elif dtype == object:
+        elif dtype == 'object':
             first_non_null = self._get_first_non_null(feature_name)
             if isinstance(first_non_null, datetime.datetime):
                 # In the event of mixed timezone values the column dtype will
@@ -511,6 +550,10 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 # value has tzinfo and include the timezone in the format
                 if first_non_null.tzinfo is not None:
                     dt_format += '%z'
+            # Try converting the string to datetime using Pandas to determine
+            # if tz info is present.
+            elif pd.to_datetime(first_non_null).tz is not None:
+                dt_format += '%z'
         return {
             'type': 'continuous',
             'data_type': 'formatted_date_time',

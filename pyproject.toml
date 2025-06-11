@@ -43,7 +43,7 @@ dependencies = [
    "pandas",
    "pyjwt~=2.0",
    "pyyaml~=6.0",
-   "requests>=2.0,<3.0",
+   "requests>=2.32.4,<3.0",
    "rich>=12.5.1",
    "semantic-version~=2.0",
    "typing-extensions~=4.9",

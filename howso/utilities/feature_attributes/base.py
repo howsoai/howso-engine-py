@@ -745,6 +745,8 @@ class InferFeatureAttributesBase(ABC):
         if datetime_feature_formats is None:
             datetime_feature_formats = dict()
 
+        self.datetime_feature_formats = datetime_feature_formats
+
         if ordinal_feature_values is None:
             ordinal_feature_values = dict()
 
@@ -790,10 +792,10 @@ class InferFeatureAttributesBase(ABC):
                 }})
 
             # EXPLICITLY DECLARED DATETIME & TIME FEATURES
-            elif datetime_feature_formats.get(feature_name, None):
+            elif self.datetime_feature_formats.get(feature_name, None):
                 # datetime_feature_formats is expected to either be only a
                 # single string (format) or a tuple of strings (format, locale)
-                user_dt_format = datetime_feature_formats[feature_name]
+                user_dt_format = self.datetime_feature_formats[feature_name]
                 if 'date_time_format' in features.get(feature_name, {}):
                     warnings.warn(
                         f'The date_time_format for "{feature_name}" was provided in '
