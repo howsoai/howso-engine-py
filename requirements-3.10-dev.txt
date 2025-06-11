@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --no-emit-index-url --output-file=requirements-3.10-dev.txt
 #
-amalgam-lang==20.0.0
+amalgam-lang==20.0.2
     # via howso-engine (pyproject.toml)
 astroid==3.3.10
     # via pylint
@@ -22,7 +22,7 @@ click==8.2.1
     # via pip-tools
 coverage[toml]==7.8.2
     # via pytest-cov
-cryptography==45.0.3
+cryptography==45.0.4
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
@@ -136,13 +136,13 @@ pyyaml==6.0.2
     # via
     #   howso-engine (pyproject.toml)
     #   pmlb
-requests==2.32.3
+requests==2.32.4
     # via
     #   howso-engine (pyproject.toml)
     #   pmlb
 rich==14.0.0
     # via howso-engine (pyproject.toml)
-scikit-learn==1.6.1
+scikit-learn==1.7.0
     # via howso-engine (pyproject.toml)
 scipy==1.15.3
     # via scikit-learn
