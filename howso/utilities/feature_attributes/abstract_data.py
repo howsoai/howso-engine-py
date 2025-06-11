@@ -222,7 +222,6 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                             typing_info['timezone'] = converted_dtype.tz.zone
                     return FeatureType.DATETIME, typing_info
                 except Exception:
-                    # TODO: need to account for timedeltas?
                     return FeatureType.STRING, {}
             elif isinstance(first_non_null, bytes):
                 warnings.warn(
