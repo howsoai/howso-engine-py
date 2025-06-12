@@ -4225,7 +4225,7 @@ class AbstractHowsoClient(ABC):
         k_folds: t.Optional[int] = None,
         k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
-        num_deviation_samples : t.Optional[int] = None,
+        num_deviation_samples: t.Optional[int] = None,
         num_feature_probability_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
@@ -4274,10 +4274,10 @@ class AbstractHowsoClient(ABC):
             subset of data. The `num_analysis_samples` specifies the number of
             samples used for grid search for the targeted flow. Only applies
             for k_folds = 1. Defaults to 1000 if unspecified.
-        num_deviation_samples  : int, optional
+        num_deviation_samples : int, optional
             The number of samples used to approximate deviations and residuals for
             both targetless and targeted flows. Defaults to 1000 if unspecified.
-        num_feature_probability_samples: int, optional
+        num_feature_probability_samples : int, optional
             Number of samples to use to compute feature probabilities, only
             applies to targetless flow. Defaults to 10000 if unspecified.
         p_values : Collection of float, optional
@@ -4474,7 +4474,7 @@ class AbstractHowsoClient(ABC):
         k_folds : int, optional
             The number of cross validation folds to do. A value of 1 does
             hold-one-out instead of k-fold.
-        num_deviation_samples  : int, optional
+        num_deviation_samples : int, optional
             The number of samples used to approximate deviations and residuals for
             both targetless and targeted flows. Defaults to 1000 if unspecified.
         dt_values : Collection of float, optional
@@ -4512,7 +4512,7 @@ class AbstractHowsoClient(ABC):
             subset of data. The `num_analysis_samples` specifies the number of
             samples used for grid search for the targeted flow. Only applies
             for k_folds = 1. defaults to 1000.
-        num_feature_probability_samples: int, optional
+        num_feature_probability_samples : int, optional
             Number of samples to use to compute feature probabilities, only
             applies to targetless flow. Defaults to 10000 if unspecified.
         analysis_sub_model_size : int, optional
@@ -4609,7 +4609,7 @@ class AbstractHowsoClient(ABC):
             "context_features": context_features,
             "k_folds": k_folds,
             "num_deviation_samples": num_deviation_samples,
-            "num_feature_probability_samples ": num_feature_probability_samples,
+            "num_feature_probability_samples": num_feature_probability_samples,
             "dt_values": dt_values,
             "k_values": k_values,
             "p_values": p_values,
