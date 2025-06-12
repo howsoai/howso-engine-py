@@ -982,7 +982,8 @@ class Trainee(BaseTrainee):
         k_folds: t.Optional[int] = None,
         k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
-        num_samples: t.Optional[int] = None,
+        num_deviation_samples: t.Optional[int] = None,
+        num_feature_probability_samples: t.Optional[int] = None,
         analysis_sub_model_size: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
@@ -1022,10 +1023,16 @@ class Trainee(BaseTrainee):
             treats that inner list as a tuple of: influence cutoff percentage,
             minimum K, maximum K and extra K.
         num_analysis_samples : int, optional
-            Specifies the number of observations to be considered for
-            analysis.
-        num_samples : int, optional
-            Number of samples used in calculating feature residuals.
+            If the dataset size to too large, analyze on (randomly sampled)
+            subset of data. The `num_analysis_samples` specifies the number of
+            samples used for grid search for the targeted flow. Only applies
+            for k_folds = 1. Defaults to 1000 if unspecified.
+        num_deviation_samples  : int, optional
+            The number of samples used to approximate deviations and residuals for
+            both targetless and targeted flows. Defaults to 1000 if unspecified.
+        num_feature_probability_samples: int, optional
+            Number of samples to use to compute feature probabilities, only
+            applies to targetless flow. Defaults to 10000 if unspecified.
         analysis_sub_model_size : int, optional
             Number of samples to use for analysis. The rest will be
             randomly held-out and not included in calculations.
@@ -1080,7 +1087,8 @@ class Trainee(BaseTrainee):
                 k_folds=k_folds,
                 k_values=k_values,
                 num_analysis_samples=num_analysis_samples,
-                num_samples=num_samples,
+                num_deviation_samples=num_deviation_samples,
+                num_feature_probability_samples=num_feature_probability_samples,
                 analysis_sub_model_size=analysis_sub_model_size,
                 p_values=p_values,
                 rebalance_features=rebalance_features,
@@ -4214,7 +4222,7 @@ def load_trainee(
     if not status.loaded:
         status_msg = status.message or "An unknown error occurred"
         raise HowsoError(f'Failed to load Trainee file "{file_path.as_posix()}": {status_msg}')
-    
+
     client.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
 
     base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore reportPrivateUsage

@@ -4225,7 +4225,8 @@ class AbstractHowsoClient(ABC):
         k_folds: t.Optional[int] = None,
         k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
-        num_samples: t.Optional[int] = None,
+        num_deviation_samples : t.Optional[int] = None,
+        num_feature_probability_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
         targeted_model: t.Optional[TargetedModel] = None,
@@ -4271,9 +4272,14 @@ class AbstractHowsoClient(ABC):
         num_analysis_samples : int, optional
             If the dataset size to too large, analyze on (randomly sampled)
             subset of data. The `num_analysis_samples` specifies the number of
-            observations to be considered for analysis.
-        num_samples : int, optional
-            The number of samples used in calculating feature residuals.
+            samples used for grid search for the targeted flow. Only applies
+            for k_folds = 1. Defaults to 1000 if unspecified.
+        num_deviation_samples  : int, optional
+            The number of samples used to approximate deviations and residuals for
+            both targetless and targeted flows. Defaults to 1000 if unspecified.
+        num_feature_probability_samples: int, optional
+            Number of samples to use to compute feature probabilities, only
+            applies to targetless flow. Defaults to 10000 if unspecified.
         p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
         rebalance_features : Collection[str], optional
@@ -4362,7 +4368,8 @@ class AbstractHowsoClient(ABC):
             k_folds=k_folds,
             k_values=k_values,
             num_analysis_samples=num_analysis_samples,
-            num_samples=num_samples,
+            num_deviation_samples=num_deviation_samples,
+            num_feature_probability_samples=num_feature_probability_samples,
             analysis_sub_model_size=analysis_sub_model_size,
             p_values=p_values,
             rebalance_features=rebalance_features,
@@ -4433,7 +4440,8 @@ class AbstractHowsoClient(ABC):
         k_folds: t.Optional[int] = None,
         k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
-        num_samples: t.Optional[int] = None,
+        num_deviation_samples: t.Optional[int] = None,
+        num_feature_probability_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
         targeted_model: t.Optional[TargetedModel] = None,
@@ -4466,8 +4474,9 @@ class AbstractHowsoClient(ABC):
         k_folds : int, optional
             The number of cross validation folds to do. A value of 1 does
             hold-one-out instead of k-fold.
-        num_samples : int, optional
-            The number of samples used in calculating feature residuals.
+        num_deviation_samples  : int, optional
+            The number of samples used to approximate deviations and residuals for
+            both targetless and targeted flows. Defaults to 1000 if unspecified.
         dt_values : Collection of float, optional
             The dt value hyperparameters to analyze with.
         k_values : Collection of int or collection of int or float, optional
@@ -4501,7 +4510,11 @@ class AbstractHowsoClient(ABC):
         num_analysis_samples : int, optional
             If the dataset size to too large, analyze on (randomly sampled)
             subset of data. The `num_analysis_samples` specifies the number of
-            observations to be considered for analysis.
+            samples used for grid search for the targeted flow. Only applies
+            for k_folds = 1. defaults to 1000.
+        num_feature_probability_samples: int, optional
+            Number of samples to use to compute feature probabilities, only
+            applies to targetless flow. Defaults to 10000 if unspecified.
         analysis_sub_model_size : int, optional
             Number of samples to use for analysis. The rest will be
             randomly held-out and not included in calculations.
@@ -4595,7 +4608,8 @@ class AbstractHowsoClient(ABC):
             "action_features": action_features,
             "context_features": context_features,
             "k_folds": k_folds,
-            "num_samples": num_samples,
+            "num_deviation_samples": num_deviation_samples,
+            "num_feature_probability_samples ": num_feature_probability_samples,
             "dt_values": dt_values,
             "k_values": k_values,
             "p_values": p_values,
