@@ -18,7 +18,7 @@ cryptography==45.0.4
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
-faker==37.3.0
+faker==37.4.0
     # via howso-engine (pyproject.toml)
 humanize==4.12.3
     # via howso-engine (pyproject.toml)
