@@ -1879,7 +1879,7 @@ class AbstractHowsoClient(ABC):
             specified will executed a discriminative react. Conviction is the
             ratio of expected surprisal to generated surprisal for each
             feature generated, valid values are in the range of
-            :math:`(0, \\infty)`.
+            :math:`(0, \infty)`.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -4280,8 +4280,7 @@ class AbstractHowsoClient(ABC):
         num_feature_probability_samples : int, optional
             Number of samples to use to compute feature probabilities, only
             applies to targetless flow. Defaults to the number of features
-            multiplied by 1000 * (1 - 1/e) (or number of features multiplied
-            by 6321).
+            multiplied by :math:`1000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
         p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
         rebalance_features : Collection[str], optional
@@ -4517,8 +4516,7 @@ class AbstractHowsoClient(ABC):
         num_feature_probability_samples : int, optional
             Number of samples to use to compute feature probabilities, only
             applies to targetless flow. Defaults to the number of features
-            multiplied by 1000 * (1 - 1/e) (or number of features multiplied
-            by 6321).
+            multiplied by :math:`1000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
         analysis_sub_model_size : int, optional
             Number of samples to use for analysis. The rest will be
             randomly held-out and not included in calculations.
