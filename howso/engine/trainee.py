@@ -1032,7 +1032,9 @@ class Trainee(BaseTrainee):
             both targetless and targeted flows. Defaults to 1000 if unspecified.
         num_feature_probability_samples: int, optional
             Number of samples to use to compute feature probabilities, only
-            applies to targetless flow. Defaults to 10000 if unspecified.
+            applies to targetless flow. Defaults to the number of features
+            multiplied by 1000 * (1 - 1/e) (or number of features multiplied
+            by 6321).
         analysis_sub_model_size : int, optional
             Number of samples to use for analysis. The rest will be
             randomly held-out and not included in calculations.
