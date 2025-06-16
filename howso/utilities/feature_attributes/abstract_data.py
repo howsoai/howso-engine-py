@@ -137,6 +137,11 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
         dtype = self.data.get_column_dtype(feature_name)
 
+        # Some ADCs will return the string representation of the dtype.
+        # Convert to NumPy DType so that we can access attributes like 'itemsize.'
+        if isinstance(dtype, str):
+            dtype = np.dtype(dtype)
+
         if is_float_dtype(dtype):
             typing_info = {}
             if itemsize := getattr(dtype, 'itemsize', None):
@@ -210,6 +215,10 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                     # but we now need to check if the 'time' component is zero. If so, we can cast to
                     # a Numpy datetime64[D] dtype.
                     converted_val = pd.to_datetime(first_non_null)
+                    # If the feature looks like a date or datetime, but it's not in ISO8601 format,
+                    # handle it as a string to avoid ambiguity.
+                    if not self._is_iso8601_datetime_column(feature_name):
+                        return FeatureType.STRING, {}
                     if converted_val.time() == pd.Timestamp(0).time() and converted_val.tz is None:
                         converted_dtype = np.datetime64(converted_val, 'D').dtype
                     typing_info = {}
@@ -538,6 +547,9 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
         dtype = self.data.get_column_dtype(feature_name)
         dt_format = ISO_8601_FORMAT
+        if not self._is_iso8601_datetime_column(feature_name):
+            raise ValueError(f'Feature {feature_name} recognized as a datetime with non-ISO8601 format. Please '
+                             'specify the format via `datetime_feature_formats`.')
         if pd.api.types.is_datetime64tz_dtype(dtype):
             # Include timezone offset in format
             dt_format += '%z'
@@ -560,6 +572,9 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         }
 
     def _infer_date_attributes(self, feature_name: str) -> dict:
+        if not self._is_iso8601_datetime_column(feature_name):
+            raise ValueError(f'Feature {feature_name} recognized as a date with non-ISO8601 format. Please '
+                             'specify the format via `datetime_feature_formats`.')
         return {
             'type': 'continuous',
             'data_type': 'formatted_date_time',
