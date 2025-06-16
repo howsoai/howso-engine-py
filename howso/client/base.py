@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import typing as t
+import warnings
 from abc import (
     ABC,
     abstractmethod,
@@ -13,9 +15,7 @@ from collections.abc import (
     Sized,
 )
 from pathlib import Path
-import typing as t
 from uuid import UUID
-import warnings
 
 import numpy as np
 from pandas import DataFrame
@@ -84,7 +84,8 @@ class AbstractHowsoClient(ABC):
     WARNING_MESSAGES = {
         "invalid_precision": (
             'Supported values for `precision` are "exact" and "similar". The operation will be completed as '
-            'if the value of `%s` is "exact".')
+            'if the value of `%s` is "exact".'
+        )
     }
     """Mapping of warning type to default warning message."""
 
@@ -267,7 +268,9 @@ class AbstractHowsoClient(ABC):
         """
 
     @abstractmethod
-    def execute_sized(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> tuple[t.Any, int, int]:
+    def execute_sized(
+        self, trainee_id: str, label: str, payload: t.Any, **kwargs
+    ) -> tuple[t.Any, int, int]:
         """
         Execute a label in Howso engine and return the request and response sizes.
 
@@ -324,7 +327,7 @@ class AbstractHowsoClient(ABC):
         persistence: Persistence = "allow",
         project: t.Optional[str | Project] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
-        runtime: t.Optional[TraineeRuntimeOptions] = None
+        runtime: t.Optional[TraineeRuntimeOptions] = None,
     ) -> Trainee:
         """
         Create a trainee on the Howso service.
@@ -414,7 +417,9 @@ class AbstractHowsoClient(ABC):
         """Query accessible Trainees."""
 
     @abstractmethod
-    def delete_trainee(self, trainee_id: str, *, file_path: t.Optional[Path | str] = None):
+    def delete_trainee(
+        self, trainee_id: str, *, file_path: t.Optional[Path | str] = None
+    ):
         """Delete a Trainee from the Howso service."""
 
     @abstractmethod
@@ -426,12 +431,14 @@ class AbstractHowsoClient(ABC):
         *,
         library_type: t.Optional[LibraryType] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
-        runtime: t.Optional[TraineeRuntimeOptions] = None
+        runtime: t.Optional[TraineeRuntimeOptions] = None,
     ) -> Trainee:
         """Copy a trainee in the Howso service."""
 
     @abstractmethod
-    def acquire_trainee_resources(self, trainee_id: str, *, max_wait_time: t.Optional[int | float] = None):
+    def acquire_trainee_resources(
+        self, trainee_id: str, *, max_wait_time: t.Optional[int | float] = None
+    ):
         """Acquire resources for a Trainee in the Howso service."""
 
     @abstractmethod
@@ -443,7 +450,9 @@ class AbstractHowsoClient(ABC):
         """Persist a trainee in the Howso service."""
 
     @abstractmethod
-    def begin_session(self, name: str | None = 'default', metadata: t.Optional[Mapping] = None) -> Session:
+    def begin_session(
+        self, name: str | None = "default", metadata: t.Optional[Mapping] = None
+    ) -> Session:
         """Begin a new session."""
 
     @abstractmethod
@@ -452,7 +461,7 @@ class AbstractHowsoClient(ABC):
         search_terms: t.Optional[str] = None,
         *,
         trainee: t.Optional[str | Trainee] = None,
-        **kwargs
+        **kwargs,
     ) -> list[Session]:
         """Query all accessible sessions."""
 
@@ -461,7 +470,9 @@ class AbstractHowsoClient(ABC):
         """Get session details."""
 
     @abstractmethod
-    def update_session(self, session_id: str, *, metadata: t.Optional[Mapping] = None) -> Session:
+    def update_session(
+        self, session_id: str, *, metadata: t.Optional[Mapping] = None
+    ) -> Session:
         """Update a session."""
 
     def set_random_seed(self, trainee_id: str, seed: int | float | str):
@@ -478,7 +489,7 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
-            print(f'Setting random seed for Trainee with id: {trainee_id}')
+            print(f"Setting random seed for Trainee with id: {trainee_id}")
         self.execute(trainee_id, "set_random_seed", {"seed": seed})
         self._auto_persist_trainee(trainee_id)
 
@@ -585,12 +596,13 @@ class AbstractHowsoClient(ABC):
         feature_attributes = self.resolve_feature_attributes(trainee_id)
 
         if not self.active_session:
-            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+            raise HowsoError(
+                self.ERROR_MESSAGES["missing_session"], code="missing_session"
+            )
 
         # Make sure single table dicts are wrapped by SingleTableFeatureAttributes
-        if (
-            isinstance(feature_attributes, Mapping) and
-            not isinstance(feature_attributes, MultiTableFeatureAttributes)
+        if isinstance(feature_attributes, Mapping) and not isinstance(
+            feature_attributes, MultiTableFeatureAttributes
         ):
             feature_attributes = SingleTableFeatureAttributes(feature_attributes, {})
 
@@ -608,28 +620,36 @@ class AbstractHowsoClient(ABC):
         unsupported_features = []
         if isinstance(feature_attributes, MultiTableFeatureAttributes):
             for stfa in feature_attributes.values():
-                unsupported_features = [feat for feat in stfa.keys() if stfa.has_unsupported_data(feat)]
+                unsupported_features = [
+                    feat for feat in stfa.keys() if stfa.has_unsupported_data(feat)
+                ]
         elif isinstance(feature_attributes, SingleTableFeatureAttributes):
-            unsupported_features = [feat for feat in feature_attributes.keys()
-                                    if feature_attributes.has_unsupported_data(feat)]
+            unsupported_features = [
+                feat
+                for feat in feature_attributes.keys()
+                if feature_attributes.has_unsupported_data(feat)
+            ]
         if isinstance(cases, DataFrame):
             for feature in unsupported_features:
                 warnings.warn(
-                    f'Ignoring feature {feature} as it contains values that are too '
-                    'large or small for your operating system. Please evaluate the '
-                    'bounds for this feature.')
+                    f"Ignoring feature {feature} as it contains values that are too "
+                    "large or small for your operating system. Please evaluate the "
+                    "bounds for this feature."
+                )
                 cases.drop(feature, axis=1, inplace=True)
 
         util.validate_list_shape(features, 1, "features", "str")
         util.validate_list_shape(cases, 2, "cases", "list", allow_none=False)
         if features is None:
             features = internals.get_features_from_data(cases)
-        serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True) or []
+        serialized_cases = (
+            serialize_cases(cases, features, feature_attributes, warn=True) or []
+        )
 
         status = {}
 
         if self.configuration.verbose:
-            print(f'Training session(s) on Trainee with id: {trainee_id}')
+            print(f"Training session(s) on Trainee with id: {trainee_id}")
 
         with ProgressTimer(len(serialized_cases)) as progress:
             gen_batch_size = None
@@ -649,30 +669,35 @@ class AbstractHowsoClient(ABC):
                     progress_callback(progress)
                 start = progress.current_tick
                 end = progress.current_tick + batch_size
-                response, in_size, out_size = self.execute_sized(trainee_id, "train", {
-                    "cases": serialized_cases[start:end],
-                    "accumulate_weight_feature": accumulate_weight_feature,
-                    "derived_features": derived_features,
-                    "features": features,
-                    "input_is_substituted": input_is_substituted,
-                    "series": series,
-                    "session": self.active_session.id,
-                    "skip_auto_analyze": skip_auto_analyze,
-                    "skip_reduce_data": skip_reduce_data,
-                    "train_weights_only": train_weights_only,
-                })
+                response, in_size, out_size = self.execute_sized(
+                    trainee_id,
+                    "train",
+                    {
+                        "cases": serialized_cases[start:end],
+                        "accumulate_weight_feature": accumulate_weight_feature,
+                        "derived_features": derived_features,
+                        "features": features,
+                        "input_is_substituted": input_is_substituted,
+                        "series": series,
+                        "session": self.active_session.id,
+                        "skip_auto_analyze": skip_auto_analyze,
+                        "skip_reduce_data": skip_reduce_data,
+                        "train_weights_only": train_weights_only,
+                    },
+                )
 
-                if response and response.get('status') == 'analyze':
-                    status['needs_analyze'] = True
-                if response and response.get('status') == 'reduce_data':
-                    status['needs_data_reduction'] = True
+                if response and response.get("status") == "analyze":
+                    status["needs_analyze"] = True
+                if response and response.get("status") == "reduce_data":
+                    status["needs_data_reduction"] = True
 
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
                     batch_size = batch_scaler.send(
                         gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size)))
+                        batch_scaler.SendOptions(None, (in_size, out_size)),
+                    )
 
         # Final call to batch callback on completion
         if isinstance(progress_callback, Callable):
@@ -688,7 +713,7 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         features: t.Optional[Collection[str]] = None,
         features_to_impute: t.Optional[Collection[str]] = None,
-        batch_size: int = 1
+        batch_size: int = 1,
     ):
         """
         Impute, or fill in the missing values, for the specified features.
@@ -718,18 +743,24 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if not self.active_session:
-            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+            raise HowsoError(
+                self.ERROR_MESSAGES["missing_session"], code="missing_session"
+            )
         util.validate_list_shape(features, 1, "features", "str")
         util.validate_list_shape(features_to_impute, 1, "features_to_impute", "str")
 
         if self.configuration.verbose:
-            print(f'Imputing Trainee with id: {trainee_id}')
-        self.execute(trainee_id, "impute", {
-            "features": features,
-            "features_to_impute": features_to_impute,
-            "session": self.active_session.id,
-            "batch_size": batch_size,
-        })
+            print(f"Imputing Trainee with id: {trainee_id}")
+        self.execute(
+            trainee_id,
+            "impute",
+            {
+                "features": features,
+                "features_to_impute": features_to_impute,
+                "session": self.active_session.id,
+                "batch_size": batch_size,
+            },
+        )
         self._auto_persist_trainee(trainee_id)
 
     def remove_cases(
@@ -814,33 +845,38 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if num_cases < 1:
-            raise ValueError('num_cases must be a value greater than 0')
+            raise ValueError("num_cases must be a value greater than 0")
 
         if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
-            warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
+            warnings.warn(
+                self.WARNING_MESSAGES["invalid_precision"].format("precision")
+            )
 
         # Convert session instance to id
-        if (
-            isinstance(condition, MutableMapping) and
-            isinstance(condition.get('.session'), Session)
+        if isinstance(condition, MutableMapping) and isinstance(
+            condition.get(".session"), Session
         ):
-            condition['.session'] = condition['.session'].id
+            condition[".session"] = condition[".session"].id
 
         if self.configuration.verbose:
-            print(f'Removing case(s) from Trainee with id: {trainee_id}')
+            print(f"Removing case(s) from Trainee with id: {trainee_id}")
 
-        result = self.execute(trainee_id, "remove_cases", {
-            "case_indices": case_indices,
-            "condition": condition,
-            "condition_session": condition_session,
-            "precision": precision,
-            "num_cases": num_cases,
-            "distribute_weight_feature": distribute_weight_feature,
-        })
+        result = self.execute(
+            trainee_id,
+            "remove_cases",
+            {
+                "case_indices": case_indices,
+                "condition": condition,
+                "condition_session": condition_session,
+                "precision": precision,
+                "num_cases": num_cases,
+                "distribute_weight_feature": distribute_weight_feature,
+            },
+        )
         self._auto_persist_trainee(trainee_id)
         if not result:
             return 0
-        return result.get('count', 0)
+        return result.get("count", 0)
 
     def move_cases(
         self,
@@ -855,7 +891,7 @@ class AbstractHowsoClient(ABC):
         source_id: t.Optional[str] = None,
         source_path: t.Optional[Collection[str]] = None,
         target_path: t.Optional[Collection[str]] = None,
-        target_id: t.Optional[str] = None
+        target_id: t.Optional[str] = None,
     ) -> int:
         """
         Moves training cases from one Trainee to another in the hierarchy.
@@ -939,41 +975,48 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if not self.active_session:
-            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+            raise HowsoError(
+                self.ERROR_MESSAGES["missing_session"], code="missing_session"
+            )
 
         if num_cases < 1:
-            raise ValueError('num_cases must be a value greater than 0')
+            raise ValueError("num_cases must be a value greater than 0")
 
         if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
-            warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
+            warnings.warn(
+                self.WARNING_MESSAGES["invalid_precision"].format("precision")
+            )
 
         # Convert session instance to id
-        if (
-            isinstance(condition, MutableMapping) and
-            isinstance(condition.get('.session'), Session)
+        if isinstance(condition, MutableMapping) and isinstance(
+            condition.get(".session"), Session
         ):
-            condition['.session'] = condition['.session'].id
+            condition[".session"] = condition[".session"].id
 
         if self.configuration.verbose:
-            print(f'Moving case(s) from Trainee with id: {trainee_id}')
+            print(f"Moving case(s) from Trainee with id: {trainee_id}")
 
-        result = self.execute(trainee_id, "move_cases", {
-            "target_id": target_id,
-            "case_indices": case_indices,
-            "condition": condition,
-            "condition_session": condition_session,
-            "precision": precision,
-            "num_cases": num_cases,
-            "preserve_session_data": preserve_session_data,
-            "session": self.active_session.id,
-            "source_id": source_id,
-            "source_path": source_path,
-            "target_path": target_path
-        })
+        result = self.execute(
+            trainee_id,
+            "move_cases",
+            {
+                "target_id": target_id,
+                "case_indices": case_indices,
+                "condition": condition,
+                "condition_session": condition_session,
+                "precision": precision,
+                "num_cases": num_cases,
+                "preserve_session_data": preserve_session_data,
+                "session": self.active_session.id,
+                "source_id": source_id,
+                "source_path": source_path,
+                "target_path": target_path,
+            },
+        )
         self._auto_persist_trainee(trainee_id)
         if not result:
             return 0
-        return result.get('count', 0)
+        return result.get("count", 0)
 
     def edit_cases(
         self,
@@ -1042,10 +1085,14 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if not self.active_session:
-            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+            raise HowsoError(
+                self.ERROR_MESSAGES["missing_session"], code="missing_session"
+            )
 
         if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
-            warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
+            warnings.warn(
+                self.WARNING_MESSAGES["invalid_precision"].format("precision")
+            )
 
         if case_indices is not None:
             util.validate_case_indices(case_indices)
@@ -1055,36 +1102,43 @@ class AbstractHowsoClient(ABC):
         if feature_values is not None:
             feature_attributes = self.resolve_feature_attributes(trainee_id)
             if features is None:
-                features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
-            serialized_feature_values = serialize_cases(feature_values, features, feature_attributes)
+                features = internals.get_features_from_data(
+                    feature_values, data_parameter="feature_values"
+                )
+            serialized_feature_values = serialize_cases(
+                feature_values, features, feature_attributes
+            )
             if serialized_feature_values:
                 # Only a single case should be provided
                 serialized_feature_values = serialized_feature_values[0]
 
         # Convert session instance to id
-        if (
-            isinstance(condition, MutableMapping) and
-            isinstance(condition.get('.session'), Session)
+        if isinstance(condition, MutableMapping) and isinstance(
+            condition.get(".session"), Session
         ):
-            condition['.session'] = condition['.session'].id
+            condition[".session"] = condition[".session"].id
 
         if self.configuration.verbose:
-            print(f'Editing case(s) in Trainee with id: {trainee_id}')
+            print(f"Editing case(s) in Trainee with id: {trainee_id}")
 
-        result = self.execute(trainee_id, "edit_cases", {
-            "case_indices": case_indices,
-            "condition": condition,
-            "condition_session": condition_session,
-            "features": features,
-            "feature_values": serialized_feature_values,
-            "precision": precision,
-            "num_cases": num_cases,
-            "session": self.active_session.id,
-        })
+        result = self.execute(
+            trainee_id,
+            "edit_cases",
+            {
+                "case_indices": case_indices,
+                "condition": condition,
+                "condition_session": condition_session,
+                "features": features,
+                "feature_values": serialized_feature_values,
+                "precision": precision,
+                "num_cases": num_cases,
+                "session": self.active_session.id,
+            },
+        )
         self._auto_persist_trainee(trainee_id)
         if not result:
             return 0
-        return result.get('count', 0)
+        return result.get("count", 0)
 
     def remove_series_store(self, trainee_id: str, series: t.Optional[str] = None):
         """
@@ -1100,7 +1154,9 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
-            print(f'Removing stored series from Trainee with id: {trainee_id} and series: {series}')
+            print(
+                f"Removing stored series from Trainee with id: {trainee_id} and series: {series}"
+            )
         self.execute(trainee_id, "remove_series_store", {"series": series})
 
     def append_to_series_store(
@@ -1109,7 +1165,7 @@ class AbstractHowsoClient(ABC):
         series: str,
         contexts: TabularData2D,
         *,
-        context_features: t.Optional[Collection[str]] = None
+        context_features: t.Optional[Collection[str]] = None,
     ):
         """
         Append the specified contexts to a series store.
@@ -1135,28 +1191,40 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
 
-        util.validate_list_shape(contexts, 2, "contexts", "list of object", allow_none=False)
+        util.validate_list_shape(
+            contexts, 2, "contexts", "list of object", allow_none=False
+        )
 
         if context_features is None:
             context_features = internals.get_features_from_data(
                 contexts,
-                data_parameter='contexts',
-                features_parameter='context_features'
+                data_parameter="contexts",
+                features_parameter="context_features",
             )
 
         # Preprocess contexts
-        serialized_contexts = serialize_cases(contexts, context_features, feature_attributes)
+        serialized_contexts = serialize_cases(
+            contexts, context_features, feature_attributes
+        )
 
         if self.configuration.verbose:
-            print(f'Appending to series store for Trainee with id: {trainee_id}, and series: {series}')
+            print(
+                f"Appending to series store for Trainee with id: {trainee_id}, and series: {series}"
+            )
 
-        self.execute(trainee_id, "append_to_series_store", {
-            "context_features": context_features,
-            "context_values": serialized_contexts,
-            "series": series,
-        })
+        self.execute(
+            trainee_id,
+            "append_to_series_store",
+            {
+                "context_features": context_features,
+                "context_values": serialized_contexts,
+                "series": series,
+            },
+        )
 
-    def set_substitute_feature_values(self, trainee_id: str, substitution_value_map: Mapping):
+    def set_substitute_feature_values(
+        self, trainee_id: str, substitution_value_map: Mapping
+    ):
         """
         Set a Trainee's substitution map for use in extended nominal generation.
 
@@ -1170,13 +1238,19 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
-            print(f'Setting substitute feature values for Trainee with id: {trainee_id}')
-        self.execute(trainee_id, "set_substitute_feature_values", {
-            "substitution_value_map": substitution_value_map
-        })
+            print(
+                f"Setting substitute feature values for Trainee with id: {trainee_id}"
+            )
+        self.execute(
+            trainee_id,
+            "set_substitute_feature_values",
+            {"substitution_value_map": substitution_value_map},
+        )
         self._auto_persist_trainee(trainee_id)
 
-    def get_substitute_feature_values(self, trainee_id: str, clear_on_get: bool = True) -> dict:
+    def get_substitute_feature_values(
+        self, trainee_id: str, clear_on_get: bool = True
+    ) -> dict:
         """
         Gets a substitution map for use in extended nominal generation.
 
@@ -1200,21 +1274,23 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
-            print(f'Getting substitute feature values from Trainee with id: {trainee_id}')
+            print(
+                f"Getting substitute feature values from Trainee with id: {trainee_id}"
+            )
         result = self.execute(trainee_id, "get_substitute_feature_values", {})
         if clear_on_get:
-            self.execute(trainee_id, "set_substitute_feature_values", {
-                "substitution_value_map": {}
-            })
+            self.execute(
+                trainee_id,
+                "set_substitute_feature_values",
+                {"substitution_value_map": {}},
+            )
             self._auto_persist_trainee(trainee_id)
         if result is None:
             return dict()
         return result
 
     def set_feature_attributes(
-        self,
-        trainee_id: str,
-        feature_attributes: Mapping[str, Mapping]
+        self, trainee_id: str, feature_attributes: Mapping[str, Mapping]
     ) -> dict[str, dict]:
         """
         Sets feature attributes for a Trainee.
@@ -1246,12 +1322,20 @@ class AbstractHowsoClient(ABC):
         if not isinstance(feature_attributes, Mapping):
             raise ValueError("`feature_attributes` must be a dict")
         if self.configuration.verbose:
-            print(f'Setting feature attributes for Trainee with id: {trainee_id}')
+            print(f"Setting feature attributes for Trainee with id: {trainee_id}")
 
-        updated_feature_attributes = self.execute(trainee_id, "set_feature_attributes", {
-            "feature_attributes": internals.preprocess_feature_attributes(feature_attributes),
-        })
-        updated_feature_attributes = internals.postprocess_feature_attributes(updated_feature_attributes)
+        updated_feature_attributes = self.execute(
+            trainee_id,
+            "set_feature_attributes",
+            {
+                "feature_attributes": internals.preprocess_feature_attributes(
+                    feature_attributes
+                ),
+            },
+        )
+        updated_feature_attributes = internals.postprocess_feature_attributes(
+            updated_feature_attributes
+        )
         self._auto_persist_trainee(trainee_id)
 
         # Update trainee in cache
@@ -1275,7 +1359,7 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
-            print(f'Getting feature attributes from Trainee with id: {trainee_id}')
+            print(f"Getting feature attributes from Trainee with id: {trainee_id}")
         feature_attributes = self.execute(trainee_id, "get_feature_attributes", {})
         return internals.postprocess_feature_attributes(feature_attributes)
 
@@ -1301,8 +1385,16 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
-            print(f'Getting sessions from Trainee with id: {trainee_id}')
-        result = self.execute(trainee_id, "get_sessions", {"attributes": ['name', ]})
+            print(f"Getting sessions from Trainee with id: {trainee_id}")
+        result = self.execute(
+            trainee_id,
+            "get_sessions",
+            {
+                "attributes": [
+                    "name",
+                ]
+            },
+        )
         if not result:
             return []
         return result
@@ -1322,7 +1414,9 @@ class AbstractHowsoClient(ABC):
         if isinstance(target_session, Session):
             target_session = target_session.id
         if self.configuration.verbose:
-            print(f'Deleting session {target_session} from Trainee with id: {trainee_id}')
+            print(
+                f"Deleting session {target_session} from Trainee with id: {trainee_id}"
+            )
         self.execute(trainee_id, "delete_session", {"target_session": target_session})
         self._auto_persist_trainee(trainee_id)
 
@@ -1346,13 +1440,17 @@ class AbstractHowsoClient(ABC):
         if isinstance(session, Session):
             session = session.id
         if self.configuration.verbose:
-            print(f'Getting session {session} indices from Trainee with id: {trainee_id}')
+            print(
+                f"Getting session {session} indices from Trainee with id: {trainee_id}"
+            )
         result = self.execute(trainee_id, "get_session_indices", {"session": session})
         if result is None:
             return []
         return result
 
-    def get_session_training_indices(self, trainee_id: str, session: str | Session) -> list[int]:
+    def get_session_training_indices(
+        self, trainee_id: str, session: str | Session
+    ) -> list[int]:
         """
         Get list of all session training indices for a specified session.
 
@@ -1372,8 +1470,12 @@ class AbstractHowsoClient(ABC):
         if isinstance(session, Session):
             session = session.id
         if self.configuration.verbose:
-            print(f'Getting session {session} training indices from Trainee with id: {trainee_id}')
-        result = self.execute(trainee_id, "get_session_training_indices", {"session": session})
+            print(
+                f"Getting session {session} training indices from Trainee with id: {trainee_id}"
+            )
+        result = self.execute(
+            trainee_id, "get_session_training_indices", {"session": session}
+        )
         if result is None:
             return []
         return result
@@ -1385,7 +1487,7 @@ class AbstractHowsoClient(ABC):
         condition: t.Optional[Mapping] = None,
         num_cases: t.Optional[int] = None,
         precision: t.Optional[Precision] = None,
-        weight_feature: t.Optional[str] = None
+        weight_feature: t.Optional[str] = None,
     ) -> dict[str, dict[str, float]]:
         """
         Get marginal stats for all features.
@@ -1429,24 +1531,29 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
 
         if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
-            warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
+            warnings.warn(
+                self.WARNING_MESSAGES["invalid_precision"].format("precision")
+            )
 
         # Convert session instance to id
-        if (
-            isinstance(condition, MutableMapping) and
-            isinstance(condition.get('.session'), Session)
+        if isinstance(condition, MutableMapping) and isinstance(
+            condition.get(".session"), Session
         ):
-            condition['.session'] = condition['.session'].id
+            condition[".session"] = condition[".session"].id
 
         if self.configuration.verbose:
-            print(f'Getting feature marginal stats for trainee with id: {trainee_id}')
+            print(f"Getting feature marginal stats for trainee with id: {trainee_id}")
 
-        stats = self.execute(trainee_id, "get_marginal_stats", {
-            "condition": condition,
-            "num_cases": num_cases,
-            "precision": precision,
-            "weight_feature": weight_feature,
-        })
+        stats = self.execute(
+            trainee_id,
+            "get_marginal_stats",
+            {
+                "condition": condition,
+                "num_cases": num_cases,
+                "precision": precision,
+                "weight_feature": weight_feature,
+            },
+        )
         if stats is None:
             return dict()
         return stats
@@ -2059,7 +2166,7 @@ class AbstractHowsoClient(ABC):
                 context_values=contexts,
                 desired_conviction=desired_conviction,
                 preserve_feature_values=preserve_feature_values,
-                trainee_id=trainee_id
+                trainee_id=trainee_id,
             )
         )
 
@@ -2067,7 +2174,9 @@ class AbstractHowsoClient(ABC):
         deprecated_keys_used = []
         if details is not None:
             details = dict(details)  # Makes it mutable.
-            deprecated_keys_used = list(set(details.keys()) & set(_RENAMED_DETAIL_KEYS.keys()))
+            deprecated_keys_used = list(
+                set(details.keys()) & set(_RENAMED_DETAIL_KEYS.keys())
+            )
             replacements = [_RENAMED_DETAIL_KEYS[key] for key in deprecated_keys_used]
             if deprecated_keys_used:
                 used_str = ", ".join(deprecated_keys_used)
@@ -2076,14 +2185,15 @@ class AbstractHowsoClient(ABC):
                     warnings.warn(
                         f"The detail key '{used_str}' is deprecated and will "
                         f"be removed in a future release. Use '{replace_str}' "
-                        f"instead.", DeprecationWarning
+                        f"instead.",
+                        DeprecationWarning,
                     )
                 else:
                     warnings.warn(
                         f"These detail keys are deprecated: [{used_str}] "
                         f"and will be removed in a future release. Use these "
                         f"respective replacements instead: [{replace_str}].",
-                        DeprecationWarning
+                        DeprecationWarning,
                     )
             # Convert the keys in the details payload.
             for old_key, new_key in zip(deprecated_keys_used, replacements):
@@ -2093,13 +2203,19 @@ class AbstractHowsoClient(ABC):
         if post_process_values is not None and post_process_features is None:
             post_process_features = internals.get_features_from_data(
                 post_process_values,
-                data_parameter='post_process_values',
-                features_parameter='post_process_features')
-        post_process_values = serialize_cases(post_process_values, post_process_features, feature_attributes)
+                data_parameter="post_process_values",
+                features_parameter="post_process_features",
+            )
+        post_process_values = serialize_cases(
+            post_process_values, post_process_features, feature_attributes
+        )
 
         if post_process_values is not None and contexts is not None:
-            if (len(contexts) > 1 and len(post_process_values) > 1 and
-                    len(contexts) != len(post_process_values)):
+            if (
+                len(contexts) > 1
+                and len(post_process_values) > 1
+                and len(contexts) != len(post_process_values)
+            ):
                 raise ValueError(
                     "If more than one value is provided for 'contexts' "
                     "and 'post_process_values', then they must be of the same "
@@ -2109,8 +2225,9 @@ class AbstractHowsoClient(ABC):
         if action_features is not None and derived_action_features is not None:
             if not set(derived_action_features).issubset(set(action_features)):
                 raise ValueError(
-                    'Specified `derived_action_features` must be a subset of '
-                    '`action_features`.')
+                    "Specified `derived_action_features` must be a subset of "
+                    "`action_features`."
+                )
 
         if new_case_threshold not in [None, "min", "max", "most_similar"]:
             raise ValueError(
@@ -2119,38 +2236,52 @@ class AbstractHowsoClient(ABC):
                 " following values - ['min', 'max', 'most_similar',]"
             )
 
-        if details is not None and 'robust_computation' in details:
+        if details is not None and "robust_computation" in details:
             details = dict(details)
-            details['robust_influences'] = details['robust_computation']
-            details['robust_residuals'] = details['robust_computation']
-            del details['robust_computation']
+            details["robust_influences"] = details["robust_computation"]
+            details["robust_residuals"] = details["robust_computation"]
+            del details["robust_computation"]
             warnings.warn(
                 'The detail "robust_computation" is deprecated and will be '
                 'removed in a future release. Please use "robust_residuals" '
-                'and/or "robust_influences" instead.', DeprecationWarning)
+                'and/or "robust_influences" instead.',
+                DeprecationWarning,
+            )
 
-        if details is not None and 'local_case_feature_residual_conviction_robust' in details:
+        if (
+            details is not None
+            and "local_case_feature_residual_conviction_robust" in details
+        ):
             details = dict(details)
-            details['case_feature_residual_conviction_robust'] = details.pop(
-                'local_case_feature_residual_conviction_robust')
+            details["case_feature_residual_conviction_robust"] = details.pop(
+                "local_case_feature_residual_conviction_robust"
+            )
             warnings.warn(
                 'The detail "local_case_feature_residual_conviction_robust" is deprecated and will be '
                 'removed in a future release. Please use "case_feature_residual_conviction_robust" instead',
-                DeprecationWarning)
+                DeprecationWarning,
+            )
 
-        if details is not None and 'local_case_feature_residual_conviction_full' in details:
+        if (
+            details is not None
+            and "local_case_feature_residual_conviction_full" in details
+        ):
             details = dict(details)
-            details['case_feature_residual_conviction_full'] = details.pop(
-                'local_case_feature_residual_conviction_full')
+            details["case_feature_residual_conviction_full"] = details.pop(
+                "local_case_feature_residual_conviction_full"
+            )
             warnings.warn(
                 'The detail "local_case_feature_residual_conviction_full" is deprecated and will be '
                 'removed in a future release. Please use "case_feature_residual_conviction_full" instead',
-                DeprecationWarning)
+                DeprecationWarning,
+            )
 
         if desired_conviction is None:
             if contexts is not None:
                 for context in contexts:
-                    if context is not None and len(context) != len(context_features or []):
+                    if context is not None and len(context) != len(
+                        context_features or []
+                    ):
                         raise ValueError(
                             "The number of provided context values in "
                             "`contexts` does not match the number of features "
@@ -2186,23 +2317,21 @@ class AbstractHowsoClient(ABC):
                 "details": details,
             }
         else:
-            if (
-                not isinstance(num_cases_to_generate, int) or
-                num_cases_to_generate <= 0
-            ):
-                raise HowsoError("`num_cases_to_generate` must be an integer greater than 0.")
+            if not isinstance(num_cases_to_generate, int) or num_cases_to_generate <= 0:
+                raise HowsoError(
+                    "`num_cases_to_generate` must be an integer greater than 0."
+                )
             total_size = num_cases_to_generate
 
-            context_features, contexts = \
-                self._preprocess_generate_parameters(
-                    trainee_id,
-                    desired_conviction=desired_conviction,
-                    num_cases_to_generate=num_cases_to_generate,
-                    action_features=action_features,
-                    context_features=context_features,
-                    context_values=contexts,
-                    case_indices=case_indices
-                )
+            context_features, contexts = self._preprocess_generate_parameters(
+                trainee_id,
+                desired_conviction=desired_conviction,
+                num_cases_to_generate=num_cases_to_generate,
+                action_features=action_features,
+                context_features=context_features,
+                context_values=contexts,
+                case_indices=case_indices,
+            )
 
             # generative react parameters
             react_params = {
@@ -2238,19 +2367,19 @@ class AbstractHowsoClient(ABC):
         if batch_size or self._should_react_batch(react_params, total_size):
             # Run in batch
             if self.configuration.verbose:
-                print(f'Batch reacting to context on Trainee with id: {trainee_id}')
+                print(f"Batch reacting to context on Trainee with id: {trainee_id}")
             response = self._batch_react(
                 trainee_id,
                 react_params,
                 batch_size=batch_size,
                 initial_batch_size=initial_batch_size,
                 total_size=total_size,
-                progress_callback=progress_callback
+                progress_callback=progress_callback,
             )
         else:
             # Run as a single react request
             if self.configuration.verbose:
-                print(f'Reacting to context on Trainee with id: {trainee_id}')
+                print(f"Reacting to context on Trainee with id: {trainee_id}")
             with ProgressTimer(total_size) as progress:
                 if isinstance(progress_callback, Callable):
                     progress_callback(progress, None)
@@ -2266,12 +2395,13 @@ class AbstractHowsoClient(ABC):
             # If the number of cases generated is less then requested, raise
             # warning (only for generative reacts)
             internals.insufficient_generation_check(
-                num_cases_to_generate, len(response['action']),
-                suppress_warning=suppress_warning
+                num_cases_to_generate,
+                len(response["action"]),
+                suppress_warning=suppress_warning,
             )
 
         # Convert new detail keys that were returned back to the requested ones
-        if detail_response := response.get('details'):
+        if detail_response := response.get("details"):
             for key in deprecated_keys_used:
                 new_key = _RENAMED_DETAIL_KEYS[key]
                 if new_key in detail_response:
@@ -2279,12 +2409,16 @@ class AbstractHowsoClient(ABC):
                     del detail_response[new_key]
                 if key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
                     # This key has multiple return keys that should be renamed to the old:
-                    for extra_old_key, extra_new_key in _RENAMED_DETAIL_KEYS_EXTRA[key]['additional_keys'].items():
+                    for extra_old_key, extra_new_key in _RENAMED_DETAIL_KEYS_EXTRA[key][
+                        "additional_keys"
+                    ].items():
                         if extra_new_key in detail_response:
-                            detail_response[extra_old_key] = detail_response[extra_new_key]
+                            detail_response[extra_old_key] = detail_response[
+                                extra_new_key
+                            ]
                             del detail_response[extra_new_key]
 
-        return Reaction(response.get('action'), detail_response)
+        return Reaction(response.get("action"), detail_response)
 
     def _batch_react(
         self,
@@ -2294,7 +2428,7 @@ class AbstractHowsoClient(ABC):
         batch_size: t.Optional[int] = None,
         initial_batch_size: t.Optional[int] = None,
         total_size: int,
-        progress_callback: t.Optional[Callable] = None
+        progress_callback: t.Optional[Callable] = None,
     ):
         """
         Make react requests in batch.
@@ -2326,19 +2460,21 @@ class AbstractHowsoClient(ABC):
             The react response.
         """
         temp_result = None
-        accumulated_result = {'action_values': []}
+        accumulated_result = {"action_values": []}
 
-        actions = params.get('action_values')
-        contexts = params.get('context_values')
-        case_indices = params.get('case_indices')
-        post_process_values = params.get('post_process_values')
+        actions = params.get("action_values")
+        contexts = params.get("context_values")
+        case_indices = params.get("case_indices")
+        post_process_values = params.get("post_process_values")
 
         with ProgressTimer(total_size) as progress:
             gen_batch_size = None
             batch_scaler = None
             if not batch_size:
                 if not initial_batch_size:
-                    start_batch_size = max(self._get_trainee_thread_count(trainee_id), 1)
+                    start_batch_size = max(
+                        self._get_trainee_thread_count(trainee_id), 1
+                    )
                 else:
                     start_batch_size = initial_batch_size
                 # Scale the batch size automatically
@@ -2353,16 +2489,18 @@ class AbstractHowsoClient(ABC):
                 batch_end = progress.current_tick + batch_size
 
                 if actions is not None and len(actions) > 1:
-                    params['action_values'] = actions[batch_start:batch_end]
+                    params["action_values"] = actions[batch_start:batch_end]
                 if contexts is not None and len(contexts) > 1:
-                    params['context_values'] = contexts[batch_start:batch_end]
+                    params["context_values"] = contexts[batch_start:batch_end]
                 if case_indices is not None and len(case_indices) > 1:
-                    params['case_indices'] = case_indices[batch_start:batch_end]
+                    params["case_indices"] = case_indices[batch_start:batch_end]
                 if post_process_values is not None and len(post_process_values) > 1:
-                    params['post_process_values'] = post_process_values[batch_start:batch_end]
+                    params["post_process_values"] = post_process_values[
+                        batch_start:batch_end
+                    ]
 
-                if params.get('desired_conviction') is not None:
-                    params['num_cases_to_generate'] = batch_size
+                if params.get("desired_conviction") is not None:
+                    params["num_cases_to_generate"] = batch_size
                 temp_result, in_size, out_size = self._react(trainee_id, params)
 
                 internals.accumulate_react_result(accumulated_result, temp_result)
@@ -2373,11 +2511,11 @@ class AbstractHowsoClient(ABC):
                     # number of threads,even over scaling events.
                     batch_scaler.size_limits = (
                         max(self._get_trainee_thread_count(trainee_id), 1),
-                        batch_scaler.size_limits[1]
+                        batch_scaler.size_limits[1],
                     )
                     batch_size = batch_scaler.send(
                         gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size))
+                        batch_scaler.SendOptions(None, (in_size, out_size)),
                     )
 
         # Final call to callback on completion
@@ -2406,13 +2544,13 @@ class AbstractHowsoClient(ABC):
         int
             The response payload size.
         """
-        ret, in_size, out_size = self.execute_sized(trainee_id, 'react', params)
+        ret, in_size, out_size = self.execute_sized(trainee_id, "react", params)
 
         # Action values and features should always be defined
-        if not ret.get('action_values'):
-            ret['action_values'] = []
-        if not ret.get('action_features'):
-            ret['action_features'] = []
+        if not ret.get("action_values"):
+            ret["action_values"] = []
+        if not ret.get("action_features"):
+            ret["action_features"] = []
 
         return ret, in_size, out_size
 
@@ -2428,7 +2566,12 @@ class AbstractHowsoClient(ABC):
         desired_conviction: t.Optional[float],
         preserve_feature_values: t.Optional[Collection[str]],
         continue_series: bool = False,
-    ) -> tuple[Collection[str] | None, list[t.Any] | None, Collection[str] | None, list[t.Any] | None]:
+    ) -> tuple[
+        Collection[str] | None,
+        list[t.Any] | None,
+        Collection[str] | None,
+        list[t.Any] | None,
+    ]:
         """
         Preprocess parameters for `react_` methods.
 
@@ -2476,8 +2619,10 @@ class AbstractHowsoClient(ABC):
             if context_values is None:
                 # case_indices/preserve_feature_values are not necessary
                 # when using continue_series, as initial_feature/values may be used
-                if not continue_series and action_values is None and (
-                    case_indices is None or preserve_feature_values is None
+                if (
+                    not continue_series
+                    and action_values is None
+                    and (case_indices is None or preserve_feature_values is None)
                 ):
                     raise ValueError(
                         "If `contexts` are not specified, both `case_indices` "
@@ -2488,20 +2633,31 @@ class AbstractHowsoClient(ABC):
         if context_values is not None and context_features is None:
             context_features = internals.get_features_from_data(
                 context_values,
-                data_parameter='contexts',
-                features_parameter='context_features')
-        serialized_contexts = serialize_cases(context_values, context_features, feature_attributes)
+                data_parameter="contexts",
+                features_parameter="context_features",
+            )
+        serialized_contexts = serialize_cases(
+            context_values, context_features, feature_attributes
+        )
 
         # Preprocess action values
         if action_values is not None and action_features is None:
             util.validate_list_shape(action_values, 2, "actions", "object")
             action_features = internals.get_features_from_data(
                 action_values,
-                data_parameter='actions',
-                features_parameter='action_features')
-        serialized_actions = serialize_cases(action_values, action_features, feature_attributes)
+                data_parameter="actions",
+                features_parameter="action_features",
+            )
+        serialized_actions = serialize_cases(
+            action_values, action_features, feature_attributes
+        )
 
-        return action_features, serialized_actions, context_features, serialized_contexts
+        return (
+            action_features,
+            serialized_actions,
+            context_features,
+            serialized_contexts,
+        )
 
     def _preprocess_generate_parameters(  # noqa: C901
         self,
@@ -2542,8 +2698,7 @@ class AbstractHowsoClient(ABC):
             The prepared context_features and context_values.
         """
         if case_indices is not None:
-            if len(case_indices) != 1 and \
-                    len(case_indices) != num_cases_to_generate:
+            if len(case_indices) != 1 and len(case_indices) != num_cases_to_generate:
                 raise HowsoError(
                     "The number of `case_indices` provided does not match "
                     "the number of cases to generate."
@@ -2556,7 +2711,10 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(action_features, 1, "action_features", "str")
 
         if context_values is not None:
-            if len(context_values) != 1 and len(context_values) != num_cases_to_generate:
+            if (
+                len(context_values) != 1
+                and len(context_values) != num_cases_to_generate
+            ):
                 raise HowsoError(
                     "The number of case `contexts` provided does not match the "
                     "number of cases to generate."
@@ -2585,7 +2743,7 @@ class AbstractHowsoClient(ABC):
             raise HowsoError("Desired conviction must be greater than 0.")
 
         if self.configuration.verbose:
-            print(f'Generating case from trainee with id: {trainee_id}')
+            print(f"Generating case from trainee with id: {trainee_id}")
 
         for i in range(num_cases_to_generate):
             target_context_values = None
@@ -2596,9 +2754,9 @@ class AbstractHowsoClient(ABC):
                     target_context_values = context_values[i]
 
             if context_features and (
-                not target_context_values or
-                not isinstance(target_context_values, Sized) or
-                len(target_context_values) != len(context_features)
+                not target_context_values
+                or not isinstance(target_context_values, Sized)
+                or len(target_context_values) != len(context_features)
             ):
                 raise HowsoError(
                     f"The number of provided context values in `contexts[{i}]` "
@@ -2648,7 +2806,7 @@ class AbstractHowsoClient(ABC):
         use_all_features: bool = True,
         use_case_weights: t.Optional[bool] = None,
         use_regional_residuals: bool = True,
-        weight_feature: t.Optional[str] = None
+        weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         """
         React in a series until a series_stop_map condition is met.
@@ -2862,17 +3020,24 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
         util.validate_list_shape(series_stop_maps, 1, "series_stop_maps", "dict")
         util.validate_list_shape(max_series_lengths, 1, "max_series_lengths", "num")
-        util.validate_list_shape(series_context_features, 1, "series_context_features", "str")
+        util.validate_list_shape(
+            series_context_features, 1, "series_context_features", "str"
+        )
 
-        if series_context_values and util.num_list_dimensions(series_context_values) != 3:
+        if (
+            series_context_values
+            and util.num_list_dimensions(series_context_values) != 3
+        ):
             raise ValueError(
                 "Improper shape of `series_context_values` values passed. "
-                "`series_context_values` must be a 3d list of object.")
+                "`series_context_values` must be a 3d list of object."
+            )
 
         if action_features is not None and derived_action_features is not None:
             if not set(derived_action_features).issubset(set(action_features)):
                 raise ValueError(
-                    'Specified `derived_action_features` must be a subset of `action_features`.')
+                    "Specified `derived_action_features` must be a subset of `action_features`."
+                )
 
         serialized_series_context_values = None
         if series_context_values:
@@ -2882,9 +3047,11 @@ class AbstractHowsoClient(ABC):
                     series_context_features = internals.get_features_from_data(
                         data=series,
                         data_parameter="series_context_values",
-                        features_parameter="series_context_features")
+                        features_parameter="series_context_features",
+                    )
                 serialized_series_context_values.append(
-                    serialize_cases(series, series_context_features, feature_attributes))
+                    serialize_cases(series, series_context_features, feature_attributes)
+                )
 
         if new_case_threshold not in [None, "min", "max", "most_similar"]:
             raise ValueError(
@@ -2907,11 +3074,12 @@ class AbstractHowsoClient(ABC):
                 # Raise error if any of the params have different lengths
                 # greater than 1
                 raise ValueError(
-                    'When providing any of '
-                    '`series_context_values`, `series_id_values`, '
-                    '`max_series_lengths`, '
-                    'or `series_stop_maps`, each must be of length 1 or the same '
-                    'length as each other.')
+                    "When providing any of "
+                    "`series_context_values`, `series_id_values`, "
+                    "`max_series_lengths`, "
+                    "or `series_stop_maps`, each must be of length 1 or the same "
+                    "length as each other."
+                )
         else:
             param_lengths = {1}
 
@@ -2949,16 +3117,18 @@ class AbstractHowsoClient(ABC):
 
         else:
             if (
-                not isinstance(num_series_to_generate, int) or
-                num_series_to_generate <= 0
+                not isinstance(num_series_to_generate, int)
+                or num_series_to_generate <= 0
             ):
-                raise HowsoError("`num_series_to_generate` must be an integer "
-                                 "greater than 0.")
+                raise HowsoError(
+                    "`num_series_to_generate` must be an integer greater than 0."
+                )
             if max(param_lengths) not in [1, num_series_to_generate]:
                 raise ValueError(
-                    'For generative reacts, when specifying parameters with '
-                    'values for each series they must be of length 1 or the '
-                    'value specified by `num_series_to_generate`.')
+                    "For generative reacts, when specifying parameters with "
+                    "values for each series they must be of length 1 or the "
+                    "value specified by `num_series_to_generate`."
+                )
             total_size = num_series_to_generate
 
             _ = self._preprocess_generate_parameters(
@@ -3001,22 +3171,23 @@ class AbstractHowsoClient(ABC):
                 "details": details,
                 "series_id_tracking": series_id_tracking,
                 "output_new_series_ids": output_new_series_ids,
-                "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy
+                "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy,
             }
 
         if batch_size or self._should_react_batch(react_params, total_size):
             if self.configuration.verbose:
-                print(f'Batch series reacting on trainee with id: {trainee_id}')
+                print(f"Batch series reacting on trainee with id: {trainee_id}")
             response = self._batch_react_series(
                 trainee_id,
                 react_params,
                 total_size=total_size,
                 batch_size=batch_size,
                 initial_batch_size=initial_batch_size,
-                progress_callback=progress_callback)
+                progress_callback=progress_callback,
+            )
         else:
             if self.configuration.verbose:
-                print(f'Series reacting on trainee with id: {trainee_id}')
+                print(f"Series reacting on trainee with id: {trainee_id}")
             with ProgressTimer(total_size) as progress:
                 if isinstance(progress_callback, Callable):
                     progress_callback(progress, None)
@@ -3027,20 +3198,19 @@ class AbstractHowsoClient(ABC):
                 progress_callback(progress, response)
 
         # put all details under the 'details' key
-        action = response.pop('action')
-        response = {'action': action, 'details': response}
+        action = response.pop("action")
+        response = {"action": action, "details": response}
 
         # If the number of series generated is less then requested, raise
         # warning, for generative reacts
         if desired_conviction is not None:
-            len_action = len(response['action'])
+            len_action = len(response["action"])
             internals.insufficient_generation_check(
-                num_series_to_generate, len_action,
-                suppress_warning=suppress_warning
+                num_series_to_generate, len_action, suppress_warning=suppress_warning
             )
 
         series_df = util.build_react_series_df(response, series_index=series_index)
-        return Reaction(series_df, response.get('details'))
+        return Reaction(series_df, response.get("details"))
 
     def _batch_react_series(  # noqa: C901
         self,
@@ -3050,7 +3220,7 @@ class AbstractHowsoClient(ABC):
         batch_size: t.Optional[int] = None,
         initial_batch_size: t.Optional[int] = None,
         total_size: int,
-        progress_callback: t.Optional[Callable] = None
+        progress_callback: t.Optional[Callable] = None,
     ):
         """
         Make react series requests in batch.
@@ -3081,19 +3251,21 @@ class AbstractHowsoClient(ABC):
             The `react_series` response.
         """
         temp_result = None
-        accumulated_result = {'action_values': []}
+        accumulated_result = {"action_values": []}
 
-        series_id_values = params.get('series_id_values')
-        max_series_lengths = params.get('max_series_lengths')
-        series_context_values = params.get('series_context_values')
-        series_stop_maps = params.get('series_stop_maps')
+        series_id_values = params.get("series_id_values")
+        max_series_lengths = params.get("max_series_lengths")
+        series_context_values = params.get("series_context_values")
+        series_stop_maps = params.get("series_stop_maps")
 
         with ProgressTimer(total_size) as progress:
             batch_scaler = None
             gen_batch_size = None
             if not batch_size:
                 if not initial_batch_size:
-                    start_batch_size = max(self._get_trainee_thread_count(trainee_id), 1)
+                    start_batch_size = max(
+                        self._get_trainee_thread_count(trainee_id), 1
+                    )
                 else:
                     start_batch_size = initial_batch_size
                 batch_scaler = self.batch_scaler_class(start_batch_size, progress)
@@ -3107,16 +3279,20 @@ class AbstractHowsoClient(ABC):
                 batch_end = progress.current_tick + batch_size
 
                 if max_series_lengths is not None and len(max_series_lengths) > 1:
-                    params['max_series_lengths'] = max_series_lengths[batch_start:batch_end]
+                    params["max_series_lengths"] = max_series_lengths[
+                        batch_start:batch_end
+                    ]
                 if series_context_values is not None and len(series_context_values) > 1:
-                    params['series_context_values'] = series_context_values[batch_start:batch_end]
+                    params["series_context_values"] = series_context_values[
+                        batch_start:batch_end
+                    ]
                 if series_stop_maps is not None and len(series_stop_maps) > 1:
-                    params['series_stop_maps'] = series_stop_maps[batch_start:batch_end]
+                    params["series_stop_maps"] = series_stop_maps[batch_start:batch_end]
                 if series_id_values is not None and len(series_id_values) > 1:
-                    params['series_id_values'] = series_id_values[batch_start:batch_end]
+                    params["series_id_values"] = series_id_values[batch_start:batch_end]
 
-                if params.get('desired_conviction') is not None:
-                    params['num_series_to_generate'] = batch_size
+                if params.get("desired_conviction") is not None:
+                    params["num_series_to_generate"] = batch_size
                 temp_result, in_size, out_size = self._react_series(trainee_id, params)
 
                 internals.accumulate_react_result(accumulated_result, temp_result)
@@ -3127,11 +3303,12 @@ class AbstractHowsoClient(ABC):
                     # number of threads,even over scaling events.
                     batch_scaler.size_limits = (
                         max(self._get_trainee_thread_count(trainee_id), 1),
-                        batch_scaler.size_limits[1]
+                        batch_scaler.size_limits[1],
                     )
                     batch_size = batch_scaler.send(
                         gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size)))
+                        batch_scaler.SendOptions(None, (in_size, out_size)),
+                    )
 
         # Final call to callback on completion
         if isinstance(progress_callback, Callable):
@@ -3159,17 +3336,19 @@ class AbstractHowsoClient(ABC):
         int
             The response payload size.
         """
-        batch_result, in_size, out_size = self.execute_sized(trainee_id, "react_series", params)
+        batch_result, in_size, out_size = self.execute_sized(
+            trainee_id, "react_series", params
+        )
 
-        if batch_result is None or batch_result.get('action_values') is None:
-            raise ValueError('Invalid parameters passed to react_series.')
+        if batch_result is None or batch_result.get("action_values") is None:
+            raise ValueError("Invalid parameters passed to react_series.")
 
         ret = dict()
         batch_result = util.replace_doublemax_with_infinity(batch_result)
 
         # batch_result always has action_features and action_values
-        ret['action_features'] = batch_result.pop('action_features') or []
-        ret['action'] = batch_result.pop('action_values')
+        ret["action_features"] = batch_result.pop("action_features") or []
+        ret["action"] = batch_result.pop("action_values")
 
         # ensure all the details items are output as well
         for k, v in batch_result.items():
@@ -3296,23 +3475,29 @@ class AbstractHowsoClient(ABC):
         feature_attributes = self.resolve_feature_attributes(trainee_id)
         util.validate_list_shape(action_features, 1, "action_features", "str")
         util.validate_list_shape(context_features, 1, "context_features", "str")
-        util.validate_list_shape(series_context_features, 1, "series_context_features", "str")
+        util.validate_list_shape(
+            series_context_features, 1, "series_context_features", "str"
+        )
         util.validate_list_shape(series_id_features, 1, "series_id_features", "str")
 
-        if (series_id_values is not None and series_context_values is not None):
-            raise ValueError((
-                "`series_id_values` and `series_context_values` cannot both be "
-                "specified."
-            ))
+        if series_id_values is not None and series_context_values is not None:
+            raise ValueError(
+                (
+                    "`series_id_values` and `series_context_values` cannot both be "
+                    "specified."
+                )
+            )
 
         if series_id_values is not None:
             total_size = len(series_id_values)
         elif series_context_values is not None:
             total_size = len(series_context_values)
         else:
-            raise ValueError((
-                "Either `series_id_values` or `series_context_values` must be specified."
-            ))
+            raise ValueError(
+                (
+                    "Either `series_id_values` or `series_context_values` must be specified."
+                )
+            )
 
         serialized_series_context_values = None
         if series_context_values is not None:
@@ -3322,16 +3507,21 @@ class AbstractHowsoClient(ABC):
                     series_context_features = internals.get_features_from_data(
                         data=series,
                         data_parameter="series_context_values",
-                        features_parameter="series_context_features")
+                        features_parameter="series_context_features",
+                    )
                 serialized_series_context_values.append(
-                    serialize_cases(series, series_context_features, feature_attributes))
+                    serialize_cases(series, series_context_features, feature_attributes)
+                )
 
         if series_id_values is not None and series_id_features is None:
             series_id_features = internals.get_features_from_data(
                 series_id_values,
-                data_parameter='series_id_values',
-                features_parameter='series_id_features')
-        serialized_series_id_values = serialize_cases(series_id_values, series_id_features, feature_attributes)
+                data_parameter="series_id_values",
+                features_parameter="series_id_features",
+            )
+        serialized_series_id_values = serialize_cases(
+            series_id_values, series_id_features, feature_attributes
+        )
 
         react_stationary_params = {
             "action_features": action_features,
@@ -3352,21 +3542,26 @@ class AbstractHowsoClient(ABC):
 
         if self._should_react_batch(react_stationary_params, total_size):
             if self.configuration.verbose:
-                print(f'Batch stationary series reacting on trainee with id: {trainee_id}')
+                print(
+                    f"Batch stationary series reacting on trainee with id: {trainee_id}"
+                )
             response = self._batch_react_series_stationary(
                 trainee_id,
                 react_stationary_params,
                 total_size=total_size,
                 batch_size=batch_size,
                 initial_batch_size=initial_batch_size,
-                progress_callback=progress_callback)
+                progress_callback=progress_callback,
+            )
         else:
             if self.configuration.verbose:
-                print(f'Stationary series reacting on trainee with id: {trainee_id}')
+                print(f"Stationary series reacting on trainee with id: {trainee_id}")
             with ProgressTimer(total_size) as progress:
                 if isinstance(progress_callback, Callable):
                     progress_callback(progress, None)
-                response, _, _ = self._react_series_stationary(trainee_id, react_stationary_params)
+                response, _, _ = self._react_series_stationary(
+                    trainee_id, react_stationary_params
+                )
                 progress.update(total_size)
 
             if isinstance(progress_callback, Callable):
@@ -3376,7 +3571,7 @@ class AbstractHowsoClient(ABC):
             response = dict()
         self._auto_persist_trainee(trainee_id)
         response = internals.format_react_response(response)
-        return Reaction(response.get('action'), response.get('details'))
+        return Reaction(response.get("action"), response.get("details"))
 
     def _batch_react_series_stationary(  # noqa: C901
         self,
@@ -3386,7 +3581,7 @@ class AbstractHowsoClient(ABC):
         batch_size: t.Optional[int] = None,
         initial_batch_size: t.Optional[int] = None,
         total_size: int,
-        progress_callback: t.Optional[Callable] = None
+        progress_callback: t.Optional[Callable] = None,
     ):
         """
         Make react series stationary requests in batch.
@@ -3417,17 +3612,19 @@ class AbstractHowsoClient(ABC):
             The `react_series_stationary` response.
         """
         temp_result = None
-        accumulated_result = {'action_values': []}
+        accumulated_result = {"action_values": []}
 
-        series_id_values = params.get('series_id_values')
-        series_context_values = params.get('series_context_values')
+        series_id_values = params.get("series_id_values")
+        series_context_values = params.get("series_context_values")
 
         with ProgressTimer(total_size) as progress:
             batch_scaler = None
             gen_batch_size = None
             if not batch_size:
                 if not initial_batch_size:
-                    start_batch_size = max(self._get_trainee_thread_count(trainee_id), 1)
+                    start_batch_size = max(
+                        self._get_trainee_thread_count(trainee_id), 1
+                    )
                 else:
                     start_batch_size = initial_batch_size
                 batch_scaler = self.batch_scaler_class(start_batch_size, progress)
@@ -3441,11 +3638,15 @@ class AbstractHowsoClient(ABC):
                 batch_end = progress.current_tick + batch_size
 
                 if series_id_values is not None:
-                    params['series_id_values'] = series_id_values[batch_start:batch_end]
+                    params["series_id_values"] = series_id_values[batch_start:batch_end]
                 if series_context_values is not None:
-                    params['series_context_values'] = series_context_values[batch_start:batch_end]
+                    params["series_context_values"] = series_context_values[
+                        batch_start:batch_end
+                    ]
 
-                temp_result, in_size, out_size = self._react_series_stationary(trainee_id, params)
+                temp_result, in_size, out_size = self._react_series_stationary(
+                    trainee_id, params
+                )
 
                 internals.accumulate_react_result(accumulated_result, temp_result)
                 if batch_scaler is None or gen_batch_size is None:
@@ -3455,11 +3656,12 @@ class AbstractHowsoClient(ABC):
                     # number of threads,even over scaling events.
                     batch_scaler.size_limits = (
                         max(self._get_trainee_thread_count(trainee_id), 1),
-                        batch_scaler.size_limits[1]
+                        batch_scaler.size_limits[1],
                     )
                     batch_size = batch_scaler.send(
                         gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size)))
+                        batch_scaler.SendOptions(None, (in_size, out_size)),
+                    )
 
         # Final call to callback on completion
         if isinstance(progress_callback, Callable):
@@ -3487,17 +3689,19 @@ class AbstractHowsoClient(ABC):
         int
             The response payload size.
         """
-        batch_result, in_size, out_size = self.execute_sized(trainee_id, "react_series_stationary", params)
+        batch_result, in_size, out_size = self.execute_sized(
+            trainee_id, "react_series_stationary", params
+        )
 
-        if batch_result is None or batch_result.get('action_values') is None:
-            raise ValueError('Invalid parameters passed to react_series_stationary.')
+        if batch_result is None or batch_result.get("action_values") is None:
+            raise ValueError("Invalid parameters passed to react_series_stationary.")
 
         ret = dict()
         batch_result = util.replace_doublemax_with_infinity(batch_result)
 
         # batch_result always has action_features and action_values
-        ret['action_features'] = batch_result.pop('action_features') or []
-        ret['action_values'] = batch_result.pop('action_values')
+        ret["action_features"] = batch_result.pop("action_features") or []
+        ret["action_values"] = batch_result.pop("action_values")
 
         # ensure all the details items are output as well
         for k, v in batch_result.items():
@@ -3572,20 +3776,24 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
         util.validate_list_shape(features, 1, "features", "str")
         if self.configuration.verbose:
-            print(f'Reacting into features on Trainee with id: {trainee_id}')
-        self.execute(trainee_id, "react_into_features", {
-            "analyze": analyze,
-            "features": features,
-            "familiarity_conviction_addition": familiarity_conviction_addition,
-            "familiarity_conviction_removal": familiarity_conviction_removal,
-            "influence_weight_entropy": influence_weight_entropy,
-            "p_value_of_addition": p_value_of_addition,
-            "p_value_of_removal": p_value_of_removal,
-            "similarity_conviction": similarity_conviction,
-            "distance_contribution": distance_contribution,
-            "weight_feature": weight_feature,
-            "use_case_weights": use_case_weights,
-        })
+            print(f"Reacting into features on Trainee with id: {trainee_id}")
+        self.execute(
+            trainee_id,
+            "react_into_features",
+            {
+                "analyze": analyze,
+                "features": features,
+                "familiarity_conviction_addition": familiarity_conviction_addition,
+                "familiarity_conviction_removal": familiarity_conviction_removal,
+                "influence_weight_entropy": influence_weight_entropy,
+                "p_value_of_addition": p_value_of_addition,
+                "p_value_of_removal": p_value_of_removal,
+                "similarity_conviction": similarity_conviction,
+                "distance_contribution": distance_contribution,
+                "weight_feature": weight_feature,
+                "use_case_weights": use_case_weights,
+            },
+        )
         self._auto_persist_trainee(trainee_id)
 
         # Update trainee in cache
@@ -3918,17 +4126,29 @@ class AbstractHowsoClient(ABC):
         if isinstance(details, dict):
             if action_condition_precision := details.get("action_condition_precision"):
                 if action_condition_precision not in self.SUPPORTED_PRECISION_VALUES:
-                    warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("action_condition_precision"))
+                    warnings.warn(
+                        self.WARNING_MESSAGES["invalid_precision"].format(
+                            "action_condition_precision"
+                        )
+                    )
 
-            if context_condition_precision := details.get("context_condition_precision"):
+            if context_condition_precision := details.get(
+                "context_condition_precision"
+            ):
                 if context_condition_precision not in self.SUPPORTED_PRECISION_VALUES:
-                    warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("context_condition_precision"))
+                    warnings.warn(
+                        self.WARNING_MESSAGES["invalid_precision"].format(
+                            "context_condition_precision"
+                        )
+                    )
 
         # Issue Deprecation Warnings on these old Details keys:
         deprecated_keys_used = []
         if details is not None:
             details = dict(details)  # Makes it mutable.
-            deprecated_keys_used = list(set(details.keys()) & set(_RENAMED_DETAIL_KEYS.keys()))
+            deprecated_keys_used = list(
+                set(details.keys()) & set(_RENAMED_DETAIL_KEYS.keys())
+            )
             replacements = [_RENAMED_DETAIL_KEYS[key] for key in deprecated_keys_used]
             if deprecated_keys_used:
                 used_str = ", ".join(deprecated_keys_used)
@@ -3937,14 +4157,15 @@ class AbstractHowsoClient(ABC):
                     warnings.warn(
                         f"The detail key '{used_str}' is deprecated and will "
                         f"be removed in a future release. Use '{replace_str}' "
-                        f"instead.", DeprecationWarning
+                        f"instead.",
+                        DeprecationWarning,
                     )
                 else:
                     warnings.warn(
                         f"These detail keys are deprecated: [{used_str}] "
                         f"and will be removed in a future release. Use these "
                         f"respective replacements instead: [{replace_str}].",
-                        DeprecationWarning
+                        DeprecationWarning,
                     )
             # Convert the keys in the details payload.
             for old_key, new_key in zip(deprecated_keys_used, replacements):
@@ -3953,7 +4174,9 @@ class AbstractHowsoClient(ABC):
 
         if num_robust_influence_samples is not None:
             num_robust_accuracy_contributions_samples = num_robust_influence_samples
-            num_robust_accuracy_contributions_permutation_samples = num_robust_influence_samples
+            num_robust_accuracy_contributions_permutation_samples = (
+                num_robust_influence_samples
+            )
             num_robust_prediction_contributions_samples = num_robust_influence_samples
             # Deprecated on 04/09/2025
             warnings.warn(
@@ -3961,47 +4184,55 @@ class AbstractHowsoClient(ABC):
                 "be removed in a future release. Use `num_robust_accuracy_contributions_samples` "
                 "`num_robust_accuracy_contributions_permutation_samples` "
                 "or `num_robust_prediction_contributions_samples` instead.",
-                DeprecationWarning
+                DeprecationWarning,
             )
 
         if num_robust_influence_samples_per_case is not None:
-            num_robust_prediction_contributions_samples_per_case = num_robust_influence_samples_per_case
+            num_robust_prediction_contributions_samples_per_case = (
+                num_robust_influence_samples_per_case
+            )
             # Deprecated on 04/09/2025
             warnings.warn(
                 "The parameter `num_robust_influence_samples_per_case` is deprecated and will "
                 "be removed in a future release. Use "
                 "`num_robust_prediction_contributions_samples_per_case` instead.",
-                DeprecationWarning
+                DeprecationWarning,
             )
 
         if self.configuration.verbose:
-            print(f'Reacting into aggregate trained cases of Trainee with id: {trainee_id}')
+            print(
+                f"Reacting into aggregate trained cases of Trainee with id: {trainee_id}"
+            )
 
-        stats = self.execute(trainee_id, "react_aggregate", {
-            "action_feature": action_feature,
-            "action_features": action_features,
-            "context_features": context_features,
-            "confusion_matrix_min_count": confusion_matrix_min_count,
-            "details": details,
-            "features_to_derive": features_to_derive,
-            "feature_influences_action_feature": feature_influences_action_feature,
-            "forecast_window_length": forecast_window_length,
-            "goal_dependent_features": goal_dependent_features,
-            "goal_features_map": goal_features_map,
-            "hyperparameter_param_path": hyperparameter_param_path,
-            "num_robust_accuracy_contributions_permutation_samples": num_robust_accuracy_contributions_permutation_samples,  # noqa: E501
-            "num_robust_accuracy_contributions_samples": num_robust_accuracy_contributions_samples,
-            "num_robust_prediction_contributions_samples": num_robust_prediction_contributions_samples,
-            "num_robust_prediction_contributions_samples_per_case": num_robust_prediction_contributions_samples_per_case,  # noqa: E501
-            "num_robust_residual_samples": num_robust_residual_samples,
-            "num_samples": num_samples,
-            "prediction_stats_action_feature": prediction_stats_action_feature,
-            "robust_hyperparameters": robust_hyperparameters,
-            "sample_model_fraction": sample_model_fraction,
-            "sub_model_size": sub_model_size,
-            "use_case_weights": use_case_weights,
-            "weight_feature": weight_feature,
-        })
+        stats = self.execute(
+            trainee_id,
+            "react_aggregate",
+            {
+                "action_feature": action_feature,
+                "action_features": action_features,
+                "context_features": context_features,
+                "confusion_matrix_min_count": confusion_matrix_min_count,
+                "details": details,
+                "features_to_derive": features_to_derive,
+                "feature_influences_action_feature": feature_influences_action_feature,
+                "forecast_window_length": forecast_window_length,
+                "goal_dependent_features": goal_dependent_features,
+                "goal_features_map": goal_features_map,
+                "hyperparameter_param_path": hyperparameter_param_path,
+                "num_robust_accuracy_contributions_permutation_samples": num_robust_accuracy_contributions_permutation_samples,  # noqa: E501
+                "num_robust_accuracy_contributions_samples": num_robust_accuracy_contributions_samples,
+                "num_robust_prediction_contributions_samples": num_robust_prediction_contributions_samples,
+                "num_robust_prediction_contributions_samples_per_case": num_robust_prediction_contributions_samples_per_case,  # noqa: E501
+                "num_robust_residual_samples": num_robust_residual_samples,
+                "num_samples": num_samples,
+                "prediction_stats_action_feature": prediction_stats_action_feature,
+                "robust_hyperparameters": robust_hyperparameters,
+                "sample_model_fraction": sample_model_fraction,
+                "sub_model_size": sub_model_size,
+                "use_case_weights": use_case_weights,
+                "weight_feature": weight_feature,
+            },
+        )
         if stats is None:
             stats = dict()
 
@@ -4015,7 +4246,9 @@ class AbstractHowsoClient(ABC):
 
                 if key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
                     # This key has multiple return keys that should be renamed to the old:
-                    for extra_old_key, extra_new_key in _RENAMED_DETAIL_KEYS_EXTRA[key]['additional_keys'].items():
+                    for extra_old_key, extra_new_key in _RENAMED_DETAIL_KEYS_EXTRA[key][
+                        "additional_keys"
+                    ].items():
                         if extra_new_key in stats:
                             stats[extra_old_key] = stats[extra_new_key]
                             del stats[extra_new_key]
@@ -4132,35 +4365,42 @@ class AbstractHowsoClient(ABC):
             if util.num_list_dimensions(new_cases) != 3:
                 raise ValueError(
                     "Improper shape of `new_cases` values passed. "
-                    "`new_cases` must be a 3d list of object.")
+                    "`new_cases` must be a 3d list of object."
+                )
 
             serialized_cases = []
             for group in new_cases:
                 if features is None:
                     features = internals.get_features_from_data(group)
-                serialized_cases.append(serialize_cases(group, features, feature_attributes))
+                serialized_cases.append(
+                    serialize_cases(group, features, feature_attributes)
+                )
 
         if case_indices is not None:
             util.validate_case_indices(case_indices)
 
         if self.configuration.verbose:
-            print(f'Reacting to a set of cases on Trainee with id: {trainee_id}')
-        result = self.execute(trainee_id, "react_group", {
-            "features": features,
-            "new_cases": serialized_cases,
-            "conditions": conditions,
-            "case_indices": case_indices,
-            "distance_contributions": distance_contributions,
-            "familiarity_conviction_addition": familiarity_conviction_addition,
-            "familiarity_conviction_removal": familiarity_conviction_removal,
-            "kl_divergence_addition": kl_divergence_addition,
-            "kl_divergence_removal": kl_divergence_removal,
-            "p_value_of_addition": p_value_of_addition,
-            "p_value_of_removal": p_value_of_removal,
-            "similarity_conviction": similarity_conviction,
-            "weight_feature": weight_feature,
-            "use_case_weights": use_case_weights,
-        })
+            print(f"Reacting to a set of cases on Trainee with id: {trainee_id}")
+        result = self.execute(
+            trainee_id,
+            "react_group",
+            {
+                "features": features,
+                "new_cases": serialized_cases,
+                "conditions": conditions,
+                "case_indices": case_indices,
+                "distance_contributions": distance_contributions,
+                "familiarity_conviction_addition": familiarity_conviction_addition,
+                "familiarity_conviction_removal": familiarity_conviction_removal,
+                "kl_divergence_addition": kl_divergence_addition,
+                "kl_divergence_removal": kl_divergence_removal,
+                "p_value_of_addition": p_value_of_addition,
+                "p_value_of_removal": p_value_of_removal,
+                "similarity_conviction": similarity_conviction,
+                "weight_feature": weight_feature,
+                "use_case_weights": use_case_weights,
+            },
+        )
         if result is None:
             result = dict()
         return result
@@ -4170,7 +4410,7 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         features_to_code_map: Mapping[str, str],
         *,
-        aggregation_code: t.Optional[str] = None
+        aggregation_code: t.Optional[str] = None,
     ) -> Evaluation:
         """
         Evaluate custom code on feature values of all cases in the trainee.
@@ -4204,11 +4444,15 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
-            print(f'Evaluating on Trainee with id: {trainee_id}')
-        return self.execute(trainee_id, "evaluate", {
-            "features_to_code_map": features_to_code_map,
-            "aggregation_code": aggregation_code
-        })
+            print(f"Evaluating on Trainee with id: {trainee_id}")
+        return self.execute(
+            trainee_id,
+            "evaluate",
+            {
+                "features_to_code_map": features_to_code_map,
+                "aggregation_code": aggregation_code,
+            },
+        )
 
     def analyze(
         self,
@@ -4234,7 +4478,7 @@ class AbstractHowsoClient(ABC):
         use_deviations: t.Optional[bool] = None,
         use_sdm: t.Optional[bool] = True,
         weight_feature: t.Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Analyzes a Trainee.
@@ -4280,7 +4524,7 @@ class AbstractHowsoClient(ABC):
         num_feature_probability_samples : int, optional
             Number of samples to use to compute feature probabilities, only
             applies to targetless flow. Defaults to the number of features
-            multiplied by :math:`1000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
+            multiplied by :math:`10000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
         p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
         rebalance_features : Collection[str], optional
@@ -4326,36 +4570,44 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(k_values, 2, "k_values", "float")
         util.validate_list_shape(dt_values, 1, "dt_values", "float")
 
-        if targeted_model not in ['single_targeted', 'omni_targeted', 'targetless', None]:
+        if targeted_model not in [
+            "single_targeted",
+            "omni_targeted",
+            "targetless",
+            None,
+        ]:
             raise ValueError(
                 f'Invalid value "{targeted_model}" for targeted_model. '
-                'Valid values include single_targeted, omni_targeted, '
-                'and targetless.')
+                "Valid values include single_targeted, omni_targeted, "
+                "and targetless."
+            )
 
         deprecated_params = {
-            'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
-            'num_optimization_samples': 'num_analysis_samples',
-            'optimization_sub_model_size': 'analysis_sub_model_size',
-            'dwe_values': 'dt_values'
+            "bypass_hyperparameter_optimization": "bypass_hyperparameter_analysis",
+            "num_optimization_samples": "num_analysis_samples",
+            "optimization_sub_model_size": "analysis_sub_model_size",
+            "dwe_values": "dt_values",
         }
         # explicitly update parameters if old names are provided
         if kwargs:
             for old_param, new_param in deprecated_params.items():
                 if old_param in kwargs:
-                    if old_param == 'bypass_hyperparameter_optimization':
+                    if old_param == "bypass_hyperparameter_optimization":
                         bypass_hyperparameter_analysis = kwargs[old_param]
-                    elif old_param == 'num_optimization_samples':
+                    elif old_param == "num_optimization_samples":
                         num_analysis_samples = kwargs[old_param]
-                    elif old_param == 'optimization_sub_model_size':
+                    elif old_param == "optimization_sub_model_size":
                         analysis_sub_model_size = kwargs[old_param]
-                    elif old_param == 'dwe_values':
+                    elif old_param == "dwe_values":
                         dt_values = kwargs[old_param]
 
                     del kwargs[old_param]
                     warnings.warn(
-                        f'The `{old_param}` parameter has been renamed to '
-                        f'`{new_param}`, please use the new parameter '
-                        'instead.', UserWarning)
+                        f"The `{old_param}` parameter has been renamed to "
+                        f"`{new_param}`, please use the new parameter "
+                        "instead.",
+                        UserWarning,
+                    )
 
         analyze_params = dict(
             action_features=action_features,
@@ -4384,17 +4636,19 @@ class AbstractHowsoClient(ABC):
         analyze_params.update(kwargs)
 
         if kwargs:
-            warn_params = ', '.join(kwargs)
+            warn_params = ", ".join(kwargs)
             warnings.warn(
-                'The following parameter(s) are not officially supported by `analyze` and '
-                f'may or may not have an effect: {warn_params}',
-                UnsupportedArgumentWarning)
+                "The following parameter(s) are not officially supported by `analyze` and "
+                f"may or may not have an effect: {warn_params}",
+                UnsupportedArgumentWarning,
+            )
 
         if self.configuration.verbose:
-            print(f'Analyzing Trainee with id: {trainee_id}')
-            print('Analyzing Trainee with parameters: ' + str({
-                k: v for k, v in analyze_params.items() if v is not None
-            }))
+            print(f"Analyzing Trainee with id: {trainee_id}")
+            print(
+                "Analyzing Trainee with parameters: "
+                + str({k: v for k, v in analyze_params.items() if v is not None})
+            )
 
         self.execute(trainee_id, "analyze", analyze_params)
         self._auto_persist_trainee(trainee_id)
@@ -4450,7 +4704,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights: t.Optional[bool] = None,
         use_sdm: t.Optional[bool] = True,
         weight_feature: t.Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Set Trainee parameters for auto analysis.
@@ -4516,7 +4770,7 @@ class AbstractHowsoClient(ABC):
         num_feature_probability_samples : int, optional
             Number of samples to use to compute feature probabilities, only
             applies to targetless flow. Defaults to the number of features
-            multiplied by :math:`1000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
+            multiplied by :math:`10000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
         analysis_sub_model_size : int, optional
             Number of samples to use for analysis. The rest will be
             randomly held-out and not included in calculations.
@@ -4546,33 +4800,35 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
 
         deprecated_params = {
-            'auto_optimize_enabled': 'auto_analyze_enabled',
-            'optimize_threshold': 'analyze_threshold',
-            'optimize_growth_factor': 'analyze_growth_factor',
+            "auto_optimize_enabled": "auto_analyze_enabled",
+            "optimize_threshold": "analyze_threshold",
+            "optimize_growth_factor": "analyze_growth_factor",
         }
         analyze_deprecated_params = {
-            'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
-            'num_optimization_samples': 'num_analysis_samples',
-            'optimization_sub_model_size': 'analysis_sub_model_size',
-            'dwe_values': 'dt_values'
+            "bypass_hyperparameter_optimization": "bypass_hyperparameter_analysis",
+            "num_optimization_samples": "num_analysis_samples",
+            "optimization_sub_model_size": "analysis_sub_model_size",
+            "dwe_values": "dt_values",
         }
 
         # explicitly update parameters if old names are provided
         if kwargs:
             for old_param, new_param in deprecated_params.items():
                 if old_param in kwargs:
-                    if old_param == 'auto_optimize_enabled':
+                    if old_param == "auto_optimize_enabled":
                         auto_analyze_enabled = kwargs[old_param]
-                    elif old_param == 'optimize_threshold':
+                    elif old_param == "optimize_threshold":
                         analyze_threshold = kwargs[old_param]
-                    elif old_param == 'optimize_growth_factor':
+                    elif old_param == "optimize_growth_factor":
                         analyze_growth_factor = kwargs[old_param]
 
                     del kwargs[old_param]
                     warnings.warn(
-                        f'The `{old_param}` parameter has been renamed to '
-                        f'`{new_param}`, please use the new parameter '
-                        'instead.', UserWarning)
+                        f"The `{old_param}` parameter has been renamed to "
+                        f"`{new_param}`, please use the new parameter "
+                        "instead.",
+                        UserWarning,
+                    )
 
             # replace any old kwarg param with new param and remove old param
             for old_param, new_param in analyze_deprecated_params.items():
@@ -4580,17 +4836,20 @@ class AbstractHowsoClient(ABC):
                     kwargs[new_param] = kwargs[old_param]
                     del kwargs[old_param]
                     warnings.warn(
-                        f'The `{old_param}` parameter has been renamed to '
-                        f'`{new_param}`, please use the new parameter '
-                        'instead.', UserWarning)
+                        f"The `{old_param}` parameter has been renamed to "
+                        f"`{new_param}`, please use the new parameter "
+                        "instead.",
+                        UserWarning,
+                    )
 
-        if 'targeted_model' in kwargs:
-            targeted_model = kwargs['targeted_model']
-            if targeted_model not in ['single_targeted', 'omni_targeted', 'targetless']:
+        if "targeted_model" in kwargs:
+            targeted_model = kwargs["targeted_model"]
+            if targeted_model not in ["single_targeted", "omni_targeted", "targetless"]:
                 raise ValueError(
                     f'Invalid value "{targeted_model}" for targeted_model. '
-                    'Valid values include single_targeted, omni_targeted, '
-                    'and targetless.')
+                    "Valid values include single_targeted, omni_targeted, "
+                    "and targetless."
+                )
 
         # Collect valid parameters
         if kwargs:
@@ -4598,37 +4857,42 @@ class AbstractHowsoClient(ABC):
             warnings.warn(
                 f"The following parameter(s) are not officially supported by `auto_analyze` and "
                 f"may or may not have an effect: {warn_params}",
-                UnsupportedArgumentWarning)
+                UnsupportedArgumentWarning,
+            )
 
         if self.configuration.verbose:
-            print(f'Setting auto analyze parameters for Trainee with id: {trainee_id}')
+            print(f"Setting auto analyze parameters for Trainee with id: {trainee_id}")
 
-        self.execute(trainee_id, "set_auto_analyze_params", {
-            "auto_analyze_enabled": auto_analyze_enabled,
-            "analyze_threshold": analyze_threshold,
-            "analyze_growth_factor": analyze_growth_factor,
-            "action_features": action_features,
-            "context_features": context_features,
-            "k_folds": k_folds,
-            "num_deviation_samples": num_deviation_samples,
-            "num_feature_probability_samples": num_feature_probability_samples,
-            "dt_values": dt_values,
-            "k_values": k_values,
-            "p_values": p_values,
-            "bypass_hyperparameter_analysis": bypass_hyperparameter_analysis,
-            "bypass_calculate_feature_residuals": bypass_calculate_feature_residuals,
-            "bypass_calculate_feature_weights": bypass_calculate_feature_weights,
-            "rebalance_features": rebalance_features,
-            "targeted_model": targeted_model,
-            "num_analysis_samples": num_analysis_samples,
-            "analysis_sub_model_size": analysis_sub_model_size,
-            "use_deviations": use_deviations,
-            "inverse_residuals_as_weights": inverse_residuals_as_weights,
-            "use_case_weights": use_case_weights,
-            "use_sdm": use_sdm,
-            "weight_feature": weight_feature,
-            **kwargs,
-        })
+        self.execute(
+            trainee_id,
+            "set_auto_analyze_params",
+            {
+                "auto_analyze_enabled": auto_analyze_enabled,
+                "analyze_threshold": analyze_threshold,
+                "analyze_growth_factor": analyze_growth_factor,
+                "action_features": action_features,
+                "context_features": context_features,
+                "k_folds": k_folds,
+                "num_deviation_samples": num_deviation_samples,
+                "num_feature_probability_samples": num_feature_probability_samples,
+                "dt_values": dt_values,
+                "k_values": k_values,
+                "p_values": p_values,
+                "bypass_hyperparameter_analysis": bypass_hyperparameter_analysis,
+                "bypass_calculate_feature_residuals": bypass_calculate_feature_residuals,
+                "bypass_calculate_feature_weights": bypass_calculate_feature_weights,
+                "rebalance_features": rebalance_features,
+                "targeted_model": targeted_model,
+                "num_analysis_samples": num_analysis_samples,
+                "analysis_sub_model_size": analysis_sub_model_size,
+                "use_deviations": use_deviations,
+                "inverse_residuals_as_weights": inverse_residuals_as_weights,
+                "use_case_weights": use_case_weights,
+                "use_sdm": use_sdm,
+                "weight_feature": weight_feature,
+                **kwargs,
+            },
+        )
         self._auto_persist_trainee(trainee_id)
 
     def get_auto_ablation_params(self, trainee_id: str) -> dict[str, t.Any]:
@@ -4669,8 +4933,10 @@ class AbstractHowsoClient(ABC):
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
-        tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
-        **kwargs
+        tolerance_prediction_threshold_map: t.Optional[
+            Mapping[str, tuple[float, float]]
+        ] = None,
+        **kwargs,
     ):
         """
         Set trainee parameters for auto-ablation.
@@ -4768,9 +5034,10 @@ class AbstractHowsoClient(ABC):
             warnings.warn(
                 f"The following parameter(s) are not officially supported by `auto_ablation` and "
                 f"may or may not have an effect: {warn_params}",
-                UnsupportedArgumentWarning)
+                UnsupportedArgumentWarning,
+            )
         if self.configuration.verbose:
-            print(f'Setting auto ablation parameters for Trainee with id: {trainee_id}')
+            print(f"Setting auto ablation parameters for Trainee with id: {trainee_id}")
         self.execute(trainee_id, "set_auto_ablation_params", params)
 
     def reduce_data(
@@ -4835,9 +5102,10 @@ class AbstractHowsoClient(ABC):
             warnings.warn(
                 f"The following parameter(s) are not officially supported by `reduce_data` and "
                 f"may or may not have an effect: {warn_params}",
-                UnsupportedArgumentWarning)
+                UnsupportedArgumentWarning,
+            )
         if self.configuration.verbose:
-            print(f'Reducing data on Trainee with id: {trainee_id}')
+            print(f"Reducing data on Trainee with id: {trainee_id}")
         result = self.execute(trainee_id, "reduce_data", params)
 
         if result is None:
@@ -4854,7 +5122,7 @@ class AbstractHowsoClient(ABC):
         features: t.Optional[Collection[str]] = None,
         condition: t.Optional[Mapping] = None,
         num_cases: t.Optional[int] = None,
-        precision: t.Optional[t.Literal["exact", "similar"]] = None
+        precision: t.Optional[t.Literal["exact", "similar"]] = None,
     ) -> Cases:
         """
         Retrieve cases from a model given a Trainee id.
@@ -4956,33 +5224,38 @@ class AbstractHowsoClient(ABC):
             util.validate_case_indices(case_indices)
 
         if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
-            warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
+            warnings.warn(
+                self.WARNING_MESSAGES["invalid_precision"].format("precision")
+            )
 
         util.validate_list_shape(features, 1, "features", "str")
 
         # Convert session instance to id
-        if (
-            isinstance(condition, MutableMapping) and
-            isinstance(condition.get('.session'), Session)
+        if isinstance(condition, MutableMapping) and isinstance(
+            condition.get(".session"), Session
         ):
-            condition['.session'] = condition['.session'].id
+            condition[".session"] = condition[".session"].id
 
         if self.configuration.verbose:
-            print(f'Retrieving cases for Trainee with id {trainee_id}.')
-        result = self.execute(trainee_id, "get_cases", {
-            "features": features,
-            "session": session,
-            "case_indices": case_indices,
-            "indicate_imputed": indicate_imputed,
-            "condition": condition,
-            "num_cases": num_cases,
-            "precision": precision,
-        })
+            print(f"Retrieving cases for Trainee with id {trainee_id}.")
+        result = self.execute(
+            trainee_id,
+            "get_cases",
+            {
+                "features": features,
+                "session": session,
+                "case_indices": case_indices,
+                "indicate_imputed": indicate_imputed,
+                "condition": condition,
+                "num_cases": num_cases,
+                "precision": precision,
+            },
+        )
         if result is None:
             result = dict()
         return Cases(
-            features=result.get('features') or [],
-            cases=result.get('cases') or [],
+            features=result.get("features") or [],
+            cases=result.get("cases") or [],
         )
 
     def get_extreme_cases(
@@ -4990,7 +5263,7 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         num: int,
         sort_feature: str,
-        features: t.Optional[Collection[str]] = None
+        features: t.Optional[Collection[str]] = None,
     ) -> Cases:
         """
         Gets the extreme cases of a Trainee for the given feature(s).
@@ -5015,17 +5288,21 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(features, 1, "features", "str")
 
         if self.configuration.verbose:
-            print(f'Getting extreme cases for trainee with id: {trainee_id}')
-        result = self.execute(trainee_id, "get_extreme_cases", {
-            "features": features,
-            "sort_feature": sort_feature,
-            "num": num,
-        })
+            print(f"Getting extreme cases for trainee with id: {trainee_id}")
+        result = self.execute(
+            trainee_id,
+            "get_extreme_cases",
+            {
+                "features": features,
+                "sort_feature": sort_feature,
+                "num": num,
+            },
+        )
         if result is None:
             result = dict()
         return Cases(
-            features=result.get('features') or [],
-            cases=result.get('cases') or [],
+            features=result.get("features") or [],
+            cases=result.get("cases") or [],
         )
 
     def get_num_training_cases(self, trainee_id: str) -> int:
@@ -5045,7 +5322,7 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
         ret = self.execute(trainee_id, "get_num_training_cases", {})
         if isinstance(ret, dict):
-            return ret.get('count', 0)
+            return ret.get("count", 0)
         return 0
 
     def get_feature_conviction(
@@ -5057,7 +5334,7 @@ class AbstractHowsoClient(ABC):
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        weight_feature: t.Optional[str] = None
+        weight_feature: t.Optional[str] = None,
     ) -> dict:
         """
         Get familiarity conviction for features in the model.
@@ -5100,15 +5377,19 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(features, 1, "features", "str")
         util.validate_list_shape(action_features, 1, "action_features", "str")
         if self.configuration.verbose:
-            print(f'Getting conviction of features for Trainee with id: {trainee_id}')
-        return self.execute(trainee_id, "get_feature_conviction", {
-            "features": features,
-            "action_features": action_features,
-            "familiarity_conviction_addition": familiarity_conviction_addition,
-            "familiarity_conviction_removal": familiarity_conviction_removal,
-            "weight_feature": weight_feature,
-            "use_case_weights": use_case_weights,
-        })
+            print(f"Getting conviction of features for Trainee with id: {trainee_id}")
+        return self.execute(
+            trainee_id,
+            "get_feature_conviction",
+            {
+                "features": features,
+                "action_features": action_features,
+                "familiarity_conviction_addition": familiarity_conviction_addition,
+                "familiarity_conviction_removal": familiarity_conviction_removal,
+                "weight_feature": weight_feature,
+                "use_case_weights": use_case_weights,
+            },
+        )
 
     def add_feature(
         self,
@@ -5119,7 +5400,7 @@ class AbstractHowsoClient(ABC):
         condition: t.Optional[Mapping] = None,
         condition_session: t.Optional[str] = None,
         feature_attributes: t.Optional[Mapping] = None,
-        overwrite: bool = False
+        overwrite: bool = False,
     ):
         """
         Adds a feature to a trainee.
@@ -5176,32 +5457,41 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
 
         if not self.active_session:
-            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+            raise HowsoError(
+                self.ERROR_MESSAGES["missing_session"], code="missing_session"
+            )
 
         if feature_attributes is not None:
-            updated_attributes = internals.preprocess_feature_attributes({feature: feature_attributes})
+            updated_attributes = internals.preprocess_feature_attributes(
+                {feature: feature_attributes}
+            )
             if updated_attributes is None:
-                raise AssertionError("Failed to preprocess feature attributes for new feature.")
+                raise AssertionError(
+                    "Failed to preprocess feature attributes for new feature."
+                )
             feature_attributes = updated_attributes[feature]
 
         # Convert session instance to id
-        if (
-            isinstance(condition, MutableMapping) and
-            isinstance(condition.get('.session'), Session)
+        if isinstance(condition, MutableMapping) and isinstance(
+            condition.get(".session"), Session
         ):
-            condition['.session'] = condition['.session'].id
+            condition[".session"] = condition[".session"].id
 
         if self.configuration.verbose:
             print(f'Adding feature "{feature}" to Trainee with id {trainee_id}.')
-        self.execute(trainee_id, "add_feature", {
-            "feature": feature,
-            "feature_value": feature_value,
-            "overwrite": overwrite,
-            "condition": condition,
-            "feature_attributes": feature_attributes,
-            "session": self.active_session.id,
-            "condition_session": condition_session,
-        })
+        self.execute(
+            trainee_id,
+            "add_feature",
+            {
+                "feature": feature,
+                "feature_value": feature_value,
+                "overwrite": overwrite,
+                "condition": condition,
+                "feature_attributes": feature_attributes,
+                "session": self.active_session.id,
+                "condition_session": condition_session,
+            },
+        )
         self._auto_persist_trainee(trainee_id)
 
         # Update trainee in cache
@@ -5214,7 +5504,7 @@ class AbstractHowsoClient(ABC):
         feature: str,
         *,
         condition: t.Optional[Mapping] = None,
-        condition_session: t.Optional[str] = None
+        condition_session: t.Optional[str] = None,
     ):
         """
         Removes a feature from a Trainee.
@@ -5262,23 +5552,28 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
 
         if not self.active_session:
-            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+            raise HowsoError(
+                self.ERROR_MESSAGES["missing_session"], code="missing_session"
+            )
 
         # Convert session instance to id
-        if (
-            isinstance(condition, MutableMapping) and
-            isinstance(condition.get('.session'), Session)
+        if isinstance(condition, MutableMapping) and isinstance(
+            condition.get(".session"), Session
         ):
-            condition['.session'] = condition['.session'].id
+            condition[".session"] = condition[".session"].id
 
         if self.configuration.verbose:
             print(f'Removing feature "{feature}" from Trainee with id: {trainee_id}')
-        self.execute(trainee_id, "remove_feature", {
-            "feature": feature,
-            "condition": condition,
-            "session": self.active_session.id,
-            "condition_session": condition_session,
-        })
+        self.execute(
+            trainee_id,
+            "remove_feature",
+            {
+                "feature": feature,
+                "condition": condition,
+                "session": self.active_session.id,
+                "condition_session": condition_session,
+            },
+        )
         self._auto_persist_trainee(trainee_id)
 
         # Update trainee in cache
@@ -5296,7 +5591,7 @@ class AbstractHowsoClient(ABC):
         to_case_indices: t.Optional[CaseIndices] = None,
         to_values: t.Optional[TabularData2D] = None,
         use_case_weights: t.Optional[bool] = None,
-        weight_feature: t.Optional[str] = None
+        weight_feature: t.Optional[str] = None,
     ) -> list[float]:
         """
         Compute pairwise distances between specified cases.
@@ -5358,22 +5653,30 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
 
-        util.validate_list_shape(from_values, 2, 'from_values', 'list of list of object')
-        util.validate_list_shape(to_values, 2, 'to_values', 'list of list of object')
+        util.validate_list_shape(
+            from_values, 2, "from_values", "list of list of object"
+        )
+        util.validate_list_shape(to_values, 2, "to_values", "list of list of object")
 
         if from_case_indices is None and from_values is None:
-            raise ValueError("One of `from_case_indices` or `from_values` "
-                             "must be specified.")
+            raise ValueError(
+                "One of `from_case_indices` or `from_values` must be specified."
+            )
         elif from_case_indices is not None and from_values is not None:
-            raise ValueError("Only one of `from_case_indices` or `from_values` "
-                             "may be specified, not both.")
+            raise ValueError(
+                "Only one of `from_case_indices` or `from_values` "
+                "may be specified, not both."
+            )
 
         if to_case_indices is None and to_values is None:
-            raise ValueError("One of `to_case_indices` or `to_values` "
-                             "must be specified.")
+            raise ValueError(
+                "One of `to_case_indices` or `to_values` must be specified."
+            )
         elif to_case_indices is not None and to_values is not None:
-            raise ValueError("Only one of `to_case_indices` or `to_values` "
-                             "may be specified, not both.")
+            raise ValueError(
+                "Only one of `to_case_indices` or `to_values` "
+                "may be specified, not both."
+            )
 
         # Validate case_indices if provided
         if from_case_indices:
@@ -5385,27 +5688,33 @@ class AbstractHowsoClient(ABC):
         if from_values is not None:
             if features is None:
                 features = internals.get_features_from_data(
-                    from_values, data_parameter='from_values')
+                    from_values, data_parameter="from_values"
+                )
             from_values = serialize_cases(from_values, features, feature_attributes)
         if to_values is not None:
             if features is None:
                 features = internals.get_features_from_data(
-                    to_values, data_parameter='to_values')
+                    to_values, data_parameter="to_values"
+                )
             to_values = serialize_cases(to_values, features, feature_attributes)
 
         if self.configuration.verbose:
-            print(f'Getting pairwise distances for Trainee with id: {trainee_id}')
+            print(f"Getting pairwise distances for Trainee with id: {trainee_id}")
 
-        result = self.execute(trainee_id, "get_pairwise_distances", {
-            "features": features,
-            "action_feature": action_feature,
-            "from_case_indices": from_case_indices,
-            "from_values": from_values,
-            "to_case_indices": to_case_indices,
-            "to_values": to_values,
-            "weight_feature": weight_feature,
-            "use_case_weights": use_case_weights,
-        })
+        result = self.execute(
+            trainee_id,
+            "get_pairwise_distances",
+            {
+                "features": features,
+                "action_feature": action_feature,
+                "from_case_indices": from_case_indices,
+                "from_values": from_values,
+                "to_case_indices": to_case_indices,
+                "to_values": to_values,
+                "weight_feature": weight_feature,
+                "use_case_weights": use_case_weights,
+            },
+        )
         if result is None:
             return []
         return result
@@ -5419,7 +5728,7 @@ class AbstractHowsoClient(ABC):
         case_indices: t.Optional[CaseIndices] = None,
         feature_values: t.Optional[Collection[t.Any] | DataFrame] = None,
         use_case_weights: t.Optional[bool] = None,
-        weight_feature: t.Optional[str] = None
+        weight_feature: t.Optional[str] = None,
     ) -> Distances:
         """
         Compute distances matrix for specified cases.
@@ -5487,8 +5796,12 @@ class AbstractHowsoClient(ABC):
                 feature_values = [feature_values]
 
             if features is None:
-                features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
-            feature_values = serialize_cases(feature_values, features, feature_attributes)
+                features = internals.get_features_from_data(
+                    feature_values, data_parameter="feature_values"
+                )
+            feature_values = serialize_cases(
+                feature_values, features, feature_attributes
+            )
             if feature_values:
                 # Only a single case should be provided
                 feature_values = feature_values[0]
@@ -5496,11 +5809,13 @@ class AbstractHowsoClient(ABC):
             case_indices = None
 
         if case_indices is not None and len(case_indices) < 2:
-            raise ValueError("If providing `case_indices`, must provide at "
-                             "least 2 cases for computation.")
+            raise ValueError(
+                "If providing `case_indices`, must provide at "
+                "least 2 cases for computation."
+            )
 
         if self.configuration.verbose:
-            print(f'Getting distances between cases for Trainee with id: {trainee_id}')
+            print(f"Getting distances between cases for Trainee with id: {trainee_id}")
 
         preallocate = True  # If matrix should be preallocated in memory
         matrix_ndarray = None  # Used when preallocating
@@ -5529,33 +5844,37 @@ class AbstractHowsoClient(ABC):
 
         # Preallocate matrix (This will raise a numpy MemoryError if too large)
         if preallocate:
-            matrix_ndarray = np.zeros((num_cases, num_cases), dtype='float64')
+            matrix_ndarray = np.zeros((num_cases, num_cases), dtype="float64")
 
         for row_offset in range(0, num_cases, page_size):
             for column_offset in range(0, num_cases, page_size):
-                result = self.execute(trainee_id, "get_distances", {
-                    "features": features,
-                    "action_feature": action_feature,
-                    "case_indices": case_indices,
-                    "feature_values": feature_values,
-                    "weight_feature": weight_feature,
-                    "use_case_weights": use_case_weights,
-                    "row_offset": row_offset,
-                    "row_count": page_size,
-                    "column_offset": column_offset,
-                    "column_count": page_size,
-                })
+                result = self.execute(
+                    trainee_id,
+                    "get_distances",
+                    {
+                        "features": features,
+                        "action_feature": action_feature,
+                        "case_indices": case_indices,
+                        "feature_values": feature_values,
+                        "weight_feature": weight_feature,
+                        "use_case_weights": use_case_weights,
+                        "row_offset": row_offset,
+                        "row_count": page_size,
+                        "column_offset": column_offset,
+                        "column_count": page_size,
+                    },
+                )
 
-                column_case_indices = result['column_case_indices']
-                row_case_indices = result['row_case_indices']
-                distances = result['distances']
+                column_case_indices = result["column_case_indices"]
+                row_case_indices = result["row_case_indices"]
+                distances = result["distances"]
 
                 if preallocate and matrix_ndarray is not None:
                     # Fill in allocated matrix
                     try:
                         matrix_ndarray[
-                            row_offset:row_offset + len(row_case_indices),
-                            column_offset:column_offset + len(column_case_indices)
+                            row_offset : row_offset + len(row_case_indices),
+                            column_offset : column_offset + len(column_case_indices),
                         ] = distances
                     except ValueError as err:
                         # Unexpected shape when populating array
@@ -5586,21 +5905,24 @@ class AbstractHowsoClient(ABC):
             if total_cols != num_cases or total_rows != num_cases:
                 # Received unexpected number of distances
                 raise HowsoError(mismatch_msg)
-            distances_matrix = matrix_ndarray if matrix_ndarray is not None else np.ndarray(0, dtype="float64")
+            distances_matrix = (
+                matrix_ndarray
+                if matrix_ndarray is not None
+                else np.ndarray(0, dtype="float64")
+            )
         else:
             if matrix_list:
                 # Validate matrix shape
-                if (
-                    total_cols != total_rows or
-                    not all(len(r) == total_cols for r in matrix_list)
+                if total_cols != total_rows or not all(
+                    len(r) == total_cols for r in matrix_list
                 ):
                     raise HowsoError(mismatch_msg)
             # Convert matrix to numpy array
-            distances_matrix = np.array(matrix_list, dtype='float64')
+            distances_matrix = np.array(matrix_list, dtype="float64")
 
         return {
-            'case_indices': indices,
-            'distances': internals.deserialize_to_dataframe(distances_matrix)
+            "case_indices": indices,
+            "distances": internals.deserialize_to_dataframe(distances_matrix),
         }
 
     def get_params(
@@ -5661,13 +5983,17 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
-            print(f'Getting model attributes from Trainee with id: {trainee_id}')
-        return self.execute(trainee_id, "get_params", {
-            "action_feature": action_feature,
-            "context_features": context_features,
-            "mode": mode,
-            "weight_feature": weight_feature,
-        })
+            print(f"Getting model attributes from Trainee with id: {trainee_id}")
+        return self.execute(
+            trainee_id,
+            "get_params",
+            {
+                "action_feature": action_feature,
+                "context_features": context_features,
+                "mode": mode,
+                "weight_feature": weight_feature,
+            },
+        )
 
     def set_params(self, trainee_id: str, params: Mapping):
         """
@@ -5703,13 +6029,13 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
-            print(f'Setting model attributes for Trainee with id: {trainee_id}')
+            print(f"Setting model attributes for Trainee with id: {trainee_id}")
 
         parameters = dict(params)
         deprecated_params = {
-            'auto_optimize_enabled': 'auto_analyze_enabled',
-            'optimize_threshold': 'analyze_threshold',
-            'optimize_growth_factor': 'analyze_growth_factor'
+            "auto_optimize_enabled": "auto_analyze_enabled",
+            "optimize_threshold": "analyze_threshold",
+            "optimize_growth_factor": "analyze_growth_factor",
         }
 
         # replace any old params with new params and remove old param
@@ -5718,17 +6044,17 @@ class AbstractHowsoClient(ABC):
                 parameters[new_param] = parameters[old_param]
                 del parameters[old_param]
                 warnings.warn(
-                    f'The `{old_param}` parameter has been renamed to '
-                    f'`{new_param}`, please use the new parameter '
-                    'instead.', UserWarning)
+                    f"The `{old_param}` parameter has been renamed to "
+                    f"`{new_param}`, please use the new parameter "
+                    "instead.",
+                    UserWarning,
+                )
 
         self.execute(trainee_id, "set_params", parameters)
         self._auto_persist_trainee(trainee_id)
 
     def clear_imputed_data(
-        self,
-        trainee_id: str,
-        impute_session: t.Optional[str | Session] = None
+        self, trainee_id: str, impute_session: t.Optional[str | Session] = None
     ):
         """
         Clears values that were imputed during a specified session.
@@ -5746,9 +6072,15 @@ class AbstractHowsoClient(ABC):
         trainee_id = self._resolve_trainee(trainee_id).id
 
         if not self.active_session:
-            raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+            raise HowsoError(
+                self.ERROR_MESSAGES["missing_session"], code="missing_session"
+            )
 
-        self.execute(trainee_id, "clear_imputed_data", {
-            "session": self.active_session.id,
-            "impute_session": impute_session,
-        })
+        self.execute(
+            trainee_id,
+            "clear_imputed_data",
+            {
+                "session": self.active_session.id,
+                "impute_session": impute_session,
+            },
+        )

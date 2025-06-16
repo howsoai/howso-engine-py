@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import typing as t
+import uuid
+import warnings
 from collections.abc import (
     Callable,
     Collection,
@@ -8,9 +11,6 @@ from collections.abc import (
 )
 from copy import deepcopy
 from pathlib import Path
-import typing as t
-import uuid
-import warnings
 
 from pandas import (
     DataFrame,
@@ -28,13 +28,13 @@ from howso.client.protocols import (
     ProjectClient,
 )
 from howso.client.schemas import Project as BaseProject
-from howso.client.schemas import Reaction
-from howso.client.schemas import Session as BaseSession
-from howso.client.schemas import Trainee as BaseTrainee
 from howso.client.schemas import (
+    Reaction,
     TraineeRuntime,
     TraineeRuntimeOptions,
 )
+from howso.client.schemas import Session as BaseSession
+from howso.client.schemas import Trainee as BaseTrainee
 from howso.client.typing import (
     AblationThresholdMap,
     CaseIndices,
@@ -122,7 +122,9 @@ class Trainee(BaseTrainee):
     def __init__(
         self,
         name: t.Optional[str] = None,
-        features: t.Optional[Mapping[str, Mapping] | SingleTableFeatureAttributes] = None,
+        features: t.Optional[
+            Mapping[str, Mapping] | SingleTableFeatureAttributes
+        ] = None,
         *,
         overwrite_existing: bool = False,
         persistence: Persistence = "allow",
@@ -133,7 +135,7 @@ class Trainee(BaseTrainee):
         project: t.Optional[str | BaseProject] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
         client: t.Optional[AbstractHowsoClient] = None,
-        runtime: t.Optional[TraineeRuntimeOptions] = None
+        runtime: t.Optional[TraineeRuntimeOptions] = None,
     ):
         """Initialize the Trainee object."""
         self._created: bool = False
@@ -151,7 +153,9 @@ class Trainee(BaseTrainee):
         if isinstance(project, BaseProject):
             project_id = project.id
             if isinstance(self.client, ProjectClient):
-                self._project_instance = Project.from_schema(project, client=self.client)
+                self._project_instance = Project.from_schema(
+                    project, client=self.client
+                )
             else:
                 self._project_instance = None
         else:
@@ -160,7 +164,7 @@ class Trainee(BaseTrainee):
 
         # Initialize the Trainee properties
         super().__init__(
-            id=id or '',  # The id will be initialized by _create
+            id=id or "",  # The id will be initialized by _create
             name=name,
             metadata=metadata,
             persistence=persistence,
@@ -173,7 +177,7 @@ class Trainee(BaseTrainee):
             max_wait_time=max_wait_time,
             overwrite=overwrite_existing,
             resources=resources,
-            runtime=runtime
+            runtime=runtime,
         )
 
     @property
@@ -186,15 +190,12 @@ class Trainee(BaseTrainee):
         Project or None
             The trainee's project.
         """
-        if (
-            not self.project_id or
-            not isinstance(self.client, ProjectClient)
-        ):
+        if not self.project_id or not isinstance(self.client, ProjectClient):
             return None
 
         if (
-            self._project_instance is None or
-            self._project_instance.id != self.project_id
+            self._project_instance is None
+            or self._project_instance.id != self.project_id
         ):
             project = self.client.get_project(self.project_id)
             self._project_instance = Project.from_schema(project, client=self.client)
@@ -274,7 +275,9 @@ class Trainee(BaseTrainee):
             if isinstance(self.client, AbstractHowsoClient):
                 self._features = self.client.resolve_feature_attributes(self.id)
             else:
-                raise AssertionError("Client must have the 'resolve_feature_attributes' method.")
+                raise AssertionError(
+                    "Client must have the 'resolve_feature_attributes' method."
+                )
         return SingleTableFeatureAttributes(deepcopy(self._features))
 
     @property
@@ -362,7 +365,9 @@ class Trainee(BaseTrainee):
             does not contain a filename, then the natural trainee name will be used ``<uuid>.caml``.
         """
         if not isinstance(self.client, LocalSaveableProtocol):
-            raise HowsoError("The current client does not support saving a Trainee to file.")
+            raise HowsoError(
+                "The current client does not support saving a Trainee to file."
+            )
 
         if file_path:
             if not isinstance(file_path, Path):
@@ -374,11 +379,13 @@ class Trainee(BaseTrainee):
             # file name.
             if file_path.suffix:
                 # If the final suffix is NOT ".caml", then add the suffix ".caml".
-                if file_path.suffix.lower() != '.caml':
+                if file_path.suffix.lower() != ".caml":
                     file_path = file_path.parent.joinpath(f"{file_path.stem}.caml")
                     warnings.warn(
-                        'Filepath with a non `.caml` extension was provided. Extension will be '
-                        'ignored and the file be will be saved as a `.caml` file', UserWarning)
+                        "Filepath with a non `.caml` extension was provided. Extension will be "
+                        "ignored and the file be will be saved as a `.caml` file",
+                        UserWarning,
+                    )
             else:
                 # Add the natural name to the file_path
                 file_path = file_path.joinpath(f"{self.id}.caml")
@@ -400,7 +407,9 @@ class Trainee(BaseTrainee):
         if self.id:
             self.client.amlg.store_entity(
                 handle=self.id,
-                file_path=self.client.resolve_trainee_filepath(file_name, filepath=file_path)
+                file_path=self.client.resolve_trainee_filepath(
+                    file_name, filepath=file_path
+                ),
             )
         else:
             raise ValueError("Trainee ID is needed for saving.")
@@ -428,7 +437,9 @@ class Trainee(BaseTrainee):
             )
             return self.features
         else:
-            raise AssertionError("Client must have the 'set_feature_attributes' method.")
+            raise AssertionError(
+                "Client must have the 'set_feature_attributes' method."
+            )
 
     def set_metadata(self, metadata: t.Optional[Mapping[str, t.Any]]):
         """
@@ -450,7 +461,7 @@ class Trainee(BaseTrainee):
         library_type: t.Optional[LibraryType] = None,
         project: t.Optional[str | BaseProject] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
-        runtime: t.Optional[TraineeRuntimeOptions] = None
+        runtime: t.Optional[TraineeRuntimeOptions] = None,
     ) -> Trainee:
         """
         Copy the trainee to another trainee.
@@ -510,7 +521,7 @@ class Trainee(BaseTrainee):
         if isinstance(copy, BaseTrainee):
             return Trainee.from_schema(copy, client=self.client)
         else:
-            raise ValueError('Trainee not correctly copied')
+            raise ValueError("Trainee not correctly copied")
 
     def persist(self) -> None:
         """
@@ -531,8 +542,13 @@ class Trainee(BaseTrainee):
         If trying to delete a trainee from another location, see :func:`delete_trainee`.
         """
         if isinstance(self.client, AbstractHowsoClient):
-            if isinstance(self.client, LocalSaveableProtocol) and self._custom_save_path is not None:
-                self.client.delete_trainee(trainee_id=self.id, file_path=self._custom_save_path)
+            if (
+                isinstance(self.client, LocalSaveableProtocol)
+                and self._custom_save_path is not None
+            ):
+                self.client.delete_trainee(
+                    trainee_id=self.id, file_path=self._custom_save_path
+                )
             else:
                 if not self.id:
                     raise ValueError("Trainee not deleted, id doesn't exist.")
@@ -551,9 +567,11 @@ class Trainee(BaseTrainee):
             Use :meth:`release_resources` instead.
         """
         warnings.warn(
-            'The method ``unload()`` is deprecated and will be removed '
-            'in a future release. Please use ``release_resources()`` '
-            'instead.', DeprecationWarning)
+            "The method ``unload()`` is deprecated and will be removed "
+            "in a future release. Please use ``release_resources()`` "
+            "instead.",
+            DeprecationWarning,
+        )
         self.release_resources()
 
     def acquire_resources(self, *, max_wait_time: t.Optional[int | float] = None):
@@ -571,7 +589,9 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             self.client.acquire_trainee_resources(self.id, max_wait_time=max_wait_time)
         else:
-            raise AssertionError("Client must have the 'acquire_trainee_resources' method.")
+            raise AssertionError(
+                "Client must have the 'acquire_trainee_resources' method."
+            )
 
     def release_resources(self):
         """Release a trainee's resources from the Howso service."""
@@ -580,7 +600,9 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             self.client.release_trainee_resources(self.id)
         else:
-            raise AssertionError("Client must have the 'release_trainee_resources' method.")
+            raise AssertionError(
+                "Client must have the 'release_trainee_resources' method."
+            )
 
     def information(self) -> TraineeRuntime:
         """
@@ -589,9 +611,11 @@ class Trainee(BaseTrainee):
         Deprecated: Use `trainee.get_runtime()` instead.
         """
         warnings.warn(
-            'The method ``information()`` is deprecated and will be removed '
-            'in a future release. Please use ``get_runtime()`` '
-            'instead.', DeprecationWarning)
+            "The method ``information()`` is deprecated and will be removed "
+            "in a future release. Please use ``get_runtime()`` "
+            "instead.",
+            DeprecationWarning,
+        )
         return self.get_runtime()
 
     def get_runtime(self) -> TraineeRuntime:
@@ -720,8 +744,8 @@ class Trainee(BaseTrainee):
                 train_weights_only=train_weights_only,
                 validate=validate,
             )
-            self._needs_analyze = status.get('needs_analyze', False)
-            self._needs_data_reduction = status.get('needs_data_reduction', False)
+            self._needs_analyze = status.get("needs_analyze", False)
+            self._needs_data_reduction = status.get("needs_data_reduction", False)
         else:
             raise AssertionError("Client must have the 'train' method.")
 
@@ -750,7 +774,9 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_auto_ablation_params(self.id)
         else:
-            raise AssertionError("Client must have the 'get_auto_ablation_params' method.")
+            raise AssertionError(
+                "Client must have the 'get_auto_ablation_params' method."
+            )
 
     def set_auto_ablation_params(
         self,
@@ -772,8 +798,10 @@ class Trainee(BaseTrainee):
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
-        tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
-        **kwargs
+        tolerance_prediction_threshold_map: t.Optional[
+            Mapping[str, tuple[float, float]]
+        ] = None,
+        **kwargs,
     ):
         """
         Set trainee parameters for auto-ablation.
@@ -865,7 +893,9 @@ class Trainee(BaseTrainee):
                 tolerance_prediction_threshold_map=tolerance_prediction_threshold_map,
             )
         else:
-            raise AssertionError("Client must have the 'set_auto_ablation_params' method.")
+            raise AssertionError(
+                "Client must have the 'set_auto_ablation_params' method."
+            )
 
     def reduce_data(
         self,
@@ -967,7 +997,9 @@ class Trainee(BaseTrainee):
                 **kwargs,
             )
         else:
-            raise AssertionError("Client must have the 'set_auto_analyze_params' method.")
+            raise AssertionError(
+                "Client must have the 'set_auto_analyze_params' method."
+            )
 
     def analyze(
         self,
@@ -992,7 +1024,7 @@ class Trainee(BaseTrainee):
         use_deviations: t.Optional[bool] = None,
         use_sdm: t.Optional[bool] = True,
         weight_feature: t.Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Analyzes the trainee.
@@ -1033,7 +1065,7 @@ class Trainee(BaseTrainee):
         num_feature_probability_samples : int, optional
             Number of samples to use to compute feature probabilities, only
             applies to targetless flow. Defaults to the number of features
-            multiplied by :math:`1000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
+            multiplied by :math:`10000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
         analysis_sub_model_size : int, optional
             Number of samples to use for analysis. The rest will be
             randomly held-out and not included in calculations.
@@ -1097,7 +1129,7 @@ class Trainee(BaseTrainee):
                 use_deviations=use_deviations,
                 use_sdm=use_sdm,
                 weight_feature=weight_feature,
-                **kwargs
+                **kwargs,
             )
         else:
             raise AssertionError("Client must have the 'analyze' method.")
@@ -1164,7 +1196,9 @@ class Trainee(BaseTrainee):
             )
 
         if context_features is None:
-            context_features = [key for key in self.features.keys() if key not in action_features]
+            context_features = [
+                key for key in self.features.keys() if key not in action_features
+            ]
 
         results = self.react(
             action_features=action_features,
@@ -1180,7 +1214,7 @@ class Trainee(BaseTrainee):
             weight_feature=weight_feature,
         )
 
-        return results['action']
+        return results["action"]
 
     def react(
         self,
@@ -2301,7 +2335,7 @@ class Trainee(BaseTrainee):
         condition_session: t.Optional[str | BaseSession] = None,
         features: t.Optional[Collection[str]] = None,
         num_cases: t.Optional[int] = None,
-        precision: t.Optional[Precision] = None
+        precision: t.Optional[Precision] = None,
     ) -> int:
         """
         Edit feature values for the specified cases.
@@ -2458,7 +2492,9 @@ class Trainee(BaseTrainee):
                 session=session_id,
             )
         else:
-            raise AssertionError("Client must have the 'get_session_training_indices' method.")
+            raise AssertionError(
+                "Client must have the 'get_session_training_indices' method."
+            )
 
     def get_cases(
         self,
@@ -2469,7 +2505,7 @@ class Trainee(BaseTrainee):
         session: t.Optional[str | BaseSession] = None,
         condition: t.Optional[Mapping[str, t.Any]] = None,
         num_cases: t.Optional[int] = None,
-        precision: t.Optional[Precision] = None
+        precision: t.Optional[Precision] = None,
     ) -> DataFrame:
         """
         Get the trainee's cases.
@@ -2627,7 +2663,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 features=features,
                 num=num,
-                sort_feature=sort_feature
+                sort_feature=sort_feature,
             )
         else:
             raise AssertionError("Client must have the 'get_extreme_cases' method.")
@@ -2644,7 +2680,9 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_num_training_cases(self.id)
         else:
-            raise AssertionError("Client must have the 'get_num_training_cases' method.")
+            raise AssertionError(
+                "Client must have the 'get_num_training_cases' method."
+            )
 
     def add_feature(
         self,
@@ -2842,7 +2880,9 @@ class Trainee(BaseTrainee):
                 context_features=context_features,
             )
         else:
-            raise AssertionError("Client must have the 'append_to_series_store' method.")
+            raise AssertionError(
+                "Client must have the 'append_to_series_store' method."
+            )
 
     def set_substitute_feature_values(
         self, substitution_value_map: Mapping[str, Mapping[str, t.Any]]
@@ -2866,7 +2906,9 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id, substitution_value_map=substitution_value_map
             )
         else:
-            raise AssertionError("Client must have the 'set_substitute_feature_values' method.")
+            raise AssertionError(
+                "Client must have the 'set_substitute_feature_values' method."
+            )
 
     def get_substitute_feature_values(
         self,
@@ -2897,7 +2939,9 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id, clear_on_get=clear_on_get
             )
         else:
-            raise AssertionError("Client must have the 'get_substitute_feature_values' method.")
+            raise AssertionError(
+                "Client must have the 'get_substitute_feature_values' method."
+            )
 
     def react_group(
         self,
@@ -3078,10 +3122,13 @@ class Trainee(BaseTrainee):
                 weight_feature=weight_feature,
             )
         else:
-            raise AssertionError("Client must have the 'get_feature_conviction' method.")
+            raise AssertionError(
+                "Client must have the 'get_feature_conviction' method."
+            )
 
     def get_marginal_stats(
-        self, *,
+        self,
+        *,
         condition: t.Optional[Mapping[str, t.Any]] = None,
         num_cases: t.Optional[int] = None,
         precision: t.Optional[Precision] = None,
@@ -3131,7 +3178,7 @@ class Trainee(BaseTrainee):
                 condition=condition,
                 num_cases=num_cases,
                 precision=precision,
-                weight_feature=weight_feature
+                weight_feature=weight_feature,
             )
         else:
             raise AssertionError("Client must have the 'get_marginal_stats' method.")
@@ -3569,9 +3616,8 @@ class Trainee(BaseTrainee):
 
     def get_prediction_stats(self, *args, **kwargs) -> DataFrame:
         """Calls :meth:`react_aggregate` and returns the results as a `DataFrame`."""
-        if (
-            hasattr(self.client, "get_prediction_stats") and
-            isinstance(self.client.get_prediction_stats, t.Callable)
+        if hasattr(self.client, "get_prediction_stats") and isinstance(
+            self.client.get_prediction_stats, t.Callable
         ):
             return self.client.get_prediction_stats(self.id, *args, **kwargs)
         else:
@@ -3697,9 +3743,7 @@ class Trainee(BaseTrainee):
             and :class:`HowsoPandasClientMixin`.
         """
         if not isinstance(client, AbstractHowsoClient):
-            raise HowsoError(
-                "``client`` must be a subclass of AbstractHowsoClient"
-            )
+            raise HowsoError("``client`` must be a subclass of AbstractHowsoClient")
         if not isinstance(client, HowsoPandasClientMixin):
             raise HowsoError("``client`` must be a HowsoPandasClient")
         self._client = client
@@ -3733,7 +3777,9 @@ class Trainee(BaseTrainee):
                 if isinstance(self.client, AbstractHowsoClient):
                     updated_trainee = self.client.update_trainee(trainee)
                 else:
-                    raise AssertionError("Client must have the 'update_trainee' method.")
+                    raise AssertionError(
+                        "Client must have the 'update_trainee' method."
+                    )
                 if updated_trainee:
                     self._update_attributes(updated_trainee)
             finally:
@@ -3816,10 +3862,12 @@ class Trainee(BaseTrainee):
                 to_case_indices=to_case_indices,
                 to_values=to_values,
                 use_case_weights=use_case_weights,
-                weight_feature=weight_feature
+                weight_feature=weight_feature,
             )
         else:
-            raise AssertionError("Client must have the 'get_pairwise_distances' method.")
+            raise AssertionError(
+                "Client must have the 'get_pairwise_distances' method."
+            )
 
     def get_distances(
         self,
@@ -3829,7 +3877,7 @@ class Trainee(BaseTrainee):
         action_feature: t.Optional[str] = None,
         case_indices: t.Optional[CaseIndices] = None,
         feature_values: t.Optional[Collection[t.Any] | DataFrame] = None,
-        weight_feature: t.Optional[str] = None
+        weight_feature: t.Optional[str] = None,
     ) -> Distances:
         """
         Computes distances matrix for specified cases.
@@ -3885,7 +3933,7 @@ class Trainee(BaseTrainee):
                 case_indices=case_indices,
                 feature_values=feature_values,
                 weight_feature=weight_feature,
-                use_case_weights=use_case_weights
+                use_case_weights=use_case_weights,
             )
         else:
             raise AssertionError("Client must have the 'get_distances' method.")
@@ -3935,10 +3983,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'evaluate' method.")
 
-    def clear_imputed_data(
-        self,
-        impute_session: t.Optional[str | BaseSession] = None
-    ):
+    def clear_imputed_data(self, impute_session: t.Optional[str | BaseSession] = None):
         """
         Clears values that were imputed during a specified session.
 
@@ -3959,12 +4004,13 @@ class Trainee(BaseTrainee):
             raise AssertionError("Client must have the 'clear_imputed_data' method.")
 
     def _create(
-        self, *,
+        self,
+        *,
         library_type: t.Optional[LibraryType] = None,
         max_wait_time: t.Optional[int | float] = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
         overwrite: bool = False,
-        runtime: t.Optional[TraineeRuntimeOptions] = None
+        runtime: t.Optional[TraineeRuntimeOptions] = None,
     ):
         """
         Create the trainee at the API.
@@ -3995,7 +4041,7 @@ class Trainee(BaseTrainee):
                     max_wait_time=max_wait_time,
                     project=self.project_id,
                     resources=resources,
-                    runtime=runtime
+                    runtime=runtime,
                 )
                 self._update_attributes(new_trainee)
                 # Get updated feature attributes
@@ -4050,8 +4096,8 @@ class Trainee(BaseTrainee):
         if not isinstance(schema, Mapping):
             raise ValueError("``schema`` parameter is not a Mapping")
         parameters: dict = {
-            'features': schema.get('features'),
-            'client': schema.get('client'),
+            "features": schema.get("features"),
+            "client": schema.get("client"),
         }
         for key in cls.attribute_map:
             if key in schema:
@@ -4081,7 +4127,7 @@ class Trainee(BaseTrainee):
 def delete_trainee(
     name_or_id: t.Optional[str] = None,
     file_path: t.Optional[PathLike] = None,
-    client: t.Optional[AbstractHowsoClient] = None
+    client: t.Optional[AbstractHowsoClient] = None,
 ):
     """
     Delete an existing Trainee.
@@ -4117,7 +4163,7 @@ def delete_trainee(
     client = client or get_client()
     if name_or_id is None and file_path is None:
         raise ValueError(
-            'Either the ``name_or_id`` or the ``file_path`` must be provided.'
+            "Either the ``name_or_id`` or the ``file_path`` must be provided."
         )
 
     # Check if file exists
@@ -4125,7 +4171,8 @@ def delete_trainee(
         if not isinstance(client, LocalSaveableProtocol):
             raise HowsoError(
                 "Deleting trainees from using a file path is only"
-                "supported with a client that has disk access.")
+                "supported with a client that has disk access."
+            )
 
         file_path = Path(file_path)
         file_path = file_path.expanduser().resolve()
@@ -4141,7 +4188,7 @@ def load_trainee(
     file_path: PathLike,
     client: t.Optional[AbstractHowsoClient] = None,
     *,
-    persistence: Persistence = 'allow',
+    persistence: Persistence = "allow",
 ) -> Trainee:
     """
     Load an existing trainee from disk.
@@ -4177,7 +4224,9 @@ def load_trainee(
     client = client or get_client()
 
     if not isinstance(client, LocalSaveableProtocol):
-        raise HowsoError("The current client does not support loading a Trainee from file.")
+        raise HowsoError(
+            "The current client does not support loading a Trainee from file."
+        )
 
     if not isinstance(file_path, Path):
         file_path = Path(file_path)
@@ -4190,13 +4239,11 @@ def load_trainee(
     # file name.
     if file_path.suffix:
         # Check to make sure sure `.caml` file is provided
-        if file_path.suffix.lower() != '.caml':
-            raise HowsoError(
-                'Filepath with a non `.caml` extension was provided.'
-            )
+        if file_path.suffix.lower() != ".caml":
+            raise HowsoError("Filepath with a non `.caml` extension was provided.")
     else:
         # Add the extension to the file_path
-        raise HowsoError('A `.caml` file must be provided.')
+        raise HowsoError("A `.caml` file must be provided.")
 
     # If path is not absolute, append it to the default directory.
     if not file_path.is_absolute():
@@ -4205,39 +4252,41 @@ def load_trainee(
     # Ensure the path exists
     if not file_path.exists():
         raise HowsoError(
-            f'The specified Trainee file "{file_path.as_posix()}" does not exist.')
+            f'The specified Trainee file "{file_path.as_posix()}" does not exist.'
+        )
 
-    if persistence == 'always':
+    if persistence == "always":
         status = client.amlg.load_entity(
             handle=trainee_id,
             file_path=str(file_path),
             persist=True,
-            json_file_params=('{"transactional":true,"flatten":true,"execute_on_load":true,'
-                              '"require_version_compatibility":true}')
+            json_file_params=(
+                '{"transactional":true,"flatten":true,"execute_on_load":true,'
+                '"require_version_compatibility":true}'
+            ),
         )
     else:
-        status = client.amlg.load_entity(
-            handle=trainee_id,
-            file_path=str(file_path)
-        )
+        status = client.amlg.load_entity(handle=trainee_id, file_path=str(file_path))
     if not status.loaded:
         status_msg = status.message or "An unknown error occurred"
-        raise HowsoError(f'Failed to load Trainee file "{file_path.as_posix()}": {status_msg}')
+        raise HowsoError(
+            f'Failed to load Trainee file "{file_path.as_posix()}": {status_msg}'
+        )
 
-    client.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
+    client.amlg.set_entity_permissions(
+        trainee_id, json_permissions='{"load":true,"store":true}'
+    )
 
     base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore reportPrivateUsage
     client.trainee_cache.set(base_trainee)
     trainee = Trainee.from_schema(base_trainee, client=client)
-    setattr(trainee, '_custom_save_path', file_path)
+    setattr(trainee, "_custom_save_path", file_path)
 
     return trainee
 
 
 def get_trainee(
-    name_or_id: str,
-    *,
-    client: t.Optional[AbstractHowsoClient] = None
+    name_or_id: str, *, client: t.Optional[AbstractHowsoClient] = None
 ) -> Trainee:
     """
     Get an existing trainee from Howso Services.
@@ -4271,7 +4320,9 @@ def list_trainees(*args, **kwargs):
     DEPRECATED: use `query_trainees` instead.
     """
     warnings.warn(
-        "The method `list_trainees` is deprecated. Use `query_trainees` instead.", DeprecationWarning)
+        "The method `list_trainees` is deprecated. Use `query_trainees` instead.",
+        DeprecationWarning,
+    )
     return query_trainees(*args, **kwargs)
 
 
@@ -4304,7 +4355,7 @@ def query_trainees(
     """
     client = client or get_client()
 
-    params = {'search_terms': search_terms}
+    params = {"search_terms": search_terms}
 
     # Only pass project_id for platform clients
     if project is not None and isinstance(client, ProjectClient):
