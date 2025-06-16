@@ -140,7 +140,11 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # Some ADCs will return the string representation of the dtype.
         # Convert to NumPy DType so that we can access attributes like 'itemsize.'
         if isinstance(dtype, str):
-            dtype = np.dtype(dtype)
+            try:
+                dtype = np.dtype(dtype)
+            except Exception:
+                # If there is a problem, leave as-is
+                pass
 
         if is_float_dtype(dtype):
             typing_info = {}
