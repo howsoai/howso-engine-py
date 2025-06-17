@@ -7,6 +7,7 @@ from concurrent.futures import (
     Future,
     ProcessPoolExecutor,
 )
+import copy
 import logging
 from math import e, isnan
 import multiprocessing as mp
@@ -124,6 +125,8 @@ class InferFeatureAttributesTimeSeries:
         """
         # prevent circular import
         from howso.client.exceptions import DatetimeFormatWarning
+        # Make a copy of the 'features' dict as it will be returned; don't modify original
+        features = copy.deepcopy(features)
         # iterate over all features, ensuring that the time feature is the first
         # one to be processed so that its deltas are cached
         feature_names = set(features.keys())
