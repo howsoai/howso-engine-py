@@ -356,9 +356,9 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
                 # Min/max values from ADC are raw; convert to datetime.time
                 if not isinstance(min_date_obj, datetime.datetime):
-                    min_date_obj = pd.to_datetime(min_date_obj, format=format_dt, errors='coerce')
+                    min_date_obj = pd.to_datetime(min_date_obj, format=format_dt)
                 if not isinstance(max_date_obj, datetime.datetime):
-                    max_date_obj = pd.to_datetime(max_date_obj, format=format_dt, errors='coerce')
+                    max_date_obj = pd.to_datetime(max_date_obj, format=format_dt)
 
                 # Capture the timezone information, so it can be included
                 # in the conversion back from epoch.

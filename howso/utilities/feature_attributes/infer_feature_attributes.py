@@ -10,7 +10,7 @@ from .base import FeatureAttributesBase
 from .pandas import InferFeatureAttributesDataFrame
 from .protocols import IFACompatibleADCProtocol, SQLRelationalDatastoreProtocol, TableNameProtocol
 from .relational import InferFeatureAttributesSQLDatastore
-from .time_series import InferFeatureAttributesTimeSeries
+from .time_series import IFATimeSeriesADC, IFATimeSeriesPandas
 
 
 def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol, *,
@@ -332,8 +332,14 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
 
     """
     # Check if time series attributes should be calculated
-    if time_feature_name and isinstance(data, pd.DataFrame):
-        infer = InferFeatureAttributesTimeSeries(data, time_feature_name)
+    if time_feature_name:
+        if isinstance(data, pd.DataFrame):
+            infer = IFATimeSeriesPandas(data, time_feature_name)
+        elif isinstance(data, IFACompatibleADCProtocol):
+            infer = IFATimeSeriesADC(data, time_feature_name)
+        else:
+            raise NotImplementedError('`infer_feature_attributes` for time series only supported for DataFrames and '
+                                      'AbstractData classes.')
     elif time_feature_name:
         raise ValueError("'time_feature_name' was included, but 'data' must be of type DataFrame "
                          "for time series feature attributes to be calculated.")

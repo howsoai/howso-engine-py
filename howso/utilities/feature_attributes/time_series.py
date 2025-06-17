@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 from collections.abc import Collection, Iterable
 from concurrent.futures import (
     as_completed,
@@ -17,6 +18,8 @@ import numpy as np
 import pandas as pd
 from pandas.core.dtypes.common import is_string_dtype
 
+from howso.connectors.abstract_data import AbstractData
+from .abstract_data import InferFeatureAttributesAbstractData
 from .base import SingleTableFeatureAttributes
 from .pandas import InferFeatureAttributesDataFrame
 from ..utilities import date_to_epoch, is_valid_datetime_format, yield_dataframe_as_chunks
@@ -34,16 +37,18 @@ def _apply_date_to_epoch(df: pd.DataFrame, feature_name: str, dt_format: str):
 class InferFeatureAttributesTimeSeries:
     """Infer feature attributes for time series data."""
 
-    def __init__(self, data: pd.DataFrame, time_feature_name: str):
+    def __init__(self, data: pd.DataFrame | AbstractData, time_feature_name: str):
         """Instantiate this InferFeatureAttributesTimeSeries object."""
         self.data = data
         self.time_feature_name = time_feature_name
         # Keep track of features that contain unsupported data
         self.unsupported = []
 
-    def _infer_delta_min_and_max(  # noqa: C901
+    def _infer_delta_min_max_from_chunk(  # noqa: C901
         self,
+        chunk: pd.DataFrame,
         features: dict,
+        *,
         datetime_feature_formats: t.Optional[dict] = None,
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         orders_of_derivatives: t.Optional[dict] = None,
@@ -51,10 +56,16 @@ class InferFeatureAttributesTimeSeries:
         max_workers: t.Optional[int] = None
     ) -> dict:
         """
-        Infer continuous feature delta_min, delta_max for each feature.
+        Infer rate and delta min/max for each continuous feature and update the features dict.
+
+        This method will not introspect `self.data` but rather the provided DataFrame
+        in order to maintain compatibility with chunk scaling.
 
         Parameters
         ----------
+        chunk : pd.DataFrame
+            The data to infer delta min and max from.
+
         features : dict, default None
             (Optional) A partially filled features dict. If partially filled
             attributes for a feature are passed in, those parameters will be
@@ -107,8 +118,9 @@ class InferFeatureAttributesTimeSeries:
         Returns
         -------
         features : dict
-            Returns dictionary of {`type`: "feature type"}} with column names
-            in passed in df as key.
+            Returns an updated feature attributes dictionary with inferred time series
+            information added under an additional ``time_series`` attribute for each
+            applicable feature.
         """
         # prevent circular import
         from howso.client.exceptions import DatetimeFormatWarning
@@ -159,11 +171,11 @@ class InferFeatureAttributesTimeSeries:
                 if dt_format is not None:
                     # copy just the id columns and the time feature
                     if isinstance(id_feature_name, str):
-                        df_c = self.data.loc[:, [id_feature_name, f_name]]
+                        df_c = chunk.loc[:, [id_feature_name, f_name]]
                     elif isinstance(id_feature_name, list):
-                        df_c = self.data.loc[:, id_feature_name + [f_name]]
+                        df_c = chunk.loc[:, id_feature_name + [f_name]]
                     else:
-                        df_c = self.data.loc[:, [f_name]]
+                        df_c = chunk.loc[:, [f_name]]
 
                     # convert time feature to epoch
                     if len(df_c) < 500_000 and max_workers is None:
@@ -238,11 +250,11 @@ class InferFeatureAttributesTimeSeries:
                 else:
                     # Use pandas' diff() to pull all the deltas for this feature
                     if isinstance(id_feature_name, list):
-                        deltas = self.data.groupby(id_feature_name)[f_name].diff(1)
+                        deltas = chunk.groupby(id_feature_name)[f_name].diff(1)
                     elif isinstance(id_feature_name, str):
-                        deltas = self.data.groupby([id_feature_name])[f_name].diff(1)
+                        deltas = chunk.groupby([id_feature_name])[f_name].diff(1)
                     else:
-                        deltas = self.data[f_name].diff(1)
+                        deltas = chunk[f_name].diff(1)
 
                 if f_name == self.time_feature_name:
                     time_feature_deltas = deltas
@@ -674,7 +686,12 @@ class InferFeatureAttributesTimeSeries:
             A subclass of FeatureAttributesBase that extends `dict`, thus providing
             dict-like access to feature attributes and useful helper methods.
         """
-        infer = InferFeatureAttributesDataFrame(self.data)
+        if isinstance(self.data, AbstractData):
+            infer = InferFeatureAttributesAbstractData(self.data)
+        elif isinstance(self.data, pd.DataFrame):
+            infer = InferFeatureAttributesDataFrame(self.data)
+        else:
+            raise ValueError('Cannot process data: unsupported type {type(self.data)} for time-series.')
 
         if mode_bound_features is None:
             feature_names = infer._get_feature_names()
@@ -728,7 +745,7 @@ class InferFeatureAttributesTimeSeries:
         # Set all non time invariant features to be `time_series` features
         for f_name, _ in features.items():
             # Mark all features which are completely NaN as time-invariant.
-            if self.data[f_name].isnull().sum() == len(self.data[f_name]):
+            if self._is_null_column(f_name):
                 time_invariant_features.append(f_name)
 
             if f_name not in time_invariant_features:
@@ -782,17 +799,21 @@ class InferFeatureAttributesTimeSeries:
             # which is not applicable to time feature.
             features[self.time_feature_name].pop('subtype', None)
 
+            time_feature_dtype = self._get_column_dtype(self.time_feature_name)
+
+        if self.time_feature_name in features:
+            # If a datetime format is defined, ensure values can be parsed with it
             if dt_format := features[self.time_feature_name].get("date_time_format"):
-                # if a datetime format is defined, ensure values can be parsed with it
                 test_value = infer._get_random_value(self.time_feature_name, no_nulls=True)
                 if test_value is not None and not is_valid_datetime_format(test_value, dt_format):
                     raise ValueError(
                         f'The date time format "{dt_format}" does not match the data of the time feature '
                         f'"{self.time_feature_name}". Data sample: "{test_value}"')
-            elif is_string_dtype(self.data[self.time_feature_name].dtype):
+
+            elif is_string_dtype(time_feature_dtype):
                 # if the time feature has no datetime format and is stored as a string,
                 # convert to an int for comparison since it's continuous
-                self.data[self.time_feature_name] = self.data[self.time_feature_name].astype(float)
+                self._cast_column(self.time_feature_name, float)
 
             # time feature cannot be null
             if 'bounds' in features[self.time_feature_name]:
@@ -800,7 +821,7 @@ class InferFeatureAttributesTimeSeries:
             else:
                 features[self.time_feature_name]['bounds'] = {'allow_null': False}
 
-        features = self._infer_delta_min_and_max(
+        features = self._infer_delta_min_max(
             features=features,
             datetime_feature_formats=datetime_feature_formats,
             id_feature_name=id_feature_name,
@@ -823,3 +844,135 @@ class InferFeatureAttributesTimeSeries:
         # Put the time_feature_name back into the kwargs dictionary.
         kwargs["time_feature_name"] = self.time_feature_name
         return SingleTableFeatureAttributes(feature_attributes, params=kwargs, unsupported=self.unsupported)
+
+    @abstractmethod
+    def _is_null_column(self, feature_name: str) -> bool:
+        """Determine whether the provided column is all null values."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _cast_column(self, feature_name: str, new_type: t.Any):
+        """Convert the column of the provided ``feature_name`` to a different dtype."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _get_column_dtype(self, feature_name: str) -> np.dtype:
+        """Get the dtype of the provided ``feature_name``."""
+        raise NotImplementedError()
+
+
+class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
+    """InferFeatureAttributesTimeSeries implementation for Pands DataFrames."""
+
+    def _infer_delta_min_max(
+        self,
+        features: dict,
+        datetime_feature_formats: t.Optional[dict] = None,
+        id_feature_name: t.Optional[str | Iterable[str]] = None,
+        orders_of_derivatives: t.Optional[dict] = None,
+        derived_orders: t.Optional[dict] = None,
+        max_workers: t.Optional[int] = None
+    ):
+        """Infer delta and rate min/max for each continuous feature and update the features dict."""
+        return self._infer_delta_min_max_from_chunk(
+            self.data,
+            features,
+            datetime_feature_formats=datetime_feature_formats,
+            id_feature_name=id_feature_name,
+            orders_of_derivatives=orders_of_derivatives,
+            derived_orders=derived_orders,
+            max_workers=max_workers,
+        )
+
+    def _cast_column(self, feature_name: str, new_type: t.Any):
+        """Convert the column of the provided ``feature_name`` to a different dtype."""
+        self.data[self.time_feature_name] = self.data[self.time_feature_name].astype(new_type)
+
+    def _is_null_column(self, feature_name: str) -> bool:
+        """Determine whether the provided column is all null values."""
+        return self.data[feature_name].isnull().sum() == len(self.data[feature_name])
+
+    def _get_column_dtype(self, feature_name: str) -> np.dtype:
+        """Get the dtype of the provided ``feature_name``."""
+        return self.data[self.time_feature_name].dtype
+
+
+class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
+    """InferFeatureAttributesTimeSeries implementation for AbstractData classes."""
+
+    @staticmethod
+    def _compute_time_series_min_max(
+        chunk_features: dict,
+        features: dict,
+        f_name: str,
+        key: str,
+        op: t.Callable,
+    ):
+        current_val = features[f_name].get('time_series', {}).get(key)
+        possible_val = chunk_features[f_name].get('time_series', {}).get(key)
+        if current_val and possible_val:
+            return op(current_val, possible_val)
+        elif possible_val and not current_val:
+            return possible_val
+        else:
+            return None
+
+    def _infer_delta_min_max(
+        self,
+        features: dict,
+        datetime_feature_formats: t.Optional[dict] = None,
+        id_feature_name: t.Optional[str | Iterable[str]] = None,
+        orders_of_derivatives: t.Optional[dict] = None,
+        derived_orders: t.Optional[dict] = None,
+        max_workers: t.Optional[int] = None
+    ):
+        """Infer delta and rate min/max for each continuous feature and update the features dict."""
+        feature_chunks = []
+        for chunk in self.data.yield_chunk():
+            feature_chunks.append(self._infer_delta_min_max_from_chunk(
+                chunk,
+                features,
+                datetime_feature_formats=datetime_feature_formats,
+                id_feature_name=id_feature_name,
+                orders_of_derivatives=orders_of_derivatives,
+                derived_orders=derived_orders,
+                max_workers=max_workers,
+            ))
+        # Recompute min/max across all chunks
+        for f_name in features.keys():
+            for chunk in feature_chunks:
+                rate_min = self._compute_time_series_min_max(chunk, features, f_name, 'rate_min', min)
+                rate_max = self._compute_time_series_min_max(chunk, features, f_name, 'rate_max', min)
+                delta_min = self._compute_time_series_min_max(chunk, features, f_name, 'delta_min', min)
+                delta_max = self._compute_time_series_min_max(chunk, features, f_name, 'delta_max', min)
+                if any([rate_min, rate_max, delta_min, delta_max]) and 'time_series' not in features[f_name]:
+                    features[f_name]['time_series'] = {}
+                if rate_min:
+                    features[f_name]['time_series']['rate_min'] = rate_min
+                if rate_max:
+                    features[f_name]['time_series']['rate_max'] = rate_max
+                if delta_min:
+                    features[f_name]['time_series']['delta_min'] = delta_min
+                if delta_min:
+                    features[f_name]['time_series']['delta_max'] = delta_max
+        return features
+
+    def _cast_column(self, feature_name: str, new_type: t.Any):
+        """Convert the column of the provided ``feature_name`` to a different dtype."""
+        raise ValueError('Invalid time feature data type: must be numeric or datetime.')
+
+    def _is_null_column(self, feature_name: str) -> bool:
+        """Determine whether the provided column is all null values."""
+        return self.data.get_num_cases == 0
+
+    def _get_column_dtype(self, feature_name: str) -> np.dtype:
+        """Get the dtype of the provided ``feature_name``."""
+        dtype = self.data.get_column_dtype(feature_name)
+        self.data
+        if isinstance(dtype, str):
+            try:
+                dtype = np.dtype(dtype)
+            except Exception:
+                # Leave as-is
+                pass
+        return dtype

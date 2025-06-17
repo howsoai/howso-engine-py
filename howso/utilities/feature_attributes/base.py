@@ -23,6 +23,7 @@ import yaml
 
 from howso.utilities.features import FeatureType
 from howso.utilities.internals import serialize_models
+from howso.utilities.utilities import is_valid_datetime_format
 
 logger = logging.getLogger(__name__)
 
@@ -796,6 +797,12 @@ class InferFeatureAttributesBase(ABC):
                 # datetime_feature_formats is expected to either be only a
                 # single string (format) or a tuple of strings (format, locale)
                 user_dt_format = self.datetime_feature_formats[feature_name]
+                # If a datetime format is defined, first ensure values can be parsed with it
+                test_value = self._get_random_value(feature_name, no_nulls=True)
+                if test_value is not None and not is_valid_datetime_format(test_value, user_dt_format):
+                    raise ValueError(
+                        f'The date time format "{user_dt_format}" does not match the data of feature '
+                        f'"{feature_name}". Data sample: "{test_value}"')
                 if 'date_time_format' in features.get(feature_name, {}):
                     warnings.warn(
                         f'The date_time_format for "{feature_name}" was provided in '
