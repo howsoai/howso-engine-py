@@ -908,6 +908,28 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
         key: str,
         op: t.Callable,
     ):
+        """
+        Return the min or max value between two competing time series feature attributes.
+
+        Parameters
+        ----------
+        chunk_features : dict
+            The prospective feature attributes.
+        features : dict
+            The existing feature attributes.
+        f_name : str
+            The feature to compare.
+        key : str
+            The key under the ``time_series`` attribute to compare.
+        op : Callable
+            The operation (min() or max()) to use.
+
+        Returns
+        -------
+        The value returned by op(a, b), or the prospective feature attributes' value if none currently exist,
+        or None if neither exist.
+        """
+        
         current_val = features[f_name].get('time_series', {}).get(key)
         possible_val = chunk_features[f_name].get('time_series', {}).get(key)
         if current_val and possible_val:
