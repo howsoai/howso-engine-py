@@ -1,27 +1,10 @@
 """Tests the `infer_feature_attributes` package with AbstractData classes."""
 from pathlib import Path
-from unittest.mock import patch
 import warnings
 
-import mongomock
 import pandas as pd
 import pytest
 
-try:
-    from howso.connectors.abstract_data import (
-        convert_data,
-        make_data_source,
-        SQLTableData,
-        MongoDBData,
-        DaskDataFrameData,
-        DataFrameData,
-        ParquetDataFile,
-        ParquetDataset,
-        TabularFile,
-    )
-    from howso.connectors.tests.utils import TemporaryDirectoryIgnoreErrors
-except (ModuleNotFoundError, ImportError):
-    pytest.skip("howso-engine-connectors not installed")
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
 from howso.utilities.features import FeatureType

@@ -267,7 +267,7 @@ def test_invalid_time_feature_format():
     df = pd.read_csv(data_path)
     time_feature_name = "date"
 
-    with pytest.raises(ValueError, match="does not match the data of the time feature"):
+    with pytest.raises(ValueError, match="does not match the data"):
         with warnings.catch_warnings():
             # warnings are expected
             warnings.filterwarnings("ignore")

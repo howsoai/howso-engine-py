@@ -799,7 +799,9 @@ class InferFeatureAttributesBase(ABC):
                 user_dt_format = self.datetime_feature_formats[feature_name]
                 # If a datetime format is defined, first ensure values can be parsed with it
                 test_value = self._get_random_value(feature_name, no_nulls=True)
-                if test_value is not None and not is_valid_datetime_format(test_value, user_dt_format):
+                if test_value is not None and not is_valid_datetime_format(
+                    test_value, user_dt_format[0] if isinstance(user_dt_format, tuple) else user_dt_format
+                ):
                     raise ValueError(
                         f'The date time format "{user_dt_format}" does not match the data of feature '
                         f'"{feature_name}". Data sample: "{test_value}"')
