@@ -6,7 +6,10 @@ import warnings
 import pandas as pd
 import pytest
 
-from howso.connectors.abstract_data import convert_data, DataFrameData
+try:
+    from howso.connectors.abstract_data import convert_data, DataFrameData
+except (ModuleNotFoundError, ImportError):
+    pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
 
