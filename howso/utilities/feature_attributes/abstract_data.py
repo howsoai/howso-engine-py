@@ -23,7 +23,7 @@ from pandas.core.dtypes.common import (
 import pytz
 
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
-from .protocols import AbstractDataProtocol
+from .protocols import IFACompatibleADCProtocol
 from ..features import FeatureType
 from ..utilities import (
     date_to_epoch,
@@ -51,7 +51,7 @@ except ImportError:
 class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     """Infer feature attributes from AbstractData classes."""
 
-    def __init__(self, data: AbstractDataProtocol):  # type: ignore reportMissingSuperCall
+    def __init__(self, data: IFACompatibleADCProtocol):  # type: ignore reportMissingSuperCall
         """
         Instantiate this InferFeatureAttributesDataFrame object.
 

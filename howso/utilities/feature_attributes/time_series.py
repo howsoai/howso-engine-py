@@ -21,7 +21,7 @@ from pandas.core.dtypes.common import is_string_dtype
 from .abstract_data import InferFeatureAttributesAbstractData
 from .base import SingleTableFeatureAttributes
 from .pandas import InferFeatureAttributesDataFrame
-from .protocols import AbstractDataProtocol
+from .protocols import IFACompatibleADCProtocol
 from ..utilities import date_to_epoch, is_valid_datetime_format, yield_dataframe_as_chunks
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ def _apply_date_to_epoch(df: pd.DataFrame, feature_name: str, dt_format: str):
 class InferFeatureAttributesTimeSeries:
     """Infer feature attributes for time series data."""
 
-    def __init__(self, data: pd.DataFrame | AbstractDataProtocol, time_feature_name: str):
+    def __init__(self, data: pd.DataFrame | IFACompatibleADCProtocol, time_feature_name: str):
         """Instantiate this InferFeatureAttributesTimeSeries object."""
         self.data = data
         self.time_feature_name = time_feature_name
@@ -686,7 +686,7 @@ class InferFeatureAttributesTimeSeries:
             A subclass of FeatureAttributesBase that extends `dict`, thus providing
             dict-like access to feature attributes and useful helper methods.
         """
-        if isinstance(self.data, AbstractDataProtocol):
+        if isinstance(self.data, IFACompatibleADCProtocol):
             infer = InferFeatureAttributesAbstractData(self.data)
         elif isinstance(self.data, pd.DataFrame):
             infer = InferFeatureAttributesDataFrame(self.data)
