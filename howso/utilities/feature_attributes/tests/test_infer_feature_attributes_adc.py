@@ -1,27 +1,19 @@
 """Tests the `infer_feature_attributes` package with AbstractData classes."""
 from pathlib import Path
-from unittest.mock import patch
 import warnings
 
-import mongomock
 import pandas as pd
 import pytest
 
 try:
     from howso.connectors.abstract_data import (
         convert_data,
-        make_data_source,
-        SQLTableData,
-        MongoDBData,
-        DaskDataFrameData,
         DataFrameData,
-        ParquetDataFile,
-        ParquetDataset,
-        TabularFile,
+        make_data_source,
     )
-    from howso.connectors.tests.utils import TemporaryDirectoryIgnoreErrors
 except (ModuleNotFoundError, ImportError):
-    pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
+    pytest.skip('howso-engine-connectors not installed', allow_module_level=True)
+
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
 from howso.utilities.features import FeatureType
@@ -66,108 +58,6 @@ features_3 = {
         "type": "continuous"
     }
 }
-
-
-def mongodb_data(df) -> MongoDBData:
-    """Yield a MongoDBData instance populated with data from the given DataFrame."""
-    with patch("howso.connectors.abstract_data.mongodb_data.MongoClient", new=mongomock.MongoClient):
-        adc = MongoDBData("mongodb://localhost/test_db#test_collection")
-        # Populate the mocked MongoDB with the provided DataFrame
-        if len(df) != 0:
-            adc._collection.insert_many(df.to_dict(orient="records"))
-        yield adc
-
-
-def sqltable_data(df) -> SQLTableData:
-    """Yield a SQLTableData instance populated with the data from the given DataFrame."""
-    with TemporaryDirectoryIgnoreErrors() as temp_dir:
-        destination = make_data_source(f"sqlite:///{temp_dir}/db.sqlite#main.data")
-        convert_data(DataFrameData(df), destination)
-        yield destination
-
-
-def sqltable_data_direct(df) -> SQLTableData:
-    """Return a SQLTableData instance populated with the data from the given DataFrame."""
-    with TemporaryDirectoryIgnoreErrors() as temp_dir:
-        destination = make_data_source(f"sqlite:///{temp_dir}/db.sqlite#main.data")
-        convert_data(DataFrameData(df), destination)
-        return destination
-
-
-def dask_dataframe_data(df) -> DaskDataFrameData:
-    """Yield a DaskDataFrameData instance populated with the data from the given DataFrame."""
-    import dask.dataframe as dd
-    yield make_data_source(dd.from_pandas(df, npartitions=3))
-
-
-def pd_dataframe_data(df) -> DataFrameData:
-    """Yield a DataFrameData instance populated with the data from the given DataFrame."""
-    yield make_data_source(df)
-
-
-def parquet_datafile(df) -> ParquetDataFile:
-    """Yield a ParquetDataFile instance populated with the data from the given DataFrame."""
-    with TemporaryDirectoryIgnoreErrors() as temp_dir:
-        destination = make_data_source(Path(f"{temp_dir}/data.parquet"))
-        convert_data(make_data_source(df), destination)
-        yield destination
-
-
-def parquet_dataset(df) -> ParquetDataset:
-    """Yield a ParquetDataFile instance populated with the data from the given DataFrame."""
-    with TemporaryDirectoryIgnoreErrors() as temp_dir:
-        destination = make_data_source(Path(f"{temp_dir}/"))
-        convert_data(make_data_source(df), destination)
-        yield destination
-
-
-def tabular_file(df) -> TabularFile:
-    """Yield a TabularFile instance populated with the data from the given DataFrame."""
-    with TemporaryDirectoryIgnoreErrors() as temp_dir:
-        destination = make_data_source(Path(f"{temp_dir}/data.tsv"))
-        convert_data(make_data_source(df), destination)
-        yield destination
-
-
-@pytest.fixture
-def adc(request):
-    """Produce an ADC populated with arbitrary data given a parametrized tuple."""
-    adc_type, df = request.param
-    if adc_type == "MongoDBData":
-        adc_gen = mongodb_data(df)
-    elif adc_type == "SQLTableData":
-        adc_gen = sqltable_data(df)
-    elif adc_type == "ParquetDataFile":
-        adc_gen = parquet_datafile(df)
-    elif adc_type == "TabularFile":
-        adc_gen = tabular_file(df)
-    elif adc_type == "DaskDataFrameData":
-        adc_gen = dask_dataframe_data(df)
-    else:  # Pandas DataFrame
-        adc_gen = pd_dataframe_data(df)
-    yield from adc_gen
-
-
-@pytest.fixture
-def adc_factory(request):
-    """Fixture to provide an ADC factory generator for use with arbitrary data."""
-    adc_type = request.param
-
-    def build_adc(df):
-        if adc_type == "MongoDBData":
-            return mongodb_data(df)
-        elif adc_type == "SQLTableData":
-            return sqltable_data(df)
-        elif adc_type == "ParquetDataFile":
-            return parquet_datafile(df)
-        elif adc_type == "TabularFile":
-            return tabular_file(df)
-        elif adc_type == "DaskDataFrameData":
-            return dask_dataframe_data(df)
-        else:  # Pandas DataFrame
-            return pd_dataframe_data(df)
-
-    return build_adc
 
 
 @pytest.mark.parametrize('adc', [
