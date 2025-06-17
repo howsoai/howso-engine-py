@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import mongomock
-import pandas as pd
 import pytest
 
 try:
@@ -19,7 +18,7 @@ try:
     )
     from howso.connectors.tests.utils import TemporaryDirectoryIgnoreErrors
 except (ModuleNotFoundError, ImportError):
-    pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
+    pytest.skip("howso-engine-connectors not installed")
 
 
 def mongodb_data(df) -> MongoDBData:

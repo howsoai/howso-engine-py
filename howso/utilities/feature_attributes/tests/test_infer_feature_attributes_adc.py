@@ -21,7 +21,7 @@ try:
     )
     from howso.connectors.tests.utils import TemporaryDirectoryIgnoreErrors
 except (ModuleNotFoundError, ImportError):
-    pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
+    pytest.skip("howso-engine-connectors not installed")
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
 from howso.utilities.features import FeatureType

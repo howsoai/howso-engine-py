@@ -9,7 +9,7 @@ import pytest
 try:
     from howso.connectors.abstract_data import convert_data, DataFrameData
 except (ModuleNotFoundError, ImportError):
-    pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
+    pytest.skip("howso-engine-connectors not installed")
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
 
