@@ -801,7 +801,6 @@ class InferFeatureAttributesTimeSeries:
 
             time_feature_dtype = self._get_column_dtype(self.time_feature_name)
 
-        if self.time_feature_name in features:
             # If a datetime format is defined, ensure values can be parsed with it
             if dt_format := features[self.time_feature_name].get("date_time_format"):
                 test_value = infer._get_random_value(self.time_feature_name, no_nulls=True)
