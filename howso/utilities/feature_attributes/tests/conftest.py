@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -9,13 +10,13 @@ import pytest
 try:
     from howso.connectors.abstract_data import (
         convert_data,
-        make_data_source,
-        SQLTableData,
-        MongoDBData,
         DaskDataFrameData,
         DataFrameData,
+        make_data_source,
+        MongoDBData,
         ParquetDataFile,
         ParquetDataset,
+        SQLTableData,
         TabularFile,
     )
 except (ModuleNotFoundError, ImportError):
@@ -42,7 +43,7 @@ class TemporaryDirectoryIgnoreErrors(TemporaryDirectory):
             super().cleanup()
 
 
-def mongodb_data(df) -> MongoDBData:
+def mongodb_data(df) -> Iterator[SQLTableData]:
     """Yield a MongoDBData instance populated with data from the given DataFrame."""
     with patch("howso.connectors.abstract_data.mongodb_data.MongoClient", new=mongomock.MongoClient):
         adc = MongoDBData("mongodb://localhost/test_db#test_collection")
@@ -52,7 +53,7 @@ def mongodb_data(df) -> MongoDBData:
         yield adc
 
 
-def sqltable_data(df) -> SQLTableData:
+def sqltable_data(df) -> Iterator[SQLTableData]:
     """Yield a SQLTableData instance populated with the data from the given DataFrame."""
     with TemporaryDirectoryIgnoreErrors() as temp_dir:
         destination = make_data_source(f"sqlite:///{temp_dir}/db.sqlite#main.data")
@@ -60,26 +61,18 @@ def sqltable_data(df) -> SQLTableData:
         yield destination
 
 
-def sqltable_data_direct(df) -> SQLTableData:
-    """Return a SQLTableData instance populated with the data from the given DataFrame."""
-    with TemporaryDirectoryIgnoreErrors() as temp_dir:
-        destination = make_data_source(f"sqlite:///{temp_dir}/db.sqlite#main.data")
-        convert_data(DataFrameData(df), destination)
-        return destination
-
-
-def dask_dataframe_data(df) -> DaskDataFrameData:
+def dask_dataframe_data(df) -> Iterator[DaskDataFrameData]:
     """Yield a DaskDataFrameData instance populated with the data from the given DataFrame."""
     import dask.dataframe as dd
     yield make_data_source(dd.from_pandas(df, npartitions=3))
 
 
-def pd_dataframe_data(df) -> DataFrameData:
+def pd_dataframe_data(df) -> Iterator[DataFrameData]:
     """Yield a DataFrameData instance populated with the data from the given DataFrame."""
     yield make_data_source(df)
 
 
-def parquet_datafile(df) -> ParquetDataFile:
+def parquet_datafile(df) -> Iterator[ParquetDataFile]:
     """Yield a ParquetDataFile instance populated with the data from the given DataFrame."""
     with TemporaryDirectoryIgnoreErrors() as temp_dir:
         destination = make_data_source(Path(f"{temp_dir}/data.parquet"))
@@ -87,7 +80,7 @@ def parquet_datafile(df) -> ParquetDataFile:
         yield destination
 
 
-def parquet_dataset(df) -> ParquetDataset:
+def parquet_dataset(df) -> Iterator[ParquetDataset]:
     """Yield a ParquetDataFile instance populated with the data from the given DataFrame."""
     with TemporaryDirectoryIgnoreErrors() as temp_dir:
         destination = make_data_source(Path(f"{temp_dir}/"))
@@ -95,7 +88,7 @@ def parquet_dataset(df) -> ParquetDataset:
         yield destination
 
 
-def tabular_file(df) -> TabularFile:
+def tabular_file(df) -> Iterator[TabularFile]:
     """Yield a TabularFile instance populated with the data from the given DataFrame."""
     with TemporaryDirectoryIgnoreErrors() as temp_dir:
         destination = make_data_source(Path(f"{temp_dir}/data.tsv"))

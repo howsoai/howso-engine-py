@@ -50,10 +50,10 @@ class InferFeatureAttributesTimeSeries:
         features: dict,
         *,
         datetime_feature_formats: t.Optional[dict] = None,
-        id_feature_name: t.Optional[str | Iterable[str]] = None,
-        orders_of_derivatives: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
-        max_workers: t.Optional[int] = None
+        id_feature_name: t.Optional[str | Iterable[str]] = None,
+        max_workers: t.Optional[int] = None,
+        orders_of_derivatives: t.Optional[dict] = None,
     ) -> dict:
         """
         Infer rate and delta min/max for each continuous feature and update the features dict.
@@ -811,7 +811,7 @@ class InferFeatureAttributesTimeSeries:
 
             elif is_string_dtype(time_feature_dtype):
                 # if the time feature has no datetime format and is stored as a string,
-                # convert to an int for comparison since it's continuous
+                # convert to a float for comparison since it's continuous
                 self._cast_column(self.time_feature_name, float)
 
             # time feature cannot be null
