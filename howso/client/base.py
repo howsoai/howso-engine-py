@@ -735,7 +735,7 @@ class AbstractHowsoClient(ABC):
     def remove_cases(
         self,
         trainee_id: str,
-        num_cases: int,
+        num_cases: t.Optional[int] = None,
         *,
         case_indices: t.Optional[CaseIndices] = None,
         condition: t.Optional[Mapping] = None,
@@ -753,8 +753,11 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to remove cases from.
-        num_cases : int
-            The number of cases to remove; minimum 1 case must be removed.
+        num_cases : int, optional
+            The limit on the number of cases to remove. If set to zero, there
+            will be no limit. If ``num_cases`` is unspecified and ``case_indices``
+            is unspecified, then up to :math:``k`` cases will be removed if
+            ``precision`` is "similar" or no limit if ``precision`` is "exact".
             Ignored if case_indices is specified.
         case_indices : Sequence of tuple of {str, int}, optional
             A list of tuples containing session ID and session training index
@@ -778,15 +781,15 @@ class AbstractHowsoClient(ABC):
             .. TIP::
                 Example 1 - Remove all values belonging to `feature_name`::
 
-                    criteria = {"feature_name": None}
+                    condition = {"feature_name": None}
 
                 Example 2 - Remove cases that have the value 10::
 
-                    criteria = {"feature_name": 10}
+                    condition = {"feature_name": 10}
 
                 Example 3 - Remove cases that have a value in range [10, 20]::
 
-                    criteria = {"feature_name": [10, 20]}
+                    condition = {"feature_name": [10, 20]}
 
                 Example 4 - Remove cases that match one of ['a', 'c', 'e']::
 
@@ -813,8 +816,8 @@ class AbstractHowsoClient(ABC):
             If `num_cases` is not at least 1.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
-        if num_cases < 1:
-            raise ValueError('num_cases must be a value greater than 0')
+        if num_cases is not None and num_cases < 1:
+            raise ValueError('`num_cases` must be a value greater than 0 if specified.')
 
         if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
             warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
@@ -889,15 +892,15 @@ class AbstractHowsoClient(ABC):
             .. TIP::
                 Example 1 - Move all values belonging to `feature_name`::
 
-                    criteria = {"feature_name": None}
+                    condition = {"feature_name": None}
 
                 Example 2 - Move cases that have the value 10::
 
-                    criteria = {"feature_name": 10}
+                    condition = {"feature_name": 10}
 
                 Example 3 - Move cases that have a value in range [10, 20]::
 
-                    criteria = {"feature_name": [10, 20]}
+                    condition = {"feature_name": [10, 20]}
 
                 Example 4 - Remove cases that match one of ['a', 'c', 'e']::
 
@@ -905,7 +908,7 @@ class AbstractHowsoClient(ABC):
 
                 Example 5 - Move cases using session name and index::
 
-                    criteria = {'.session':'your_session_name',
+                    condition = {'.session':'your_session_name',
                                 '.session_index': 1}
 
         condition_session : str, optional
@@ -4908,15 +4911,15 @@ class AbstractHowsoClient(ABC):
             .. TIP::
                 Example 1 - Retrieve all values belonging to `feature_name`::
 
-                    criteria = {"feature_name": None}
+                    condition = {"feature_name": None}
 
                 Example 2 - Retrieve cases that have the value 10::
 
-                    criteria = {"feature_name": 10}
+                    condition = {"feature_name": 10}
 
                 Example 3 - Retrieve cases that have a value in range [10, 20]::
 
-                    criteria = {"feature_name": [10, 20]}
+                    condition = {"feature_name": [10, 20]}
 
                 Example 4 - Retrieve cases that match one of ['a', 'c', 'e']::
 
@@ -4924,7 +4927,7 @@ class AbstractHowsoClient(ABC):
 
                 Example 5 - Retrieve cases using session name and index::
 
-                    criteria = {'.session':'your_session_name',
+                    condition = {'.session':'your_session_name',
                                 '.session_training_index': 1}
 
         num_cases : int, default None
