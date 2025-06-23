@@ -764,13 +764,13 @@ class InferFeatureAttributesBase(ABC):
             for k, v in types.items():
                 if isinstance(v, MutableSequence):
                     for feat_name in v:
-                        if feat_name not in self.data.columns:
-                            # In case of multiprocessing, don't set the feature type
-                            # if it is not in this worker's data
-                            continue
-                        preset_types[feat_name] = {'type': k}
+                        # The feature might not be present if this is executed under multiprocessing
+                        if feat_name in self.data.columns:
+                            preset_types[feat_name] = {'type': k}
                 else:
-                    preset_types[k] = {'type': v}
+                    # The feature might not be present if this is executed under multiprocessing
+                    if k in self.data.columns:
+                        preset_types[k] = {'type': v}
 
         # Make updates with the `merge` function
         merge = FeatureAttributesBase.merge
@@ -1222,7 +1222,7 @@ class InferFeatureAttributesBase(ABC):
             if feature_attributes[feature_name].get('data_type') == 'formatted_time':
                 continue
             # Check original data type for ints, floats, datetimes
-            orig_type = feature_attributes[feature_name]['original_type']['data_type']
+            orig_type = feature_attributes[feature_name].get('original_type', {}).get('data_type')
             if (orig_type in ['integer', 'numeric'] or 'date_time_format' in
                     feature_attributes[feature_name]):
                 # Get feature bounds
