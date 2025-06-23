@@ -1222,8 +1222,7 @@ class InferFeatureAttributesBase(ABC):
             if feature_attributes[feature_name].get('data_type') == 'formatted_time':
                 continue
             # Check original data type for ints, floats, datetimes
-            orig_type = feature_attributes[feature_name]['original_type']['data_type']
-            #orig_type = feature_attributes[feature_name].get('original_type', {}).get('data_type')
+            orig_type = feature_attributes[feature_name].get('original_type', {}).get('data_type')
             if (orig_type in ['integer', 'numeric'] or 'date_time_format' in
                     feature_attributes[feature_name]):
                 # Get feature bounds
