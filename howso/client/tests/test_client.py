@@ -937,7 +937,7 @@ class TestBaseClient:
         condition = {"feature_name": None}
         with pytest.raises(ValueError) as exc:
             self.client.remove_cases(trainee.id, 0, condition=condition)
-        assert str(exc.value) == 'num_cases must be a value greater than 0'
+        assert str(exc.value) == '`num_cases` must be a value greater than 0 if specified.'
 
     def test_react_exception(self, trainee):
         """
