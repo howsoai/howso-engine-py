@@ -115,6 +115,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             }
 
             self.emit_time_zone_warnings(missing_tz_features, utc_offset_features)
+            self._check_unsupported_data(feature_attributes)
 
             return SingleTableFeatureAttributes(
                 feature_attributes=feature_attributes, params=kwargs,
