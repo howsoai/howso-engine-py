@@ -754,10 +754,10 @@ class AbstractHowsoClient(ABC):
         trainee_id : str
             The ID of the Trainee to remove cases from.
         num_cases : int, optional
-            The limit on the number of cases to remove. If set to zero, there
-            will be no limit. If ``num_cases`` is unspecified and ``case_indices``
-            is unspecified, then up to :math:``k`` cases will be removed if
-            ``precision`` is "similar" or no limit if ``precision`` is "exact".
+            The limit on the number of cases to remove. If ``num_cases`` is
+            unspecified and ``case_indices`` is unspecified, then up to
+            :math:``k`` cases will be removed if ``precision`` is "similar" or
+            no limit if ``precision`` is "exact".
             Ignored if case_indices is specified.
         case_indices : Sequence of tuple of {str, int}, optional
             A list of tuples containing session ID and session training index
@@ -802,7 +802,7 @@ class AbstractHowsoClient(ABC):
             When specified, will distribute the removed cases' weights
             from this feature into their neighbors.
         precision : {"exact", "similar"}, optional
-            The precision to use when moving the cases, defaults to "exact".
+            The precision to use when removing the cases, defaults to "exact".
             Ignored if case_indices is specified.
 
         Returns

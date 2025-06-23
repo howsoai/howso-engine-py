@@ -2221,10 +2221,10 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         num_cases : int, optional
-            The limit on the number of cases to remove. If set to zero, there
-            will be no limit. If ``num_cases`` is unspecified and ``case_indices``
-            is unspecified, then up to :math:``k`` cases will be removed if
-            ``precision`` is "similar" or no limit if ``precision`` is "exact".
+            The limit on the number of cases to remove. If ``num_cases`` is
+            unspecified and ``case_indices`` is unspecified, then up to
+            :math:``k`` cases will be removed if ``precision`` is "similar" or
+            no limit if ``precision`` is "exact".
             Ignored if case_indices is specified.
         case_indices : list of tuples
             A list of tuples containing session ID and session training index
@@ -2270,7 +2270,7 @@ class Trainee(BaseTrainee):
             When specified, will distribute the removed cases' weights
             from this feature into their neighbors.
         precision : {"exact", "similar"}, optional
-            The precision to use when removing the cases.If not specified
+            The precision to use when removing the cases. If not specified
             "exact" will be used. Ignored if case_indices is specified.
 
         Returns
