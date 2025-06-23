@@ -845,6 +845,7 @@ def test_json_yaml_features(value, is_json, is_yaml):
         assert features['sepal_width'].get('data_type') != 'yaml'
 
 
+@pytest.mark.parametrize('max_workers', [0, 2])
 @pytest.mark.parametrize('data, types, expected_types, is_valid', [
     (pd.DataFrame({'a': [0, 1, 2, 0, 1, 2]}), dict(a='continuous'), dict(a='continuous'), True),
     (pd.DataFrame({'a': [0, 1, 2], 'b': ['1', '2', '3']}, columns=['a', 'b']), dict(continuous=['a', 'b']),
@@ -859,13 +860,13 @@ def test_json_yaml_features(value, is_json, is_yaml):
     (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(ordinal=['a']), {}, False),
     (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(a='ordinal'), {}, False),
 ])
-def test_preset_feature_types(data, types, expected_types, is_valid):
+def test_preset_feature_types(data, types, expected_types, is_valid, max_workers):
     """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
     features = {}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if is_valid:
-            features = infer_feature_attributes(data, types=types, )
+            features = infer_feature_attributes(data, types=types, max_workers=max_workers)
             for feature_name, expected_type in expected_types.items():
                 # Make sure it is the correct type
                 assert features[feature_name]['type'] == expected_type
@@ -873,7 +874,7 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
                 assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
         else:
             with pytest.raises(ValueError):
-                infer_feature_attributes(data, types=types)
+                infer_feature_attributes(data, types=types, max_workers=max_workers)
 
 
 def test_preset_feature_types_with_multiprocessing():
