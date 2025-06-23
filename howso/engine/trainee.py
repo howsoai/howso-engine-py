@@ -2204,7 +2204,7 @@ class Trainee(BaseTrainee):
 
     def remove_cases(
         self,
-        num_cases: int,
+        num_cases: t.Optional[int] = None,
         *,
         case_indices: t.Optional[CaseIndices] = None,
         condition: t.Optional[Mapping[str, t.Any]] = None,
@@ -2220,8 +2220,11 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        num_cases : int
-            The number of cases to remove; minimum 1 case must be removed.
+        num_cases : int, optional
+            The limit on the number of cases to remove. If ``num_cases`` is
+            unspecified and ``case_indices`` is unspecified, then up to
+            :math:``k`` cases will be removed if ``precision`` is "similar" or
+            no limit if ``precision`` is "exact".
             Ignored if case_indices is specified.
         case_indices : list of tuples
             A list of tuples containing session ID and session training index
@@ -2267,7 +2270,7 @@ class Trainee(BaseTrainee):
             When specified, will distribute the removed cases' weights
             from this feature into their neighbors.
         precision : {"exact", "similar"}, optional
-            The precision to use when removing the cases.If not specified
+            The precision to use when removing the cases. If not specified
             "exact" will be used. Ignored if case_indices is specified.
 
         Returns
@@ -2534,15 +2537,15 @@ class Trainee(BaseTrainee):
             .. TIP::
                 Example 1 - Retrieve all values belonging to ``feature_name``::
 
-                    criteria = {"feature_name": None}
+                    condition = {"feature_name": None}
 
                 Example 2 - Retrieve cases that have the value 10::
 
-                    criteria = {"feature_name": 10}
+                    condition = {"feature_name": 10}
 
                 Example 3 - Retrieve cases that have a value in range [10, 20]::
 
-                    criteria = {"feature_name": [10, 20]}
+                    condition = {"feature_name": [10, 20]}
 
                 Example 4 - Retrieve cases that match one of ['a', 'c', 'e']::
 
@@ -2550,7 +2553,7 @@ class Trainee(BaseTrainee):
 
                 Example 5 - Retrieve cases using session name and index::
 
-                    criteria = {'.session':'your_session_name',
+                    condition = {'.session':'your_session_name',
                                 '.session_training_index': 1}
 
         num_cases : int, default None
