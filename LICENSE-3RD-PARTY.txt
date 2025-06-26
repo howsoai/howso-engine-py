@@ -86,12 +86,12 @@ SOFTWARE.
 
 
 Pygments
-2.19.1
+2.19.2
 BSD License
 Georg Brandl <georg@python.org>
 https://pygments.org
 Pygments is a syntax highlighting package written in Python.
-/home/runner/.pyenv/versions/3.13.5/lib/python3.13/site-packages/pygments-2.19.1.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.5/lib/python3.13/site-packages/pygments-2.19.2.dist-info/licenses/LICENSE
 Copyright (c) 2006-2022 by the respective authors (see AUTHORS file).
 All rights reserved.
 
@@ -149,12 +149,12 @@ DEALINGS IN THE SOFTWARE.
 
 
 certifi
-2025.4.26
+2025.6.15
 Mozilla Public License 2.0 (MPL 2.0)
 Kenneth Reitz
 https://github.com/certifi/python-certifi
 Python package for providing Mozilla's CA Bundle.
-/home/runner/.pyenv/versions/3.13.5/lib/python3.13/site-packages/certifi-2025.4.26.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.5/lib/python3.13/site-packages/certifi-2025.6.15.dist-info/licenses/LICENSE
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
@@ -685,12 +685,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-2.3.0
+2.3.1
 BSD License
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.13.5/lib/python3.13/site-packages/numpy-2.3.0.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.5/lib/python3.13/site-packages/numpy-2.3.1.dist-info/LICENSE.txt
 Copyright (c) 2005-2025, NumPy Developers.
 All rights reserved.
 
@@ -3710,12 +3710,12 @@ limitations under the License.
 
 
 urllib3
-2.4.0
+2.5.0
 UNKNOWN
 Andrey Petrov <andrey.petrov@shazow.net>
 https://github.com/urllib3/urllib3/blob/main/CHANGES.rst
 HTTP library with thread-safe connection pooling, file post, and more.
-/home/runner/.pyenv/versions/3.13.5/lib/python3.13/site-packages/urllib3-2.4.0.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.5/lib/python3.13/site-packages/urllib3-2.5.0.dist-info/licenses/LICENSE.txt
 MIT License
 
 Copyright (c) 2008-2020 Andrey Petrov and contributors.
