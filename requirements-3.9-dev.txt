@@ -128,7 +128,7 @@ pytest-cov==6.2.1
     # via howso-engine (pyproject.toml)
 pytest-mock==1.13.0
     # via howso-engine (pyproject.toml)
-pytest-xdist==3.7.0
+pytest-xdist==3.8.0
     # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via pandas
