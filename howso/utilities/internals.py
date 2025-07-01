@@ -911,6 +911,117 @@ def to_pandas_datetime_format(f: str):
     return f
 
 
+def fix_feature_value_keys(input_dict, feature_attributes, feature_name):
+    """
+    Cleans up misformatted keys for a dict with feature values as keys.
+
+    Non-string dictionary keys are prepended with null characters as they are made
+    into strings within the JSON-ification process in Amalgam.
+
+    Parameters
+    ----------
+    input_dict : Mapping
+        The mapping with feature values as keys that may need fixing.
+    feature_attributes : Mapping
+        The feature attributes of the data.
+
+    Returns
+    -------
+    Mapping
+        The updated dict with cleaned up feature values as keys.
+    """
+    output_dict = {}
+    for k, v in input_dict.items():
+        # if "null" in k: # TODO: use this condition instead when Amalgam is updated for it.
+        if k == "":
+            output_dict["null"] = v
+        else:
+            if feature_attributes[feature_name]['original_type']['data_type'] == "string":
+                output_dict[k] = v
+            elif feature_attributes[feature_name]['data_type'] == 'number':
+                if feature_attributes[feature_name]['original_type']['data_type'] == 'integer':
+                    output_dict[int(k[1:])] = v
+                else:
+                    output_dict[float(k[1:])] = v
+            else:
+                output_dict[str(k[1:])] = v
+    return output_dict
+
+def update_caps_maps(caps_maps, feature_attributes):
+    """
+    Cleans up misformatted keys from non-string nominal feature's CAP maps.
+
+    Non-string dictionary keys are prepended with null characters as they are made
+    into strings within the JSON-ification process in Amalgam.
+
+    Parameters
+    ----------
+    caps_maps : list[dict[dict[str, float]]]
+        The list of CAP maps.
+    feature_attributes : Mapping
+        The feature attributes of the data.
+
+    Returns
+    -------
+    list[dict[dict[Any, float]]]
+        The updated list of CAP maps with cleaned up feature values as keys.
+    """
+    updated_caps_maps = []
+    for caps_map in caps_maps:
+        updated_caps_map = {}
+
+        for feature in caps_map:
+            updated_caps_map[feature] = fix_feature_value_keys(
+                caps_map[feature],
+                feature_attributes,
+                feature
+            )
+        updated_caps_maps.append(updated_caps_map)
+
+    return updated_caps_maps
+
+def update_confusion_matrix(confusion_matrix, feature_attributes):
+    """
+    Cleans up misformatted keys from non-string nominal feature's confusion matrices.
+
+    Non-string dictionary keys are prepended with null characters as they are made
+    into strings within the JSON-ification process in Amalgam.
+
+    Parameters
+    ----------
+    confusion_matrix : Mapping
+        The mapping that defines the confusion matrix.
+    feature_attributes : Mapping
+        The feature attributes of the data.
+
+    Returns
+    -------
+    Mapping
+        The updated map of confusion matrices for each feature that was given.
+    """
+    updated_confusion_matrix_map = {}
+    for feature, feature_cm_map in confusion_matrix.items():
+        updated_feature_cm_map = feature_cm_map.copy()
+        updated_feature_cm_map['other_counts'] = fix_feature_value_keys(
+            feature_cm_map['other_counts'],
+            feature_attributes,
+            feature
+        )
+
+        # The 'matrix' value is a double nested dict of feature values to feature values to counts.
+        # So we need to fix the inner keys then the outer keys.
+        updated_matrix = {
+            k: fix_feature_value_keys(v, feature_attributes, feature)
+            for k, v in feature_cm_map['matrix'].items()
+        }
+        updated_matrix = fix_feature_value_keys(updated_matrix, feature_attributes, feature)
+        updated_feature_cm_map['matrix'] = updated_matrix
+
+        updated_confusion_matrix_map[feature] = updated_feature_cm_map
+
+    return updated_confusion_matrix_map
+
+
 class IgnoreWarnings:
     """
     Simple context manager to ignore Warnings.
