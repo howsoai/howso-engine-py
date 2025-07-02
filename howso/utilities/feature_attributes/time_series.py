@@ -9,7 +9,7 @@ from concurrent.futures import (
 )
 import copy
 import logging
-from math import e, isnan
+from math import e
 import multiprocessing as mp
 import os
 import typing as t
@@ -289,7 +289,7 @@ class InferFeatureAttributesTimeSeries:
                         ]
 
                         # remove NaNs
-                        no_nan_rates = [x for x in rates if isnan(x) is False]
+                        no_nan_rates = [x for x in rates if pd.isna(x) is False]
                         if len(no_nan_rates) == 0:
                             continue
 
