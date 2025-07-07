@@ -196,8 +196,6 @@ def test_integer_nominality(feature, nominality):
     # Datetime
     (pd.DataFrame([["2020-01-01T10:00:00"]], dtype='datetime64[ns]', columns=['a']),
      {'data_type': str(FeatureType.DATETIME)}),
-    (pd.DataFrame([["2020-01-01"]], dtype='datetime64[ns]', columns=['a']),
-     {'data_type': str(FeatureType.DATETIME)}),
     (pd.DataFrame([[datetime.datetime.now()]], columns=['a']),
      {'data_type': str(FeatureType.DATETIME)}),
     (pd.DataFrame([[datetime.datetime.now(pytz.timezone('US/Eastern'))]], columns=['a']),
@@ -206,6 +204,10 @@ def test_integer_nominality(feature, nominality):
      {'data_type': str(FeatureType.DATETIME)}),
     # Date
     (pd.DataFrame([[datetime.date(2020, 1, 1)]], columns=['a']),
+     {'data_type': str(FeatureType.DATE)}),
+    (pd.DataFrame([[pd.Timestamp(datetime.date(2020, 1, 1))]], columns=['a']),
+     {'data_type': str(FeatureType.DATE)}),
+    (pd.DataFrame([["2020-01-01"]], dtype='datetime64[ns]', columns=['a']),
      {'data_type': str(FeatureType.DATE)}),
     # Timedelta
     (pd.DataFrame([[datetime.timedelta(days=1)]], columns=['a']),
