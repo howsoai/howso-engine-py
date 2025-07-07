@@ -376,6 +376,7 @@ class InferFeatureAttributesTimeSeries:
         nominal_substitution_config: t.Optional[dict[str, dict]] = None,
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
+        ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
         rate_boundaries: t.Optional[dict] = None,
         time_invariant_features: t.Optional[Iterable[str]] = None,
         tight_bounds: t.Optional[Iterable[str]] = None,
@@ -621,6 +622,19 @@ class InferFeatureAttributesTimeSeries:
             set to 0, will not generate any delta/rate features. By default all
             continuous features have an order value of 1.
 
+    ordinal_feature_values : dict, default None
+        (optional) Dict for ordinal string features defining an ordered
+        list of string values for each feature, ordered low to high. If
+        specified will set 'type' to be 'ordinal' for all features in
+        this map.
+
+        Example::
+
+            {
+                "grade" : [ "F", "D", "C", "B", "A" ],
+                "size" : [ "small", "medium", "large", "huge" ]
+            }
+
         rate_boundaries : dict, default None
             (Optional) For time series, specify the rate boundaries in the form
             {"feature" : {"min|max" : {order : value}}}. Works with partial values
@@ -715,6 +729,7 @@ class InferFeatureAttributesTimeSeries:
             max_workers=max_workers,
             mode_bound_features=mode_bound_features,
             nominal_substitution_config=nominal_substitution_config,
+            ordinal_feature_values=ordinal_feature_values,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
             types=types,
         )
