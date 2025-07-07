@@ -426,15 +426,15 @@ def test_dependent_features(should_include, base_features, dependent_features):
         ['a'],
         [datetime.datetime(1905, 1, 1), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1904-05-03T00:00:00', 'max': '2022-03-26T00:00:00',
-         'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
+        {'min': '1904-05-03', 'max': '2022-03-26',
+         'observed_min': '1904-05-03', 'observed_max': '2022-03-26'}
     ),
     (
         None,
         [datetime.datetime(1905, 1, 1), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1827-11-08T09:55:14', 'max': '2098-09-17T14:04:45',
-         'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
+        {'min': '1827-11-08', 'max': '2098-09-17',
+         'observed_min': '1904-05-03', 'observed_max': '2022-03-26'}
     ),
     (
         None,
@@ -442,8 +442,8 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.datetime(1904, 5, 3), datetime.datetime(1904, 5, 3),
          datetime.datetime(1904, 5, 3), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1904-05-03T00:00:00', 'max': '2098-09-17T14:04:45',
-         'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
+        {'min': '1904-05-03', 'max': '2098-09-17',
+         'observed_min': '1904-05-03', 'observed_max': '2022-03-26'}
     ),
     (
         None,

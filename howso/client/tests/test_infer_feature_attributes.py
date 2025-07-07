@@ -70,12 +70,12 @@ class TestInferFeatureAttributes:
     def test_datetime_warns_custom_format(self):
         """Test that infer_feature_attributes infers dates correctly."""
         df = pd.DataFrame(data=np.asarray([
-            ['10.10.2020', '12.12.2020', '11.11.1920']
+            ['10.10.2020 4:30', '12.12.2020 1:00', '11.11.1920 3:15']
         ]).transpose(), columns=['datetime'])
         # convert column to contain datetime objects instead of strings
         df['datetime'] = pd.to_datetime(df['datetime'])
 
-        custom_format = {'datetime': ('%m.%d.%Y', 'en_US')}
+        custom_format = {'datetime': ('%m.%d.%Y %h:%m', 'en_US')}
 
         expected_warning = (
             'Providing a datetime feature format for the feature "datetime" '
