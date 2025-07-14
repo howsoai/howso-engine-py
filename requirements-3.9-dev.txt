@@ -10,7 +10,7 @@ astroid==3.3.10
     # via pylint
 build==1.2.2.post1
     # via pip-tools
-certifi==2025.6.15
+certifi==2025.7.9
     # via
     #   howso-engine (pyproject.toml)
     #   requests
@@ -20,9 +20,9 @@ charset-normalizer==3.4.2
     # via requests
 click==8.1.8
     # via pip-tools
-coverage[toml]==7.9.1
+coverage[toml]==7.9.2
     # via pytest-cov
-cryptography==45.0.4
+cryptography==45.0.5
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
@@ -81,7 +81,7 @@ packaging==25.0
     #   mongomock
     #   pipdeptree
     #   pytest
-pandas==2.3.0
+pandas==2.3.1
     # via
     #   howso-engine (pyproject.toml)
     #   pmlb
@@ -128,7 +128,7 @@ pytest-cov==6.2.1
     # via howso-engine (pyproject.toml)
 pytest-mock==1.13.0
     # via howso-engine (pyproject.toml)
-pytest-xdist==3.7.0
+pytest-xdist==3.8.0
     # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via pandas
@@ -169,7 +169,7 @@ tomli==2.2.1
     #   pytest
 tomlkit==0.13.3
     # via pylint
-typing-extensions==4.14.0
+typing-extensions==4.14.1
     # via
     #   astroid
     #   exceptiongroup

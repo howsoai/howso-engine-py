@@ -956,8 +956,8 @@ class InferFeatureAttributesBase(ABC):
                     continue
                 # Don't infer bounds for JSON/YAML features
                 if (
-                    _attributes.get('data_type') in ['json', 'yaml'] or
-                    features.get(feature_name, {}).get('data_type') in ['json', 'yaml']
+                    _attributes.get("data_type") in ["json", "yaml"] or
+                    features.get(feature_name, {}).get('data_type') in ["json", "yaml"]
                 ):
                     continue
                 bounds = self._infer_feature_bounds(
@@ -966,7 +966,9 @@ class InferFeatureAttributesBase(ABC):
                     mode_bound_features=mode_bound_features,
                 )
                 if bounds:
-                    _attributes['bounds'] = bounds  # noqa
+                    # Use `update` on the bounds dictionary in case `allowed` ordinal values have already been set
+                    bounds.update(self.attributes[feature_name].get("bounds", {}))
+                    _attributes["bounds"] = bounds
 
         # Do any features contain data unsupported by the core?
         self._check_unsupported_data(self.attributes)
