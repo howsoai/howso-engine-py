@@ -911,7 +911,11 @@ def to_pandas_datetime_format(f: str):
     return f
 
 
-def fix_feature_value_keys(input_dict: dict, feature_attributes: Mapping, feature_name: str):
+def fix_feature_value_keys(
+    input_dict: dict[str, t.Any],
+    feature_attributes: Mapping[t.Hashable, Mapping],
+    feature_name: str
+):
     """
     Cleans up misformatted keys for a dict with feature values as keys.
 
@@ -920,16 +924,16 @@ def fix_feature_value_keys(input_dict: dict, feature_attributes: Mapping, featur
 
     Parameters
     ----------
-    input_dict : Mapping
+    input_dict : dict[str, Any]
         The mapping with feature values as keys that may need fixing.
-    feature_attributes : Mapping
+    feature_attributes : Mapping[Hashable, Mapping]
         The feature attributes of the data.
     feature_name : str
         The name of the feature whose feature values make the keys of the dict.
 
     Returns
     -------
-    Mapping
+    dict[str | float | int, Any]
         The updated dict with cleaned up feature values as keys.
     """
     output_dict = {}
@@ -946,7 +950,7 @@ def fix_feature_value_keys(input_dict: dict, feature_attributes: Mapping, featur
                 output_dict[str(k)] = v
     return output_dict
 
-def update_caps_maps(caps_maps: list[dict[dict[str, float]]], feature_attributes: Mapping):
+def update_caps_maps(caps_maps: list[dict[dict[str, float]]], feature_attributes: Mapping[t.Hashable, Mapping]):
     """
     Cleans up misformatted keys from non-string nominal feature's CAP maps.
 
@@ -957,12 +961,12 @@ def update_caps_maps(caps_maps: list[dict[dict[str, float]]], feature_attributes
     ----------
     caps_maps : list[dict[dict[str, float]]]
         The list of CAP maps.
-    feature_attributes : Mapping
+    feature_attributes : Mapping[str, Mapping]
         The feature attributes of the data.
 
     Returns
     -------
-    list[dict[dict[Any, float]]]
+    list[dict[dict[str | int | float, float]]]
         The updated list of CAP maps with cleaned up feature values as keys.
     """
     updated_caps_maps = []
@@ -979,7 +983,7 @@ def update_caps_maps(caps_maps: list[dict[dict[str, float]]], feature_attributes
 
     return updated_caps_maps
 
-def update_confusion_matrix(confusion_matrix: Mapping, feature_attributes: Mapping):
+def update_confusion_matrix(confusion_matrix: dict[str, dict | float], feature_attributes: Mapping[t.Hashable, Mapping]):
     """
     Cleans up misformatted keys from non-string nominal feature's confusion matrices.
 
@@ -988,14 +992,14 @@ def update_confusion_matrix(confusion_matrix: Mapping, feature_attributes: Mappi
 
     Parameters
     ----------
-    confusion_matrix : Mapping
+    confusion_matrix : dict[str, dict | float]
         The mapping that defines the confusion matrix.
-    feature_attributes : Mapping
+    feature_attributes : Mapping[Hashable, Mapping]
         The feature attributes of the data.
 
     Returns
     -------
-    Mapping
+    Mapping[str, Any]
         The updated map of confusion matrices for each feature that was given.
     """
     updated_confusion_matrix_map = {}
