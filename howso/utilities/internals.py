@@ -935,10 +935,8 @@ def fix_feature_value_keys(input_dict, feature_attributes, feature_name):
         if k == "(null)":
             output_dict["null"] = v
         else:
-            if feature_attributes[feature_name]['original_type']['data_type'] == "string":
-                output_dict[k] = v
-            elif feature_attributes[feature_name]['data_type'] == 'number':
-                if feature_attributes[feature_name]['original_type']['data_type'] == 'integer':
+            if feature_attributes[feature_name].get('data_type') == 'number':
+                if feature_attributes[feature_name].get('original_type', {}).get('data_type') == 'integer':
                     output_dict[int(k)] = v
                 else:
                     output_dict[float(k)] = v
