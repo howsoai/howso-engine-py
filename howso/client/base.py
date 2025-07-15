@@ -2287,6 +2287,12 @@ class AbstractHowsoClient(ABC):
                             detail_response[extra_old_key] = detail_response[extra_new_key]
                             del detail_response[extra_new_key]
 
+            if "categorical_action_probabilities" in detail_response:
+                detail_response["categorical_action_probabilities"] = internals.update_caps_maps(
+                    detail_response["categorical_action_probabilities"],
+                    feature_attributes
+                )
+
         return Reaction(response.get('action'), detail_response)
 
     def _batch_react(
@@ -3915,6 +3921,7 @@ class AbstractHowsoClient(ABC):
             another map of feature names to stat values.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self.resolve_feature_attributes(trainee_id)
         util.validate_list_shape(context_features, 1, "context_features", "str")
 
         if isinstance(details, dict):
@@ -4021,6 +4028,9 @@ class AbstractHowsoClient(ABC):
                         if extra_new_key in stats:
                             stats[extra_old_key] = stats[extra_new_key]
                             del stats[extra_new_key]
+
+            if "confusion_matrix" in stats:
+                stats['confusion_matrix'] = internals.update_confusion_matrix(stats['confusion_matrix'], feature_attributes)
 
         self._auto_persist_trainee(trainee_id)
         return stats

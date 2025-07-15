@@ -911,6 +911,126 @@ def to_pandas_datetime_format(f: str):
     return f
 
 
+def fix_feature_value_keys(
+    input_dict: dict[str, t.Any],
+    feature_attributes: Mapping[t.Hashable, Mapping],
+    feature_name: str
+) -> dict[str | float | int, t.Any]:
+    """
+    Cleans up misformatted keys for a dict with feature values as keys.
+
+    Non-string dictionary keys are converted to strings
+    within the JSON-ification process in Amalgam.
+
+    Parameters
+    ----------
+    input_dict : dict[str, Any]
+        The mapping with feature values as keys that may need fixing.
+    feature_attributes : Mapping[Hashable, Mapping]
+        The feature attributes of the data.
+    feature_name : str
+        The name of the feature whose feature values make the keys of the dict.
+
+    Returns
+    -------
+    dict[str | float | int, Any]
+        The updated dict with cleaned up feature values as keys.
+    """
+    output_dict = {}
+    for k, v in input_dict.items():
+        if k == "(null)":
+            output_dict["null"] = v
+        else:
+            if feature_attributes[feature_name].get('data_type') == 'number':
+                if feature_attributes[feature_name].get('original_type', {}).get('data_type') == 'integer':
+                    output_dict[int(k)] = v
+                else:
+                    output_dict[float(k)] = v
+            else:
+                output_dict[str(k)] = v
+    return output_dict
+
+def update_caps_maps(
+    caps_maps: list[dict[dict[str, float]]],
+    feature_attributes: Mapping[t.Hashable, Mapping]
+) -> list[dict[dict[str | int | float, float]]]:
+    """
+    Cleans up misformatted keys from non-string nominal feature's CAP maps.
+
+    Non-string dictionary keys are converted to strings
+    within the JSON-ification process in Amalgam.
+
+    Parameters
+    ----------
+    caps_maps : list[dict[dict[str, float]]]
+        The list of CAP maps.
+    feature_attributes : Mapping[str, Mapping]
+        The feature attributes of the data.
+
+    Returns
+    -------
+    list[dict[dict[str | int | float, float]]]
+        The updated list of CAP maps with cleaned up feature values as keys.
+    """
+    updated_caps_maps = []
+    for caps_map in caps_maps:
+        updated_caps_map = {}
+
+        for feature in caps_map:
+            updated_caps_map[feature] = fix_feature_value_keys(
+                caps_map[feature],
+                feature_attributes,
+                feature
+            )
+        updated_caps_maps.append(updated_caps_map)
+
+    return updated_caps_maps
+
+def update_confusion_matrix(
+    confusion_matrix: dict[str, dict | float],
+    feature_attributes: Mapping[t.Hashable, Mapping]
+) -> dict[str, t.Any]:
+    """
+    Cleans up misformatted keys from non-string nominal feature's confusion matrices.
+
+    Non-string dictionary keys are converted to strings
+    within the JSON-ification process in Amalgam.
+
+    Parameters
+    ----------
+    confusion_matrix : dict[str, dict | float]
+        The mapping that defines the confusion matrix.
+    feature_attributes : Mapping[Hashable, Mapping]
+        The feature attributes of the data.
+
+    Returns
+    -------
+    dict[str, Any]
+        The updated map of confusion matrices for each feature that was given.
+    """
+    updated_confusion_matrix_map = {}
+    for feature, feature_cm_map in confusion_matrix.items():
+        updated_feature_cm_map = feature_cm_map.copy()
+        updated_feature_cm_map['other_counts'] = fix_feature_value_keys(
+            feature_cm_map['other_counts'],
+            feature_attributes,
+            feature
+        )
+
+        # The 'matrix' value is a double nested dict of feature values to feature values to counts.
+        # So the inner keys must be fixed in addition to the outer keys.
+        updated_matrix = {
+            k: fix_feature_value_keys(v, feature_attributes, feature)
+            for k, v in feature_cm_map['matrix'].items()
+        }
+        updated_matrix = fix_feature_value_keys(updated_matrix, feature_attributes, feature)
+        updated_feature_cm_map['matrix'] = updated_matrix
+
+        updated_confusion_matrix_map[feature] = updated_feature_cm_map
+
+    return updated_confusion_matrix_map
+
+
 class IgnoreWarnings:
     """
     Simple context manager to ignore Warnings.
