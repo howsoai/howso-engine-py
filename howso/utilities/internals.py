@@ -915,7 +915,7 @@ def fix_feature_value_keys(
     input_dict: dict[str, t.Any],
     feature_attributes: Mapping[t.Hashable, Mapping],
     feature_name: str
-):
+) -> dict[str | float | int, t.Any]:
     """
     Cleans up misformatted keys for a dict with feature values as keys.
 
@@ -950,7 +950,10 @@ def fix_feature_value_keys(
                 output_dict[str(k)] = v
     return output_dict
 
-def update_caps_maps(caps_maps: list[dict[dict[str, float]]], feature_attributes: Mapping[t.Hashable, Mapping]):
+def update_caps_maps(
+    caps_maps: list[dict[dict[str, float]]],
+    feature_attributes: Mapping[t.Hashable, Mapping]
+) -> list[dict[dict[str | int | float, float]]]:
     """
     Cleans up misformatted keys from non-string nominal feature's CAP maps.
 
@@ -983,7 +986,10 @@ def update_caps_maps(caps_maps: list[dict[dict[str, float]]], feature_attributes
 
     return updated_caps_maps
 
-def update_confusion_matrix(confusion_matrix: dict[str, dict | float], feature_attributes: Mapping[t.Hashable, Mapping]):
+def update_confusion_matrix(
+    confusion_matrix: dict[str, dict | float],
+    feature_attributes: Mapping[t.Hashable, Mapping]
+) -> dict[str, t.Any]:
     """
     Cleans up misformatted keys from non-string nominal feature's confusion matrices.
 
@@ -999,7 +1005,7 @@ def update_confusion_matrix(confusion_matrix: dict[str, dict | float], feature_a
 
     Returns
     -------
-    Mapping[str, Any]
+    dict[str, Any]
         The updated map of confusion matrices for each feature that was given.
     """
     updated_confusion_matrix_map = {}
