@@ -915,8 +915,8 @@ def fix_feature_value_keys(input_dict, feature_attributes, feature_name):
     """
     Cleans up misformatted keys for a dict with feature values as keys.
 
-    Non-string dictionary keys are prepended with null characters as they are made
-    into strings within the JSON-ification process in Amalgam.
+    Non-string dictionary keys are converted to strings
+    within the JSON-ification process in Amalgam.
 
     Parameters
     ----------
@@ -932,27 +932,26 @@ def fix_feature_value_keys(input_dict, feature_attributes, feature_name):
     """
     output_dict = {}
     for k, v in input_dict.items():
-        # if "null" in k: # TODO: use this condition instead when Amalgam is updated for it.
-        if k == "":
+        if k == "(null)":
             output_dict["null"] = v
         else:
             if feature_attributes[feature_name]['original_type']['data_type'] == "string":
                 output_dict[k] = v
             elif feature_attributes[feature_name]['data_type'] == 'number':
                 if feature_attributes[feature_name]['original_type']['data_type'] == 'integer':
-                    output_dict[int(k[1:])] = v
+                    output_dict[int(k)] = v
                 else:
-                    output_dict[float(k[1:])] = v
+                    output_dict[float(k)] = v
             else:
-                output_dict[str(k[1:])] = v
+                output_dict[str(k)] = v
     return output_dict
 
 def update_caps_maps(caps_maps, feature_attributes):
     """
     Cleans up misformatted keys from non-string nominal feature's CAP maps.
 
-    Non-string dictionary keys are prepended with null characters as they are made
-    into strings within the JSON-ification process in Amalgam.
+    Non-string dictionary keys are converted to strings
+    within the JSON-ification process in Amalgam.
 
     Parameters
     ----------
@@ -984,8 +983,8 @@ def update_confusion_matrix(confusion_matrix, feature_attributes):
     """
     Cleans up misformatted keys from non-string nominal feature's confusion matrices.
 
-    Non-string dictionary keys are prepended with null characters as they are made
-    into strings within the JSON-ification process in Amalgam.
+    Non-string dictionary keys are converted to strings
+    within the JSON-ification process in Amalgam.
 
     Parameters
     ----------
@@ -1009,7 +1008,7 @@ def update_confusion_matrix(confusion_matrix, feature_attributes):
         )
 
         # The 'matrix' value is a double nested dict of feature values to feature values to counts.
-        # So we need to fix the inner keys then the outer keys.
+        # So the inner keys must be fixed in addition to the outer keys.
         updated_matrix = {
             k: fix_feature_value_keys(v, feature_attributes, feature)
             for k, v in feature_cm_map['matrix'].items()
