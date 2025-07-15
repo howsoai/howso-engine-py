@@ -911,7 +911,7 @@ def to_pandas_datetime_format(f: str):
     return f
 
 
-def fix_feature_value_keys(input_dict, feature_attributes, feature_name):
+def fix_feature_value_keys(input_dict: dict, feature_attributes: Mapping, feature_name: str):
     """
     Cleans up misformatted keys for a dict with feature values as keys.
 
@@ -924,6 +924,8 @@ def fix_feature_value_keys(input_dict, feature_attributes, feature_name):
         The mapping with feature values as keys that may need fixing.
     feature_attributes : Mapping
         The feature attributes of the data.
+    feature_name : str
+        The name of the feature whose feature values make the keys of the dict.
 
     Returns
     -------
@@ -944,7 +946,7 @@ def fix_feature_value_keys(input_dict, feature_attributes, feature_name):
                 output_dict[str(k)] = v
     return output_dict
 
-def update_caps_maps(caps_maps, feature_attributes):
+def update_caps_maps(caps_maps: list[dict[dict[str, float]]], feature_attributes: Mapping):
     """
     Cleans up misformatted keys from non-string nominal feature's CAP maps.
 
@@ -977,7 +979,7 @@ def update_caps_maps(caps_maps, feature_attributes):
 
     return updated_caps_maps
 
-def update_confusion_matrix(confusion_matrix, feature_attributes):
+def update_confusion_matrix(confusion_matrix: Mapping, feature_attributes: Mapping):
     """
     Cleans up misformatted keys from non-string nominal feature's confusion matrices.
 
