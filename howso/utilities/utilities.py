@@ -838,7 +838,7 @@ class LocaleOverride:
         is dropped and ignored.
     category : int
         This is one of the constants set within the locale object.
-        See: https://docs.python.org/3.9/library/locale.html for details.
+        See: https://docs.python.org/3/library/locale.html for details.
         `locale.LC_ALL` is used if nothing provided.
     """
 
