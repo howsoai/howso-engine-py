@@ -38,7 +38,7 @@ dependencies = [
    "Faker>=4.1.1",
    "humanize>=4.0.0",
    "mmh3",
-   "numpy",
+   "numpy~=2.2.0",
    "pandas",
    "pyjwt~=2.0",
    "pyyaml~=6.0",
