@@ -30,7 +30,7 @@ mdurl==0.1.2
     # via markdown-it-py
 mmh3==5.1.0
     # via howso-engine (pyproject.toml)
-numpy==2.3.1
+numpy==2.2.6
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
