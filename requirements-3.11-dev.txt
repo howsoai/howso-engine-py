@@ -64,7 +64,7 @@ mmh3==5.1.0
     # via howso-engine (pyproject.toml)
 mongomock==4.3.0
     # via howso-engine (pyproject.toml)
-numpy==2.3.1
+numpy==2.2.6
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
