@@ -747,7 +747,8 @@ class HowsoEstimator(BaseEstimator):
                 features of the reacted case to determine that region.
                 Computed as: region feature residual divided by case feature
                 residual. Uses full calculations, which uses leave-one-out
-                for cases for computations.
+                for cases for computations. Also outputs the predicted values
+                for each feature under the key, "predicted_values_for_case".
             - feature_full_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
@@ -759,7 +760,8 @@ class HowsoEstimator(BaseEstimator):
                 each feature, while using the others to predict the left out
                 feature with their corresponding values from this case. Uses
                 full calculations, which uses leave-one-out for cases for
-                computations.
+                computations. Also outputs the predicted values for each feature
+                under the key, "predicted_values_for_case".
             - feature_robust_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
