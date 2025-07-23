@@ -1083,3 +1083,12 @@ def test_constrained_date_bounds():
     with pytest.warns(match="bounds could not be computed. This is likely due to a constrained date time format"):
         # Loose bounds may cause min bound to be > max bound if the date format is constrained
         infer_feature_attributes(df, datetime_feature_formats={"date": "%m"})
+
+
+def test_nullable_integer_validation():
+    """Test that IFA correctly validates data with nullable integers."""
+    df = pd.DataFrame({"a": ["1", "2", "3", pd.NA, "4"]}, dtype="Int64")
+    attrs = infer_feature_attributes(df)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        attrs.validate(df, coerce=True)
