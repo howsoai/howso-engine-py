@@ -296,6 +296,7 @@ class FeatureAttributesBase(dict):
         errors = []
         series = coerced_df[feature]
         is_valid = False
+        coerce_err = ""
 
         if isinstance(expected_dtype, pd.CategoricalDtype):
             # If the feature is a Categorical dtype, try to coerce
@@ -337,14 +338,16 @@ class FeatureAttributesBase(dict):
                     # If this happens, there is a null value, thus a float dtype is OK
                     if pd.api.types.is_float_dtype(series):
                         is_valid = True
-                except Exception: # noqa: Intentionally broad
+                except Exception as err: # noqa: Intentionally broad
+                    coerce_err = str(err)
                     pass
 
         # Raise warnings if the types do not match
         if not is_valid:
             if coerce:
                 errors.append(f"Expected dtype '{expected_dtype}' for feature '{feature}' "
-                              "but could not coerce.")
+                              f"but could not coerce:\nActual dtype: {data[feature].dtype}"
+                              f"\nError raised from Pandas.astype():\n\n{coerce_err}")
             else:
                 errors.append(f"Feature '{feature}' should be '{expected_dtype}' dtype, but found "
                               f"'{data[feature].dtype}'")
@@ -382,8 +385,12 @@ class FeatureAttributesBase(dict):
             if attributes['type'] == 'nominal':
                 if attributes.get('data_type') == 'number':
                     # Check type (float)
-                    if attributes.get('decimal_places', 0) > 0 or self._allows_null(attributes):
+                    if attributes.get('decimal_places', 0) > 0:
                         errors.extend(self._validate_dtype(data, feature, 'float64',
+                                                           coerced_df, coerce=coerce))
+                    # Check type (nullable Int)
+                    elif self._allows_null(attributes):
+                        errors.extend(self._validate_dtype(data, feature, 'Int64',
                                                            coerced_df, coerce=coerce))
                     # Check type (int)
                     else:
@@ -413,8 +420,12 @@ class FeatureAttributesBase(dict):
                     errors.extend(self._validate_dtype(data, feature, schema_dtype,
                                                        coerced_df, coerce=coerce))
                 # Check type (float)
-                elif attributes.get('decimal_places', 0) > 0 or self._allows_null(attributes):
+                elif attributes.get('decimal_places', 0) > 0:
                     errors.extend(self._validate_dtype(data, feature, 'float64',
+                                                       coerced_df, coerce=coerce))
+                # Check type (nullable Int)
+                elif self._allows_null(attributes):
+                    errors.extend(self._validate_dtype(data, feature, 'Int64',
                                                        coerced_df, coerce=coerce))
                 # Check type (int)
                 else:
@@ -422,18 +433,22 @@ class FeatureAttributesBase(dict):
                                                        coerced_df, coerce=coerce))
 
             # Check continuous types
-            elif attributes['type'] == 'continuous':
+            else:
                 if 'date_time_format' in attributes:
                     # Check type (datetime)
                     errors.extend(self._validate_dtype(data, feature, 'datetime64',
                                                        coerced_df, coerce=coerce,
                                                        localize_datetimes=localize_datetimes))
-                elif attributes.get('decimal_places', -1) > 0 or self._allows_null(attributes):
-                    # Check type (float)
+                # Check type (float)
+                elif attributes.get('decimal_places', -1) > 0:
                     errors.extend(self._validate_dtype(data, feature, 'float64',
                                                        coerced_df, coerce=coerce))
+                # Check type (nullable Int)
+                elif self._allows_null(attributes):
+                    errors.extend(self._validate_dtype(data, feature, 'Int64',
+                                                       coerced_df, coerce=coerce))
+                # Check type (int)
                 elif attributes.get('decimal_places', -1) == 0:
-                    # Check type (int)
                     errors.extend(self._validate_dtype(data, feature, 'int64',
                                                        coerced_df, coerce=coerce))
                 elif attributes.get('data_type') == 'number':
@@ -443,7 +458,7 @@ class FeatureAttributesBase(dict):
                                                 coerced_df, coerce=True)):
                         errors.extend([f"Feature '{feature}' should be numeric"
                                        " when 'type' is 'continuous' and "
-                                       "'data_type' is undefined."])
+                                       "'data_type' is 'number'."])
 
             # Check feature bounds
             if validate_bounds:
