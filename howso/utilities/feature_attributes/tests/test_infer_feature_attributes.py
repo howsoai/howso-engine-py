@@ -1089,6 +1089,7 @@ def test_nullable_integer_validation():
     """Test that IFA correctly validates data with nullable integers."""
     df = pd.DataFrame({"a": ["1", "2", "3", pd.NA, "4"]}, dtype="Int64")
     attrs = infer_feature_attributes(df)
+    df = df.astype('float64')  # Force a coersion back to Int64
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         attrs.validate(df, coerce=True)
