@@ -789,7 +789,7 @@ class TestBaseClient:
 
         Test for verbose output expected when remove_cases is called with.
         """
-        condition = {"feature_name": None}
+        condition = {"class": None}
         self.client.remove_cases(trainee.id, 1, condition=condition)
         out, _ = capsys.readouterr()
         assert f"Removing case(s) from Trainee with id: {trainee.id}" in out
@@ -1231,7 +1231,7 @@ class TestBaseClient:
         ret = self.client.react_group(
             trainee.id, new_cases=new_cases, features=features)
         out, _ = capsys.readouterr()
-        assert type(ret) == dict
+        assert isinstance(ret, dict)
 
         df = pd.DataFrame([[1, 2, 4, 4, 4]], columns=features)
         new_cases = [df]
