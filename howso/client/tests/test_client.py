@@ -1231,7 +1231,7 @@ class TestBaseClient:
         ret = self.client.react_group(
             trainee.id, new_cases=new_cases, features=features)
         out, _ = capsys.readouterr()
-        assert type(ret) == dict
+        assert isinstance(ret, dict)
 
         df = pd.DataFrame([[1, 2, 4, 4, 4]], columns=features)
         new_cases = [df]
