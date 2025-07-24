@@ -3408,7 +3408,7 @@ class Trainee(BaseTrainee):
             automatically be chosen to be derived. Specifying an empty list will ensure that all features
             are interpolated rather than derived.
         feature_influences_action_feature : str, optional
-            When feature influences such as accuracy and prediction contributions, use this feature as
+            When computing feature influences such as accuracy and prediction contributions, use this feature as
             the action feature.  If feature influences ``details`` are selected, this feature must be provided.
         forecast_window_length : float, optional
             A value specifing a length of time over which to measure the accuracy of forecasts. When
@@ -3450,7 +3450,7 @@ class Trainee(BaseTrainee):
         hyperparameter_param_path : Collection of str, optional.
             Full path for hyperparameters to use for computation. If specified
             for any residual computations, takes precedence over
-            ``prediction_stats_action_feature`` and ``prediction_stats_action_feature``
+            ``prediction_stats_action_feature`` and ``feature_influences_action_feature``
             parameters.  Can be set to a 'paramPath' value from the results of
             'get_params()' for a specific set of hyperparameters.
         num_robust_accuracy_contributions_permutation_samples : int, optional
@@ -3505,9 +3505,9 @@ class Trainee(BaseTrainee):
         prediction_stats_action_feature : str, optional
             When calculating residuals and prediction stats, uses this target features's
             hyperparameters. The trainee should have been analyzed with this feature as the
-            action feature first. If ``prediction_stats_action_feature`` is not provided,
-            by default residuals and prediction stats uses targetless hyperparameters.
-            Targetless hyperparameters may also be selected using an empty string: "".
+            action feature first. If not provided, by default residuals and prediction
+            stats uses targetless hyperparameters. Targetless hyperparameters may also
+            be selected using an empty string: "".
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
