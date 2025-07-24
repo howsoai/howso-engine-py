@@ -23,7 +23,7 @@ import yaml
 
 from howso.utilities.features import FeatureType
 from howso.utilities.internals import serialize_models
-from howso.utilities.utilities import is_valid_datetime_format
+from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 
 logger = logging.getLogger(__name__)
 
@@ -255,15 +255,16 @@ class FeatureAttributesBase(dict):
             elif out_of_band_values:
                 errors.append(f"'{feature}' contains out-of-band values: {out_of_band_values}")
         elif attributes.get('date_time_format'):
-            # Since this is a datetime feature, convert dates to epoch time for bounds comparison
-            try:
-                if min_bound:
-                    min_bound_epoch = date_to_epoch(min_bound, time_format=attributes['date_time_format'])
-                if max_bound:
-                    max_bound_epoch = date_to_epoch(max_bound, time_format=attributes['date_time_format'])
-                for value in unique_values:
-                    epoch = date_to_epoch(value, time_format=attributes['date_time_format'])
-                    if (max_bound and epoch > max_bound_epoch) or (min_bound and epoch < min_bound_epoch):
+            # Time-only attributes have bounds represented in seconds
+            if attributes.get('original_type', {}).get('data_type') == 'time':
+                unique_time_values = pd.to_datetime(
+                    series,
+                    format=attributes['date_time_format'],
+                    errors='coerce'
+                ).dropna().unique()
+                for value in unique_time_values:
+                    value_in_seconds = time_to_seconds(value.time())
+                    if (max_bound and value_in_seconds > max_bound) or (min_bound and value_in_seconds < min_bound):
                         if len(errors) < 5:
                             errors.append(
                                 f'"{feature}" has a value outside of bounds '
@@ -271,8 +272,25 @@ class FeatureAttributesBase(dict):
                             )
                         else:
                             additional_errors += 1
-            except ValueError as err:
-                errors.append(f'Could not validate datetime bounds due to the following error: {err}')
+            # If this is a datetime feature, convert dates to epoch time for bounds comparison
+            else:
+                try:
+                    if min_bound:
+                        min_bound_epoch = date_to_epoch(min_bound, time_format=attributes['date_time_format'])
+                    if max_bound:
+                        max_bound_epoch = date_to_epoch(max_bound, time_format=attributes['date_time_format'])
+                    for value in unique_values:
+                        epoch = date_to_epoch(value, time_format=attributes['date_time_format'])
+                        if (max_bound and epoch > max_bound_epoch) or (min_bound and epoch < min_bound_epoch):
+                            if len(errors) < 5:
+                                errors.append(
+                                    f'"{feature}" has a value outside of bounds '
+                                    f'(min: {min_bound}, max: {max_bound}): {value}'
+                                )
+                            else:
+                                additional_errors += 1
+                except ValueError as err:
+                    errors.append(f'Could not validate datetime bounds due to the following error: {err}')
         elif min_bound or max_bound:
             # Check int/float bounds
             for value in unique_values:
