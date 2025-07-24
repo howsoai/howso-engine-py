@@ -604,9 +604,10 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
             Allows features that are missing from the DataFrame to be ignored.
         localize_datetimes : bool, default True
             Whether to localize datetime features to UTC.
-        nullable_int_dtype : str, default 'Int64'
-            A string representation of the DType to attempt to use when a feature is detected to
-            be an integer and `allow_null=True` in its feature attributes.
+        nullable_int_dtype : str or dtype or ExtensionDtype, default 'Int64'
+            A NumPy Dtype, Pandas Dtype extension object, or string representation thereof to
+            attempt to use when a feature is detected to be an integer and `allow_null=True`
+            in its feature attributes.
 
         Returns
         -------
@@ -617,7 +618,8 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
 
     @validate.register
     def _(self, data: pd.DataFrame, coerce=False, raise_errors=False, validate_bounds=True,
-          allow_missing_features=False, localize_datetimes=True, nullable_int_dtype: str = 'Int64'):
+          allow_missing_features=False, localize_datetimes=True,
+          nullable_int_dtype: str | np.dtype | pd.api.extensions.ExtensionDtype = 'Int64'):
         return self._validate_df(data, coerce=coerce, raise_errors=raise_errors,
                                  validate_bounds=validate_bounds,
                                  allow_missing_features=allow_missing_features,
