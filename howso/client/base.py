@@ -3791,7 +3791,7 @@ class AbstractHowsoClient(ABC):
             automatically be chosen to be derived. Specifying an empty list will ensure that all features
             are interpolated rather than derived.
         feature_influences_action_feature : str, optional
-            When feature influences such as contributions and mda, use this feature as
+            When feature influences such as accuracy and prediction contributions, use this feature as
             the action feature.  If feature influences ``details`` are selected, this feature must be provided.
         forecast_window_length : float, optional
             A value specifing a length of time over which to measure the accuracy of forecasts. When

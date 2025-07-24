@@ -3338,8 +3338,8 @@ class Trainee(BaseTrainee):
             - feature_full_prediction_contributions : bool, optional
                 For each feature in ``context_features``, use the full set of all other
                 context features to compute the mean absolute delta between
-                prediction of action feature with and without the context features
-                in the model. Returns the mean absolute delta
+                prediction of ``feature_influences_action_feature`` with and without
+                the context features in the model. Returns the mean absolute delta
                 under the key 'feature_full_prediction_contributions' and returns the mean
                 delta under the key 'feature_full_directional_prediction_contributions'.
             - feature_full_residuals : bool, optional
@@ -3358,8 +3358,8 @@ class Trainee(BaseTrainee):
             - feature_robust_prediction_contributions : bool, optional
                 For each feature in ``context_features``, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
-                delta between prediction of the action feature with and without the
-                context features in the model. Returns the mean absolute delta
+                delta between prediction of ``feature_influences_action_feature`` with
+                and without the context features in the model. Returns the mean absolute delta
                 under the key 'feature_robust_prediction_contributions' and returns the mean
                 delta under the key 'feature_robust_directional_prediction_contributions'.
             - feature_robust_residuals : bool, optional
@@ -3408,10 +3408,8 @@ class Trainee(BaseTrainee):
             automatically be chosen to be derived. Specifying an empty list will ensure that all features
             are interpolated rather than derived.
         feature_influences_action_feature : str, optional
-            When feature influences such as contributions and mda, use this feature as
-            the action feature.  If not provided, will default to the ``action_feature`` if provided.
-            If ``action_feature`` is not provided and feature influences ``details`` are
-            selected, this feature must be provided.
+            When feature influences such as accuracy and prediction contributions, use this feature as
+            the action feature.  If feature influences ``details`` are selected, this feature must be provided.
         forecast_window_length : float, optional
             A value specifing a length of time over which to measure the accuracy of forecasts. When
             specified, returned prediction statistics and full residuals will be measuring the accuracy
