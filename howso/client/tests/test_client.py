@@ -683,6 +683,7 @@ class TestClient:
             response = self.client.react_aggregate(
                 trainee.id,
                 prediction_stats_action_feature='penguin',
+                feature_influences_action_feature='penguin',
                 num_samples=1,
                 details={old_key: True}
             )
