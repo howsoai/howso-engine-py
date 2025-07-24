@@ -361,7 +361,7 @@ class FeatureAttributesBase(dict):
 
     def _validate_df(self, data: pd.DataFrame, coerce: bool = False,  # noqa: C901
                      raise_errors: bool = False, table_name: t.Optional[str] = None, validate_bounds=True,
-                     allow_missing_features: bool = False, localize_datetimes=True):
+                     allow_missing_features: bool = False, localize_datetimes=True, nullable_int_dtype='Int64'):
         errors = []
         coerced_df = data.copy(deep=True)
         features = self[table_name] if table_name else self
@@ -390,7 +390,7 @@ class FeatureAttributesBase(dict):
                                                            coerced_df, coerce=coerce))
                     # Check type (nullable Int)
                     elif self._allows_null(attributes):
-                        errors.extend(self._validate_dtype(data, feature, 'Int64',
+                        errors.extend(self._validate_dtype(data, feature, nullable_int_dtype,
                                                            coerced_df, coerce=coerce))
                     # Check type (int)
                     else:
@@ -425,7 +425,7 @@ class FeatureAttributesBase(dict):
                                                        coerced_df, coerce=coerce))
                 # Check type (nullable Int)
                 elif self._allows_null(attributes):
-                    errors.extend(self._validate_dtype(data, feature, 'Int64',
+                    errors.extend(self._validate_dtype(data, feature, nullable_int_dtype,
                                                        coerced_df, coerce=coerce))
                 # Check type (int)
                 else:
@@ -445,7 +445,7 @@ class FeatureAttributesBase(dict):
                                                        coerced_df, coerce=coerce))
                 # Check type (nullable Int)
                 elif self._allows_null(attributes):
-                    errors.extend(self._validate_dtype(data, feature, 'Int64',
+                    errors.extend(self._validate_dtype(data, feature, nullable_int_dtype,
                                                        coerced_df, coerce=coerce))
                 # Check type (int)
                 elif attributes.get('decimal_places', -1) == 0:
@@ -589,20 +589,25 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
 
         Check that feature bounds and data types loosely describe the data. Optionally
         attempt to coerce the data into conformity.
+
         Parameters
         ----------
         data : Any
             The data to validate (single table only).
-        coerce : bool (default False)
+        coerce : bool, default False
             Whether to attempt to coerce DataFrame columns into correct data types.
-        raise_errors : bool (default False)
+        raise_errors : bool, default False
             If True, raises a ValueError if nonconforming columns are found; else, issue a warning.
-        validate_bounds : bool (default True)
+        validate_bounds : bool, default True
             Whether to validate the data against the attributes' inferred bounds.
-        allow_missing_features : bool (default False)
+        allow_missing_features : bool, default False
             Allows features that are missing from the DataFrame to be ignored.
-        localize_datetimes : bool (default True)
+        localize_datetimes : bool, default True
             Whether to localize datetime features to UTC.
+        nullable_int_dtype : str or dtype or ExtensionDtype, default 'Int64'
+            A NumPy Dtype, Pandas Dtype extension object, or string representation thereof to
+            attempt to use when a feature is detected to be an integer and `allow_null=True`
+            in its feature attributes.
 
         Returns
         -------
@@ -612,12 +617,14 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
         raise NotImplementedError("'data' is an unsupported type")
 
     @validate.register
-    def _(self, data: pd.DataFrame, coerce: bool = False, raise_errors: bool = False, validate_bounds: bool = True,
-          allow_missing_features=False, localize_datetimes=True):
+    def _(self, data: pd.DataFrame, coerce=False, raise_errors=False, validate_bounds=True,
+          allow_missing_features=False, localize_datetimes=True,
+          nullable_int_dtype: str | np.dtype | pd.api.extensions.ExtensionDtype = 'Int64'):
         return self._validate_df(data, coerce=coerce, raise_errors=raise_errors,
                                  validate_bounds=validate_bounds,
                                  allow_missing_features=allow_missing_features,
-                                 localize_datetimes=localize_datetimes)
+                                 localize_datetimes=localize_datetimes,
+                                 nullable_int_dtype=nullable_int_dtype)
 
     def has_unsupported_data(self, feature_name: str) -> bool:
         """
