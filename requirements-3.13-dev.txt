@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --no-emit-index-url --output-file=requirements-3.13-dev.txt
 #
-amalgam-lang==20.1.1
+amalgam-lang==21.0.0
     # via howso-engine (pyproject.toml)
 astroid==3.3.11
     # via pylint
@@ -20,7 +20,7 @@ charset-normalizer==3.4.2
     # via requests
 click==8.2.1
     # via pip-tools
-coverage[toml]==7.9.2
+coverage[toml]==7.10.0
     # via pytest-cov
 cryptography==45.0.5
     # via howso-engine (pyproject.toml)
@@ -83,7 +83,7 @@ pandas==2.3.1
     #   pmlb
 pip-tools==7.4.1
     # via howso-engine (pyproject.toml)
-pipdeptree==2.27.0
+pipdeptree==2.28.0
     # via howso-engine (pyproject.toml)
 platformdirs==4.3.8
     # via pylint
@@ -142,7 +142,7 @@ requests==2.32.4
     #   pmlb
 rich==14.0.0
     # via howso-engine (pyproject.toml)
-scikit-learn==1.7.0
+scikit-learn==1.7.1
     # via howso-engine (pyproject.toml)
 scipy==1.16.0
     # via scikit-learn
