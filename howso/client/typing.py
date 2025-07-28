@@ -53,8 +53,8 @@ class SortByFeature(TypedDict):
     feature: str
     """The name of the feature to sort on."""
 
-    order: NotRequired[Literal["asc", "desc"]]
-    """The direction of the sort. Defaults to ascending if not provided."""
+    order: Literal["asc", "desc"]
+    """The direction of the sort."""
 
 
 CaseIndices: TypeAlias = Sequence[tuple[str, int]]

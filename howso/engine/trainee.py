@@ -2569,7 +2569,7 @@ class Trainee(BaseTrainee):
             Options are 'exact' or 'similar'. If not specified, "exact" will
             be used.
         sort_by : Collection of SortByFeature, optional
-            Feature sorting directives applied in sequence to the resulting cases.
+            Feature sorting criteria, in order of precedence, to be applied to the resulting cases.
 
         Returns
         -------

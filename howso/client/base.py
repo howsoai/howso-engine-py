@@ -4943,7 +4943,7 @@ class AbstractHowsoClient(ABC):
             Options are "exact" or "similar". If not provided, "exact" will
             be used.
         sort_by : Collection of SortByFeature, optional
-            Feature sorting directives applied in sequence to the resulting cases.
+            Feature sorting criteria, in order of precedence, to be applied to the resulting cases.
 
         Returns
         -------
