@@ -47,6 +47,16 @@ class TrainStatus(TypedDict):
     """Indicates whether the Trainee recommends a call to `reduce_data`."""
 
 
+class SortByFeature(TypedDict):
+    """Represents a single feature sorting directive to apply."""
+
+    feature: str
+    """The name of the feature to sort on."""
+
+    order: NotRequired[Literal["asc", "desc"]]
+    """The direction of the sort. Defaults to ascending if not provided."""
+
+
 CaseIndices: TypeAlias = Sequence[tuple[str, int]]
 """Sequence of ``case_indices`` tuples."""
 

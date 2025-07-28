@@ -48,6 +48,7 @@ from howso.client.typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
+    SortByFeature,
     TabularData2D,
     TabularData3D,
     TargetedModel,
@@ -2474,7 +2475,8 @@ class Trainee(BaseTrainee):
         session: t.Optional[str | BaseSession] = None,
         condition: t.Optional[Mapping[str, t.Any]] = None,
         num_cases: t.Optional[int] = None,
-        precision: t.Optional[Precision] = None
+        precision: t.Optional[Precision] = None,
+        sort_by: t.Optional[Collection[SortByFeature]] = None,
     ) -> DataFrame:
         """
         Get the trainee's cases.
@@ -2566,6 +2568,8 @@ class Trainee(BaseTrainee):
             The precision to use when retrieving the cases via condition.
             Options are 'exact' or 'similar'. If not specified, "exact" will
             be used.
+        sort_by : Collection of SortByFeature, optional
+            Feature sorting directives applied in sequence to the resulting cases.
 
         Returns
         -------
@@ -2597,6 +2601,7 @@ class Trainee(BaseTrainee):
                 condition=condition,
                 num_cases=num_cases,
                 precision=precision,
+                sort_by=sort_by,
             )
         else:
             raise AssertionError("Client must have the 'get_cases' method.")
