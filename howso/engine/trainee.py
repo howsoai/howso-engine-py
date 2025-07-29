@@ -767,8 +767,8 @@ class Trainee(BaseTrainee):
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         influence_weight_entropy_sample_size: int = 2_000,
-        min_num_cases: int = 1_000,
-        max_num_cases: int = 500_000,
+        min_num_cases: int = 10_000,
+        max_num_cases: int = 200_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
@@ -800,9 +800,9 @@ class Trainee(BaseTrainee):
         batch_size: number, default 2,000
             Number of cases in a batch to consider for ablation prior to training and
             to recompute influence weight entropy.
-        min_num_cases : int, default 1,000
+        min_num_cases : int, default 10,000
             The threshold ofr the minimum number of cases at which the model should auto-ablate.
-        max_num_cases: int, default 500,000
+        max_num_cases: int, default 200,000
             The threshold of the maximum number of cases at which the model should auto-reduce
         exact_prediction_features : Collection of str, optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
