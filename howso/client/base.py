@@ -4703,9 +4703,9 @@ class AbstractHowsoClient(ABC):
         batch_size: number, default 2,000
             Number of cases in a batch to consider for ablation prior to training and
             to recompute influence weight entropy.
-        min_num_cases : int, default 1,000
+        min_num_cases : int, default 10,000
             The threshold of the minimum number of cases at which the model should auto-ablate.
-        max_num_cases: int, default 500,000
+        max_num_cases: int, default 200,000
             The threshold of the maximum number of cases at which the model should auto-reduce
         exact_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
