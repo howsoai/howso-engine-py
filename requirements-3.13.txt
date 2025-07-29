@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --no-emit-index-url --output-file=requirements-3.13.txt
 #
-amalgam-lang==21.0.0
+amalgam-lang==21.1.1
     # via howso-engine (pyproject.toml)
 certifi==2025.7.14
     # via
@@ -28,7 +28,7 @@ markdown-it-py==3.0.0
     # via rich
 mdurl==0.1.2
     # via markdown-it-py
-mmh3==5.1.0
+mmh3==5.2.0
     # via howso-engine (pyproject.toml)
 numpy==2.2.6
     # via
@@ -52,7 +52,7 @@ pyyaml==6.0.2
     # via howso-engine (pyproject.toml)
 requests==2.32.4
     # via howso-engine (pyproject.toml)
-rich==14.0.0
+rich==14.1.0
     # via howso-engine (pyproject.toml)
 semantic-version==2.10.0
     # via howso-engine (pyproject.toml)

@@ -59,6 +59,7 @@ from .typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
+    SortByFeature,
     TabularData2D,
     TabularData3D,
     TargetedModel,
@@ -4858,7 +4859,8 @@ class AbstractHowsoClient(ABC):
         features: t.Optional[Collection[str]] = None,
         condition: t.Optional[Mapping] = None,
         num_cases: t.Optional[int] = None,
-        precision: t.Optional[t.Literal["exact", "similar"]] = None
+        precision: t.Optional[t.Literal["exact", "similar"]] = None,
+        sort_by: t.Optional[Collection[SortByFeature]] = None,
     ) -> Cases:
         """
         Retrieve cases from a model given a Trainee id.
@@ -4940,6 +4942,8 @@ class AbstractHowsoClient(ABC):
             The precision to use when retrieving the cases via condition.
             Options are "exact" or "similar". If not provided, "exact" will
             be used.
+        sort_by : Collection of SortByFeature, optional
+            Feature sorting criteria, in order of precedence, to be applied to the resulting cases.
 
         Returns
         -------
@@ -4981,6 +4985,7 @@ class AbstractHowsoClient(ABC):
             "condition": condition,
             "num_cases": num_cases,
             "precision": precision,
+            "sort_by": sort_by,
         })
         if result is None:
             result = dict()
