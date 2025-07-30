@@ -497,7 +497,7 @@ def sanitize_for_json(obj: t.Any):  # noqa: C901
             obj = float(obj)
         elif issubclass(type(obj), str):
             obj = str(obj)
-        elif isinstance(obj, bool):
+        elif isinstance(obj, (np.bool, np.bool_, bool)):
             obj = bool(obj)
         else:
             # If it's not an int, float, array or bool, assume it is
