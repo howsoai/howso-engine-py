@@ -3418,7 +3418,7 @@ class Trainee(BaseTrainee):
             selecting 'feature_robust_accuracy_contributions'. If 'feature_robust_accuracy_contributions' is selected,
             not providing this feature will return a matrix where each feature is used as an action feature. However,
             providing this feature if 'feature_robust_accuracy_contributions' is selected is still accepted, and will
-             return just the feature influences for the selected feature.
+            return just the feature influences for the selected feature.
         forecast_window_length : float, optional
             A value specifying a length of time over which to measure the accuracy of forecasts. When
             specified, returned prediction statistics and full residuals will be measuring the accuracy
