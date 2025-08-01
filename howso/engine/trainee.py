@@ -1557,7 +1557,7 @@ class Trainee(BaseTrainee):
             - prediction_stats : bool, optional
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
-                returned  are ("r2", "rmse", "adjusted_smap", "smape", "spearman_coeff", "precision",
+                returned  are ("r2", "rmse", "adjusted_smape", "smape", "spearman_coeff", "precision",
                 "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
@@ -1722,7 +1722,7 @@ class Trainee(BaseTrainee):
             be used if the Trainee has them.
         use_regional_residuals : bool, default True
             When False, uses global residuals. When True, calculates and uses
-            regional residuals, which may increase runtime noticably.
+            regional residuals, which may increase runtime noticeably.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1855,7 +1855,7 @@ class Trainee(BaseTrainee):
 
                 - series_residuals : bool, optional
                     If True, outputs the mean absolute deviation (MAD) of each continuous
-                    feature as the estimated uncertainty for each timestep of each
+                    feature as the estimated uncertainty for each time-step of each
                     generated series based on internal generative forecasts.
                 - series_residuals_num_samples : int, optional
                     If specified, will set the number of generative forecasts used to estimate
@@ -1875,8 +1875,8 @@ class Trainee(BaseTrainee):
             resulting value will be used as part of the context for following
             action features. The custom code will have access to all context
             feature values and previously generated action feature values of
-            the timestep being generated, as well as the feature values of all
-            previously generated timesteps.
+            the time-step being generated, as well as the feature values of all
+            previously generated time-steps.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
             Time-series only. Must provide either one for all series, or
@@ -1936,7 +1936,7 @@ class Trainee(BaseTrainee):
         series_id_features: list of str, optional
             The names of the features used to uniquely identify the cases that make up a series
             trained into the Trainee. The order of feature names must correspond to the order
-            of values given in the sublists of ``series_id_values``.
+            of values given in the sub-lists of ``series_id_values``.
         series_id_values: list of list of object, optional
             A 2D list of ID feature values that each uniquely identify the cases of a trained
             series. Used in combination with ``continue_series`` to select trained series to
@@ -3414,9 +3414,13 @@ class Trainee(BaseTrainee):
             are interpolated rather than derived.
         feature_influences_action_feature : str, optional
             When computing feature influences such as accuracy and prediction contributions, use this feature as
-            the action feature.  If feature influences ``details`` are selected, this feature must be provided.
+            the action feature.  If feature influences ``details`` are selected, this feature must be provided unless
+            selecting 'feature_robust_accuracy_contributions'. If 'feature_robust_accuracy_contributions' is selected,
+            not providing this feature will return a matrix where each feature is used as an action feature. However,
+            providing this feature if 'feature_robust_accuracy_contributions' is selected is still accepted, and will
+             return just the feature influences for the selected feature.
         forecast_window_length : float, optional
-            A value specifing a length of time over which to measure the accuracy of forecasts. When
+            A value specifying a length of time over which to measure the accuracy of forecasts. When
             specified, returned prediction statistics and full residuals will be measuring the accuracy
             of forecasts of this specified length. The given value should be on the scale as the Trainee's
             time feature (seconds when the time feature uses datetime strings). When evaluating forecasts,
