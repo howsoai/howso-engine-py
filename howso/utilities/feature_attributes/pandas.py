@@ -135,9 +135,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             adjective = "Recommended" if max_size == 512 else "Provided"
             if per_case_memory > max_size:  # Measured in bytes
                 warnings.warn(f"Cases of feature '{feature}' have large average memory usage. \n"
-                              f"{adjective} average maximum: {max_size} bytes. Actual average "
-                              f"in your data: {per_case_memory} bytes. Including this feature "
-                              "may significantly increase memory requirements.")
+                              f"{adjective} average size threshold: {max_size} bytes. Actual "
+                              f"average in your data: {per_case_memory} bytes (computed by "
+                              "dividing the total size of the feature by the number of cases). "
+                              "Including this feature may significantly increase memory "
+                              "requirements.")
 
     def _get_num_features(self) -> int:
         return self.data.shape[1]
