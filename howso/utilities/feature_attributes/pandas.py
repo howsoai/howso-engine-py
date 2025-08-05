@@ -131,9 +131,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
     def _check_feature_memory_use(self, attributes: dict, max_size: int = 512):
         for feature in self.data.columns:
-            if attributes[feature].get("data_type") in ["json", "yaml"]:
-                # Don't check JSON or YAML features
-                continue
             per_case_memory = int(self.data[feature].memory_usage(deep=True) / len(self.data[feature]))
             adjective = "Recommended" if max_size == 512 else "Provided"
             if per_case_memory > max_size:  # Measured in bytes
