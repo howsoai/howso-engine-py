@@ -164,7 +164,7 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
         Otherwise, the feature attributes will be calculated serially. Setting
         this parameter to zero (0) will disable multiprocessing.
 
-    memory_check : int, default 512
+    memory_warning_threshold : int, default 512
         (Optional) Maximum number of bytes that a feature's per-case average can compute to
         without raising a warning about memory usage (Pandas DataFrame only).
 

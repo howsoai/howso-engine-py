@@ -749,7 +749,7 @@ class InferFeatureAttributesBase(ABC):
                  include_sample: bool = False,
                  infer_bounds: bool = True,
                  max_workers: t.Optional[int] = None,
-                 memory_check: t.Optional[int] = 512,
+                 memory_warning_threshold: t.Optional[int] = 512,
                  mode_bound_features: t.Optional[Iterable[str]] = None,
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
@@ -1016,7 +1016,7 @@ class InferFeatureAttributesBase(ABC):
 
         # Check if there are any features that consume an unusually large amount of memory
         if isinstance(self.data, pd.DataFrame):
-            self._check_feature_memory_use(self.attributes, max_size=memory_check)
+            self._check_feature_memory_use(self.attributes, max_size=memory_warning_threshold)
 
         # If requested, infer extended nominals.
         if attempt_infer_extended_nominals:

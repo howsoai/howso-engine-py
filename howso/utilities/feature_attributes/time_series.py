@@ -372,7 +372,7 @@ class InferFeatureAttributesTimeSeries:
         infer_bounds: bool = True,
         lags: t.Optional[list | dict] = None,
         max_workers: t.Optional[int] = None,
-        memory_check: t.Optional[int] = 512,
+        memory_warning_threshold: t.Optional[int] = 512,
         mode_bound_features: t.Optional[Iterable[str]] = None,
         nominal_substitution_config: t.Optional[dict[str, dict]] = None,
         num_lags: t.Optional[int | dict] = None,
@@ -604,7 +604,7 @@ class InferFeatureAttributesTimeSeries:
             Otherwise, the feature attributes will be calculated serially. Setting
             this parameter to zero (0) will disable multiprocessing.
 
-        memory_check : int, default 512
+        memory_warning_threshold : int, default 512
             (Optional) Maximum number of bytes that a feature's per-case average can compute to
             without raising a warning about memory usage (Pandas DataFrame only).
 
@@ -743,7 +743,7 @@ class InferFeatureAttributesTimeSeries:
             include_sample=include_sample,
             infer_bounds=infer_bounds,
             max_workers=max_workers,
-            memory_check=memory_check,
+            memory_warning_threshold=memory_warning_threshold,
             mode_bound_features=mode_bound_features,
             nominal_substitution_config=nominal_substitution_config,
             ordinal_feature_values=ordinal_feature_values,

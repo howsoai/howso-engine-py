@@ -1102,4 +1102,4 @@ def test_memory_usage_warning():
         infer_feature_attributes(df)
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        infer_feature_attributes(df, memory_check=1024)
+        infer_feature_attributes(df, memory_warning_threshold=1024)
