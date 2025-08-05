@@ -72,6 +72,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             The DataFrame containing the features whose attributes will be inferred.
         """
         self.data = data
+        # Check if there are any features that consume an unusually large amount of memory
+        self._check_feature_memory_use()
         # Keep track of features that contain unsupported data
         self.unsupported = []
 
@@ -114,6 +116,16 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 self._process(**kwargs), params=kwargs,
                 unsupported=self.unsupported
             )
+
+    def _check_feature_memory_use(self):
+        num_columns = len(self.data.columns)
+        for feature in self.data.columns:
+            per_feature_memory = self.data[feature].memory_usage(deep=True) / num_columns
+            if per_feature_memory > 512:  # Measured in bytes
+                warnings.warn(f"Cases of feature '{feature}' have large average memory usage. \n\n"
+                              "Recommended per-case maximum: 512 bytes. Actual per-case average "
+                              f"in your data: {per_feature_memory} bytes. \n\nYou may experience "
+                              "undesirable memory usage if you choose to proceed.")
 
     def _get_num_features(self) -> int:
         return self.data.shape[1]

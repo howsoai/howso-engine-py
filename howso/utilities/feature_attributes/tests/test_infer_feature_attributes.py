@@ -1016,3 +1016,10 @@ def test_constrained_date_bounds():
     with pytest.warns(match="bounds could not be computed. This is likely due to a constrained date time format"):
         # Loose bounds may cause min bound to be > max bound if the date format is constrained
         infer_feature_attributes(df, datetime_feature_formats={"date": "%m"})
+
+
+def test_memory_usage_warning():
+    """Test that IFA will warn if a feature has columns that are too large."""
+    df = pd.DataFrame([["a" * 1024], ["b" * 512], ["c" * 256]], columns=["big"])
+    with pytest.warns(match="Cases of feature 'big' have large average memory usage."):
+        infer_feature_attributes(df)
