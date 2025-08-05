@@ -749,7 +749,7 @@ class InferFeatureAttributesBase(ABC):
                  include_sample: bool = False,
                  infer_bounds: bool = True,
                  max_workers: t.Optional[int] = None,
-                 memory_check: t.Optional[int] = None,
+                 memory_check: t.Optional[int] = 512,
                  mode_bound_features: t.Optional[Iterable[str]] = None,
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
