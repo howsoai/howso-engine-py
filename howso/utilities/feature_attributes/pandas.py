@@ -129,6 +129,19 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 unsupported=self.unsupported
             )
 
+    def _check_feature_memory_use(self, attributes: dict, max_size: int = 512):
+        for feature in self.data.columns:
+            if attributes[feature].get("data_type") in ["json", "yaml"]:
+                # Don't check JSON or YAML features
+                continue
+            per_case_memory = int(self.data[feature].memory_usage(deep=True) / len(self.data[feature]))
+            adjective = "Recommended" if max_size == 512 else "Provided"
+            if per_case_memory > max_size:  # Measured in bytes
+                warnings.warn(f"Cases of feature '{feature}' have large average memory usage. \n"
+                              f"{adjective} per-case maximum: 512 bytes. Actual per-case average "
+                              f"in your data: {per_case_memory} bytes. You may experience "
+                              "undesirable memory usage if you choose to proceed.")
+
     def _get_num_features(self) -> int:
         return self.data.shape[1]
 
