@@ -120,11 +120,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
     def _check_feature_memory_use(self):
         num_columns = len(self.data.columns)
         for feature in self.data.columns:
-            per_feature_memory = self.data[feature].memory_usage(deep=True) / num_columns
-            if per_feature_memory > 512:  # Measured in bytes
-                warnings.warn(f"Cases of feature '{feature}' have large average memory usage. \n\n"
+            per_case_memory = int(self.data[feature].memory_usage(deep=True) / num_columns)
+            if per_case_memory > 512:  # Measured in bytes
+                warnings.warn(f"Cases of feature '{feature}' have large average memory usage. \n"
                               "Recommended per-case maximum: 512 bytes. Actual per-case average "
-                              f"in your data: {per_feature_memory} bytes. \n\nYou may experience "
+                              f"in your data: {per_case_memory} bytes. You may experience "
                               "undesirable memory usage if you choose to proceed.")
 
     def _get_num_features(self) -> int:
