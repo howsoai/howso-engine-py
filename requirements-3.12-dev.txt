@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --extra=dev --extra=scikit --no-emit-index-url --output-file=requirements-3.12-dev.txt
 #
-amalgam-lang==20.1.1
+amalgam-lang==21.1.1
     # via howso-engine (pyproject.toml)
 astroid==3.3.11
     # via pylint
@@ -20,7 +20,7 @@ charset-normalizer==3.4.2
     # via requests
 click==8.2.1
     # via pip-tools
-coverage[toml]==7.9.2
+coverage[toml]==7.10.1
     # via pytest-cov
 cryptography==45.0.5
     # via howso-engine (pyproject.toml)
@@ -60,7 +60,7 @@ mccabe==0.6.1
     #   pylint
 mdurl==0.1.2
     # via markdown-it-py
-mmh3==5.1.0
+mmh3==5.2.0
     # via howso-engine (pyproject.toml)
 mongomock==4.3.0
     # via howso-engine (pyproject.toml)
@@ -83,7 +83,7 @@ pandas==2.3.1
     #   pmlb
 pip-tools==7.4.1
     # via howso-engine (pyproject.toml)
-pipdeptree==2.27.0
+pipdeptree==2.28.0
     # via howso-engine (pyproject.toml)
 platformdirs==4.3.8
     # via pylint
@@ -140,11 +140,11 @@ requests==2.32.4
     # via
     #   howso-engine (pyproject.toml)
     #   pmlb
-rich==14.0.0
+rich==14.1.0
     # via howso-engine (pyproject.toml)
-scikit-learn==1.7.0
+scikit-learn==1.7.1
     # via howso-engine (pyproject.toml)
-scipy==1.16.0
+scipy==1.16.1
     # via scikit-learn
 semantic-version==2.10.0
     # via howso-engine (pyproject.toml)

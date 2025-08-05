@@ -59,6 +59,7 @@ from .typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
+    SortByFeature,
     TabularData2D,
     TabularData3D,
     TargetedModel,
@@ -3607,7 +3608,6 @@ class AbstractHowsoClient(ABC):
         self,
         trainee_id: str,
         *,
-        action_feature: t.Optional[str] = None,
         action_features: t.Optional[Collection[str]] = None,
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
@@ -3640,11 +3640,6 @@ class AbstractHowsoClient(ABC):
 
         Parameters
         ----------
-        action_feature : str, optional
-            Name of target feature for which to do computations. If ``prediction_stats_action_feature``
-            and ``feature_influences_action_feature`` are not provided, they will default to this value.
-            If ``feature_influences_action_feature`` is not provided and feature influences ``details`` are
-            selected, this feature must be provided.
         action_features : iterable of str, optional
             List of feature names to compute any requested residuals or prediction statistics for. If unspecified,
             the value used for context features will be used.
@@ -3683,15 +3678,15 @@ class AbstractHowsoClient(ABC):
             - feature_full_prediction_contributions : bool, optional
                 For each context_feature, use the full set of all other
                 context_features to compute the mean absolute delta between
-                prediction of action feature with and without the context features
-                in the model. Returns the mean absolute delta
+                prediction of ``feature_influences_action_feature`` with and without
+                the context features in the model. Returns the mean absolute delta
                 under the key 'feature_full_prediction_contributions' and returns the mean
                 delta under the key 'feature_full_directional_prediction_contributions'.
             - feature_robust_prediction_contributions : bool, optional
                 For each context_feature, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
-                delta between prediction of the action feature with and without the
-                context features in the model. Returns the mean absolute delta
+                delta between prediction of the ``feature_influences_action_feature`` with
+                and without the context features in the model. Returns the mean absolute delta
                 under the key 'feature_robust_prediction_contributions' and returns the mean
                 delta under the key 'feature_robust_directional_prediction_contributions'.
             - feature_deviations : bool, optional
@@ -3700,9 +3695,9 @@ class AbstractHowsoClient(ABC):
                 and return the mean absolute error.
             - feature_full_accuracy_contributions : bool, optional
                 When True will compute accuracy contributions for each context
-                feature at predicting the action feature. Drop each feature and
-                use the full set of remaining context features for each
-                prediction.
+                feature at predicting the ``feature_influences_action_feature``.
+                Drop each feature and use the full set of remaining context features for
+                each prediction.
             - feature_robust_accuracy_contributions : bool, optional
                 Compute accuracy contributions by dropping each feature and
                 using the robust (power set/permutations) set of remaining
@@ -3797,10 +3792,8 @@ class AbstractHowsoClient(ABC):
             automatically be chosen to be derived. Specifying an empty list will ensure that all features
             are interpolated rather than derived.
         feature_influences_action_feature : str, optional
-            When feature influences such as contributions and mda, use this feature as
-            the action feature.  If not provided, will default to the ``action_feature`` if provided.
-            If ``action_feature`` is not provided and feature influences ``details`` are
-            selected, this feature must be provided.
+            When computing feature influences such as accuracy and prediction contributions, use this feature as
+            the action feature.  If feature influences ``details`` are selected, this feature must be provided.
         forecast_window_length : float, optional
             A value specifing a length of time over which to measure the accuracy of forecasts. When
             specified, returned prediction statistics and full residuals will be measuring the accuracy
@@ -3840,8 +3833,9 @@ class AbstractHowsoClient(ABC):
                 }
         hyperparameter_param_path : iterable of str, optional.
             Full path for hyperparameters to use for computation. If specified
-            for any residual computations, takes precedence over action_feature
-            parameter.  Can be set to a 'paramPath' value from the results of
+            for any residual computations, takes precedence over
+            ``prediction_stats_action_feature`` and ``feature_influences_action_feature``
+            parameters.  Can be set to a 'paramPath' value from the results of
             'get_params()' for a specific set of hyperparameters.
         num_robust_accuracy_contributions_permutation_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
@@ -3894,12 +3888,10 @@ class AbstractHowsoClient(ABC):
             non-robust type.
         prediction_stats_action_feature : str, optional
             When calculating residuals and prediction stats, uses this target features's
-            hyperparameters. The trainee must have been analyzed with this feature as the
-            action feature first. If both ``prediction_stats_action_feature`` and
-            ``action_feature`` are not provided, by default residuals and prediction
-            stats uses targetless hyperparameters. If "action_feature" is provided,
-            and this value is not provided, will default to ``action_feature``.
-            Targetless hyperparameters may also be selected using an empty string: "".
+            hyperparameters. The trainee should have been analyzed with this feature as the
+            action feature first. If not provided, by default residuals and prediction
+            stats uses targetless hyperparameters. Targetless hyperparameters may
+            also be selected using an empty string: "".
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
@@ -3989,7 +3981,6 @@ class AbstractHowsoClient(ABC):
             print(f'Reacting into aggregate trained cases of Trainee with id: {trainee_id}')
 
         stats = self.execute(trainee_id, "react_aggregate", {
-            "action_feature": action_feature,
             "action_features": action_features,
             "context_features": context_features,
             "confusion_matrix_min_count": confusion_matrix_min_count,
@@ -4677,8 +4668,8 @@ class AbstractHowsoClient(ABC):
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         influence_weight_entropy_sample_size: int = 2_000,
-        min_num_cases: int = 1_000,
-        max_num_cases: int = 500_000,
+        min_num_cases: int = 10_000,
+        max_num_cases: int = 200_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
@@ -4712,9 +4703,9 @@ class AbstractHowsoClient(ABC):
         batch_size: number, default 2,000
             Number of cases in a batch to consider for ablation prior to training and
             to recompute influence weight entropy.
-        min_num_cases : int, default 1,000
+        min_num_cases : int, default 10,000
             The threshold of the minimum number of cases at which the model should auto-ablate.
-        max_num_cases: int, default 500,000
+        max_num_cases: int, default 200,000
             The threshold of the maximum number of cases at which the model should auto-reduce
         exact_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
@@ -4868,7 +4859,8 @@ class AbstractHowsoClient(ABC):
         features: t.Optional[Collection[str]] = None,
         condition: t.Optional[Mapping] = None,
         num_cases: t.Optional[int] = None,
-        precision: t.Optional[t.Literal["exact", "similar"]] = None
+        precision: t.Optional[t.Literal["exact", "similar"]] = None,
+        sort_by: t.Optional[Collection[SortByFeature]] = None,
     ) -> Cases:
         """
         Retrieve cases from a model given a Trainee id.
@@ -4950,6 +4942,8 @@ class AbstractHowsoClient(ABC):
             The precision to use when retrieving the cases via condition.
             Options are "exact" or "similar". If not provided, "exact" will
             be used.
+        sort_by : Collection of SortByFeature, optional
+            Feature sorting criteria, in order of precedence, to be applied to the resulting cases.
 
         Returns
         -------
@@ -4991,6 +4985,7 @@ class AbstractHowsoClient(ABC):
             "condition": condition,
             "num_cases": num_cases,
             "precision": precision,
+            "sort_by": sort_by,
         })
         if result is None:
             result = dict()

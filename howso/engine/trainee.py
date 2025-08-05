@@ -48,6 +48,7 @@ from howso.client.typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
+    SortByFeature,
     TabularData2D,
     TabularData3D,
     TargetedModel,
@@ -766,8 +767,8 @@ class Trainee(BaseTrainee):
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         influence_weight_entropy_sample_size: int = 2_000,
-        min_num_cases: int = 1_000,
-        max_num_cases: int = 500_000,
+        min_num_cases: int = 10_000,
+        max_num_cases: int = 200_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
@@ -799,9 +800,9 @@ class Trainee(BaseTrainee):
         batch_size: number, default 2,000
             Number of cases in a batch to consider for ablation prior to training and
             to recompute influence weight entropy.
-        min_num_cases : int, default 1,000
+        min_num_cases : int, default 10,000
             The threshold ofr the minimum number of cases at which the model should auto-ablate.
-        max_num_cases: int, default 500,000
+        max_num_cases: int, default 200,000
             The threshold of the maximum number of cases at which the model should auto-reduce
         exact_prediction_features : Collection of str, optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
@@ -1556,7 +1557,7 @@ class Trainee(BaseTrainee):
             - prediction_stats : bool, optional
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
-                returned  are ("r2", "rmse", "adjusted_smap", "smape", "spearman_coeff", "precision",
+                returned  are ("r2", "rmse", "adjusted_smape", "smape", "spearman_coeff", "precision",
                 "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
@@ -1721,7 +1722,7 @@ class Trainee(BaseTrainee):
             be used if the Trainee has them.
         use_regional_residuals : bool, default True
             When False, uses global residuals. When True, calculates and uses
-            regional residuals, which may increase runtime noticably.
+            regional residuals, which may increase runtime noticeably.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1854,7 +1855,7 @@ class Trainee(BaseTrainee):
 
                 - series_residuals : bool, optional
                     If True, outputs the mean absolute deviation (MAD) of each continuous
-                    feature as the estimated uncertainty for each timestep of each
+                    feature as the estimated uncertainty for each time-step of each
                     generated series based on internal generative forecasts.
                 - series_residuals_num_samples : int, optional
                     If specified, will set the number of generative forecasts used to estimate
@@ -1874,8 +1875,8 @@ class Trainee(BaseTrainee):
             resulting value will be used as part of the context for following
             action features. The custom code will have access to all context
             feature values and previously generated action feature values of
-            the timestep being generated, as well as the feature values of all
-            previously generated timesteps.
+            the time-step being generated, as well as the feature values of all
+            previously generated time-steps.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
             Time-series only. Must provide either one for all series, or
@@ -1935,7 +1936,7 @@ class Trainee(BaseTrainee):
         series_id_features: list of str, optional
             The names of the features used to uniquely identify the cases that make up a series
             trained into the Trainee. The order of feature names must correspond to the order
-            of values given in the sublists of ``series_id_values``.
+            of values given in the sub-lists of ``series_id_values``.
         series_id_values: list of list of object, optional
             A 2D list of ID feature values that each uniquely identify the cases of a trained
             series. Used in combination with ``continue_series`` to select trained series to
@@ -2474,7 +2475,8 @@ class Trainee(BaseTrainee):
         session: t.Optional[str | BaseSession] = None,
         condition: t.Optional[Mapping[str, t.Any]] = None,
         num_cases: t.Optional[int] = None,
-        precision: t.Optional[Precision] = None
+        precision: t.Optional[Precision] = None,
+        sort_by: t.Optional[Collection[SortByFeature]] = None,
     ) -> DataFrame:
         """
         Get the trainee's cases.
@@ -2566,6 +2568,8 @@ class Trainee(BaseTrainee):
             The precision to use when retrieving the cases via condition.
             Options are 'exact' or 'similar'. If not specified, "exact" will
             be used.
+        sort_by : Collection of SortByFeature, optional
+            Feature sorting criteria, in order of precedence, to be applied to the resulting cases.
 
         Returns
         -------
@@ -2597,6 +2601,7 @@ class Trainee(BaseTrainee):
                 condition=condition,
                 num_cases=num_cases,
                 precision=precision,
+                sort_by=sort_by,
             )
         else:
             raise AssertionError("Client must have the 'get_cases' method.")
@@ -3224,7 +3229,6 @@ class Trainee(BaseTrainee):
     def react_aggregate(
         self,
         *,
-        action_feature: t.Optional[str] = None,
         action_features: t.Optional[Collection[str]] = None,
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
@@ -3257,11 +3261,6 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        action_feature : str, optional
-            Name of target feature for which to do computations. If ``prediction_stats_action_feature``
-            and ``feature_influences_action_feature`` are not provided, they will default to this value.
-            If ``feature_influences_action_feature`` is not provided and feature influences ``details`` are
-            selected, this feature must be provided.
         action_features : iterable of str, optional
             List of feature names to compute any requested residuals or prediction statistics for. If unspecified,
             the value used for context features will be used.
@@ -3334,9 +3333,9 @@ class Trainee(BaseTrainee):
                 and return the mean absolute error.
             - feature_full_accuracy_contributions : bool, optional
                 When True will compute accuracy contributions for each context
-                feature at predicting the action feature. Drop each feature and
-                use the full set of remaining context features for each
-                prediction.
+                feature at predicting the ``feature_influences_action_feature``.
+                Drop each feature and use the full set of remaining context features for
+                each prediction.
             - feature_full_accuracy_contributions_permutation : bool, optional
                 Compute accuracy contributions by scrambling each feature and
                 using the full set of remaining context features for each
@@ -3344,8 +3343,8 @@ class Trainee(BaseTrainee):
             - feature_full_prediction_contributions : bool, optional
                 For each feature in ``context_features``, use the full set of all other
                 context features to compute the mean absolute delta between
-                prediction of action feature with and without the context features
-                in the model. Returns the mean absolute delta
+                prediction of ``feature_influences_action_feature`` with and without
+                the context features in the model. Returns the mean absolute delta
                 under the key 'feature_full_prediction_contributions' and returns the mean
                 delta under the key 'feature_full_directional_prediction_contributions'.
             - feature_full_residuals : bool, optional
@@ -3364,8 +3363,8 @@ class Trainee(BaseTrainee):
             - feature_robust_prediction_contributions : bool, optional
                 For each feature in ``context_features``, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
-                delta between prediction of the action feature with and without the
-                context features in the model. Returns the mean absolute delta
+                delta between prediction of ``feature_influences_action_feature`` with
+                and without the context features in the model. Returns the mean absolute delta
                 under the key 'feature_robust_prediction_contributions' and returns the mean
                 delta under the key 'feature_robust_directional_prediction_contributions'.
             - feature_robust_residuals : bool, optional
@@ -3414,12 +3413,14 @@ class Trainee(BaseTrainee):
             automatically be chosen to be derived. Specifying an empty list will ensure that all features
             are interpolated rather than derived.
         feature_influences_action_feature : str, optional
-            When feature influences such as contributions and mda, use this feature as
-            the action feature.  If not provided, will default to the ``action_feature`` if provided.
-            If ``action_feature`` is not provided and feature influences ``details`` are
-            selected, this feature must be provided.
+            When computing feature influences such as accuracy and prediction contributions, use this feature as
+            the action feature.  If feature influences ``details`` are selected, this feature must be provided unless
+            selecting 'feature_robust_accuracy_contributions'. If 'feature_robust_accuracy_contributions' is selected,
+            not providing this feature will return a matrix where each feature is used as an action feature. However,
+            providing this feature if 'feature_robust_accuracy_contributions' is selected is still accepted, and will
+            return just the feature influences for the selected feature.
         forecast_window_length : float, optional
-            A value specifing a length of time over which to measure the accuracy of forecasts. When
+            A value specifying a length of time over which to measure the accuracy of forecasts. When
             specified, returned prediction statistics and full residuals will be measuring the accuracy
             of forecasts of this specified length. The given value should be on the scale as the Trainee's
             time feature (seconds when the time feature uses datetime strings). When evaluating forecasts,
@@ -3457,8 +3458,9 @@ class Trainee(BaseTrainee):
                 }
         hyperparameter_param_path : Collection of str, optional.
             Full path for hyperparameters to use for computation. If specified
-            for any residual computations, takes precedence over action_feature
-            parameter.  Can be set to a 'paramPath' value from the results of
+            for any residual computations, takes precedence over
+            ``prediction_stats_action_feature`` and ``feature_influences_action_feature``
+            parameters.  Can be set to a 'paramPath' value from the results of
             'get_params()' for a specific set of hyperparameters.
         num_robust_accuracy_contributions_permutation_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
@@ -3511,12 +3513,10 @@ class Trainee(BaseTrainee):
             non-robust type.
         prediction_stats_action_feature : str, optional
             When calculating residuals and prediction stats, uses this target features's
-            hyperparameters. The trainee must have been analyzed with this feature as the
-            action feature first. If both ``prediction_stats_action_feature`` and
-            ``action_feature`` are not provided, by default residuals and prediction
-            stats uses targetless hyperparameters. If "action_feature" is provided,
-            and this value is not provided, will default to ``action_feature``. Targetless
-            hyperparameters can also be selected with an empty string: "".
+            hyperparameters. The trainee should have been analyzed with this feature as the
+            action feature first. If not provided, by default residuals and prediction
+            stats uses targetless hyperparameters. Targetless hyperparameters may also
+            be selected using an empty string: "".
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
@@ -3542,7 +3542,6 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.react_aggregate(
                 trainee_id=self.id,
-                action_feature=action_feature,
                 action_features=action_features,
                 context_features=context_features,
                 confusion_matrix_min_count=confusion_matrix_min_count,
