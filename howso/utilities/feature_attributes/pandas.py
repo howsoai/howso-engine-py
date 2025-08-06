@@ -130,16 +130,23 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             )
 
     def _check_feature_memory_use(self, attributes: dict, max_size: int = 512):
+        violators = {}
         for feature in self.data.columns:
-            per_case_memory = int(self.data[feature].memory_usage(deep=True) / len(self.data[feature]))
-            adjective = "Recommended" if max_size == 512 else "Provided"
-            if per_case_memory > max_size:  # Measured in bytes
-                warnings.warn(f"Cases of feature '{feature}' have large average memory usage. \n"
-                              f"{adjective} average size threshold: {max_size} bytes. Actual "
-                              f"average in your data: {per_case_memory} bytes (computed by "
-                              "dividing the total size of the feature by the number of cases). "
-                              "Including this feature may significantly increase memory "
-                              "requirements.")
+            avg_memory = int(self.data[feature].memory_usage(deep=True) / len(self.data[feature]))
+            if avg_memory > max_size:  # Measured in bytes
+                violators[feature] = avg_memory
+        if len(violators) > 1:
+            largest = sorted(violators, key=violators.get, reverse=True)[0]
+            warnings.warn(f"{len(violators)} features have an average memory size exceeding the "
+                          f"configured threshold of {max_size} bytes. The feature with the "
+                          f"largest memory footprint is '{largest}' with {violators[largest]} "
+                          "bytes. Including these features may significantly increase memory "
+                          "requirements.")
+        elif len(violators) == 1:
+            feat = list(violators.keys())[0]
+            warnings.warn(f"The average memory size ({violators[feat]} bytes) per case of feature "
+                          f"'{feat}' exceeds the configured threshold of {max_size} bytes. "
+                          "Including this feature may significantly increase memory requirements.")
 
     def _get_num_features(self) -> int:
         return self.data.shape[1]
