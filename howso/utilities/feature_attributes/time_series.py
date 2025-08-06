@@ -372,6 +372,7 @@ class InferFeatureAttributesTimeSeries:
         infer_bounds: bool = True,
         lags: t.Optional[list | dict] = None,
         max_workers: t.Optional[int] = None,
+        memory_warning_threshold: t.Optional[int] = 512,
         mode_bound_features: t.Optional[Iterable[str]] = None,
         nominal_substitution_config: t.Optional[dict[str, dict]] = None,
         num_lags: t.Optional[int | dict] = None,
@@ -592,6 +593,21 @@ class InferFeatureAttributesTimeSeries:
                 case by holding the value of a feature from a previous time step.
                 These lag features allow for cases to hold more temporal information.
 
+        max_workers: int, default None
+            If unset or set to None (recommended), let the ProcessPoolExecutor
+            choose the best maximum number of process pool workers to process
+            columns in a multi-process fashion. In this case, if the product of the
+            data's rows and columns > 25,000,000 or if the data is time series and the
+            number of rows > 500,000 multiprocessing will be used.
+
+            If defined with an integer > 0, manually set the number of max workers.
+            Otherwise, the feature attributes will be calculated serially. Setting
+            this parameter to zero (0) will disable multiprocessing.
+
+        memory_warning_threshold : int, default 512
+            (Optional) Maximum number of bytes that a feature's per-case average can compute to
+            without raising a warning about memory usage (Pandas DataFrame only).
+
         mode_bound_features : list of str, default None
             (Optional) Explicit list of feature names to use mode bounds for
             when inferring loose bounds. If None, assumes all features except the
@@ -622,18 +638,18 @@ class InferFeatureAttributesTimeSeries:
             set to 0, will not generate any delta/rate features. By default all
             continuous features have an order value of 1.
 
-    ordinal_feature_values : dict, default None
-        (optional) Dict for ordinal string features defining an ordered
-        list of string values for each feature, ordered low to high. If
-        specified will set 'type' to be 'ordinal' for all features in
-        this map.
+        ordinal_feature_values : dict, default None
+            (optional) Dict for ordinal string features defining an ordered
+            list of string values for each feature, ordered low to high. If
+            specified will set 'type' to be 'ordinal' for all features in
+            this map.
 
-        Example::
+            Example::
 
-            {
-                "grade" : [ "F", "D", "C", "B", "A" ],
-                "size" : [ "small", "medium", "large", "huge" ]
-            }
+                {
+                    "grade" : [ "F", "D", "C", "B", "A" ],
+                    "size" : [ "small", "medium", "large", "huge" ]
+                }
 
         rate_boundaries : dict, default None
             (Optional) For time series, specify the rate boundaries in the form
@@ -727,6 +743,7 @@ class InferFeatureAttributesTimeSeries:
             include_sample=include_sample,
             infer_bounds=infer_bounds,
             max_workers=max_workers,
+            memory_warning_threshold=memory_warning_threshold,
             mode_bound_features=mode_bound_features,
             nominal_substitution_config=nominal_substitution_config,
             ordinal_feature_values=ordinal_feature_values,

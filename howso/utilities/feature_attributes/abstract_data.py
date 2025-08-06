@@ -53,12 +53,12 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
     def __init__(self, data: IFACompatibleADCProtocol):  # type: ignore reportMissingSuperCall
         """
-        Instantiate this InferFeatureAttributesDataFrame object.
+        Instantiate this InferFeatureAttributesAbstractData object.
 
         Parameters
         ----------
-        data : pd.DataFrame
-            The DataFrame containing the features whose attributes will be inferred.
+        data : IFACompatibleADCProtocol
+            The AbstractData class containing the features whose attributes will be inferred.
         """
         if not AbstractData:
             raise ImportError("The howso-engine-connectors package must installed to use "
