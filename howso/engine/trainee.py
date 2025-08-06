@@ -1192,6 +1192,7 @@ class Trainee(BaseTrainee):
         allow_nulls: bool = False,
         batch_size: t.Optional[int] = None,
         case_indices: t.Optional[CaseIndices] = None,
+        constraints: t.Optional[Mapping] = None,
         context_features: t.Optional[Collection[str]] = None,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
@@ -1261,6 +1262,22 @@ class Trainee(BaseTrainee):
             is the original 0-based index of the case as it was trained into
             the session. If this case does not exist, discriminative react
             outputs null, generative react ignores it.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         context_features : list of str, optional
             Feature names to treat as context features during react.
             If `contexts` is a DataFrame, overrides what columns will be used
@@ -1744,6 +1761,7 @@ class Trainee(BaseTrainee):
             allow_nulls=allow_nulls,
             batch_size=batch_size,
             case_indices=case_indices,
+            constraints=constraints,
             contexts=contexts,
             context_features=context_features,
             derived_action_features=derived_action_features,
@@ -1779,6 +1797,7 @@ class Trainee(BaseTrainee):
         *,
         action_features: t.Optional[Collection[str]] = None,
         batch_size: t.Optional[int] = None,
+        constraints: t.Optional[Mapping] = None,
         continue_series: bool = False,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
@@ -1832,6 +1851,22 @@ class Trainee(BaseTrainee):
         batch_size: int, optional
             Define the number of series to react to at once. If left
             unspecified, the batch size will be determined automatically.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
             starting new series. If true, either ``series_context_values`` or
@@ -1996,6 +2031,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 action_features=action_features,
                 batch_size=batch_size,
+                constraints=constraints,
                 continue_series=continue_series,
                 derived_action_features=derived_action_features,
                 derived_context_features=derived_context_features,
@@ -2041,6 +2077,7 @@ class Trainee(BaseTrainee):
         action_features: Collection[str],
         *,
         batch_size: t.Optional[int] = None,
+        constraints: t.Optional[Mapping] = None,
         context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
         initial_batch_size: t.Optional[int] = None,
@@ -2070,6 +2107,22 @@ class Trainee(BaseTrainee):
         batch_size: int, optional
             Define the number of series to react to at once. If left
             unspecified, the batch size will be determined automatically.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are the feature name and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         context_features : collection of str, optional
             List of features names specifying what features will be used as contexts
             to predict the values of the action features.
@@ -2145,6 +2198,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 action_features=action_features,
                 batch_size=batch_size,
+                constraints=constraints,
                 context_features=context_features,
                 desired_conviction=desired_conviction,
                 use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
