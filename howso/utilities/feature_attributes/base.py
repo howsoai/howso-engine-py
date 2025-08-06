@@ -1016,7 +1016,7 @@ class InferFeatureAttributesBase(ABC):
 
         # Check if there are any features that consume an unusually large amount of memory
         if isinstance(self.data, pd.DataFrame):
-            self._check_feature_memory_use(self.attributes, max_size=memory_warning_threshold)
+            self._check_feature_memory_use(max_size=memory_warning_threshold)
 
         # If requested, infer extended nominals.
         if attempt_infer_extended_nominals:

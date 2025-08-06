@@ -129,7 +129,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 unsupported=self.unsupported
             )
 
-    def _check_feature_memory_use(self, attributes: dict, max_size: int = 512):
+    def _check_feature_memory_use(self, max_size: int = 512):
         violators = {}
         for feature in self.data.columns:
             avg_memory = int(self.data[feature].memory_usage(deep=True) / len(self.data[feature]))
