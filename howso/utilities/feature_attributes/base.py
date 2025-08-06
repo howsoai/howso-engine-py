@@ -1001,11 +1001,21 @@ class InferFeatureAttributesBase(ABC):
                     features.get(feature_name, {}).get('data_type') in ["json", "yaml"]
                 ):
                     continue
-                bounds = self._infer_feature_bounds(
-                    self.attributes, feature_name,
-                    tight_bounds=tight_bounds,
-                    mode_bound_features=mode_bound_features,
-                )
+                try:
+                    bounds = self._infer_feature_bounds(
+                        self.attributes, feature_name,
+                        tight_bounds=tight_bounds,
+                        mode_bound_features=mode_bound_features,
+                    )
+                except ValueError as err:
+                    # Try to catch any errors on data conversion and suggest something relevant.
+                    if feature_name in preset_types.keys():
+                        suggestion = (f"Please verify that the provided type for '{feature_name}' "
+                                      f"({preset_types[feature_name]['type']}) is reflected by the data.")
+                    else:
+                        suggestion = f"Please verify that cases in '{feature_name}' are of a consistent data type."
+                    raise ValueError(f"The following error was raised while trying to compute bounds for feature "
+                                     f"'{feature_name}':\n\n {err}\n\n{suggestion}")
                 if bounds:
                     # Use `update` on the bounds dictionary in case `allowed` ordinal values have already been set
                     bounds.update(self.attributes[feature_name].get("bounds", {}))
