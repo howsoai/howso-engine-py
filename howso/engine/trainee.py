@@ -1268,7 +1268,7 @@ class Trainee(BaseTrainee):
             contexts.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -1343,7 +1343,7 @@ class Trainee(BaseTrainee):
                 is also used.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -1857,7 +1857,7 @@ class Trainee(BaseTrainee):
             contexts.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2113,7 +2113,7 @@ class Trainee(BaseTrainee):
             contexts.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2291,7 +2291,7 @@ class Trainee(BaseTrainee):
             provided conditions. Ignored if case_indices is specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2385,7 +2385,7 @@ class Trainee(BaseTrainee):
             ``case_indices`` are specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2578,7 +2578,7 @@ class Trainee(BaseTrainee):
             provided conditions.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2747,7 +2747,7 @@ class Trainee(BaseTrainee):
             the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2818,7 +2818,7 @@ class Trainee(BaseTrainee):
             in the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -3003,7 +3003,7 @@ class Trainee(BaseTrainee):
             provided conditions.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -3161,7 +3161,7 @@ class Trainee(BaseTrainee):
             for.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -3340,7 +3340,7 @@ class Trainee(BaseTrainee):
                 reacted to while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -3364,7 +3364,7 @@ class Trainee(BaseTrainee):
                 available to make reactions while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.

@@ -768,7 +768,7 @@ class AbstractHowsoClient(ABC):
             provided conditions. Ignored if case_indices is specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -879,7 +879,7 @@ class AbstractHowsoClient(ABC):
             provided conditions. Ignored if case_indices is specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -1015,7 +1015,7 @@ class AbstractHowsoClient(ABC):
             `case_indices` are specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -1403,7 +1403,7 @@ class AbstractHowsoClient(ABC):
             for.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -1556,7 +1556,7 @@ class AbstractHowsoClient(ABC):
             contexts.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -1623,7 +1623,7 @@ class AbstractHowsoClient(ABC):
                 is also used.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -2741,7 +2741,7 @@ class AbstractHowsoClient(ABC):
             contexts.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -3272,7 +3272,7 @@ class AbstractHowsoClient(ABC):
             contexts.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -3771,7 +3771,7 @@ class AbstractHowsoClient(ABC):
                 reacted to while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -3795,7 +3795,7 @@ class AbstractHowsoClient(ABC):
                 available to make reactions while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -4128,7 +4128,7 @@ class AbstractHowsoClient(ABC):
             provided conditions.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -4957,7 +4957,7 @@ class AbstractHowsoClient(ABC):
             provided conditions.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -5215,7 +5215,7 @@ class AbstractHowsoClient(ABC):
             the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -5303,7 +5303,7 @@ class AbstractHowsoClient(ABC):
             in the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
