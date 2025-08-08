@@ -41,6 +41,7 @@ from howso.client.client import get_howso_client_class
 from howso.client.exceptions import HowsoConfigurationError, HowsoError
 from howso.client.schemas import Trainee
 from howso.direct.client import HowsoDirectClient
+from howso.engine import Trainee as TraineeCls
 try:
     from howso.platform import HowsoPlatformClient  # noqa: might not be available # type: ignore
 except ImportError:
@@ -953,6 +954,47 @@ def check_performance(*, registry: InstallationCheckRegistry,
         return (Status.OK, "")
 
 
+def overridable_resources(*, registry: InstallationCheckRegistry):
+    """
+    Ensure that resources are overridable for Platform workers.
+
+    registry : The InstallationCheckRegistry
+        The registry used to run this check.
+
+    Returns
+    -------
+    tuple
+        Status
+            The status of the check as OK, WARNING, ERROR or CRITICAL.
+        str
+            A message to display about the WARNING, ERROR or CRITICAL result.
+    """
+    # Create a trainee and acquire its resources.
+    client = HowsoClient()
+    trainee = client.create_trainee(
+        name=f"installation_verification overridable resources ({get_nonce()})",
+        persistence="allow" if _is_platform_client(client) else "never",
+        runtime={"scaling": {"resources": {"cpu": {"minimum": 1_500}}}},
+    )
+    # Now check if the trainee has the requested runtime.
+    trainee_inst = TraineeCls.from_schema(schema=trainee)
+    runtime = trainee_inst.get_runtime()
+    try:
+        if runtime["scaling"]["resources"]["cpu"]["minimum"] != 1_500:  # type: ignore
+            raise AssertionError("Incorrect value returned")
+    except (KeyError, TypeError, ValueError):
+        traceback.print_exc(file=registry.logger)
+        return (Status.CRITICAL, "get_runtime() returned an unexpected response.")
+    except AssertionError:
+        traceback.print_exc(file=registry.logger)
+        return (Status.CRITICAL, "get_runtime() returned an unexpected value for minimum CPU cores.")
+    else:
+        return (Status.OK, "")
+    finally:
+        # If the trainee exists, delete it.
+        if trainee:
+            client.delete_trainee(trainee.id)
+
 def check_engine_operation(
     *,
     registry: InstallationCheckRegistry,
@@ -1186,6 +1228,12 @@ def configure(registry: InstallationCheckRegistry):
         name="Howso Client: System performance",
         fn=partial(check_performance, num_samples=2_000,
                    notice_threshold=15.0, warning_threshold=20.0),
+        client_required="HowsoPlatformClient",
+    )
+
+    registry.add_check(
+        name="Howso Client: overridable resources",
+        fn=partial(overridable_resources),
         client_required="HowsoPlatformClient",
     )
 
