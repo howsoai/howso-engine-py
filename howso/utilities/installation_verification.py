@@ -1232,7 +1232,7 @@ def configure(registry: InstallationCheckRegistry):
     )
 
     registry.add_check(
-        name="Howso Client: overridable resources",
+        name="Howso Client: Overridable resources",
         fn=partial(overridable_resources),
         client_required="HowsoPlatformClient",
     )
