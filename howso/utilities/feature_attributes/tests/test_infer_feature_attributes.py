@@ -1093,3 +1093,21 @@ def test_nullable_integer_validation():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         attrs.validate(df, coerce=True)
+
+
+def test_memory_usage_warning():
+    """Test that IFA will warn if a feature has columns that are too large."""
+    df = pd.DataFrame([["a" * 1024], ["b" * 512], ["c" * 256]], columns=["big"])
+    # Test that a single violating feature raises a warning
+    with pytest.warns(match="feature 'big' exceeds the configured threshold"):
+        infer_feature_attributes(df)
+    # Test that the warning disappears when the threshold is configured to be larger
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        infer_feature_attributes(df, memory_warning_threshold=1024)
+    # Test that two violating features raise a warning
+    df = pd.DataFrame({"big": ["a" * 1024], "bigger": ["b" * 2048]})
+    with pytest.warns(match="2 features have an average memory size exceeding the "
+                      "configured threshold of 512 bytes. The feature with the largest "
+                      "memory footprint is 'bigger'"):
+        infer_feature_attributes(df)

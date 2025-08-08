@@ -749,6 +749,7 @@ class InferFeatureAttributesBase(ABC):
                  include_sample: bool = False,
                  infer_bounds: bool = True,
                  max_workers: t.Optional[int] = None,
+                 memory_warning_threshold: t.Optional[int] = 512,
                  mode_bound_features: t.Optional[Iterable[str]] = None,
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
@@ -1000,11 +1001,24 @@ class InferFeatureAttributesBase(ABC):
                     features.get(feature_name, {}).get('data_type') in ["json", "yaml"]
                 ):
                     continue
-                bounds = self._infer_feature_bounds(
-                    self.attributes, feature_name,
-                    tight_bounds=tight_bounds,
-                    mode_bound_features=mode_bound_features,
-                )
+                try:
+                    bounds = self._infer_feature_bounds(
+                        self.attributes, feature_name,
+                        tight_bounds=tight_bounds,
+                        mode_bound_features=mode_bound_features,
+                    )
+                except ValueError as err:
+                    if "could not convert" in str(err):
+                        # Try to catch any errors on data conversion and suggest something relevant.
+                        if feature_name in preset_types.keys():
+                            suggestion = (f"Please verify that the provided type for '{feature_name}' "
+                                          f"({preset_types[feature_name]['type']}) is reflected by the data.")
+                        else:
+                            suggestion = f"Please verify that cases in '{feature_name}' are of a consistent data type."
+                        raise ValueError(f"The following error was raised while trying to compute bounds for feature "
+                                         f"'{feature_name}':\n\n {err}\n\n{suggestion}")
+                    else:
+                        raise
                 if bounds:
                     # Use `update` on the bounds dictionary in case `allowed` ordinal values have already been set
                     bounds.update(self.attributes[feature_name].get("bounds", {}))
@@ -1012,6 +1026,10 @@ class InferFeatureAttributesBase(ABC):
 
         # Do any features contain data unsupported by the core?
         self._check_unsupported_data(self.attributes)
+
+        # Check if there are any features that consume an unusually large amount of memory
+        if isinstance(self.data, pd.DataFrame):
+            self._check_feature_memory_use(max_size=memory_warning_threshold)
 
         # If requested, infer extended nominals.
         if attempt_infer_extended_nominals:

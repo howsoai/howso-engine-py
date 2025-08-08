@@ -1192,6 +1192,7 @@ class Trainee(BaseTrainee):
         allow_nulls: bool = False,
         batch_size: t.Optional[int] = None,
         case_indices: t.Optional[CaseIndices] = None,
+        constraints: t.Optional[Mapping] = None,
         context_features: t.Optional[Collection[str]] = None,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
@@ -1262,6 +1263,22 @@ class Trainee(BaseTrainee):
             is the original 0-based index of the case as it was trained into
             the session. If this case does not exist, discriminative react
             outputs null, generative react ignores it.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         context_features : list of str, optional
             Feature names to treat as context features during react.
             If `contexts` is a DataFrame, overrides what columns will be used
@@ -1327,7 +1344,7 @@ class Trainee(BaseTrainee):
                 is also used.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -1558,7 +1575,7 @@ class Trainee(BaseTrainee):
             - prediction_stats : bool, optional
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
-                returned  are ("r2", "rmse", "adjusted_smap", "smape", "spearman_coeff", "precision",
+                returned  are ("r2", "rmse", "adjusted_smape", "smape", "spearman_coeff", "precision",
                 "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
@@ -1723,7 +1740,7 @@ class Trainee(BaseTrainee):
             be used if the Trainee has them.
         use_regional_residuals : bool, default True
             When False, uses global residuals. When True, calculates and uses
-            regional residuals, which may increase runtime noticably.
+            regional residuals, which may increase runtime noticeably.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1745,6 +1762,7 @@ class Trainee(BaseTrainee):
             allow_nulls=allow_nulls,
             batch_size=batch_size,
             case_indices=case_indices,
+            constraints=constraints,
             contexts=contexts,
             context_features=context_features,
             derived_action_features=derived_action_features,
@@ -1781,6 +1799,7 @@ class Trainee(BaseTrainee):
         *,
         action_features: t.Optional[Collection[str]] = None,
         batch_size: t.Optional[int] = None,
+        constraints: t.Optional[Mapping] = None,
         continue_series: bool = False,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
@@ -1834,6 +1853,22 @@ class Trainee(BaseTrainee):
         batch_size: int, optional
             Define the number of series to react to at once. If left
             unspecified, the batch size will be determined automatically.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
             starting new series. If true, either ``series_context_values`` or
@@ -1857,7 +1892,7 @@ class Trainee(BaseTrainee):
 
                 - series_residuals : bool, optional
                     If True, outputs the mean absolute deviation (MAD) of each continuous
-                    feature as the estimated uncertainty for each timestep of each
+                    feature as the estimated uncertainty for each time-step of each
                     generated series based on internal generative forecasts.
                 - series_residuals_num_samples : int, optional
                     If specified, will set the number of generative forecasts used to estimate
@@ -1877,8 +1912,8 @@ class Trainee(BaseTrainee):
             resulting value will be used as part of the context for following
             action features. The custom code will have access to all context
             feature values and previously generated action feature values of
-            the timestep being generated, as well as the feature values of all
-            previously generated timesteps.
+            the time-step being generated, as well as the feature values of all
+            previously generated time-steps.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
             Time-series only. Must provide either one for all series, or
@@ -1938,7 +1973,7 @@ class Trainee(BaseTrainee):
         series_id_features: list of str, optional
             The names of the features used to uniquely identify the cases that make up a series
             trained into the Trainee. The order of feature names must correspond to the order
-            of values given in the sublists of ``series_id_values``.
+            of values given in the sub-lists of ``series_id_values``.
         series_id_values: list of list of object, optional
             A 2D list of ID feature values that each uniquely identify the cases of a trained
             series. Used in combination with ``continue_series`` to select trained series to
@@ -1998,6 +2033,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 action_features=action_features,
                 batch_size=batch_size,
+                constraints=constraints,
                 continue_series=continue_series,
                 derived_action_features=derived_action_features,
                 derived_context_features=derived_context_features,
@@ -2043,6 +2079,7 @@ class Trainee(BaseTrainee):
         action_features: Collection[str],
         *,
         batch_size: t.Optional[int] = None,
+        constraints: t.Optional[Mapping] = None,
         context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
         initial_batch_size: t.Optional[int] = None,
@@ -2072,6 +2109,22 @@ class Trainee(BaseTrainee):
         batch_size: int, optional
             Define the number of series to react to at once. If left
             unspecified, the batch size will be determined automatically.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         context_features : collection of str, optional
             List of features names specifying what features will be used as contexts
             to predict the values of the action features.
@@ -2147,6 +2200,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 action_features=action_features,
                 batch_size=batch_size,
+                constraints=constraints,
                 context_features=context_features,
                 desired_conviction=desired_conviction,
                 use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
@@ -2239,7 +2293,7 @@ class Trainee(BaseTrainee):
             provided conditions. Ignored if case_indices is specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2333,7 +2387,7 @@ class Trainee(BaseTrainee):
             ``case_indices`` are specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2526,7 +2580,7 @@ class Trainee(BaseTrainee):
             provided conditions.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2695,7 +2749,7 @@ class Trainee(BaseTrainee):
             the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2766,7 +2820,7 @@ class Trainee(BaseTrainee):
             in the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -2951,7 +3005,7 @@ class Trainee(BaseTrainee):
             provided conditions.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -3109,7 +3163,7 @@ class Trainee(BaseTrainee):
             for.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -3288,7 +3342,7 @@ class Trainee(BaseTrainee):
                 reacted to while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -3312,7 +3366,7 @@ class Trainee(BaseTrainee):
                 available to make reactions while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -3416,9 +3470,13 @@ class Trainee(BaseTrainee):
             are interpolated rather than derived.
         feature_influences_action_feature : str, optional
             When computing feature influences such as accuracy and prediction contributions, use this feature as
-            the action feature.  If feature influences ``details`` are selected, this feature must be provided.
+            the action feature.  If feature influences ``details`` are selected, this feature must be provided unless
+            selecting 'feature_robust_accuracy_contributions'. If 'feature_robust_accuracy_contributions' is selected,
+            not providing this feature will return a matrix where each feature is used as an action feature. However,
+            providing this feature if 'feature_robust_accuracy_contributions' is selected is still accepted, and will
+            return just the feature influences for the selected feature.
         forecast_window_length : float, optional
-            A value specifing a length of time over which to measure the accuracy of forecasts. When
+            A value specifying a length of time over which to measure the accuracy of forecasts. When
             specified, returned prediction statistics and full residuals will be measuring the accuracy
             of forecasts of this specified length. The given value should be on the scale as the Trainee's
             time feature (seconds when the time feature uses datetime strings). When evaluating forecasts,

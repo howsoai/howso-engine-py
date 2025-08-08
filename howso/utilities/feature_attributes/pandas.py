@@ -129,6 +129,25 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 unsupported=self.unsupported
             )
 
+    def _check_feature_memory_use(self, max_size: int = 512):
+        violators = {}
+        for feature in self.data.columns:
+            avg_memory = int(self.data[feature].memory_usage(deep=True) / len(self.data[feature]))
+            if avg_memory > max_size:  # Measured in bytes
+                violators[feature] = avg_memory
+        if len(violators) > 1:
+            largest = sorted(violators, key=violators.get, reverse=True)[0]
+            warnings.warn(f"{len(violators)} features have an average memory size exceeding the "
+                          f"configured threshold of {max_size} bytes. The feature with the "
+                          f"largest memory footprint is '{largest}' with {violators[largest]} "
+                          "bytes. Including these features may significantly increase memory "
+                          "requirements.")
+        elif len(violators) == 1:
+            feat = list(violators.keys())[0]
+            warnings.warn(f"The average memory size ({violators[feat]} bytes) per case of feature "
+                          f"'{feat}' exceeds the configured threshold of {max_size} bytes. "
+                          "Including this feature may significantly increase memory requirements.")
+
     def _get_num_features(self) -> int:
         return self.data.shape[1]
 

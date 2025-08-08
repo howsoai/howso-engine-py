@@ -768,7 +768,7 @@ class AbstractHowsoClient(ABC):
             provided conditions. Ignored if case_indices is specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -879,7 +879,7 @@ class AbstractHowsoClient(ABC):
             provided conditions. Ignored if case_indices is specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -1015,7 +1015,7 @@ class AbstractHowsoClient(ABC):
             `case_indices` are specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -1403,7 +1403,7 @@ class AbstractHowsoClient(ABC):
             for.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -1464,6 +1464,7 @@ class AbstractHowsoClient(ABC):
         allow_nulls: bool = False,
         batch_size: t.Optional[int] = None,
         case_indices: t.Optional[CaseIndices] = None,
+        constraints: t.Optional[Mapping] = None,
         contexts: t.Optional[TabularData2D] = None,
         context_features: t.Optional[Collection[str]] = None,
         derived_action_features: t.Optional[Collection[str]] = None,
@@ -1550,6 +1551,22 @@ class AbstractHowsoClient(ABC):
 
             >>> context_features = ['temperature', 'humidity', 'dew_point',
             ...                     'barometric_pressure']
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         derived_context_features : iterable of str, optional
             An iterable of feature names whose values should be computed
             from the provided context in the specified order. Must be different
@@ -1607,7 +1624,7 @@ class AbstractHowsoClient(ABC):
                 is also used.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -2172,6 +2189,7 @@ class AbstractHowsoClient(ABC):
             # discriminative react parameters
             react_params = {
                 "action_values": actions,
+                "constraints": constraints,
                 "context_features": context_features,
                 "context_values": contexts,
                 "action_features": action_features,
@@ -2215,6 +2233,7 @@ class AbstractHowsoClient(ABC):
             # generative react parameters
             react_params = {
                 "num_cases_to_generate": num_cases_to_generate,
+                "constraints": constraints,
                 "context_features": context_features,
                 "context_values": contexts,
                 "action_features": action_features,
@@ -2628,6 +2647,7 @@ class AbstractHowsoClient(ABC):
         *,
         action_features: t.Optional[Collection[str]] = None,
         batch_size: t.Optional[int] = None,
+        constraints: t.Optional[Mapping] = None,
         continue_series: bool = False,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
@@ -2718,6 +2738,22 @@ class AbstractHowsoClient(ABC):
 
                 Terminated series with terminators cannot be continued and
                 will result in null output.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         derived_context_features : iterable of str, optional
             List of context features whose values should be computed
             from the entire series in the specified order. Must be
@@ -2935,6 +2971,7 @@ class AbstractHowsoClient(ABC):
 
             react_params = {
                 "action_features": action_features,
+                "constraints": constraints,
                 "continue_series": continue_series,
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "final_time_steps": final_time_steps,
@@ -2986,6 +3023,7 @@ class AbstractHowsoClient(ABC):
             react_params = {
                 "num_series_to_generate": num_series_to_generate,
                 "action_features": action_features,
+                "constraints": constraints,
                 "continue_series": continue_series,
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "final_time_steps": final_time_steps,
@@ -3198,6 +3236,7 @@ class AbstractHowsoClient(ABC):
         action_features: Collection[str],
         *,
         batch_size: t.Optional[int] = None,
+        constraints: t.Optional[Mapping] = None,
         context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
         goal_features_map: t.Optional[Mapping] = None,
@@ -3230,6 +3269,22 @@ class AbstractHowsoClient(ABC):
         context_features : collection of str, optional
             List of features names specifying what features will be used as contexts
             to predict the values of the action features.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         desired_conviction : float, optional
             If specified will execute a generative react. If not
             specified will executed a discriminative react. Conviction is the
@@ -3350,6 +3405,7 @@ class AbstractHowsoClient(ABC):
 
         react_stationary_params = {
             "action_features": action_features,
+            "constraints": constraints,
             "context_features": context_features,
             "desired_conviction": desired_conviction,
             "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy,
@@ -3718,7 +3774,7 @@ class AbstractHowsoClient(ABC):
                 reacted to while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -3742,7 +3798,7 @@ class AbstractHowsoClient(ABC):
                 available to make reactions while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -4075,7 +4131,7 @@ class AbstractHowsoClient(ABC):
             provided conditions.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -4904,7 +4960,7 @@ class AbstractHowsoClient(ABC):
             provided conditions.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -5162,7 +5218,7 @@ class AbstractHowsoClient(ABC):
             the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.
@@ -5250,7 +5306,7 @@ class AbstractHowsoClient(ABC):
             in the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
                     - None
                     - A value, must match exactly.

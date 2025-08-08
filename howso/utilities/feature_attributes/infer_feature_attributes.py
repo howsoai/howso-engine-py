@@ -153,6 +153,21 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
             case by holding the value of a feature from a previous timestep.
             These lag features allow for cases to hold more temporal information.
 
+    max_workers: int, default None
+        If unset or set to None (recommended), let the ProcessPoolExecutor
+        choose the best maximum number of process pool workers to process
+        columns in a multi-process fashion. In this case, if the product of the
+        data's rows and columns > 25,000,000 or if the data is time series and the
+        number of rows > 500,000 multiprocessing will be used.
+
+        If defined with an integer > 0, manually set the number of max workers.
+        Otherwise, the feature attributes will be calculated serially. Setting
+        this parameter to zero (0) will disable multiprocessing.
+
+    memory_warning_threshold : int, default 512
+        (Optional) Maximum number of bytes that a feature's per-case average can compute to
+        without raising a warning about memory usage (Pandas DataFrame only).
+
     mode_bound_features : list of str, default None
         (Optional) Explicit list of feature names to use mode bounds for
         when inferring loose bounds. If None, assumes all features. A mode
@@ -267,17 +282,6 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
                 "feature_2": "ordinal",
                 "continuous": ["feature_3", "feature_4", "feature_5"]
             }
-
-    max_workers: int, optional
-        If unset or set to None (recommended), let the ProcessPoolExecutor
-        choose the best maximum number of process pool workers to process
-        columns in a multi-process fashion. In this case, if the product of the
-        data's rows and columns > 25,000,000 or if the data is time series and the
-        number of rows > 500,000 multiprocessing will be used.
-
-        If defined with an integer > 0, manually set the number of max workers.
-        Otherwise, the feature attributes will be calculated serially. Setting
-        this parameter to zero (0) will disable multiprocessing.
 
     Returns
     -------
