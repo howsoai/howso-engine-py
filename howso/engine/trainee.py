@@ -3200,6 +3200,74 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_marginal_stats' method.")
 
+    def get_value_masses(
+        self,
+        features: Collection[str],
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: int = 0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ):
+        """
+        Get the unique values and their respective masses for each specified feature.
+
+        Parameters
+        ----------
+        features : Collection[str]
+            The feature names for which to compute unique value masses.
+        condition : Mapping or None, optional
+            A condition map to select which cases to compute value masses
+            for.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values, specifying an inclusive
+                      range. Only applicable to continuous and numeric ordinal
+                      features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        minimum_mass_threshold : int, default 0
+            The minimum mass a feature value must possess to be returned in the
+            collection of value masses. If the given value is greater than one,
+            the sum of the omitted feature value masses is returned under a
+            "remaining" key for each feature.
+        precision : str, default "exact"
+            The precision to use when selecting cases with ``condition``.
+            Options are 'exact' or 'similar'. Only used if `condition` is not
+            None.
+        weight_feature : str, optional
+            When specified, will return masses based on weights stored
+            in this weight_feature.
+
+        Returns
+        -------
+        dict[str, dict[str, list[list] | float]]
+            A map of each feature name to a dict containing "values" and "remaining"
+            keys. "values" maps to a list of lists where each sublist contains
+            the feature value and its mass. When ``minimum_mass_threshold`` is
+            greater than one, "remaining" maps to a single value that is the sum
+            of all omitted feature value masses.
+        """
+        if (
+            hasattr(self.client, "get_value_masses") and
+            isinstance(self.client.get_value_masses, t.Callable)
+        ):
+            return self.client.get_value_masses(
+                self.id,
+                features=features,
+                condition=condition,
+                minimum_mass_threshold=minimum_mass_threshold,
+                precision=precision,
+                weight_feature=weight_feature
+            )
+        else:
+            raise AssertionError("Client must have the `get_value_masses` method.")
+
     def react_into_features(
         self,
         *,
