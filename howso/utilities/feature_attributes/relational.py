@@ -797,7 +797,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
     def _infer_unknown_attributes(self, feature_name: str) -> dict:
         return {
-            'type': 'nominal'
+            'type': 'nominal',
             'data_type': 'string',
         }
 
