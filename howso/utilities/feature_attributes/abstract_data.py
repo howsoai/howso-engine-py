@@ -702,6 +702,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     def _infer_unknown_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'nominal',
+            'data_type': 'string',
         }
 
     def _get_unique_values(self, feature_name: str) -> set[t.Any]:

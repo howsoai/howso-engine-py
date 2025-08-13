@@ -802,6 +802,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 # if it has no data, but just in case...
                 return {
                     'type': 'continuous',
+                    'data_type': 'string',
                 }
         elif self._is_json_feature(feature_name):
             return {
@@ -819,6 +820,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
     def _infer_unknown_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'nominal',
+            'data_type': 'string',
         }
 
     def _get_unique_values(self, feature_name: str) -> set[t.Any]:
