@@ -3271,12 +3271,15 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        dict[str, dict[str, list[list] | float]]
-            A map of each feature name to a dict containing "values" and "remaining"
-            keys. "values" maps to a list of lists where each sublist contains
-            the feature value and its mass. When ``minimum_mass_threshold`` is
-            greater than one, "remaining" maps to a single value that is the sum
-            of all omitted feature value masses.
+        ValueMasses | dict[str, ValueMasses]
+            If only a single feature is given, then a single dictionary
+            describing the value masses is returned, otherwise a dict is
+            returned with value masses for each specified feautre. In the
+            per-feature dict, "values" maps to a DataFrame where each row
+            contains a unique feature value and its mass. When
+            ``minimum_mass_threshold`` is greater than zero, "remaining" maps
+            to a single value that is the sum of all omitted feature value
+            masses.
         """
         if isinstance(self.client, HowsoPandasClientMixin):
             value_masses_response =  self.client.get_value_masses(
@@ -3299,7 +3302,7 @@ class Trainee(BaseTrainee):
     def react_into_features(
         self,
         *,
-        analyze: bool = None,
+        analyze: t.Optional[bool] = None,
         distance_contribution: str | bool = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,

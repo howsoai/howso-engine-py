@@ -60,7 +60,7 @@ class ValueMasses(TypedDict):
     """Represents the computed value masses of a single feature."""
 
     values: DataFrame
-    """A dataframe or lists of lists containing each feature value and its corresponding mass."""
+    """A dataframe containing each feature value and its corresponding mass."""
 
     remaining: float
     """The combined mass of all omitted feature values."""

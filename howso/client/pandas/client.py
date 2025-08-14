@@ -164,7 +164,7 @@ class HowsoPandasClientMixin:
         Returns
         -------
         dict[str, ValueMasses]
-            A DataFrame of feature name columns to a dict describing the value masses.
+            A dict of feature names to dictionaries describing the value masses.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
