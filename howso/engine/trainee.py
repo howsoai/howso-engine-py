@@ -52,6 +52,7 @@ from howso.client.typing import (
     TabularData2D,
     TabularData3D,
     TargetedModel,
+    ValueMasses,
 )
 from howso.engine.client import get_client
 from howso.engine.project import Project
@@ -1272,9 +1273,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1861,9 +1862,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2117,9 +2118,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2295,9 +2296,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2389,9 +2390,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2582,9 +2583,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2751,9 +2752,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2822,9 +2823,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3007,9 +3008,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3165,9 +3166,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3205,10 +3206,10 @@ class Trainee(BaseTrainee):
         features: Collection[str],
         *,
         condition: t.Optional[Mapping] = None,
-        minimum_mass_threshold: int = 0,
+        minimum_mass_threshold: float = 0.0,
         precision: t.Optional[Precision] = "exact",
         weight_feature: t.Optional[str] = None
-    ):
+    ) -> dict[str, ValueMasses]:
         """
         Get the unique values and their respective masses for each specified feature.
 
@@ -3225,15 +3226,15 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
-        minimum_mass_threshold : int, default 0
+        minimum_mass_threshold : float, default 0.0
             The minimum mass a feature value must possess to be returned in the
-            collection of value masses. If the given value is greater than one,
+            collection of value masses. If the given value is greater than zero,
             the sum of the omitted feature value masses is returned under a
             "remaining" key for each feature.
         precision : str, default "exact"

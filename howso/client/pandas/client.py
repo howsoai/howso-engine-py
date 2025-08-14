@@ -8,9 +8,10 @@ from pandas import DataFrame, Index
 
 from howso.client.client import get_howso_client_class
 from howso.client.schemas.reaction import Reaction
+from howso.client.typing import ValueMasses
 from howso.utilities import deserialize_cases, format_dataframe
-from howso.utilities.internals import deserialize_to_dataframe
 from howso.utilities.features import FeatureSerializer
+from howso.utilities.internals import deserialize_to_dataframe
 
 
 class HowsoPandasClientMixin:
@@ -156,25 +157,26 @@ class HowsoPandasClientMixin:
         response = super().get_marginal_stats(*args, **kwargs)
         return pd.DataFrame(response)
 
-    def get_value_masses(self, trainee_id: str,  *args, **kwargs) -> DataFrame:
+    def get_value_masses(self, trainee_id: str,  *args, **kwargs) -> dict[str, ValueMasses]:
         """
-        Base: :func:`howso.client.AbstractHowsoClient.get_marginal_stats`.
+        Base: :func:`howso.client.AbstractHowsoClient.get_value_masses`.
 
         Returns
         -------
-        DataFrame
-            A DataFrame of feature name columns to statistic value rows.
+        dict[str, ValueMasses]
+            A DataFrame of feature name columns to a dict describing the value masses.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
         response = super().get_value_masses(trainee_id, *args, **kwargs)
         out_response = {}
         for f_name, results in response.items():
-            masses_df = pd.DataFrame(data=results.get('values', []), columns=["Feature Value", "Mass"])
-            masses_df['Feature Value'] = FeatureSerializer.format_column(
-                masses_df['Feature Value'],
-                feature_attributes[f_name]
-            )
+            masses_df = pd.DataFrame(data=results.get('values', []), columns=["feature_value", "mass"])
+            if f_name in feature_attributes:
+                masses_df['feature_value'] = FeatureSerializer.format_column(
+                    masses_df['feature_value'],
+                    feature_attributes[f_name]
+                )
             results['values'] = masses_df
             out_response[f_name] = results
 
