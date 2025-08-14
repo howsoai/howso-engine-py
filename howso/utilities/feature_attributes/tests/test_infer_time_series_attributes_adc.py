@@ -139,54 +139,6 @@ def test_infer_features_attributes_multiple_ID(adc):
     ("DaskDataFrameData", ts_df),
     ("DataFrameData", ts_df),
 ], indirect=True)
-@pytest.mark.parametrize(
-    "features",
-    [features_1, features_2]
-)
-def test_partially_filled_feature_types(features: dict, adc) -> None:
-    """
-    Make sure the partially filled feature types remain intact.
-
-    Parameters
-    ----------
-    df: pandas.DataFrame
-    features
-    """
-    pre_inferred_features = features.copy()
-
-    # Define time format
-    time_format = "%Y%m%d"
-
-    # Identify id-feature and time-feature
-    id_feature_name = "ID"
-    time_feature_name = "date"
-
-    inferred_features = infer_feature_attributes(
-        adc,
-        time_feature_name=time_feature_name,
-        features=features,
-        id_feature_name=id_feature_name,
-        datetime_feature_formats={time_feature_name: time_format}
-    )
-
-    for k, v in pre_inferred_features.items():
-        assert v['type'] == inferred_features[k]['type']
-
-        if 'bounds' in v:
-            # Make sure the bounds are not altered
-            # by `infer_feature_attributes` function
-            assert v['bounds'] == inferred_features[k]['bounds']
-
-
-@pytest.mark.parametrize('adc', [
-    ("MongoDBData", ts_df),
-    ("SQLTableData", ts_df),
-    ("ParquetDataFile", ts_df),
-    ("ParquetDataset", ts_df),
-    ("TabularFile", ts_df),
-    ("DaskDataFrameData", ts_df),
-    ("DataFrameData", ts_df),
-], indirect=True)
 def test_set_rate_delta_boundaries(adc):
     """Test infer_feature_attributes for time series with rate/delta boundaries set."""
     # Define time format

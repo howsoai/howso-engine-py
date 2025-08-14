@@ -91,51 +91,6 @@ def test_infer_features_attributes():
 
 
 @pytest.mark.parametrize(
-    "features, max_workers",
-    [
-        (features_1, 0),
-        (features_2, 0),
-        (features_3, 0),
-        (features_4, 0),
-        (features_1, 2),
-        (features_2, 2),
-        (features_3, 2),
-        (features_4, 2),
-    ]
-)
-def test_partially_filled_feature_types(features: dict, max_workers: int) -> None:
-    """
-    Make sure the partially filled feature types remain intact.
-
-    Note:
-        max_workers: 0 - Forces the non-multi-processing path which would
-                         be normal for this dataset anyway.
-        max_workers: 2 - Forces the multi-processing path which would otherwise
-                         be unnatural for this dataset.
-
-    Parameters
-    ----------
-    df: pandas.DataFrame
-    features
-    """
-    df = pd.read_csv(iris_path)
-    pre_inferred_features = features.copy()
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        inferred_features = infer_feature_attributes(
-            df, features=features, max_workers=max_workers)
-
-    for k, v in pre_inferred_features.items():
-        assert v['type'] == inferred_features[k]['type']
-
-        if 'bounds' in v:
-            # Make sure the bounds are not altered
-            # by _process()
-            assert v['bounds'] == inferred_features[k]['bounds']
-
-
-@pytest.mark.parametrize(
     'feature, nominality', [
         # "id_no" _would_ be inferred "continuous", but we specifically tell
         # `_process()` that it is indeed an ID feature, so it
@@ -343,22 +298,18 @@ def test_column_names(should_fail, data):
         assert features is not None
 
 
-@pytest.mark.parametrize('should_include, base_features, dependent_features', [
-    (False, None, None),
-    (True, None, {'sepal_length': ['sepal_width', 'class']}),
-    (True, {"sepal_length": {"type": "continuous"}},
-     {'sepal_width': ['sepal_length']}),
-    (True, {"sepal_length": {"type": "continuous"}},
-     {'sepal_length': ['class']}),
-    (False, {"sepal_length": {"type": "continuous"}},
-     None),
-    (True, {"sepal_length": {"dependent_features": ["class"]}},
-     None),
+@pytest.mark.parametrize('should_include, dependent_features', [
+    (False, None),
+    (True, {'sepal_length': ['sepal_width', 'class']}),
+    (True, {'sepal_width': ['sepal_length']}),
+    (True, {'sepal_length': ['class']}),
+    (False, None),
+    (True, None),
 ])
-def test_dependent_features(should_include, base_features, dependent_features):
+def test_dependent_features(should_include, dependent_features):
     """Test depdendent features are added to feature attributes dict."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df, features=base_features, dependent_features=dependent_features)
+    features = infer_feature_attributes(df, dependent_features=dependent_features)
 
     if should_include:
         # Should include dependent features
@@ -367,13 +318,6 @@ def test_dependent_features(should_include, base_features, dependent_features):
                 assert 'dependent_features' in features[feat]
                 for dep_feat in dep_feats:
                     assert dep_feat in features[feat]['dependent_features']
-        # Make sure dependent features provided in the base dict are also included
-        if base_features:
-            for feat in base_features.keys():
-                if 'dependent_features' in base_features[feat]:
-                    assert 'dependent_features' in features[feat]
-                    for dep_feat in base_features[feat]['dependent_features']:
-                        assert dep_feat in features[feat]['dependent_features']
     else:
         # Should not include dependent features
         for attributes in features.values():
@@ -501,43 +445,38 @@ def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
     assert features['a']['bounds'] == expected_bounds
 
 
-@pytest.mark.parametrize(
-    "features",
-    [features_1, features_2, features_3, features_4]
-)
-def test_to_json(features: dict) -> None:
+def test_to_json() -> None:
     """Test that to_json() method returns a JSON representation of the object."""
     df = pd.read_csv(iris_path)
-    pre_inferred_features = features.copy()
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inferred_features = infer_feature_attributes(df, features=features)
+        inferred_features = infer_feature_attributes(df)
 
     to_json = inferred_features.to_json()
     assert isinstance(to_json, str)
     features = json.loads(to_json)
 
     # Make sure the json representation has expected data
-    for k, v in pre_inferred_features.items():
+    for k, v in inferred_features.items():
         assert v['type'] == features[k]['type']
         if 'bounds' in v:
             assert v['bounds'] == features[k]['bounds']
 
 
-@pytest.mark.parametrize('partial_features', [
-    {"sepal_length": {"type": "continuous"},
-     'sepal_width': {"dependent_features": ['sepal_length']}}
+@pytest.mark.parametrize('dependent_features', [
+    {"sepal_length": ["class"],
+     'sepal_width': ["petal_width"]}
 ])
-def test_get_parameters(partial_features):
+def test_get_parameters(dependent_features):
     """Test the get_parameters() method."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df, features=partial_features)
+    features = infer_feature_attributes(df, dependent_features=dependent_features)
 
     # Verify dependent_features
-    assert 'features' in features.get_parameters()
-    for key, value in partial_features.items():
-        assert features.get_parameters()['features'][key] == value
+    assert 'dependent_features' in features.get_parameters()
+    for key, value in dependent_features.items():
+        assert features.get_parameters()['dependent_features'][key] == value
 
 
 def test_get_names_without():
@@ -588,28 +527,6 @@ def test_copy():
     f_orig['sepal_width']['bounds']['min'] = -2
     # Assert that f_copy was unaffected
     assert f_copy['sepal_width']['bounds']['min'] == orig
-
-
-@pytest.mark.parametrize("features", [
-    ({'OPEN': {'type': 'continuous', 'decimal_places': 3}}),
-    ({'VWAP': {'decimal_places': 5}}),
-    ({'DATE': {'type': 'continuous', 'date_time_format': '%Y-%m-%f'}}),
-    ({'DATE': {'date_time_format': '%Y-%m-%f'}}),
-    ({'CLOSE': {'type': 'continuous', 'dependent_features': ['OPEN', 'DATE']}}),
-])
-def test_partial_features(features):
-    """Test that filling a partial features dict works as expected."""
-    feature_attributes = {}
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-    df = pd.read_csv(stock_path)
-    feature_attributes = infer_feature_attributes(df, time_feature_name='DATE', features=features)
-
-    # Ensure that the partial features remain
-    for feature in features.keys():
-        for k, v in features[feature].items():
-            assert k in feature_attributes[feature]
-            assert feature_attributes[feature][k] == v
 
 
 @pytest.mark.parametrize("tight_bounds", [
@@ -1006,28 +923,6 @@ def test_formatted_date_time():
         'custom': ['2010/10/10', '2010/10/11', '2010/10/12', '2010/10/14'],
         'iso': ['2010-10-10', '2010-10-11', '2010-10-12', '2010-10-14']
     })
-
-    # When data_type is formatted_date_time, a date_time_format must be set
-    with pytest.raises(
-        ValueError,
-        match='must have a `date_time_format` defined when its `data_type` is "formatted_date_time"'
-    ):
-        infer_feature_attributes(data, features={
-            'custom': {
-                "data_type": "formatted_date_time"
-            }
-        })
-
-    # When data_type is formatted_time, a date_time_format must be set
-    with pytest.raises(
-        ValueError,
-        match='must have a `date_time_format` defined when its `data_type` is "formatted_time"'
-    ):
-        infer_feature_attributes(data, features={
-            'time': {
-                "data_type": "formatted_time"
-            }
-        })
 
     # Verify formatted_date_time is set when a date_time_format is configured
     with warnings.catch_warnings():
