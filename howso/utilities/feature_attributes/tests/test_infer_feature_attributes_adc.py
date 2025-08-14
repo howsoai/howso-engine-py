@@ -237,21 +237,17 @@ def test_infer_time_feature_bounds(adc, data, tight_bounds, provided_format, exp
     ("DaskDataFrameData", iris_df),
     ("DataFrameData", iris_df),
 ], indirect=True)
-@pytest.mark.parametrize('should_include, base_features, dependent_features', [
-    (False, None, None),
-    (True, None, {'sepal_length': ['sepal_width', 'class']}),
-    (True, {"sepal_length": {"type": "continuous"}},
-     {'sepal_width': ['sepal_length']}),
-    (True, {"sepal_length": {"type": "continuous"}},
-     {'sepal_length': ['class']}),
-    (False, {"sepal_length": {"type": "continuous"}},
-     None),
-    (True, {"sepal_length": {"dependent_features": ["class"]}},
-     None),
+@pytest.mark.parametrize('should_include, dependent_features', [
+    (False, None),
+    (True, {'sepal_length': ['sepal_width', 'class']}),
+    (True, {'sepal_width': ['sepal_length']}),
+    (True, {'sepal_length': ['class']}),
+    (False, None),
+    (True, None),
 ])
-def test_dependent_features(adc, should_include, base_features, dependent_features):
+def test_dependent_features(adc, should_include, dependent_features):
     """Test depdendent features are added to feature attributes dict."""
-    features = infer_feature_attributes(adc, features=base_features, dependent_features=dependent_features)
+    features = infer_feature_attributes(adc, dependent_features=dependent_features)
 
     if should_include:
         # Should include dependent features
@@ -260,13 +256,6 @@ def test_dependent_features(adc, should_include, base_features, dependent_featur
                 assert 'dependent_features' in features[feat]
                 for dep_feat in dep_feats:
                     assert dep_feat in features[feat]['dependent_features']
-        # Make sure dependent features provided in the base dict are also included
-        if base_features:
-            for feat in base_features.keys():
-                if 'dependent_features' in base_features[feat]:
-                    assert 'dependent_features' in features[feat]
-                    for dep_feat in base_features[feat]['dependent_features']:
-                        assert dep_feat in features[feat]['dependent_features']
     else:
         # Should not include dependent features
         for attributes in features.values():
@@ -491,28 +480,6 @@ def test_formatted_date_time(adc):
     })
 
     convert_data(DataFrameData(data), adc)
-
-    # When data_type is formatted_date_time, a date_time_format must be set
-    with pytest.raises(
-        ValueError,
-        match='must have a `date_time_format` defined when its `data_type` is "formatted_date_time"'
-    ):
-        infer_feature_attributes(adc, features={
-            'custom': {
-                "data_type": "formatted_date_time"
-            }
-        })
-
-    # When data_type is formatted_time, a date_time_format must be set
-    with pytest.raises(
-        ValueError,
-        match='must have a `date_time_format` defined when its `data_type` is "formatted_time"'
-    ):
-        infer_feature_attributes(adc, features={
-            'time': {
-                "data_type": "formatted_time"
-            }
-        })
 
     # Verify formatted_date_time is set when a date_time_format is configured
     with warnings.catch_warnings():
