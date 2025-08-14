@@ -3213,7 +3213,7 @@ class Trainee(BaseTrainee):
     ) -> ValueMasses:
         ...
 
-
+    @t.overload
     def get_value_masses(
         self,
         features: Collection[str],
@@ -3223,12 +3223,23 @@ class Trainee(BaseTrainee):
         precision: t.Optional[Precision] = "exact",
         weight_feature: t.Optional[str] = None
     ) -> dict[str, ValueMasses]:
+        ...
+
+    def get_value_masses(
+        self,
+        features: str | Collection[str],
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> ValueMasses | dict[str, ValueMasses]:
         """
         Get the unique values and their respective masses for each specified feature.
 
         Parameters
         ----------
-        features : Collection[str]
+        features : str | Collection[str]
             The feature names for which to compute unique value masses.
         condition : Mapping or None, optional
             A condition map to select which cases to compute value masses
