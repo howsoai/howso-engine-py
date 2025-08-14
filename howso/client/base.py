@@ -1480,7 +1480,6 @@ class AbstractHowsoClient(ABC):
         input_is_substituted: bool = False,
         into_series_store: t.Optional[str] = None,
         leave_case_out: bool = False,
-        new_case_threshold: NewCaseThreshold = "min",
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
         post_process_features: t.Optional[Collection[str]] = None,
@@ -2031,16 +2030,6 @@ class AbstractHowsoClient(ABC):
             batched call to react and at the end of reacting. The method is
             given a ProgressTimer containing metrics on the progress and timing
             of the react operation, and the batch result.
-        new_case_threshold : str, optional
-            Distance to determine the privacy cutoff. If None,
-            will default to "min".
-
-            Possible values:
-
-                - min: minimum distance in the original local space.
-                - max: maximum distance in the original local space.
-                - most_similar: distance between the nearest neighbor to the
-                  nearest neighbor in the original space.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``
@@ -2063,8 +2052,6 @@ class AbstractHowsoClient(ABC):
         ------
         ValueError
             If `derived_action_features` is not a subset of `action_features`.
-
-            If `new_case_threshold` is not one of {"max", "min", "most_similar"}.
 
             If the number of context values does not match the number of context features.
         HowsoError
@@ -2135,13 +2122,6 @@ class AbstractHowsoClient(ABC):
                     'Specified `derived_action_features` must be a subset of '
                     '`action_features`.')
 
-        if new_case_threshold not in [None, "min", "max", "most_similar"]:
-            raise ValueError(
-                f"The value '{new_case_threshold}' specified for the parameter "
-                "`new_case_threshold` is not valid. It accepts one of the"
-                " following values - ['min', 'max', 'most_similar',]"
-            )
-
         if details is not None and 'robust_computation' in details:
             details = dict(details)
             details['robust_influences'] = details['robust_computation']
@@ -2206,7 +2186,6 @@ class AbstractHowsoClient(ABC):
                 "use_case_weights": use_case_weights,
                 "leave_case_out": leave_case_out,
                 "preserve_feature_values": preserve_feature_values,
-                "new_case_threshold": new_case_threshold,
                 "details": details,
             }
         else:
@@ -2248,7 +2227,6 @@ class AbstractHowsoClient(ABC):
                 "goal_features_map": goal_features_map,
                 "ordered_by_specified_features": ordered_by_specified_features,
                 "preserve_feature_values": preserve_feature_values,
-                "new_case_threshold": new_case_threshold,
                 "into_series_store": into_series_store,
                 "input_is_substituted": input_is_substituted,
                 "substitute_output": substitute_output,
@@ -2661,7 +2639,6 @@ class AbstractHowsoClient(ABC):
         input_is_substituted: bool = False,
         leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
-        new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
         output_new_series_ids: bool = True,
@@ -2865,8 +2842,6 @@ class AbstractHowsoClient(ABC):
             See parameter ``use_case_weights`` in :meth:`AbstractHowsoClient.react`.
         preserve_feature_values : iterable of str
             See parameter ``preserve_feature_values`` in :meth:`AbstractHowsoClient.react`.
-        new_case_threshold : str
-            See parameter ``new_case_threshold`` in :meth:`AbstractHowsoClient.react`.
         use_regional_residuals : bool
             See parameter ``use_regional_residuals`` in :meth:`AbstractHowsoClient.react`.
         feature_bounds_map: dict of dict
@@ -2899,8 +2874,6 @@ class AbstractHowsoClient(ABC):
             If `series_context_values` is not a 3d list of objects.
 
             If `derived_action_features` is not a subset of `action_features`.
-
-            If `new_case_threshold` is not one of {"max", "min", "most_similar"}.
         HowsoError
             If `num_series_to_generate` is not an integer greater than 0.
         """
@@ -2933,13 +2906,6 @@ class AbstractHowsoClient(ABC):
                         features_parameter="series_context_features")
                 serialized_series_context_values.append(
                     serialize_cases(series, series_context_features, feature_attributes))
-
-        if new_case_threshold not in [None, "min", "max", "most_similar"]:
-            raise ValueError(
-                f"The value '{new_case_threshold}' specified for the parameter "
-                "`new_case_threshold` is not valid. It accepts one of the"
-                " following values - ['min', 'max', 'most_similar',]"
-            )
 
         # All of these params must be of length 1 or N
         # where N is the length of the largest
@@ -2984,7 +2950,6 @@ class AbstractHowsoClient(ABC):
                 "goal_features_map": goal_features_map,
                 "leave_series_out": leave_series_out,
                 "preserve_feature_values": preserve_feature_values,
-                "new_case_threshold": new_case_threshold,
                 "input_is_substituted": input_is_substituted,
                 "substitute_output": substitute_output,
                 "weight_feature": weight_feature,
@@ -3047,7 +3012,6 @@ class AbstractHowsoClient(ABC):
                 "weight_feature": weight_feature,
                 "use_case_weights": use_case_weights,
                 "preserve_feature_values": preserve_feature_values,
-                "new_case_threshold": new_case_threshold,
                 "details": details,
                 "series_id_tracking": series_id_tracking,
                 "output_new_series_ids": output_new_series_ids,

@@ -69,9 +69,6 @@ LibraryType: TypeAlias = Literal["st", "mt"]
 Mode: TypeAlias = Literal["robust", "full"]
 """Valid values for ``mode`` parameters."""
 
-NewCaseThreshold: TypeAlias = Literal["max", "min", "most_similar"]
-"""Valid values for ``new_case_threshold`` parameters."""
-
 NormalizeMethod: TypeAlias = Literal["fractional_absolute", "fractional", "relative"]
 """Valid values for ``normalize_method`` parameters."""
 
