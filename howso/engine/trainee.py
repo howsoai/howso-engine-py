@@ -3202,7 +3202,7 @@ class Trainee(BaseTrainee):
             raise AssertionError("Client must have the 'get_marginal_stats' method.")
 
     @t.overload
-    def get_value_masses(
+    def get_value_masses(  # pyright: ignore[reportOverlappingOverload]
         self,
         features: str,
         *,
@@ -3278,10 +3278,7 @@ class Trainee(BaseTrainee):
             greater than one, "remaining" maps to a single value that is the sum
             of all omitted feature value masses.
         """
-        if (
-            hasattr(self.client, "get_value_masses") and
-            isinstance(self.client.get_value_masses, t.Callable)
-        ):
+        if isinstance(self.client, HowsoPandasClientMixin):
             value_masses_response =  self.client.get_value_masses(
                 self.id,
                 features=[features] if isinstance(features, str) else features,

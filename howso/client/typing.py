@@ -59,7 +59,7 @@ class SortByFeature(TypedDict):
 class ValueMasses(TypedDict):
     """Represents the computed value masses of a single feature."""
 
-    values: DataFrame | list[list]
+    values: DataFrame
     """A dataframe or lists of lists containing each feature value and its corresponding mass."""
 
     remaining: float

@@ -1464,7 +1464,7 @@ class AbstractHowsoClient(ABC):
         minimum_mass_threshold: float = 0.0,
         precision: t.Optional[Precision] = "exact",
         weight_feature: t.Optional[str] = None
-    ) -> dict[str, dict[str, list[list] | float]]:
+    ) -> dict[str, dict[str, list[list[t.Any]] | float]]:
         """
         Get the unique values and their respective masses for each specified feature.
 
@@ -1504,7 +1504,7 @@ class AbstractHowsoClient(ABC):
 
         Returns
         -------
-        dict[str, dict[str, list[list] | float]]
+        dict[str, dict[str, list[list[Any]] | float]]
             A map of each feature name to a dict containing "values" and "remaining"
             keys. "values" maps to a list of lists where each sublist contains
             the feature value and its mass. When ``minimum_mass_threshold`` is
