@@ -3846,11 +3846,11 @@ class AbstractHowsoClient(ABC):
             - estimated_residual_lower_bound : bool, optional
                 When True, computes and outputs estimated lower bound of residuals for specified action features.
         convergence_min_size: int, optional
-            The minimal size of the first batch of cases used when dynamically sampling robust
+            The minimuw size of the first batch of cases used when dynamically sampling robust
             residuals used to determine feature accuracy contributions. Defaults to 5000 when unspecified.
         convergence_samples_growth_rate: int, optional
-            Rate of increasing each subsequent sample used to dynamically limit the total number of samples
-            used to determine robust feature accuracy contributions. Defaults to 1.05 when unspecified,
+            Rate of increasing the size of each subsequent sample used to dynamically limit the total number of
+            samples used to determine robust feature accuracy contributions. Defaults to 1.05 when unspecified,
             increasing samples by 5% until the delta between residuals is less than ``convergence_threshold``.
         convergence_threshold: int, optional
             Percent threshold used to dynamically limit the number of samples used to determine robust
@@ -4338,14 +4338,14 @@ class AbstractHowsoClient(ABC):
         bypass_hyperparameter_analysis : bool, optional
             When True, bypasses hyperparameter analysis.
         convergence_min_size: int, optional
-            The minimal size of the first batch of cases used when dynamically
+            The minimum size of the first batch of cases used when dynamically
             sampling robust residuals used to determine feature probabilities.
             Defaults to 5000 when unspecified.
         convergence_samples_growth_rate: int, optional
-            Rate of increasing each subsequent sample used to dynamically
-            limit the total number of samples used to determine feature
-            probabilities. Defaults to 1.05 when unspecified, increasing
-            samples by 5% until the delta between residuals is less
+            Rate of increasing the size of each subsequent sample used to
+            dynamically limit the total number of samples used to determine
+            feature probabilities. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less
             than ``convergence_threshold``.
         convergence_threshold: int, optional
             Percent threshold used to dynamically limit the number of
@@ -4575,14 +4575,14 @@ class AbstractHowsoClient(ABC):
         context_features : Collection of str, optional
             The context features to analyze for.
         convergence_min_size: int, optional
-            The minimal size of the first batch of cases used when dynamically
+            The minimum size of the first batch of cases used when dynamically
             sampling robust residuals used to determine feature probabilities.
             Defaults to 5000 when unspecified.
         convergence_samples_growth_rate: int, optional
-            Rate of increasing each subsequent sample used to dynamically
-            limit the total number of samples used to determine feature
-            probabilities. Defaults to 1.05 when unspecified, increasing
-            samples by 5% until the delta between residuals is less
+            Rate of increasing the size of each subsequent sample used to
+            dynamically limit the total number of samples used to determine
+            feature probabilities. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less
             than ``convergence_threshold``.
         convergence_threshold: int, optional
             Percent threshold used to dynamically limit the number of
