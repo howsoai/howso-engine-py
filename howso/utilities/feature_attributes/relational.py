@@ -778,6 +778,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         ):
             return {
                 'type': 'nominal',
+                'data_type': 'string',
             }
 
         # Column has arbitrary string values, first check if they
@@ -796,7 +797,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
     def _infer_unknown_attributes(self, feature_name: str) -> dict:
         return {
-            'type': 'nominal'
+            'type': 'nominal',
+            'data_type': 'string',
         }
 
     def _infer_feature_bounds(  # noqa: C901

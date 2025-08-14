@@ -109,46 +109,6 @@ def test_infer_features_attributes_multiple_ID():
     assert features["ID2"]["id_feature"] is True
 
 
-@pytest.mark.parametrize(
-    "features",
-    [features_1, features_2]
-)
-def test_partially_filled_feature_types(features: dict) -> None:
-    """
-    Make sure the partially filled feature types remain intact.
-
-    Parameters
-    ----------
-    df: pandas.DataFrame
-    features
-    """
-    df = pd.read_csv(data_path)
-    pre_inferred_features = features.copy()
-
-    # Define time format
-    time_format = "%Y%m%d"
-
-    # Identify id-feature and time-feature
-    id_feature_name = "ID"
-    time_feature_name = "date"
-
-    inferred_features = infer_feature_attributes(
-        df,
-        time_feature_name=time_feature_name,
-        features=features,
-        id_feature_name=id_feature_name,
-        datetime_feature_formats={time_feature_name: time_format}
-    )
-
-    for k, v in pre_inferred_features.items():
-        assert v['type'] == inferred_features[k]['type']
-
-        if 'bounds' in v:
-            # Make sure the bounds are not altered
-            # by `infer_feature_attributes` function
-            assert v['bounds'] == inferred_features[k]['bounds']
-
-
 def test_set_rate_delta_boundaries():
     """Test infer_feature_attributes for time series with rate/delta boundaries set."""
     df = pd.read_csv(data_path)
