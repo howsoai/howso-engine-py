@@ -802,7 +802,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 # if it has no data, but just in case...
                 return {
                     'type': 'continuous',
-                    'data_type': 'string',
+                    'data_type': 'number',
                 }
         elif self._is_json_feature(feature_name):
             return {
