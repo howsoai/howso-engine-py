@@ -3201,6 +3201,19 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_marginal_stats' method.")
 
+    @t.overload
+    def get_value_masses(
+        self,
+        features: str,
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> ValueMasses:
+        ...
+
+
     def get_value_masses(
         self,
         features: Collection[str],
@@ -3258,14 +3271,20 @@ class Trainee(BaseTrainee):
             hasattr(self.client, "get_value_masses") and
             isinstance(self.client.get_value_masses, t.Callable)
         ):
-            return self.client.get_value_masses(
+            value_masses_response =  self.client.get_value_masses(
                 self.id,
-                features=features,
+                features=[features] if isinstance(features, str) else features,
                 condition=condition,
                 minimum_mass_threshold=minimum_mass_threshold,
                 precision=precision,
                 weight_feature=weight_feature
             )
+            if isinstance(features, str):
+                # Single feature flow
+                return value_masses_response[features]
+            else:
+                return value_masses_response
+
         else:
             raise AssertionError("Client must have the `get_value_masses` method.")
 
