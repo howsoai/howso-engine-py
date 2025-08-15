@@ -979,8 +979,8 @@ class Trainee(BaseTrainee):
         bypass_calculate_feature_weights: t.Optional[bool] = None,
         bypass_hyperparameter_analysis: t.Optional[bool] = None,
         convergence_min_size: t.Optional[int] = None,
-        convergence_samples_growth_rate: t.Optional[int] = None,
-        convergence_threshold: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
@@ -1017,16 +1017,16 @@ class Trainee(BaseTrainee):
             The minimum size of the first batch of cases used when dynamically
             sampling robust residuals used to determine feature probabilities.
             Defaults to 5000 when unspecified.
-        convergence_samples_growth_rate: int, optional
+        convergence_samples_growth_rate: float, optional
             Rate of increasing the size of each subsequent sample used to
             dynamically limit the total number of samples used to determine
             feature probabilities. Defaults to 1.05 when unspecified,
             increasing samples by 5% until the delta between residuals is less
             than ``convergence_threshold``.
-        convergence_threshold: int, optional
+        convergence_threshold: float, optional
             Percent threshold used to dynamically limit the number of
             samples used to determine feature probabilities.
-            Defaults to 0.5% when unspecified. When set to 0 will use
+            Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
             all ``num_feature_probability_samples`` instead of converging.
         dt_values : Collection of float, optional
             The dt value hyperparameters to analyze with.
@@ -3309,8 +3309,8 @@ class Trainee(BaseTrainee):
         context_features: t.Optional[Collection[str]] = None,
         details: t.Optional[dict] = None,
         convergence_min_size: t.Optional[int] = None,
-        convergence_samples_growth_rate: t.Optional[int] = None,
-        convergence_threshold: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
         forecast_window_length: t.Optional[float] = None,
@@ -3488,13 +3488,13 @@ class Trainee(BaseTrainee):
         convergence_min_size: int, optional
             The minimum size of the first batch of cases used when dynamically sampling robust
             residuals used to determine feature accuracy contributions. Defaults to 5000 when unspecified.
-        convergence_samples_growth_rate: int, optional
+        convergence_samples_growth_rate: float, optional
             Rate of increasing the size of each subsequent sample used to dynamically limit the total number of
             samples used to determine robust feature accuracy contributions. Defaults to 1.05 when unspecified,
             increasing samples by 5% until the delta between residuals is less than ``convergence_threshold``.
-        convergence_threshold: int, optional
+        convergence_threshold: float, optional
             Percent threshold used to dynamically limit the number of samples used to determine robust
-            accuracy contributions. Defaults to 0.5% when unspecified. When set to 0 will use
+            accuracy contributions. Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
             all ``num_robust_accuracy_contributions_samples`` instead of converging.
         features_to_derive: list of str, optional
             List of feature names whose values should be derived rather than interpolated from influential
