@@ -1555,6 +1555,7 @@ class AbstractHowsoClient(ABC):
         details: t.Optional[Mapping] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping] = None,
+        feature_pre_process_code_map: t.Optional[Mapping] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -1569,6 +1570,7 @@ class AbstractHowsoClient(ABC):
         post_process_values: t.Optional[TabularData2D] = None,
         preserve_feature_values: t.Optional[Collection[str]] = None,
         progress_callback: t.Optional[Callable] = None,
+        return_context_values: bool = False,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
@@ -2037,6 +2039,12 @@ class AbstractHowsoClient(ABC):
                     "feature_c": {"max": 1}
                 }
 
+        feature_pre_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the context feature they are mapped from.
+            The custom code will have access to all pre-processed context
+            feature values.
+
         feature_post_process_code_map : dict of str, optional
             A mapping of feature name to custom code strings that will be
             evaluated to update the value of the feature they are mapped from.
@@ -2099,6 +2107,10 @@ class AbstractHowsoClient(ABC):
             the order of specified features.
         num_cases_to_generate : int, default 1
             The number of cases to generate.
+        return_context_values : bool, default False
+            When True, context values and features are included in the details
+            dict of the response under "context_values" and "context_features"
+            keys.
         suppress_warning : bool, defaults to False
             If True, warnings will not be displayed.
         post_process_features : iterable of str, optional
@@ -2276,6 +2288,7 @@ class AbstractHowsoClient(ABC):
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "feature_pre_process_code_map": feature_pre_process_code_map,
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "goal_features_map": goal_features_map,
                 "post_process_features": post_process_features,
@@ -2290,6 +2303,7 @@ class AbstractHowsoClient(ABC):
                 "preserve_feature_values": preserve_feature_values,
                 "new_case_threshold": new_case_threshold,
                 "details": details,
+                "return_context_values": return_context_values
             }
         else:
             if (
@@ -2319,6 +2333,7 @@ class AbstractHowsoClient(ABC):
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "feature_pre_process_code_map": feature_pre_process_code_map,
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
@@ -2339,6 +2354,7 @@ class AbstractHowsoClient(ABC):
                 "case_indices": case_indices,
                 "leave_case_out": leave_case_out,
                 "details": details,
+                "return_context_values": return_context_values,
                 "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
             }
 
