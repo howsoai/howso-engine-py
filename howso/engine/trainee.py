@@ -52,6 +52,7 @@ from howso.client.typing import (
     TabularData2D,
     TabularData3D,
     TargetedModel,
+    ValueMasses,
 )
 from howso.engine.client import get_client
 from howso.engine.project import Project
@@ -1293,9 +1294,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1882,9 +1883,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2138,9 +2139,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2316,9 +2317,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2410,9 +2411,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2603,9 +2604,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2772,9 +2773,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2843,9 +2844,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3028,9 +3029,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3186,9 +3187,9 @@ class Trainee(BaseTrainee):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3221,10 +3222,108 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_marginal_stats' method.")
 
+    @t.overload
+    def get_value_masses(  # pyright: ignore[reportOverlappingOverload]
+        self,
+        features: str,
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> ValueMasses:
+        ...
+
+    @t.overload
+    def get_value_masses(
+        self,
+        features: Collection[str],
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> dict[str, ValueMasses]:
+        ...
+
+    def get_value_masses(
+        self,
+        features: str | Collection[str],
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> ValueMasses | dict[str, ValueMasses]:
+        """
+        Get the unique values and their respective masses for each specified feature.
+
+        Parameters
+        ----------
+        features : str | Collection[str]
+            The feature names for which to compute unique value masses.
+        condition : Mapping or None, optional
+            A condition map to select which cases to compute value masses
+            for.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        minimum_mass_threshold : float, default 0.0
+            The minimum mass a feature value must possess to be returned in the
+            collection of value masses. If the given value is greater than zero,
+            the sum of the omitted feature value masses is returned under a
+            "remaining" key for each feature.
+        precision : str, default "exact"
+            The precision to use when selecting cases with ``condition``.
+            Options are 'exact' or 'similar'. Only used if `condition` is not
+            None.
+        weight_feature : str, optional
+            When specified, will return masses based on weights stored
+            in this weight_feature.
+
+        Returns
+        -------
+        ValueMasses | dict[str, ValueMasses]
+            If only a single feature is given, then a single dictionary
+            describing the value masses is returned, otherwise a dict is
+            returned with value masses for each specified feature. In the
+            per-feature dict, "values" maps to a DataFrame where each row
+            contains a unique feature value and its mass. When
+            ``minimum_mass_threshold`` is greater than zero, "remaining" maps
+            to a single value that is the sum of all omitted feature value
+            masses.
+        """
+        if isinstance(self.client, HowsoPandasClientMixin):
+            value_masses_response =  self.client.get_value_masses(
+                self.id,
+                features=[features] if isinstance(features, str) else features,
+                condition=condition,
+                minimum_mass_threshold=minimum_mass_threshold,
+                precision=precision,
+                weight_feature=weight_feature
+            )
+            if isinstance(features, str):
+                # Single feature flow
+                return value_masses_response[features]
+            else:
+                return value_masses_response
+
+        else:
+            raise AssertionError("Client must have the `get_value_masses` method.")
+
     def react_into_features(
         self,
         *,
-        analyze: bool = None,
+        analyze: t.Optional[bool] = None,
         distance_contribution: str | bool = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,

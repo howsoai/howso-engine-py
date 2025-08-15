@@ -772,9 +772,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -883,9 +883,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1019,9 +1019,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1407,9 +1407,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1454,6 +1454,88 @@ class AbstractHowsoClient(ABC):
         if stats is None:
             return dict()
         return stats
+
+    def get_value_masses(
+        self,
+        trainee_id: str,
+        features: Collection[str],
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> dict[str, dict[str, list[list[t.Any]] | float]]:
+        """
+        Get the unique values and their respective masses for each specified feature.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to retrieve value masses for.
+        features : Collection[str]
+            The feature names for which to compute unique value masses.
+        condition : Mapping or None, optional
+            A condition map to select which cases to compute value masses
+            for.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        minimum_mass_threshold : float, default 0.0
+            The minimum mass a feature value must possess to be returned in the
+            collection of value masses. If the given value is greater than zero,
+            the sum of the omitted feature value masses is returned under a
+            "remaining" key for each feature.
+        precision : str, default "exact"
+            The precision to use when selecting cases with ``condition``.
+            Options are 'exact' or 'similar'. Only used if `condition` is not
+            None.
+        weight_feature : str, optional
+            When specified, will return masses based on weights stored
+            in this weight_feature.
+
+        Returns
+        -------
+        dict[str, dict[str, list[list[Any]] | float]]
+            A map of each feature name to a dict containing "values" and "remaining"
+            keys. "values" maps to a list of lists where each sublist contains
+            the feature value and its mass. When ``minimum_mass_threshold`` is
+            greater than one, "remaining" maps to a single value that is the sum
+            of all omitted feature value masses.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+
+        if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
+            warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
+
+        # Convert session instance to id
+        if (
+            isinstance(condition, MutableMapping) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
+
+        if self.configuration.verbose:
+            print(f'Getting value masses for trainee with id: {trainee_id}')
+
+        value_masses = self.execute(trainee_id, "get_value_masses", {
+            "features": features,
+            "condition": condition,
+            "minimum_mass_threshold": minimum_mass_threshold,
+            "precision": precision,
+            "weight_feature": weight_feature,
+        })
+        if value_masses is None:
+            return dict()
+        return value_masses.get("masses", {})
 
     def react(  # noqa: C901
         self,
@@ -1560,9 +1642,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2745,9 +2827,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3276,9 +3358,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -4149,9 +4231,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -5020,9 +5102,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -5278,9 +5360,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -5366,9 +5448,9 @@ class AbstractHowsoClient(ABC):
 
                     - None
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.

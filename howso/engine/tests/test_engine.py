@@ -13,8 +13,6 @@ from howso.engine import (
     load_trainee,
     Trainee,
 )
-from howso.utilities import matrix_processing
-
 
 class TestEngine:
     """Test the Howso Engine module."""
@@ -72,6 +70,14 @@ class TestEngine:
         result = result['distances'].values.tolist()
 
         assert result == expected
+
+    def test_get_value_masses(self, trainee):
+        """Test that get_value_masses returns correct values."""
+        value_masses = trainee.get_value_masses(features=['target'])
+        value_masses_map = {f_value: mass for f_value, mass in value_masses['target']['values'].values.tolist()}
+        assert value_masses_map[0] == 50
+        assert value_masses_map[1] == 50
+        assert value_masses_map[2] == 50
 
     @pytest.mark.parametrize(
         "case_indices,unexpected",

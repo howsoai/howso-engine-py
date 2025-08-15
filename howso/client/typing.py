@@ -56,6 +56,15 @@ class SortByFeature(TypedDict):
     order: Literal["asc", "desc"]
     """The direction of the sort."""
 
+class ValueMasses(TypedDict):
+    """Represents the computed value masses of a single feature."""
+
+    values: DataFrame
+    """A dataframe containing each feature value and its corresponding mass."""
+
+    remaining: float
+    """The combined mass of all omitted feature values."""
+
 
 CaseIndices: TypeAlias = Sequence[tuple[str, int]]
 """Sequence of ``case_indices`` tuples."""
