@@ -3668,6 +3668,9 @@ class AbstractHowsoClient(ABC):
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         details: t.Optional[dict] = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
         forecast_window_length: t.Optional[float] = None,
@@ -3842,6 +3845,17 @@ class AbstractHowsoClient(ABC):
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
             - estimated_residual_lower_bound : bool, optional
                 When True, computes and outputs estimated lower bound of residuals for specified action features.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically sampling robust
+            residuals used to determine feature accuracy contributions. Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to dynamically limit the total number of
+            samples used to determine robust feature accuracy contributions. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of samples used to determine robust
+            accuracy contributions. Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_robust_accuracy_contributions_samples`` instead of converging.
         features_to_derive: list of str, optional
             List of feature names whose values should be derived rather than interpolated from influential
             cases when predicted. If unspecified, then the features that have derivation logic defined will
@@ -4041,6 +4055,9 @@ class AbstractHowsoClient(ABC):
             "context_features": context_features,
             "confusion_matrix_min_count": confusion_matrix_min_count,
             "details": details,
+            "convergence_min_size": convergence_min_size,
+            "convergence_samples_growth_rate": convergence_samples_growth_rate,
+            "convergence_threshold": convergence_threshold,
             "features_to_derive": features_to_derive,
             "feature_influences_action_feature": feature_influences_action_feature,
             "forecast_window_length": forecast_window_length,
@@ -4281,6 +4298,9 @@ class AbstractHowsoClient(ABC):
         bypass_calculate_feature_residuals: t.Optional[bool] = None,
         bypass_calculate_feature_weights: t.Optional[bool] = None,
         bypass_hyperparameter_analysis: t.Optional[bool] = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
@@ -4317,6 +4337,21 @@ class AbstractHowsoClient(ABC):
             When True, bypasses calculation of feature weights.
         bypass_hyperparameter_analysis : bool, optional
             When True, bypasses hyperparameter analysis.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically
+            sampling robust residuals used to determine feature probabilities.
+            Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to
+            dynamically limit the total number of samples used to determine
+            feature probabilities. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less
+            than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of
+            samples used to determine feature probabilities.
+            Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_feature_probability_samples`` instead of converging.
         dt_values : Collection of float, optional
             The dt value hyperparameters to analyze with.
         inverse_residuals_as_weights : bool, default is False
@@ -4424,6 +4459,9 @@ class AbstractHowsoClient(ABC):
             bypass_calculate_feature_residuals=bypass_calculate_feature_residuals,  # noqa: #E501
             bypass_calculate_feature_weights=bypass_calculate_feature_weights,
             bypass_hyperparameter_analysis=bypass_hyperparameter_analysis,  # noqa: #E501
+            convergence_min_size=convergence_min_size,
+            convergence_samples_growth_rate=convergence_samples_growth_rate,
+            convergence_threshold=convergence_threshold,
             dt_values=dt_values,
             use_case_weights=use_case_weights,
             inverse_residuals_as_weights=inverse_residuals_as_weights,
@@ -4497,6 +4535,9 @@ class AbstractHowsoClient(ABC):
         bypass_calculate_feature_weights: t.Optional[bool] = None,
         bypass_hyperparameter_analysis: t.Optional[bool] = None,
         context_features: t.Optional[Collection[str]] = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
@@ -4533,6 +4574,21 @@ class AbstractHowsoClient(ABC):
             The action features to analyze for.
         context_features : Collection of str, optional
             The context features to analyze for.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically
+            sampling robust residuals used to determine feature probabilities.
+            Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to
+            dynamically limit the total number of samples used to determine
+            feature probabilities. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less
+            than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of
+            samples used to determine feature probabilities.
+            Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_feature_probability_samples`` instead of converging.
         k_folds : int, optional
             The number of cross validation folds to do. A value of 1 does
             hold-one-out instead of k-fold.
@@ -4670,6 +4726,9 @@ class AbstractHowsoClient(ABC):
             "analyze_growth_factor": analyze_growth_factor,
             "action_features": action_features,
             "context_features": context_features,
+            "convergence_min_size": convergence_min_size,
+            "convergence_samples_growth_rate": convergence_samples_growth_rate,
+            "convergence_threshold": convergence_threshold,
             "k_folds": k_folds,
             "num_deviation_samples": num_deviation_samples,
             "num_feature_probability_samples": num_feature_probability_samples,
