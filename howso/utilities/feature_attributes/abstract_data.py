@@ -527,14 +527,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             decimals = self.data.get_decimal_places(feature_name)
             if decimals is None:
                 warnings.warn(f'Cannot compute decimal places for feature "{feature_name}')
-            elif decimals <= 8:
-                attributes['decimal_places'] = decimals
             else:
-                warnings.warn(
-                    f'Feature "{feature_name}" contains floating point '
-                    'values that exceed the maximum supported precision '
-                    'of 64 bits.'
-                )
+                attributes['decimal_places'] = decimals
 
         return attributes
 
