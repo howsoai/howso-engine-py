@@ -3295,7 +3295,7 @@ class Trainee(BaseTrainee):
         ValueMasses | dict[str, ValueMasses]
             If only a single feature is given, then a single dictionary
             describing the value masses is returned, otherwise a dict is
-            returned with value masses for each specified feautre. In the
+            returned with value masses for each specified feature. In the
             per-feature dict, "values" maps to a DataFrame where each row
             contains a unique feature value and its mass. When
             ``minimum_mass_threshold`` is greater than zero, "remaining" maps
