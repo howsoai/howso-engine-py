@@ -1662,8 +1662,9 @@ class Trainee(BaseTrainee):
         feature_pre_process_code_map : dict of str, optional
             A mapping of feature name to custom code strings that will be
             evaluated to update the value of the context feature they are mapped from.
-            The custom code will have access to all pre-processed context
-            feature values.
+            The custom code will have access to all pre-processed encoded context
+            feature values and the resulting value of the code should also be
+            in the feature's encoded format.
 
         feature_post_process_code_map : dict of str, optional
             A mapping of feature name to custom code strings that will be
