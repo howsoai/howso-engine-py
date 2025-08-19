@@ -927,7 +927,12 @@ class InferFeatureAttributesBase(ABC):
                 self.attributes[feature_name]['unique'] = True
 
             # Add original type to feature
-            if feature_type is not None:
+            if original_type := typing_info.pop('original_type', None):
+                self.attributes[feature_name]['original_type'] = {
+                    'data_type': str(original_type),
+                    **typing_info
+                }
+            elif feature_type is not None:
                 self.attributes[feature_name]['original_type'] = {
                     'data_type': str(feature_type),
                     **typing_info

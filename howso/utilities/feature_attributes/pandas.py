@@ -259,9 +259,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                             return FeatureType.STRING, {}
                         if converted_val.time() == pd.Timestamp(0).time() and converted_val.tz is None:
                             converted_dtype = np.datetime64(converted_val, 'D').dtype
-                        typing_info = {}
+                        # Specify an original_type here to ensure the DataFrame is unchanged during deserialization
+                        typing_info = {'original_type': FeatureType.STRING}
                         if converted_dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
-                            return FeatureType.DATE, {}
+                            return FeatureType.DATE, typing_info
                         elif isinstance(converted_dtype, pd.DatetimeTZDtype) or getattr(converted_dtype.tz):
                             if isinstance(converted_dtype.tz, pytz.BaseTzInfo) and converted_dtype.tz.zone:
                                 # If using a named time zone capture it, otherwise
