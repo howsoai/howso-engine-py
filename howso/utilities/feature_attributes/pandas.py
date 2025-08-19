@@ -734,10 +734,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         }
 
     def _infer_date_attributes(self, feature_name: str) -> dict:
-        if not self._is_iso8601_datetime_column(feature_name):
+        first_non_null = self._get_first_non_null(feature_name)
+        if isinstance(first_non_null, str) and not self._is_iso8601_datetime_column(feature_name):
             raise ValueError(f'Feature {feature_name} recognized as a date with non-ISO8601 format. Please '
                              'specify the format via `datetime_feature_formats`.')
-        first_non_null = self._get_first_non_null(feature_name)
         if isinstance(first_non_null, str):
             # if datetime string, determine the iso8601 format it's using
             if first_non_null := self._get_first_non_null(feature_name):
