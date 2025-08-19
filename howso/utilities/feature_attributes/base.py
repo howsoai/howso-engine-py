@@ -760,7 +760,6 @@ class InferFeatureAttributesBase(ABC):
         See ``infer_feature_attributes`` for full docstring.
         """
         self.attributes = FeatureAttributesBase({})
-        features = dict()
 
         if datetime_feature_formats is None:
             datetime_feature_formats = dict()
@@ -824,12 +823,6 @@ class InferFeatureAttributesBase(ABC):
                     raise ValueError(
                         f'The date time format "{user_dt_format}" does not match the data of feature '
                         f'"{feature_name}". Data sample: "{test_value}"')
-                if 'date_time_format' in features.get(feature_name, {}):
-                    warnings.warn(
-                        f'The date_time_format for "{feature_name}" was provided in '
-                        'both `features` (ignored) and `datetime_feature_formats`.'
-                    )
-                    del features[feature_name]['date_time_format']
 
                 if feature_type == FeatureType.DATETIME:
                     # When feature is a datetime instance, we won't need to
@@ -942,14 +935,9 @@ class InferFeatureAttributesBase(ABC):
 
             # DECLARED DEPENDENTS
             # First determine if there are any dependent features in the partial features dict
-            partial_dependent_features = []
-            if 'dependent_features' in features.get(feature_name, {}):
-                partial_dependent_features = features[feature_name]['dependent_features']
             # Set dependent features: `dependent_features` + partial features dict, if provided
             if feature_name in dependent_features:
-                self.attributes[feature_name]['dependent_features'] = list(
-                    set(partial_dependent_features + dependent_features[feature_name])
-                )
+                self.attributes[feature_name]['dependent_features'] = dependent_features[feature_name]
 
             # Set default time if provided
             if self.default_time_zone is not None:
@@ -972,10 +960,7 @@ class InferFeatureAttributesBase(ABC):
                 if feature_name not in self.data.columns:
                     continue
                 # Don't infer bounds for JSON/YAML features
-                if (
-                    _attributes.get("data_type") in ["json", "yaml"] or
-                    features.get(feature_name, {}).get('data_type') in ["json", "yaml"]
-                ):
+                if _attributes.get("data_type") in ["json", "yaml"]:
                     continue
                 try:
                     bounds = self._infer_feature_bounds(
