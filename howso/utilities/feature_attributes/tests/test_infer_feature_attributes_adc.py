@@ -21,6 +21,7 @@ from howso.utilities.features import FeatureType
 cwd = Path(__file__).parent.parent.parent.parent
 iris_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'iris.csv'))
 int_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'integers.csv'))
+nypd_arrest_pq_path = Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet')
 stock_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv'))
 ts_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv'))
 
@@ -520,4 +521,11 @@ def test_parquet_dataset_with_s3():
     ]
     for src in data_sources:
         adc = make_data_source(src, storage_options=anon_options)
+        infer_feature_attributes(adc)
+
+
+def test_ambiguous_datetime_format():
+    """Test the NYPD arrest dataset."""
+    adc = make_data_source(nypd_arrest_pq_path)  # Contains a non-ISO8601 date column
+    with pytest.warns(UserWarning, match="this feature will be treated as a nominal string"):
         infer_feature_attributes(adc)

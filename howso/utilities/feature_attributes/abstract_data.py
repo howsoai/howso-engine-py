@@ -203,13 +203,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                                                                       first_non_null):
                     return FeatureType.TIME, {}
                 # Explicitely declared formatted_date_time/time; don't try to guess
-                attrs = getattr(self, 'attributes', {}).get(feature_name, {})
-                if any([
-                    attrs.get('data_type') == 'formatted_date_time',
-                    attrs.get('data_type') == 'formatted_time',
-                    getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None,
-                ]):
-                    return FeatureType.STRING, {}
+                if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None:
+                    return FeatureType.STRING  # Could be datetime or time-only; let base.py figure it out
                 # Depending on the data source, datetimes/timedeltas could easily be strings.
                 # See if the string can be converted to a Pandas datetime/timedelta.
                 try:
@@ -222,6 +217,9 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                     # If the feature looks like a date or datetime, but it's not in ISO8601 format,
                     # handle it as a string to avoid ambiguity.
                     if not self._is_iso8601_datetime_column(feature_name):
+                        warnings.warn(f"Feature '{feature_name}' appears to be a datetime, but we cannot assume its "
+                                      "format. Please provide one using `datetime_feature_formats`. "
+                                      "Otherwise, this feature will be treated as a nominal string.")
                         return FeatureType.STRING, {}
                     if converted_val.time() == pd.Timestamp(0).time() and converted_val.tz is None:
                         converted_dtype = np.datetime64(converted_val, 'D').dtype
