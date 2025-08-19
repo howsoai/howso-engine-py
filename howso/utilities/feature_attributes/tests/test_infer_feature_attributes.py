@@ -28,6 +28,7 @@ else:
 cwd = Path(__file__).parent.parent.parent.parent
 iris_path = Path(cwd, 'utilities', 'tests', 'data', 'iris.csv')
 int_path = Path(cwd, 'utilities', 'tests', 'data', 'integers.csv')
+nypd_arrest_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet'))
 stock_path = Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv')
 ts_path = Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv')
 
@@ -1006,3 +1007,9 @@ def test_memory_usage_warning():
                       "configured threshold of 512 bytes. The feature with the largest "
                       "memory footprint is 'bigger'"):
         infer_feature_attributes(df)
+
+
+def test_ambiguous_datetime_format():
+    """Test that a non-ISO8601 datetime feature results in a warning."""
+    with pytest.warns(UserWarning, match="this feature will be treated as a nominal string"):
+        infer_feature_attributes(nypd_arrest_df)  # NYPD arrest data includes a non-ISO8601 date string
