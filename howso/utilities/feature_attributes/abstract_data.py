@@ -204,7 +204,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                     return FeatureType.TIME, {}
                 # Explicitely declared formatted_date_time/time; don't try to guess
                 if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None:
-                    return FeatureType.STRING  # Could be datetime or time-only; let base.py figure it out
+                    return FeatureType.STRING, {}  # Could be datetime or time-only; let base.py figure it out
                 # Depending on the data source, datetimes/timedeltas could easily be strings.
                 # See if the string can be converted to a Pandas datetime/timedelta.
                 try:
