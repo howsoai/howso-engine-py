@@ -267,6 +267,11 @@ class HowsoPandasClientMixin:
         columns = response['details'].get('action_features')
         if 'prediction_stats' in response['details']:
             response['details']['prediction_stats'] = pd.DataFrame(response['details']['prediction_stats'][0]).T
+
+        context_columns = response['details'].get('context_features')
+        if 'context_values' in response['details']:
+            response['details']['context_values'] = deserialize_cases(response['details']['context_values'], context_columns, feature_attributes)
+
         response['action'] = deserialize_cases(response['action'], columns, feature_attributes)
         return response
 
