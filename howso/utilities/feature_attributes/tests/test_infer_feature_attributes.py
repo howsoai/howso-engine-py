@@ -1013,3 +1013,12 @@ def test_ambiguous_datetime_format():
     """Test that a non-ISO8601 datetime feature results in a warning."""
     with pytest.warns(UserWarning, match="this feature will be treated as a nominal string"):
         infer_feature_attributes(nypd_arrest_df)  # NYPD arrest data includes a non-ISO8601 date string
+
+
+def test_no_warnings_datetime_feature_formats():
+    """Test that providing non-ISO8601 datetime features with corresponding formats do not trigger any warnings."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        df = pd.DataFrame([["01-01-2015", "2025-01"]], columns=["date", "month"])
+        infer_feature_attributes(df, datetime_feature_formats={"date": "%d-%m-%Y", "month": "%Y-%m"},
+                                 default_time_zone="UTC")
