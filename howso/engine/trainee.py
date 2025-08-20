@@ -1224,6 +1224,7 @@ class Trainee(BaseTrainee):
         details: t.Optional[Mapping[str, t.Any]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
+        feature_pre_process_code_map: t.Optional[Mapping] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -1236,6 +1237,7 @@ class Trainee(BaseTrainee):
         ordered_by_specified_features: bool = False,
         preserve_feature_values: t.Optional[Collection[str]] = None,
         progress_callback: t.Optional[Callable] = None,
+        return_context_values: bool = False,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
@@ -1657,6 +1659,13 @@ class Trainee(BaseTrainee):
                     "feature_c": {"max": 1}
                 }
 
+        feature_pre_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the context feature they are mapped from.
+            The custom code will have access to all pre-processed encoded context
+            feature values and the resulting value of the code should also be
+            in the feature's encoded format.
+
         feature_post_process_code_map : dict of str, optional
             A mapping of feature name to custom code strings that will be
             evaluated to update the value of the feature they are mapped from.
@@ -1747,6 +1756,10 @@ class Trainee(BaseTrainee):
             batched call to react and at the end of reacting. The method is
             given a ProgressTimer containing metrics on the progress and timing
             of the react operation, and the batch result.
+        return_context_values : bool, default False
+            When True, context values and features are included in the details
+            dict of the response under "context_values" and "context_features"
+            keys.
         substitute_output : bool, default True
             When False, will not substitute categorical feature values. Only
             applicable if a substitution value map has been set.
@@ -1792,6 +1805,7 @@ class Trainee(BaseTrainee):
             details=details,
             exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
             feature_bounds_map=feature_bounds_map,
+            feature_pre_process_code_map=feature_pre_process_code_map,
             feature_post_process_code_map=feature_post_process_code_map,
             generate_new_cases=generate_new_cases,
             goal_features_map=goal_features_map,
@@ -1806,6 +1820,7 @@ class Trainee(BaseTrainee):
             post_process_values=post_process_values,
             preserve_feature_values=preserve_feature_values,
             progress_callback=progress_callback,
+            return_context_values=return_context_values,
             substitute_output=substitute_output,
             suppress_warning=suppress_warning,
             use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
