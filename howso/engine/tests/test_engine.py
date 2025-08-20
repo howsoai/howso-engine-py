@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 from types import SimpleNamespace
 import typing as t
 
