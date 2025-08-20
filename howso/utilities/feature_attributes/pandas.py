@@ -243,7 +243,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     if re.match(TIME_PATTERN, first_non_null) or re.match(SIMPLE_TIME_PATTERN,
                                                                           first_non_null):
                         return FeatureType.TIME, {}
-                    # Explicitely declared formatted_date_time/time; don't try to guess
+                    # explicitly declared formatted_date_time/time; don't try to guess
                     if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None:
                         return FeatureType.STRING, {}  # Could be datetime or time-only; let base.py figure it out
                     try:
