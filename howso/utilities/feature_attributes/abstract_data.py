@@ -111,7 +111,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
         # If the ADC is SQL-based, we can attempt to see if it has a unique constraint without
         # being a primary key. However, if the ADC is not SQL-based, do not assume that a column
-        # is unique unless it is explicitely labeled as a primary key. A false positive 'unique'
+        # is unique unless it is explicitly labeled as a primary key. A false positive 'unique'
         # feature attribute could cause a data science disaster.
         inspector = None
         try:
@@ -202,7 +202,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 if re.match(TIME_PATTERN, first_non_null) or re.match(SIMPLE_TIME_PATTERN,
                                                                       first_non_null):
                     return FeatureType.TIME, {}
-                # Explicitely declared formatted_date_time/time; don't try to guess
+                # explicitly declared formatted_date_time/time; don't try to guess
                 if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None:
                     return FeatureType.STRING, {}  # Could be datetime or time-only; let base.py figure it out
                 # Depending on the data source, datetimes/timedeltas could easily be strings.
