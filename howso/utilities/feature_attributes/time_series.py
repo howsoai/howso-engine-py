@@ -191,10 +191,10 @@ class InferFeatureAttributesTimeSeries:
 
                         with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
                             df_chunks_generator = yield_dataframe_as_chunks(df_c, max_workers)
-                            for chunk in df_chunks_generator:
+                            for sub_chunk in df_chunks_generator:
                                 future = pool.submit(
                                     _apply_date_to_epoch,
-                                    df=chunk,
+                                    df=sub_chunk,
                                     feature_name=f_name,
                                     dt_format=dt_format
                                 )
