@@ -243,6 +243,19 @@ class HowsoPandasClientMixin:
         response['action'] = format_dataframe(response.get("action"), feature_attributes)
         return response
 
+    def react_aggregate(self, trainee_id, *args, **kwargs) -> pd.DataFrame:
+        """
+        Base: :func:`howso.client.AbstractHowsoClient.react_aggregate`.
+
+        Returns
+        -------
+        DataFrame:
+           A Data of the requested details.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        response = super().react_aggregate(trainee_id, *args, **kwargs)
+        return pd.DataFrame(response).T
+
     def react(self, trainee_id, *args, **kwargs) -> Reaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react`.
