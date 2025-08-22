@@ -250,7 +250,7 @@ class HowsoPandasClientMixin:
         Returns
         -------
         DataFrame:
-           A Data of the requested details.
+           A DataFrame of the requested aggregate details.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         response = super().react_aggregate(trainee_id, *args, **kwargs)
