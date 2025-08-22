@@ -247,20 +247,30 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None:
                         return FeatureType.STRING, {}  # Could be datetime or time-only; let base.py figure it out
                     try:
-                        converted_dtype = pd.to_datetime(pd.Series([first_non_null])).dtype
-                        # Unfortunately, Pandas does not differentiate between datetimes and "pure" dates.
-                        # If the below code executes, that means Pandas recognizes the value as a datetime,
-                        # but we now need to check if the 'time' component is zero. If so, we can cast to
-                        # a Numpy datetime64[D] dtype.
-                        converted_val = pd.to_datetime(first_non_null)
                         # If the feature looks like a date or datetime, but it's not in ISO8601 format,
                         # handle it as a string to avoid ambiguity.
+                        converted_dtype = pd.to_datetime(pd.Series([first_non_null])).dtype
+                        converted_val = pd.to_datetime(first_non_null)
                         if not self._is_iso8601_datetime_column(feature_name):
                             warnings.warn(f"Feature '{feature_name}' appears to be a datetime, but we cannot assume "
                                           "its format. Please provide one using `datetime_feature_formats`. "
                                           "Otherwise, this feature will be treated as a nominal string.")
                             return FeatureType.STRING, {}
-                        if converted_val.time() == pd.Timestamp(0).time() and converted_val.tz is None:
+                        # Unfortunately, Pandas does not differentiate between datetimes and "pure" dates.
+                        # If the below code executes, that means Pandas recognizes the value as a datetime,
+                        # but we now need to check if the 'time' component is zero. If so, we can cast to
+                        # a Numpy datetime64[D] dtype.
+                        #
+                        # However, we need to be careful with this -- if the user has a datetime feature of the format
+                        # '%y-%m-%d' for example, the `to_datetime()` conversion above will add an empty time component
+                        # as previously described. But, if the user has a datetime feature that *actually* has an empty
+                        # time component in the string -- say, '%y-%m-%dT00:00:00' -- we must respect the original
+                        # format even if it is intended to be a date-only feature.
+                        if all([converted_val.time() == pd.Timestamp(0).time(),
+                                converted_val.tz is None,
+                                # Ensure there is no time component in the unconverted string
+                                'T' not in first_non_null,
+                                '00:00:00' not in first_non_null]):
                             converted_dtype = np.datetime64(converted_val, 'D').dtype
                         # Specify an original_type here to ensure the DataFrame is unchanged during deserialization
                         typing_info = {'original_type': FeatureType.STRING}

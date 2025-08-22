@@ -529,3 +529,12 @@ def test_ambiguous_datetime_format():
     adc = make_data_source(nypd_arrest_pq_path)  # Contains a non-ISO8601 date column
     with pytest.warns(UserWarning, match="this feature will be treated as a nominal string"):
         infer_feature_attributes(adc)
+
+
+def test_datetime_empty_time_values():
+    """Test that datetimes with an empty time value still are determined datetime features with the correct format."""
+    df = pd.DataFrame({'a': ['2025-08-22T00:00:00'], 'b': ['2025-08-22 00:00:00']})
+    adc = make_data_source(df)
+    features = infer_feature_attributes(adc, default_time_zone='UTC')
+    assert features['a']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
+    assert features['b']['date_time_format'] == '%Y-%m-%d %H:%M:%S'
