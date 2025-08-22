@@ -3776,16 +3776,6 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'react_aggregate' method.")
 
-    def get_prediction_stats(self, *args, **kwargs) -> DataFrame:
-        """Calls :meth:`react_aggregate` and returns the results as a `DataFrame`."""
-        if (
-            hasattr(self.client, "get_prediction_stats") and
-            isinstance(self.client.get_prediction_stats, t.Callable)
-        ):
-            return self.client.get_prediction_stats(self.id, *args, **kwargs)
-        else:
-            raise AssertionError("Client must have the `get_prediction_stats` method.")
-
     def get_params(
         self,
         *,
