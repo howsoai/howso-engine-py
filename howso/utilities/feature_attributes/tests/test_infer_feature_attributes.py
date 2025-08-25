@@ -1022,3 +1022,11 @@ def test_no_warnings_datetime_feature_formats():
         df = pd.DataFrame([["01-01-2015", "2025-01"]], columns=["date", "month"])
         infer_feature_attributes(df, datetime_feature_formats={"date": "%d-%m-%Y", "month": "%Y-%m"},
                                  default_time_zone="UTC")
+
+
+def test_datetime_empty_time_values():
+    """Test that datetimes with an empty time value still are determined datetime features with the correct format."""
+    df = pd.DataFrame({'a': ['2025-08-22T00:00:00'], 'b': ['2025-08-22 00:00:00']})
+    features = infer_feature_attributes(df, default_time_zone='UTC')
+    assert features['a']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
+    assert features['b']['date_time_format'] == '%Y-%m-%d %H:%M:%S'
