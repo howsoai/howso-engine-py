@@ -687,6 +687,8 @@ class TestClient:
                 num_samples=1,
                 details={old_key: True}
             )
+            if isinstance(response, pd.DataFrame):
+                response = response.to_dict(orient="index")
 
         # Check that the correct warning was raised.
         assert len(record)
@@ -696,9 +698,6 @@ class TestClient:
             f"'{old_key}' is deprecated" in str(r.message)
             for r in record
         ])
-
-        # No point in testing further if we didn't get back a Mapping instance.
-        assert isinstance(response, Mapping), "react_aggregate did not return a Mapping."
 
         # We DO want the old_key to be present during the deprecation period.
         assert old_key in response.keys()

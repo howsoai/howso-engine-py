@@ -141,10 +141,6 @@ class HowsoPandasClientMixin:
             rows.append(response['familiarity_conviction_removal'])
         return deserialize_to_dataframe(rows, index=index)
 
-    def get_prediction_stats(self, trainee_id: str, *args, **kwargs) -> DataFrame:
-        """Calls :meth:`react_aggregate` and returns the results as a `DataFrame`."""
-        return DataFrame(super().react_aggregate(trainee_id, *args, **kwargs)).T
-
     def get_marginal_stats(self, *args, **kwargs) -> DataFrame:
         """
         Base: :func:`howso.client.AbstractHowsoClient.get_marginal_stats`.
@@ -246,6 +242,19 @@ class HowsoPandasClientMixin:
         response = super().react_series_stationary(trainee_id, *args, **kwargs)
         response['action'] = format_dataframe(response.get("action"), feature_attributes)
         return response
+
+    def react_aggregate(self, trainee_id, *args, **kwargs) -> pd.DataFrame:
+        """
+        Base: :func:`howso.client.AbstractHowsoClient.react_aggregate`.
+
+        Returns
+        -------
+        DataFrame:
+           A DataFrame of the requested aggregate details.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        response = super().react_aggregate(trainee_id, *args, **kwargs)
+        return pd.DataFrame(response).T
 
     def react(self, trainee_id, *args, **kwargs) -> Reaction:
         """
