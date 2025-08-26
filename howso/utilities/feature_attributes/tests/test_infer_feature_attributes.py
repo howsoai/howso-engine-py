@@ -1011,7 +1011,7 @@ def test_memory_usage_warning():
 
 def test_ambiguous_datetime_format():
     """Test that a non-ISO8601 datetime feature results in a warning."""
-    with pytest.warns(UserWarning, match="this feature will be treated as a nominal string"):
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
         infer_feature_attributes(nypd_arrest_df)  # NYPD arrest data includes a non-ISO8601 date string
 
 
@@ -1030,3 +1030,14 @@ def test_datetime_empty_time_values():
     features = infer_feature_attributes(df, default_time_zone='UTC')
     assert features['a']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
     assert features['b']['date_time_format'] == '%Y-%m-%d %H:%M:%S'
+
+
+def test_empty_string_first_non_nulls():
+    """Test that IFA correctly handles first non-null values that are empty strings."""
+    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy']})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        infer_feature_attributes(df)
+    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy'], 'b': ['\n', '8/26/2025', '8/3/1999']})
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
+        infer_feature_attributes(df)

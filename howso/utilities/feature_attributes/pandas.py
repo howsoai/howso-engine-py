@@ -80,6 +80,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # Keep track of any features that use UTC offsets, as these could lead
         # to unexpected results due to daylight savings time in some time zones
         self.utc_offset_features = []
+        # Keep track of any features that we detected to be datetimes but were
+        # not in ISO8601 format
+        self.unknown_datetime_features = []
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -115,6 +118,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             }
 
             self.emit_time_zone_warnings(missing_tz_features, utc_offset_features)
+            self.emit_unknown_datetime_warnings(self.unknown_datetime_features)
 
             return SingleTableFeatureAttributes(
                 feature_attributes=feature_attributes, params=kwargs,
@@ -124,6 +128,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             feature_attributes = self._process(**kwargs)
             self.emit_time_zone_warnings(self.missing_tz_features, self.utc_offset_features)
+            self.emit_unknown_datetime_warnings(self.unknown_datetime_features)
             return SingleTableFeatureAttributes(
                 feature_attributes, params=kwargs,
                 unsupported=self.unsupported
@@ -235,7 +240,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 return FeatureType.STRING, {}
 
             else:
-                first_non_null = self._get_first_non_null(feature_name)
+                first_non_null = next((x for x in self.data[feature_name].dropna() if str(x).strip()), None)
                 # DataFrames may use 'object' dtype for strings, detect
                 # string columns by checking the type of the data
                 if isinstance(first_non_null, str):
@@ -252,9 +257,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         converted_dtype = pd.to_datetime(pd.Series([first_non_null])).dtype
                         converted_val = pd.to_datetime(first_non_null)
                         if not self._is_iso8601_datetime_column(feature_name):
-                            warnings.warn(f"Feature '{feature_name}' appears to be a datetime, but we cannot assume "
-                                          "its format. Please provide one using `datetime_feature_formats`. "
-                                          "Otherwise, this feature will be treated as a nominal string.")
+                            self.unknown_datetime_features.append(feature_name)
                             return FeatureType.STRING, {}
                         # Unfortunately, Pandas does not differentiate between datetimes and "pure" dates.
                         # If the below code executes, that means Pandas recognizes the value as a datetime,
