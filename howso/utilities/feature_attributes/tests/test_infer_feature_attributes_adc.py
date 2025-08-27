@@ -527,7 +527,7 @@ def test_parquet_dataset_with_s3():
 def test_ambiguous_datetime_format():
     """Test the NYPD arrest dataset."""
     adc = make_data_source(nypd_arrest_pq_path)  # Contains a non-ISO8601 date column
-    with pytest.warns(UserWarning, match="this feature will be treated as a nominal string"):
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
         infer_feature_attributes(adc)
 
 

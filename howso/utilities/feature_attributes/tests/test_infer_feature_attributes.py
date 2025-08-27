@@ -963,7 +963,9 @@ def test_default_time_zone():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         # Providing a default_time_zone should prevent the warning
-        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M"}, default_time_zone="EST")
+        data.drop('custom3', axis=1, inplace=True)  # Will raise an unrelated warning that we already tested for
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
+                                                                 "custom2": "%Y/%m/%d %H:%M"}, default_time_zone="EST")
         data = pd.DataFrame({
             'custom': ['2010/10/10 07:30 UTC', '2010/10/11 08:45 UTC', '2010/10/12 09:00 UTC'],
             'custom2': ['2010/10/10 07:30 GMT', '2010/10/11 08:45 GMT', '2010/10/12 09:00 GMT'],
