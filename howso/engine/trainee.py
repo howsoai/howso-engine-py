@@ -3513,7 +3513,7 @@ class Trainee(BaseTrainee):
                 .. NOTE::
                     The dictionary keys are feature names and values are one of:
 
-                        - None, must be missing a value, must be missing a value
+                        - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
                         range. Only applicable to continuous and numeric ordinal
@@ -3539,7 +3539,7 @@ class Trainee(BaseTrainee):
                 .. NOTE::
                     The dictionary keys are feature names and values are one of:
 
-                        - None, must be missing a value, must be missing a value
+                        - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
                         range. Only applicable to continuous and numeric ordinal
