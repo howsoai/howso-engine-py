@@ -525,7 +525,7 @@ class TestClient:
         trainee
         """
         self._train(trainee)
-        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
         cases = self.client.get_cases(trainee.id,
                                       features=['play', 'penguin', 'familiarity_conviction_addition'],
                                       session=self.client.active_session.id)
@@ -960,7 +960,7 @@ class TestBaseClient:
 
     def test_react_into_features_updated_feature_attributes(self, trainee):
         """Test that react_into_features updates the feature attributes."""
-        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
         trainee_cache = self.client.trainee_cache.get_item(trainee.id)
 
         assert 'familiarity_conviction_addition' in trainee_cache.get('feature_attributes', {}).keys()
@@ -971,7 +971,7 @@ class TestBaseClient:
 
         Test the verbose output expected when react_into_features is called.
         """
-        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
         out, _ = capsys.readouterr()
         assert ('Reacting into features on Trainee with id') in out
 
