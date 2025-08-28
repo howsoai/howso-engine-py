@@ -513,6 +513,7 @@ class HowsoEstimator(BaseEstimator):
         familiarity_conviction_addition=False,
         familiarity_conviction_removal=False,
         influence_weight_entropy=False,
+        overwrite=False,
         p_value_of_addition=False,
         p_value_of_removal=False,
         similarity_conviction=False,
@@ -545,6 +546,10 @@ class HowsoEstimator(BaseEstimator):
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
             'influence_weight_entropy'.
+        overwrite: bool, default False
+            When true will forcibly overwrite previously stored values.
+            Default is false, will error out if trying to
+			react_into_features for a feature that already exists.
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition values. If set
             to True the values will be stored to the feature
@@ -577,6 +582,7 @@ class HowsoEstimator(BaseEstimator):
             familiarity_conviction_addition=familiarity_conviction_addition,
             familiarity_conviction_removal=familiarity_conviction_removal,
             influence_weight_entropy=influence_weight_entropy,
+            overwrite=overwrite,
             p_value_of_addition=p_value_of_addition,
             p_value_of_removal=p_value_of_removal,
             similarity_conviction=similarity_conviction,
