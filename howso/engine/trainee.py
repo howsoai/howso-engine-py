@@ -3484,7 +3484,7 @@ class Trainee(BaseTrainee):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> dict[str, dict[str, float | dict[str, float]]]:
+    ) -> dict[str, dict[str, float | dict[str, float]]] | DataFrame:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -3781,9 +3781,10 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        dict[str, dict[str, float | dict[str, float]]]
+        dict[str, dict[str, float | dict[str, float]]] | DataFrame
             A map of detail names to maps of feature names to stat values or
-            another map of feature names to stat values.
+            another map of feature names to stat values. Returns in DataFrame
+            format if using a `HowsoPandasClientMixin`.
         """
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.react_aggregate(
@@ -3818,16 +3819,6 @@ class Trainee(BaseTrainee):
             )
         else:
             raise AssertionError("Client must have the 'react_aggregate' method.")
-
-    def get_prediction_stats(self, *args, **kwargs) -> DataFrame:
-        """Calls :meth:`react_aggregate` and returns the results as a `DataFrame`."""
-        if (
-            hasattr(self.client, "get_prediction_stats") and
-            isinstance(self.client.get_prediction_stats, t.Callable)
-        ):
-            return self.client.get_prediction_stats(self.id, *args, **kwargs)
-        else:
-            raise AssertionError("Client must have the `get_prediction_stats` method.")
 
     def get_params(
         self,
