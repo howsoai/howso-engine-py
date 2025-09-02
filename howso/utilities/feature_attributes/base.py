@@ -1257,6 +1257,7 @@ class InferFeatureAttributesBase(ABC):
         num_series = 1
         if getattr(self, 'id_feature_names', None):
             num_series = self._get_unique_count(self.id_feature_names)
+            # If the provided feature is stationary, we should simply evaluate the number of series
             if feature_name in self.time_invariant_features:
                 return math.ceil(pow(num_series, 0.5))
         return math.ceil(pow((n_cases / num_series), 0.5))
@@ -1634,7 +1635,7 @@ class InferFeatureAttributesBase(ABC):
 
     @abstractmethod
     def _get_num_cases(self, feature_name: str) -> int:
-        """Get the number of non-null cases/rows in the data."""
+        """Get the number of non-null cases of the provided feature."""
 
     @abstractmethod
     def _get_feature_names(self) -> list[str]:
