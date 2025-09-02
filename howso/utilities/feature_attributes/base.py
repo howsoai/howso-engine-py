@@ -774,6 +774,14 @@ class InferFeatureAttributesBase(ABC):
 
         self.default_time_zone = default_time_zone
 
+        # Store ID feature names, if providded, for processing
+        if isinstance(id_feature_name, str):
+            self.id_feature_names = [id_feature_name]
+        elif isinstance(id_feature_name, Iterable):
+            self.id_feature_names = id_feature_name
+        else:
+            self.id_feature_names = []
+
         # Preprocess user-defined feature types
         preset_types = {}
         # Check the `types` argument
