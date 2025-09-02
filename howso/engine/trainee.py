@@ -1294,11 +1294,14 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1896,11 +1899,14 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2152,11 +2158,14 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2330,17 +2339,20 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
 
             .. TIP::
-                Example 1 - Remove all values belonging to ``feature_name``::
+                Example 1 - Remove all cases with missing values for ``feature_name``::
 
                     condition = {"feature_name": None}
 
@@ -2424,11 +2436,14 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2617,11 +2632,14 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2786,11 +2804,14 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2857,11 +2878,14 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3042,11 +3066,14 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3200,11 +3227,14 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3284,11 +3314,14 @@ class Trainee(BaseTrainee):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
                     - An array of two numeric values (or formatted datetimes),
                       specifying an inclusive range. Only applicable to
-                      continuous and numeric ordinal features.
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3344,6 +3377,7 @@ class Trainee(BaseTrainee):
         familiarity_conviction_removal: str | bool = False,
         features: t.Optional[Collection[str]] = None,
         influence_weight_entropy: str | bool = False,
+        overwrite: bool = False,
         p_value_of_addition: str | bool = False,
         p_value_of_removal: str | bool = False,
         similarity_conviction: str | bool = False,
@@ -3376,6 +3410,10 @@ class Trainee(BaseTrainee):
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
             'influence_weight_entropy'.
+        overwrite: bool, default False
+            When true will forcibly overwrite previously stored values.
+            Default is false, will error out if trying to
+			react_into_features for a feature that already exists.
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition
             values. If set to True the values will be stored to the feature
@@ -3404,6 +3442,7 @@ class Trainee(BaseTrainee):
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
                 influence_weight_entropy=influence_weight_entropy,
+                overwrite=overwrite,
                 p_value_of_addition=p_value_of_addition,
                 p_value_of_removal=p_value_of_removal,
                 similarity_conviction=similarity_conviction,
@@ -3480,11 +3519,13 @@ class Trainee(BaseTrainee):
                 .. NOTE::
                     The dictionary keys are feature names and values are one of:
 
-                        - None
+                        - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
                         range. Only applicable to continuous and numeric ordinal
-                        features.
+                        features. Either the lower bound or upper bound can be
+                        None to express an open bound. If both bounds are None,
+                        then all cases with non-missing values are selected.
                         - An array of string values, must match any of these values
                         exactly. Only applicable to nominal and string ordinal
                         features.
@@ -3504,11 +3545,13 @@ class Trainee(BaseTrainee):
                 .. NOTE::
                     The dictionary keys are feature names and values are one of:
 
-                        - None
+                        - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
                         range. Only applicable to continuous and numeric ordinal
-                        features.
+                        features. Either the lower bound or upper bound can be
+                        None to express an open bound. If both bounds are None,
+                        then all cases with non-missing values are selected.
                         - An array of string values, must match any of these values
                         exactly. Only applicable to nominal and string ordinal
                         features.

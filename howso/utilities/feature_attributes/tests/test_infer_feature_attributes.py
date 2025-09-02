@@ -963,7 +963,9 @@ def test_default_time_zone():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         # Providing a default_time_zone should prevent the warning
-        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M"}, default_time_zone="EST")
+        data.drop('custom3', axis=1, inplace=True)  # Will raise an unrelated warning that we already tested for
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
+                                                                 "custom2": "%Y/%m/%d %H:%M"}, default_time_zone="EST")
         data = pd.DataFrame({
             'custom': ['2010/10/10 07:30 UTC', '2010/10/11 08:45 UTC', '2010/10/12 09:00 UTC'],
             'custom2': ['2010/10/10 07:30 GMT', '2010/10/11 08:45 GMT', '2010/10/12 09:00 GMT'],
@@ -1011,7 +1013,7 @@ def test_memory_usage_warning():
 
 def test_ambiguous_datetime_format():
     """Test that a non-ISO8601 datetime feature results in a warning."""
-    with pytest.warns(UserWarning, match="this feature will be treated as a nominal string"):
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
         infer_feature_attributes(nypd_arrest_df)  # NYPD arrest data includes a non-ISO8601 date string
 
 
@@ -1022,3 +1024,22 @@ def test_no_warnings_datetime_feature_formats():
         df = pd.DataFrame([["01-01-2015", "2025-01"]], columns=["date", "month"])
         infer_feature_attributes(df, datetime_feature_formats={"date": "%d-%m-%Y", "month": "%Y-%m"},
                                  default_time_zone="UTC")
+
+
+def test_datetime_empty_time_values():
+    """Test that datetimes with an empty time value still are determined datetime features with the correct format."""
+    df = pd.DataFrame({'a': ['2025-08-22T00:00:00'], 'b': ['2025-08-22 00:00:00']})
+    features = infer_feature_attributes(df, default_time_zone='UTC')
+    assert features['a']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
+    assert features['b']['date_time_format'] == '%Y-%m-%d %H:%M:%S'
+
+
+def test_empty_string_first_non_nulls():
+    """Test that IFA correctly handles first non-null values that are empty strings."""
+    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy']})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        infer_feature_attributes(df)
+    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy'], 'b': ['\n', '8/26/2025', '8/3/1999']})
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
+        infer_feature_attributes(df)

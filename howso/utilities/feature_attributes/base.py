@@ -1171,6 +1171,24 @@ class InferFeatureAttributesBase(ABC):
             warnings.warn(msg)
 
     @staticmethod
+    def emit_unknown_datetime_warnings(unknown_datetime_features: Iterable[str]) -> None:
+        """
+        Raise warnings about features that we detected as datetimes but cannot determine the format of.
+
+        Parameters
+        ----------
+        uknown_datetime_features : Iterable of str
+            An Iterable of feature names to include in the warning.
+        """
+        if unknown_datetime_features:
+            msg = ("The following features were detected as possible datetimes, but we cannot assume "
+                   "their formats. Please provide them using `datetime_feature_formats` if desired. "
+                   "Otherwise, these features will be treated as nominal strings:")
+            for feature_name in unknown_datetime_features:
+                msg += f'\n\t- {feature_name}'
+            warnings.warn(msg)
+
+    @staticmethod
     def infer_loose_feature_bounds(min_bound: int | float,
                                    max_bound: int | float
                                    ) -> tuple[float, float]:
