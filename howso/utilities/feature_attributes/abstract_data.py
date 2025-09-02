@@ -667,10 +667,10 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # has exactly the same length.
         num_uniques = self.data.get_unique_count(feature_name)
         n_cases = self.data.get_num_cases(feature_name)
-        num_series = None
+        num_series = 1
         if getattr(self, 'id_feature_names', None):
             num_series = self.data.get_unique_count(self.id_feature_names)
-        cont_threshold = pow((n_cases / num_series), 0.5) if num_series else pow(n_cases, 0.5)
+        cont_threshold = pow((n_cases / num_series), 0.5)
         if num_uniques < cont_threshold or preset_feature_type == 'nominal':
             guess_nominals = True
         else:

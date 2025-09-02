@@ -241,10 +241,13 @@ def test_invalid_time_feature_format():
 
 
 @pytest.mark.parametrize('data, types, expected_types, is_valid', [
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'), dict(b='continuous'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'), dict(b='continuous'),
+     True),
     (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'), dict(a='continuous'), True),
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'), dict(b='nominal'), True),
-    (pd.DataFrame({'a': [True, False, False, True], 'b': [False, True, False, True]}), dict(b='continuous'), dict(b='nominal'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'),
+     dict(b='nominal'), True),
+    (pd.DataFrame({'a': [True, False, False, True], 'b': [False, True, False, True]}), dict(b='continuous'),
+     dict(b='nominal'), True),
 ])
 def test_preset_feature_types(data, types, expected_types, is_valid):
     """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
