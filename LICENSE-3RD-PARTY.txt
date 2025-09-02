@@ -280,12 +280,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 cryptography
-45.0.6
+45.0.7
 Apache-2.0 OR BSD-3-Clause
 The cryptography developers <cryptography-dev@python.org>
 https://github.com/pyca/cryptography
 cryptography is a package which provides cryptographic recipes and primitives to Python developers.
-/home/runner/.pyenv/versions/3.13.7/lib/python3.13/site-packages/cryptography-45.0.6.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.7/lib/python3.13/site-packages/cryptography-45.0.7.dist-info/licenses/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to cryptography are made
 under the terms of *both* these licenses.
