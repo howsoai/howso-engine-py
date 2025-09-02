@@ -1251,7 +1251,7 @@ class InferFeatureAttributesBase(ABC):
 
         return new_min_bound, new_max_bound
 
-    def _get_cont_threshold(self, feature_name: str) -> float:
+    def _get_cont_threshold(self, feature_name: str) -> int:
         """Get the minimum number of unique values a feature must have to be considered continuous."""
         n_cases = self._get_num_cases(feature_name)
         num_series = 1
