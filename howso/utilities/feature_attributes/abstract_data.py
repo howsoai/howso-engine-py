@@ -298,6 +298,10 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         """
         return self.data.get_random_value(feature_name, no_nulls=no_nulls)
 
+    def _get_unique_count(self, feature_names: str | Iterable[str]) -> int:
+        """Get the number of unique values in the provided column(s)."""
+        return self.data.get_unique_count(feature_names)
+
     @classmethod
     def _value_to_number(cls, value: t.Any) -> t.Any:
         """Convert value to a number."""
@@ -665,13 +669,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
-        num_uniques = self.data.get_unique_count(feature_name)
-        n_cases = self.data.get_num_cases(feature_name)
-        num_series = 1
-        if getattr(self, 'id_feature_names', None):
-            num_series = self.data.get_unique_count(self.id_feature_names)
-        cont_threshold = pow((n_cases / num_series), 0.5)
-        if num_uniques < cont_threshold or preset_feature_type == 'nominal':
+        num_uniques = self._get_unique_count(feature_name)
+        if num_uniques < self._get_cont_threshold(feature_name) or preset_feature_type == 'nominal':
             guess_nominals = True
         else:
             # Find the largest and smallest non-null values in column.

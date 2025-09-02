@@ -156,8 +156,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
     def _get_num_features(self) -> int:
         return self.data.shape[1]
 
-    def _get_num_cases(self) -> int:
-        return self.data.shape[0]
+    def _get_num_cases(self, feature_name: str) -> int:
+        return self.data[feature_name].dropna().count()
 
     def _get_feature_names(self) -> list[str]:
         feature_names = self.data.columns.tolist()
@@ -340,6 +340,16 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             return cases.iloc[0]
         else:
             return cases.iloc[np.random.randint(len(cases))]
+
+    def _get_unique_count(self, feature_names: str | Iterable[str]) -> int:
+        """Get the number of unique values in the provided feature(s)."""
+        if isinstance(feature_names, str):
+            num_uniques = self.data[feature_names].nunique()
+        elif isinstance(feature_names, Iterable):
+            num_uniques = len(self.data[feature_names].drop_duplicates())
+        else:
+            raise ValueError(f"Feature_names must be of type `str` or `Iterable[str]`, not {type(feature_names)}.")
+        return num_uniques
 
     def _infer_feature_bounds(  # noqa: C901
         self,
@@ -817,12 +827,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # than the square root of the total samples or if every value
         # has exactly the same length.
         num_uniques = self.data[feature_name].nunique()
-        n_cases = int(self.data[feature_name].count())
-        num_series = 1
-        if getattr(self, 'id_feature_names', None):
-            num_series = len(self.data[self.id_feature_names].drop_duplicates())
-        cont_threshold = pow((n_cases / num_series), 0.5)
-        if num_uniques < cont_threshold or preset_feature_type == 'nominal':
+        if num_uniques < self._get_cont_threshold(feature_name) or preset_feature_type == 'nominal':
             guess_nominals = True
         else:
             # Find the largest and smallest non-null values in column.

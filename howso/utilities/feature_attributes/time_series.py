@@ -671,6 +671,7 @@ class InferFeatureAttributesTimeSeries:
             nominal_substitution_config=nominal_substitution_config,
             ordinal_feature_values=ordinal_feature_values,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
+            time_invariant_features=time_invariant_features,
             types=types,
         )
 
