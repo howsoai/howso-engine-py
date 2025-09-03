@@ -156,8 +156,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
     def _get_num_features(self) -> int:
         return self.data.shape[1]
 
-    def _get_num_cases(self) -> int:
-        return self.data.shape[0]
+    def _get_num_cases(self, feature_name: str) -> int:
+        return self.data[feature_name].dropna().count()
 
     def _get_feature_names(self) -> list[str]:
         feature_names = self.data.columns.tolist()
@@ -340,6 +340,16 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             return cases.iloc[0]
         else:
             return cases.iloc[np.random.randint(len(cases))]
+
+    def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
+        """Get the number of unique values in the provided feature(s)."""
+        if isinstance(feature_name, str):
+            num_uniques = self.data[feature_name].nunique()
+        elif isinstance(feature_name, Iterable):
+            num_uniques = len(self.data[feature_name].drop_duplicates())
+        else:
+            raise ValueError(f"`Feature_name` must be of type `str` or `Iterable[str]`, not {type(feature_name)}.")
+        return num_uniques
 
     def _infer_feature_bounds(  # noqa: C901
         self,
@@ -817,8 +827,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # than the square root of the total samples or if every value
         # has exactly the same length.
         num_uniques = self.data[feature_name].nunique()
-        n_cases = int(self.data[feature_name].count())
-        if num_uniques < pow(n_cases, 0.5) or preset_feature_type == 'nominal':
+        if num_uniques < self._get_cont_threshold(feature_name) or preset_feature_type == 'nominal':
             guess_nominals = True
         else:
             # Find the largest and smallest non-null values in column.

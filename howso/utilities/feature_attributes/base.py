@@ -752,6 +752,7 @@ class InferFeatureAttributesBase(ABC):
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
                  tight_bounds: t.Optional[Iterable[str]] = None,
+                 time_invariant_features: t.Optional[str | Iterable[str]] = None,
                  types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
                  ) -> dict:
         """
@@ -773,6 +774,32 @@ class InferFeatureAttributesBase(ABC):
             dependent_features = dict()
 
         self.default_time_zone = default_time_zone
+
+        # Store ID and other time-invariant features, if provided, for processing
+        if isinstance(time_invariant_features, str):
+            self.time_invariant_features = [time_invariant_features]
+        elif isinstance(time_invariant_features, Iterable):
+            self.time_invariant_features = list(time_invariant_features)
+        elif time_invariant_features is not None:
+            raise ValueError('Time-invariant features must be of type `str` or `list[str], '
+                             f'not {type(time_invariant_features)}.')
+        else:
+            self.time_invariant_features = []
+
+        if isinstance(id_feature_name, str):
+            self.id_feature_names = [id_feature_name]
+        elif isinstance(id_feature_name, Iterable):
+            self.id_feature_names = id_feature_name
+        elif id_feature_name is not None:
+            raise ValueError('ID feature must be of type `str` or `list[str], '
+                             f'not {type(id_feature_name)}.')
+        else:
+            self.id_feature_names = []
+
+        # ID features are time-invariant
+        for id_feature in self.id_feature_names:
+            if id_feature not in self.time_invariant_features:
+                self.time_invariant_features.append(id_feature)
 
         # Preprocess user-defined feature types
         preset_types = {}
@@ -948,14 +975,9 @@ class InferFeatureAttributesBase(ABC):
             if self.default_time_zone is not None:
                 self.attributes[feature_name]['default_time_zone'] = self.default_time_zone
 
-        if isinstance(id_feature_name, str):
-            self._add_id_attribute(self.attributes, id_feature_name)
-        elif isinstance(id_feature_name, Iterable):
-            for id_feature in id_feature_name:
-                self._add_id_attribute(self.attributes, id_feature)
-        elif id_feature_name is not None:
-            raise ValueError('ID feature must be of type `str` or `list[str], '
-                             f'not {type(id_feature_name)}.')
+        # Edit ID feature attributes in-place
+        for id_feature in self.id_feature_names:
+            self._add_id_attribute(self.attributes, id_feature)
 
         if infer_bounds:
             for feature_name, _attributes in self.attributes.items():
@@ -1228,6 +1250,17 @@ class InferFeatureAttributesBase(ABC):
         new_max_bound = min(0, base_max_bound) if max_bound <= 0 else base_max_bound
 
         return new_min_bound, new_max_bound
+
+    def _get_cont_threshold(self, feature_name: str) -> int:
+        """Get the minimum number of unique values a feature must have to be considered continuous."""
+        n_cases = self._get_num_cases(feature_name)
+        num_series = 1
+        if getattr(self, 'id_feature_names', None):
+            num_series = self._get_unique_count(self.id_feature_names)
+            # If the provided feature is stationary, we should simply evaluate the number of series
+            if feature_name in self.time_invariant_features:
+                return math.ceil(pow(num_series, 0.5))
+        return math.ceil(pow((n_cases / num_series), 0.5))
 
     @staticmethod
     def _get_datetime_max():
@@ -1601,12 +1634,16 @@ class InferFeatureAttributesBase(ABC):
         """Get the number of features/columns in the data."""
 
     @abstractmethod
-    def _get_num_cases(self) -> int:
-        """Get the number of cases/rows in the data."""
+    def _get_num_cases(self, feature_name: str) -> int:
+        """Get the number of non-null cases of the provided feature."""
 
     @abstractmethod
     def _get_feature_names(self) -> list[str]:
         """Get the names of the features/columns of the data."""
+
+    @abstractmethod
+    def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
+        """Get the number of unique values in the provided feature(s)."""
 
     @abstractmethod
     def _get_unique_values(self, feature_name: str) -> set[t.Any]:

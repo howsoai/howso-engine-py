@@ -3,6 +3,7 @@ from collections import OrderedDict
 from pathlib import Path
 import warnings
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -345,3 +346,36 @@ def test_lags(adc):
     # Ensure that an invalid lags value raises a helpful TypeError
     with pytest.raises(TypeError):
         fa = infer_feature_attributes(adc, time_feature_name="date", id_feature_name="ID", lags={"date": '0'})
+
+
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_nominal_vs_continuous_detection(adc):
+    """Test that IFA correctly determines nominal vs. continuous features in time series data."""
+    # Time-series data with 4756 cases, 41 series; avg. 116 cases/series; sqrt(116) ~= 10.77
+    df = ts_df.copy()
+    # Add a new integer column with n_uniques > sqrt(avg_n_cases_per_series) -- should be continuous
+    series = np.resize(np.arange(11), len(df))
+    np.random.shuffle(series)
+    df["f4"] = series
+    # Add a new integer column with n_uniques < sqrt(avg_n_cases_per_series) -- should be nominal
+    series = np.resize(np.arange(10), len(df))
+    np.random.shuffle(series)
+    df["f5"] = series
+    convert_data(DataFrameData(df), adc)
+    # Ensure that feature types were properly inferred
+    features = infer_feature_attributes(adc, id_feature_name="ID", time_feature_name="date")
+    assert features["f4"]["type"] == "continuous"
+    assert features["f5"]["type"] == "nominal"
+    # Ensure that pre-setting feature types overrides this logic
+    features = infer_feature_attributes(adc, id_feature_name="ID", time_feature_name="date",
+                                        types={"f4": "nominal", "f5": "continuous"})
+    assert features["f5"]["type"] == "continuous"
+    assert features["f4"]["type"] == "nominal"
