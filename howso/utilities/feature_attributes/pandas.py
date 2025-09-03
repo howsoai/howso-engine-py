@@ -341,14 +341,14 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             return cases.iloc[np.random.randint(len(cases))]
 
-    def _get_unique_count(self, feature_names: str | Iterable[str]) -> int:
+    def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
         """Get the number of unique values in the provided feature(s)."""
-        if isinstance(feature_names, str):
-            num_uniques = self.data[feature_names].nunique()
-        elif isinstance(feature_names, Iterable):
-            num_uniques = len(self.data[feature_names].drop_duplicates())
+        if isinstance(feature_name, str):
+            num_uniques = self.data[feature_name].nunique()
+        elif isinstance(feature_name, Iterable):
+            num_uniques = len(self.data[feature_name].drop_duplicates())
         else:
-            raise ValueError(f"Feature_names must be of type `str` or `Iterable[str]`, not {type(feature_names)}.")
+            raise ValueError(f"`Feature_name` must be of type `str` or `Iterable[str]`, not {type(feature_name)}.")
         return num_uniques
 
     def _infer_feature_bounds(  # noqa: C901

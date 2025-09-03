@@ -298,9 +298,9 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         """
         return self.data.get_random_value(feature_name, no_nulls=no_nulls)
 
-    def _get_unique_count(self, feature_names: str | Iterable[str]) -> int:
+    def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
         """Get the number of unique values in the provided column(s)."""
-        return self.data.get_unique_count(feature_names)
+        return self.data.get_unique_count(feature_name)
 
     @classmethod
     def _value_to_number(cls, value: t.Any) -> t.Any:
