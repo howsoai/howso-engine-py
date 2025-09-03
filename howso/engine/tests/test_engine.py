@@ -2,6 +2,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import typing as t
 
+from pandas import DataFrame
 from pandas.testing import assert_frame_equal
 import pytest
 
@@ -337,3 +338,66 @@ class TestEngine:
         assert len(post_reduction_cases) == 50
 
         assert any(post_reduction_cases[".case_weight"] != 0)
+
+    def test_react_aggregate(self, data: DataFrame, trainee: Trainee):
+        """Test react aggregate response."""
+        prediction_stats = [
+            "accuracy",
+            "adjusted_smape",
+            "smape",
+            "mae",
+            "mcc",
+            "recall",
+            "precision",
+            "r2",
+            "rmse",
+            "spearman_coeff",
+            "missing_value_accuracy",
+            "confusion_matrix",
+        ]
+        metrics = {
+            "estimated_residual_lower_bound": True,
+            "feature_full_residuals": True,
+            "feature_robust_residuals": True,
+            "feature_deviations": True,
+            "feature_full_prediction_contributions": True,
+            "feature_robust_prediction_contributions": True,
+            "feature_full_accuracy_contributions": True,
+            "feature_full_accuracy_contributions_permutation": True,
+            "feature_robust_accuracy_contributions": True,
+            "feature_robust_accuracy_contributions_permutation": True,
+        }
+        response = trainee.react_aggregate(
+            action_features=list(data.columns),
+            feature_influences_action_feature="target",
+            details={
+                "prediction_stats": True,
+                "selected_prediction_stats": prediction_stats,
+                **metrics,
+            },
+        )
+        # Check requested metrics are returned
+        for stat in prediction_stats:
+            assert stat in response
+        for metric in metrics:
+            assert metric in response
+
+        total_df = response.to_dataframe()
+        total_dict = response.to_dict()
+
+        for key, value in response.items():
+            # Validate dictionary
+            assert key in total_dict
+            # Validate dataframe
+            if key in {"confusion_matrix", "feature_robust_accuracy_contributions"}:
+                assert key not in total_df.index
+            else:
+                assert key in total_df.index
+            # Validate value types
+            if key == "confusion_matrix":
+                assert isinstance(value, dict)
+            else:
+                assert isinstance(value, DataFrame)
+
+        for feature in data.columns:
+            assert feature in total_df.columns

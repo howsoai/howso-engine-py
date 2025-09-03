@@ -27,6 +27,7 @@ from howso.client.protocols import (
     LocalSaveableProtocol,
     ProjectClient,
 )
+from howso.client.schemas import AggregateReaction
 from howso.client.schemas import Project as BaseProject
 from howso.client.schemas import Reaction
 from howso.client.schemas import Session as BaseSession
@@ -3484,7 +3485,7 @@ class Trainee(BaseTrainee):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> dict[str, dict[str, float | dict[str, float]]] | DataFrame:
+    ) -> AggregateReaction:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -3781,12 +3782,10 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        dict[str, dict[str, float | dict[str, float]]] | DataFrame
-            A map of detail names to maps of feature names to stat values or
-            another map of feature names to stat values. Returns in DataFrame
-            format if using a `HowsoPandasClientMixin`.
+        AggregateReaction
+            A mapping of detail names to the metric results.
         """
-        if isinstance(self.client, AbstractHowsoClient):
+        if isinstance(self.client, HowsoPandasClientMixin):
             return self.client.react_aggregate(
                 trainee_id=self.id,
                 action_features=action_features,
