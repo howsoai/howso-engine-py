@@ -3828,7 +3828,7 @@ class AbstractHowsoClient(ABC):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> dict[str, dict[str, float | dict[str, float]]]:
+    ) -> dict[str, dict[str, t.Any]]:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -4121,9 +4121,8 @@ class AbstractHowsoClient(ABC):
 
         Returns
         -------
-        dict[str, dict[str, float | dict[str, float]]]
-            A map of detail names to maps of feature names to stat values or
-            another map of feature names to stat values.
+        dict[str, dict[str, Any]]
+            A mapping of detail names to maps of feature names to metric values.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)

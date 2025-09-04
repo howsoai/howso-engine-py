@@ -687,8 +687,6 @@ class TestClient:
                 num_samples=1,
                 details={old_key: True}
             )
-            if isinstance(response, pd.DataFrame):
-                response = response.to_dict(orient="index")
 
         # Check that the correct warning was raised.
         assert len(record)

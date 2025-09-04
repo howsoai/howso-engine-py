@@ -7,6 +7,7 @@ import pandas as pd
 from pandas import DataFrame, Index
 
 from howso.client.client import get_howso_client_class
+from howso.client.schemas.aggregate_reaction import AggregateReaction
 from howso.client.schemas.reaction import Reaction
 from howso.client.typing import ValueMasses
 from howso.utilities import deserialize_cases, format_dataframe
@@ -243,18 +244,17 @@ class HowsoPandasClientMixin:
         response['action'] = format_dataframe(response.get("action"), feature_attributes)
         return response
 
-    def react_aggregate(self, trainee_id, *args, **kwargs) -> pd.DataFrame:
+    def react_aggregate(self, *args, **kwargs) -> AggregateReaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_aggregate`.
 
         Returns
         -------
-        DataFrame:
-           A DataFrame of the requested aggregate details.
+        AggregateReaction
+            A mapping of detail names to the metric results.
         """
-        trainee_id = self._resolve_trainee(trainee_id).id
-        response = super().react_aggregate(trainee_id, *args, **kwargs)
-        return pd.DataFrame(response).T
+        response = super().react_aggregate(*args, **kwargs)
+        return AggregateReaction(response)
 
     def react(self, trainee_id, *args, **kwargs) -> Reaction:
         """
