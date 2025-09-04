@@ -11,7 +11,7 @@ __all__ = [
     "AggregateReaction"
 ]
 
-_VT_co = TypeVar("_VT_co", covariant=True)
+_VT = TypeVar("_VT")
 
 ComplexMetric: TypeAlias = Literal[
     "feature_robust_accuracy_contributions",  # A matrix of feature name to feature name
@@ -93,15 +93,15 @@ class AggregateReaction(Mapping[Metric, MetricValue]):
     @overload
     def get(self, key: Literal["confusion_matrix"], /) -> dict[str, ConfusionMatrix] | None: ...
     @overload
-    def get(self, key: Literal["confusion_matrix"], /, default: _VT_co) -> dict[str, ConfusionMatrix] | _VT_co: ...
+    def get(self, key: Literal["confusion_matrix"], /, default: _VT) -> dict[str, ConfusionMatrix] | _VT: ...
     @overload
     def get(self, key: TableMetric, /) -> pd.DataFrame | None: ...
     @overload
-    def get(self, key: TableMetric, /, default: _VT_co) -> pd.DataFrame | _VT_co: ...
+    def get(self, key: TableMetric, /, default: _VT) -> pd.DataFrame | _VT: ...
 
     def get(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self, key: Metric, /, default: _VT_co | None = None
-    ) -> MetricValue | _VT_co | None:
+        self, key: Metric, /, default: _VT | None = None
+    ) -> MetricValue | _VT | None:
         return super().get(key, default=default)
 
     def __iter__(self) -> Iterator[Metric]:
