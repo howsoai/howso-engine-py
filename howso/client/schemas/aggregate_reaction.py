@@ -1,7 +1,7 @@
 from collections.abc import Mapping, Iterator
 from copy import deepcopy
 from pprint import pformat
-from typing import Any, Literal, overload, TypeAlias
+from typing import Any, Literal, overload, TypeAlias, TypeVar
 
 import pandas as pd
 
@@ -10,6 +10,8 @@ from ..typing import ConfusionMatrix
 __all__ = [
     "AggregateReaction"
 ]
+
+_VT_co = TypeVar("_VT_co", covariant=True)
 
 ComplexMetric: TypeAlias = Literal[
     "feature_robust_accuracy_contributions",  # A matrix of feature name to feature name
@@ -28,6 +30,7 @@ TableMetric: TypeAlias = Literal[
     "feature_robust_directional_prediction_contributions",
     "feature_full_accuracy_contributions",
     "feature_full_accuracy_contributions_permutation",
+    "feature_robust_accuracy_contributions",
     "feature_robust_accuracy_contributions_permutation",
     "adjusted_smape",
     "smape",
@@ -46,8 +49,11 @@ TableMetric: TypeAlias = Literal[
 Metric: TypeAlias = Literal[ComplexMetric, TableMetric]
 """All metric output keys of react aggregate."""
 
+MetricValue: TypeAlias = pd.DataFrame | dict[str, ConfusionMatrix]
+"""The value variants of all metrics."""
 
-class AggregateReaction(Mapping[Metric, pd.DataFrame | dict[str, ConfusionMatrix]]):
+
+class AggregateReaction(Mapping[Metric, MetricValue]):
     """
     An implementation of a Mapping to contain react aggregate metric outputs.
 
@@ -65,13 +71,7 @@ class AggregateReaction(Mapping[Metric, pd.DataFrame | dict[str, ConfusionMatrix
             self._data.update(data)
 
     @overload
-    def __getitem__(
-        self, key: Literal["feature_robust_accuracy_contributions"]
-    ) -> pd.DataFrame: ...
-    @overload
-    def __getitem__(
-        self, key: Literal["confusion_matrix"]
-    ) -> dict[str, ConfusionMatrix]: ...
+    def __getitem__(self, key: Literal["confusion_matrix"]) -> dict[str, ConfusionMatrix]: ...
     @overload
     def __getitem__(self, key: TableMetric) -> pd.DataFrame: ...
 
@@ -89,6 +89,20 @@ class AggregateReaction(Mapping[Metric, pd.DataFrame | dict[str, ConfusionMatrix
                 return pd.DataFrame(value)
             return pd.DataFrame({key: value}).T
         return value
+
+    @overload
+    def get(self, key: Literal["confusion_matrix"], /) -> dict[str, ConfusionMatrix] | None: ...
+    @overload
+    def get(self, key: Literal["confusion_matrix"], /, default: _VT_co) -> dict[str, ConfusionMatrix] | _VT_co: ...
+    @overload
+    def get(self, key: TableMetric, /) -> pd.DataFrame | None: ...
+    @overload
+    def get(self, key: TableMetric, /, default: _VT_co) -> pd.DataFrame | _VT_co: ...
+
+    def get(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, key: Metric, /, default: _VT_co | None = None
+    ) -> MetricValue | _VT_co | None:
+        return super().get(key, default=default)
 
     def __iter__(self) -> Iterator[Metric]:
         """Iterate over the keys."""
