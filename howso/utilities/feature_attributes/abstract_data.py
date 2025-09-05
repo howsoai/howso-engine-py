@@ -4,6 +4,7 @@ from collections.abc import Iterable, Mapping
 import datetime
 from datetime import time, timedelta
 import decimal
+import inspect
 import logging
 from math import isnan
 import re
@@ -345,10 +346,10 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 if not time_format:
                     raise ValueError(f'Error computing bounds for {feature_name}: '
                                      f'`date_time_format` must be specified in attributes')
-                try:
+                if "datetime_format" in inspect.signature(self.data.get_min_max_values).parameters:
                     min_time, max_time = (
                         self.data.get_min_max_values(feature_name, datetime_format=time_format))
-                except TypeError:
+                else:
                     # howso-engine-connectors < 2.2.0
                     min_time, max_time = (
                         self.data.get_min_max_values(feature_name))
@@ -391,10 +392,10 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 format_dt = feature_attributes[feature_name].get('date_time_format')
 
                 # Trust that the ADC can handle finding min/max datetimes
-                try:
+                if "datetime_format" in inspect.signature(self.data.get_min_max_values).parameters:
                     min_date_obj, max_date_obj = (
                         self.data.get_min_max_values(feature_name, datetime_format=format_dt))
-                except TypeError:
+                else:
                     # howso-engine-connectors < 2.2.0
                     min_date_obj, max_date_obj = (
                         self.data.get_min_max_values(feature_name))
