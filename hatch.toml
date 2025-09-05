@@ -1,0 +1,13 @@
+# Configuration specifically for the Hatch environment manager
+# https://hatch.pypa.io/
+
+[envs.default]
+features = ["dev"]
+
+# Create separate Hatch environments for running tests.
+# To run unit tests against all supported Pythons
+#   hatch run test:pytest
+# To run the verification script
+#   hatch run test:verify_howso_install
+[[envs.test.matrix]]
+python = ["3.10", "3.11", "3.12", "3.13"]
