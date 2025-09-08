@@ -7,8 +7,11 @@ import pandas as pd
 from pandas import DataFrame, Index
 
 from howso.client.client import get_howso_client_class
+from howso.client.schemas.aggregate_reaction import AggregateReaction
 from howso.client.schemas.reaction import Reaction
+from howso.client.typing import ValueMasses
 from howso.utilities import deserialize_cases, format_dataframe
+from howso.utilities.features import FeatureSerializer
 from howso.utilities.internals import deserialize_to_dataframe
 
 
@@ -139,10 +142,6 @@ class HowsoPandasClientMixin:
             rows.append(response['familiarity_conviction_removal'])
         return deserialize_to_dataframe(rows, index=index)
 
-    def get_prediction_stats(self, trainee_id: str, *args, **kwargs) -> DataFrame:
-        """Calls :meth:`react_aggregate` and returns the results as a `DataFrame`."""
-        return DataFrame(super().react_aggregate(trainee_id, *args, **kwargs)).T
-
     def get_marginal_stats(self, *args, **kwargs) -> DataFrame:
         """
         Base: :func:`howso.client.AbstractHowsoClient.get_marginal_stats`.
@@ -154,6 +153,31 @@ class HowsoPandasClientMixin:
         """
         response = super().get_marginal_stats(*args, **kwargs)
         return pd.DataFrame(response)
+
+    def get_value_masses(self, trainee_id: str,  *args, **kwargs) -> dict[str, ValueMasses]:
+        """
+        Base: :func:`howso.client.AbstractHowsoClient.get_value_masses`.
+
+        Returns
+        -------
+        dict[str, ValueMasses]
+            A dict of feature names to dictionaries describing the value masses.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self.resolve_feature_attributes(trainee_id)
+        response = super().get_value_masses(trainee_id, *args, **kwargs)
+        out_response = {}
+        for f_name, results in response.items():
+            masses_df = pd.DataFrame(data=results.get('values', []), columns=["feature_value", "mass"])
+            if f_name in feature_attributes:
+                masses_df['feature_value'] = FeatureSerializer.format_column(
+                    masses_df['feature_value'],
+                    feature_attributes[f_name]
+                )
+            results['values'] = masses_df
+            out_response[f_name] = results
+
+        return out_response
 
     def react_series(
         self,
@@ -220,6 +244,18 @@ class HowsoPandasClientMixin:
         response['action'] = format_dataframe(response.get("action"), feature_attributes)
         return response
 
+    def react_aggregate(self, *args, **kwargs) -> AggregateReaction:
+        """
+        Base: :func:`howso.client.AbstractHowsoClient.react_aggregate`.
+
+        Returns
+        -------
+        AggregateReaction
+            A mapping of detail names to the metric results.
+        """
+        response = super().react_aggregate(*args, **kwargs)
+        return AggregateReaction(response)
+
     def react(self, trainee_id, *args, **kwargs) -> Reaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react`.
@@ -240,6 +276,11 @@ class HowsoPandasClientMixin:
         columns = response['details'].get('action_features')
         if 'prediction_stats' in response['details']:
             response['details']['prediction_stats'] = pd.DataFrame(response['details']['prediction_stats'][0]).T
+
+        context_columns = response['details'].get('context_features')
+        if 'context_values' in response['details']:
+            response['details']['context_values'] = deserialize_cases(response['details']['context_values'], context_columns, feature_attributes)
+
         response['action'] = deserialize_cases(response['action'], columns, feature_attributes)
         return response
 

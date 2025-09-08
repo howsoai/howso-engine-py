@@ -11,7 +11,7 @@ authors = [
     {name = "Howso Incorporated"},
     {email = "support@howso.com"},
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = ["machine", "learning", "artificial", "intelligence"]
 license = {file = "LICENSE.txt"}
 classifiers = [
@@ -20,7 +20,6 @@ classifiers = [
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "License :: OSI Approved :: GNU Affero General Public License v3",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
@@ -39,15 +38,15 @@ dependencies = [
    "Faker>=4.1.1",
    "humanize>=4.0.0",
    "mmh3",
-   "numpy",
+   "numpy~=2.2.0",
    "pandas",
    "pyjwt~=2.0",
    "pyyaml~=6.0",
-   "requests>=2.0,<3.0",
+   "requests>=2.32.4,<3.0",
    "rich>=12.5.1",
    "semantic-version~=2.0",
    "typing-extensions~=4.9",
-   "amalgam-lang==18.1.5", # Use exact since Engine is exact in version.json
+   "amalgam-lang==24.0.3", # Use exact since Engine is exact in version.json
 ]
 
 [project.optional-dependencies]

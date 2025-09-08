@@ -1,19 +1,18 @@
-"""Tests infer_feature_attributes with time series data (InferFeatureAttributesTimeSeries)."""
+"""Tests infer_feature_attributes with time series data and AbstractData classes."""
 from collections import OrderedDict
 from pathlib import Path
 import warnings
 
-from howso import client
-from howso.engine import Trainee
-from howso.utilities.feature_attributes import infer_feature_attributes
 import numpy as np
 import pandas as pd
 import pytest
 
-
-data_path = (
-    Path(client.__file__).parent.parent
-).joinpath("utilities/tests/data/example_timeseries.csv")
+try:
+    from howso.connectors.abstract_data import convert_data, DataFrameData
+except (ModuleNotFoundError, ImportError):
+    pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
+from howso.engine import Trainee
+from howso.utilities.feature_attributes import infer_feature_attributes
 
 # Partially defined dictionary-1
 features_1 = {
@@ -36,17 +35,29 @@ features_1 = {
     },
 }
 
-
 # Partially defined "ordered" dict
 features_2 = OrderedDict(
     (f_name, features_1[f_name]) for f_name in features_1
 )
 
+cwd = Path(__file__).parent.parent.parent.parent
+iris_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'iris.csv'))
+int_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'integers.csv'))
+stock_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv'))
+ts_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv'))
 
-def test_infer_features_attributes_single_ID():
+
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", ts_df),
+    ("SQLTableData", ts_df),
+    ("ParquetDataFile", ts_df),
+    ("ParquetDataset", ts_df),
+    ("TabularFile", ts_df),
+    ("DaskDataFrameData", ts_df),
+    ("DataFrameData", ts_df),
+], indirect=True)
+def test_infer_features_attributes_single_ID(adc):
     """Litmus test for infer feature types for iris dataset."""
-    df = pd.read_csv(data_path)
-
     # Define time format
     time_format = "%Y%m%d"
 
@@ -62,7 +73,7 @@ def test_infer_features_attributes_single_ID():
         "date": "continuous"
     }
     features = infer_feature_attributes(
-        df,
+        adc,
         time_feature_name=time_feature_name,
         id_feature_name=id_feature_name,
         datetime_feature_formats={time_feature_name: time_format},
@@ -75,10 +86,20 @@ def test_infer_features_attributes_single_ID():
         assert 'sample' in attributes and attributes['sample'] is not None
 
 
-def test_infer_features_attributes_multiple_ID():
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_infer_features_attributes_multiple_ID(adc):
     """Litmus test for infer feature types for iris dataset with multiple ID features."""
-    df = pd.read_csv(data_path)
+    df = ts_df.copy()
     df["ID2"] = df["ID"].copy()
+    convert_data(DataFrameData(df), adc)
 
     # Define time format
     time_format = "%Y%m%d"
@@ -96,7 +117,7 @@ def test_infer_features_attributes_multiple_ID():
         "date": "continuous"
     }
     features = infer_feature_attributes(
-        df,
+        adc,
         time_feature_name=time_feature_name,
         id_feature_name=id_feature_name,
         datetime_feature_formats={time_feature_name: time_format}
@@ -110,10 +131,17 @@ def test_infer_features_attributes_multiple_ID():
     assert features["ID2"]["id_feature"] is True
 
 
-def test_set_rate_delta_boundaries():
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", ts_df),
+    ("SQLTableData", ts_df),
+    ("ParquetDataFile", ts_df),
+    ("ParquetDataset", ts_df),
+    ("TabularFile", ts_df),
+    ("DaskDataFrameData", ts_df),
+    ("DataFrameData", ts_df),
+], indirect=True)
+def test_set_rate_delta_boundaries(adc):
     """Test infer_feature_attributes for time series with rate/delta boundaries set."""
-    df = pd.read_csv(data_path)
-
     # Define time format
     time_format = "%Y%m%d"
 
@@ -126,7 +154,7 @@ def test_set_rate_delta_boundaries():
     delta_boundaries = {"date": {"min": {'0': 8765.4321}, "max": {'0': 4321.8765, '1': 54321}}}
 
     features = infer_feature_attributes(
-        df,
+        adc,
         time_feature_name=time_feature_name,
         id_feature_name=id_feature_name,
         datetime_feature_formats={time_feature_name: time_format},
@@ -152,7 +180,7 @@ def test_set_rate_delta_boundaries():
         rate_boundaries = {"date": {"min": {'0': 1234.5678, '1': 12345}, "max": {'0': 5678.1234}}}
         delta_boundaries = {"f3": {"min": {'0': 8765.4321}, "max": {'0': 4321.8765, '1': 54321}}}
         features = infer_feature_attributes(
-            df,
+            adc,
             time_feature_name=time_feature_name,
             id_feature_name=id_feature_name,
             datetime_feature_formats={time_feature_name: time_format},
@@ -165,6 +193,15 @@ def test_set_rate_delta_boundaries():
         assert 'delta_max' not in features['f3']['time_series']
 
 
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", ts_df),
+    ("SQLTableData", ts_df),
+    ("ParquetDataFile", ts_df),
+    ("ParquetDataset", ts_df),
+    ("TabularFile", ts_df),
+    ("DaskDataFrameData", ts_df),
+    ("DataFrameData", ts_df),
+], indirect=True)
 @pytest.mark.parametrize(
     ("universal_value", "expected"),
     [
@@ -173,10 +210,8 @@ def test_set_rate_delta_boundaries():
         (None, None),
     ]
 )
-def test_time_feature_is_universal(universal_value, expected):
+def test_time_feature_is_universal(universal_value, expected, adc):
     """Validates that time_feature_is_universal is working as expected."""
-    df = pd.read_csv(data_path)
-
     # Define time format
     time_format = "%Y%m%d"
     # Identify id-feature and time-feature
@@ -184,7 +219,7 @@ def test_time_feature_is_universal(universal_value, expected):
     time_feature_name = "date"
 
     features = infer_feature_attributes(
-        df,
+        adc,
         time_feature_name=time_feature_name,
         id_feature_name=id_feature_name,
         datetime_feature_formats={time_feature_name: time_format},
@@ -194,10 +229,17 @@ def test_time_feature_is_universal(universal_value, expected):
     assert features[time_feature_name]['time_series'].get("universal") == expected
 
 
-def test_infer_features_attributes_tight_bounds_dependent_functionality():
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", ts_df),
+    ("SQLTableData", ts_df),
+    ("ParquetDataFile", ts_df),
+    ("ParquetDataset", ts_df),
+    ("TabularFile", ts_df),
+    ("DaskDataFrameData", ts_df),
+    ("DataFrameData", ts_df),
+], indirect=True)
+def test_infer_features_attributes_tight_bounds_dependent_functionality(adc):
     """Test tight bounds and dependent features functionality for time series IFA."""
-    df = pd.read_csv(data_path)
-
     # Define time format
     time_format = "%Y%m%d"
 
@@ -206,7 +248,7 @@ def test_infer_features_attributes_tight_bounds_dependent_functionality():
     time_feature_name = "date"
 
     features = infer_feature_attributes(
-        df,
+        adc,
         dependent_features={"f1": ["f2"]},
         tight_bounds=["f3"],
         time_feature_name=time_feature_name,
@@ -215,17 +257,25 @@ def test_infer_features_attributes_tight_bounds_dependent_functionality():
         include_sample=True
     )
 
-    f3_max = df["f3"].max()
-    f3_min = df["f3"].min()
+    f3_max = ts_df["f3"].max()
+    f3_min = ts_df["f3"].min()
 
     assert features["f1"]["dependent_features"] == ["f2"]
     assert features["f3"]["bounds"]["max"] == f3_max
     assert features["f3"]["bounds"]["min"] == f3_min
 
 
-def test_invalid_time_feature_format():
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", ts_df),
+    ("SQLTableData", ts_df),
+    ("ParquetDataFile", ts_df),
+    ("ParquetDataset", ts_df),
+    ("TabularFile", ts_df),
+    ("DaskDataFrameData", ts_df),
+    ("DataFrameData", ts_df),
+], indirect=True)
+def test_invalid_time_feature_format(adc):
     """Validates that an invalid time feature date_time_format raises."""
-    df = pd.read_csv(data_path)
     time_feature_name = "date"
 
     with pytest.raises(ValueError, match="does not match the data"):
@@ -233,29 +283,40 @@ def test_invalid_time_feature_format():
             # warnings are expected
             warnings.filterwarnings("ignore")
             infer_feature_attributes(
-                df,
+                adc,
                 time_feature_name=time_feature_name,
                 id_feature_name="ID",
                 datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"}  # invalid format
             )
 
 
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
 @pytest.mark.parametrize('data, types, expected_types, is_valid', [
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'), dict(b='continuous'),
-     True),
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'), dict(a='continuous'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'),
+     dict(b='continuous'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'),
+     dict(a='continuous'), True),
     (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'),
      dict(b='nominal'), True),
     (pd.DataFrame({'a': [True, False, False, True], 'b': [False, True, False, True]}), dict(b='continuous'),
      dict(b='nominal'), True),
 ])
-def test_preset_feature_types(data, types, expected_types, is_valid):
+def test_preset_feature_types(data, types, expected_types, is_valid, adc):
     """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
+    convert_data(DataFrameData(data), adc)
     features = {}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if is_valid:
-            features = infer_feature_attributes(data, types=types, time_feature_name='a')
+            features = infer_feature_attributes(adc, types=types, time_feature_name='a')
             for feature_name, expected_type in expected_types.items():
                 # Make sure it is the correct type
                 assert features[feature_name]['type'] == expected_type
@@ -263,27 +324,43 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
                 assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
         else:
             with pytest.raises(ValueError):
-                infer_feature_attributes(data, types=types)
+                infer_feature_attributes(adc, types=types)
 
 
-def test_lags():
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", ts_df),
+    ("SQLTableData", ts_df),
+    ("ParquetDataFile", ts_df),
+    ("ParquetDataset", ts_df),
+    ("TabularFile", ts_df),
+    ("DaskDataFrameData", ts_df),
+    ("DataFrameData", ts_df),
+], indirect=True)
+def test_lags(adc):
     """Validates that `lags` can be set as an argument for time series IFA."""
-    df = pd.read_csv(data_path)
-
     # The below should not raise any exceptions
     lags = {"date": 0}
-    fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags=lags)
+    fa = infer_feature_attributes(adc, time_feature_name="date", id_feature_name="ID", lags=lags)
     Trainee(features=fa)
 
     # Ensure that an invalid lags value raises a helpful TypeError
     with pytest.raises(TypeError):
-        fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags={"date": '0'})
+        fa = infer_feature_attributes(adc, time_feature_name="date", id_feature_name="ID", lags={"date": '0'})
 
 
-def test_nominal_vs_continuous_detection():
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_nominal_vs_continuous_detection(adc):
     """Test that IFA correctly determines nominal vs. continuous features in time series data."""
     # Time-series data with 4756 cases, 41 series; avg. 116 cases/series; sqrt(116) ~= 10.77
-    df = pd.read_csv(data_path)
+    df = ts_df.copy()
     # Add a new integer column with n_uniques > sqrt(avg_n_cases_per_series) -- should be continuous
     series = np.resize(np.arange(11), len(df))
     np.random.shuffle(series)
@@ -292,12 +369,13 @@ def test_nominal_vs_continuous_detection():
     series = np.resize(np.arange(10), len(df))
     np.random.shuffle(series)
     df["f5"] = series
+    convert_data(DataFrameData(df), adc)
     # Ensure that feature types were properly inferred
-    features = infer_feature_attributes(df, id_feature_name="ID", time_feature_name="date")
+    features = infer_feature_attributes(adc, id_feature_name="ID", time_feature_name="date")
     assert features["f4"]["type"] == "continuous"
     assert features["f5"]["type"] == "nominal"
     # Ensure that pre-setting feature types overrides this logic
-    features = infer_feature_attributes(df, id_feature_name="ID", time_feature_name="date",
+    features = infer_feature_attributes(adc, id_feature_name="ID", time_feature_name="date",
                                         types={"f4": "nominal", "f5": "continuous"})
     assert features["f5"]["type"] == "continuous"
     assert features["f4"]["type"] == "nominal"

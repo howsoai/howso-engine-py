@@ -1,24 +1,29 @@
 """Tests the `infer_feature_attributes` package with AbstractData classes."""
-from collections import OrderedDict
-import datetime
 from pathlib import Path
-from unittest.mock import patch
 import warnings
 
-import mongomock
 import pandas as pd
 import pytest
 
-from howso.connectors.abstract_data import MongoDBData
+try:
+    from howso.connectors.abstract_data import (
+        convert_data,
+        DataFrameData,
+        make_data_source,
+    )
+except (ModuleNotFoundError, ImportError):
+    pytest.skip('howso-engine-connectors not installed', allow_module_level=True)
+
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
 from howso.utilities.features import FeatureType
 
 cwd = Path(__file__).parent.parent.parent.parent
-iris_path = Path(cwd, 'utilities', 'tests', 'data', 'iris.csv')
-int_path = Path(cwd, 'utilities', 'tests', 'data', 'integers.csv')
-stock_path = Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv')
-ts_path = Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv')
+iris_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'iris.csv'))
+int_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'integers.csv'))
+nypd_arrest_pq_path = Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet')
+stock_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv'))
+ts_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv'))
 
 # Partially defined dictionary-1
 features_1 = {
@@ -55,30 +60,18 @@ features_3 = {
     }
 }
 
-# Partially defined "ordered" dict
-features_4 = OrderedDict(
-    (f_name, features_3[f_name]) for f_name in features_3
-)
 
-
-@patch("howso.connectors.abstract_data.mongodb_data.MongoClient", new=mongomock.MongoClient)
-def df_to_mongo_adc(df: pd.DataFrame) -> MongoDBData:
-    """Helper function to convert a Pandas DataFrame to a MongoDB ADC w/ mocked MongoDB instance."""
-    adc = MongoDBData(
-        uri="mongodb://localhost",
-        database_name="test_db",
-        collection_name="test_collection"
-    )
-    # Populate the mocked MongoDB with the provided DataFrame
-    adc._collection.insert_many(df.to_dict(orient="records"))
-    return adc
-
-
-def test_infer_features_attributes():
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", iris_df),
+    ("SQLTableData", iris_df),
+    ("ParquetDataFile", iris_df),
+    ("ParquetDataset", iris_df),
+    ("TabularFile", iris_df),
+    ("DaskDataFrameData", iris_df),
+    ("DataFrameData", iris_df),
+], indirect=True)
+def test_infer_feature_attributes(adc):
     """Litmus test for infer feature types for iris dataset."""
-    df = pd.read_csv(iris_path)
-    adc = df_to_mongo_adc(df)
-
     expected_types = {
         "sepal_length": "continuous",
         "sepal_width": "continuous",
@@ -93,6 +86,15 @@ def test_infer_features_attributes():
         assert expected_types[feature] == attributes['type']
 
 
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", int_df),
+    ("SQLTableData", int_df),
+    ("ParquetDataFile", int_df),
+    ("ParquetDataset", int_df),
+    ("TabularFile", int_df),
+    ("DaskDataFrameData", int_df),
+    ("DataFrameData", int_df),
+], indirect=True)
 @pytest.mark.parametrize(
     'feature, nominality', [
         # "id_no" _would_ be inferred "continuous", but we specifically tell
@@ -119,14 +121,21 @@ def test_infer_features_attributes():
         ('hat_size', 'continuous'),
     ]
 )
-def test_integer_nominality(feature, nominality):
+def test_integer_nominality(feature, nominality, adc):
     """Exercise infer_feature_attributes for integers and their nominality."""
-    df = pd.read_csv(int_path)
-    adc = df_to_mongo_adc(df)
     inferred_features = infer_feature_attributes(adc, id_feature_name=['id_no'])
     assert inferred_features[feature]['type'] == nominality
 
 
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
 @pytest.mark.parametrize('data, is_time, expected_format, provided_format', [
     (pd.DataFrame(["08:08:08"], columns=['a']), True, '%H:%M:%S', None),
     (pd.DataFrame(["8:8:8"], columns=['a']), True, '%H:%M:%S', None),
@@ -153,9 +162,11 @@ def test_integer_nominality(feature, nominality):
     (pd.DataFrame(["5"], columns=['a']), False, None, '%C'),
     (pd.DataFrame(["1999 23"], columns=['a']), False, None, '%Y %H'),
 ])
-def test_infer_time_features(data, is_time, expected_format, provided_format):
+def test_infer_time_features(adc, data, is_time, expected_format, provided_format):
     """Test IFA against many possible valid and invalid time-only features."""
-    adc = df_to_mongo_adc(data)
+    # First, transfer data to empty ADC
+    convert_data(DataFrameData(data), adc)
+    # Test
     ifa = InferFeatureAttributesAbstractData(adc)
     feature_type, _ = ifa._get_feature_type('a')
     if is_time:
@@ -168,6 +179,15 @@ def test_infer_time_features(data, is_time, expected_format, provided_format):
         assert feature_type != FeatureType.TIME
 
 
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
 @pytest.mark.parametrize('data, tight_bounds, provided_format, expected_bounds, cycle_length', [
     (
         pd.DataFrame(["00:00:00", "23:59:59"], columns=['a']), ['a'], None,
@@ -194,9 +214,11 @@ def test_infer_time_features(data, is_time, expected_format, provided_format):
         {'min': 0, 'max': 1, 'observed_min': 0.5, 'observed_max': 0.7, 'allow_null': True}, 1
     ),
 ])
-def test_infer_time_feature_bounds(data, tight_bounds, provided_format, expected_bounds, cycle_length):
+def test_infer_time_feature_bounds(adc, data, tight_bounds, provided_format, expected_bounds, cycle_length):
     """Test that IFA correctly calculates the bounds and cycle length of time-only features."""
-    adc = df_to_mongo_adc(data)
+    # First, transfer data to empty ADC
+    convert_data(DataFrameData(data), adc)
+    # Test
     features = infer_feature_attributes(adc, tight_bounds=tight_bounds,
                                         datetime_feature_formats={'a': provided_format})
     assert features['a']['type'] == 'continuous'
@@ -207,23 +229,26 @@ def test_infer_time_feature_bounds(data, tight_bounds, provided_format, expected
     assert features['a']['data_type'] == "formatted_time"
 
 
-@pytest.mark.parametrize('should_include, base_features, dependent_features', [
-    (False, None, None),
-    (True, None, {'sepal_length': ['sepal_width', 'class']}),
-    (True, {"sepal_length": {"type": "continuous"}},
-     {'sepal_width': ['sepal_length']}),
-    (True, {"sepal_length": {"type": "continuous"}},
-     {'sepal_length': ['class']}),
-    (False, {"sepal_length": {"type": "continuous"}},
-     None),
-    (True, {"sepal_length": {"dependent_features": ["class"]}},
-     None),
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", iris_df),
+    ("SQLTableData", iris_df),
+    ("ParquetDataFile", iris_df),
+    ("ParquetDataset", iris_df),
+    ("TabularFile", iris_df),
+    ("DaskDataFrameData", iris_df),
+    ("DataFrameData", iris_df),
+], indirect=True)
+@pytest.mark.parametrize('should_include, dependent_features', [
+    (False, None),
+    (True, {'sepal_length': ['sepal_width', 'class']}),
+    (True, {'sepal_width': ['sepal_length']}),
+    (True, {'sepal_length': ['class']}),
+    (False, None),
+    (True, None),
 ])
-def test_dependent_features(should_include, base_features, dependent_features):
+def test_dependent_features(adc, should_include, dependent_features):
     """Test depdendent features are added to feature attributes dict."""
-    df = pd.read_csv(iris_path)
-    adc = df_to_mongo_adc(df)
-    features = infer_feature_attributes(adc, features=base_features, dependent_features=dependent_features)
+    features = infer_feature_attributes(adc, dependent_features=dependent_features)
 
     if should_include:
         # Should include dependent features
@@ -232,19 +257,21 @@ def test_dependent_features(should_include, base_features, dependent_features):
                 assert 'dependent_features' in features[feat]
                 for dep_feat in dep_feats:
                     assert dep_feat in features[feat]['dependent_features']
-        # Make sure dependent features provided in the base dict are also included
-        if base_features:
-            for feat in base_features.keys():
-                if 'dependent_features' in base_features[feat]:
-                    assert 'dependent_features' in features[feat]
-                    for dep_feat in base_features[feat]['dependent_features']:
-                        assert dep_feat in features[feat]['dependent_features']
     else:
         # Should not include dependent features
         for attributes in features.values():
             assert 'dependent_features' not in attributes
 
 
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
 @pytest.mark.parametrize('tight_bounds, data, expected_bounds', [
     (None, [2, 3, 4, 5, 6, 7], {'min': 0, 'max': 10, 'observed_min': 2, 'observed_max': 7, 'allow_null': False}),
     (None, [2, 3, 4, 4, 5, 6, 6, 6, 6], {'min': 0, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),  # noqa: E501
@@ -286,24 +313,26 @@ def test_dependent_features(should_include, base_features, dependent_features):
         {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
          'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500', 'allow_null': True},  # noqa: E501
     ),
-    (
-        ['a'],
-        [datetime.datetime(1905, 1, 1), datetime.datetime(1904, 5, 3),
-         datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1904-05-03T00:00:00', 'max': '2022-03-26T00:00:00',
-         'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00', 'allow_null': True},  # noqa: E501
-    ),
 ])
-def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
+def test_infer_feature_bounds(adc, data, tight_bounds, expected_bounds):
     """Test the infer_feature_bounds() method."""
     df = pd.DataFrame(pd.Series(data), columns=['a'])
-    adc = df_to_mongo_adc(df)
+    convert_data(DataFrameData(df), adc)
     features = infer_feature_attributes(adc, tight_bounds=tight_bounds)
     assert features['a']['type'] == 'continuous'
     assert 'bounds' in features['a']
     assert features['a']['bounds'] == expected_bounds
 
 
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", stock_df),
+    ("SQLTableData", stock_df),
+    ("ParquetDataFile", stock_df),
+    ("ParquetDataset", stock_df),
+    ("TabularFile", stock_df),
+    ("DaskDataFrameData", stock_df),
+    ("DataFrameData", stock_df),
+], indirect=True)
 @pytest.mark.parametrize("tight_bounds", [
     (['DATE', 'TURNOVER', '%DELIVERABLE']),
     (['DATE', '%DELIVERABLE']),
@@ -314,10 +343,8 @@ def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
     (['%DELIVERABLE']),
     ([''])
 ])
-def test_tight_bounds(tight_bounds):
+def test_tight_bounds(adc, tight_bounds):
     """Test the tight_bounds argument with a features list."""
-    df = pd.read_csv(stock_path)
-    adc = df_to_mongo_adc(df)
     features = infer_feature_attributes(adc, tight_bounds=tight_bounds)
 
     all_tight_bounds = infer_feature_attributes(adc, tight_bounds=features.get_names())
@@ -332,6 +359,15 @@ def test_tight_bounds(tight_bounds):
             assert features[feature]['bounds'] == no_tight_bounds[feature]['bounds']
 
 
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
 @pytest.mark.parametrize('data, types, expected_types, is_valid', [
     (pd.DataFrame({'a': [0, 1, 2, 0, 1, 2]}), dict(a='continuous'), dict(a='continuous'), True),
     (pd.DataFrame({'a': [0, 1, 2], 'b': ['1', '2', '3']}, columns=['a', 'b']), dict(continuous=['a', 'b']),
@@ -346,9 +382,9 @@ def test_tight_bounds(tight_bounds):
     (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(ordinal=['a']), {}, False),
     (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(a='ordinal'), {}, False),
 ])
-def test_preset_feature_types(data, types, expected_types, is_valid):
+def test_preset_feature_types(adc, data, types, expected_types, is_valid):
     """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
-    adc = df_to_mongo_adc(data)
+    convert_data(DataFrameData(data), adc)
     features = {}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -364,6 +400,15 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
                 infer_feature_attributes(adc, types=types)
 
 
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    # ("TabularFile", pd.DataFrame()), -->    When using convert_data, the 'object' dtype is correctly carried over to
+    ("DaskDataFrameData", pd.DataFrame()),  # the destination chunk during `write_chunk`; however, in the case of
+    ("DataFrameData", pd.DataFrame()),      # tabular ADCs, it is lost on conversion to .csv, breaking this test.
+], indirect=True)
 @pytest.mark.parametrize(
     'series, ordinals, min_value, max_value', [
         (  # ordinal strings
@@ -408,16 +453,25 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
         )
     ]
 )
-def test_observed_ordinal_values(series, ordinals, min_value, max_value):
+def test_observed_ordinal_values(adc, series, ordinals, min_value, max_value):
     """Test that observed_min/max in ordinal features works as expected."""
     data = pd.DataFrame({'a': series})
-    adc = df_to_mongo_adc(data)
+    convert_data(DataFrameData(data), adc)
     features = infer_feature_attributes(adc, ordinal_feature_values={'a': ordinals})
     assert features['a']['bounds']['observed_min'] == min_value
     assert features['a']['bounds']['observed_max'] == max_value
 
 
-def test_formatted_date_time():
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_formatted_date_time(adc):
     """Test formatted_date_time is set when a datetime, and raises when no date_time_format is specified."""
     data = pd.DataFrame({
         'a': [0, 1, 2, 3],
@@ -426,34 +480,13 @@ def test_formatted_date_time():
         'iso': ['2010-10-10', '2010-10-11', '2010-10-12', '2010-10-14']
     })
 
-    adc = df_to_mongo_adc(data)
-
-    # When data_type is formatted_date_time, a date_time_format must be set
-    with pytest.raises(
-        ValueError,
-        match='must have a `date_time_format` defined when its `data_type` is "formatted_date_time"'
-    ):
-        infer_feature_attributes(adc, features={
-            'custom': {
-                "data_type": "formatted_date_time"
-            }
-        })
-
-    # When data_type is formatted_time, a date_time_format must be set
-    with pytest.raises(
-        ValueError,
-        match='must have a `date_time_format` defined when its `data_type` is "formatted_time"'
-    ):
-        infer_feature_attributes(adc, features={
-            'time': {
-                "data_type": "formatted_time"
-            }
-        })
+    convert_data(DataFrameData(data), adc)
 
     # Verify formatted_date_time is set when a date_time_format is configured
     with warnings.catch_warnings():
         warnings.filterwarnings("error")
-        features = infer_feature_attributes(adc, datetime_feature_formats={"custom": "%Y/%m/%d"})
+        features = infer_feature_attributes(adc, datetime_feature_formats={"custom": "%Y/%m/%d"},
+                                            default_time_zone="UTC")
         assert features['a']['data_type'] != "formatted_date_time"
         # custom feature dates should be formatted_date_time
         assert features['custom']['data_type'] == "formatted_date_time"
@@ -461,10 +494,60 @@ def test_formatted_date_time():
         assert features['iso']['data_type'] == "formatted_date_time"
 
 
-def test_constrained_date_bounds():
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_constrained_date_bounds(adc):
     """Constrained datetime formats may make bounds undeterminable."""
     df = pd.DataFrame([["01"], ["02"]], columns=["date"])
-    adc = df_to_mongo_adc(df)
+    convert_data(DataFrameData(df), adc)
     with pytest.warns(match="bounds could not be computed. This is likely due to a constrained date time format"):
         # Loose bounds may cause min bound to be > max bound if the date format is constrained
         infer_feature_attributes(adc, datetime_feature_formats={"date": "%m"})
+
+
+def test_parquet_dataset_with_s3():
+    """Test ParquetDataset with s3 integration."""
+    anon_options = {"anon": True}
+    data_sources = [
+        "s3://howso-ci-test-anon/parquet_files/bank/",
+        "s3://howso-ci-test-anon/parquet_files/iris/",
+    ]
+    for src in data_sources:
+        adc = make_data_source(src, storage_options=anon_options)
+        infer_feature_attributes(adc)
+
+
+def test_ambiguous_datetime_format():
+    """Test the NYPD arrest dataset."""
+    adc = make_data_source(nypd_arrest_pq_path)  # Contains a non-ISO8601 date column
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
+        infer_feature_attributes(adc)
+
+
+def test_datetime_empty_time_values():
+    """Test that datetimes with an empty time value still are determined datetime features with the correct format."""
+    df = pd.DataFrame({'a': ['2025-08-22T00:00:00'], 'b': ['2025-08-22 00:00:00']})
+    adc = make_data_source(df)
+    features = infer_feature_attributes(adc, default_time_zone='UTC')
+    assert features['a']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
+    assert features['b']['date_time_format'] == '%Y-%m-%d %H:%M:%S'
+
+
+def test_empty_string_first_non_nulls():
+    """Test that IFA correctly handles first non-null values that are empty strings."""
+    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy']})
+    adc = make_data_source(df)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        infer_feature_attributes(adc)
+    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy'], 'b': ['\n', '8/26/2025', '8/3/1999']})
+    adc = make_data_source(df)
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
+        infer_feature_attributes(adc)

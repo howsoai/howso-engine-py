@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 from collections.abc import Collection, Iterable
 from concurrent.futures import (
     as_completed,
     Future,
     ProcessPoolExecutor,
 )
+import copy
 import logging
-from math import e, isnan
+from math import e
 import multiprocessing as mp
 import os
 import typing as t
@@ -17,8 +19,10 @@ import numpy as np
 import pandas as pd
 from pandas.core.dtypes.common import is_string_dtype
 
+from .abstract_data import InferFeatureAttributesAbstractData
 from .base import SingleTableFeatureAttributes
 from .pandas import InferFeatureAttributesDataFrame
+from .protocols import IFACompatibleADCProtocol
 from ..utilities import date_to_epoch, is_valid_datetime_format, yield_dataframe_as_chunks
 
 logger = logging.getLogger(__name__)
@@ -34,27 +38,35 @@ def _apply_date_to_epoch(df: pd.DataFrame, feature_name: str, dt_format: str):
 class InferFeatureAttributesTimeSeries:
     """Infer feature attributes for time series data."""
 
-    def __init__(self, data: pd.DataFrame, time_feature_name: str):
+    def __init__(self, data: pd.DataFrame | IFACompatibleADCProtocol, time_feature_name: str):
         """Instantiate this InferFeatureAttributesTimeSeries object."""
         self.data = data
         self.time_feature_name = time_feature_name
         # Keep track of features that contain unsupported data
         self.unsupported = []
 
-    def _infer_delta_min_and_max(  # noqa: C901
+    def _infer_delta_min_max_from_chunk(  # noqa: C901
         self,
+        chunk: pd.DataFrame,
         features: dict,
+        *,
         datetime_feature_formats: t.Optional[dict] = None,
-        id_feature_name: t.Optional[str | Iterable[str]] = None,
-        orders_of_derivatives: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
-        max_workers: t.Optional[int] = None
+        id_feature_name: t.Optional[str | Iterable[str]] = None,
+        max_workers: t.Optional[int] = None,
+        orders_of_derivatives: t.Optional[dict] = None,
     ) -> dict:
         """
-        Infer continuous feature delta_min, delta_max for each feature.
+        Infer rate and delta min/max for each continuous feature and update the features dict.
+
+        This method will not introspect `self.data` but rather the provided DataFrame
+        in order to maintain compatibility with chunk scaling.
 
         Parameters
         ----------
+        chunk : pd.DataFrame
+            The data to infer delta min and max from.
+
         features : dict, default None
             (Optional) A partially filled features dict. If partially filled
             attributes for a feature are passed in, those parameters will be
@@ -107,11 +119,14 @@ class InferFeatureAttributesTimeSeries:
         Returns
         -------
         features : dict
-            Returns dictionary of {`type`: "feature type"}} with column names
-            in passed in df as key.
+            Returns an updated feature attributes dictionary with inferred time series
+            information added under an additional ``time_series`` attribute for each
+            applicable feature.
         """
         # prevent circular import
         from howso.client.exceptions import DatetimeFormatWarning
+        # Make a copy of the 'features' dict as it will be returned; don't modify original
+        features = copy.deepcopy(features)
         # iterate over all features, ensuring that the time feature is the first
         # one to be processed so that its deltas are cached
         feature_names = set(features.keys())
@@ -159,11 +174,11 @@ class InferFeatureAttributesTimeSeries:
                 if dt_format is not None:
                     # copy just the id columns and the time feature
                     if isinstance(id_feature_name, str):
-                        df_c = self.data.loc[:, [id_feature_name, f_name]]
+                        df_c = chunk.loc[:, [id_feature_name, f_name]]
                     elif isinstance(id_feature_name, list):
-                        df_c = self.data.loc[:, id_feature_name + [f_name]]
+                        df_c = chunk.loc[:, id_feature_name + [f_name]]
                     else:
-                        df_c = self.data.loc[:, [f_name]]
+                        df_c = chunk.loc[:, [f_name]]
 
                     # convert time feature to epoch
                     if len(df_c) < 500_000 and max_workers is None:
@@ -176,10 +191,10 @@ class InferFeatureAttributesTimeSeries:
 
                         with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
                             df_chunks_generator = yield_dataframe_as_chunks(df_c, max_workers)
-                            for chunk in df_chunks_generator:
+                            for sub_chunk in df_chunks_generator:
                                 future = pool.submit(
                                     _apply_date_to_epoch,
-                                    df=chunk,
+                                    df=sub_chunk,
                                     feature_name=f_name,
                                     dt_format=dt_format
                                 )
@@ -238,11 +253,11 @@ class InferFeatureAttributesTimeSeries:
                 else:
                     # Use pandas' diff() to pull all the deltas for this feature
                     if isinstance(id_feature_name, list):
-                        deltas = self.data.groupby(id_feature_name)[f_name].diff(1)
+                        deltas = chunk.groupby(id_feature_name)[f_name].diff(1)
                     elif isinstance(id_feature_name, str):
-                        deltas = self.data.groupby([id_feature_name])[f_name].diff(1)
+                        deltas = chunk.groupby([id_feature_name])[f_name].diff(1)
                     else:
-                        deltas = self.data[f_name].diff(1)
+                        deltas = chunk[f_name].diff(1)
 
                 if f_name == self.time_feature_name:
                     time_feature_deltas = deltas
@@ -274,7 +289,7 @@ class InferFeatureAttributesTimeSeries:
                         ]
 
                         # remove NaNs
-                        no_nan_rates = [x for x in rates if isnan(x) is False]
+                        no_nan_rates = [x for x in rates if pd.isna(x) is False]
                         if len(no_nan_rates) == 0:
                             continue
 
@@ -346,20 +361,22 @@ class InferFeatureAttributesTimeSeries:
         self,
         attempt_infer_extended_nominals: bool = False,
         datetime_feature_formats: t.Optional[dict] = None,
+        default_time_zone: t.Optional[str] = None,
         delta_boundaries: t.Optional[dict] = None,
         dependent_features: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
-        features: t.Optional[dict] = None,
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         include_extended_nominal_probabilities: t.Optional[bool] = False,
         include_sample: bool = False,
         infer_bounds: bool = True,
         lags: t.Optional[list | dict] = None,
         max_workers: t.Optional[int] = None,
+        memory_warning_threshold: t.Optional[int] = 512,
         mode_bound_features: t.Optional[Iterable[str]] = None,
         nominal_substitution_config: t.Optional[dict[str, dict]] = None,
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
+        ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
         rate_boundaries: t.Optional[dict] = None,
         time_invariant_features: t.Optional[Iterable[str]] = None,
         tight_bounds: t.Optional[Iterable[str]] = None,
@@ -377,84 +394,34 @@ class InferFeatureAttributesTimeSeries:
 
         Parameters
         ----------
-        features : dict or None, defaults to None
-            (Optional) A partially filled features dict. If partially filled
-            attributes for a feature are passed in, those parameters will be
-            retained as is and the rest of the attributes will be inferred.
+        attempt_infer_extended_nominals : bool, default False
+            (Optional) If set to True, detections of extended nominals will be
+            attempted. If the detection fails, the categorical variables will
+            be set to `int-id` subtype.
 
-            For example:
-                >>> from pprint import pprint
-                >>> df.head(2)
-                ...       ID      f1      f2      f3      date
-                ... 0  31855  245.47  262.97  244.95  20100131
-                ... 1  31855  253.03  254.79  238.61  20100228
-                >>> # Partially filled features dict
-                ... partial_features = {
-                ...     'f1': {
-                ...         'bounds': {
-                ...             'allow_null': False,
-                ...             'max': 5103.08,
-                ...             'min': 20.08
-                ...         },
-                ...         'time_series':  { 'type': 'rate'},
-                ...         'type': 'continuous'
-                ...     },
-                ...     'f2': {
-                ...         'bounds': {
-                ...             'allow_null': False,
-                ...             'max': 6103,
-                ...             'min': 0
-                ...         },
-                ...         'time_series':  { 'type': 'rate'},
-                ...         'type': 'continuous'
-                ...     },
-                ... }
-                >>> # infer rest of the attributes
-                >>> features = infer_time_series_attributes(
-                ... df, features=partial_features, time_feature_name='date'
-                ... )
-                >>> # inferred Feature dictionary
-                >>> pprint(features)
-                ... {
-                ...     'ID': {
-                ...         'bounds': {'allow_null': True},
-                ...         'id_feature': True,
-                ...         'type': 'nominal'
-                ...     },
-                ...     'f1': {
-                ...         'bounds': {'allow_null': False, 'max': 5103.08, 'min': 20.08},
-                ...          'time_series':  { 'type': 'rate'},
-                ...          'type': 'continuous'
-                ...     },
-                ...     'f2': {
-                ...         'bounds': {'allow_null': False, 'max': 6103, 'min': 0},
-                ...         'time_series':  { 'type': 'rate'},
-                ...         'type': 'continuous'
-                ...     },
-                ...     'f3': {
-                ...         'bounds': {
-                ...             'allow_null': False,
-                ...             'max': 8103.083927575384,
-                ...             'min': 20.085536923187668},
-                ...             'time_series':  { 'type': 'rate'},
-                ...             'type': 'continuous'
-                ...         },
-                ...         'date': {
-                ...             'bounds': {
-                ...                 'allow_null': False,
-                ...                 'max': '20830808',
-                ...                 'min': '19850517'
-                ...         },
-                ...         'date_time_format': '%Y%m%d',
-                ...         'time_feature': True,
-                ...         'time_series':  { 'type': 'delta'},
-                ...         'type': 'continuous'
-                ...     }
-                ... }
+            .. note ::
+                Please refer to `kwargs` for other parameters related to
+                extended nominals.
 
-        infer_bounds : bool, default True
-            (Optional) If True, bounds will be inferred for the features if the
-            feature column has at least one non NaN value
+        datetime_feature_formats : dict, default None
+            (Optional) Dict defining a custom (non-ISO8601) datetime format and
+            an optional locale for features with datetimes.  By default datetime
+            features are assumed to be in ISO8601 format.  Non-English datetimes
+            must have locales specified.  If locale is omitted, the default
+            system locale is used. The keys are the feature name, and the values
+            are a tuple of date time format and locale string:
+
+            Examples::
+
+                {
+                    "start_date" : ("%Y-%m-%d %A %H.%M.%S", "es_ES"),
+                    "end_date" : "%Y-%m-%d"
+                }
+
+        default_time_zone : str, default None
+            (Optional) The fallback time zone for any datetime feature if one is not provided in
+            ``datetime_feature_formats`` and it is not inferred from the data. If not specified
+            anywhere, the Howso Engine will default to UTC.
 
         delta_boundaries : dict, default None
             (Optional) For time series, specify the delta boundaries in the form
@@ -509,43 +476,15 @@ class InferFeatureAttributesTimeSeries:
                         "measurement_amount": [ "measurement" ]
                     }
 
+        derived_orders : dict, default None
+            (Optional) Dict of features to the number of orders of derivatives
+            that should be derived instead of synthesized. For example, for a
+            feature with a 3rd order of derivative, setting its derived_orders
+            to 2 will synthesize the 3rd order derivative value, and then use
+            that synthed value to derive the 2nd and 1st order.
+
         id_feature_name : str or list of str default None
             (Optional) The name(s) of the ID feature(s).
-
-        time_invariant_features : list of str, default None
-            (Optional) Names of time-invariant features.
-
-        datetime_feature_formats : dict, default None
-            (Optional) Dict defining a custom (non-ISO8601) datetime format and
-            an optional locale for features with datetimes.  By default datetime
-            features are assumed to be in ISO8601 format.  Non-English datetimes
-            must have locales specified.  If locale is omitted, the default
-            system locale is used. The keys are the feature name, and the values
-            are a tuple of date time format and locale string:
-
-            Examples::
-
-                {
-                    "start_date" : ("%Y-%m-%d %A %H.%M.%S", "es_ES"),
-                    "end_date" : "%Y-%m-%d"
-                }
-
-        tight_bounds: Iterable of str, default None
-            (Optional) Set tight min and max bounds for the features
-            specified in the Iterable.
-
-        attempt_infer_extended_nominals : bool, default False
-            (Optional) If set to True, detections of extended nominals will be
-            attempted. If the detection fails, the categorical variables will
-            be set to `int-id` subtype.
-
-            .. note ::
-                Please refer to `kwargs` for other parameters related to
-                extended nominals.
-
-        nominal_substitution_config : dict of dicts, default None
-            (Optional) Configuration of the nominal substitution engine
-            and the nominal generators and detectors.
 
         include_extended_nominal_probabilities : bool, default False
             (Optional) If true, extended nominal probabilities will be appended
@@ -554,6 +493,112 @@ class InferFeatureAttributesTimeSeries:
         include_sample: bool, default False
             If True, include a ``sample`` field containing a sample of the data
             from each feature in the output feature attributes dictionary.
+
+        infer_bounds : bool, default True
+            (Optional) If True, bounds will be inferred for the features if the
+            feature column has at least one non NaN value
+
+        lags : list or dict, default None
+            (Optional) A list containing the specific indices of the desired lag
+            features to derive for each feature (not including the series time
+            feature). Specifying derived lag features for the feature specified by
+            time_feature_name must be done using a dictionary. A dictionary can be
+            used to specify a list of specific lag  indices for specific features.
+            For example: {"feature1": [1, 3, 5]} would derive three different
+            lag features for feature1. The resulting lag features hold values
+            1, 3, and 5 time steps behind the current time step respectively.
+
+            .. note ::
+                Using the lags parameter will override the num_lags parameter per
+                feature
+
+            .. note ::
+                A lag feature is a feature that provides a "lagging value" to a
+                case by holding the value of a feature from a previous time step.
+                These lag features allow for cases to hold more temporal information.
+
+        max_workers: int, default None
+            If unset or set to None (recommended), let the ProcessPoolExecutor
+            choose the best maximum number of process pool workers to process
+            columns in a multi-process fashion. In this case, if the product of the
+            data's rows and columns > 25,000,000 or if the data is time series and the
+            number of rows > 500,000 multiprocessing will be used.
+
+            If defined with an integer > 0, manually set the number of max workers.
+            Otherwise, the feature attributes will be calculated serially. Setting
+            this parameter to zero (0) will disable multiprocessing.
+
+        memory_warning_threshold : int, default 512
+            (Optional) Maximum number of bytes that a feature's per-case average can compute to
+            without raising a warning about memory usage (Pandas DataFrame only).
+
+        mode_bound_features : list of str, default None
+            (Optional) Explicit list of feature names to use mode bounds for
+            when inferring loose bounds. If None, assumes all features except the
+            time feature. A mode bound is used instead of a loose bound when the
+            mode for the feature is the same as an original bound, as it may
+            represent an application-specific min/max.
+
+        nominal_substitution_config : dict of dicts, default None
+            (Optional) Configuration of the nominal substitution engine
+            and the nominal generators and detectors.
+
+        num_lags : int or dict, default None
+            (Optional) An integer specifying the number of lag features to
+            derive for each feature (not including the series time feature).
+            Specifying derived lag features for the feature specified by
+            time_feature_name must be done using a dictionary. A dictionary can be
+            used to specify numbers of lags for specific features. Features that
+            are not specified will default to 1 lag feature.
+
+            .. note ::
+                The num_lags parameter will be overridden by the lags parameter per
+                feature.
+
+        orders_of_derivatives : dict, default None
+            (Optional) Dict of features and their corresponding order of
+            derivatives for the specified type (delta/rate). If provided will
+            generate the specified number of derivatives and boundary values. If
+            set to 0, will not generate any delta/rate features. By default all
+            continuous features have an order value of 1.
+
+        ordinal_feature_values : dict, default None
+            (optional) Dict for ordinal string features defining an ordered
+            list of string values for each feature, ordered low to high. If
+            specified will set 'type' to be 'ordinal' for all features in
+            this map.
+
+            Example::
+
+                {
+                    "grade" : [ "F", "D", "C", "B", "A" ],
+                    "size" : [ "small", "medium", "large", "huge" ]
+                }
+
+        rate_boundaries : dict, default None
+            (Optional) For time series, specify the rate boundaries in the form
+            {"feature" : {"min|max" : {order : value}}}. Works with partial values
+            by specifying only particular order of derivatives you would like to
+            overwrite. Invalid orders will be ignored.
+
+            Examples::
+
+                {
+                    "stock_value": {
+                        "min": {
+                            '0' : 0.178,
+                            '1': 3.4582e-3,
+                            '2': None
+                        }
+                    }
+                }
+
+        tight_bounds: Iterable of str, default None
+            (Optional) Set tight min and max bounds for the features
+            specified in the Iterable.
+
+        time_invariant_features : list of str, default None
+            (Optional) Names of time-invariant features.
 
         time_feature_is_universal : bool, optional
             If True, the time feature will be treated as universal and future data
@@ -592,83 +637,18 @@ class InferFeatureAttributesTimeSeries:
                     "continuous": ["feature_3", "feature_4", "feature_5"]
                 }
 
-        orders_of_derivatives : dict, default None
-            (Optional) Dict of features and their corresponding order of
-            derivatives for the specified type (delta/rate). If provided will
-            generate the specified number of derivatives and boundary values. If
-            set to 0, will not generate any delta/rate features. By default all
-            continuous features have an order value of 1.
-
-        derived_orders : dict, default None
-            (Optional) Dict of features to the number of orders of derivatives
-            that should be derived instead of synthesized. For example, for a
-            feature with a 3rd order of derivative, setting its derived_orders
-            to 2 will synthesize the 3rd order derivative value, and then use
-            that synthed value to derive the 2nd and 1st order.
-
-        mode_bound_features : list of str, default None
-            (Optional) Explicit list of feature names to use mode bounds for
-            when inferring loose bounds. If None, assumes all features except the
-            time feature. A mode bound is used instead of a loose bound when the
-            mode for the feature is the same as an original bound, as it may
-            represent an application-specific min/max.
-
-        lags : list or dict, default None
-            (Optional) A list containing the specific indices of the desired lag
-            features to derive for each feature (not including the series time
-            feature). Specifying derived lag features for the feature specified by
-            time_feature_name must be done using a dictionary. A dictionary can be
-            used to specify a list of specific lag  indices for specific features.
-            For example: {"feature1": [1, 3, 5]} would derive three different
-            lag features for feature1. The resulting lag features hold values
-            1, 3, and 5 timesteps behind the current timestep respectively.
-
-            .. note ::
-                Using the lags parameter will override the num_lags parameter per
-                feature
-
-            .. note ::
-                A lag feature is a feature that provides a "lagging value" to a
-                case by holding the value of a feature from a previous timestep.
-                These lag features allow for cases to hold more temporal information.
-
-        num_lags : int or dict, default None
-            (Optional) An integer specifying the number of lag features to
-            derive for each feature (not including the series time feature).
-            Specifying derived lag features for the feature specified by
-            time_feature_name must be done using a dictionary. A dictionary can be
-            used to specify numbers of lags for specific features. Features that
-            are not specified will default to 1 lag feature.
-
-            .. note ::
-                The num_lags parameter will be overridden by the lags parameter per
-                feature.
-
-        rate_boundaries : dict, default None
-            (Optional) For time series, specify the rate boundaries in the form
-            {"feature" : {"min|max" : {order : value}}}. Works with partial values
-            by specifying only particular order of derivatives you would like to
-            overwrite. Invalid orders will be ignored.
-
-            Examples::
-
-                {
-                    "stock_value": {
-                        "min": {
-                            '0' : 0.178,
-                            '1': 3.4582e-3,
-                            '2': None
-                        }
-                    }
-                }
-
         Returns
         -------
         FeatureAttributesBase
             A subclass of FeatureAttributesBase that extends `dict`, thus providing
             dict-like access to feature attributes and useful helper methods.
         """
-        infer = InferFeatureAttributesDataFrame(self.data)
+        if isinstance(self.data, IFACompatibleADCProtocol):
+            infer = InferFeatureAttributesAbstractData(self.data)
+        elif isinstance(self.data, pd.DataFrame):
+            infer = InferFeatureAttributesDataFrame(self.data)
+        else:
+            raise ValueError('Cannot process data: unsupported type {type(self.data)} for time-series.')
 
         if mode_bound_features is None:
             feature_names = infer._get_feature_names()
@@ -679,16 +659,19 @@ class InferFeatureAttributesTimeSeries:
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             datetime_feature_formats=datetime_feature_formats,
+            default_time_zone=default_time_zone,
             dependent_features=dependent_features,
-            features=features,
             id_feature_name=id_feature_name,
             include_extended_nominal_probabilities=include_extended_nominal_probabilities,
             include_sample=include_sample,
             infer_bounds=infer_bounds,
             max_workers=max_workers,
+            memory_warning_threshold=memory_warning_threshold,
             mode_bound_features=mode_bound_features,
             nominal_substitution_config=nominal_substitution_config,
+            ordinal_feature_values=ordinal_feature_values,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
+            time_invariant_features=time_invariant_features,
             types=types,
         )
 
@@ -721,7 +704,7 @@ class InferFeatureAttributesTimeSeries:
         # Set all non time invariant features to be `time_series` features
         for f_name, _ in features.items():
             # Mark all features which are completely NaN as time-invariant.
-            if self.data[f_name].isnull().sum() == len(self.data[f_name]):
+            if self._is_null_column(f_name):
                 time_invariant_features.append(f_name)
 
             if f_name not in time_invariant_features:
@@ -775,17 +758,20 @@ class InferFeatureAttributesTimeSeries:
             # which is not applicable to time feature.
             features[self.time_feature_name].pop('subtype', None)
 
+            time_feature_dtype = self._get_column_dtype(self.time_feature_name)
+
+            # If a datetime format is defined, ensure values can be parsed with it
             if dt_format := features[self.time_feature_name].get("date_time_format"):
-                # if a datetime format is defined, ensure values can be parsed with it
                 test_value = infer._get_random_value(self.time_feature_name, no_nulls=True)
                 if test_value is not None and not is_valid_datetime_format(test_value, dt_format):
                     raise ValueError(
                         f'The date time format "{dt_format}" does not match the data of the time feature '
                         f'"{self.time_feature_name}". Data sample: "{test_value}"')
-            elif is_string_dtype(self.data[self.time_feature_name].dtype):
+
+            elif is_string_dtype(time_feature_dtype):
                 # if the time feature has no datetime format and is stored as a string,
-                # convert to an int for comparison since it's continuous
-                self.data[self.time_feature_name] = self.data[self.time_feature_name].astype(float)
+                # convert to a float for comparison since it's continuous
+                self._cast_column(self.time_feature_name, float)
 
             # time feature cannot be null
             if 'bounds' in features[self.time_feature_name]:
@@ -793,7 +779,7 @@ class InferFeatureAttributesTimeSeries:
             else:
                 features[self.time_feature_name]['bounds'] = {'allow_null': False}
 
-        features = self._infer_delta_min_and_max(
+        features = self._infer_delta_min_max(
             features=features,
             datetime_feature_formats=datetime_feature_formats,
             id_feature_name=id_feature_name,
@@ -816,3 +802,156 @@ class InferFeatureAttributesTimeSeries:
         # Put the time_feature_name back into the kwargs dictionary.
         kwargs["time_feature_name"] = self.time_feature_name
         return SingleTableFeatureAttributes(feature_attributes, params=kwargs, unsupported=self.unsupported)
+
+    @abstractmethod
+    def _is_null_column(self, feature_name: str) -> bool:
+        """Determine whether the provided column is all null values."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _cast_column(self, feature_name: str, new_type: t.Any):
+        """Convert the column of the provided ``feature_name`` to a different dtype."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _get_column_dtype(self, feature_name: str) -> np.dtype:
+        """Get the dtype of the provided ``feature_name``."""
+        raise NotImplementedError()
+
+
+class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
+    """InferFeatureAttributesTimeSeries implementation for Pands DataFrames."""
+
+    def _infer_delta_min_max(
+        self,
+        features: dict,
+        datetime_feature_formats: t.Optional[dict] = None,
+        id_feature_name: t.Optional[str | Iterable[str]] = None,
+        orders_of_derivatives: t.Optional[dict] = None,
+        derived_orders: t.Optional[dict] = None,
+        max_workers: t.Optional[int] = None
+    ):
+        """Infer delta and rate min/max for each continuous feature and update the features dict."""
+        return self._infer_delta_min_max_from_chunk(
+            self.data,
+            features,
+            datetime_feature_formats=datetime_feature_formats,
+            id_feature_name=id_feature_name,
+            orders_of_derivatives=orders_of_derivatives,
+            derived_orders=derived_orders,
+            max_workers=max_workers,
+        )
+
+    def _cast_column(self, feature_name: str, new_type: t.Any):
+        """Convert the column of the provided ``feature_name`` to a different dtype."""
+        self.data[self.time_feature_name] = self.data[self.time_feature_name].astype(new_type)
+
+    def _is_null_column(self, feature_name: str) -> bool:
+        """Determine whether the provided column is all null values."""
+        return self.data[feature_name].isnull().sum() == len(self.data[feature_name])
+
+    def _get_column_dtype(self, feature_name: str) -> np.dtype:
+        """Get the dtype of the provided ``feature_name``."""
+        return self.data[self.time_feature_name].dtype
+
+
+class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
+    """InferFeatureAttributesTimeSeries implementation for AbstractData classes."""
+
+    @staticmethod
+    def _compute_time_series_min_max(
+        chunk_features: dict,
+        features: dict,
+        f_name: str,
+        key: str,
+        op: t.Callable,
+    ):
+        """
+        Return the min or max value between two competing time series feature attributes.
+
+        Parameters
+        ----------
+        chunk_features : dict
+            The prospective feature attributes.
+        features : dict
+            The existing feature attributes.
+        f_name : str
+            The feature to compare.
+        key : str
+            The key under the ``time_series`` attribute to compare.
+        op : Callable
+            The operation (min() or max()) to use.
+
+        Returns
+        -------
+        The value returned by op(a, b), or the prospective feature attributes' value if none currently exist,
+        or None if neither exist.
+        """
+        current_val = features[f_name].get('time_series', {}).get(key)
+        possible_val = chunk_features[f_name].get('time_series', {}).get(key)
+        if current_val and possible_val:
+            return op(current_val, possible_val)
+        elif possible_val and not current_val:
+            return possible_val
+        else:
+            return None
+
+    def _infer_delta_min_max(
+        self,
+        features: dict,
+        datetime_feature_formats: t.Optional[dict] = None,
+        id_feature_name: t.Optional[str | Iterable[str]] = None,
+        orders_of_derivatives: t.Optional[dict] = None,
+        derived_orders: t.Optional[dict] = None,
+        max_workers: t.Optional[int] = None
+    ):
+        """Infer delta and rate min/max for each continuous feature and update the features dict."""
+        feature_chunks = []
+        for chunk in self.data.yield_chunk():
+            feature_chunks.append(self._infer_delta_min_max_from_chunk(
+                chunk,
+                features,
+                datetime_feature_formats=datetime_feature_formats,
+                id_feature_name=id_feature_name,
+                orders_of_derivatives=orders_of_derivatives,
+                derived_orders=derived_orders,
+                max_workers=max_workers,
+            ))
+        # Recompute min/max across all chunks
+        for f_name in features.keys():
+            for chunk in feature_chunks:
+                rate_min = self._compute_time_series_min_max(chunk, features, f_name, 'rate_min', min)
+                rate_max = self._compute_time_series_min_max(chunk, features, f_name, 'rate_max', min)
+                delta_min = self._compute_time_series_min_max(chunk, features, f_name, 'delta_min', min)
+                delta_max = self._compute_time_series_min_max(chunk, features, f_name, 'delta_max', min)
+                if any([rate_min, rate_max, delta_min, delta_max]) and 'time_series' not in features[f_name]:
+                    features[f_name]['time_series'] = {}
+                if rate_min:
+                    features[f_name]['time_series']['rate_min'] = rate_min
+                if rate_max:
+                    features[f_name]['time_series']['rate_max'] = rate_max
+                if delta_min:
+                    features[f_name]['time_series']['delta_min'] = delta_min
+                if delta_min:
+                    features[f_name]['time_series']['delta_max'] = delta_max
+        return features
+
+    def _cast_column(self, feature_name: str, new_type: t.Any):
+        """Convert the column of the provided ``feature_name`` to a different dtype."""
+        raise ValueError('Invalid time feature data type: must be numeric or datetime.')
+
+    def _is_null_column(self, feature_name: str) -> bool:
+        """Determine whether the provided column is all null values."""
+        return self.data.get_num_cases == 0
+
+    def _get_column_dtype(self, feature_name: str) -> np.dtype:
+        """Get the dtype of the provided ``feature_name``."""
+        dtype = self.data.get_column_dtype(feature_name)
+        self.data
+        if isinstance(dtype, str):
+            try:
+                dtype = np.dtype(dtype)
+            except Exception:
+                # Leave as-is
+                pass
+        return dtype

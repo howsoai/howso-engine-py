@@ -27,6 +27,7 @@ from howso.client.protocols import (
     LocalSaveableProtocol,
     ProjectClient,
 )
+from howso.client.schemas import AggregateReaction
 from howso.client.schemas import Project as BaseProject
 from howso.client.schemas import Reaction
 from howso.client.schemas import Session as BaseSession
@@ -48,9 +49,11 @@ from howso.client.typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
+    SortByFeature,
     TabularData2D,
     TabularData3D,
     TargetedModel,
+    ValueMasses,
 )
 from howso.engine.client import get_client
 from howso.engine.project import Project
@@ -765,8 +768,9 @@ class Trainee(BaseTrainee):
         conviction_upper_threshold: t.Optional[float] = None,
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
-        min_num_cases: int = 1_000,
-        max_num_cases: int = 500_000,
+        influence_weight_entropy_sample_size: int = 2_000,
+        min_num_cases: int = 10_000,
+        max_num_cases: int = 200_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
@@ -798,12 +802,15 @@ class Trainee(BaseTrainee):
         batch_size: number, default 2,000
             Number of cases in a batch to consider for ablation prior to training and
             to recompute influence weight entropy.
-        min_num_cases : int, default 1,000
+        min_num_cases : int, default 10,000
             The threshold ofr the minimum number of cases at which the model should auto-ablate.
-        max_num_cases: int, default 500,000
+        max_num_cases: int, default 200,000
             The threshold of the maximum number of cases at which the model should auto-reduce
         exact_prediction_features : Collection of str, optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
+        influence_weight_entropy_sample_size : int, default 2,000
+            Maximum number of cases to sample without replacement for computing the influence
+            weight entropy threshold.
         residual_prediction_features : Collection of str, optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
@@ -851,6 +858,7 @@ class Trainee(BaseTrainee):
                 conviction_upper_threshold=conviction_upper_threshold,
                 delta_threshold_map=delta_threshold_map,
                 exact_prediction_features=exact_prediction_features,
+                influence_weight_entropy_sample_size=influence_weight_entropy_sample_size,
                 min_num_cases=min_num_cases,
                 max_num_cases=max_num_cases,
                 reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
@@ -972,12 +980,16 @@ class Trainee(BaseTrainee):
         bypass_calculate_feature_residuals: t.Optional[bool] = None,
         bypass_calculate_feature_weights: t.Optional[bool] = None,
         bypass_hyperparameter_analysis: t.Optional[bool] = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
         k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
-        num_samples: t.Optional[int] = None,
+        num_deviation_samples: t.Optional[int] = None,
+        num_feature_probability_samples: t.Optional[int] = None,
         analysis_sub_model_size: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
@@ -1003,6 +1015,21 @@ class Trainee(BaseTrainee):
             When True, bypasses calculation of feature weights.
         bypass_hyperparameter_analysis : bool, default False
             When True, bypasses hyperparameter analysis.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically
+            sampling robust residuals used to determine feature probabilities.
+            Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to
+            dynamically limit the total number of samples used to determine
+            feature probabilities. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less
+            than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of
+            samples used to determine feature probabilities.
+            Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_feature_probability_samples`` instead of converging.
         dt_values : Collection of float, optional
             The dt value hyperparameters to analyze with.
         inverse_residuals_as_weights : bool, default False
@@ -1017,10 +1044,17 @@ class Trainee(BaseTrainee):
             treats that inner list as a tuple of: influence cutoff percentage,
             minimum K, maximum K and extra K.
         num_analysis_samples : int, optional
-            Specifies the number of observations to be considered for
-            analysis.
-        num_samples : int, optional
-            Number of samples used in calculating feature residuals.
+            If the dataset size to too large, analyze on (randomly sampled)
+            subset of data. The `num_analysis_samples` specifies the number of
+            samples used for grid search for the targeted flow. Only applies
+            for k_folds = 1. Defaults to 1000 if unspecified.
+        num_deviation_samples  : int, optional
+            The number of samples used to approximate deviations and residuals for
+            both targetless and targeted flows. Defaults to 1000 if unspecified.
+        num_feature_probability_samples : int, optional
+            Number of samples to use to compute feature probabilities, only
+            applies to targetless flow. Defaults to the number of features
+            multiplied by :math:`10000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
         analysis_sub_model_size : int, optional
             Number of samples to use for analysis. The rest will be
             randomly held-out and not included in calculations.
@@ -1069,13 +1103,17 @@ class Trainee(BaseTrainee):
                 bypass_calculate_feature_residuals=bypass_calculate_feature_residuals,  # noqa: E501
                 bypass_calculate_feature_weights=bypass_calculate_feature_weights,
                 bypass_hyperparameter_analysis=bypass_hyperparameter_analysis,  # noqa: E501
+                convergence_min_size=convergence_min_size,
+                convergence_samples_growth_rate=convergence_samples_growth_rate,
+                convergence_threshold=convergence_threshold,
                 dt_values=dt_values,
                 use_case_weights=use_case_weights,
                 inverse_residuals_as_weights=inverse_residuals_as_weights,
                 k_folds=k_folds,
                 k_values=k_values,
                 num_analysis_samples=num_analysis_samples,
-                num_samples=num_samples,
+                num_deviation_samples=num_deviation_samples,
+                num_feature_probability_samples=num_feature_probability_samples,
                 analysis_sub_model_size=analysis_sub_model_size,
                 p_values=p_values,
                 rebalance_features=rebalance_features,
@@ -1177,6 +1215,7 @@ class Trainee(BaseTrainee):
         allow_nulls: bool = False,
         batch_size: t.Optional[int] = None,
         case_indices: t.Optional[CaseIndices] = None,
+        constraints: t.Optional[Mapping] = None,
         context_features: t.Optional[Collection[str]] = None,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
@@ -1186,6 +1225,7 @@ class Trainee(BaseTrainee):
         details: t.Optional[Mapping[str, t.Any]] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
+        feature_pre_process_code_map: t.Optional[Mapping] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -1198,6 +1238,7 @@ class Trainee(BaseTrainee):
         ordered_by_specified_features: bool = False,
         preserve_feature_values: t.Optional[Collection[str]] = None,
         progress_callback: t.Optional[Callable] = None,
+        return_context_values: bool = False,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
@@ -1246,6 +1287,25 @@ class Trainee(BaseTrainee):
             is the original 0-based index of the case as it was trained into
             the session. If this case does not exist, discriminative react
             outputs null, generative react ignores it.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         context_features : list of str, optional
             Feature names to treat as context features during react.
             If `contexts` is a DataFrame, overrides what columns will be used
@@ -1311,7 +1371,7 @@ class Trainee(BaseTrainee):
                 is also used.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -1429,7 +1489,8 @@ class Trainee(BaseTrainee):
                 features of the reacted case to determine that region.
                 Computed as: region feature residual divided by case feature
                 residual. Uses full calculations, which uses leave-one-out
-                for cases for computations.
+                for cases for computations. Also outputs the predicted values
+                for each feature under the key, "predicted_values_for_case".
             - feature_full_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
@@ -1441,7 +1502,8 @@ class Trainee(BaseTrainee):
                 each feature, while using the others to predict the left out
                 feature with their corresponding values from this case. Uses
                 full calculations, which uses leave-one-out for cases for
-                computations.
+                computations. Also outputs the predicted values for each feature
+                under the key, "predicted_values_for_case".
             - feature_robust_accuracy_contributions : bool, optional
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature given the context. Uses only
@@ -1540,7 +1602,7 @@ class Trainee(BaseTrainee):
             - prediction_stats : bool, optional
                 When true outputs feature prediction stats for all (context
                 and action) features locally around the prediction. The stats
-                returned  are ("r2", "rmse", "adjusted_smap", "smape", "spearman_coeff", "precision",
+                returned  are ("r2", "rmse", "adjusted_smape", "smape", "spearman_coeff", "precision",
                 "recall", "accuracy", "mcc", "confusion_matrix", "missing_value_accuracy").
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
@@ -1600,6 +1662,13 @@ class Trainee(BaseTrainee):
                     "feature_b" : {"min": 1, "max": 5},
                     "feature_c": {"max": 1}
                 }
+
+        feature_pre_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the context feature they are mapped from.
+            The custom code will have access to all pre-processed encoded context
+            feature values and the resulting value of the code should also be
+            in the feature's encoded format.
 
         feature_post_process_code_map : dict of str, optional
             A mapping of feature name to custom code strings that will be
@@ -1691,6 +1760,10 @@ class Trainee(BaseTrainee):
             batched call to react and at the end of reacting. The method is
             given a ProgressTimer containing metrics on the progress and timing
             of the react operation, and the batch result.
+        return_context_values : bool, default False
+            When True, context values and features are included in the details
+            dict of the response under "context_values" and "context_features"
+            keys.
         substitute_output : bool, default True
             When False, will not substitute categorical feature values. Only
             applicable if a substitution value map has been set.
@@ -1727,6 +1800,7 @@ class Trainee(BaseTrainee):
             allow_nulls=allow_nulls,
             batch_size=batch_size,
             case_indices=case_indices,
+            constraints=constraints,
             contexts=contexts,
             context_features=context_features,
             derived_action_features=derived_action_features,
@@ -1735,6 +1809,7 @@ class Trainee(BaseTrainee):
             details=details,
             exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
             feature_bounds_map=feature_bounds_map,
+            feature_pre_process_code_map=feature_pre_process_code_map,
             feature_post_process_code_map=feature_post_process_code_map,
             generate_new_cases=generate_new_cases,
             goal_features_map=goal_features_map,
@@ -1749,6 +1824,7 @@ class Trainee(BaseTrainee):
             post_process_values=post_process_values,
             preserve_feature_values=preserve_feature_values,
             progress_callback=progress_callback,
+            return_context_values=return_context_values,
             substitute_output=substitute_output,
             suppress_warning=suppress_warning,
             use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
@@ -1762,6 +1838,7 @@ class Trainee(BaseTrainee):
         *,
         action_features: t.Optional[Collection[str]] = None,
         batch_size: t.Optional[int] = None,
+        constraints: t.Optional[Mapping] = None,
         continue_series: bool = False,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
@@ -1794,6 +1871,7 @@ class Trainee(BaseTrainee):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
+        use_all_features: bool = True,
         use_case_weights: t.Optional[bool] = None,
         use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
@@ -1814,6 +1892,25 @@ class Trainee(BaseTrainee):
         batch_size: int, optional
             Define the number of series to react to at once. If left
             unspecified, the batch size will be determined automatically.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         continue_series : bool, default False
             When True will attempt to continue existing series instead of
             starting new series. If true, either ``series_context_values`` or
@@ -1837,7 +1934,7 @@ class Trainee(BaseTrainee):
 
                 - series_residuals : bool, optional
                     If True, outputs the mean absolute deviation (MAD) of each continuous
-                    feature as the estimated uncertainty for each timestep of each
+                    feature as the estimated uncertainty for each time-step of each
                     generated series based on internal generative forecasts.
                 - series_residuals_num_samples : int, optional
                     If specified, will set the number of generative forecasts used to estimate
@@ -1857,8 +1954,8 @@ class Trainee(BaseTrainee):
             resulting value will be used as part of the context for following
             action features. The custom code will have access to all context
             feature values and previously generated action feature values of
-            the timestep being generated, as well as the feature values of all
-            previously generated timesteps.
+            the time-step being generated, as well as the feature values of all
+            previously generated time-steps.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
             Time-series only. Must provide either one for all series, or
@@ -1918,7 +2015,7 @@ class Trainee(BaseTrainee):
         series_id_features: list of str, optional
             The names of the features used to uniquely identify the cases that make up a series
             trained into the Trainee. The order of feature names must correspond to the order
-            of values given in the sublists of ``series_id_values``.
+            of values given in the sub-lists of ``series_id_values``.
         series_id_values: list of list of object, optional
             A 2D list of ID feature values that each uniquely identify the cases of a trained
             series. Used in combination with ``continue_series`` to select trained series to
@@ -1949,8 +2046,13 @@ class Trainee(BaseTrainee):
         suppress_warning : bool, default False
             See parameter ``suppress_warning`` in :meth:`react`.
         use_aggregation_based_differential_privacy : bool, default False
-            See paramater ``use_aggregation_based_differential_privacy`` in
+            See parameter ``use_aggregation_based_differential_privacy`` in
             :meth:`react`.
+        use_all_features: bool, default True
+            If True, values are generated for every trained feature and derived feature
+            internally during the generation of the series. If False, then values are only
+            generated for features specified as action features and the features necessary
+            to derive them, reducing the expected runtime but possibly reducing accuracy.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
         use_differential_privacy : bool, default True
@@ -1973,6 +2075,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 action_features=action_features,
                 batch_size=batch_size,
+                constraints=constraints,
                 continue_series=continue_series,
                 derived_action_features=derived_action_features,
                 derived_context_features=derived_context_features,
@@ -2005,6 +2108,7 @@ class Trainee(BaseTrainee):
                 substitute_output=substitute_output,
                 suppress_warning=suppress_warning,
                 use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
+                use_all_features=use_all_features,
                 use_case_weights=use_case_weights,
                 use_differential_privacy=use_differential_privacy,
                 weight_feature=weight_feature,
@@ -2017,6 +2121,7 @@ class Trainee(BaseTrainee):
         action_features: Collection[str],
         *,
         batch_size: t.Optional[int] = None,
+        constraints: t.Optional[Mapping] = None,
         context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
         initial_batch_size: t.Optional[int] = None,
@@ -2046,6 +2151,25 @@ class Trainee(BaseTrainee):
         batch_size: int, optional
             Define the number of series to react to at once. If left
             unspecified, the batch size will be determined automatically.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         context_features : collection of str, optional
             List of features names specifying what features will be used as contexts
             to predict the values of the action features.
@@ -2120,6 +2244,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 action_features=action_features,
                 batch_size=batch_size,
+                constraints=constraints,
                 context_features=context_features,
                 desired_conviction=desired_conviction,
                 use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
@@ -2182,7 +2307,7 @@ class Trainee(BaseTrainee):
 
     def remove_cases(
         self,
-        num_cases: int,
+        num_cases: t.Optional[int] = None,
         *,
         case_indices: t.Optional[CaseIndices] = None,
         condition: t.Optional[Mapping[str, t.Any]] = None,
@@ -2198,8 +2323,11 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        num_cases : int
-            The number of cases to remove; minimum 1 case must be removed.
+        num_cases : int, optional
+            The limit on the number of cases to remove. If ``num_cases`` is
+            unspecified and ``case_indices`` is unspecified, then up to
+            :math:``k`` cases will be removed if ``precision`` is "similar" or
+            no limit if ``precision`` is "exact".
             Ignored if case_indices is specified.
         case_indices : list of tuples
             A list of tuples containing session ID and session training index
@@ -2209,19 +2337,22 @@ class Trainee(BaseTrainee):
             provided conditions. Ignored if case_indices is specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
 
             .. TIP::
-                Example 1 - Remove all values belonging to ``feature_name``::
+                Example 1 - Remove all cases with missing values for ``feature_name``::
 
                     condition = {"feature_name": None}
 
@@ -2245,7 +2376,7 @@ class Trainee(BaseTrainee):
             When specified, will distribute the removed cases' weights
             from this feature into their neighbors.
         precision : {"exact", "similar"}, optional
-            The precision to use when removing the cases.If not specified
+            The precision to use when removing the cases. If not specified
             "exact" will be used. Ignored if case_indices is specified.
 
         Returns
@@ -2303,13 +2434,16 @@ class Trainee(BaseTrainee):
             ``case_indices`` are specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2447,7 +2581,8 @@ class Trainee(BaseTrainee):
         session: t.Optional[str | BaseSession] = None,
         condition: t.Optional[Mapping[str, t.Any]] = None,
         num_cases: t.Optional[int] = None,
-        precision: t.Optional[Precision] = None
+        precision: t.Optional[Precision] = None,
+        sort_by: t.Optional[Collection[SortByFeature]] = None,
     ) -> DataFrame:
         """
         Get the trainee's cases.
@@ -2495,13 +2630,16 @@ class Trainee(BaseTrainee):
             provided conditions.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2512,15 +2650,15 @@ class Trainee(BaseTrainee):
             .. TIP::
                 Example 1 - Retrieve all values belonging to ``feature_name``::
 
-                    criteria = {"feature_name": None}
+                    condition = {"feature_name": None}
 
                 Example 2 - Retrieve cases that have the value 10::
 
-                    criteria = {"feature_name": 10}
+                    condition = {"feature_name": 10}
 
                 Example 3 - Retrieve cases that have a value in range [10, 20]::
 
-                    criteria = {"feature_name": [10, 20]}
+                    condition = {"feature_name": [10, 20]}
 
                 Example 4 - Retrieve cases that match one of ['a', 'c', 'e']::
 
@@ -2528,7 +2666,7 @@ class Trainee(BaseTrainee):
 
                 Example 5 - Retrieve cases using session name and index::
 
-                    criteria = {'.session':'your_session_name',
+                    condition = {'.session':'your_session_name',
                                 '.session_training_index': 1}
 
         num_cases : int, default None
@@ -2539,6 +2677,8 @@ class Trainee(BaseTrainee):
             The precision to use when retrieving the cases via condition.
             Options are 'exact' or 'similar'. If not specified, "exact" will
             be used.
+        sort_by : Collection of SortByFeature, optional
+            Feature sorting criteria, in order of precedence, to be applied to the resulting cases.
 
         Returns
         -------
@@ -2570,6 +2710,7 @@ class Trainee(BaseTrainee):
                 condition=condition,
                 num_cases=num_cases,
                 precision=precision,
+                sort_by=sort_by,
             )
         else:
             raise AssertionError("Client must have the 'get_cases' method.")
@@ -2661,13 +2802,16 @@ class Trainee(BaseTrainee):
             the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2732,13 +2876,16 @@ class Trainee(BaseTrainee):
             in the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -2767,7 +2914,7 @@ class Trainee(BaseTrainee):
                 )
                 self._features = self.client.resolve_feature_attributes(self.id)
             else:
-                raise ValueError("Trainee ID is needed for 'get_extreme_cases'.")
+                raise ValueError("Trainee ID is needed for 'remove_feature'.")
         else:
             raise AssertionError("Client must have the 'remove_feature' method.")
 
@@ -2879,15 +3026,18 @@ class Trainee(BaseTrainee):
 
     def react_group(
         self,
-        new_cases: TabularData3D,
         *,
+        case_indices: t.Optional[CaseIndices] = None,
+        conditions: t.Optional[list[Mapping]] = None,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
+        new_cases: t.Optional[TabularData3D] = None,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
+        similarity_conviction: bool = False,
         use_case_weights: t.Optional[bool] = None,
         features: t.Optional[Collection[str]] = None,
         weight_feature: t.Optional[str] = None,
@@ -2900,6 +3050,33 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
+        case_indices: list of lists of tuples of {str, int}, optional
+            A list of lists of case indices tuples containing the session ID and
+            the session training indices that uniquely identify trained cases.
+            Each sublist defines a set of trained cases to react to. Only one of
+            ``case_indices``, ``conditions``, or ``new_cases`` may be specified.
+        conditions: list of Mapping, optional
+            A list of mappings that define conditions which will select sets of
+            trained cases to react to. Only one of ``case_indices``,
+            ``conditions``, or ``new_cases`` may be specified.
+
+            Each condition mapping will select trained cases that meet all the
+            provided conditions.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         distance_contributions : bool, default False
             Calculate and output distance contribution ratios in
             the output dict for each case.
@@ -2917,9 +3094,13 @@ class Trainee(BaseTrainee):
         kl_divergence_removal : bool, default False
             Calculate and output KL divergence of removing the
             specified cases.
-        new_cases : list of DataFrame or 3-dimensional list of object
-            Specify a **set** using a list of cases to compute the conviction
-            of groups of cases as shown in the following example.
+        new_cases : list of DataFrame or 3-dimensional list of object, optional
+            Specify a **set** using a list of cases to compute the conviction of
+            groups of cases as shown in the following example. If given as a list,
+            feature values in each list representing a case should be ordered
+            following the order of feature names given to the "features"
+            parameter. Only one of ``case_indices``, ``conditions``, or
+            ``new_cases`` may be specified.
 
             Example::
 
@@ -2932,6 +3113,9 @@ class Trainee(BaseTrainee):
             If true will output :math:`p` value of addition.
         p_value_of_removal : bool, default False
             If true will output :math:`p` value of removal.
+        similarity_conviction : bool, default False
+            If true will output the mean similarity conviction of the group's
+            cases.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
@@ -2949,6 +3133,8 @@ class Trainee(BaseTrainee):
             return self.client.react_group(
                 trainee_id=self.id,
                 new_cases=new_cases,
+                case_indices=case_indices,
+                conditions=conditions,
                 features=features,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
@@ -2956,6 +3142,7 @@ class Trainee(BaseTrainee):
                 kl_divergence_removal=kl_divergence_removal,
                 p_value_of_addition=p_value_of_addition,
                 p_value_of_removal=p_value_of_removal,
+                similarity_conviction=similarity_conviction,
                 distance_contributions=distance_contributions,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
@@ -3038,13 +3225,16 @@ class Trainee(BaseTrainee):
             for.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3077,15 +3267,117 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_marginal_stats' method.")
 
+    @t.overload
+    def get_value_masses(  # pyright: ignore[reportOverlappingOverload]
+        self,
+        features: str,
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> ValueMasses:
+        ...
+
+    @t.overload
+    def get_value_masses(
+        self,
+        features: Collection[str],
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> dict[str, ValueMasses]:
+        ...
+
+    def get_value_masses(
+        self,
+        features: str | Collection[str],
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> ValueMasses | dict[str, ValueMasses]:
+        """
+        Get the unique values and their respective masses for each specified feature.
+
+        Parameters
+        ----------
+        features : str | Collection[str]
+            The feature names for which to compute unique value masses.
+        condition : Mapping or None, optional
+            A condition map to select which cases to compute value masses
+            for.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        minimum_mass_threshold : float, default 0.0
+            The minimum mass a feature value must possess to be returned in the
+            collection of value masses. If the given value is greater than zero,
+            the sum of the omitted feature value masses is returned under a
+            "remaining" key for each feature.
+        precision : str, default "exact"
+            The precision to use when selecting cases with ``condition``.
+            Options are 'exact' or 'similar'. Only used if `condition` is not
+            None.
+        weight_feature : str, optional
+            When specified, will return masses based on weights stored
+            in this weight_feature.
+
+        Returns
+        -------
+        ValueMasses | dict[str, ValueMasses]
+            If only a single feature is given, then a single dictionary
+            describing the value masses is returned, otherwise a dict is
+            returned with value masses for each specified feature. In the
+            per-feature dict, "values" maps to a DataFrame where each row
+            contains a unique feature value and its mass. When
+            ``minimum_mass_threshold`` is greater than zero, "remaining" maps
+            to a single value that is the sum of all omitted feature value
+            masses.
+        """
+        if isinstance(self.client, HowsoPandasClientMixin):
+            value_masses_response =  self.client.get_value_masses(
+                self.id,
+                features=[features] if isinstance(features, str) else features,
+                condition=condition,
+                minimum_mass_threshold=minimum_mass_threshold,
+                precision=precision,
+                weight_feature=weight_feature
+            )
+            if isinstance(features, str):
+                # Single feature flow
+                return value_masses_response[features]
+            else:
+                return value_masses_response
+
+        else:
+            raise AssertionError("Client must have the `get_value_masses` method.")
+
     def react_into_features(
         self,
         *,
-        analyze: bool = None,
+        analyze: t.Optional[bool] = None,
         distance_contribution: str | bool = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,
         features: t.Optional[Collection[str]] = None,
         influence_weight_entropy: str | bool = False,
+        overwrite: bool = False,
         p_value_of_addition: str | bool = False,
         p_value_of_removal: str | bool = False,
         similarity_conviction: str | bool = False,
@@ -3118,6 +3410,10 @@ class Trainee(BaseTrainee):
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
             'influence_weight_entropy'.
+        overwrite: bool, default False
+            When true will forcibly overwrite previously stored values.
+            Default is false, will error out if trying to
+			react_into_features for a feature that already exists.
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition
             values. If set to True the values will be stored to the feature
@@ -3146,6 +3442,7 @@ class Trainee(BaseTrainee):
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
                 influence_weight_entropy=influence_weight_entropy,
+                overwrite=overwrite,
                 p_value_of_addition=p_value_of_addition,
                 p_value_of_removal=p_value_of_removal,
                 similarity_conviction=similarity_conviction,
@@ -3153,19 +3450,23 @@ class Trainee(BaseTrainee):
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
             )
+            self._features = self.client.resolve_feature_attributes(self.id)
         else:
             raise AssertionError("Client must have the 'react_into_features' method.")
 
     def react_aggregate(
         self,
         *,
-        action_feature: t.Optional[str] = None,
         action_features: t.Optional[Collection[str]] = None,
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         details: t.Optional[dict] = None,
-        features_to_derive: t.Optional[Collection[[str]]] = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
+        features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
+        forecast_window_length: t.Optional[float] = None,
         goal_dependent_features: t.Optional[Collection[str]] = None,
         goal_features_map: t.Optional[Mapping] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
@@ -3183,7 +3484,7 @@ class Trainee(BaseTrainee):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> dict[str, dict[str, float | dict[str, float]]]:
+    ) -> AggregateReaction:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -3191,11 +3492,6 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        action_feature : str, optional
-            Name of target feature for which to do computations. If ``prediction_stats_action_feature``
-            and ``feature_influences_action_feature`` are not provided, they will default to this value.
-            If ``feature_influences_action_feature`` is not provided and feature influences ``details`` are
-            selected, this feature must be provided.
         action_features : iterable of str, optional
             List of feature names to compute any requested residuals or prediction statistics for. If unspecified,
             the value used for context features will be used.
@@ -3221,25 +3517,23 @@ class Trainee(BaseTrainee):
                 reacted to while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
-                        - None
+                        - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
                         range. Only applicable to continuous and numeric ordinal
-                        features.
+                        features. Either the lower bound or upper bound can be
+                        None to express an open bound. If both bounds are None,
+                        then all cases with non-missing values are selected.
                         - An array of string values, must match any of these values
                         exactly. Only applicable to nominal and string ordinal
                         features.
-            - action_num_cases : int, optional
-                The maximum amount of cases to use to calculate prediction stats.
-                If not specified, the limit will be k cases if precision is
-                "similar", or 1000 cases if precision is "exact". Works with or
-                without ``action_condition``.
-                -If ``action_condition`` is set:
-                    If None, will be set to k if precision is "similar" or no limit if precision is "exact".
-                - If ``action_condition`` is not set:
-                    If None, will be set to the Howso default limit of 2000.
+            - action_num_samples : int, optional
+                The maximum number of action cases used in calculating conditional prediction stats.
+                If ``action_condition`` is set and no value is specified, will use k if precision is "similar" or
+                no limit if precision is "exact". If ``action_condition`` is not set and no value is specified,
+                will be set to the default limit of 2000.
             - action_condition_precision : {"exact", "similar"}, optional
                 The precision to use when selecting cases with the ``action_condition``.
                 If not specified "exact" will be used. Only used if ``action_condition``
@@ -3249,17 +3543,19 @@ class Trainee(BaseTrainee):
                 available to make reactions while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
-                        - None
+                        - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
                         range. Only applicable to continuous and numeric ordinal
-                        features.
+                        features. Either the lower bound or upper bound can be
+                        None to express an open bound. If both bounds are None,
+                        then all cases with non-missing values are selected.
                         - An array of string values, must match any of these values
                         exactly. Only applicable to nominal and string ordinal
                         features.
-            - context_precision_num_cases : int, optional
+            - context_condition_num_samples : int, optional
                 Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
                 If None, will be set to k.
             - context_condition_precision : {"exact", "similar"}, optional
@@ -3272,9 +3568,9 @@ class Trainee(BaseTrainee):
                 and return the mean absolute error.
             - feature_full_accuracy_contributions : bool, optional
                 When True will compute accuracy contributions for each context
-                feature at predicting the action feature. Drop each feature and
-                use the full set of remaining context features for each
-                prediction.
+                feature at predicting the ``feature_influences_action_feature``.
+                Drop each feature and use the full set of remaining context features for
+                each prediction.
             - feature_full_accuracy_contributions_permutation : bool, optional
                 Compute accuracy contributions by scrambling each feature and
                 using the full set of remaining context features for each
@@ -3282,8 +3578,8 @@ class Trainee(BaseTrainee):
             - feature_full_prediction_contributions : bool, optional
                 For each feature in ``context_features``, use the full set of all other
                 context features to compute the mean absolute delta between
-                prediction of action feature with and without the context features
-                in the model. Returns the mean absolute delta
+                prediction of ``feature_influences_action_feature`` with and without
+                the context features in the model. Returns the mean absolute delta
                 under the key 'feature_full_prediction_contributions' and returns the mean
                 delta under the key 'feature_full_directional_prediction_contributions'.
             - feature_full_residuals : bool, optional
@@ -3302,8 +3598,8 @@ class Trainee(BaseTrainee):
             - feature_robust_prediction_contributions : bool, optional
                 For each feature in ``context_features``, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
-                delta between prediction of the action feature with and without the
-                context features in the model. Returns the mean absolute delta
+                delta between prediction of ``feature_influences_action_feature`` with
+                and without the context features in the model. Returns the mean absolute delta
                 under the key 'feature_robust_prediction_contributions' and returns the mean
                 delta under the key 'feature_robust_directional_prediction_contributions'.
             - feature_robust_residuals : bool, optional
@@ -3344,16 +3640,37 @@ class Trainee(BaseTrainee):
                   continuous features only. Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
                   actual value. The minimum gap for each feature is the smallest difference between two values
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
+            - estimated_residual_lower_bound : bool, optional
+                When True, computes and outputs estimated lower bound of residuals for specified action features.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically sampling robust
+            residuals used to determine feature accuracy contributions. Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to dynamically limit the total number of
+            samples used to determine robust feature accuracy contributions. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of samples used to determine robust
+            accuracy contributions. Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_robust_accuracy_contributions_samples`` instead of converging.
         features_to_derive: list of str, optional
             List of feature names whose values should be derived rather than interpolated from influential
             cases when predicted. If unspecified, then the features that have derivation logic defined will
             automatically be chosen to be derived. Specifying an empty list will ensure that all features
             are interpolated rather than derived.
         feature_influences_action_feature : str, optional
-            When feature influences such as contributions and mda, use this feature as
-            the action feature.  If not provided, will default to the ``action_feature`` if provided.
-            If ``action_feature`` is not provided and feature influences ``details`` are
-            selected, this feature must be provided.
+            When computing feature influences such as accuracy and prediction contributions, use this feature as
+            the action feature.  If feature influences ``details`` are selected, this feature must be provided unless
+            selecting 'feature_robust_accuracy_contributions'. If 'feature_robust_accuracy_contributions' is selected,
+            not providing this feature will return a matrix where each feature is used as an action feature. However,
+            providing this feature if 'feature_robust_accuracy_contributions' is selected is still accepted, and will
+            return just the feature influences for the selected feature.
+        forecast_window_length : float, optional
+            A value specifying a length of time over which to measure the accuracy of forecasts. When
+            specified, returned prediction statistics and full residuals will be measuring the accuracy
+            of forecasts of this specified length. The given value should be on the scale as the Trainee's
+            time feature (seconds when the time feature uses datetime strings). When evaluating forecasts,
+            the error of the series ID features and time feature will not be evaluated nor returned.
         goal_dependent_features : list of str, optional
             A list of features that will not be ignored in the goal-biased sampling process used when
             ``goal_features_map`` is specified. Specifically, when the similar cases are ranked by
@@ -3387,8 +3704,9 @@ class Trainee(BaseTrainee):
                 }
         hyperparameter_param_path : Collection of str, optional.
             Full path for hyperparameters to use for computation. If specified
-            for any residual computations, takes precedence over action_feature
-            parameter.  Can be set to a 'paramPath' value from the results of
+            for any residual computations, takes precedence over
+            ``prediction_stats_action_feature`` and ``feature_influences_action_feature``
+            parameters.  Can be set to a 'paramPath' value from the results of
             'get_params()' for a specific set of hyperparameters.
         num_robust_accuracy_contributions_permutation_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
@@ -3397,8 +3715,7 @@ class Trainee(BaseTrainee):
         num_robust_accuracy_contributions_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions. Defaults to the
-            lesser value of either 10,000 or the number of cases multiplied by
-            2^(number of features) when unspecified.
+            smaller of 150000 or (6321 * number of context features).
         num_robust_influence_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions and robust prediction
@@ -3435,19 +3752,17 @@ class Trainee(BaseTrainee):
         num_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
-            If specified overrides sample_model_fraction.```
+            If specified overrides ``sample_model_fraction``.
         robust_hyperparameters : bool, optional
             When specified, will attempt to return residuals that were
             computed using hyperparameters with the specified robust or
             non-robust type.
         prediction_stats_action_feature : str, optional
             When calculating residuals and prediction stats, uses this target features's
-            hyperparameters. The trainee must have been analyzed with this feature as the
-            action feature first. If both ``prediction_stats_action_feature`` and
-            ``action_feature`` are not provided, by default residuals and prediction
-            stats uses targetless hyperparameters. If "action_feature" is provided,
-            and this value is not provided, will default to ``action_feature``. Targetless
-            hyperparameters can also be selected with an empty string: "".
+            hyperparameters. The trainee should have been analyzed with this feature as the
+            action feature first. If not provided, by default residuals and prediction
+            stats uses targetless hyperparameters. Targetless hyperparameters may also
+            be selected using an empty string: "".
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
@@ -3466,20 +3781,22 @@ class Trainee(BaseTrainee):
 
         Returns
         -------
-        dict[str, dict[str, float | dict[str, float]]]
-            A map of detail names to maps of feature names to stat values or
-            another map of feature names to stat values.
+        AggregateReaction
+            A mapping of detail names to the metric results.
         """
-        if isinstance(self.client, AbstractHowsoClient):
+        if isinstance(self.client, HowsoPandasClientMixin):
             return self.client.react_aggregate(
                 trainee_id=self.id,
-                action_feature=action_feature,
                 action_features=action_features,
                 context_features=context_features,
                 confusion_matrix_min_count=confusion_matrix_min_count,
                 details=details,
+                convergence_min_size=convergence_min_size,
+                convergence_samples_growth_rate=convergence_samples_growth_rate,
+                convergence_threshold=convergence_threshold,
                 features_to_derive=features_to_derive,
                 feature_influences_action_feature=feature_influences_action_feature,
+                forecast_window_length=forecast_window_length,
                 goal_dependent_features=goal_dependent_features,
                 goal_features_map=goal_features_map,
                 hyperparameter_param_path=hyperparameter_param_path,
@@ -3500,16 +3817,6 @@ class Trainee(BaseTrainee):
             )
         else:
             raise AssertionError("Client must have the 'react_aggregate' method.")
-
-    def get_prediction_stats(self, *args, **kwargs) -> DataFrame:
-        """Calls :meth:`react_aggregate` and returns the results as a `DataFrame`."""
-        if (
-            hasattr(self.client, "get_prediction_stats") and
-            isinstance(self.client.get_prediction_stats, t.Callable)
-        ):
-            return self.client.get_prediction_stats(self.id, *args, **kwargs)
-        else:
-            raise AssertionError("Client must have the `get_prediction_stats` method.")
 
     def get_params(
         self,
@@ -4157,6 +4464,8 @@ def load_trainee(
     if not status.loaded:
         status_msg = status.message or "An unknown error occurred"
         raise HowsoError(f'Failed to load Trainee file "{file_path.as_posix()}": {status_msg}')
+
+    client.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
 
     base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore reportPrivateUsage
     client.trainee_cache.set(base_trainee)

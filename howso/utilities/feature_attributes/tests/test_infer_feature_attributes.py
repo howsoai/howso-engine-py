@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
+from typing import Iterable
 import warnings
 
 from howso.utilities.feature_attributes import infer_feature_attributes
@@ -27,6 +28,7 @@ else:
 cwd = Path(__file__).parent.parent.parent.parent
 iris_path = Path(cwd, 'utilities', 'tests', 'data', 'iris.csv')
 int_path = Path(cwd, 'utilities', 'tests', 'data', 'integers.csv')
+nypd_arrest_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet'))
 stock_path = Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv')
 ts_path = Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv')
 
@@ -90,51 +92,6 @@ def test_infer_features_attributes():
 
 
 @pytest.mark.parametrize(
-    "features, max_workers",
-    [
-        (features_1, 0),
-        (features_2, 0),
-        (features_3, 0),
-        (features_4, 0),
-        (features_1, 2),
-        (features_2, 2),
-        (features_3, 2),
-        (features_4, 2),
-    ]
-)
-def test_partially_filled_feature_types(features: dict, max_workers: int) -> None:
-    """
-    Make sure the partially filled feature types remain intact.
-
-    Note:
-        max_workers: 0 - Forces the non-multi-processing path which would
-                         be normal for this dataset anyway.
-        max_workers: 2 - Forces the multi-processing path which would otherwise
-                         be unnatural for this dataset.
-
-    Parameters
-    ----------
-    df: pandas.DataFrame
-    features
-    """
-    df = pd.read_csv(iris_path)
-    pre_inferred_features = features.copy()
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        inferred_features = infer_feature_attributes(
-            df, features=features, max_workers=max_workers)
-
-    for k, v in pre_inferred_features.items():
-        assert v['type'] == inferred_features[k]['type']
-
-        if 'bounds' in v:
-            # Make sure the bounds are not altered
-            # by _process()
-            assert v['bounds'] == inferred_features[k]['bounds']
-
-
-@pytest.mark.parametrize(
     'feature, nominality', [
         # "id_no" _would_ be inferred "continuous", but we specifically tell
         # `_process()` that it is indeed an ID feature, so it
@@ -195,8 +152,6 @@ def test_integer_nominality(feature, nominality):
     # Datetime
     (pd.DataFrame([["2020-01-01T10:00:00"]], dtype='datetime64[ns]', columns=['a']),
      {'data_type': str(FeatureType.DATETIME)}),
-    (pd.DataFrame([["2020-01-01"]], dtype='datetime64[ns]', columns=['a']),
-     {'data_type': str(FeatureType.DATETIME)}),
     (pd.DataFrame([[datetime.datetime.now()]], columns=['a']),
      {'data_type': str(FeatureType.DATETIME)}),
     (pd.DataFrame([[datetime.datetime.now(pytz.timezone('US/Eastern'))]], columns=['a']),
@@ -205,6 +160,10 @@ def test_integer_nominality(feature, nominality):
      {'data_type': str(FeatureType.DATETIME)}),
     # Date
     (pd.DataFrame([[datetime.date(2020, 1, 1)]], columns=['a']),
+     {'data_type': str(FeatureType.DATE)}),
+    (pd.DataFrame([[pd.Timestamp(datetime.date(2020, 1, 1))]], columns=['a']),
+     {'data_type': str(FeatureType.DATE)}),
+    (pd.DataFrame([["2020-01-01"]], dtype='datetime64[ns]', columns=['a']),
      {'data_type': str(FeatureType.DATE)}),
     # Timedelta
     (pd.DataFrame([[datetime.timedelta(days=1)]], columns=['a']),
@@ -340,22 +299,18 @@ def test_column_names(should_fail, data):
         assert features is not None
 
 
-@pytest.mark.parametrize('should_include, base_features, dependent_features', [
-    (False, None, None),
-    (True, None, {'sepal_length': ['sepal_width', 'class']}),
-    (True, {"sepal_length": {"type": "continuous"}},
-     {'sepal_width': ['sepal_length']}),
-    (True, {"sepal_length": {"type": "continuous"}},
-     {'sepal_length': ['class']}),
-    (False, {"sepal_length": {"type": "continuous"}},
-     None),
-    (True, {"sepal_length": {"dependent_features": ["class"]}},
-     None),
+@pytest.mark.parametrize('should_include, dependent_features', [
+    (False, None),
+    (True, {'sepal_length': ['sepal_width', 'class']}),
+    (True, {'sepal_width': ['sepal_length']}),
+    (True, {'sepal_length': ['class']}),
+    (False, None),
+    (True, None),
 ])
-def test_dependent_features(should_include, base_features, dependent_features):
+def test_dependent_features(should_include, dependent_features):
     """Test depdendent features are added to feature attributes dict."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df, features=base_features, dependent_features=dependent_features)
+    features = infer_feature_attributes(df, dependent_features=dependent_features)
 
     if should_include:
         # Should include dependent features
@@ -364,13 +319,6 @@ def test_dependent_features(should_include, base_features, dependent_features):
                 assert 'dependent_features' in features[feat]
                 for dep_feat in dep_feats:
                     assert dep_feat in features[feat]['dependent_features']
-        # Make sure dependent features provided in the base dict are also included
-        if base_features:
-            for feat in base_features.keys():
-                if 'dependent_features' in base_features[feat]:
-                    assert 'dependent_features' in features[feat]
-                    for dep_feat in base_features[feat]['dependent_features']:
-                        assert dep_feat in features[feat]['dependent_features']
     else:
         # Should not include dependent features
         for attributes in features.values():
@@ -423,15 +371,15 @@ def test_dependent_features(should_include, base_features, dependent_features):
         ['a'],
         [datetime.datetime(1905, 1, 1), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1904-05-03T00:00:00', 'max': '2022-03-26T00:00:00',
-         'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
+        {'min': '1904-05-03', 'max': '2022-03-26',
+         'observed_min': '1904-05-03', 'observed_max': '2022-03-26'}
     ),
     (
         None,
         [datetime.datetime(1905, 1, 1), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1827-11-08T09:55:14', 'max': '2098-09-17T14:04:45',
-         'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
+        {'min': '1827-11-08', 'max': '2098-09-17',
+         'observed_min': '1904-05-03', 'observed_max': '2022-03-26'}
     ),
     (
         None,
@@ -439,8 +387,8 @@ def test_dependent_features(should_include, base_features, dependent_features):
          datetime.datetime(1904, 5, 3), datetime.datetime(1904, 5, 3),
          datetime.datetime(1904, 5, 3), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1904-05-03T00:00:00', 'max': '2098-09-17T14:04:45',
-         'observed_min': '1904-05-03T00:00:00', 'observed_max': '2022-03-26T00:00:00'}
+        {'min': '1904-05-03', 'max': '2098-09-17',
+         'observed_min': '1904-05-03', 'observed_max': '2022-03-26'}
     ),
     (
         None,
@@ -498,43 +446,38 @@ def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
     assert features['a']['bounds'] == expected_bounds
 
 
-@pytest.mark.parametrize(
-    "features",
-    [features_1, features_2, features_3, features_4]
-)
-def test_to_json(features: dict) -> None:
+def test_to_json() -> None:
     """Test that to_json() method returns a JSON representation of the object."""
     df = pd.read_csv(iris_path)
-    pre_inferred_features = features.copy()
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inferred_features = infer_feature_attributes(df, features=features)
+        inferred_features = infer_feature_attributes(df)
 
     to_json = inferred_features.to_json()
     assert isinstance(to_json, str)
     features = json.loads(to_json)
 
     # Make sure the json representation has expected data
-    for k, v in pre_inferred_features.items():
+    for k, v in inferred_features.items():
         assert v['type'] == features[k]['type']
         if 'bounds' in v:
             assert v['bounds'] == features[k]['bounds']
 
 
-@pytest.mark.parametrize('partial_features', [
-    {"sepal_length": {"type": "continuous"},
-     'sepal_width': {"dependent_features": ['sepal_length']}}
+@pytest.mark.parametrize('dependent_features', [
+    {"sepal_length": ["class"],
+     'sepal_width': ["petal_width"]}
 ])
-def test_get_parameters(partial_features):
+def test_get_parameters(dependent_features):
     """Test the get_parameters() method."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df, features=partial_features)
+    features = infer_feature_attributes(df, dependent_features=dependent_features)
 
     # Verify dependent_features
-    assert 'features' in features.get_parameters()
-    for key, value in partial_features.items():
-        assert features.get_parameters()['features'][key] == value
+    assert 'dependent_features' in features.get_parameters()
+    for key, value in dependent_features.items():
+        assert features.get_parameters()['dependent_features'][key] == value
 
 
 def test_get_names_without():
@@ -568,7 +511,6 @@ def test_get_names_types(types, num):
     df = pd.read_csv(iris_path)
     features = infer_feature_attributes(df)
     names = features.get_names(types=types)
-    print(names)
     assert len(names) == num
 
 
@@ -578,7 +520,6 @@ def test_copy():
     f_orig = infer_feature_attributes(df)
     f_copy = copy(f_orig)
 
-    print(f_copy.keys())
     assert f_copy.params == f_orig.params
     orig = f_orig['sepal_width']['bounds']['min']
     assert f_copy['sepal_width']['bounds']['min'] == orig
@@ -587,28 +528,6 @@ def test_copy():
     f_orig['sepal_width']['bounds']['min'] = -2
     # Assert that f_copy was unaffected
     assert f_copy['sepal_width']['bounds']['min'] == orig
-
-
-@pytest.mark.parametrize("features", [
-    ({'OPEN': {'type': 'continuous', 'decimal_places': 3}}),
-    ({'VWAP': {'decimal_places': 5}}),
-    ({'DATE': {'type': 'continuous', 'date_time_format': '%Y-%m-%f'}}),
-    ({'DATE': {'date_time_format': '%Y-%m-%f'}}),
-    ({'CLOSE': {'type': 'continuous', 'dependent_features': ['OPEN', 'DATE']}}),
-])
-def test_partial_features(features):
-    """Test that filling a partial features dict works as expected."""
-    feature_attributes = {}
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-    df = pd.read_csv(stock_path)
-    feature_attributes = infer_feature_attributes(df, time_feature_name='DATE', features=features)
-
-    # Ensure that the partial features remain
-    for feature in features.keys():
-        for k, v in features[feature].items():
-            assert k in feature_attributes[feature]
-            assert feature_attributes[feature][k] == v
 
 
 @pytest.mark.parametrize("tight_bounds", [
@@ -846,6 +765,7 @@ def test_json_yaml_features(value, is_json, is_yaml):
         assert features['sepal_width'].get('data_type') != 'yaml'
 
 
+@pytest.mark.parametrize('max_workers', [0, 2])
 @pytest.mark.parametrize('data, types, expected_types, is_valid', [
     (pd.DataFrame({'a': [0, 1, 2, 0, 1, 2]}), dict(a='continuous'), dict(a='continuous'), True),
     (pd.DataFrame({'a': [0, 1, 2], 'b': ['1', '2', '3']}, columns=['a', 'b']), dict(continuous=['a', 'b']),
@@ -860,13 +780,13 @@ def test_json_yaml_features(value, is_json, is_yaml):
     (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(ordinal=['a']), {}, False),
     (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(a='ordinal'), {}, False),
 ])
-def test_preset_feature_types(data, types, expected_types, is_valid):
+def test_preset_feature_types(data, types, expected_types, is_valid, max_workers):
     """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
     features = {}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if is_valid:
-            features = infer_feature_attributes(data, types=types, )
+            features = infer_feature_attributes(data, types=types, max_workers=max_workers)
             for feature_name, expected_type in expected_types.items():
                 # Make sure it is the correct type
                 assert features[feature_name]['type'] == expected_type
@@ -874,7 +794,35 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
                 assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
         else:
             with pytest.raises(ValueError):
-                infer_feature_attributes(data, types=types)
+                infer_feature_attributes(data, types=types, max_workers=max_workers)
+
+
+def test_preset_feature_types_with_multiprocessing():
+    """Test that the `types` parameter behaves well with multiprocessing enabled."""
+    df = pd.read_csv(stock_path)
+    # Identified continuous features
+    continuous = ['CLOSE']
+    # Everything else is nominal, in this case.
+    nominals = [f for f in df.columns if f not in continuous]
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=2)
+    assert features is not None
+
+
+def test_feature_order():
+    """Test that `infer_feature_attributes` returns features in same order as the DataFrame columns."""
+    def same_order(one: Iterable, two: Iterable) -> bool:
+        for idx, k in enumerate(one):
+            if idx >= len(two) or k != two[idx]:
+                return False
+        return True
+    df = pd.read_csv(stock_path)
+    continuous = ['CLOSE']
+    nominals = [f for f in df.columns if f not in continuous]
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=10)
+    assert same_order(features.keys(), df.columns)
+    # Try it without multiprocessing as well
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=0)
+    assert same_order(features.keys(), df.columns)
 
 
 def test_archival():
@@ -977,37 +925,54 @@ def test_formatted_date_time():
         'iso': ['2010-10-10', '2010-10-11', '2010-10-12', '2010-10-14']
     })
 
-    # When data_type is formatted_date_time, a date_time_format must be set
-    with pytest.raises(
-        ValueError,
-        match='must have a `date_time_format` defined when its `data_type` is "formatted_date_time"'
-    ):
-        infer_feature_attributes(data, features={
-            'custom': {
-                "data_type": "formatted_date_time"
-            }
-        })
-
-    # When data_type is formatted_time, a date_time_format must be set
-    with pytest.raises(
-        ValueError,
-        match='must have a `date_time_format` defined when its `data_type` is "formatted_time"'
-    ):
-        infer_feature_attributes(data, features={
-            'time': {
-                "data_type": "formatted_time"
-            }
-        })
-
     # Verify formatted_date_time is set when a date_time_format is configured
     with warnings.catch_warnings():
-        warnings.filterwarnings("error")
-        features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"})
+        warnings.simplefilter("error")
+        features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"},
+                                            default_time_zone="UTC")
         assert features['a']['data_type'] != "formatted_date_time"
         # custom feature dates should be formatted_date_time
         assert features['custom']['data_type'] == "formatted_date_time"
         # auto detected iso dates should be formatted_date_time
         assert features['iso']['data_type'] == "formatted_date_time"
+
+
+def test_default_time_zone():
+    """Test that ``infer_feature_attributes`` correctly handles default time zones."""
+    data = pd.DataFrame({
+        'custom': ['2010/10/10 7:30', '2010/10/11 8:45', '2010/10/12 9:00', '2010/10/14 12:00'],
+        'custom2': ['2002/10/10 3:30', '2000/10/11 10:45', '2013/10/12 5:00', '2014/10/14 11:00'],
+        'custom3': ['2010/10/10 07:30 -0500', '2010/10/11 08:45 -0500', '2010/10/12 09:00 -0500',
+                    '2012/12/12 06:00 -0500'],
+    })
+
+    # No default time zone or time zone identifier in format string; warning should be raised
+    with pytest.warns(match="features do not include a time zone and will default to UTC"):
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
+                                                                 "custom2": "%Y/%m/%d %H:%M"})
+        # Also try with multiprocessing
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
+                                                                 "custom2": "%Y/%m/%d %H:%M"}, max_workers=2)
+
+    # Using UTC offsets should also result in a warning
+    with pytest.warns(match="The following features are using UTC offsets"):
+        infer_feature_attributes(data, datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"})
+        # Also try with multiprocessing
+        infer_feature_attributes(data, datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"}, max_workers=2)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        # Providing a default_time_zone should prevent the warning
+        data.drop('custom3', axis=1, inplace=True)  # Will raise an unrelated warning that we already tested for
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
+                                                                 "custom2": "%Y/%m/%d %H:%M"}, default_time_zone="EST")
+        data = pd.DataFrame({
+            'custom': ['2010/10/10 07:30 UTC', '2010/10/11 08:45 UTC', '2010/10/12 09:00 UTC'],
+            'custom2': ['2010/10/10 07:30 GMT', '2010/10/11 08:45 GMT', '2010/10/12 09:00 GMT'],
+        })
+        # Providing data with a time zone and corresponding format string identifier should prevent the error
+        infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M %Z",
+                                                                 "custom2": "%Y/%m/%d %H:%M %Z"})
 
 
 def test_constrained_date_bounds():
@@ -1016,3 +981,65 @@ def test_constrained_date_bounds():
     with pytest.warns(match="bounds could not be computed. This is likely due to a constrained date time format"):
         # Loose bounds may cause min bound to be > max bound if the date format is constrained
         infer_feature_attributes(df, datetime_feature_formats={"date": "%m"})
+
+
+def test_nullable_integer_validation():
+    """Test that IFA correctly validates data with nullable integers."""
+    df = pd.DataFrame({"a": ["1", "2", "3", pd.NA, "4"]}, dtype="Int64")
+    attrs = infer_feature_attributes(df)
+    df = df.astype('float64')  # Force a coersion back to Int64
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        attrs.validate(df, coerce=True)
+
+
+def test_memory_usage_warning():
+    """Test that IFA will warn if a feature has columns that are too large."""
+    df = pd.DataFrame([["a" * 1024], ["b" * 512], ["c" * 256]], columns=["big"])
+    # Test that a single violating feature raises a warning
+    with pytest.warns(match="feature 'big' exceeds the configured threshold"):
+        infer_feature_attributes(df)
+    # Test that the warning disappears when the threshold is configured to be larger
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        infer_feature_attributes(df, memory_warning_threshold=1024)
+    # Test that two violating features raise a warning
+    df = pd.DataFrame({"big": ["a" * 1024], "bigger": ["b" * 2048]})
+    with pytest.warns(match="2 features have an average memory size exceeding the "
+                      "configured threshold of 512 bytes. The feature with the largest "
+                      "memory footprint is 'bigger'"):
+        infer_feature_attributes(df)
+
+
+def test_ambiguous_datetime_format():
+    """Test that a non-ISO8601 datetime feature results in a warning."""
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
+        infer_feature_attributes(nypd_arrest_df)  # NYPD arrest data includes a non-ISO8601 date string
+
+
+def test_no_warnings_datetime_feature_formats():
+    """Test that providing non-ISO8601 datetime features with corresponding formats do not trigger any warnings."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        df = pd.DataFrame([["01-01-2015", "2025-01"]], columns=["date", "month"])
+        infer_feature_attributes(df, datetime_feature_formats={"date": "%d-%m-%Y", "month": "%Y-%m"},
+                                 default_time_zone="UTC")
+
+
+def test_datetime_empty_time_values():
+    """Test that datetimes with an empty time value still are determined datetime features with the correct format."""
+    df = pd.DataFrame({'a': ['2025-08-22T00:00:00'], 'b': ['2025-08-22 00:00:00']})
+    features = infer_feature_attributes(df, default_time_zone='UTC')
+    assert features['a']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
+    assert features['b']['date_time_format'] == '%Y-%m-%d %H:%M:%S'
+
+
+def test_empty_string_first_non_nulls():
+    """Test that IFA correctly handles first non-null values that are empty strings."""
+    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy']})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        infer_feature_attributes(df)
+    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy'], 'b': ['\n', '8/26/2025', '8/3/1999']})
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
+        infer_feature_attributes(df)

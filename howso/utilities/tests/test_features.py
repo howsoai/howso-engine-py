@@ -9,6 +9,7 @@ from howso.utilities import infer_feature_attributes
 from howso.utilities.features import FeatureSerializer, FeatureType
 from howso.utilities.internals import sanitize_for_json
 from howso.utilities.utilities import LocaleOverride
+
 import numpy as np
 import pandas as pd
 from pandas.core.dtypes.common import (
@@ -22,78 +23,78 @@ from . import has_locales
 
 
 @pytest.mark.parametrize('data_format', ['pandas', 'numpy'])
-@pytest.mark.parametrize('data, original_type', [
+@pytest.mark.parametrize('data, original_type, should_warn', [
     ([datetime.datetime(2020, 10, 10, 10, 5,
                         tzinfo=pytz.timezone('US/Eastern'))],
-     {'data_type': str(FeatureType.DATETIME), 'timezone': 'US/Eastern'}),
+     {'data_type': str(FeatureType.DATETIME), 'timezone': 'US/Eastern'}, False),
     ([datetime.datetime(2020, 10, 10, 10, 5, tzinfo=pytz.FixedOffset(-300))],
-     {'data_type': str(FeatureType.DATETIME)}),
+     {'data_type': str(FeatureType.DATETIME)}, True),
     ([datetime.datetime.fromisoformat("2022-01-01")],
-     {'data_type': str(FeatureType.DATETIME)}),
+     {'data_type': str(FeatureType.DATE)}, False),
     ([datetime.datetime.fromisoformat("2022-01-01T10:00:00-05:00")],
-     {'data_type': str(FeatureType.DATETIME)}),
-    ([datetime.datetime(2022, 1, 1, 10, 0, 0, tzinfo=pytz.timezone("EST"))],
-     {'data_type': str(FeatureType.DATETIME), 'timezone': 'EST'}),
+     {'data_type': str(FeatureType.DATETIME)}, False),
+    ([datetime.datetime(2022, 1, 1, 10, 0, 0, tzinfo=pytz.timezone("GMT"))],
+     {'data_type': str(FeatureType.DATETIME), 'timezone': 'GMT'}, False),
     ([datetime.date.fromisoformat("2022-01-01")],
-     {'data_type': str(FeatureType.DATE)}),
+     {'data_type': str(FeatureType.DATE)}, False),
     ([datetime.timedelta(days=1, seconds=60)],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([datetime.timedelta(microseconds=1000)],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(5, 'Y')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(3, 'M')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(50, 'W')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(10, 'D')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(91, 'D')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(10, 'h'), np.timedelta64(10, 'm')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(55, 'm')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(60, 's')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(1000, 'ms')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(1000, 'us')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(1000, 'ns')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
-    ([100, 100000000000], {'data_type': str(FeatureType.INTEGER), 'size': 8}),
-    ([np.int8(125)], {'data_type': str(FeatureType.INTEGER), 'size': 1}),
-    ([np.int16(1000)], {'data_type': str(FeatureType.INTEGER), 'size': 2}),
-    ([np.int32(1000)], {'data_type': str(FeatureType.INTEGER), 'size': 4}),
-    ([np.int64(1000)], {'data_type': str(FeatureType.INTEGER), 'size': 8}),
-    ([5, None], {'data_type': str(FeatureType.NUMERIC), 'size': 8}),
-    ([5.5, None], {'data_type': str(FeatureType.NUMERIC), 'size': 8}),
-    ([5.5, 1000000.0], {'data_type': str(FeatureType.NUMERIC), 'size': 8}),
-    ([np.float16(1.5)], {'data_type': str(FeatureType.NUMERIC), 'size': 2}),
-    ([np.float32(10.5)], {'data_type': str(FeatureType.NUMERIC), 'size': 4}),
-    ([np.float64(100.5)], {'data_type': str(FeatureType.NUMERIC), 'size': 8}),
+     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
+    ([100, 100000000000], {'data_type': str(FeatureType.INTEGER), 'size': 8}, False),
+    ([np.int8(125)], {'data_type': str(FeatureType.INTEGER), 'size': 1}, False),
+    ([np.int16(1000)], {'data_type': str(FeatureType.INTEGER), 'size': 2}, False),
+    ([np.int32(1000)], {'data_type': str(FeatureType.INTEGER), 'size': 4}, False),
+    ([np.int64(1000)], {'data_type': str(FeatureType.INTEGER), 'size': 8}, False),
+    ([5, None], {'data_type': str(FeatureType.NUMERIC), 'size': 8}, False),
+    ([5.5, None], {'data_type': str(FeatureType.NUMERIC), 'size': 8}, False),
+    ([5.5, 1000000.0], {'data_type': str(FeatureType.NUMERIC), 'size': 8}, False),
+    ([np.float16(1.5)], {'data_type': str(FeatureType.NUMERIC), 'size': 2}, False),
+    ([np.float32(10.5)], {'data_type': str(FeatureType.NUMERIC), 'size': 4}, False),
+    ([np.float64(100.5)], {'data_type': str(FeatureType.NUMERIC), 'size': 8}, False),
     ([decimal.Decimal('1.1')], {'data_type': str(FeatureType.NUMERIC),
-                                'format': 'decimal'}),
+                                'format': 'decimal'}, False),
     ([None, 'test'],
-     {'data_type': str(FeatureType.STRING)}),
-    ([True, False], {'data_type': str(FeatureType.BOOLEAN)}),
-    ([None, None], {'data_type': str(FeatureType.UNKNOWN)})
+     {'data_type': str(FeatureType.STRING)}, False),
+    ([True, False], {'data_type': str(FeatureType.BOOLEAN)}, False),
+    ([None, None], {'data_type': str(FeatureType.UNKNOWN)}, False)
 ])
-def test_feature_deserialization(data_format, data, original_type):
+def test_feature_deserialization(data_format, data, original_type, should_warn):
     """
     Test case serialization.
 
     Tests serialization of data from DataFrame/Numpy to JSON then back again, results
     in original data types.
     """
-    # No warnings should be raised
+    action = "ignore" if should_warn else "error"
     with warnings.catch_warnings():
         warnings.simplefilter(action="ignore", category=FutureWarning)
-        warnings.simplefilter("error", append=True)
+        warnings.simplefilter(action=action, append=True)
         columns = ['a']
         df = pd.DataFrame(pd.Series(data, name='a'))
-        features = infer_feature_attributes(df)
+        features = infer_feature_attributes(df, default_time_zone="UTC")
         if data_format == "numpy":
             df_numpy = np.array(data)
             df_numpy = np.array([[value] for value in df_numpy])
@@ -150,6 +151,7 @@ def test_feature_deserialization(data_format, data, original_type):
 ])
 def test_feature_deserialization_number_conversions(data, original_type,
                                                     expected_dtype):
+    """Test the deserialization of number conversions."""
     if expected_dtype in ['longdouble', 'float128', 'float256']:
         if not hasattr(np, expected_dtype):
             pytest.skip('Unsupported platform')
@@ -167,45 +169,45 @@ def test_feature_deserialization_number_conversions(data, original_type,
 
 
 @pytest.mark.parametrize('data_format', ['pandas', 'numpy'])
-@pytest.mark.parametrize('data, dt_format, valid_dtype, expected_data', [
+@pytest.mark.parametrize('data, dt_format, valid_dtype, expected_data, default_tz, should_warn', [
     (
         [datetime.datetime(2020, 10, 25, 10, 5,
                            tzinfo=pytz.timezone('US/Eastern'))],
         '%Y-%m-%dT%H:%M:%S%z', lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
         [datetime.datetime(2020, 10, 25, 10, 5,
-                           tzinfo=pytz.timezone('US/Eastern'))],
+                           tzinfo=pytz.timezone('US/Eastern'))], None, False,
     ),
     (
         [datetime.datetime(2020, 10, 25, 10, 5,
                            tzinfo=pytz.timezone('US/Eastern'))],
         '%Y-%m-%dT%H:%M:%S', lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
         [datetime.datetime(2020, 10, 25, 10, 5,
-                           tzinfo=pytz.timezone('US/Eastern'))],
+                           tzinfo=pytz.timezone('US/Eastern'))], None, False,
     ),
     (
         [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.timezone('UTC'))],
         '%Y-%m-%dT%H:%M:%S', lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
-        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.timezone('UTC'))],
+        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.timezone('UTC'))], None, False,
     ),
     (
         [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.FixedOffset(-300))],
         '%Y-%m-%dT%H:%M:%S%z', lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
-        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.FixedOffset(-300))],
+        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.FixedOffset(-300))], None, True,
     ),
     (
         [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.FixedOffset(-300))],
         '%Y-%m-%dT%I:%M:%S %p', lambda dtype: is_datetime64_dtype(dtype),
-        [datetime.datetime(2020, 10, 25, 10, 5)],
+        [datetime.datetime(2020, 10, 25, 10, 5)], None, True,
     ),
     (
         [datetime.datetime.fromisoformat("2022-01-25")],
         '%d/%m/%Y %H:%M:%S', lambda dtype: is_datetime64_dtype(dtype),
-        [datetime.datetime.fromisoformat("2022-01-25")],
+        [datetime.datetime.fromisoformat("2022-01-25")], 'GMT', False,
     ),
     (
         [datetime.date.fromisoformat("2022-01-25")],
         '%Y/%m/%d', lambda dtype: is_datetime64_dtype(dtype),
-        [datetime.date.fromisoformat("2022-01-25")],
+        [datetime.date.fromisoformat("2022-01-25")], None, True,
     ),
 ])
 def test_date_feature_serialization(
@@ -213,15 +215,18 @@ def test_date_feature_serialization(
     data,
     dt_format,
     valid_dtype,
-    expected_data
+    expected_data,
+    default_tz,
+    should_warn,
 ):
-    # No warnings should be raised
+    """Test the serialization of date features."""
+    action = "ignore" if should_warn else "error"
     with warnings.catch_warnings():
         warnings.simplefilter(action="ignore", category=FutureWarning)
-        warnings.simplefilter("error", append=True)
+        warnings.simplefilter(action=action, append=True)
         columns = ['a']
         df = pd.DataFrame(pd.Series(data, name='a'))
-        features = infer_feature_attributes(df)
+        features = infer_feature_attributes(df, default_time_zone=default_tz)
         features['a']['date_time_format'] = dt_format
         if data_format == "numpy":
             df_numpy = np.array(data)

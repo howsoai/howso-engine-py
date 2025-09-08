@@ -10,7 +10,7 @@ from .base import FeatureAttributesBase
 from .pandas import InferFeatureAttributesDataFrame
 from .protocols import IFACompatibleADCProtocol, SQLRelationalDatastoreProtocol, TableNameProtocol
 from .relational import InferFeatureAttributesSQLDatastore
-from .time_series import InferFeatureAttributesTimeSeries
+from .time_series import IFATimeSeriesADC, IFATimeSeriesPandas
 
 
 def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol, *,
@@ -53,6 +53,11 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
                 "end_date": "%Y-%m-%d",
                 "start_time": "%H:%M:%S %p",
             }
+
+    default_time_zone : str, default None
+        (Optional) The fallback time zone for any datetime feature if one is not provided in
+        ``datetime_feature_formats`` and it is not inferred from the data. If not specified
+        anywhere, the Howso Engine will default to UTC.
 
     delta_boundaries : dict, default None
         (Optional) For time series, specify the delta boundaries in the form
@@ -147,6 +152,21 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
             A lag feature is a feature that provides a "lagging value" to a
             case by holding the value of a feature from a previous timestep.
             These lag features allow for cases to hold more temporal information.
+
+    max_workers: int, default None
+        If unset or set to None (recommended), let the ProcessPoolExecutor
+        choose the best maximum number of process pool workers to process
+        columns in a multi-process fashion. In this case, if the product of the
+        data's rows and columns > 25,000,000 or if the data is time series and the
+        number of rows > 500,000 multiprocessing will be used.
+
+        If defined with an integer > 0, manually set the number of max workers.
+        Otherwise, the feature attributes will be calculated serially. Setting
+        this parameter to zero (0) will disable multiprocessing.
+
+    memory_warning_threshold : int, default 512
+        (Optional) Maximum number of bytes that a feature's per-case average can compute to
+        without raising a warning about memory usage (Pandas DataFrame only).
 
     mode_bound_features : list of str, default None
         (Optional) Explicit list of feature names to use mode bounds for
@@ -263,17 +283,6 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
                 "continuous": ["feature_3", "feature_4", "feature_5"]
             }
 
-    max_workers: int, optional
-        If unset or set to None (recommended), let the ProcessPoolExecutor
-        choose the best maximum number of process pool workers to process
-        columns in a multi-process fashion. In this case, if the product of the
-        data's rows and columns > 25,000,000 or if the data is time series and the
-        number of rows > 500,000 multiprocessing will be used.
-
-        If defined with an integer > 0, manually set the number of max workers.
-        Otherwise, the feature attributes will be calculated serially. Setting
-        this parameter to zero (0) will disable multiprocessing.
-
     Returns
     -------
     FeatureAttributesBase
@@ -327,8 +336,14 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
 
     """
     # Check if time series attributes should be calculated
-    if time_feature_name and isinstance(data, pd.DataFrame):
-        infer = InferFeatureAttributesTimeSeries(data, time_feature_name)
+    if time_feature_name:
+        if isinstance(data, pd.DataFrame):
+            infer = IFATimeSeriesPandas(data, time_feature_name)
+        elif isinstance(data, IFACompatibleADCProtocol):
+            infer = IFATimeSeriesADC(data, time_feature_name)
+        else:
+            raise NotImplementedError('`infer_feature_attributes` for time series only supported for DataFrames and '
+                                      'AbstractData classes.')
     elif time_feature_name:
         raise ValueError("'time_feature_name' was included, but 'data' must be of type DataFrame "
                          "for time series feature attributes to be calculated.")

@@ -513,6 +513,7 @@ class HowsoEstimator(BaseEstimator):
         familiarity_conviction_addition=False,
         familiarity_conviction_removal=False,
         influence_weight_entropy=False,
+        overwrite=False,
         p_value_of_addition=False,
         p_value_of_removal=False,
         similarity_conviction=False,
@@ -545,6 +546,10 @@ class HowsoEstimator(BaseEstimator):
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
             'influence_weight_entropy'.
+        overwrite: bool, default False
+            When true will forcibly overwrite previously stored values.
+            Default is false, will error out if trying to
+			react_into_features for a feature that already exists.
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition values. If set
             to True the values will be stored to the feature
@@ -577,6 +582,7 @@ class HowsoEstimator(BaseEstimator):
             familiarity_conviction_addition=familiarity_conviction_addition,
             familiarity_conviction_removal=familiarity_conviction_removal,
             influence_weight_entropy=influence_weight_entropy,
+            overwrite=overwrite,
             p_value_of_addition=p_value_of_addition,
             p_value_of_removal=p_value_of_removal,
             similarity_conviction=similarity_conviction,
@@ -628,7 +634,7 @@ class HowsoEstimator(BaseEstimator):
                 is also used.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -747,7 +753,8 @@ class HowsoEstimator(BaseEstimator):
                 features of the reacted case to determine that region.
                 Computed as: region feature residual divided by case feature
                 residual. Uses full calculations, which uses leave-one-out
-                for cases for computations.
+                for cases for computations. Also outputs the predicted values
+                for each feature under the key, "predicted_values_for_case".
             - feature_full_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features locally around the prediction. Uses only the context
@@ -759,7 +766,8 @@ class HowsoEstimator(BaseEstimator):
                 each feature, while using the others to predict the left out
                 feature with their corresponding values from this case. Uses
                 full calculations, which uses leave-one-out for cases for
-                computations.
+                computations. Also outputs the predicted values for each feature
+                under the key, "predicted_values_for_case".
             - feature_robust_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the

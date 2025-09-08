@@ -14,18 +14,28 @@ import pytest
 
 import howso
 from howso.client import HowsoClient
+from howso.client.client import _check_isfile  # type: ignore reportPrivateUsage
 from howso.client.client import (
-    _check_isfile,  # type: ignore reportPrivateUsage
     get_configuration_path,
     get_howso_client_class,
-    LEGACY_CONFIG_FILENAMES
+    LEGACY_CONFIG_FILENAMES,
 )
-from howso.client.exceptions import HowsoApiError, HowsoConfigurationError, HowsoError
+from howso.client.exceptions import (
+    HowsoApiError,
+    HowsoConfigurationError,
+    HowsoError,
+)
 from howso.client.protocols import ProjectClient
 from howso.client.schemas.reaction import Reaction
 from howso.direct import HowsoDirectClient
-from howso.utilities.testing import get_configurationless_test_client, get_test_options
-from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # type: ignore reportPrivateUsage
+from howso.utilities.constants import (  # type: ignore reportPrivateUsage
+    _RENAMED_DETAIL_KEYS,
+    _RENAMED_DETAIL_KEYS_EXTRA,
+)
+from howso.utilities.testing import (
+    get_configurationless_test_client,
+    get_test_options,
+)
 
 TEST_OPTIONS = get_test_options()
 
@@ -515,7 +525,7 @@ class TestClient:
         trainee
         """
         self._train(trainee)
-        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
         cases = self.client.get_cases(trainee.id,
                                       features=['play', 'penguin', 'familiarity_conviction_addition'],
                                       session=self.client.active_session.id)
@@ -672,7 +682,8 @@ class TestClient:
             )
             response = self.client.react_aggregate(
                 trainee.id,
-                action_feature='penguin',
+                prediction_stats_action_feature='penguin',
+                feature_influences_action_feature='penguin',
                 num_samples=1,
                 details={old_key: True}
             )
@@ -685,9 +696,6 @@ class TestClient:
             f"'{old_key}' is deprecated" in str(r.message)
             for r in record
         ])
-
-        # No point in testing further if we didn't get back a Mapping instance.
-        assert isinstance(response, Mapping), "react_aggregate did not return a Mapping."
 
         # We DO want the old_key to be present during the deprecation period.
         assert old_key in response.keys()
@@ -779,7 +787,7 @@ class TestBaseClient:
 
         Test for verbose output expected when remove_cases is called with.
         """
-        condition = {"feature_name": None}
+        condition = {"class": None}
         self.client.remove_cases(trainee.id, 1, condition=condition)
         out, _ = capsys.readouterr()
         assert f"Removing case(s) from Trainee with id: {trainee.id}" in out
@@ -927,7 +935,7 @@ class TestBaseClient:
         condition = {"feature_name": None}
         with pytest.raises(ValueError) as exc:
             self.client.remove_cases(trainee.id, 0, condition=condition)
-        assert str(exc.value) == 'num_cases must be a value greater than 0'
+        assert str(exc.value) == '`num_cases` must be a value greater than 0 if specified.'
 
     def test_react_exception(self, trainee):
         """
@@ -947,13 +955,20 @@ class TestBaseClient:
         number_cases = self.client.get_num_training_cases(trainee.id)
         assert isinstance(number_cases, int)
 
+    def test_react_into_features_updated_feature_attributes(self, trainee):
+        """Test that react_into_features updates the feature attributes."""
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
+        trainee_cache = self.client.trainee_cache.get_item(trainee.id)
+
+        assert 'familiarity_conviction_addition' in trainee_cache.get('feature_attributes', {}).keys()
+
     def test_react_into_features_verbose(self, trainee, capsys):
         """
         Test that react_into_features is verbose when enabled.
 
         Test the verbose output expected when react_into_features is called.
         """
-        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
         out, _ = capsys.readouterr()
         assert ('Reacting into features on Trainee with id') in out
 
@@ -1214,7 +1229,7 @@ class TestBaseClient:
         ret = self.client.react_group(
             trainee.id, new_cases=new_cases, features=features)
         out, _ = capsys.readouterr()
-        assert type(ret) == dict
+        assert isinstance(ret, dict)
 
         df = pd.DataFrame([[1, 2, 4, 4, 4]], columns=features)
         new_cases = [df]

@@ -46,7 +46,7 @@ predicting, while a client may manage the API interface for multiple Trainees.
 
 ## Supported Platforms
 
-Compatible with Python versions: 3.9, 3.10, 3.11, 3.12, and 3.13.
+Compatible with Python versions: 3.10, 3.11, 3.12, and 3.13.
 
 **Operating Systems**
 

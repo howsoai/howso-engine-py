@@ -115,7 +115,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     """
 
     #: The characters which are disallowed from being a part of a Trainee name or ID.
-    BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':'}
+    BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':', '\0'}
 
     #: The supported values of precision for methods that accept it
     SUPPORTED_PRECISION_VALUES = ["exact", "similar"]
@@ -195,6 +195,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         logger.debug(f'Using Howso Engine file: {self._howso_absolute_path}')
 
         self.__init_amalgam(amalgam)
+
         self.begin_session()
 
     def __init_amalgam(self, options: t.Optional[Mapping[str, t.Any]] = None):
@@ -478,6 +479,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             status_msg = status.message or "An unknown error occurred"
             raise HowsoError(
                 f'Failed to initialize the Trainee "{trainee_id}": {status_msg}')
+        
+        self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
+
         self.execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,
             "filepath": str(self._howso_dir) + '/',
@@ -828,8 +832,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'The create trainee parameter `resources` is deprecated and will be removed in '
                 'a future release. Please use `runtime` instead.', DeprecationWarning)
 
-        # Check that the id is usable for saving later.
         if trainee_id:
+            # Ensure there are no invalid characters in the ID
             for sequence in self.BAD_TRAINEE_NAME_CHARS:
                 if sequence in trainee_id:
                     success = False
@@ -840,14 +844,18 @@ class HowsoDirectClient(AbstractHowsoClient):
                     break
             else:
                 success, reason = True, 'OK'
+
             proposed_path: Path = self.default_persist_path.joinpath(trainee_id)
             if success:
-                success, reason = self.check_name_valid_for_save(
+                # Check that the id is usable for saving later.
+                can_save, reason = self.check_name_valid_for_save(
                     proposed_path, clobber=overwrite_trainee)
-            if not success:
+                if not can_save:
+                    warnings.warn(f'Trainee file name "{proposed_path}" cannot be saved to the '
+                                  f'filesystem (reason: {reason})')
+            else:
                 raise HowsoError(
-                    f'Trainee file name "{proposed_path}" is not valid for '
-                    f'saving (reason: {reason}).')
+                    f'Trainee file name "{proposed_path}" is not valid (reason: {reason}).')
 
         # If overwriting the trainee, attempt to delete it first.
         if overwrite_trainee:
@@ -1388,6 +1396,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             status_msg = status.message or "An unknown error occurred"
             raise HowsoError(
                 f'Failed to acquire Trainee "{trainee_id}": {status_msg}')
+
+        self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
 
         # Cache the trainee details
         trainee = self._get_trainee_from_engine(trainee_id)

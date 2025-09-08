@@ -20,14 +20,19 @@ import warnings
 import numpy as np
 from pandas import DataFrame
 
-from howso.utilities import internals, utilities as util
-from howso.utilities.constants import _RENAMED_DETAIL_KEYS, _RENAMED_DETAIL_KEYS_EXTRA  # noqa: E501 type: ignore reportPrivateUsage
+from howso.utilities import internals
+from howso.utilities import utilities as util
+from howso.utilities.constants import (  # noqa: E501 type: ignore reportPrivateUsage
+    _RENAMED_DETAIL_KEYS,
+    _RENAMED_DETAIL_KEYS_EXTRA,
+)
 from howso.utilities.feature_attributes.base import (
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
 )
 from howso.utilities.features import serialize_cases
 from howso.utilities.monitors import ProgressTimer
+
 from .exceptions import (
     HowsoError,
     UnsupportedArgumentWarning,
@@ -54,6 +59,7 @@ from .typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
+    SortByFeature,
     TabularData2D,
     TabularData3D,
     TargetedModel,
@@ -730,7 +736,7 @@ class AbstractHowsoClient(ABC):
     def remove_cases(
         self,
         trainee_id: str,
-        num_cases: int,
+        num_cases: t.Optional[int] = None,
         *,
         case_indices: t.Optional[CaseIndices] = None,
         condition: t.Optional[Mapping] = None,
@@ -748,8 +754,11 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to remove cases from.
-        num_cases : int
-            The number of cases to remove; minimum 1 case must be removed.
+        num_cases : int, optional
+            The limit on the number of cases to remove. If ``num_cases`` is
+            unspecified and ``case_indices`` is unspecified, then up to
+            :math:``k`` cases will be removed if ``precision`` is "similar" or
+            no limit if ``precision`` is "exact".
             Ignored if case_indices is specified.
         case_indices : Sequence of tuple of {str, int}, optional
             A list of tuples containing session ID and session training index
@@ -759,31 +768,38 @@ class AbstractHowsoClient(ABC):
             provided conditions. Ignored if case_indices is specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
 
             .. TIP::
-                Example 1 - Remove all values belonging to `feature_name`::
+                Example 1 - Remove all cases with missing values for `feature_name`::
 
-                    criteria = {"feature_name": None}
+                    condition = {"feature_name": None}
 
                 Example 2 - Remove cases that have the value 10::
 
-                    criteria = {"feature_name": 10}
+                    condition = {"feature_name": 10}
 
                 Example 3 - Remove cases that have a value in range [10, 20]::
 
-                    criteria = {"feature_name": [10, 20]}
+                    condition = {"feature_name": [10, 20]}
 
-                Example 4 - Remove cases that match one of ['a', 'c', 'e']::
+                Example 4 - Remove cases that have a value greater or equal to 10::
+
+                    condition = {"feature_name": [10, None]}
+
+                Example 5 - Remove cases that match one of ['a', 'c', 'e']::
 
                     condition = {"feature_name": ['a', 'c', 'e']}
 
@@ -794,7 +810,7 @@ class AbstractHowsoClient(ABC):
             When specified, will distribute the removed cases' weights
             from this feature into their neighbors.
         precision : {"exact", "similar"}, optional
-            The precision to use when moving the cases, defaults to "exact".
+            The precision to use when removing the cases, defaults to "exact".
             Ignored if case_indices is specified.
 
         Returns
@@ -808,8 +824,8 @@ class AbstractHowsoClient(ABC):
             If `num_cases` is not at least 1.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
-        if num_cases < 1:
-            raise ValueError('num_cases must be a value greater than 0')
+        if num_cases is not None and num_cases < 1:
+            raise ValueError('`num_cases` must be a value greater than 0 if specified.')
 
         if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
             warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
@@ -870,37 +886,44 @@ class AbstractHowsoClient(ABC):
             provided conditions. Ignored if case_indices is specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
 
             .. TIP::
-                Example 1 - Move all values belonging to `feature_name`::
+                Example 1 - Move all cases with missing values for `feature_name`::
 
-                    criteria = {"feature_name": None}
+                    condition = {"feature_name": None}
 
                 Example 2 - Move cases that have the value 10::
 
-                    criteria = {"feature_name": 10}
+                    condition = {"feature_name": 10}
 
                 Example 3 - Move cases that have a value in range [10, 20]::
 
-                    criteria = {"feature_name": [10, 20]}
+                    condition = {"feature_name": [10, 20]}
 
-                Example 4 - Remove cases that match one of ['a', 'c', 'e']::
+                Example 4 - Move cases that have a value greater or equal to 10::
+
+                    condition = {"feature_name": [10, None]}
+
+                Example 5 - Move cases that match one of ['a', 'c', 'e']::
 
                     condition = {"feature_name": ['a', 'c', 'e']}
 
                 Example 5 - Move cases using session name and index::
 
-                    criteria = {'.session':'your_session_name',
+                    condition = {'.session':'your_session_name',
                                 '.session_index': 1}
 
         condition_session : str, optional
@@ -1006,13 +1029,16 @@ class AbstractHowsoClient(ABC):
             `case_indices` are specified.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1394,13 +1420,16 @@ class AbstractHowsoClient(ABC):
             for.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1446,6 +1475,91 @@ class AbstractHowsoClient(ABC):
             return dict()
         return stats
 
+    def get_value_masses(
+        self,
+        trainee_id: str,
+        features: Collection[str],
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> dict[str, dict[str, list[list[t.Any]] | float]]:
+        """
+        Get the unique values and their respective masses for each specified feature.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to retrieve value masses for.
+        features : Collection[str]
+            The feature names for which to compute unique value masses.
+        condition : Mapping or None, optional
+            A condition map to select which cases to compute value masses
+            for.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        minimum_mass_threshold : float, default 0.0
+            The minimum mass a feature value must possess to be returned in the
+            collection of value masses. If the given value is greater than zero,
+            the sum of the omitted feature value masses is returned under a
+            "remaining" key for each feature.
+        precision : str, default "exact"
+            The precision to use when selecting cases with ``condition``.
+            Options are 'exact' or 'similar'. Only used if `condition` is not
+            None.
+        weight_feature : str, optional
+            When specified, will return masses based on weights stored
+            in this weight_feature.
+
+        Returns
+        -------
+        dict[str, dict[str, list[list[Any]] | float]]
+            A map of each feature name to a dict containing "values" and "remaining"
+            keys. "values" maps to a list of lists where each sublist contains
+            the feature value and its mass. When ``minimum_mass_threshold`` is
+            greater than one, "remaining" maps to a single value that is the sum
+            of all omitted feature value masses.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+
+        if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
+            warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
+
+        # Convert session instance to id
+        if (
+            isinstance(condition, MutableMapping) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
+
+        if self.configuration.verbose:
+            print(f'Getting value masses for trainee with id: {trainee_id}')
+
+        value_masses = self.execute(trainee_id, "get_value_masses", {
+            "features": features,
+            "condition": condition,
+            "minimum_mass_threshold": minimum_mass_threshold,
+            "precision": precision,
+            "weight_feature": weight_feature,
+        })
+        if value_masses is None:
+            return dict()
+        return value_masses.get("masses", {})
+
     def react(  # noqa: C901
         self,
         trainee_id: str,
@@ -1455,6 +1569,7 @@ class AbstractHowsoClient(ABC):
         allow_nulls: bool = False,
         batch_size: t.Optional[int] = None,
         case_indices: t.Optional[CaseIndices] = None,
+        constraints: t.Optional[Mapping] = None,
         contexts: t.Optional[TabularData2D] = None,
         context_features: t.Optional[Collection[str]] = None,
         derived_action_features: t.Optional[Collection[str]] = None,
@@ -1463,6 +1578,7 @@ class AbstractHowsoClient(ABC):
         details: t.Optional[Mapping] = None,
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping] = None,
+        feature_pre_process_code_map: t.Optional[Mapping] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -1477,6 +1593,7 @@ class AbstractHowsoClient(ABC):
         post_process_values: t.Optional[TabularData2D] = None,
         preserve_feature_values: t.Optional[Collection[str]] = None,
         progress_callback: t.Optional[Callable] = None,
+        return_context_values: bool = False,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
@@ -1540,6 +1657,25 @@ class AbstractHowsoClient(ABC):
 
             >>> context_features = ['temperature', 'humidity', 'dew_point',
             ...                     'barometric_pressure']
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         derived_context_features : iterable of str, optional
             An iterable of feature names whose values should be computed
             from the provided context in the specified order. Must be different
@@ -1597,7 +1733,7 @@ class AbstractHowsoClient(ABC):
                 is also used.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
                         - None
                         - A value, must match exactly.
@@ -1720,14 +1856,16 @@ class AbstractHowsoClient(ABC):
                 features of the reacted case to determine that region.
                 Computed as: region feature residual divided by case feature
                 residual. Uses full calculations, which uses leave-one-out
-                for cases for computations.
+                for cases for computations. Also outputs the predicted values
+                for each feature under the key, "predicted_values_for_case".
             - feature_full_residuals_for_case : bool, optional
                 If True, outputs feature residuals for all (context and action)
                 features for just the specified case. Uses leave-one-out for
                 each feature, while using the others to predict the left out
                 feature with their corresponding values from this case. Uses
                 full calculations, which uses leave-one-out for cases for
-                computations.
+                computations. Also outputs the predicted values for each feature
+                under the key, "predicted_values_for_case".
             - feature_robust_accuracy_contributions : bool, optional
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature given the context. Uses only
@@ -1874,7 +2012,7 @@ class AbstractHowsoClient(ABC):
             specified will executed a discriminative react. Conviction is the
             ratio of expected surprisal to generated surprisal for each
             feature generated, valid values are in the range of
-            :math:`(0, \\infty)`.
+            :math:`(0, \infty)`.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1926,6 +2064,13 @@ class AbstractHowsoClient(ABC):
                     "feature_b" : {"min": 1, "max": 5},
                     "feature_c": {"max": 1}
                 }
+
+        feature_pre_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the context feature they are mapped from.
+            The custom code will have access to all pre-processed encoded context
+            feature values and the resulting value of the code should also be
+            in the feature's encoded format.
 
         feature_post_process_code_map : dict of str, optional
             A mapping of feature name to custom code strings that will be
@@ -1989,6 +2134,10 @@ class AbstractHowsoClient(ABC):
             the order of specified features.
         num_cases_to_generate : int, default 1
             The number of cases to generate.
+        return_context_values : bool, default False
+            When True, context values and features are included in the details
+            dict of the response under "context_values" and "context_features"
+            keys.
         suppress_warning : bool, defaults to False
             If True, warnings will not be displayed.
         post_process_features : iterable of str, optional
@@ -2160,11 +2309,13 @@ class AbstractHowsoClient(ABC):
             # discriminative react parameters
             react_params = {
                 "action_values": actions,
+                "constraints": constraints,
                 "context_features": context_features,
                 "context_values": contexts,
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "feature_pre_process_code_map": feature_pre_process_code_map,
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "goal_features_map": goal_features_map,
                 "post_process_features": post_process_features,
@@ -2179,6 +2330,7 @@ class AbstractHowsoClient(ABC):
                 "preserve_feature_values": preserve_feature_values,
                 "new_case_threshold": new_case_threshold,
                 "details": details,
+                "return_context_values": return_context_values
             }
         else:
             if (
@@ -2202,11 +2354,13 @@ class AbstractHowsoClient(ABC):
             # generative react parameters
             react_params = {
                 "num_cases_to_generate": num_cases_to_generate,
+                "constraints": constraints,
                 "context_features": context_features,
                 "context_values": contexts,
                 "action_features": action_features,
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
+                "feature_pre_process_code_map": feature_pre_process_code_map,
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
@@ -2227,6 +2381,7 @@ class AbstractHowsoClient(ABC):
                 "case_indices": case_indices,
                 "leave_case_out": leave_case_out,
                 "details": details,
+                "return_context_values": return_context_values,
                 "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
             }
 
@@ -2278,6 +2433,12 @@ class AbstractHowsoClient(ABC):
                         if extra_new_key in detail_response:
                             detail_response[extra_old_key] = detail_response[extra_new_key]
                             del detail_response[extra_new_key]
+
+            if "categorical_action_probabilities" in detail_response:
+                detail_response["categorical_action_probabilities"] = internals.update_caps_maps(
+                    detail_response["categorical_action_probabilities"],
+                    feature_attributes
+                )
 
         return Reaction(response.get('action'), detail_response)
 
@@ -2332,8 +2493,11 @@ class AbstractHowsoClient(ABC):
             gen_batch_size = None
             batch_scaler = None
             if not batch_size:
+                if not initial_batch_size:
+                    start_batch_size = max(self._get_trainee_thread_count(trainee_id), 1)
+                else:
+                    start_batch_size = initial_batch_size
                 # Scale the batch size automatically
-                start_batch_size = initial_batch_size or self.react_initial_batch_size
                 batch_scaler = self.batch_scaler_class(start_batch_size, progress)
                 gen_batch_size = batch_scaler.gen_batch_size()
                 batch_size = next(gen_batch_size, None)
@@ -2361,9 +2525,16 @@ class AbstractHowsoClient(ABC):
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
+                    # Ensure the minimum batch size continues to match the
+                    # number of threads,even over scaling events.
+                    batch_scaler.size_limits = (
+                        max(self._get_trainee_thread_count(trainee_id), 1),
+                        batch_scaler.size_limits[1]
+                    )
                     batch_size = batch_scaler.send(
                         gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size)))
+                        batch_scaler.SendOptions(None, (in_size, out_size))
+                    )
 
         # Final call to callback on completion
         if isinstance(progress_callback, Callable):
@@ -2598,6 +2769,7 @@ class AbstractHowsoClient(ABC):
         *,
         action_features: t.Optional[Collection[str]] = None,
         batch_size: t.Optional[int] = None,
+        constraints: t.Optional[Mapping] = None,
         continue_series: bool = False,
         derived_action_features: t.Optional[Collection[str]] = None,
         derived_context_features: t.Optional[Collection[str]] = None,
@@ -2630,6 +2802,7 @@ class AbstractHowsoClient(ABC):
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
+        use_all_features: bool = True,
         use_case_weights: t.Optional[bool] = None,
         use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None
@@ -2687,6 +2860,25 @@ class AbstractHowsoClient(ABC):
 
                 Terminated series with terminators cannot be continued and
                 will result in null output.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         derived_context_features : iterable of str, optional
             List of context features whose values should be computed
             from the entire series in the specified order. Must be
@@ -2766,6 +2958,11 @@ class AbstractHowsoClient(ABC):
             the number will be determined automatically. The number of series
             in following batches will be automatically adjusted. This value is
             ignored if ``batch_size`` is specified.
+        use_all_features: bool, default True
+            If True, values are generated for every trained feature and derived feature
+            internally during the generation of the series. If False, then values are only
+            generated for features specified as action features and the features necessary
+            to derive them, reducing the expected runtime but possibly reducing accuracy.
         action_features: iterable of str
             See parameter ``action_features`` in :meth:`AbstractHowsoClient.react`.
         input_is_substituted : bool, default False
@@ -2790,7 +2987,7 @@ class AbstractHowsoClient(ABC):
         weight_feature : str
             See parameter ``weight_feature`` in :meth:`AbstractHowsoClient.react`.
         use_aggregation_based_differential_privacy : bool, default False
-            See paramater ``use_aggregation_based_differential_privacy`` in
+            See parameter ``use_aggregation_based_differential_privacy`` in
             :meth:`AbstractHowsoClient.react`.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`AbstractHowsoClient.react`.
@@ -2899,6 +3096,7 @@ class AbstractHowsoClient(ABC):
 
             react_params = {
                 "action_features": action_features,
+                "constraints": constraints,
                 "continue_series": continue_series,
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "final_time_steps": final_time_steps,
@@ -2922,7 +3120,8 @@ class AbstractHowsoClient(ABC):
                 "details": details,
                 "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
                 "series_id_tracking": series_id_tracking,
-                "output_new_series_ids": output_new_series_ids
+                "output_new_series_ids": output_new_series_ids,
+                "use_all_features": use_all_features,
             }
 
         else:
@@ -2949,6 +3148,7 @@ class AbstractHowsoClient(ABC):
             react_params = {
                 "num_series_to_generate": num_series_to_generate,
                 "action_features": action_features,
+                "constraints": constraints,
                 "continue_series": continue_series,
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "final_time_steps": final_time_steps,
@@ -2963,6 +3163,7 @@ class AbstractHowsoClient(ABC):
                 "series_id_features": series_id_features,
                 "series_id_values": series_id_values,
                 "leave_series_out": leave_series_out,
+                "use_all_features": use_all_features,
                 "use_differential_privacy": use_differential_privacy,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
@@ -3100,6 +3301,12 @@ class AbstractHowsoClient(ABC):
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
+                    # Ensure the minimum batch size continues to match the
+                    # number of threads,even over scaling events.
+                    batch_scaler.size_limits = (
+                        max(self._get_trainee_thread_count(trainee_id), 1),
+                        batch_scaler.size_limits[1]
+                    )
                     batch_size = batch_scaler.send(
                         gen_batch_size,
                         batch_scaler.SendOptions(None, (in_size, out_size)))
@@ -3154,6 +3361,7 @@ class AbstractHowsoClient(ABC):
         action_features: Collection[str],
         *,
         batch_size: t.Optional[int] = None,
+        constraints: t.Optional[Mapping] = None,
         context_features: t.Optional[Collection[str]] = None,
         desired_conviction: t.Optional[float] = None,
         goal_features_map: t.Optional[Mapping] = None,
@@ -3186,6 +3394,25 @@ class AbstractHowsoClient(ABC):
         context_features : collection of str, optional
             List of features names specifying what features will be used as contexts
             to predict the values of the action features.
+        constraints : Mapping, optional
+            A mapping of conditions for features that will be used to constrain
+            the queries used to find the most similar trained cases to the given
+            contexts.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         desired_conviction : float, optional
             If specified will execute a generative react. If not
             specified will executed a discriminative react. Conviction is the
@@ -3305,6 +3532,7 @@ class AbstractHowsoClient(ABC):
 
         react_stationary_params = {
             "action_features": action_features,
+            "constraints": constraints,
             "context_features": context_features,
             "desired_conviction": desired_conviction,
             "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy,
@@ -3421,6 +3649,12 @@ class AbstractHowsoClient(ABC):
                 if batch_scaler is None or gen_batch_size is None:
                     progress.update(batch_size)
                 else:
+                    # Ensure the minimum batch size continues to match the
+                    # number of threads,even over scaling events.
+                    batch_scaler.size_limits = (
+                        max(self._get_trainee_thread_count(trainee_id), 1),
+                        batch_scaler.size_limits[1]
+                    )
                     batch_size = batch_scaler.send(
                         gen_batch_size,
                         batch_scaler.SendOptions(None, (in_size, out_size)))
@@ -3473,12 +3707,13 @@ class AbstractHowsoClient(ABC):
         self,
         trainee_id: str,
         *,
-        analyze: bool = None,
+        analyze: t.Optional[bool] = None,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
         features: t.Optional[Collection[str]] = None,
         influence_weight_entropy: bool | str = False,
+        overwrite: bool = False,
         p_value_of_addition: bool | str = False,
         p_value_of_removal: bool | str = False,
         similarity_conviction: bool | str = False,
@@ -3509,6 +3744,10 @@ class AbstractHowsoClient(ABC):
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
             'influence_weight_entropy'.
+        overwrite: bool, default False
+            When true will forcibly overwrite previously stored values.
+            Default is false, will error out if trying to
+			react_into_features for a feature that already exists.
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition
             values. If set to True the values will be stored to the feature
@@ -3543,6 +3782,7 @@ class AbstractHowsoClient(ABC):
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
             "influence_weight_entropy": influence_weight_entropy,
+            "overwrite": overwrite,
             "p_value_of_addition": p_value_of_addition,
             "p_value_of_removal": p_value_of_removal,
             "similarity_conviction": similarity_conviction,
@@ -3552,17 +3792,24 @@ class AbstractHowsoClient(ABC):
         })
         self._auto_persist_trainee(trainee_id)
 
+        # Update trainee in cache
+        cached_trainee = self.trainee_cache.get_item(trainee_id)
+        cached_trainee["feature_attributes"] = self.get_feature_attributes(trainee_id)
+
     def react_aggregate(  # noqa: C901
         self,
         trainee_id: str,
         *,
-        action_feature: t.Optional[str] = None,
         action_features: t.Optional[Collection[str]] = None,
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         details: t.Optional[dict] = None,
-        features_to_derive: t.Optional(Collection[str]) = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
+        features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
+        forecast_window_length: t.Optional[float] = None,
         goal_dependent_features: t.Optional[Collection[str]] = None,
         goal_features_map: t.Optional[Mapping] = None,
         hyperparameter_param_path: t.Optional[Collection[str]] = None,
@@ -3580,7 +3827,7 @@ class AbstractHowsoClient(ABC):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> dict[str, dict[str, float | dict[str, float]]]:
+    ) -> dict[str, dict[str, t.Any]]:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -3588,11 +3835,6 @@ class AbstractHowsoClient(ABC):
 
         Parameters
         ----------
-        action_feature : str, optional
-            Name of target feature for which to do computations. If ``prediction_stats_action_feature``
-            and ``feature_influences_action_feature`` are not provided, they will default to this value.
-            If ``feature_influences_action_feature`` is not provided and feature influences ``details`` are
-            selected, this feature must be provided.
         action_features : iterable of str, optional
             List of feature names to compute any requested residuals or prediction statistics for. If unspecified,
             the value used for context features will be used.
@@ -3631,15 +3873,15 @@ class AbstractHowsoClient(ABC):
             - feature_full_prediction_contributions : bool, optional
                 For each context_feature, use the full set of all other
                 context_features to compute the mean absolute delta between
-                prediction of action feature with and without the context features
-                in the model. Returns the mean absolute delta
+                prediction of ``feature_influences_action_feature`` with and without
+                the context features in the model. Returns the mean absolute delta
                 under the key 'feature_full_prediction_contributions' and returns the mean
                 delta under the key 'feature_full_directional_prediction_contributions'.
             - feature_robust_prediction_contributions : bool, optional
                 For each context_feature, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
-                delta between prediction of the action feature with and without the
-                context features in the model. Returns the mean absolute delta
+                delta between prediction of the ``feature_influences_action_feature`` with
+                and without the context features in the model. Returns the mean absolute delta
                 under the key 'feature_robust_prediction_contributions' and returns the mean
                 delta under the key 'feature_robust_directional_prediction_contributions'.
             - feature_deviations : bool, optional
@@ -3648,9 +3890,9 @@ class AbstractHowsoClient(ABC):
                 and return the mean absolute error.
             - feature_full_accuracy_contributions : bool, optional
                 When True will compute accuracy contributions for each context
-                feature at predicting the action feature. Drop each feature and
-                use the full set of remaining context features for each
-                prediction.
+                feature at predicting the ``feature_influences_action_feature``.
+                Drop each feature and use the full set of remaining context features for
+                each prediction.
             - feature_robust_accuracy_contributions : bool, optional
                 Compute accuracy contributions by dropping each feature and
                 using the robust (power set/permutations) set of remaining
@@ -3668,25 +3910,23 @@ class AbstractHowsoClient(ABC):
                 reacted to while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
-                        - None
+                        - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
                           range. Only applicable to continuous and numeric ordinal
-                          features.
+                          features. Either the lower bound or upper bound can be
+                          None to express an open bound. If both bounds are None,
+                          then all cases with non-missing values are selected.
                         - An array of string values, must match any of these values
                           exactly. Only applicable to nominal and string ordinal
                           features.
-            - action_num_cases : int, optional
-                The maximum amount of cases to use to calculate prediction stats.
-                If not specified, the limit will be k cases if precision is
-                "similar", or 1000 cases if precision is "exact".
-
-                If this value is not provided, the default depends on ``action_condition``.  If
-                If ``action_condition`` is set, the default is k if precision is "similar" or no
-                limit if precision is "exact".  If ``action_condition`` is not set, the Howso
-                default limit is 2000.
+            - action_num_samples : int, optional
+                The maximum number of action cases used in calculating conditional prediction stats.
+                If ``action_condition`` is set and no value is specified, will use k if precision is "similar" or
+                no limit if precision is "exact". If ``action_condition`` is not set and no value is specified,
+                will be set to the default limit of 2000.
             - action_condition_precision : {"exact", "similar"}, optional
                 The precision to use when selecting cases with the ``action_condition``.
                 If not specified "exact" will be used. Only used if ``action_condition``
@@ -3696,27 +3936,25 @@ class AbstractHowsoClient(ABC):
                 available to make reactions while computing the requested metrics.
 
                 .. NOTE::
-                    The dictionary keys are the feature name and values are one of:
+                    The dictionary keys are feature names and values are one of:
 
-                        - None
+                        - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
                           range. Only applicable to continuous and numeric ordinal
-                          features.
+                          features. Either the lower bound or upper bound can be
+                          None to express an open bound. If both bounds are None,
+                          then all cases with non-missing values are selected.
                         - An array of string values, must match any of these values
                           exactly. Only applicable to nominal and string ordinal
                           features.
-            - context_precision_num_cases : int, optional
+            - context_condition_num_samples : int, optional
                 Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
                 If None, will be set to k.
             - context_condition_precision : {"exact", "similar"}, optional
                 The precision to use when selecting cases with the ``context_condition``.
                 If not specified "exact" will be used. Only used if ``context_condition``
                 is not None.
-            - prediction_stats_features : list, optional
-                List of features to use when calculating conditional prediction stats. Should contain all
-                action and context features desired. If ``action_feature`` is also provided, that feature will
-                automatically be appended to this list if it is not already in the list.
             - selected_prediction_stats : list, optional
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
@@ -3745,16 +3983,33 @@ class AbstractHowsoClient(ABC):
                   continuous features only. Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
                   actual value. The minimum gap for each feature is the smallest difference between two values
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
+            - estimated_residual_lower_bound : bool, optional
+                When True, computes and outputs estimated lower bound of residuals for specified action features.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically sampling robust
+            residuals used to determine feature accuracy contributions. Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to dynamically limit the total number of
+            samples used to determine robust feature accuracy contributions. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of samples used to determine robust
+            accuracy contributions. Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_robust_accuracy_contributions_samples`` instead of converging.
         features_to_derive: list of str, optional
             List of feature names whose values should be derived rather than interpolated from influential
             cases when predicted. If unspecified, then the features that have derivation logic defined will
             automatically be chosen to be derived. Specifying an empty list will ensure that all features
             are interpolated rather than derived.
         feature_influences_action_feature : str, optional
-            When feature influences such as contributions and mda, use this feature as
-            the action feature.  If not provided, will default to the ``action_feature`` if provided.
-            If ``action_feature`` is not provided and feature influences ``details`` are
-            selected, this feature must be provided.
+            When computing feature influences such as accuracy and prediction contributions, use this feature as
+            the action feature.  If feature influences ``details`` are selected, this feature must be provided.
+        forecast_window_length : float, optional
+            A value specifing a length of time over which to measure the accuracy of forecasts. When
+            specified, returned prediction statistics and full residuals will be measuring the accuracy
+            of forecasts of this specified length. The given value should be on the scale as the Trainee's
+            time feature (seconds when the time feature uses datetime strings). When evaluating forecasts,
+            the error of the series ID features and time feature will not be evaluated nor returned.
         goal_dependent_features : list of str, optional
             A list of features that will not be ignored in the goal-biased sampling process used when
             ``goal_features_map`` is specified. Specifically, when the similar cases are ranked by
@@ -3788,8 +4043,9 @@ class AbstractHowsoClient(ABC):
                 }
         hyperparameter_param_path : iterable of str, optional.
             Full path for hyperparameters to use for computation. If specified
-            for any residual computations, takes precedence over action_feature
-            parameter.  Can be set to a 'paramPath' value from the results of
+            for any residual computations, takes precedence over
+            ``prediction_stats_action_feature`` and ``feature_influences_action_feature``
+            parameters.  Can be set to a 'paramPath' value from the results of
             'get_params()' for a specific set of hyperparameters.
         num_robust_accuracy_contributions_permutation_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
@@ -3798,8 +4054,7 @@ class AbstractHowsoClient(ABC):
         num_robust_accuracy_contributions_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions. Defaults to the
-            lesser value of either 10,000 or the number of cases multiplied by
-            2^(number of features) when unspecified.
+            smaller of 150000 or (6321 * number of context features).
         num_robust_influence_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions and robust prediction
@@ -3843,12 +4098,10 @@ class AbstractHowsoClient(ABC):
             non-robust type.
         prediction_stats_action_feature : str, optional
             When calculating residuals and prediction stats, uses this target features's
-            hyperparameters. The trainee must have been analyzed with this feature as the
-            action feature first. If both ``prediction_stats_action_feature`` and
-            ``action_feature`` are not provided, by default residuals and prediction
-            stats uses targetless hyperparameters. If "action_feature" is provided,
-            and this value is not provided, will default to ``action_feature``.
-            Targetless hyperparameters may also be selected using an empty string: "".
+            hyperparameters. The trainee should have been analyzed with this feature as the
+            action feature first. If not provided, by default residuals and prediction
+            stats uses targetless hyperparameters. Targetless hyperparameters may
+            also be selected using an empty string: "".
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
             (using sampling without replacement). Applicable only to non-robust
@@ -3867,11 +4120,11 @@ class AbstractHowsoClient(ABC):
 
         Returns
         -------
-        dict[str, dict[str, float | dict[str, float]]]
-            A map of detail names to maps of feature names to stat values or
-            another map of feature names to stat values.
+        dict[str, dict[str, Any]]
+            A mapping of detail names to maps of feature names to metric values.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
+        feature_attributes = self.resolve_feature_attributes(trainee_id)
         util.validate_list_shape(context_features, 1, "context_features", "str")
 
         if isinstance(details, dict):
@@ -3937,13 +4190,16 @@ class AbstractHowsoClient(ABC):
             print(f'Reacting into aggregate trained cases of Trainee with id: {trainee_id}')
 
         stats = self.execute(trainee_id, "react_aggregate", {
-            "action_feature": action_feature,
             "action_features": action_features,
             "context_features": context_features,
             "confusion_matrix_min_count": confusion_matrix_min_count,
             "details": details,
+            "convergence_min_size": convergence_min_size,
+            "convergence_samples_growth_rate": convergence_samples_growth_rate,
+            "convergence_threshold": convergence_threshold,
             "features_to_derive": features_to_derive,
             "feature_influences_action_feature": feature_influences_action_feature,
+            "forecast_window_length": forecast_window_length,
             "goal_dependent_features": goal_dependent_features,
             "goal_features_map": goal_features_map,
             "hyperparameter_param_path": hyperparameter_param_path,
@@ -3978,22 +4234,28 @@ class AbstractHowsoClient(ABC):
                             stats[extra_old_key] = stats[extra_new_key]
                             del stats[extra_new_key]
 
+            if "confusion_matrix" in stats:
+                stats['confusion_matrix'] = internals.update_confusion_matrix(stats['confusion_matrix'], feature_attributes)
+
         self._auto_persist_trainee(trainee_id)
         return stats
 
     def react_group(
         self,
         trainee_id: str,
-        new_cases: TabularData3D,
         *,
+        case_indices: t.Optional[CaseIndices] = None,
+        conditions: t.Optional[list[Mapping]] = None,
         features: t.Optional[Collection[str]] = None,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = True,
         familiarity_conviction_removal: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
+        new_cases: t.Optional[TabularData3D] = None,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
+        similarity_conviction: bool = False,
         weight_feature: t.Optional[str] = None,
         use_case_weights: t.Optional[bool] = None,
     ) -> dict:
@@ -4008,13 +4270,33 @@ class AbstractHowsoClient(ABC):
         trainee_id : str
             The trainee id.
 
-        new_cases : list of list of list of object or list of DataFrame
-            Specify a **set** using a list of cases to compute the conviction of
-            groups of cases as shown in the following example.
+        case_indices: list of lists of tuples of {str, int}, optional
+            A list of lists of case indices tuples containing the session ID and
+            the session training indices that uniquely identify trained cases.
+            Each sublist defines a set of trained cases to react to. Only one of
+            ``case_indices``, ``conditions``, or ``new_cases`` may be specified.
+        conditions: list of Mapping, optional
+            A list of mappings that define conditions which will select sets of
+            trained cases to react to. Only one of ``case_indices``,
+            ``conditions``, or ``new_cases`` may be specified.
 
-            >>> [ [[1, 2, 3], [4, 5, 6], [7, 8, 9]], # Group 1
-            >>>   [[1, 2, 3]] ] # Group 2
+            Each condition mapping will select trained cases that meet all the
+            provided conditions.
 
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
         features : Collection of str, optional
             The feature names to consider while calculating convictions.
         distance_contributions : bool, default False
@@ -4032,10 +4314,23 @@ class AbstractHowsoClient(ABC):
         kl_divergence_removal : bool, default False
             Calculate and output KL divergence of removing the
             specified cases.
+        new_cases : list of list of list of object or list of DataFrame, optional
+            Specify a **set** using a list of cases to compute the conviction of
+            groups of cases as shown in the following example. If given as a list,
+            feature values in each list representing a case should be ordered
+            following the order of feature names given to the "features"
+            parameter. Only one of ``case_indices``, ``conditions``, or
+            ``new_cases`` may be specified.
+
+            >>> [ [[1, 2, 3], [4, 5, 6], [7, 8, 9]], # Group 1
+            >>>   [[1, 2, 3]] ] # Group 2
         p_value_of_addition : bool, default False
             If true will output p value of addition.
         p_value_of_removal : bool, default False
             If true will output p value of removal.
+        similarity_conviction : bool, default False
+            If true will output the mean similarity conviction of the group's
+            cases.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -4053,22 +4348,28 @@ class AbstractHowsoClient(ABC):
         feature_attributes = self.resolve_feature_attributes(trainee_id)
         serialized_cases = None
 
-        if util.num_list_dimensions(new_cases) != 3:
-            raise ValueError(
-                "Improper shape of `new_cases` values passed. "
-                "`new_cases` must be a 3d list of object.")
+        if new_cases is not None:
+            if util.num_list_dimensions(new_cases) != 3:
+                raise ValueError(
+                    "Improper shape of `new_cases` values passed. "
+                    "`new_cases` must be a 3d list of object.")
 
-        serialized_cases = []
-        for group in new_cases:
-            if features is None:
-                features = internals.get_features_from_data(group)
-            serialized_cases.append(serialize_cases(group, features, feature_attributes))
+            serialized_cases = []
+            for group in new_cases:
+                if features is None:
+                    features = internals.get_features_from_data(group)
+                serialized_cases.append(serialize_cases(group, features, feature_attributes))
+
+        if case_indices is not None:
+            util.validate_case_indices(case_indices)
 
         if self.configuration.verbose:
             print(f'Reacting to a set of cases on Trainee with id: {trainee_id}')
         result = self.execute(trainee_id, "react_group", {
             "features": features,
             "new_cases": serialized_cases,
+            "conditions": conditions,
+            "case_indices": case_indices,
             "distance_contributions": distance_contributions,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
@@ -4076,6 +4377,7 @@ class AbstractHowsoClient(ABC):
             "kl_divergence_removal": kl_divergence_removal,
             "p_value_of_addition": p_value_of_addition,
             "p_value_of_removal": p_value_of_removal,
+            "similarity_conviction": similarity_conviction,
             "weight_feature": weight_feature,
             "use_case_weights": use_case_weights,
         })
@@ -4138,12 +4440,16 @@ class AbstractHowsoClient(ABC):
         bypass_calculate_feature_residuals: t.Optional[bool] = None,
         bypass_calculate_feature_weights: t.Optional[bool] = None,
         bypass_hyperparameter_analysis: t.Optional[bool] = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
         k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
-        num_samples: t.Optional[int] = None,
+        num_deviation_samples: t.Optional[int] = None,
+        num_feature_probability_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
         targeted_model: t.Optional[TargetedModel] = None,
@@ -4173,6 +4479,21 @@ class AbstractHowsoClient(ABC):
             When True, bypasses calculation of feature weights.
         bypass_hyperparameter_analysis : bool, optional
             When True, bypasses hyperparameter analysis.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically
+            sampling robust residuals used to determine feature probabilities.
+            Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to
+            dynamically limit the total number of samples used to determine
+            feature probabilities. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less
+            than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of
+            samples used to determine feature probabilities.
+            Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_feature_probability_samples`` instead of converging.
         dt_values : Collection of float, optional
             The dt value hyperparameters to analyze with.
         inverse_residuals_as_weights : bool, default is False
@@ -4189,9 +4510,15 @@ class AbstractHowsoClient(ABC):
         num_analysis_samples : int, optional
             If the dataset size to too large, analyze on (randomly sampled)
             subset of data. The `num_analysis_samples` specifies the number of
-            observations to be considered for analysis.
-        num_samples : int, optional
-            The number of samples used in calculating feature residuals.
+            samples used for grid search for the targeted flow. Only applies
+            for k_folds = 1. Defaults to 1000 if unspecified.
+        num_deviation_samples : int, optional
+            The number of samples used to approximate deviations and residuals for
+            both targetless and targeted flows. Defaults to 1000 if unspecified.
+        num_feature_probability_samples : int, optional
+            Number of samples to use to compute feature probabilities, only
+            applies to targetless flow. Defaults to the number of features
+            multiplied by :math:`10000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
         p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
         rebalance_features : Collection[str], optional
@@ -4274,13 +4601,17 @@ class AbstractHowsoClient(ABC):
             bypass_calculate_feature_residuals=bypass_calculate_feature_residuals,  # noqa: #E501
             bypass_calculate_feature_weights=bypass_calculate_feature_weights,
             bypass_hyperparameter_analysis=bypass_hyperparameter_analysis,  # noqa: #E501
+            convergence_min_size=convergence_min_size,
+            convergence_samples_growth_rate=convergence_samples_growth_rate,
+            convergence_threshold=convergence_threshold,
             dt_values=dt_values,
             use_case_weights=use_case_weights,
             inverse_residuals_as_weights=inverse_residuals_as_weights,
             k_folds=k_folds,
             k_values=k_values,
             num_analysis_samples=num_analysis_samples,
-            num_samples=num_samples,
+            num_deviation_samples=num_deviation_samples,
+            num_feature_probability_samples=num_feature_probability_samples,
             analysis_sub_model_size=analysis_sub_model_size,
             p_values=p_values,
             rebalance_features=rebalance_features,
@@ -4346,12 +4677,16 @@ class AbstractHowsoClient(ABC):
         bypass_calculate_feature_weights: t.Optional[bool] = None,
         bypass_hyperparameter_analysis: t.Optional[bool] = None,
         context_features: t.Optional[Collection[str]] = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
         k_values: t.Optional[Collection[int | Collection[int | float]]] = None,
         num_analysis_samples: t.Optional[int] = None,
-        num_samples: t.Optional[int] = None,
+        num_deviation_samples: t.Optional[int] = None,
+        num_feature_probability_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
         targeted_model: t.Optional[TargetedModel] = None,
@@ -4381,11 +4716,27 @@ class AbstractHowsoClient(ABC):
             The action features to analyze for.
         context_features : Collection of str, optional
             The context features to analyze for.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically
+            sampling robust residuals used to determine feature probabilities.
+            Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to
+            dynamically limit the total number of samples used to determine
+            feature probabilities. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less
+            than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of
+            samples used to determine feature probabilities.
+            Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_feature_probability_samples`` instead of converging.
         k_folds : int, optional
             The number of cross validation folds to do. A value of 1 does
             hold-one-out instead of k-fold.
-        num_samples : int, optional
-            The number of samples used in calculating feature residuals.
+        num_deviation_samples : int, optional
+            The number of samples used to approximate deviations and residuals for
+            both targetless and targeted flows. Defaults to 1000 if unspecified.
         dt_values : Collection of float, optional
             The dt value hyperparameters to analyze with.
         k_values : Collection of int or collection of int or float, optional
@@ -4419,7 +4770,12 @@ class AbstractHowsoClient(ABC):
         num_analysis_samples : int, optional
             If the dataset size to too large, analyze on (randomly sampled)
             subset of data. The `num_analysis_samples` specifies the number of
-            observations to be considered for analysis.
+            samples used for grid search for the targeted flow. Only applies
+            for k_folds = 1. defaults to 1000.
+        num_feature_probability_samples : int, optional
+            Number of samples to use to compute feature probabilities, only
+            applies to targetless flow. Defaults to the number of features
+            multiplied by :math:`10000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
         analysis_sub_model_size : int, optional
             Number of samples to use for analysis. The rest will be
             randomly held-out and not included in calculations.
@@ -4512,8 +4868,12 @@ class AbstractHowsoClient(ABC):
             "analyze_growth_factor": analyze_growth_factor,
             "action_features": action_features,
             "context_features": context_features,
+            "convergence_min_size": convergence_min_size,
+            "convergence_samples_growth_rate": convergence_samples_growth_rate,
+            "convergence_threshold": convergence_threshold,
             "k_folds": k_folds,
-            "num_samples": num_samples,
+            "num_deviation_samples": num_deviation_samples,
+            "num_feature_probability_samples": num_feature_probability_samples,
             "dt_values": dt_values,
             "k_values": k_values,
             "p_values": p_values,
@@ -4564,8 +4924,9 @@ class AbstractHowsoClient(ABC):
         conviction_upper_threshold: t.Optional[float] = None,
         delta_threshold_map: AblationThresholdMap = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
-        min_num_cases: int = 1_000,
-        max_num_cases: int = 500_000,
+        influence_weight_entropy_sample_size: int = 2_000,
+        min_num_cases: int = 10_000,
+        max_num_cases: int = 200_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
         rel_threshold_map: AblationThresholdMap = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
@@ -4599,12 +4960,15 @@ class AbstractHowsoClient(ABC):
         batch_size: number, default 2,000
             Number of cases in a batch to consider for ablation prior to training and
             to recompute influence weight entropy.
-        min_num_cases : int, default 1,000
+        min_num_cases : int, default 10,000
             The threshold of the minimum number of cases at which the model should auto-ablate.
-        max_num_cases: int, default 500,000
+        max_num_cases: int, default 200,000
             The threshold of the maximum number of cases at which the model should auto-reduce
         exact_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if the prediction matches exactly.
+        influence_weight_entropy_sample_size : int, default 2,000
+            Maximum number of cases to sample without replacement for computing the influence
+            weight entropy threshold.
         residual_prediction_features : Optional[List[str]], optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= feature residual.
@@ -4651,6 +5015,7 @@ class AbstractHowsoClient(ABC):
             conviction_upper_threshold=conviction_upper_threshold,
             delta_threshold_map=delta_threshold_map,
             exact_prediction_features=exact_prediction_features,
+            influence_weight_entropy_sample_size=influence_weight_entropy_sample_size,
             min_num_cases=min_num_cases,
             max_num_cases=max_num_cases,
             reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
@@ -4751,7 +5116,8 @@ class AbstractHowsoClient(ABC):
         features: t.Optional[Collection[str]] = None,
         condition: t.Optional[Mapping] = None,
         num_cases: t.Optional[int] = None,
-        precision: t.Optional[t.Literal["exact", "similar"]] = None
+        precision: t.Optional[t.Literal["exact", "similar"]] = None,
+        sort_by: t.Optional[Collection[SortByFeature]] = None,
     ) -> Cases:
         """
         Retrieve cases from a model given a Trainee id.
@@ -4792,13 +5158,16 @@ class AbstractHowsoClient(ABC):
             provided conditions.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -4806,15 +5175,15 @@ class AbstractHowsoClient(ABC):
             .. TIP::
                 Example 1 - Retrieve all values belonging to `feature_name`::
 
-                    criteria = {"feature_name": None}
+                    condition = {"feature_name": None}
 
                 Example 2 - Retrieve cases that have the value 10::
 
-                    criteria = {"feature_name": 10}
+                    condition = {"feature_name": 10}
 
                 Example 3 - Retrieve cases that have a value in range [10, 20]::
 
-                    criteria = {"feature_name": [10, 20]}
+                    condition = {"feature_name": [10, 20]}
 
                 Example 4 - Retrieve cases that match one of ['a', 'c', 'e']::
 
@@ -4822,7 +5191,7 @@ class AbstractHowsoClient(ABC):
 
                 Example 5 - Retrieve cases using session name and index::
 
-                    criteria = {'.session':'your_session_name',
+                    condition = {'.session':'your_session_name',
                                 '.session_training_index': 1}
 
         num_cases : int, default None
@@ -4833,6 +5202,8 @@ class AbstractHowsoClient(ABC):
             The precision to use when retrieving the cases via condition.
             Options are "exact" or "similar". If not provided, "exact" will
             be used.
+        sort_by : Collection of SortByFeature, optional
+            Feature sorting criteria, in order of precedence, to be applied to the resulting cases.
 
         Returns
         -------
@@ -4874,6 +5245,7 @@ class AbstractHowsoClient(ABC):
             "condition": condition,
             "num_cases": num_cases,
             "precision": precision,
+            "sort_by": sort_by,
         })
         if result is None:
             result = dict()
@@ -5047,13 +5419,16 @@ class AbstractHowsoClient(ABC):
             the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -5135,13 +5510,16 @@ class AbstractHowsoClient(ABC):
             in the model but the feature metadata will not be updated.
 
             .. NOTE::
-                The dictionary keys are the feature name and values are one of:
+                The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.

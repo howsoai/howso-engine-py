@@ -56,7 +56,7 @@ def _shard(data: pd.DataFrame, *, kwargs: dict[str, t.Any]):
         }
 
     feature_attributes = ifr_inst._process(**_kwargs)  # type: ignore reportPrivateUsage
-    return feature_attributes, ifr_inst.unsupported
+    return feature_attributes, ifr_inst.unsupported, ifr_inst.missing_tz_features, ifr_inst.utc_offset_features
 
 
 class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
@@ -74,6 +74,15 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self.data = data
         # Keep track of features that contain unsupported data
         self.unsupported = []
+        # Keep track of any features that are missing time zone information
+        # If a `default_time_zone` is provided, this list should stay empty
+        self.missing_tz_features = []
+        # Keep track of any features that use UTC offsets, as these could lead
+        # to unexpected results due to daylight savings time in some time zones
+        self.utc_offset_features = []
+        # Keep track of any features that we detected to be datetimes but were
+        # not in ISO8601 format
+        self.unknown_datetime_features = []
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -94,15 +103,22 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
                 feature_attributes: dict[str, t.Any] = dict()
                 unsupported: list[str] = list()
+                missing_tz_features: list[str] = list()
+                utc_offset_features: list[str] = list()
                 for future in as_completed(futures):
                     response = future.result()
                     feature_attributes.update(response[0])
                     unsupported.extend(response[1])
+                    missing_tz_features.extend(response[2])
+                    utc_offset_features.extend(response[3])
 
             # Re-order the keys like the original dataframe
             feature_attributes = {
                 k: feature_attributes[k] for k in self.data.columns
             }
+
+            self.emit_time_zone_warnings(missing_tz_features, utc_offset_features)
+            self.emit_unknown_datetime_warnings(self.unknown_datetime_features)
 
             return SingleTableFeatureAttributes(
                 feature_attributes=feature_attributes, params=kwargs,
@@ -110,16 +126,38 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             )
 
         else:
+            feature_attributes = self._process(**kwargs)
+            self.emit_time_zone_warnings(self.missing_tz_features, self.utc_offset_features)
+            self.emit_unknown_datetime_warnings(self.unknown_datetime_features)
             return SingleTableFeatureAttributes(
-                self._process(**kwargs), params=kwargs,
+                feature_attributes, params=kwargs,
                 unsupported=self.unsupported
             )
+
+    def _check_feature_memory_use(self, max_size: int = 512):
+        violators = {}
+        for feature in self.data.columns:
+            avg_memory = int(self.data[feature].memory_usage(deep=True) / len(self.data[feature]))
+            if avg_memory > max_size:  # Measured in bytes
+                violators[feature] = avg_memory
+        if len(violators) > 1:
+            largest = sorted(violators, key=violators.get, reverse=True)[0]
+            warnings.warn(f"{len(violators)} features have an average memory size exceeding the "
+                          f"configured threshold of {max_size} bytes. The feature with the "
+                          f"largest memory footprint is '{largest}' with {violators[largest]} "
+                          "bytes. Including these features may significantly increase memory "
+                          "requirements.")
+        elif len(violators) == 1:
+            feat = list(violators.keys())[0]
+            warnings.warn(f"The average memory size ({violators[feat]} bytes) per case of feature "
+                          f"'{feat}' exceeds the configured threshold of {max_size} bytes. "
+                          "Including this feature may significantly increase memory requirements.")
 
     def _get_num_features(self) -> int:
         return self.data.shape[1]
 
-    def _get_num_cases(self) -> int:
-        return self.data.shape[0]
+    def _get_num_cases(self, feature_name: str) -> int:
+        return self.data[feature_name].dropna().count()
 
     def _get_feature_names(self) -> list[str]:
         feature_names = self.data.columns.tolist()
@@ -169,13 +207,21 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             elif is_datetime64_any_dtype(dtype):
                 typing_info = {}
+                # Check for date-only features
                 if dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
                     return FeatureType.DATE, {}
-                elif isinstance(dtype, pd.DatetimeTZDtype):
+                first_non_null = self._get_first_non_null(feature_name)
+                if isinstance(first_non_null, pd.Timestamp):
+                    # Date-only Timestamp objects in Pandas will have a default time of midnight
+                    if first_non_null.time() == datetime.time(0, 0, 0) and (not hasattr(dtype, 'tz') or not dtype.tz):
+                        return FeatureType.DATE, {}
+                # Datetime feature (with timezone info)
+                if isinstance(dtype, pd.DatetimeTZDtype):
                     if isinstance(dtype.tz, pytz.BaseTzInfo) and dtype.tz.zone:
                         # If using a named time zone capture it, otherwise
                         # rely on the offset in the iso8601 format
                         typing_info['timezone'] = dtype.tz.zone
+                # Datetime feature with no timezone info
                 return FeatureType.DATETIME, typing_info
 
             elif is_timedelta64_dtype(dtype):
@@ -194,7 +240,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 return FeatureType.STRING, {}
 
             else:
-                first_non_null = self._get_first_non_null(feature_name)
+                first_non_null = next((x for x in self.data[feature_name].dropna() if str(x).strip()), None)
                 # DataFrames may use 'object' dtype for strings, detect
                 # string columns by checking the type of the data
                 if isinstance(first_non_null, str):
@@ -202,7 +248,46 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     if re.match(TIME_PATTERN, first_non_null) or re.match(SIMPLE_TIME_PATTERN,
                                                                           first_non_null):
                         return FeatureType.TIME, {}
-                    return FeatureType.STRING, {}
+                    # explicitly declared formatted_date_time/time; don't try to guess
+                    if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None:
+                        return FeatureType.STRING, {}  # Could be datetime or time-only; let base.py figure it out
+                    try:
+                        # If the feature looks like a date or datetime, but it's not in ISO8601 format,
+                        # handle it as a string to avoid ambiguity.
+                        converted_dtype = pd.to_datetime(pd.Series([first_non_null])).dtype
+                        converted_val = pd.to_datetime(first_non_null)
+                        if not self._is_iso8601_datetime_column(feature_name):
+                            self.unknown_datetime_features.append(feature_name)
+                            return FeatureType.STRING, {}
+                        # Unfortunately, Pandas does not differentiate between datetimes and "pure" dates.
+                        # If the below code executes, that means Pandas recognizes the value as a datetime,
+                        # but we now need to check if the 'time' component is zero. If so, we can cast to
+                        # a Numpy datetime64[D] dtype.
+                        #
+                        # However, we need to be careful with this -- if the user has a datetime feature of the format
+                        # '%y-%m-%d' for example, the `to_datetime()` conversion above will add an empty time component
+                        # as previously described. But, if the user has a datetime feature that *actually* has an empty
+                        # time component in the string -- say, '%y-%m-%dT00:00:00' -- we must respect the original
+                        # format even if it is intended to be a date-only feature.
+                        if all([converted_val.time() == pd.Timestamp(0).time(),
+                                converted_val.tz is None,
+                                # Ensure there is no time component in the unconverted string
+                                'T' not in first_non_null,
+                                '00:00:00' not in first_non_null]):
+                            converted_dtype = np.datetime64(converted_val, 'D').dtype
+                        # Specify an original_type here to ensure the DataFrame is unchanged during deserialization
+                        typing_info = {'original_type': FeatureType.STRING}
+                        if converted_dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
+                            return FeatureType.DATE, typing_info
+                        elif isinstance(converted_dtype, pd.DatetimeTZDtype) or getattr(converted_dtype.tz):
+                            if isinstance(converted_dtype.tz, pytz.BaseTzInfo) and converted_dtype.tz.zone:
+                                # If using a named time zone capture it, otherwise
+                                # rely on the offset in the iso8601 format
+                                typing_info['timezone'] = converted_dtype.tz.zone
+                        return FeatureType.DATETIME, typing_info
+                    except Exception:
+                        # Datetime conversion failed; just a string
+                        return FeatureType.STRING, {}
                 elif isinstance(first_non_null, bytes):
                     warnings.warn(
                         f'The column "{feature_name}" contained bytes, original '
@@ -256,6 +341,16 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             return cases.iloc[np.random.randint(len(cases))]
 
+    def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
+        """Get the number of unique values in the provided feature(s)."""
+        if isinstance(feature_name, str):
+            num_uniques = self.data[feature_name].nunique()
+        elif isinstance(feature_name, Iterable):
+            num_uniques = len(self.data[feature_name].drop_duplicates())
+        else:
+            raise ValueError(f"`Feature_name` must be of type `str` or `Iterable[str]`, not {type(feature_name)}.")
+        return num_uniques
+
     def _infer_feature_bounds(  # noqa: C901
         self,
         feature_attributes: Mapping[str, Mapping],
@@ -271,8 +366,13 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         column = self.data[feature_name]
         decimal_places = feature_attributes[feature_name].get('decimal_places')
         # only integers by default do not allow nulls
-        if is_integer_dtype(column.dtype):
+
+        # Non-nullable integer
+        if column.dtype == np.int64:
             allow_null = False
+        # Nullable integer
+        elif is_integer_dtype(column.dtype):
+            allow_null = True
 
         def _as_float(value, dtype):
             # Convert datatype to float
@@ -630,7 +730,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
     def _infer_datetime_attributes(self, feature_name: str) -> dict:
         column = self.data[feature_name]
-        dt_format = ISO_8601_FORMAT
+        dt_format = ISO_8601_FORMAT  # Pandas Timestamp objects will be in ISO8601
         if hasattr(column, 'dt') and getattr(column.dt, 'tz', None):
             # Include timezone offset in format
             dt_format += '%z'
@@ -642,6 +742,18 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 # value has tzinfo and include the timezone in the format
                 if first_non_null.tzinfo is not None:
                     dt_format += '%z'
+            elif isinstance(first_non_null, str):
+                # Column has arbitrary string values, first check if they
+                # are ISO8601 datetimes.
+                if self._is_iso8601_datetime_column(feature_name):
+                    # if datetime, determine the iso8601 format it's using
+                    if first_non_null := self._get_first_non_null(feature_name):
+                        fmt = determine_iso_format(first_non_null, feature_name)
+                        return {
+                            'type': 'continuous',
+                            'data_type': 'formatted_date_time',
+                            'date_time_format': fmt
+                        }
         return {
             'type': 'continuous',
             'data_type': 'formatted_date_time',
@@ -649,10 +761,23 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         }
 
     def _infer_date_attributes(self, feature_name: str) -> dict:
+        first_non_null = self._get_first_non_null(feature_name)
+        if isinstance(first_non_null, str) and not self._is_iso8601_datetime_column(feature_name):
+            raise ValueError(f'Feature {feature_name} recognized as a date with non-ISO8601 format. Please '
+                             'specify the format via `datetime_feature_formats`.')
+        if isinstance(first_non_null, str):
+            # if datetime string, determine the iso8601 format it's using
+            if first_non_null := self._get_first_non_null(feature_name):
+                fmt = determine_iso_format(first_non_null, feature_name)
+                return {
+                    'type': 'continuous',
+                    'data_type': 'formatted_date_time',
+                    'date_time_format': fmt
+                }
         return {
             'type': 'continuous',
             'data_type': 'formatted_date_time',
-            'date_time_format': ISO_8601_DATE_FORMAT,
+            'date_time_format': ISO_8601_DATE_FORMAT,  # Datetime/timezone objects in Pandas will be ISO8601
         }
 
     def _infer_time_attributes(self, feature_name: str, user_time_format: str = None) -> dict:
@@ -702,8 +827,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # than the square root of the total samples or if every value
         # has exactly the same length.
         num_uniques = self.data[feature_name].nunique()
-        n_cases = int(self.data[feature_name].count())
-        if num_uniques < pow(n_cases, 0.5) or preset_feature_type == 'nominal':
+        if num_uniques < self._get_cont_threshold(feature_name) or preset_feature_type == 'nominal':
             guess_nominals = True
         else:
             # Find the largest and smallest non-null values in column.
@@ -756,6 +880,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 # if it has no data, but just in case...
                 return {
                     'type': 'continuous',
+                    'data_type': 'number',
                 }
         elif self._is_json_feature(feature_name):
             return {
@@ -773,6 +898,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
     def _infer_unknown_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'nominal',
+            'data_type': 'string',
         }
 
     def _get_unique_values(self, feature_name: str) -> set[t.Any]:

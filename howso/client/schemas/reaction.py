@@ -69,6 +69,7 @@ class Reaction(abc.MutableMapping):
         "feature_full_prediction_contributions",
         "feature_full_residual_convictions_for_case",
         "feature_full_residuals_for_case",
+        "predicted_values_for_case",
         "feature_full_residuals",
         "feature_robust_accuracy_contributions_ex_post",
         "feature_robust_accuracy_contributions",
@@ -89,8 +90,10 @@ class Reaction(abc.MutableMapping):
         "outlying_feature_values",
         "prediction_stats",
         "robust_influences",
-        "series_generate_attempts",
         "similarity_conviction",
+        # react_series-only details
+        "aggregated_categorical_action_probabilities",
+        "series_generate_attempts",
     }
 
     # These detail keys are deprecated, but should be treated as KNOWN_KEYs

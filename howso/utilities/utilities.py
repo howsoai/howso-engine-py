@@ -91,7 +91,12 @@ def date_to_epoch(
     elif isinstance(date_obj, dt.time):
         return time_to_seconds(date_obj)
     else:
-        date_str = str(date_obj)
+        # Some date-only data will include an empty time segment that will cause an error
+        # during conversion below. Try coercing the string to the given format.
+        try:
+            date_str = pd.to_datetime(str(date_obj), format=time_format).strftime(time_format)
+        except ValueError:
+            date_str = str(date_obj)
 
     # if there is time zone info in the format, use dt_parse because
     # datetime.strptime doesn't handle time zones
@@ -838,7 +843,7 @@ class LocaleOverride:
         is dropped and ignored.
     category : int
         This is one of the constants set within the locale object.
-        See: https://docs.python.org/3.9/library/locale.html for details.
+        See: https://docs.python.org/3/library/locale.html for details.
         `locale.LC_ALL` is used if nothing provided.
     """
 
