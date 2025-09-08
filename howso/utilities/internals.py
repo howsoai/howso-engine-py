@@ -1073,13 +1073,14 @@ class ReactInBatches:
         while batch_start < self._progress.total_ticks:
             batch_end = min(batch_start + self._batch_scaler.batch_size, self._progress.total_ticks)
             batch_params = self._params_for_batch(self._params, batch_start, batch_end)
-            batch_start = batch_end
             start = datetime.datetime.now(datetime.timezone.utc)
             temp_result, in_size, out_size = self._react_function(self._trainee_id, batch_params)
             end = datetime.datetime.now(datetime.timezone.utc)
+            self._progress.update(batch_end - batch_start)
             self._send_progress(temp_result)
             accumulate_react_result(self.result, temp_result)
             self._update_batch_size(end - start, in_size, out_size)
+            batch_start = batch_end
 
     def _running_futures(self) -> list[Future[tuple[dict[t.Any, t.Any], int, int]]]:
         """Get the running futures (if any)."""
