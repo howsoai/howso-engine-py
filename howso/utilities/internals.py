@@ -1092,7 +1092,8 @@ class ReactInBatches:
         """
         if len(self._futures) == 0:
             return
-        (_batch_size, future) = self._futures.popleft()
+        (batch_size, future) = self._futures.popleft()
+        logger.debug("committing batch of size %d", batch_size)
         # (In this next line, future.result() blocks if the future's not already done.)
         temp_result, _in_size, _out_size = future.result()
         self._send_progress(temp_result)
@@ -1106,23 +1107,29 @@ class ReactInBatches:
     def _wait_for_future(self, running: list[Future[tuple[dict[str, t.Any], int, int]]]) -> None:
         """Wait for (at least) one future to finish and process its results."""
         done, _not_done = wait(running, return_when=FIRST_COMPLETED)
+        logger.debug("finished %d batches", len(done))
         for (batch_size, future) in self._futures:
             # Update the progress monitor if this future just finished
             if future in done:
                 self._progress.update(batch_size)
-            # Update the batch scaler if it finished
-            if self._batch_scaling_future is not None and self._batch_scaling_future[1] is future:
-                start_time = self._batch_scaling_future[0]
-                _temp_result, in_size, out_size = future.result()
-                end_time = datetime.datetime.now(datetime.timezone.utc)
-                self._update_batch_size(end_time - start_time, in_size, out_size)
-                # The next batch we submit will get to update the batch size
-                self._batch_scaling_future = None
+                logger.debug("finished batch of size %d, total: %d/%d", batch_size, self._progress.current_tick, self._progress.total_ticks)
+                # Update the batch scaler if needed
+                if self._batch_scaling_future is not None and self._batch_scaling_future[1] is future:
+                    start_time = self._batch_scaling_future[0]
+                    _temp_result, in_size, out_size = future.result()
+                    end_time = datetime.datetime.now(datetime.timezone.utc)
+                    old_batch_size = self._batch_scaler.batch_size
+                    batch_duration = end_time - start_time
+                    self._update_batch_size(batch_duration, in_size, out_size)
+                    logger.debug("updating batch size %d -> %d (%s)", old_batch_size, self._batch_scaler.batch_size, batch_duration)
+                    # The next batch we submit will get to update the batch size
+                    self._batch_scaling_future = None
         # Pop anything we can off the queue
         self._consume_ready_futures()
 
     def parallel(self) -> None:
         """Run the operation using parallel threads."""
+        logger.debug("starting parallel batch react")
         batch_start = 0
         self._send_progress(None)
         executor = ThreadPoolExecutor()
@@ -1136,6 +1143,7 @@ class ReactInBatches:
                     batch_params = self._params_for_batch(self._params, batch_start, batch_end)
                     future = executor.submit(self._react_function, self._trainee_id, batch_params)
                     self._futures.append((batch_end - batch_start, future))
+                    logger.debug("starting batch of size %d (%d/%d)", (batch_end - batch_start), len(self._futures), max_running)
                     if self._batch_scaling_future is None:
                         self._batch_scaling_future = (datetime.datetime.now(datetime.timezone.utc), future)
                     batch_start = batch_end
@@ -1148,6 +1156,7 @@ class ReactInBatches:
             # If anything is left running, cancel those futures.  On normal
             # completion we'll have waited for everything we know about.
             executor.shutdown(wait=False, cancel_futures=True)
+        logger.debug("finished parallel batch react")
 
 class ParamsForBatch:
     """
