@@ -4,13 +4,13 @@
 #
 #    pip-compile --allow-unsafe --no-emit-index-url --output-file=requirements-3.12.txt
 #
-amalgam-lang==24.0.3
+amalgam-lang==24.0.4
     # via howso-engine (pyproject.toml)
 certifi==2025.8.3
     # via
     #   howso-engine (pyproject.toml)
     #   requests
-cffi==1.17.1
+cffi==2.0.0
     # via cryptography
 charset-normalizer==3.4.3
     # via requests
@@ -38,7 +38,7 @@ packaging==25.0
     # via deprecation
 pandas==2.3.2
     # via howso-engine (pyproject.toml)
-pycparser==2.22
+pycparser==2.23
     # via cffi
 pygments==2.19.2
     # via rich
