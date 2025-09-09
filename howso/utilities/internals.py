@@ -6,9 +6,8 @@ Notice: These are internal utilities and are not intended to be
 """
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from collections import OrderedDict, deque
-from collections.abc import Callable, Collection, Generator, Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from copy import deepcopy
 import datetime
@@ -16,7 +15,6 @@ import decimal
 from inspect import getfullargspec
 import json
 import logging
-from math import floor
 from pathlib import Path
 import random
 import re
@@ -1137,11 +1135,11 @@ class ReactInBatches:
                     # Submit a new batch of cases
                     batch_end = min(batch_start + self._batch_scaler.batch_size, self._progress.total_ticks)
                     batch_params = self._params_for_batch(self._params, batch_start, batch_end)
-                    batch_start = batch_end
                     future = executor.submit(self._react_function, self._trainee_id, batch_params)
                     self._futures.append((batch_end - batch_start, future))
                     if self._batch_scaling_future is None:
                         self._batch_scaling_future = (datetime.datetime.now(datetime.timezone.utc), future)
+                    batch_start = batch_end
                 else:
                     self._wait_for_future(running)
             # Now we've submitted all of the data; wait for any outstanding futures to complete.
@@ -1161,12 +1159,12 @@ class ParamsForBatch:
     slice_keys : Collection[str]
         Names of keys in the parameters map that are lists, and need to be
         sliced with the provided batch range.
-    desired_conviction : str, optional
+    num_to_generate_param : str, optional
         If ``desired_conviction`` is set, then set this parameter to the batch size.
     """
-    def __init__(self, slice_keys: Collection[str], desired_conviction: str | None = None):
+    def __init__(self, slice_keys: Collection[str], num_to_generate_param: str | None = None):
         self._slice_keys = slice_keys
-        self._desired_conviction = desired_conviction
+        self._num_to_generate_param = num_to_generate_param
 
     def __call__(self, params: dict[str, t.Any], batch_start: int, batch_end: int) -> dict[str, t.Any]:
         result = {}
@@ -1175,8 +1173,8 @@ class ParamsForBatch:
                 result[k] = v[batch_start:batch_end]
             else:
                 result[k] = v
-        if self._desired_conviction and params.get("desired_conviction") is not None:
-            result[self._desired_conviction] = batch_end - batch_start
+        if self._num_to_generate_param and params.get("desired_conviction") is not None:
+            result[self._num_to_generate_param] = batch_end - batch_start
         return result
 
 

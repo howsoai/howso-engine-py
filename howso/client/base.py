@@ -2406,7 +2406,7 @@ class AbstractHowsoClient(ABC):
                 initial_batch_size=initial_batch_size,
                 get_thread_count=self._get_trainee_thread_count,
                 get_concurrency=self.get_trainee_concurrency,
-                params_for_batch=internals.ParamsForBatch({"action_values", "context_values", "case_indices", "post_process_values"}, desired_conviction="num_cases_to_generate"),
+                params_for_batch=internals.ParamsForBatch({"action_values", "context_values", "case_indices", "post_process_values"}, num_to_generate_param="num_cases_to_generate"),
                 react_function=self._react,
                 progress_callback=progress_callback
             )
@@ -3107,7 +3107,7 @@ class AbstractHowsoClient(ABC):
                 initial_batch_size=initial_batch_size,
                 get_thread_count=self._get_trainee_thread_count,
                 get_concurrency=self.get_trainee_concurrency,
-                params_for_batch=internals.ParamsForBatch({"max_series_lengths", "series_context_values", "series_stop_maps", "series_id_values"}, desired_conviction="num_series_to_generate"),
+                params_for_batch=internals.ParamsForBatch({"max_series_lengths", "series_context_values", "series_stop_maps", "series_id_values"}, num_to_generate_param="num_series_to_generate"),
                 react_function=self._react_series,
                 progress_callback=progress_callback
             )
