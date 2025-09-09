@@ -1092,10 +1092,9 @@ class ReactInBatches:
         """
         if len(self._futures) == 0:
             return
-        (this_batch_size, future) = self._futures.popleft()
+        (_batch_size, future) = self._futures.popleft()
         # (In this next line, future.result() blocks if the future's not already done.)
         temp_result, _in_size, _out_size = future.result()
-        self._progress.update(this_batch_size)
         self._send_progress(temp_result)
         accumulate_react_result(self.result, temp_result)
 
