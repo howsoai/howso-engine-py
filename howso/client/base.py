@@ -1969,6 +1969,10 @@ class AbstractHowsoClient(ABC):
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
                 computations.
+            - relevant_values : bool or list of strings, optional
+                When true outputs a map of each context feature name to a list of relevant values for that
+                feature given the context. If a list of feature names, will only output relevant values for
+                each feature specified.
             - selected_prediction_stats : list, optional.
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
@@ -2263,15 +2267,6 @@ class AbstractHowsoClient(ABC):
                 " following values - ['min', 'max', 'most_similar',]"
             )
 
-        if details is not None and 'robust_computation' in details:
-            details = dict(details)
-            details['robust_influences'] = details['robust_computation']
-            details['robust_residuals'] = details['robust_computation']
-            del details['robust_computation']
-            warnings.warn(
-                'The detail "robust_computation" is deprecated and will be '
-                'removed in a future release. Please use "robust_residuals" '
-                'and/or "robust_influences" instead.', DeprecationWarning)
 
         if details is not None and 'local_case_feature_residual_conviction_robust' in details:
             details = dict(details)
@@ -3906,6 +3901,10 @@ class AbstractHowsoClient(ABC):
                 Compute accuracy contributions by scrambling each feature and
                 using the robust (power set/permutations) set of remaining
                 context features for each prediction.
+            - relevant_values : bool or list of strings, optional
+                When true outputs a map of each context feature name to a list of relevant values for that
+                feature given the context. If a list of feature names, will only output relevant values for
+                each feature specified.
             - action_condition : map of str -> any, optional
                 A condition map to select the action set, which is the collection of cases
                 reacted to while computing the requested metrics.

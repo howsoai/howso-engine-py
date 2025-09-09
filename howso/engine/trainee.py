@@ -1607,6 +1607,10 @@ class Trainee(BaseTrainee):
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
                 computations.
+            - relevant_values : bool or list of strings, optional
+                When true outputs a map of each context feature name to a list of relevant values for that
+                feature given the context. If a list of feature names, will only output relevant values for
+                each feature specified.
             - selected_prediction_stats : list[Prediction_Stats], optional.
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
@@ -3613,6 +3617,10 @@ class Trainee(BaseTrainee):
                 "selected_prediction_stats" parameter in the `details` parameter.
                 Uses full calculations, which uses leave-one-out for features for
                 computations.
+            - relevant_values : bool or list of strings, optional
+                When true outputs a map of each context feature name to a list of relevant values for that
+                feature given the context. If a list of feature names, will only output relevant values for
+                each feature specified.
             - selected_prediction_stats : list, optional
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
