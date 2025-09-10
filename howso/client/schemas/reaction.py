@@ -89,7 +89,7 @@ class Reaction(abc.MutableMapping):
         "observational_errors",
         "outlying_feature_values",
         "prediction_stats",
-        "robust_influences",
+        "relevant_values",
         "similarity_conviction",
         # react_series-only details
         "aggregated_categorical_action_probabilities",
