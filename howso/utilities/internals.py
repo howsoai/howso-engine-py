@@ -973,13 +973,16 @@ class ReactInBatches:
         self._params = params
         """The caller-supplied set of call parameters."""
 
-        self._futures: deque[tuple[int, Future[tuple[dict[t.Any, t.Any], int, int]]]] = deque()
+        self._futures: deque[tuple[int, Future[tuple[dict[str, t.Any], int, int]]]] = deque()
         """
         A double-ended queue of triples of batch size, start time, and futures.
         
         These are in order the future was started.  The futures eventually
         produce the results of the react function.
         """
+
+        self._running: set[Future[tuple[dict[str, t.Any], int, int]]] = set()
+        """A set of incomplete futures."""
 
         self._progress = progress
         """The progress timer monitoring this execution."""
@@ -1080,10 +1083,6 @@ class ReactInBatches:
             self._update_batch_size(end - start, in_size, out_size)
             batch_start = batch_end
 
-    def _running_futures(self) -> list[Future[tuple[dict[t.Any, t.Any], int, int]]]:
-        """Get the running futures (if any)."""
-        return [f for (_bs, f) in self._futures if not f.done()]
-    
     def _consume_future(self) -> None:
         """
         Consume the oldest future in the queue.
@@ -1104,13 +1103,14 @@ class ReactInBatches:
         while len(self._futures) > 0 and self._futures[0][1].done():
             self._consume_future()
     
-    def _wait_for_future(self, running: list[Future[tuple[dict[str, t.Any], int, int]]]) -> None:
+    def _wait_for_future(self) -> None:
         """Wait for (at least) one future to finish and process its results."""
-        done, _not_done = wait(running, return_when=FIRST_COMPLETED)
+        done, _not_done = wait(self._running, return_when=FIRST_COMPLETED)
         logger.debug("finished %d batches", len(done))
         for (batch_size, future) in self._futures:
             # Update the progress monitor if this future just finished
             if future in done:
+                self._running.remove(future)
                 self._progress.update(batch_size)
                 logger.debug("finished batch of size %d, total: %d/%d", batch_size, self._progress.current_tick, self._progress.total_ticks)
                 # Update the batch scaler if needed
@@ -1135,23 +1135,23 @@ class ReactInBatches:
         executor = ThreadPoolExecutor()
         try:
             while batch_start < self._progress.total_ticks:
-                running = self._running_futures()
                 max_running = self._get_concurrency(self._trainee_id) or 1
-                if len(running) < max_running:
+                if len(self._running) < max_running:
                     # Submit a new batch of cases
                     batch_end = min(batch_start + self._batch_scaler.batch_size, self._progress.total_ticks)
                     batch_params = self._params_for_batch(self._params, batch_start, batch_end)
                     future = executor.submit(self._react_function, self._trainee_id, batch_params)
                     self._futures.append((batch_end - batch_start, future))
+                    self._running.add(future)
                     logger.debug("starting batch of size %d (%d/%d)", (batch_end - batch_start), len(self._futures), max_running)
                     if self._batch_scaling_future is None:
                         self._batch_scaling_future = (datetime.datetime.now(datetime.timezone.utc), future)
                     batch_start = batch_end
                 else:
-                    self._wait_for_future(running)
+                    self._wait_for_future()
             # Now we've submitted all of the data; wait for any outstanding futures to complete.
             while len(self._futures) > 0:
-                self._wait_for_future(self._running_futures())
+                self._wait_for_future()
         finally:
             # If anything is left running, cancel those futures.  On normal
             # completion we'll have waited for everything we know about.
