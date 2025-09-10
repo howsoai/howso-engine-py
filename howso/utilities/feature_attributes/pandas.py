@@ -251,7 +251,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         if re.match(TIME_PATTERN, first_non_null) or re.match(SIMPLE_TIME_PATTERN,
                                                                             first_non_null):
                             return FeatureType.TIME, {}
-                        if not any(c.isnumeric() for c in first_non_null):
+                        # If this doesn't contain numbers, then report it as a string.
+                        if first_non_null and not any(c.isnumeric() for c in first_non_null):
                             return FeatureType.STRING, {}
                         # explicitly declared formatted_date_time/time; don't try to guess
                         if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None:

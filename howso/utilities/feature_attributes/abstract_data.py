@@ -219,7 +219,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 if re.match(TIME_PATTERN, random_value) or re.match(SIMPLE_TIME_PATTERN, random_value):
                     return FeatureType.TIME, {}
                 # If this doesn't contain numbers, then report it as a string.
-                if not any(c.isnumeric() for c in random_value):
+                if random_value and not any(c.isnumeric() for c in random_value):
                     return FeatureType.STRING, {}
                 # explicitly declared formatted_date_time/time; don't try to guess
                 if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None:
