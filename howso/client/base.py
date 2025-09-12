@@ -770,17 +770,20 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
 
             .. TIP::
-                Example 1 - Remove all values belonging to `feature_name`::
+                Example 1 - Remove all cases with missing values for `feature_name`::
 
                     condition = {"feature_name": None}
 
@@ -792,7 +795,11 @@ class AbstractHowsoClient(ABC):
 
                     condition = {"feature_name": [10, 20]}
 
-                Example 4 - Remove cases that match one of ['a', 'c', 'e']::
+                Example 4 - Remove cases that have a value greater or equal to 10::
+
+                    condition = {"feature_name": [10, None]}
+
+                Example 5 - Remove cases that match one of ['a', 'c', 'e']::
 
                     condition = {"feature_name": ['a', 'c', 'e']}
 
@@ -881,17 +888,20 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
 
             .. TIP::
-                Example 1 - Move all values belonging to `feature_name`::
+                Example 1 - Move all cases with missing values for `feature_name`::
 
                     condition = {"feature_name": None}
 
@@ -903,7 +913,11 @@ class AbstractHowsoClient(ABC):
 
                     condition = {"feature_name": [10, 20]}
 
-                Example 4 - Remove cases that match one of ['a', 'c', 'e']::
+                Example 4 - Move cases that have a value greater or equal to 10::
+
+                    condition = {"feature_name": [10, None]}
+
+                Example 5 - Move cases that match one of ['a', 'c', 'e']::
 
                     condition = {"feature_name": ['a', 'c', 'e']}
 
@@ -1017,11 +1031,14 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1405,11 +1422,14 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1455,6 +1475,91 @@ class AbstractHowsoClient(ABC):
             return dict()
         return stats
 
+    def get_value_masses(
+        self,
+        trainee_id: str,
+        features: Collection[str],
+        *,
+        condition: t.Optional[Mapping] = None,
+        minimum_mass_threshold: float = 0.0,
+        precision: t.Optional[Precision] = "exact",
+        weight_feature: t.Optional[str] = None
+    ) -> dict[str, dict[str, list[list[t.Any]] | float]]:
+        """
+        Get the unique values and their respective masses for each specified feature.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to retrieve value masses for.
+        features : Collection[str]
+            The feature names for which to compute unique value masses.
+        condition : Mapping or None, optional
+            A condition map to select which cases to compute value masses
+            for.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+        minimum_mass_threshold : float, default 0.0
+            The minimum mass a feature value must possess to be returned in the
+            collection of value masses. If the given value is greater than zero,
+            the sum of the omitted feature value masses is returned under a
+            "remaining" key for each feature.
+        precision : str, default "exact"
+            The precision to use when selecting cases with ``condition``.
+            Options are 'exact' or 'similar'. Only used if `condition` is not
+            None.
+        weight_feature : str, optional
+            When specified, will return masses based on weights stored
+            in this weight_feature.
+
+        Returns
+        -------
+        dict[str, dict[str, list[list[Any]] | float]]
+            A map of each feature name to a dict containing "values" and "remaining"
+            keys. "values" maps to a list of lists where each sublist contains
+            the feature value and its mass. When ``minimum_mass_threshold`` is
+            greater than one, "remaining" maps to a single value that is the sum
+            of all omitted feature value masses.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+
+        if precision is not None and precision not in self.SUPPORTED_PRECISION_VALUES:
+            warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("precision"))
+
+        # Convert session instance to id
+        if (
+            isinstance(condition, MutableMapping) and
+            isinstance(condition.get('.session'), Session)
+        ):
+            condition['.session'] = condition['.session'].id
+
+        if self.configuration.verbose:
+            print(f'Getting value masses for trainee with id: {trainee_id}')
+
+        value_masses = self.execute(trainee_id, "get_value_masses", {
+            "features": features,
+            "condition": condition,
+            "minimum_mass_threshold": minimum_mass_threshold,
+            "precision": precision,
+            "weight_feature": weight_feature,
+        })
+        if value_masses is None:
+            return dict()
+        return value_masses.get("masses", {})
+
     def react(  # noqa: C901
         self,
         trainee_id: str,
@@ -1474,6 +1579,7 @@ class AbstractHowsoClient(ABC):
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         extra_features: t.Optional[Collection[str]] = None,
         feature_bounds_map: t.Optional[Mapping] = None,
+        feature_pre_process_code_map: t.Optional[Mapping] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -1488,6 +1594,7 @@ class AbstractHowsoClient(ABC):
         post_process_values: t.Optional[TabularData2D] = None,
         preserve_feature_values: t.Optional[Collection[str]] = None,
         progress_callback: t.Optional[Callable] = None,
+        return_context_values: bool = False,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
@@ -1559,11 +1666,14 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -1956,6 +2066,13 @@ class AbstractHowsoClient(ABC):
                     "feature_c": {"max": 1}
                 }
 
+        feature_pre_process_code_map : dict of str, optional
+            A mapping of feature name to custom code strings that will be
+            evaluated to update the value of the context feature they are mapped from.
+            The custom code will have access to all pre-processed encoded context
+            feature values and the resulting value of the code should also be
+            in the feature's encoded format.
+
         feature_post_process_code_map : dict of str, optional
             A mapping of feature name to custom code strings that will be
             evaluated to update the value of the feature they are mapped from.
@@ -2018,6 +2135,10 @@ class AbstractHowsoClient(ABC):
             the order of specified features.
         num_cases_to_generate : int, default 1
             The number of cases to generate.
+        return_context_values : bool, default False
+            When True, context values and features are included in the details
+            dict of the response under "context_values" and "context_features"
+            keys.
         suppress_warning : bool, defaults to False
             If True, warnings will not be displayed.
         post_process_features : iterable of str, optional
@@ -2196,6 +2317,7 @@ class AbstractHowsoClient(ABC):
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
                 "extra_features": extra_features,
+                "feature_pre_process_code_map": feature_pre_process_code_map,
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "goal_features_map": goal_features_map,
                 "post_process_features": post_process_features,
@@ -2210,6 +2332,7 @@ class AbstractHowsoClient(ABC):
                 "preserve_feature_values": preserve_feature_values,
                 "new_case_threshold": new_case_threshold,
                 "details": details,
+                "return_context_values": return_context_values
             }
         else:
             if (
@@ -2240,6 +2363,7 @@ class AbstractHowsoClient(ABC):
                 "derived_context_features": derived_context_features,
                 "derived_action_features": derived_action_features,
                 "extra_features": extra_features,
+                "feature_pre_process_code_map": feature_pre_process_code_map,
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
@@ -2260,6 +2384,7 @@ class AbstractHowsoClient(ABC):
                 "case_indices": case_indices,
                 "leave_case_out": leave_case_out,
                 "details": details,
+                "return_context_values": return_context_values,
                 "exclude_novel_nominals_from_uniqueness_check": exclude_novel_nominals_from_uniqueness_check,
             }
 
@@ -2746,11 +2871,14 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3277,11 +3405,14 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -3586,6 +3717,7 @@ class AbstractHowsoClient(ABC):
         familiarity_conviction_removal: bool | str = False,
         features: t.Optional[Collection[str]] = None,
         influence_weight_entropy: bool | str = False,
+        overwrite: bool = False,
         p_value_of_addition: bool | str = False,
         p_value_of_removal: bool | str = False,
         similarity_conviction: bool | str = False,
@@ -3616,6 +3748,10 @@ class AbstractHowsoClient(ABC):
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
             'influence_weight_entropy'.
+        overwrite: bool, default False
+            When true will forcibly overwrite previously stored values.
+            Default is false, will error out if trying to
+			react_into_features for a feature that already exists.
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition
             values. If set to True the values will be stored to the feature
@@ -3650,6 +3786,7 @@ class AbstractHowsoClient(ABC):
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
             "influence_weight_entropy": influence_weight_entropy,
+            "overwrite": overwrite,
             "p_value_of_addition": p_value_of_addition,
             "p_value_of_removal": p_value_of_removal,
             "similarity_conviction": similarity_conviction,
@@ -3671,6 +3808,9 @@ class AbstractHowsoClient(ABC):
         confusion_matrix_min_count: t.Optional[int] = None,
         context_features: t.Optional[Collection[str]] = None,
         details: t.Optional[dict] = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
         forecast_window_length: t.Optional[float] = None,
@@ -3691,7 +3831,7 @@ class AbstractHowsoClient(ABC):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> dict[str, dict[str, float | dict[str, float]]]:
+    ) -> dict[str, dict[str, t.Any]]:
         """
         Reacts into the aggregate trained cases in the Trainee.
 
@@ -3776,11 +3916,13 @@ class AbstractHowsoClient(ABC):
                 .. NOTE::
                     The dictionary keys are feature names and values are one of:
 
-                        - None
+                        - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
                           range. Only applicable to continuous and numeric ordinal
-                          features.
+                          features. Either the lower bound or upper bound can be
+                          None to express an open bound. If both bounds are None,
+                          then all cases with non-missing values are selected.
                         - An array of string values, must match any of these values
                           exactly. Only applicable to nominal and string ordinal
                           features.
@@ -3800,11 +3942,13 @@ class AbstractHowsoClient(ABC):
                 .. NOTE::
                     The dictionary keys are feature names and values are one of:
 
-                        - None
+                        - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
                           range. Only applicable to continuous and numeric ordinal
-                          features.
+                          features. Either the lower bound or upper bound can be
+                          None to express an open bound. If both bounds are None,
+                          then all cases with non-missing values are selected.
                         - An array of string values, must match any of these values
                           exactly. Only applicable to nominal and string ordinal
                           features.
@@ -3845,6 +3989,17 @@ class AbstractHowsoClient(ABC):
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
             - estimated_residual_lower_bound : bool, optional
                 When True, computes and outputs estimated lower bound of residuals for specified action features.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically sampling robust
+            residuals used to determine feature accuracy contributions. Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to dynamically limit the total number of
+            samples used to determine robust feature accuracy contributions. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of samples used to determine robust
+            accuracy contributions. Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_robust_accuracy_contributions_samples`` instead of converging.
         features_to_derive: list of str, optional
             List of feature names whose values should be derived rather than interpolated from influential
             cases when predicted. If unspecified, then the features that have derivation logic defined will
@@ -3969,9 +4124,8 @@ class AbstractHowsoClient(ABC):
 
         Returns
         -------
-        dict[str, dict[str, float | dict[str, float]]]
-            A map of detail names to maps of feature names to stat values or
-            another map of feature names to stat values.
+        dict[str, dict[str, Any]]
+            A mapping of detail names to maps of feature names to metric values.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
@@ -4044,6 +4198,9 @@ class AbstractHowsoClient(ABC):
             "context_features": context_features,
             "confusion_matrix_min_count": confusion_matrix_min_count,
             "details": details,
+            "convergence_min_size": convergence_min_size,
+            "convergence_samples_growth_rate": convergence_samples_growth_rate,
+            "convergence_threshold": convergence_threshold,
             "features_to_derive": features_to_derive,
             "feature_influences_action_feature": feature_influences_action_feature,
             "forecast_window_length": forecast_window_length,
@@ -4133,11 +4290,14 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -4284,6 +4444,9 @@ class AbstractHowsoClient(ABC):
         bypass_calculate_feature_residuals: t.Optional[bool] = None,
         bypass_calculate_feature_weights: t.Optional[bool] = None,
         bypass_hyperparameter_analysis: t.Optional[bool] = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
@@ -4320,6 +4483,21 @@ class AbstractHowsoClient(ABC):
             When True, bypasses calculation of feature weights.
         bypass_hyperparameter_analysis : bool, optional
             When True, bypasses hyperparameter analysis.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically
+            sampling robust residuals used to determine feature probabilities.
+            Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to
+            dynamically limit the total number of samples used to determine
+            feature probabilities. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less
+            than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of
+            samples used to determine feature probabilities.
+            Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_feature_probability_samples`` instead of converging.
         dt_values : Collection of float, optional
             The dt value hyperparameters to analyze with.
         inverse_residuals_as_weights : bool, default is False
@@ -4387,7 +4565,6 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(action_features, 1, "action_features", "str")
         util.validate_list_shape(rebalance_features, 1, "rebalance_features", "str")
         util.validate_list_shape(p_values, 1, "p_values", "int")
-        util.validate_list_shape(k_values, 2, "k_values", "float")
         util.validate_list_shape(dt_values, 1, "dt_values", "float")
 
         if targeted_model not in ['single_targeted', 'omni_targeted', 'targetless', None]:
@@ -4427,6 +4604,9 @@ class AbstractHowsoClient(ABC):
             bypass_calculate_feature_residuals=bypass_calculate_feature_residuals,  # noqa: #E501
             bypass_calculate_feature_weights=bypass_calculate_feature_weights,
             bypass_hyperparameter_analysis=bypass_hyperparameter_analysis,  # noqa: #E501
+            convergence_min_size=convergence_min_size,
+            convergence_samples_growth_rate=convergence_samples_growth_rate,
+            convergence_threshold=convergence_threshold,
             dt_values=dt_values,
             use_case_weights=use_case_weights,
             inverse_residuals_as_weights=inverse_residuals_as_weights,
@@ -4500,6 +4680,9 @@ class AbstractHowsoClient(ABC):
         bypass_calculate_feature_weights: t.Optional[bool] = None,
         bypass_hyperparameter_analysis: t.Optional[bool] = None,
         context_features: t.Optional[Collection[str]] = None,
+        convergence_min_size: t.Optional[int] = None,
+        convergence_samples_growth_rate: t.Optional[float] = None,
+        convergence_threshold: t.Optional[float] = None,
         dt_values: t.Optional[Collection[float]] = None,
         inverse_residuals_as_weights: t.Optional[bool] = None,
         k_folds: t.Optional[int] = None,
@@ -4536,6 +4719,21 @@ class AbstractHowsoClient(ABC):
             The action features to analyze for.
         context_features : Collection of str, optional
             The context features to analyze for.
+        convergence_min_size: int, optional
+            The minimum size of the first batch of cases used when dynamically
+            sampling robust residuals used to determine feature probabilities.
+            Defaults to 5000 when unspecified.
+        convergence_samples_growth_rate: float, optional
+            Rate of increasing the size of each subsequent sample used to
+            dynamically limit the total number of samples used to determine
+            feature probabilities. Defaults to 1.05 when unspecified,
+            increasing samples by 5% until the delta between residuals is less
+            than ``convergence_threshold``.
+        convergence_threshold: float, optional
+            Percent threshold used to dynamically limit the number of
+            samples used to determine feature probabilities.
+            Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
+            all ``num_feature_probability_samples`` instead of converging.
         k_folds : int, optional
             The number of cross validation folds to do. A value of 1 does
             hold-one-out instead of k-fold.
@@ -4673,6 +4871,9 @@ class AbstractHowsoClient(ABC):
             "analyze_growth_factor": analyze_growth_factor,
             "action_features": action_features,
             "context_features": context_features,
+            "convergence_min_size": convergence_min_size,
+            "convergence_samples_growth_rate": convergence_samples_growth_rate,
+            "convergence_threshold": convergence_threshold,
             "k_folds": k_folds,
             "num_deviation_samples": num_deviation_samples,
             "num_feature_probability_samples": num_feature_probability_samples,
@@ -4962,11 +5163,14 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -5220,11 +5424,14 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
@@ -5308,11 +5515,14 @@ class AbstractHowsoClient(ABC):
             .. NOTE::
                 The dictionary keys are feature names and values are one of:
 
-                    - None
+                    - None, must be missing a value
                     - A value, must match exactly.
-                    - An array of two numeric values, specifying an inclusive
-                      range. Only applicable to continuous and numeric ordinal
-                      features.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.

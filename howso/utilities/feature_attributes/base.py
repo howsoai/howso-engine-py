@@ -22,7 +22,6 @@ import pytz
 import yaml
 
 from howso.utilities.features import FeatureType
-from howso.utilities.internals import serialize_models
 from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 
 logger = logging.getLogger(__name__)
@@ -743,7 +742,6 @@ class InferFeatureAttributesBase(ABC):
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
-                 features: t.Optional[dict[str, dict]] = None,
                  id_feature_name: t.Optional[str | Iterable[str]] = None,
                  include_extended_nominal_probabilities: t.Optional[bool] = False,
                  include_sample: bool = False,
@@ -751,9 +749,11 @@ class InferFeatureAttributesBase(ABC):
                  max_workers: t.Optional[int] = None,
                  memory_warning_threshold: t.Optional[int] = 512,
                  mode_bound_features: t.Optional[Iterable[str]] = None,
+                 num_series: t.Optional[int] = 1,
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
                  tight_bounds: t.Optional[Iterable[str]] = None,
+                 time_invariant_features: t.Optional[str | Iterable[str]] = None,
                  types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
                  ) -> dict:
         """
@@ -761,28 +761,7 @@ class InferFeatureAttributesBase(ABC):
 
         See ``infer_feature_attributes`` for full docstring.
         """
-        if features:
-            if not isinstance(features, dict):
-                raise ValueError(
-                    f"The parameter `features` needs to be a `dict` and not of "
-                    f"type {type(features)}."
-                )
-            elif types:
-                raise ValueError('The `features` parameter is deprecated. Please do not use it '
-                                 'in conjunction with the `types` parameter. Specify all types '
-                                 'using `types`, and perform other needed updates directly on '
-                                 'the resultant dict.')
-            else:
-                self.attributes = FeatureAttributesBase(serialize_models(features))
-                warnings.warn('The `features` parameter ("partial features") is deprecated. '
-                              'Please instead clobber the dict-like `FeatureAttributesBase` '
-                              'instance post-hoc with desired modifications. However, you can '
-                              'also guarantee certain feature types by calling '
-                              '`infer_feature_attributes` with the `types` parameter.',
-                              DeprecationWarning)
-        else:
-            self.attributes = FeatureAttributesBase({})
-            features = dict()
+        self.attributes = FeatureAttributesBase({})
 
         if datetime_feature_formats is None:
             datetime_feature_formats = dict()
@@ -796,6 +775,34 @@ class InferFeatureAttributesBase(ABC):
             dependent_features = dict()
 
         self.default_time_zone = default_time_zone
+
+        self.num_series = num_series
+
+        # Store ID and other time-invariant features, if provided, for processing
+        if isinstance(time_invariant_features, str):
+            self.time_invariant_features = [time_invariant_features]
+        elif isinstance(time_invariant_features, Iterable):
+            self.time_invariant_features = list(time_invariant_features)
+        elif time_invariant_features is not None:
+            raise ValueError('Time-invariant features must be of type `str` or `list[str], '
+                             f'not {type(time_invariant_features)}.')
+        else:
+            self.time_invariant_features = []
+
+        if isinstance(id_feature_name, str):
+            self.id_feature_names = [id_feature_name]
+        elif isinstance(id_feature_name, Iterable):
+            self.id_feature_names = id_feature_name
+        elif id_feature_name is not None:
+            raise ValueError('ID feature must be of type `str` or `list[str], '
+                             f'not {type(id_feature_name)}.')
+        else:
+            self.id_feature_names = []
+
+        # ID features are time-invariant
+        for id_feature in self.id_feature_names:
+            if id_feature not in self.time_invariant_features:
+                self.time_invariant_features.append(id_feature)
 
         # Preprocess user-defined feature types
         preset_types = {}
@@ -846,12 +853,6 @@ class InferFeatureAttributesBase(ABC):
                     raise ValueError(
                         f'The date time format "{user_dt_format}" does not match the data of feature '
                         f'"{feature_name}". Data sample: "{test_value}"')
-                if 'date_time_format' in features.get(feature_name, {}):
-                    warnings.warn(
-                        f'The date_time_format for "{feature_name}" was provided in '
-                        'both `features` (ignored) and `datetime_feature_formats`.'
-                    )
-                    del features[feature_name]['date_time_format']
 
                 if feature_type == FeatureType.DATETIME:
                     # When feature is a datetime instance, we won't need to
@@ -956,7 +957,12 @@ class InferFeatureAttributesBase(ABC):
                 self.attributes[feature_name]['unique'] = True
 
             # Add original type to feature
-            if feature_type is not None:
+            if original_type := typing_info.pop('original_type', None):
+                self.attributes[feature_name]['original_type'] = {
+                    'data_type': str(original_type),
+                    **typing_info
+                }
+            elif feature_type is not None:
                 self.attributes[feature_name]['original_type'] = {
                     'data_type': str(feature_type),
                     **typing_info
@@ -964,29 +970,17 @@ class InferFeatureAttributesBase(ABC):
 
             # DECLARED DEPENDENTS
             # First determine if there are any dependent features in the partial features dict
-            partial_dependent_features = []
-            if 'dependent_features' in features.get(feature_name, {}):
-                partial_dependent_features = features[feature_name]['dependent_features']
             # Set dependent features: `dependent_features` + partial features dict, if provided
             if feature_name in dependent_features:
-                self.attributes[feature_name]['dependent_features'] = list(
-                    set(partial_dependent_features + dependent_features[feature_name])
-                )
+                self.attributes[feature_name]['dependent_features'] = dependent_features[feature_name]
 
             # Set default time if provided
             if self.default_time_zone is not None:
                 self.attributes[feature_name]['default_time_zone'] = self.default_time_zone
 
-        if isinstance(id_feature_name, str):
-            self._add_id_attribute(self.attributes, id_feature_name)
-        elif isinstance(id_feature_name, Iterable):
-            for id_feature in id_feature_name:
-                self._add_id_attribute(self.attributes, id_feature)
-        elif id_feature_name is not None:
-            raise ValueError('ID feature must be of type `str` or `list[str], '
-                             f'not {type(id_feature_name)}.')
-
-        self._validate_date_times()
+        # Edit ID feature attributes in-place
+        for id_feature in self.id_feature_names:
+            self._add_id_attribute(self.attributes, id_feature)
 
         if infer_bounds:
             for feature_name, _attributes in self.attributes.items():
@@ -996,10 +990,7 @@ class InferFeatureAttributesBase(ABC):
                 if feature_name not in self.data.columns:
                     continue
                 # Don't infer bounds for JSON/YAML features
-                if (
-                    _attributes.get("data_type") in ["json", "yaml"] or
-                    features.get(feature_name, {}).get('data_type') in ["json", "yaml"]
-                ):
+                if _attributes.get("data_type") in ["json", "yaml"]:
                     continue
                 try:
                     bounds = self._infer_feature_bounds(
@@ -1079,11 +1070,8 @@ class InferFeatureAttributesBase(ABC):
                     sample = str(sample)
                 self.attributes[feature_name]['sample'] = sample
 
-        # Re-insert any partial features provided as an argument
-        if features:
-            for feature in features.keys():
-                for attribute, value in features[feature].items():
-                    self.attributes[feature][attribute] = value
+        # Validate datetimes after any user-defined features have been re-implemented
+        self._validate_date_times()
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
@@ -1208,6 +1196,24 @@ class InferFeatureAttributesBase(ABC):
             warnings.warn(msg)
 
     @staticmethod
+    def emit_unknown_datetime_warnings(unknown_datetime_features: Iterable[str]) -> None:
+        """
+        Raise warnings about features that we detected as datetimes but cannot determine the format of.
+
+        Parameters
+        ----------
+        uknown_datetime_features : Iterable of str
+            An Iterable of feature names to include in the warning.
+        """
+        if unknown_datetime_features:
+            msg = ("The following features were detected as possible datetimes, but we cannot assume "
+                   "their formats. Please provide them using `datetime_feature_formats` if desired. "
+                   "Otherwise, these features will be treated as nominal strings:")
+            for feature_name in unknown_datetime_features:
+                msg += f'\n\t- {feature_name}'
+            warnings.warn(msg)
+
+    @staticmethod
     def infer_loose_feature_bounds(min_bound: int | float,
                                    max_bound: int | float
                                    ) -> tuple[float, float]:
@@ -1247,6 +1253,15 @@ class InferFeatureAttributesBase(ABC):
         new_max_bound = min(0, base_max_bound) if max_bound <= 0 else base_max_bound
 
         return new_min_bound, new_max_bound
+
+    def _get_cont_threshold(self, feature_name: str) -> int:
+        """Get the minimum number of unique values a feature must have to be considered continuous."""
+        n_cases = self._get_num_cases(feature_name)
+        # If the provided feature is stationary, we should simply evaluate the number of series
+        if getattr(self, 'id_feature_names', None) and feature_name in self.time_invariant_features:
+            return math.ceil(pow(self.num_series, 0.5))
+        # Return the sqrt of max(avg. cases per series, num. series)
+        return math.ceil(pow(max(self.num_series, (n_cases / self.num_series)), 0.5))
 
     @staticmethod
     def _get_datetime_max():
@@ -1620,12 +1635,16 @@ class InferFeatureAttributesBase(ABC):
         """Get the number of features/columns in the data."""
 
     @abstractmethod
-    def _get_num_cases(self) -> int:
-        """Get the number of cases/rows in the data."""
+    def _get_num_cases(self, feature_name: str) -> int:
+        """Get the number of non-null cases of the provided feature."""
 
     @abstractmethod
     def _get_feature_names(self) -> list[str]:
         """Get the names of the features/columns of the data."""
+
+    @abstractmethod
+    def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
+        """Get the number of unique values in the provided feature(s)."""
 
     @abstractmethod
     def _get_unique_values(self, feature_name: str) -> set[t.Any]:

@@ -525,7 +525,7 @@ class TestClient:
         trainee
         """
         self._train(trainee)
-        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
         cases = self.client.get_cases(trainee.id,
                                       features=['play', 'penguin', 'familiarity_conviction_addition'],
                                       session=self.client.active_session.id)
@@ -696,9 +696,6 @@ class TestClient:
             f"'{old_key}' is deprecated" in str(r.message)
             for r in record
         ])
-
-        # No point in testing further if we didn't get back a Mapping instance.
-        assert isinstance(response, Mapping), "react_aggregate did not return a Mapping."
 
         # We DO want the old_key to be present during the deprecation period.
         assert old_key in response.keys()
@@ -960,7 +957,7 @@ class TestBaseClient:
 
     def test_react_into_features_updated_feature_attributes(self, trainee):
         """Test that react_into_features updates the feature attributes."""
-        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
         trainee_cache = self.client.trainee_cache.get_item(trainee.id)
 
         assert 'familiarity_conviction_addition' in trainee_cache.get('feature_attributes', {}).keys()
@@ -971,7 +968,7 @@ class TestBaseClient:
 
         Test the verbose output expected when react_into_features is called.
         """
-        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True)
+        self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
         out, _ = capsys.readouterr()
         assert ('Reacting into features on Trainee with id') in out
 

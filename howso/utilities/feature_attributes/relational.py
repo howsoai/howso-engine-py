@@ -459,10 +459,18 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
     def _get_num_features(self) -> int:
         return len(self._get_feature_names())
 
-    def _get_num_cases(self) -> int:
+    def _get_num_rows(self) -> int:
+        """Get the number of rows in the data."""
         with session_scope(self.session_cls) as session:
             num_rows = session.query(self.data).count()
         return num_rows
+
+    def _get_num_cases(self, feature_name: str) -> int:
+        """Get the number of non-null cases of the provided feature."""
+        with session_scope(self.session_cls) as session:
+            num_cases = session.query(self.data.c[feature_name]).filter(
+                self.data.c[feature_name].is_not(None)).count()
+        return num_cases
 
     def _get_feature_names(self) -> list[str]:
         return [c.name for c in self.data.columns]
@@ -575,7 +583,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             }
 
         attributes = {'type': 'continuous', 'data_type': 'number'}
-        num_cases = self._get_num_cases()
+        num_rows = self._get_num_rows()
 
         column = self.data.c[feature_name]
         with session_scope(self.session_cls) as session:
@@ -583,11 +591,11 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         # Ensure we have at least one valid value before attempting to
         # introspect further.
-        if num_nulls < num_cases and preset_feature_type not in ('continuous', 'ordinal'):
+        if num_nulls < num_rows and preset_feature_type not in ('continuous', 'ordinal'):
             # Determine if nominal by checking if number of uniques <= 2
             if (
                     self._get_num_uniques(feature_name) <= 2 and
-                    num_cases > 10
+                    num_rows > 10
             ):
                 attributes = {
                     'type': 'nominal',
@@ -730,7 +738,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         # than the square root of the total samples or if every value
         # has exactly the same length.
         num_uniques = self._get_num_uniques(feature_name)
-        n_cases = self._get_num_cases()
+        n_cases = self._get_num_cases(feature_name)
         if num_uniques < pow(n_cases, 0.5) or preset_feature_type == 'nominal':
             guess_nominals = True
         else:
@@ -778,6 +786,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         ):
             return {
                 'type': 'nominal',
+                'data_type': 'string',
             }
 
         # Column has arbitrary string values, first check if they
@@ -796,7 +805,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
     def _infer_unknown_attributes(self, feature_name: str) -> dict:
         return {
-            'type': 'nominal'
+            'type': 'nominal',
+            'data_type': 'string',
         }
 
     def _infer_feature_bounds(  # noqa: C901

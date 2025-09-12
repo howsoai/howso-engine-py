@@ -6,6 +6,7 @@ import warnings
 from howso import client
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -107,46 +108,6 @@ def test_infer_features_attributes_multiple_ID():
 
     assert features["ID"]["id_feature"] is True
     assert features["ID2"]["id_feature"] is True
-
-
-@pytest.mark.parametrize(
-    "features",
-    [features_1, features_2]
-)
-def test_partially_filled_feature_types(features: dict) -> None:
-    """
-    Make sure the partially filled feature types remain intact.
-
-    Parameters
-    ----------
-    df: pandas.DataFrame
-    features
-    """
-    df = pd.read_csv(data_path)
-    pre_inferred_features = features.copy()
-
-    # Define time format
-    time_format = "%Y%m%d"
-
-    # Identify id-feature and time-feature
-    id_feature_name = "ID"
-    time_feature_name = "date"
-
-    inferred_features = infer_feature_attributes(
-        df,
-        time_feature_name=time_feature_name,
-        features=features,
-        id_feature_name=id_feature_name,
-        datetime_feature_formats={time_feature_name: time_format}
-    )
-
-    for k, v in pre_inferred_features.items():
-        assert v['type'] == inferred_features[k]['type']
-
-        if 'bounds' in v:
-            # Make sure the bounds are not altered
-            # by `infer_feature_attributes` function
-            assert v['bounds'] == inferred_features[k]['bounds']
 
 
 def test_set_rate_delta_boundaries():
@@ -280,10 +241,13 @@ def test_invalid_time_feature_format():
 
 
 @pytest.mark.parametrize('data, types, expected_types, is_valid', [
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'), dict(b='continuous'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'), dict(b='continuous'),
+     True),
     (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'), dict(a='continuous'), True),
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'), dict(b='nominal'), True),
-    (pd.DataFrame({'a': [True, False, False, True], 'b': [False, True, False, True]}), dict(b='continuous'), dict(b='nominal'), True),
+    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'),
+     dict(b='nominal'), True),
+    (pd.DataFrame({'a': [True, False, False, True], 'b': [False, True, False, True]}), dict(b='continuous'),
+     dict(b='nominal'), True),
 ])
 def test_preset_feature_types(data, types, expected_types, is_valid):
     """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
@@ -314,3 +278,26 @@ def test_lags():
     # Ensure that an invalid lags value raises a helpful TypeError
     with pytest.raises(TypeError):
         fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags={"date": '0'})
+
+
+def test_nominal_vs_continuous_detection():
+    """Test that IFA correctly determines nominal vs. continuous features in time series data."""
+    # Time-series data with 4756 cases, 41 series; avg. 116 cases/series; sqrt(116) ~= 10.77
+    df = pd.read_csv(data_path)
+    # Add a new integer column with n_uniques > sqrt(avg_n_cases_per_series) -- should be continuous
+    series = np.resize(np.arange(11), len(df))
+    np.random.shuffle(series)
+    df["f4"] = series
+    # Add a new integer column with n_uniques < sqrt(avg_n_cases_per_series) -- should be nominal
+    series = np.resize(np.arange(10), len(df))
+    np.random.shuffle(series)
+    df["f5"] = series
+    # Ensure that feature types were properly inferred
+    features = infer_feature_attributes(df, id_feature_name="ID", time_feature_name="date")
+    assert features["f4"]["type"] == "continuous"
+    assert features["f5"]["type"] == "nominal"
+    # Ensure that pre-setting feature types overrides this logic
+    features = infer_feature_attributes(df, id_feature_name="ID", time_feature_name="date",
+                                        types={"f4": "nominal", "f5": "continuous"})
+    assert features["f5"]["type"] == "continuous"
+    assert features["f4"]["type"] == "nominal"

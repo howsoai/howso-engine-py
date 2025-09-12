@@ -94,7 +94,7 @@ def date_to_epoch(
         # Some date-only data will include an empty time segment that will cause an error
         # during conversion below. Try coercing the string to the given format.
         try:
-            date_str = pd.to_datetime(str(date_obj)).strftime(time_format)
+            date_str = pd.to_datetime(str(date_obj), format=time_format).strftime(time_format)
         except ValueError:
             date_str = str(date_obj)
 

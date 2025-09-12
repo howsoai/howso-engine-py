@@ -21,6 +21,7 @@ from howso.utilities.features import FeatureType
 cwd = Path(__file__).parent.parent.parent.parent
 iris_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'iris.csv'))
 int_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'integers.csv'))
+nypd_arrest_pq_path = Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet')
 stock_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv'))
 ts_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv'))
 
@@ -237,21 +238,17 @@ def test_infer_time_feature_bounds(adc, data, tight_bounds, provided_format, exp
     ("DaskDataFrameData", iris_df),
     ("DataFrameData", iris_df),
 ], indirect=True)
-@pytest.mark.parametrize('should_include, base_features, dependent_features', [
-    (False, None, None),
-    (True, None, {'sepal_length': ['sepal_width', 'class']}),
-    (True, {"sepal_length": {"type": "continuous"}},
-     {'sepal_width': ['sepal_length']}),
-    (True, {"sepal_length": {"type": "continuous"}},
-     {'sepal_length': ['class']}),
-    (False, {"sepal_length": {"type": "continuous"}},
-     None),
-    (True, {"sepal_length": {"dependent_features": ["class"]}},
-     None),
+@pytest.mark.parametrize('should_include, dependent_features', [
+    (False, None),
+    (True, {'sepal_length': ['sepal_width', 'class']}),
+    (True, {'sepal_width': ['sepal_length']}),
+    (True, {'sepal_length': ['class']}),
+    (False, None),
+    (True, None),
 ])
-def test_dependent_features(adc, should_include, base_features, dependent_features):
+def test_dependent_features(adc, should_include, dependent_features):
     """Test depdendent features are added to feature attributes dict."""
-    features = infer_feature_attributes(adc, features=base_features, dependent_features=dependent_features)
+    features = infer_feature_attributes(adc, dependent_features=dependent_features)
 
     if should_include:
         # Should include dependent features
@@ -260,13 +257,6 @@ def test_dependent_features(adc, should_include, base_features, dependent_featur
                 assert 'dependent_features' in features[feat]
                 for dep_feat in dep_feats:
                     assert dep_feat in features[feat]['dependent_features']
-        # Make sure dependent features provided in the base dict are also included
-        if base_features:
-            for feat in base_features.keys():
-                if 'dependent_features' in base_features[feat]:
-                    assert 'dependent_features' in features[feat]
-                    for dep_feat in base_features[feat]['dependent_features']:
-                        assert dep_feat in features[feat]['dependent_features']
     else:
         # Should not include dependent features
         for attributes in features.values():
@@ -492,28 +482,6 @@ def test_formatted_date_time(adc):
 
     convert_data(DataFrameData(data), adc)
 
-    # When data_type is formatted_date_time, a date_time_format must be set
-    with pytest.raises(
-        ValueError,
-        match='must have a `date_time_format` defined when its `data_type` is "formatted_date_time"'
-    ):
-        infer_feature_attributes(adc, features={
-            'custom': {
-                "data_type": "formatted_date_time"
-            }
-        })
-
-    # When data_type is formatted_time, a date_time_format must be set
-    with pytest.raises(
-        ValueError,
-        match='must have a `date_time_format` defined when its `data_type` is "formatted_time"'
-    ):
-        infer_feature_attributes(adc, features={
-            'time': {
-                "data_type": "formatted_time"
-            }
-        })
-
     # Verify formatted_date_time is set when a date_time_format is configured
     with warnings.catch_warnings():
         warnings.filterwarnings("error")
@@ -553,4 +521,33 @@ def test_parquet_dataset_with_s3():
     ]
     for src in data_sources:
         adc = make_data_source(src, storage_options=anon_options)
+        infer_feature_attributes(adc)
+
+
+def test_ambiguous_datetime_format():
+    """Test the NYPD arrest dataset."""
+    adc = make_data_source(nypd_arrest_pq_path)  # Contains a non-ISO8601 date column
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
+        infer_feature_attributes(adc)
+
+
+def test_datetime_empty_time_values():
+    """Test that datetimes with an empty time value still are determined datetime features with the correct format."""
+    df = pd.DataFrame({'a': ['2025-08-22T00:00:00'], 'b': ['2025-08-22 00:00:00']})
+    adc = make_data_source(df)
+    features = infer_feature_attributes(adc, default_time_zone='UTC')
+    assert features['a']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
+    assert features['b']['date_time_format'] == '%Y-%m-%d %H:%M:%S'
+
+
+def test_empty_string_first_non_nulls():
+    """Test that IFA correctly handles first non-null values that are empty strings."""
+    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy']})
+    adc = make_data_source(df)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        infer_feature_attributes(adc)
+    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy'], 'b': ['\n', '8/26/2025', '8/3/1999']})
+    adc = make_data_source(df)
+    with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
         infer_feature_attributes(adc)

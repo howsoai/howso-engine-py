@@ -191,10 +191,10 @@ class InferFeatureAttributesTimeSeries:
 
                         with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
                             df_chunks_generator = yield_dataframe_as_chunks(df_c, max_workers)
-                            for chunk in df_chunks_generator:
+                            for sub_chunk in df_chunks_generator:
                                 future = pool.submit(
                                     _apply_date_to_epoch,
-                                    df=chunk,
+                                    df=sub_chunk,
                                     feature_name=f_name,
                                     dt_format=dt_format
                                 )
@@ -365,7 +365,6 @@ class InferFeatureAttributesTimeSeries:
         delta_boundaries: t.Optional[dict] = None,
         dependent_features: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
-        features: t.Optional[dict] = None,
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         include_extended_nominal_probabilities: t.Optional[bool] = False,
         include_sample: bool = False,
@@ -483,81 +482,6 @@ class InferFeatureAttributesTimeSeries:
             feature with a 3rd order of derivative, setting its derived_orders
             to 2 will synthesize the 3rd order derivative value, and then use
             that synthed value to derive the 2nd and 1st order.
-
-        features : dict or None, defaults to None
-            (Optional) A partially filled features dict. If partially filled
-            attributes for a feature are passed in, those parameters will be
-            retained as is and the rest of the attributes will be inferred.
-
-            For example:
-                >>> from pprint import pprint
-                >>> df.head(2)
-                ...       ID      f1      f2      f3      date
-                ... 0  31855  245.47  262.97  244.95  20100131
-                ... 1  31855  253.03  254.79  238.61  20100228
-                >>> # Partially filled features dict
-                ... partial_features = {
-                ...     'f1': {
-                ...         'bounds': {
-                ...             'allow_null': False,
-                ...             'max': 5103.08,
-                ...             'min': 20.08
-                ...         },
-                ...         'time_series':  { 'type': 'rate'},
-                ...         'type': 'continuous'
-                ...     },
-                ...     'f2': {
-                ...         'bounds': {
-                ...             'allow_null': False,
-                ...             'max': 6103,
-                ...             'min': 0
-                ...         },
-                ...         'time_series':  { 'type': 'rate'},
-                ...         'type': 'continuous'
-                ...     },
-                ... }
-                >>> # infer rest of the attributes
-                >>> features = infer_time_series_attributes(
-                ... df, features=partial_features, time_feature_name='date'
-                ... )
-                >>> # inferred Feature dictionary
-                >>> pprint(features)
-                ... {
-                ...     'ID': {
-                ...         'bounds': {'allow_null': True},
-                ...         'id_feature': True,
-                ...         'type': 'nominal'
-                ...     },
-                ...     'f1': {
-                ...         'bounds': {'allow_null': False, 'max': 5103.08, 'min': 20.08},
-                ...          'time_series':  { 'type': 'rate'},
-                ...          'type': 'continuous'
-                ...     },
-                ...     'f2': {
-                ...         'bounds': {'allow_null': False, 'max': 6103, 'min': 0},
-                ...         'time_series':  { 'type': 'rate'},
-                ...         'type': 'continuous'
-                ...     },
-                ...     'f3': {
-                ...         'bounds': {
-                ...             'allow_null': False,
-                ...             'max': 8103.083927575384,
-                ...             'min': 20.085536923187668},
-                ...             'time_series':  { 'type': 'rate'},
-                ...             'type': 'continuous'
-                ...         },
-                ...         'date': {
-                ...             'bounds': {
-                ...                 'allow_null': False,
-                ...                 'max': '20830808',
-                ...                 'min': '19850517'
-                ...         },
-                ...         'date_time_format': '%Y%m%d',
-                ...         'time_feature': True,
-                ...         'time_series':  { 'type': 'delta'},
-                ...         'type': 'continuous'
-                ...     }
-                ... }
 
         id_feature_name : str or list of str default None
             (Optional) The name(s) of the ID feature(s).
@@ -732,12 +656,20 @@ class InferFeatureAttributesTimeSeries:
                 f for f in feature_names if f != self.time_feature_name
             ]
 
+        if isinstance(id_feature_name, str):
+            id_feature_names = [id_feature_name]
+        elif isinstance(id_feature_name, Iterable):
+            id_feature_names = id_feature_name
+        else:
+            id_feature_names = []
+
+        num_series = infer._get_unique_count(id_feature_names) if id_feature_names else 1
+
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             datetime_feature_formats=datetime_feature_formats,
             default_time_zone=default_time_zone,
             dependent_features=dependent_features,
-            features=features,
             id_feature_name=id_feature_name,
             include_extended_nominal_probabilities=include_extended_nominal_probabilities,
             include_sample=include_sample,
@@ -746,8 +678,10 @@ class InferFeatureAttributesTimeSeries:
             memory_warning_threshold=memory_warning_threshold,
             mode_bound_features=mode_bound_features,
             nominal_substitution_config=nominal_substitution_config,
+            num_series=num_series,
             ordinal_feature_values=ordinal_feature_values,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
+            time_invariant_features=time_invariant_features,
             types=types,
         )
 
@@ -760,13 +694,6 @@ class InferFeatureAttributesTimeSeries:
             time_invariant_features = list(time_invariant_features)
         else:
             time_invariant_features = []
-
-        if isinstance(id_feature_name, str):
-            id_feature_names = [id_feature_name]
-        elif isinstance(id_feature_name, Iterable):
-            id_feature_names = id_feature_name
-        else:
-            id_feature_names = []
 
         # ID features are time-invariant.
         for id_feature in id_feature_names:

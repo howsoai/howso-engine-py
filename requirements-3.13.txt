@@ -4,27 +4,27 @@
 #
 #    pip-compile --allow-unsafe --no-emit-index-url --output-file=requirements-3.13.txt
 #
-amalgam-lang==22.0.2
+amalgam-lang==24.0.4
     # via howso-engine (pyproject.toml)
 certifi==2025.8.3
     # via
     #   howso-engine (pyproject.toml)
     #   requests
-cffi==1.17.1
+cffi==2.0.0
     # via cryptography
-charset-normalizer==3.4.2
+charset-normalizer==3.4.3
     # via requests
-cryptography==45.0.6
+cryptography==45.0.7
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
-faker==37.5.3
+faker==37.6.0
     # via howso-engine (pyproject.toml)
-humanize==4.12.3
+humanize==4.13.0
     # via howso-engine (pyproject.toml)
 idna==3.10
     # via requests
-markdown-it-py==3.0.0
+markdown-it-py==4.0.0
     # via rich
 mdurl==0.1.2
     # via markdown-it-py
@@ -36,9 +36,9 @@ numpy==2.2.6
     #   pandas
 packaging==25.0
     # via deprecation
-pandas==2.3.1
+pandas==2.3.2
     # via howso-engine (pyproject.toml)
-pycparser==2.22
+pycparser==2.23
     # via cffi
 pygments==2.19.2
     # via rich
@@ -50,7 +50,7 @@ pytz==2025.2
     # via pandas
 pyyaml==6.0.2
     # via howso-engine (pyproject.toml)
-requests==2.32.4
+requests==2.32.5
     # via howso-engine (pyproject.toml)
 rich==14.1.0
     # via howso-engine (pyproject.toml)
@@ -58,7 +58,7 @@ semantic-version==2.10.0
     # via howso-engine (pyproject.toml)
 six==1.17.0
     # via python-dateutil
-typing-extensions==4.14.1
+typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)
 tzdata==2025.2
     # via

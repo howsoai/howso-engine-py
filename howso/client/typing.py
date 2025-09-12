@@ -56,6 +56,30 @@ class SortByFeature(TypedDict):
     order: Literal["asc", "desc"]
     """The direction of the sort."""
 
+class ValueMasses(TypedDict):
+    """Represents the computed value masses of a single feature."""
+
+    values: DataFrame
+    """A dataframe containing each feature value and its corresponding mass."""
+
+    remaining: float
+    """The combined mass of all omitted feature values."""
+
+class ConfusionMatrix(TypedDict):
+    """Represents a confusion matrix of a reaction."""
+
+    matrix: DataFrame
+    """Index of actual classes to columns of predicted classes to frequencies."""
+
+    leftover_correct: int | float
+    """Total number of correct predictions for classes that were not statistically significant."""
+
+    leftover_incorrect: int | float
+    """Total number of incorrect predictions for classes with any correct but statistically insignificant predictions."""
+
+    other_counts: dict[str, int | float] | int | float
+    """Total number of all other statistically insignificant predictions."""
+
 
 CaseIndices: TypeAlias = Sequence[tuple[str, int]]
 """Sequence of ``case_indices`` tuples."""

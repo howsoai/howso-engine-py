@@ -322,8 +322,8 @@ def accumulate_react_result(accumulated_result: dict, result: dict) -> dict:
             else:
                 accumulated_result[k] = []
 
-        if k == 'action_features':
-            # Only include action features once
+        if k in {'action_features', 'context_features'}:
+            # Only include action/context features once
             if not accumulated_result[k]:
                 accumulated_result[k] = v
             continue

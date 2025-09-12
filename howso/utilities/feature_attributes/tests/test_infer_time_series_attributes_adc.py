@@ -3,6 +3,7 @@ from collections import OrderedDict
 from pathlib import Path
 import warnings
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -128,54 +129,6 @@ def test_infer_features_attributes_multiple_ID(adc):
 
     assert features["ID"]["id_feature"] is True
     assert features["ID2"]["id_feature"] is True
-
-
-@pytest.mark.parametrize('adc', [
-    ("MongoDBData", ts_df),
-    ("SQLTableData", ts_df),
-    ("ParquetDataFile", ts_df),
-    ("ParquetDataset", ts_df),
-    ("TabularFile", ts_df),
-    ("DaskDataFrameData", ts_df),
-    ("DataFrameData", ts_df),
-], indirect=True)
-@pytest.mark.parametrize(
-    "features",
-    [features_1, features_2]
-)
-def test_partially_filled_feature_types(features: dict, adc) -> None:
-    """
-    Make sure the partially filled feature types remain intact.
-
-    Parameters
-    ----------
-    df: pandas.DataFrame
-    features
-    """
-    pre_inferred_features = features.copy()
-
-    # Define time format
-    time_format = "%Y%m%d"
-
-    # Identify id-feature and time-feature
-    id_feature_name = "ID"
-    time_feature_name = "date"
-
-    inferred_features = infer_feature_attributes(
-        adc,
-        time_feature_name=time_feature_name,
-        features=features,
-        id_feature_name=id_feature_name,
-        datetime_feature_formats={time_feature_name: time_format}
-    )
-
-    for k, v in pre_inferred_features.items():
-        assert v['type'] == inferred_features[k]['type']
-
-        if 'bounds' in v:
-            # Make sure the bounds are not altered
-            # by `infer_feature_attributes` function
-            assert v['bounds'] == inferred_features[k]['bounds']
 
 
 @pytest.mark.parametrize('adc', [
@@ -393,3 +346,36 @@ def test_lags(adc):
     # Ensure that an invalid lags value raises a helpful TypeError
     with pytest.raises(TypeError):
         fa = infer_feature_attributes(adc, time_feature_name="date", id_feature_name="ID", lags={"date": '0'})
+
+
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_nominal_vs_continuous_detection(adc):
+    """Test that IFA correctly determines nominal vs. continuous features in time series data."""
+    # Time-series data with 4756 cases, 41 series; avg. 116 cases/series; sqrt(116) ~= 10.77
+    df = ts_df.copy()
+    # Add a new integer column with n_uniques > sqrt(avg_n_cases_per_series) -- should be continuous
+    series = np.resize(np.arange(11), len(df))
+    np.random.shuffle(series)
+    df["f4"] = series
+    # Add a new integer column with n_uniques < sqrt(avg_n_cases_per_series) -- should be nominal
+    series = np.resize(np.arange(10), len(df))
+    np.random.shuffle(series)
+    df["f5"] = series
+    convert_data(DataFrameData(df), adc)
+    # Ensure that feature types were properly inferred
+    features = infer_feature_attributes(adc, id_feature_name="ID", time_feature_name="date")
+    assert features["f4"]["type"] == "continuous"
+    assert features["f5"]["type"] == "nominal"
+    # Ensure that pre-setting feature types overrides this logic
+    features = infer_feature_attributes(adc, id_feature_name="ID", time_feature_name="date",
+                                        types={"f4": "nominal", "f5": "continuous"})
+    assert features["f5"]["type"] == "continuous"
+    assert features["f4"]["type"] == "nominal"

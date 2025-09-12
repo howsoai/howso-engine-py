@@ -4,6 +4,7 @@ from collections.abc import Iterable, Mapping
 import datetime
 from datetime import time, timedelta
 import decimal
+import inspect
 import logging
 from math import isnan
 import re
@@ -74,11 +75,15 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # Keep track of any features that use UTC offsets, as these could lead
         # to unexpected results due to daylight savings time in some time zones
         self.utc_offset_features = []
+        # Keep track of any features that we detected to be datetimes but were
+        # not in ISO8601 format
+        self.unknown_datetime_features = []
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
         feature_attributes = self._process(**kwargs)
         self.emit_time_zone_warnings(self.missing_tz_features, self.utc_offset_features)
+        self.emit_unknown_datetime_warnings(self.unknown_datetime_features)
         return SingleTableFeatureAttributes(
             feature_attributes, params=kwargs,
             unsupported=self.unsupported
@@ -111,7 +116,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
         # If the ADC is SQL-based, we can attempt to see if it has a unique constraint without
         # being a primary key. However, if the ADC is not SQL-based, do not assume that a column
-        # is unique unless it is explicitely labeled as a primary key. A false positive 'unique'
+        # is unique unless it is explicitly labeled as a primary key. A false positive 'unique'
         # feature attribute could cause a data science disaster.
         inspector = None
         try:
@@ -145,120 +150,168 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             except Exception:
                 # If there is a problem, leave as-is
                 pass
+        try:
+            if is_float_dtype(dtype):
+                typing_info = {}
+                if itemsize := getattr(dtype, 'itemsize', None):
+                    if itemsize > 8:
+                        raise HowsoError(
+                            f'Unsupported data type "{dtype}" found for '
+                            f'feature "{feature_name}", Howso does not '
+                            'currently support numbers larger than 64-bit.')
+                    typing_info['size'] = itemsize
 
-        if is_float_dtype(dtype):
-            typing_info = {}
-            if itemsize := getattr(dtype, 'itemsize', None):
-                if itemsize > 8:
-                    raise HowsoError(
-                        f'Unsupported data type "{dtype}" found for '
-                        f'feature "{feature_name}", Howso does not '
-                        'currently support numbers larger than 64-bit.')
-                typing_info['size'] = itemsize
+                return FeatureType.NUMERIC, typing_info
 
-            return FeatureType.NUMERIC, typing_info
+            elif is_integer_dtype(dtype):
+                typing_info = {}
+                if itemsize := getattr(dtype, 'itemsize', None):
+                    typing_info['size'] = itemsize
+                if is_unsigned_integer_dtype(dtype):
+                    typing_info['unsigned'] = True
 
-        elif is_integer_dtype(dtype):
-            typing_info = {}
-            if itemsize := getattr(dtype, 'itemsize', None):
-                typing_info['size'] = itemsize
-            if is_unsigned_integer_dtype(dtype):
-                typing_info['unsigned'] = True
+                return FeatureType.INTEGER, typing_info
 
-            return FeatureType.INTEGER, typing_info
+            elif is_datetime64_any_dtype(dtype):
+                typing_info = {}
+                if dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
+                    return FeatureType.DATE, {}
+                elif isinstance(dtype, pd.DatetimeTZDtype):
+                    if isinstance(dtype.tz, pytz.BaseTzInfo) and dtype.tz.zone:
+                        # If using a named time zone capture it, otherwise
+                        # rely on the offset in the iso8601 format
+                        typing_info['timezone'] = dtype.tz.zone
+                return FeatureType.DATETIME, typing_info
 
-        elif is_datetime64_any_dtype(dtype):
-            typing_info = {}
-            if dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
-                return FeatureType.DATE, {}
-            elif isinstance(dtype, pd.DatetimeTZDtype):
-                if isinstance(dtype.tz, pytz.BaseTzInfo) and dtype.tz.zone:
-                    # If using a named time zone capture it, otherwise
-                    # rely on the offset in the iso8601 format
-                    typing_info['timezone'] = dtype.tz.zone
-            return FeatureType.DATETIME, typing_info
+            elif is_timedelta64_dtype(dtype):
+                # All time deltas will be converted to seconds
+                return FeatureType.TIMEDELTA, {'unit': 'seconds'}
 
-        elif is_timedelta64_dtype(dtype):
-            # All time deltas will be converted to seconds
-            return FeatureType.TIMEDELTA, {'unit': 'seconds'}
+            elif is_bool_dtype(dtype):
+                return FeatureType.BOOLEAN, {}
 
-        elif is_bool_dtype(dtype):
-            return FeatureType.BOOLEAN, {}
+            elif np.issubdtype(dtype, np.character):
+                if getattr(dtype, 'kind', None) != 'U':
+                    warnings.warn(
+                        f'The column "{feature_name}" contained bytes, original '
+                        'encoding of this column cannot be guaranteed.'
+                    )
+                return FeatureType.STRING, {}
+        except ValueError:  # Some of the above checks may not play nice with all dtypes
+            pass
 
-        elif np.issubdtype(dtype, np.character):
-            if getattr(dtype, 'kind', None) != 'U':
-                warnings.warn(
-                    f'The column "{feature_name}" contained bytes, original '
-                    'encoding of this column cannot be guaranteed.'
-                )
+        # Try to determine feature type by inspecting the data
+        # DataFrames may use 'object' dtype for strings, detect
+        # string columns by checking the type of the data
+        random_value = self._get_random_value(feature_name, no_nulls=True)
+        # There's nothing to determine, let it be STRING
+        if random_value is None:
             return FeatureType.STRING, {}
 
-        else:
-            first_non_null = self._get_first_non_null(feature_name)
-            # DataFrames may use 'object' dtype for strings, detect
-            # string columns by checking the type of the data
-            if isinstance(first_non_null, str):
+        # Remove any whitespace characters from either end.
+        if isinstance(random_value, str):
+            random_value = random_value.strip()
+
+            max_samples = max(5, self._get_num_cases(feature_name))
+            num_samples = 1
+            while num_samples <= max_samples:
                 # First, determine if the string resembles common time-only formats
-                if re.match(TIME_PATTERN, first_non_null) or re.match(SIMPLE_TIME_PATTERN,
-                                                                      first_non_null):
+                if re.match(TIME_PATTERN, random_value) or re.match(SIMPLE_TIME_PATTERN, random_value):
                     return FeatureType.TIME, {}
-                # Explicitely declared formatted_date_time/time; don't try to guess
-                attrs = getattr(self, 'attributes', {}).get(feature_name, {})
-                if any([
-                    attrs.get('data_type') == 'formatted_date_time',
-                    attrs.get('data_type') == 'formatted_time',
-                    getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None,
-                ]):
+                # If this doesn't contain numbers, then report it as a string.
+                if random_value and not any(c.isnumeric() for c in random_value):
                     return FeatureType.STRING, {}
+                # explicitly declared formatted_date_time/time; don't try to guess
+                if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None:
+                    return FeatureType.STRING, {}  # Could be datetime or time-only; let base.py figure it out
                 # Depending on the data source, datetimes/timedeltas could easily be strings.
                 # See if the string can be converted to a Pandas datetime/timedelta.
                 try:
-                    converted_dtype = pd.to_datetime(pd.Series([first_non_null])).dtype
-                    # Unfortunately, Pandas does not differentiate between datetimes and "pure" dates.
-                    # If the below code executes, that means Pandas recognizes the value as a datetime,
-                    # but we now need to check if the 'time' component is zero. If so, we can cast to
-                    # a Numpy datetime64[D] dtype.
-                    converted_val = pd.to_datetime(first_non_null)
                     # If the feature looks like a date or datetime, but it's not in ISO8601 format,
                     # handle it as a string to avoid ambiguity.
-                    if not self._is_iso8601_datetime_column(feature_name):
-                        return FeatureType.STRING, {}
-                    if converted_val.time() == pd.Timestamp(0).time() and converted_val.tz is None:
-                        converted_dtype = np.datetime64(converted_val, 'D').dtype
-                    typing_info = {}
-                    if converted_dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
-                        return FeatureType.DATE, {}
-                    elif isinstance(converted_dtype, pd.DatetimeTZDtype):
-                        if isinstance(converted_dtype.tz, pytz.BaseTzInfo) and converted_dtype.tz.zone:
-                            # If using a named time zone capture it, otherwise
-                            # rely on the offset in the iso8601 format
-                            typing_info['timezone'] = converted_dtype.tz.zone
-                    return FeatureType.DATETIME, typing_info
+                    converted_dtype = pd.to_datetime(pd.Series([random_value])).dtype
+                    converted_val = pd.to_datetime(random_value)
+                    if self._is_iso8601_datetime_column(feature_name):
+                        # Unfortunately, Pandas does not differentiate between datetimes and "pure" dates.
+                        # If the below code executes, that means Pandas recognizes the value as a datetime,
+                        # but we now need to check if the 'time' component is zero. If so, we can cast to
+                        # a Numpy datetime64[D] dtype.
+                        #
+                        # However, we need to be careful with this -- if the user has a datetime feature of the format
+                        # '%y-%m-%d', for example, the `to_datetime()` conversion above will add an empty time component
+                        # as previously described. But, if the user has a datetime feature that *actually* has an empty
+                        # time component in the string -- for example, '%y-%m-%dT00:00:00', we must respect the original
+                        # format even if it is intended to be a date-only feature.
+                        if all([converted_val.time() == pd.Timestamp(0).time(),
+                                converted_val.tz is None,
+                                # Ensure there is no time component in the unconverted string
+                                'T' not in random_value,
+                                '00:00:00' not in random_value]):
+                            converted_dtype = np.datetime64(converted_val, 'D').dtype
+                        typing_info = {}
+                        if converted_dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
+                            return FeatureType.DATE, {}
+                        elif isinstance(converted_dtype, pd.DatetimeTZDtype):
+                            if isinstance(converted_dtype.tz, pytz.BaseTzInfo) and converted_dtype.tz.zone:
+                                # If using a named time zone capture it, otherwise
+                                # rely on the offset in the iso8601 format
+                                typing_info['timezone'] = converted_dtype.tz.zone
+                        return FeatureType.DATETIME, typing_info
+                    else:
+                        # Only add this to the warning list if we've tried `max_samples` times to
+                        # find another reason to set it as something else.
+                        if num_samples >= max_samples:
+                            self.unknown_datetime_features.append(feature_name)
+                            return FeatureType.STRING, {}
                 except Exception:
                     return FeatureType.STRING, {}
-            elif isinstance(first_non_null, bytes):
-                warnings.warn(
-                    f'The column "{feature_name}" contained bytes, original '
-                    'encoding of this column cannot be guaranteed.'
-                )
-                return FeatureType.STRING, {}
-            elif isinstance(first_non_null, datetime.datetime):
-                return FeatureType.DATETIME, {}
-            elif isinstance(first_non_null, datetime.date):
-                return FeatureType.DATE, {}
-            elif isinstance(first_non_null, datetime.time):
-                return FeatureType.TIME, {}
-            elif isinstance(first_non_null, decimal.Decimal):
-                return FeatureType.NUMERIC, {'format': 'decimal'}
+
+                # Get a new non-null, stripped random value.
+                random_value = str(self._get_random_value(feature_name, no_nulls=True)).strip()
+                num_samples += 1
+
+        elif isinstance(random_value, bytes):
+            warnings.warn(
+                f'The column "{feature_name}" contained bytes, original '
+                'encoding of this column cannot be guaranteed.'
+            )
+            return FeatureType.STRING, {}
+        elif isinstance(random_value, datetime.datetime):
+            return FeatureType.DATETIME, {}
+        elif isinstance(random_value, datetime.date):
+            return FeatureType.DATE, {}
+        elif isinstance(random_value, datetime.time):
+            return FeatureType.TIME, {}
+        elif isinstance(random_value, decimal.Decimal):
+            return FeatureType.NUMERIC, {'format': 'decimal'}
         # Feature is of generic object type
         return FeatureType.UNKNOWN, {}
 
-    def _get_first_non_null(self, feature_name: str) -> t.Any | None:
-        return self.data.get_first_non_null(feature_name)
+    def _get_first_non_null(self, feature_name: str, strip=False) -> t.Any | None:
+        """
+        Get the first non-null value in the given column.
+
+        Parameters
+        ----------
+        feature_name : str
+            The name of the feature to get the first non-null value of.
+        strip : bool, default False
+            If True, considers values that are emtpy or whitespace-only as null.
+
+        Returns
+        -------
+        The first non-null value for the provided feature, if it exists; else, returns None.
+        """
+        if not strip:
+            return self.data.get_first_non_null(feature_name)
+        for chunk in self.data.yield_chunk():
+            if val := next((x for x in chunk[feature_name].dropna() if str(x).strip()), None):
+                return val
+        return None
 
     def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
         """
-        Return a random sample from the given DataFrame column.
+        Return a random sample from the given column.
 
         The return type is determined by the column type.
 
@@ -266,6 +319,10 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         values, if any. If there are no such non-nulls, this will return None.
         """
         return self.data.get_random_value(feature_name, no_nulls=no_nulls)
+
+    def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
+        """Get the number of unique values in the provided column(s)."""
+        return self.data.get_unique_count(feature_name)
 
     @classmethod
     def _value_to_number(cls, value: t.Any) -> t.Any:
@@ -310,8 +367,13 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 if not time_format:
                     raise ValueError(f'Error computing bounds for {feature_name}: '
                                      f'`date_time_format` must be specified in attributes')
-                min_time, max_time = (
-                    self.data.get_min_max_values(feature_name))
+                if "datetime_format" in inspect.signature(self.data.get_min_max_values).parameters:
+                    min_time, max_time = (
+                        self.data.get_min_max_values(feature_name, datetime_format=time_format))
+                else:
+                    # howso-engine-connectors < 2.2.0
+                    min_time, max_time = (
+                        self.data.get_min_max_values(feature_name))
                 # Fractional seconds must be normalized to six decimal places for use with Pandas
                 # when the data is represented as a float
                 if '%f' in time_format and original_type.get('data_type') == FeatureType.NUMERIC.value:
@@ -351,8 +413,13 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 format_dt = feature_attributes[feature_name].get('date_time_format')
 
                 # Trust that the ADC can handle finding min/max datetimes
-                min_date_obj, max_date_obj = (
-                    self.data.get_min_max_values(feature_name))
+                if "datetime_format" in inspect.signature(self.data.get_min_max_values).parameters:
+                    min_date_obj, max_date_obj = (
+                        self.data.get_min_max_values(feature_name, datetime_format=format_dt))
+                else:
+                    # howso-engine-connectors < 2.2.0
+                    min_date_obj, max_date_obj = (
+                        self.data.get_min_max_values(feature_name))
 
                 # Min/max values from ADC are raw; convert to datetime.time
                 if not isinstance(min_date_obj, datetime.datetime):
@@ -527,14 +594,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             decimals = self.data.get_decimal_places(feature_name)
             if decimals is None:
                 warnings.warn(f'Cannot compute decimal places for feature "{feature_name}')
-            elif decimals <= 8:
-                attributes['decimal_places'] = decimals
             else:
-                warnings.warn(
-                    f'Feature "{feature_name}" contains floating point '
-                    'values that exceed the maximum supported precision '
-                    'of 64 bits.'
-                )
+                attributes['decimal_places'] = decimals
 
         return attributes
 
@@ -554,7 +615,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         if not self._is_iso8601_datetime_column(feature_name):
             raise ValueError(f'Feature {feature_name} recognized as a datetime with non-ISO8601 format. Please '
                              'specify the format via `datetime_feature_formats`.')
-        if pd.api.types.is_datetime64tz_dtype(dtype):
+        if isinstance(dtype, pd.DatetimeTZDtype):
             # Include timezone offset in format
             dt_format += '%z'
         elif dtype == 'object':
@@ -565,6 +626,15 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 # value has tzinfo and include the timezone in the format
                 if first_non_null.tzinfo is not None:
                     dt_format += '%z'
+            elif self._is_iso8601_datetime_column(feature_name):
+                # if datetime, determine the iso8601 format it's using
+                if first_non_null := self._get_first_non_null(feature_name):
+                    fmt = determine_iso_format(first_non_null, feature_name)
+                    return {
+                        'type': 'continuous',
+                        'data_type': 'formatted_date_time',
+                        'date_time_format': fmt
+                    }
             # Try converting the string to datetime using Pandas to determine
             # if tz info is present.
             elif pd.to_datetime(first_non_null).tz is not None:
@@ -631,9 +701,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # Decide if categorical by checking number of uniques is fewer
         # than the square root of the total samples or if every value
         # has exactly the same length.
-        num_uniques = self.data.get_unique_count(feature_name)
-        n_cases = self.data.get_num_cases(feature_name)
-        if num_uniques < pow(n_cases, 0.5) or preset_feature_type == 'nominal':
+        num_uniques = self._get_unique_count(feature_name)
+        if num_uniques < self._get_cont_threshold(feature_name) or preset_feature_type == 'nominal':
             guess_nominals = True
         else:
             # Find the largest and smallest non-null values in column.
@@ -702,6 +771,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     def _infer_unknown_attributes(self, feature_name: str) -> dict:
         return {
             'type': 'nominal',
+            'data_type': 'string',
         }
 
     def _get_unique_values(self, feature_name: str) -> set[t.Any]:
