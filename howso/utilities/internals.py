@@ -7,7 +7,7 @@ Notice: These are internal utilities and are not intended to be
 from __future__ import annotations
 
 from collections import OrderedDict, deque
-from collections.abc import Callable, Collection, Iterable, Mapping
+from collections.abc import Callable, Collection, Generator, Iterable, Mapping
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from copy import deepcopy
 import datetime
@@ -31,6 +31,8 @@ from semantic_version import Version
 from .monitors import ProgressTimer
 
 logger = logging.getLogger(__name__)
+
+T = t.TypeVar("T")
 
 
 def deserialize_to_dataframe(
@@ -765,6 +767,11 @@ class BatchScalingManager(BaseBatchScalingManager):
         """Get the current batch size."""
         return self.clamp(self.quantize(self._batch_size))
 
+    @batch_size.setter
+    def batch_size(self, batch_size: float) -> None:
+        """Manually set the current batch size."""
+        self._batch_size = batch_size
+
     @property
     def thread_count(self) -> int:
         """Get the current thread count."""
@@ -1183,6 +1190,25 @@ class ParamsForBatch:
         if self._num_to_generate_param and params.get("desired_conviction") is not None:
             result[self._num_to_generate_param] = batch_end - batch_start
         return result
+
+
+def batch_lists(lists: list[T], initial_batch_size: int) -> Generator[list[T], int]:
+    """
+    Break up a potentially long list of items into variable-size batches.
+
+    This is a bidirectional generator.  Calling `next()` on its result yields
+    a list of `initial_batch_size` items.  From this point, call `gen.send()`
+    with a desired number of items, and it will return a list of that many
+    items.  The generator raises `StopIteration` when the list is exhausted.
+
+    """
+    offset = 0
+    batch_size = initial_batch_size
+    while offset < len(lists):
+        batch = lists[offset:offset+batch_size]
+        next_batch_size = yield batch
+        offset += batch_size
+        batch_size = next_batch_size
 
 
 def show_core_warnings(core_warnings: Iterable[str | dict]):

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import (
     Callable,
     Collection,
+    Generator,
     Mapping,
     MutableMapping,
 )
@@ -628,7 +629,7 @@ class Trainee(BaseTrainee):
 
     def train(
         self,
-        cases: TabularData2D,
+        cases: TabularData2D | Generator[DataFrame, int],
         *,
         accumulate_weight_feature: t.Optional[str] = None,
         batch_size: t.Optional[int] = None,
@@ -636,6 +637,7 @@ class Trainee(BaseTrainee):
         features: t.Optional[Collection[str]] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
+        num_cases: int | None = None,
         progress_callback: t.Optional[Callable] = None,
         series: t.Optional[str] = None,
         skip_auto_analyze: bool = False,
@@ -646,10 +648,20 @@ class Trainee(BaseTrainee):
         """
         Train one or more cases into the trainee (model).
 
+        `cases` may be:
+
+        1. A pandas `DataFrame`.  `features` is optional; if it is provided
+           then only these specific columns from the `DataFrame` are used.
+        2. A row-major list of lists of values.  `features` is required.
+        3. A generator that yields `DataFrame` with a batch of cases, and
+           accepts back an int with the desired size of the next batch.
+           `features` is handled the same as for an individual `DataFrame`.
+
         Parameters
         ----------
-        cases : DataFrame or 2-dimensional list of object
-            One or more cases to train into the model.
+        cases : DataFrame or 2-dimensional list of object or generator of DataFrame
+            One or more cases to train into the model.  Must be a list or a
+            `DataFrame` if `series` is also specified.
         accumulate_weight_feature : str, optional
             Name of feature into which to accumulate neighbors'
             influences as weight for ablated cases. If unspecified, will not
@@ -716,6 +728,7 @@ class Trainee(BaseTrainee):
                 features=features,
                 initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
+                num_cases=num_cases,
                 progress_callback=progress_callback,
                 series=series,
                 skip_auto_analyze=skip_auto_analyze,
