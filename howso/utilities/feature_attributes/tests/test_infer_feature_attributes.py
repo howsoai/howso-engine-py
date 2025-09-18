@@ -28,7 +28,10 @@ else:
 cwd = Path(__file__).parent.parent.parent.parent
 iris_path = Path(cwd, 'utilities', 'tests', 'data', 'iris.csv')
 int_path = Path(cwd, 'utilities', 'tests', 'data', 'integers.csv')
-nypd_arrest_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet'))
+try:
+    nypd_arrest_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet'))
+except ImportError:
+    nypd_arrest_df = None
 stock_path = Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv')
 ts_path = Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv')
 
@@ -1011,8 +1014,10 @@ def test_memory_usage_warning():
         infer_feature_attributes(df)
 
 
+@pytest.mark.skipif(nypd_arrest_df is None, reason="Cannot load Parquet files")
 def test_ambiguous_datetime_format():
     """Test that a non-ISO8601 datetime feature results in a warning."""
+    assert nypd_arrest_df is not None
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
         infer_feature_attributes(nypd_arrest_df)  # NYPD arrest data includes a non-ISO8601 date string
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Iterator
 from contextlib import suppress
 from pathlib import Path
@@ -43,7 +45,7 @@ class TemporaryDirectoryIgnoreErrors(TemporaryDirectory):
             super().cleanup()
 
 
-def mongodb_data(df) -> Iterator[SQLTableData]:
+def mongodb_data(df) -> Iterator[MongoDBData]:
     """Yield a MongoDBData instance populated with data from the given DataFrame."""
     with patch("howso.connectors.abstract_data.mongodb_data.MongoClient", new=mongomock.MongoClient):
         adc = MongoDBData("mongodb://localhost/test_db#test_collection")
