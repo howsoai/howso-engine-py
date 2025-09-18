@@ -656,6 +656,15 @@ class InferFeatureAttributesTimeSeries:
                 f for f in feature_names if f != self.time_feature_name
             ]
 
+        if isinstance(id_feature_name, str):
+            id_feature_names = [id_feature_name]
+        elif isinstance(id_feature_name, Iterable):
+            id_feature_names = id_feature_name
+        else:
+            id_feature_names = []
+
+        num_series = infer._get_unique_count(id_feature_names) if id_feature_names else 1
+
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             datetime_feature_formats=datetime_feature_formats,
@@ -669,6 +678,7 @@ class InferFeatureAttributesTimeSeries:
             memory_warning_threshold=memory_warning_threshold,
             mode_bound_features=mode_bound_features,
             nominal_substitution_config=nominal_substitution_config,
+            num_series=num_series,
             ordinal_feature_values=ordinal_feature_values,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
             time_invariant_features=time_invariant_features,
@@ -684,13 +694,6 @@ class InferFeatureAttributesTimeSeries:
             time_invariant_features = list(time_invariant_features)
         else:
             time_invariant_features = []
-
-        if isinstance(id_feature_name, str):
-            id_feature_names = [id_feature_name]
-        elif isinstance(id_feature_name, Iterable):
-            id_feature_names = id_feature_name
-        else:
-            id_feature_names = []
 
         # ID features are time-invariant.
         for id_feature in id_feature_names:

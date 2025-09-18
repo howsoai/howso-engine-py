@@ -749,6 +749,7 @@ class InferFeatureAttributesBase(ABC):
                  max_workers: t.Optional[int] = None,
                  memory_warning_threshold: t.Optional[int] = 512,
                  mode_bound_features: t.Optional[Iterable[str]] = None,
+                 num_series: t.Optional[int] = 1,
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
                  tight_bounds: t.Optional[Iterable[str]] = None,
@@ -774,6 +775,8 @@ class InferFeatureAttributesBase(ABC):
             dependent_features = dict()
 
         self.default_time_zone = default_time_zone
+
+        self.num_series = num_series
 
         # Store ID and other time-invariant features, if provided, for processing
         if isinstance(time_invariant_features, str):
@@ -1254,13 +1257,11 @@ class InferFeatureAttributesBase(ABC):
     def _get_cont_threshold(self, feature_name: str) -> int:
         """Get the minimum number of unique values a feature must have to be considered continuous."""
         n_cases = self._get_num_cases(feature_name)
-        num_series = 1
-        if getattr(self, 'id_feature_names', None):
-            num_series = self._get_unique_count(self.id_feature_names)
-            # If the provided feature is stationary, we should simply evaluate the number of series
-            if feature_name in self.time_invariant_features:
-                return math.ceil(pow(num_series, 0.5))
-        return math.ceil(pow((n_cases / num_series), 0.5))
+        # If the provided feature is stationary, we should simply evaluate the number of series
+        if getattr(self, 'id_feature_names', None) and feature_name in self.time_invariant_features:
+            return math.ceil(pow(self.num_series, 0.5))
+        # Return the sqrt of max(avg. cases per series, num. series)
+        return math.ceil(pow(max(self.num_series, (n_cases / self.num_series)), 0.5))
 
     @staticmethod
     def _get_datetime_max():
