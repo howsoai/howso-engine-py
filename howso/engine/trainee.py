@@ -2055,7 +2055,7 @@ class Trainee(BaseTrainee):
             to derive them, reducing the expected runtime but possibly reducing accuracy.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
-        use_differential_privacy : bool, default True
+        use_differential_privacy : bool, default False
             See parameter ``use_differential_privacy`` in :meth:`react`.
         weight_feature : str, optional
             See parameter ``weight_feature`` in :meth:`react`.
