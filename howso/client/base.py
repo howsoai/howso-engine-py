@@ -1595,6 +1595,7 @@ class AbstractHowsoClient(ABC):
         input_is_substituted: bool = False,
         into_series_store: t.Optional[str] = None,
         leave_case_out: bool = False,
+        new_case_min_distance_ratio: t.Optional[float] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
@@ -2165,6 +2166,14 @@ class AbstractHowsoClient(ABC):
             batched call to react and at the end of reacting. The method is
             given a ProgressTimer containing metrics on the progress and timing
             of the react operation, and the batch result.
+        new_case_min_distance_ratio : float, optional
+            Parameter that adjusts the required distance ratio for a newly
+            generated case to be considered private. When unspecified, defaults
+            to 1.0 and generated cases with a ratio of 1.0 or greater are
+            considered private. Larger values will increase strictness of
+            privacy check. Smaller values will loosen the privacy check. Must
+            be a positive number, since 0 would function same as
+            `generate_new_cases='no'`.
         new_case_threshold : str, optional
             Distance to determine the privacy cutoff. If None,
             will default to "min".
@@ -2332,9 +2341,10 @@ class AbstractHowsoClient(ABC):
                 "use_case_weights": use_case_weights,
                 "leave_case_out": leave_case_out,
                 "preserve_feature_values": preserve_feature_values,
+                "new_case_min_distance_ratio": new_case_min_distance_ratio,
                 "new_case_threshold": new_case_threshold,
                 "details": details,
-                "return_context_values": return_context_values
+                "return_context_values": return_context_values,
             }
         else:
             if (
@@ -2376,6 +2386,7 @@ class AbstractHowsoClient(ABC):
                 "goal_features_map": goal_features_map,
                 "ordered_by_specified_features": ordered_by_specified_features,
                 "preserve_feature_values": preserve_feature_values,
+                "new_case_min_distance_ratio": new_case_min_distance_ratio,
                 "new_case_threshold": new_case_threshold,
                 "into_series_store": into_series_store,
                 "input_is_substituted": input_is_substituted,
@@ -2695,6 +2706,7 @@ class AbstractHowsoClient(ABC):
         input_is_substituted: bool = False,
         leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
+        new_case_min_distance_ratio: t.Optional[float] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
@@ -2902,6 +2914,14 @@ class AbstractHowsoClient(ABC):
             See parameter ``use_case_weights`` in :meth:`AbstractHowsoClient.react`.
         preserve_feature_values : iterable of str
             See parameter ``preserve_feature_values`` in :meth:`AbstractHowsoClient.react`.
+        new_case_min_distance_ratio : float, optional
+            Parameter that adjusts the required distance ratio for a newly
+            generated case to be considered private. When unspecified, defaults
+            to 1.0 and generated cases with a ratio of 1.0 or greater are
+            considered private. Larger values will increase strictness of
+            privacy check. Smaller values will loosen the privacy check. Must
+            be a positive number, since 0 would function same as
+            `generate_new_cases='no'`.
         new_case_threshold : str
             See parameter ``new_case_threshold`` in :meth:`AbstractHowsoClient.react`.
         use_differential_privacy : bool
@@ -3021,6 +3041,7 @@ class AbstractHowsoClient(ABC):
                 "goal_features_map": goal_features_map,
                 "leave_series_out": leave_series_out,
                 "preserve_feature_values": preserve_feature_values,
+                "new_case_min_distance_ratio": new_case_min_distance_ratio,
                 "new_case_threshold": new_case_threshold,
                 "input_is_substituted": input_is_substituted,
                 "substitute_output": substitute_output,
@@ -3084,6 +3105,7 @@ class AbstractHowsoClient(ABC):
                 "weight_feature": weight_feature,
                 "use_case_weights": use_case_weights,
                 "preserve_feature_values": preserve_feature_values,
+                "new_case_min_distance_ratio": new_case_min_distance_ratio,
                 "new_case_threshold": new_case_threshold,
                 "details": details,
                 "series_id_tracking": series_id_tracking,
