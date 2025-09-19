@@ -760,19 +760,19 @@ class Trainee(BaseTrainee):
         auto_ablation_enabled: bool = False,
         *,
         ablated_cases_distribution_batch_size: int = 100,
-        abs_threshold_map: AblationThresholdMap = None,
+        abs_threshold_map: t.Optional[AblationThresholdMap] = None,
         auto_ablation_influence_weight_entropy_threshold: float = 0.15,
         auto_ablation_weight_feature: str = ".case_weight",
         batch_size: int = 2_000,
         conviction_lower_threshold: t.Optional[float] = None,
         conviction_upper_threshold: t.Optional[float] = None,
-        delta_threshold_map: AblationThresholdMap = None,
+        delta_threshold_map: t.Optional[AblationThresholdMap] = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         influence_weight_entropy_sample_size: int = 2_000,
         min_num_cases: int = 10_000,
         max_num_cases: int = 200_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
-        rel_threshold_map: AblationThresholdMap = None,
+        rel_threshold_map: t.Optional[AblationThresholdMap] = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
         tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
@@ -1607,6 +1607,10 @@ class Trainee(BaseTrainee):
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
                 computations.
+            - relevant_values : bool or list of strings, optional
+                When true outputs a map of each context feature name to a list of relevant values for that
+                feature given the context. If a list of feature names, will only output relevant values for
+                each feature specified.
             - selected_prediction_stats : list[Prediction_Stats], optional.
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
@@ -3612,6 +3616,10 @@ class Trainee(BaseTrainee):
                 "selected_prediction_stats" parameter in the `details` parameter.
                 Uses full calculations, which uses leave-one-out for features for
                 computations.
+            - relevant_values : bool or list of strings, optional
+                When true outputs a map of each context feature name to a list of relevant values for that
+                feature given the context. If a list of feature names, will only output relevant values for
+                each feature specified.
             - selected_prediction_stats : list, optional
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
