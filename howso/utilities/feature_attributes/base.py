@@ -185,6 +185,7 @@ class FeatureAttributesBase(dict):
         raise NotImplementedError('Function not yet implemented for all subclasses of `FeatureAttributesBase`')
 
     def get_names(self, *, types: t.Optional[str | Container] = None,
+                  data_types: t.Optional[str | Container] = None,
                   without: t.Optional[Iterable[str]] = None,
                   ) -> list[str]:
         """
@@ -195,6 +196,9 @@ class FeatureAttributesBase(dict):
         types : String, Container (of String), default None
             (Optional) A feature type as a string (E.g., 'continuous') or a
             list of feature types to limit the output feature names.
+        data_types : String, Container (of String), default None
+            (Optional) A ``data_type`` as a string (E.g., 'datetime') or a list
+            of ``data_type`` to limit the output of feature names.
         without : Iterable of String
             (Optional) An Iterable of feature names to exclude from the return object.
 
@@ -213,10 +217,18 @@ class FeatureAttributesBase(dict):
         if types:
             if isinstance(types, str):
                 types = [types, ]
-            names = [
-                name for name in names
-                if self[name].get('type') in types
-            ]
+        else:
+            types = []
+        if data_types:
+            if isinstance(data_types, str):
+                data_types = [data_types, ]
+        else:
+            data_types = []
+        names = [
+            name for name in names
+            if (self[name].get('type') in types or not types)
+            and (self[name].get('data_type') in data_types or not data_types)
+        ]
 
         return [
             key for key in names

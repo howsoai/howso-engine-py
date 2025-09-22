@@ -503,17 +503,21 @@ def test_get_names_without():
         features.get_names(without=without)
 
 
-@pytest.mark.parametrize("types, num", [
-    ("continuous", 4),
-    ({"continuous"}, 4),
-    (('nominal'), 1),
-    (['continuous', 'nominal'], 5),
+@pytest.mark.parametrize("types, data_types, num", [
+    ("continuous", None, 4),
+    ({"continuous"}, None, 4),
+    (('nominal'), None, 1),
+    (['continuous', 'nominal'], None, 5),
+    ("continuous", ['number'], 4),
+    (('nominal'), ['string'], 1),
+    (['continuous', 'nominal'], ['string', 'number'], 5),
+    (('nominal'), ['boolean'], 0),
 ])
-def test_get_names_types(types, num):
-    """Test the get_names() method with the types parameter."""
+def test_get_names_types(types, data_types, num):
+    """Test the get_names() method with the types and/or data_types parameter(s)."""
     df = pd.read_csv(iris_path)
     features = infer_feature_attributes(df)
-    names = features.get_names(types=types)
+    names = features.get_names(types=types, data_types=data_types)
     assert len(names) == num
 
 
