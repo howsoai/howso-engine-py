@@ -7,11 +7,13 @@ from abc import (
 from collections.abc import (
     Callable,
     Collection,
+    Generator,
     Iterable,
     Mapping,
     MutableMapping,
     Sized,
 )
+from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 import typing as t
@@ -28,6 +30,7 @@ from howso.utilities.constants import (  # noqa: E501 type: ignore reportPrivate
     _RENAMED_DETAIL_KEYS_EXTRA,
 )
 from howso.utilities.feature_attributes.base import (
+    FeatureAttributesBase,
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
 )
@@ -79,7 +82,11 @@ class AbstractHowsoClient(ABC):
     """The client configuration options."""
 
     ERROR_MESSAGES = {
-        "missing_session": "There is currently no active session. Begin a new session to continue."
+        "missing_session": "There is currently no active session. Begin a new session to continue.",
+        "train_series_generator": (
+            "When training from a series, the provided cases cannot come from "
+            "a generator.  Use a list or DataFrame instead."
+        )
     }
     """Mapping of error code to default error message."""
 
@@ -499,7 +506,7 @@ class AbstractHowsoClient(ABC):
     def train(  # noqa: C901
         self,
         trainee_id: str,
-        cases: TabularData2D,
+        cases: TabularData2D | Generator[DataFrame, int],
         features: t.Optional[Collection[str]] = None,
         *,
         accumulate_weight_feature: t.Optional[str] = None,
@@ -507,6 +514,7 @@ class AbstractHowsoClient(ABC):
         derived_features: t.Optional[Collection[str]] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
+        num_cases: int | None = None,
         progress_callback: t.Optional[Callable] = None,
         series: t.Optional[str] = None,
         skip_auto_analyze: bool = False,
@@ -521,8 +529,11 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the target Trainee.
-        cases : list of list of object or pandas.DataFrame
-            One or more cases to train into the model.
+        cases : list of list of object or pandas.DataFrame or generator
+                yielding DataFrame and accepting int
+            One or more cases to train into the model.  If this is a
+            generator, this method will send back a desired length for the
+            next DataFrame to be yielded.
         features : Collection of str, optional
             The feature names corresponding to the case values.
             This parameter should be provided in the following scenarios:
@@ -556,6 +567,9 @@ class AbstractHowsoClient(ABC):
         input_is_substituted : bool, default False
             if True assumes provided nominal feature values have
             already been substituted.
+        num_cases : int, optional
+            Number of cases, used only for progress reporting and only when
+            `cases` is a generator.
         progress_callback : callable, optional
             A callback method that will be called before each
             batched call to train and at the end of training. The method is
@@ -570,6 +584,7 @@ class AbstractHowsoClient(ABC):
             the value(s) of this case are appended to all cases in the series.
             If cases is the same length as the series, the value of each case
             in cases is applied in order to each of the cases in the series.
+            cases must not be a generator if this option is provided.
         skip_auto_analyze : bool, default False
             When true, the Trainee will not auto-analyze when appropriate.
             Instead, the return dict will have a "needs_analyze" flag if an
@@ -600,6 +615,9 @@ class AbstractHowsoClient(ABC):
 
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
+        
+        if series and not isinstance(cases, (list, DataFrame)):
+            raise HowsoError(self.ERROR_MESSAGES["train_series_generator"], code="train_series_generator")
 
         # Make sure single table dicts are wrapped by SingleTableFeatureAttributes
         if (
@@ -607,15 +625,6 @@ class AbstractHowsoClient(ABC):
             not isinstance(feature_attributes, MultiTableFeatureAttributes)
         ):
             feature_attributes = SingleTableFeatureAttributes(feature_attributes, {})
-
-        # Check to see if the feature attributes still generally describe
-        # the data, and warn the user if they do not
-        if isinstance(cases, DataFrame) and validate:
-            try:
-                feature_attributes.validate(cases)
-            except NotImplementedError:
-                # MultiTableFeatureAttributes does not yet support DataFrame validation
-                pass
 
         # See if any features were inferred to have data that is unsupported by the OS.
         # Issue a warning and drop the feature before training, if so.
@@ -626,44 +635,92 @@ class AbstractHowsoClient(ABC):
         elif isinstance(feature_attributes, SingleTableFeatureAttributes):
             unsupported_features = [feat for feat in feature_attributes.keys()
                                     if feature_attributes.has_unsupported_data(feat)]
-        if isinstance(cases, DataFrame):
+        if not isinstance(cases, list):
             for feature in unsupported_features:
                 warnings.warn(
                     f'Ignoring feature {feature} as it contains values that are too '
                     'large or small for your operating system. Please evaluate the '
                     'bounds for this feature.')
-                cases.drop(feature, axis=1, inplace=True)
+                if isinstance(cases, DataFrame):
+                    cases.drop(feature, axis=1, inplace=True)
 
         util.validate_list_shape(features, 1, "features", "str")
-        util.validate_list_shape(cases, 2, "cases", "list", allow_none=False)
-        if features is None:
-            features = internals.get_features_from_data(cases)
-        serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True) or []
+
+        # Create the batch scaler.
+        batch_scaler: internals.BaseBatchScalingManager
+        if series is not None:
+            # If training series, always send full size
+            # (We have already checked that we do not have a generator)
+            assert isinstance(cases, (list, DataFrame))
+            batch_scaler = internals.FixedBatchScalingManager(len(cases))
+        elif batch_size and isinstance(cases, (list, DataFrame)):
+            # Caller requested a fixed batch size
+            batch_scaler = internals.FixedBatchScalingManager(batch_size)
+        else:
+            # Scale the batch size automatically
+            start_batch_size = initial_batch_size or self.train_initial_batch_size
+            batch_scaler = internals.BatchScalingManager(start_batch_size, max(self._get_trainee_thread_count(trainee_id), 1))
+
+        # If we weren't given a case generator, wrap the cases we have in one.
+        gen: Generator[TabularData2D, int]
+        if isinstance(cases, (list, DataFrame)):
+            # Validate the data up front.
+            self._train_validate_cases(cases, feature_attributes, validate)
+            if features is None:
+                features = internals.get_features_from_data(cases)
+            serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True) or []
+            gen = internals.batch_lists(serialized_cases, batch_scaler.batch_size)
+        else:
+            gen = cases
+
+        # We need to know (or guess at) a number of cases to create a progress
+        # timer.
+        if isinstance(cases, (list, DataFrame)):
+            # Use the actual number of cases, ignore the parameter if given.
+            num_cases = len(cases)
+        elif num_cases is None:  # and cases is a generator
+            # Start at 0, and we'll need to dynamically update as we go along.
+            num_cases = 0
 
         status: TrainStatus = {}
 
         if self.configuration.verbose:
             print(f'Training session(s) on Trainee with id: {trainee_id}')
 
-        with ProgressTimer(len(serialized_cases)) as progress:
-            if series is not None:
-                # If training series, always send full size
-                batch_size = len(serialized_cases)
-            if batch_size:
-                batch_scaler = internals.FixedBatchScalingManager(batch_size)
-            else:
-                # Scale the batch size automatically
-                start_batch_size = initial_batch_size or self.train_initial_batch_size
-                batch_scaler = internals.BatchScalingManager(start_batch_size, max(self._get_trainee_thread_count(trainee_id), 1))
+        with ProgressTimer(num_cases) as progress:
+            # TODO: this could fail if the generator produces nothing at all,
+            # in which case we should do something useful.
+            batch = next(gen)
 
-            while not progress.is_complete:
-                if isinstance(progress_callback, Callable):
+            while True:
+                if isinstance(batch, DataFrame):
+                    # Validate each batch of cases separately.
+                    self._train_validate_cases(batch, feature_attributes, validate)
+                    # Come up with the feature list, if this is the first batch we've ever seen.
+                    if features is None:
+                        features = internals.get_features_from_data(batch)
+                    # If there are unsupported features, they need to be dropped in each batch.
+                    for feature in unsupported_features:
+                        batch.drop(features, axis=1, inplace=True)
+                    # Turn the batch into data primitives to pass off to the engine.
+                    batch_cases = serialize_cases(batch, features, feature_attributes, warn=True) or []
+                else:
+                    # We've already validated and serialized the data, so use this batch as-is.
+                    batch_cases = batch
+                num_batch_cases = len(batch_cases)
+
+                # If the batch scaler allows setting the number of cases, set it to the actual number we got.
+                if isinstance(batch_scaler, internals.BatchScalingManager) and num_batch_cases != batch_scaler.batch_size:
+                    batch_scaler.batch_size = num_batch_cases
+
+                # It's possible we've had to guess at the total count, so make
+                # sure the total count at least includes this batch.
+                progress.total_ticks = max(progress.total_ticks, progress.current_tick + num_batch_cases)
+                if callable(progress_callback):
                     progress_callback(progress)
-                start = progress.current_tick
-                end = min(progress.current_tick + batch_scaler.batch_size, progress.total_ticks)
                 start_time = datetime.now(timezone.utc)
                 response, in_size, out_size = self.execute_sized(trainee_id, "train", {
-                    "cases": serialized_cases[start:end],
+                    "cases": batch_cases,
                     "accumulate_weight_feature": accumulate_weight_feature,
                     "derived_features": derived_features,
                     "features": features,
@@ -681,17 +738,41 @@ class AbstractHowsoClient(ABC):
                 if response and response.get('status') == 'reduce_data':
                     status['needs_data_reduction'] = True
 
-                progress.update(batch_scaler.batch_size)
+                progress.update(num_batch_cases)
                 batch_scaler.update(end_time - start_time, (in_size, out_size))
+                
+                try:
+                    batch = gen.send(batch_scaler.batch_size)
+                except StopIteration:
+                    break
 
         # Final call to batch callback on completion
-        if isinstance(progress_callback, Callable):
+        if callable(progress_callback):
             progress_callback(progress)
 
         self._store_session(trainee_id, self.active_session)
         self._auto_persist_trainee(trainee_id)
 
         return status
+
+    def _train_validate_cases(self, cases: TabularData2D, feature_attributes: FeatureAttributesBase, validate: bool):
+        """
+        Validate a batch of cases as passed to `train()`.
+
+        If `train()` was passed a `pd.DataFrame` or a list of cases, this
+        expects the entire set of casses passed up front.  If it was passed a
+        generator, then it expects a single batch out of the generator.
+
+        Other parameters are generally passed through from `train()`.
+        """
+        # Check to see if the feature attributes still generally describe
+        # the data, and warn the user if they do not
+        if isinstance(cases, DataFrame) and validate:
+            # MultiTableFeatureAttributes does not yet support DataFrame validation
+            with suppress(NotImplementedError):
+                feature_attributes.validate(cases)
+
+        util.validate_list_shape(cases, 2, "cases", "list", allow_none=False)
 
     def impute(
         self,

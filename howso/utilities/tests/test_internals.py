@@ -255,6 +255,23 @@ def test_ignore_warnings_iterable(warning_type=[FutureWarning, UserWarning]):
     assert c == 3
 
 
+def test_fixed_batch_scaler() -> None:
+    batch_scaler = internals.FixedBatchScalingManager(100)
+    assert batch_scaler.batch_size == 100
+
+    # Even with the scale-up and scale-down events from the normal batch
+    # scaler tests, this still emits a fixed size.
+    batch_scaler.update(timedelta(seconds=30), None)
+    assert batch_scaler.batch_size == 100
+
+    batch_scaler.update(timedelta(seconds=90), None)
+    assert batch_scaler.batch_size == 100
+
+    # Cannot manually set the size.
+    with pytest.raises(AttributeError):
+        batch_scaler.batch_size = 50  # pyright: ignore[reportAttributeAccessIssue]
+
+
 def test_batch_scaler_time() -> None:
     batch_scaler = internals.BatchScalingManager(100, thread_count=4, max_size=250)
     assert batch_scaler.batch_size == 100
@@ -295,3 +312,16 @@ def test_batch_scaler_threads() -> None:
     # multiple of 8
     batch_scaler.thread_count = 8
     assert batch_scaler.batch_size == 128
+
+
+def test_batch_scaler_modify() -> None:
+    batch_scaler = internals.BatchScalingManager(100, thread_count=4, max_size=250)
+    assert batch_scaler.batch_size == 100
+
+    # We can set the size to whatever we want, but it rounds to the thread count.
+    batch_scaler.batch_size = 83
+    assert batch_scaler.batch_size == 84  # which is different (rounded)
+
+    # Scaling follows the internal size, even if it rounds differently.
+    batch_scaler.update(timedelta(seconds=90), None)
+    assert batch_scaler.batch_size == 40  # which is not half of the previous value
