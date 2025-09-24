@@ -3710,6 +3710,7 @@ class AbstractHowsoClient(ABC):
         *,
         analyze: t.Optional[bool] = None,
         distance_contribution: bool | str = False,
+        distance_contribution_holdout: bool | int = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
         features: t.Optional[Collection[str]] = None,
@@ -3765,6 +3766,10 @@ class AbstractHowsoClient(ABC):
             The name of the feature to store distance contribution.
             If set to True the values will be stored to the
             feature 'distance_contribution'.
+        distance_contribution_holdout : bool or int, default False
+            The name of the feature to store distance contribution calculated using a holdout.
+            If set to True the values will be stored to the
+            feature 'distance_contribution_holdout'.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3788,6 +3793,7 @@ class AbstractHowsoClient(ABC):
             "p_value_of_removal": p_value_of_removal,
             "similarity_conviction": similarity_conviction,
             "distance_contribution": distance_contribution,
+            "distance_contribution_holdout": distance_contribution_holdout,
             "weight_feature": weight_feature,
             "use_case_weights": use_case_weights,
         })
@@ -4562,7 +4568,7 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(action_features, 1, "action_features", "str")
         util.validate_list_shape(rebalance_features, 1, "rebalance_features", "str")
         util.validate_list_shape(p_values, 1, "p_values", "int")
-        util.validate_list_shape(k_values, 2, "k_values", "float")
+        # util.validate_list_shape(k_values, 2, "k_values", "float")
         util.validate_list_shape(dt_values, 1, "dt_values", "float")
 
         if targeted_model not in ['single_targeted', 'omni_targeted', 'targetless', None]:
