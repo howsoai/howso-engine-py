@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Literal, Mapping, Union
+from typing import Any, Literal, Union
+from collections.abc import Mapping
 
 from pandas import DataFrame
 from typing_extensions import NotRequired, Sequence, TypeAlias, TypedDict
