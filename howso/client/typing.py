@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Literal, Union
+from typing import Any, Literal, Mapping, Union
 
 from pandas import DataFrame
 from typing_extensions import NotRequired, Sequence, TypeAlias, TypedDict
@@ -110,6 +110,9 @@ Precision: TypeAlias = Literal["exact", "similar"]
 
 SeriesIDTracking: TypeAlias = Literal["fixed", "dynamic", "no"]
 """Valid values for ``series_id_tracking`` parameters."""
+
+SeriesStopMap: TypeAlias = Mapping[str, Mapping[str, Any]]
+"""Valid values for ``series_stop_maps`` parameters."""
 
 TabularData2D: TypeAlias = Union[DataFrame, list[list[Any]]]
 """2-dimensional tabular data."""
