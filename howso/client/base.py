@@ -4255,7 +4255,7 @@ class AbstractHowsoClient(ABC):
         else:
             action = []
         result['action'] = action
-        return GroupReaction(result)
+        return GroupReaction(result, feature_attributes)
 
     def evaluate(
         self,

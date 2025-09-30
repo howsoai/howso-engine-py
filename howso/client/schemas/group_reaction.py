@@ -1,9 +1,12 @@
-from collections.abc import Collection, Mapping, Iterator
+from collections.abc import Mapping, Iterator
 from copy import deepcopy
 from pprint import pformat
-from typing import Any, Literal, overload, TypeAlias, TypeVar
+from typing import Any, Literal, overload, TypeAlias, TypeVar, TypedDict
 
 import pandas as pd
+
+from howso.utilities import deserialize_cases
+from howso.utilities import internals
 
 __all__ = [
     "GroupReaction"
@@ -36,18 +39,17 @@ GroupMetric: TypeAlias = Literal[
 ]
 """Metric output keys of react group that can be combined together into a DataFrame."""
 
-GroupTableProperty: TypeAlias = Literal["action", "metrics"]
-"""All output properties that can format into a dataframe."""
-
-GroupComplexProperty: TypeAlias = Literal["details"]
-"""All output properties that can format into a dataframe."""
-
-GroupProperty: TypeAlias = Literal[GroupTableProperty, GroupComplexProperty]
+GroupProperty: TypeAlias = Literal["action", "metrics", "details"]
 """All output properties of the group reaction."""
 
-PropertyValue: TypeAlias = pd.DataFrame | dict[str, dict[Any, float]] | list[list[dict]]
-"""The value variants of all properties."""
+class GroupDetails(TypedDict):
+    """The details supported for react_group."""
+    categorical_action_probabilities: list[dict[Any, float]]
+    influential_cases: list[pd.DataFrame]
+    feature_full_residuals: list[Mapping[str, float]]
 
+PropertyValue: TypeAlias = pd.DataFrame | GroupDetails
+"""The value variants of all properties."""
 
 class GroupReaction(Mapping[GroupProperty, PropertyValue]):
     """
@@ -55,13 +57,15 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
 
     Parameters
     ----------
-    data : Mapping, default None
+    data : Mapping
         The response object of react_group.
+    attributes : Mapping
+        The feature attributes of the data.
     """
 
     __slots__ = ("_metrics", "_action", "_details")
 
-    def __init__(self, data: Mapping[str, Any] | None) -> None:
+    def __init__(self, data: Mapping[str, Any] | None, attributes: Mapping) -> None:
         self._action: pd.DataFrame = pd.DataFrame()
         self._metrics: pd.DataFrame = pd.DataFrame()
         self._details: dict[GroupDetail, Any] = {}
@@ -69,7 +73,11 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
             action_data = data.get("action", [])
             action_features = data.get("action_features", [])
             if len(action_data) and len(action_features):
-                self._action = pd.DataFrame(action_data)
+                self._action = deserialize_cases(
+                    data=action_data,
+                    columns=action_features,
+                    features=attributes
+                )
 
             computed_metrics = set(GroupMetric.__args__).intersection(data)
             if len(computed_metrics):
@@ -78,14 +86,31 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
                 )
 
             computed_details = set(GroupDetail.__args__).intersection(data)
-            for computed_metric in computed_details:
-                self._details.update({computed_metric: data[computed_metric]})
+            for computed_detail in computed_details:
+                if computed_detail == "influential_cases":
+                    deserialized_inf_cases = []
+                    for group_inf_cases in data["influential_cases"]:
+                        # Must deserialize each collection of influential cases for each group
+                        deserialized_inf_cases.append(
+                            deserialize_cases(
+                                data=group_inf_cases,
+                                columns=list(group_inf_cases[0].keys()),
+                                features=attributes
+                            )
+                        )
+                    self._details.update({"influential_cases": deserialized_inf_cases})
+                elif computed_detail == "categorical_action_probabilities":
+                    self._details.update(
+                        {computed_detail: internals.update_caps_maps(data[computed_detail], attributes)}
+                    )
+                else:
+                    self._details.update({computed_detail: data[computed_detail]})
 
 
     @overload
-    def __getitem__(self, key: GroupComplexProperty) -> list[dict[str, float]] | list[dict[str, dict[Any, float]]] | list[dict[str, Any]]: ...
+    def __getitem__(self, key: Literal["details"]) -> GroupDetails: ...
     @overload
-    def __getitem__(self, key: GroupTableProperty) -> pd.DataFrame: ...
+    def __getitem__(self, key: Literal["action", "metrics"]) -> pd.DataFrame: ...
 
     def __getitem__(self, key: GroupProperty) -> Any:
         if key == "action":
@@ -97,14 +122,14 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
         raise ValueError('Invalid key. Should be one of: "action", "details", or "metrics".')
 
     @overload
-    def get(self, key: GroupComplexProperty, /) -> pd.DataFrame | None: ...
+    def get(self, key: Literal["details"], /) -> GroupDetails | None: ...
     @overload
-    def get(self, key: GroupComplexProperty, /, default: _VT) -> pd.DataFrame | _VT: ...
+    def get(self, key: Literal["details"], /, default: _VT) -> GroupDetails | _VT: ...
 
     @overload
-    def get(self, key: GroupTableProperty, /) -> pd.DataFrame | None: ...
+    def get(self, key: Literal["action", "metrics"], /) -> pd.DataFrame | None: ...
     @overload
-    def get(self, key: GroupTableProperty, /, default: _VT) -> pd.DataFrame | _VT: ...
+    def get(self, key: Literal["action", "metrics"], /, default: _VT) -> pd.DataFrame | _VT: ...
 
     def get(  # pyright: ignore[reportIncompatibleMethodOverride]
         self, key: GroupProperty, /, default: _VT | None = None

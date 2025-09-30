@@ -28,7 +28,7 @@ from howso.client.protocols import (
     LocalSaveableProtocol,
     ProjectClient,
 )
-from howso.client.schemas import AggregateReaction
+from howso.client.schemas import AggregateReaction, GroupReaction
 from howso.client.schemas import Project as BaseProject
 from howso.client.schemas import Reaction
 from howso.client.schemas import Session as BaseSession
@@ -3081,7 +3081,7 @@ class Trainee(BaseTrainee):
         use_case_weights: t.Optional[bool] = None,
         features: t.Optional[Collection[str]] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> DataFrame:
+    ) -> GroupReaction:
         """
         Computes specified data for a **set** of cases.
 
