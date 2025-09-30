@@ -51,18 +51,6 @@ class HowsoPandasClientMixin:
             return pd.Index(indices, dtype='int64')
         return pd.Index([], dtype='int64')
 
-    def react_group(self, *args, **kwargs) -> GroupReaction:
-        """
-        Base: :func:`howso.client.AbstractHowsoClient.react_group`.
-
-        Returns
-        -------
-        GroupReaction
-            A reaction to each group of cases
-        """
-        response = super().react_group(*args, **kwargs)
-        return response
-
     def get_cases(self, trainee_id: str, *args, **kwargs) -> DataFrame:
         """
         Base: :func:`howso.client.AbstractHowsoClient.get_cases`.

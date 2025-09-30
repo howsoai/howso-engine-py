@@ -3122,6 +3122,7 @@ class Trainee(BaseTrainee):
                       exactly. Only applicable to nominal and string ordinal
                       features.
         details : dict of str to bool, optional
+            Ignored if action features are not specified.
             If details are specified, the response will contain the requested
             explanation data along with the group reaction. Below are the valid keys
             and data types for the different details.

@@ -4245,16 +4245,6 @@ class AbstractHowsoClient(ABC):
         })
         if result is None:
             result = dict()
-
-        action_features = result.get("action_features", [])
-        action_values = result.pop("action_values", [])
-
-        if action_features and action_values:
-            action = [dict(zip(action_features, values)) for
-                      values in action_values]
-        else:
-            action = []
-        result['action'] = action
         return GroupReaction(result, feature_attributes)
 
     def evaluate(

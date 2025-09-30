@@ -5,7 +5,7 @@ from typing import Any, Literal, overload, TypeAlias, TypeVar, TypedDict
 
 import pandas as pd
 
-from howso.utilities import deserialize_cases
+from howso.utilities import format_dataframe, deserialize_cases
 from howso.utilities import internals
 
 __all__ = [
@@ -46,7 +46,7 @@ class GroupDetails(TypedDict):
     """The details supported for react_group."""
     categorical_action_probabilities: list[dict[Any, float]]
     influential_cases: list[pd.DataFrame]
-    feature_full_residuals: list[Mapping[str, float]]
+    feature_full_residuals: pd.DataFrame
 
 PropertyValue: TypeAlias = pd.DataFrame | GroupDetails
 """The value variants of all properties."""
@@ -70,7 +70,7 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
         self._metrics: pd.DataFrame = pd.DataFrame()
         self._details: dict[GroupDetail, Any] = {}
         if data is not None:
-            action_data = data.get("action", [])
+            action_data = data.get("action_values", [])
             action_features = data.get("action_features", [])
             if len(action_data) and len(action_features):
                 self._action = deserialize_cases(
@@ -92,9 +92,8 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
                     for group_inf_cases in data["influential_cases"]:
                         # Must deserialize each collection of influential cases for each group
                         deserialized_inf_cases.append(
-                            deserialize_cases(
-                                data=group_inf_cases,
-                                columns=list(group_inf_cases[0].keys()),
+                            format_dataframe(
+                                pd.DataFrame(group_inf_cases),
                                 features=attributes
                             )
                         )
@@ -104,7 +103,8 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
                         {computed_detail: internals.update_caps_maps(data[computed_detail], attributes)}
                     )
                 else:
-                    self._details.update({computed_detail: data[computed_detail]})
+                    # Currently the only possible detail here is feature_full_residuals
+                    self._details.update({computed_detail: pd.DataFrame(data[computed_detail])})
 
 
     @overload
