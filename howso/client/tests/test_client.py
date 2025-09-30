@@ -26,7 +26,7 @@ from howso.client.exceptions import (
     HowsoError,
 )
 from howso.client.protocols import ProjectClient
-from howso.client.schemas.reaction import Reaction
+from howso.client.schemas import Reaction, GroupReaction
 from howso.direct import HowsoDirectClient
 from howso.utilities.constants import (  # type: ignore reportPrivateUsage
     _RENAMED_DETAIL_KEYS,
@@ -1236,7 +1236,7 @@ class TestBaseClient:
             trainee.id, new_cases=new_cases, features=features,
             familiarity_conviction_addition=True)
         out, _ = capsys.readouterr()
-        assert isinstance(ret, dict)
+        assert isinstance(ret, GroupReaction)
 
         df = pd.DataFrame([[1, 2, 4, 4, 4]], columns=features)
         new_cases = [df]
@@ -1244,7 +1244,7 @@ class TestBaseClient:
             trainee.id, new_cases=new_cases, features=features,
             familiarity_conviction_addition=True)
         out, _ = capsys.readouterr()
-        assert isinstance(ret, dict)
+        assert isinstance(ret, GroupReaction)
 
         # 2d list of cases, which is invalid
         new_cases = [[1, 2, 3, 4, 5],
