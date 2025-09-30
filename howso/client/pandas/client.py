@@ -8,6 +8,7 @@ from pandas import DataFrame, Index
 
 from howso.client.client import get_howso_client_class
 from howso.client.schemas.aggregate_reaction import AggregateReaction
+from howso.client.schemas.group_reaction import GroupReaction
 from howso.client.schemas.reaction import Reaction
 from howso.client.typing import ValueMasses
 from howso.utilities import deserialize_cases, format_dataframe
@@ -50,18 +51,17 @@ class HowsoPandasClientMixin:
             return pd.Index(indices, dtype='int64')
         return pd.Index([], dtype='int64')
 
-    def react_group(self, *args, **kwargs) -> DataFrame:
+    def react_group(self, *args, **kwargs) -> GroupReaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_group`.
 
         Returns
         -------
-        DataFrame
-            A DataFrame of feature name columns to the conviction of grouped
-            cases rows.
+        GroupReaction
+            A reaction to each group of cases
         """
-        cases = super().react_group(*args, **kwargs)
-        return deserialize_to_dataframe(cases)
+        response = super().react_group(*args, **kwargs)
+        return response
 
     def get_cases(self, trainee_id: str, *args, **kwargs) -> DataFrame:
         """

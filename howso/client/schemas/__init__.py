@@ -1,5 +1,6 @@
 from .aggregate_reaction import AggregateReaction
 from .base import BaseSchema
+from .group_reaction import GroupReaction
 from .project import Project, ProjectDict
 from .reaction import Reaction
 from .session import Session, SessionDict
@@ -12,6 +13,7 @@ from .version import HowsoVersion
 __all__ = [
     'AggregateReaction',
     'BaseSchema',
+    'GroupReaction',
     'Project',
     'ProjectDict',
     'Reaction',

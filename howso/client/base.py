@@ -44,6 +44,7 @@ from .exceptions import (
 from .schemas import (
     HowsoVersion,
     Project,
+    GroupReaction,
     Reaction,
     Session,
     Trainee,
@@ -615,7 +616,7 @@ class AbstractHowsoClient(ABC):
 
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
-        
+
         if series and not isinstance(cases, (list, DataFrame)):
             raise HowsoError(self.ERROR_MESSAGES["train_series_generator"], code="train_series_generator")
 
@@ -740,7 +741,7 @@ class AbstractHowsoClient(ABC):
 
                 progress.update(num_batch_cases)
                 batch_scaler.update(end_time - start_time, (in_size, out_size))
-                
+
                 try:
                     batch = gen.send(batch_scaler.batch_size)
                 except StopIteration:
@@ -4084,11 +4085,13 @@ class AbstractHowsoClient(ABC):
         self,
         trainee_id: str,
         *,
-        case_indices: t.Optional[CaseIndices] = None,
+        action_features: t.Optional[Collection[str]] = None,
+        case_indices: t.Optional[Collection[CaseIndices]] = None,
         conditions: t.Optional[list[Mapping]] = None,
+        details: t.Optional[Mapping[str, bool]] = None,
         features: t.Optional[Collection[str]] = None,
         distance_contributions: bool = False,
-        familiarity_conviction_addition: bool = True,
+        familiarity_conviction_addition: bool = False,
         familiarity_conviction_removal: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
@@ -4098,24 +4101,25 @@ class AbstractHowsoClient(ABC):
         similarity_conviction: bool = False,
         weight_feature: t.Optional[str] = None,
         use_case_weights: t.Optional[bool] = None,
-    ) -> dict:
+    ) -> GroupReaction:
         """
-        Computes specified data for a **set** of cases.
-
-        Return the list of familiarity convictions (and optionally, distance
-        contributions or p values) for each set.
+        Computes specified data for groups of cases.
 
         Parameters
         ----------
         trainee_id : str
             The trainee id.
 
-        case_indices: list of lists of tuples of {str, int}, optional
+        action_features : list of str, optional
+            A list of features whose values should be predicted for
+            each group. Each group of cases gets a single action value for each
+            feature.
+        case_indices : list of lists of lists of tuples of {str, int}, optional
             A list of lists of case indices tuples containing the session ID and
             the session training indices that uniquely identify trained cases.
             Each sublist defines a set of trained cases to react to. Only one of
             ``case_indices``, ``conditions``, or ``new_cases`` may be specified.
-        conditions: list of Mapping, optional
+        conditions : list of Mapping, optional
             A list of mappings that define conditions which will select sets of
             trained cases to react to. Only one of ``case_indices``,
             ``conditions``, or ``new_cases`` may be specified.
@@ -4137,12 +4141,26 @@ class AbstractHowsoClient(ABC):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
+        details : dict of str to bool, optional
+            If details are specified, the response will contain the requested
+            explanation data along with the group reaction. Below are the valid keys
+            and data types for the different details.
+
+            - influential_cases : bool, optional
+                If true, returns the cases influential to the prediction of the
+                action values for each group.
+            - categorical_action_probabilities : bool, optional
+                If true, returns the categorical action probabilities for the
+                nominal action features for each group.
+            - feature_full_residuals : bool, optional
+                If true, returns the full residuals of the action features
+                predicted for each group.
         features : Collection of str, optional
             The feature names to consider while calculating convictions.
         distance_contributions : bool, default False
             Calculate and output distance contribution ratios in
             the output dict for each case.
-        familiarity_conviction_addition : bool, default True
+        familiarity_conviction_addition : bool, default False
             Calculate and output familiarity conviction of adding the
             specified cases.
         familiarity_conviction_removal : bool, default False
@@ -4201,15 +4219,18 @@ class AbstractHowsoClient(ABC):
                 serialized_cases.append(serialize_cases(group, features, feature_attributes))
 
         if case_indices is not None:
-            util.validate_case_indices(case_indices)
+            for group_indices in case_indices:
+                util.validate_case_indices(group_indices)
 
         if self.configuration.verbose:
             print(f'Reacting to a set of cases on Trainee with id: {trainee_id}')
         result = self.execute(trainee_id, "react_group", {
+            "action_features": action_features,
             "features": features,
             "new_cases": serialized_cases,
             "conditions": conditions,
             "case_indices": case_indices,
+            "details": details,
             "distance_contributions": distance_contributions,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
@@ -4223,7 +4244,17 @@ class AbstractHowsoClient(ABC):
         })
         if result is None:
             result = dict()
-        return result
+
+        action_features = result.get("action_features", [])
+        action_values = result.pop("action_values", [])
+
+        if action_features and action_values:
+            action = [dict(zip(action_features, values)) for
+                      values in action_values]
+        else:
+            action = []
+        result['action'] = action
+        return GroupReaction(result)
 
     def evaluate(
         self,

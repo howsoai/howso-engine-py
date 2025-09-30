@@ -3064,10 +3064,12 @@ class Trainee(BaseTrainee):
     def react_group(
         self,
         *,
-        case_indices: t.Optional[CaseIndices] = None,
+        action_features: t.Optional[Collection[str]] = None,
+        case_indices: t.Optional[Collection[CaseIndices]] = None,
         conditions: t.Optional[list[Mapping]] = None,
+        details: t.Optional[Mapping[str, bool]] = None,
         distance_contributions: bool = False,
-        familiarity_conviction_addition: bool = True,
+        familiarity_conviction_addition: bool = False,
         familiarity_conviction_removal: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
@@ -3087,7 +3089,11 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        case_indices: list of lists of tuples of {str, int}, optional
+        action_features : list of str, optional
+            A list of features whose values should be predicted for
+            each group. Each group of cases gets a single action value for each
+            feature.
+        case_indices : list of lists of lists of tuples of {str, int}, optional
             A list of lists of case indices tuples containing the session ID and
             the session training indices that uniquely identify trained cases.
             Each sublist defines a set of trained cases to react to. Only one of
@@ -3114,10 +3120,24 @@ class Trainee(BaseTrainee):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
+        details : dict of str to bool, optional
+            If details are specified, the response will contain the requested
+            explanation data along with the group reaction. Below are the valid keys
+            and data types for the different details.
+
+            - influential_cases : bool, optional
+                If true, returns the cases influential to the prediction of the
+                action values for each group.
+            - categorical_action_probabilities : bool, optional
+                If true, returns the categorical action probabilities for the
+                nominal action features for each group.
+            - feature_full_residuals : bool, optional
+                If true, returns the full residuals of the action features
+                predicted for each group.
         distance_contributions : bool, default False
             Calculate and output distance contribution ratios in
             the output dict for each case.
-        familiarity_conviction_addition : bool, default True
+        familiarity_conviction_addition : bool, default False
             Calculate and output familiarity conviction of adding the
             specified cases.
         familiarity_conviction_removal : bool, default False
@@ -3169,9 +3189,11 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, HowsoPandasClientMixin):
             return self.client.react_group(
                 trainee_id=self.id,
+                action_features=action_features,
                 new_cases=new_cases,
                 case_indices=case_indices,
                 conditions=conditions,
+                details=details,
                 features=features,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,

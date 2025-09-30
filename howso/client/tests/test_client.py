@@ -492,7 +492,12 @@ class TestClient:
                   ['23', '24'],
                   ['25', '26'],
                   ['27', '28']]
-        conviction = self.client.react_group(trainee.id, new_cases=[cases2], features=['penguin', 'play'])
+        conviction = self.client.react_group(
+            trainee.id,
+            features=['penguin', 'play'],
+            new_cases=[cases2],
+            familiarity_conviction_addition=True
+        )
         assert conviction is not None
 
     def test_impute(self, trainee):
@@ -1227,14 +1232,16 @@ class TestBaseClient:
         features = ['sepal_length', 'sepal_width', 'petal_length',
                     'petal_width', 'class']
         ret = self.client.react_group(
-            trainee.id, new_cases=new_cases, features=features)
+            trainee.id, new_cases=new_cases, features=features,
+            familiarity_conviction_addition=True)
         out, _ = capsys.readouterr()
         assert isinstance(ret, dict)
 
         df = pd.DataFrame([[1, 2, 4, 4, 4]], columns=features)
         new_cases = [df]
         ret = self.client.react_group(
-            trainee.id, new_cases=new_cases, features=features)
+            trainee.id, new_cases=new_cases, features=features,
+            familiarity_conviction_addition=True)
         out, _ = capsys.readouterr()
         assert isinstance(ret, dict)
 
@@ -1244,7 +1251,8 @@ class TestBaseClient:
                      [7, 8, 9, 10, 11]]
         with pytest.raises(ValueError) as exc:
             ret = self.client.react_group(
-                trainee.id, new_cases=new_cases, features=features)
+                trainee.id, new_cases=new_cases, features=features,
+                familiarity_conviction_addition=True)
         assert (
             "Improper shape of `new_cases` values passed. "
             "`new_cases` must be a 3d list of object."
