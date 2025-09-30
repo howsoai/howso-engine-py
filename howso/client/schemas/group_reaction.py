@@ -11,15 +11,16 @@ __all__ = [
 
 _VT = TypeVar("_VT")
 
-ComplexMetric: TypeAlias = Literal[
+GroupAction: TypeAlias = Literal["action"]
+
+GroupDetail: TypeAlias = Literal[
     "categorical_action_probabilities",  # A dict of feature name to dict of class to probability for each group
     "influential_cases", # a list of dicts for each group
+    "feature_full_residuals", # a map of residuals for each action feature for each group
 ]
 """Metric output keys of react group that do not translate directly into a DataFrame alongside other metrics."""
 
-TableMetric: TypeAlias = Literal[
-    "action",
-    "feature_full_residuals",
+GroupMetric: TypeAlias = Literal[
     "familiarity_conviction_addition",
     "familiarity_conviction_removal",
     "distance_contribution",
@@ -35,95 +36,105 @@ TableMetric: TypeAlias = Literal[
 ]
 """Metric output keys of react group that can be combined together into a DataFrame."""
 
-Metric: TypeAlias = Literal[ComplexMetric, TableMetric]
-"""All metric output keys of react group."""
+GroupTableProperty: TypeAlias = Literal["action", "metrics"]
+"""All output properties that can format into a dataframe."""
 
-MetricValue: TypeAlias = pd.DataFrame | dict[str, dict]
-"""The value variants of all metrics."""
+GroupComplexProperty: TypeAlias = Literal["details"]
+"""All output properties that can format into a dataframe."""
+
+GroupProperty: TypeAlias = Literal[GroupTableProperty, GroupComplexProperty]
+"""All output properties of the group reaction."""
+
+PropertyValue: TypeAlias = pd.DataFrame | dict[str, dict[Any, float]] | list[list[dict]]
+"""The value variants of all properties."""
 
 
-class GroupReaction(Mapping[Metric, MetricValue]):
+class GroupReaction(Mapping[GroupProperty, PropertyValue]):
     """
-    An implementation of a Mapping to contain react aggregate metric outputs.
+    An implementation of a Mapping to contain react group outputs.
 
     Parameters
     ----------
     data : Mapping, default None
-        The response object of react_aggregate.
+        The response object of react_group.
     """
 
-    __slots__ = ("_data",)
+    __slots__ = ("_metrics", "_action", "_details")
 
-    def __init__(self, data: Mapping[Metric, Mapping[str, Any]] | None) -> None:
-        self._data: dict[Metric, Any] = {}
+    def __init__(self, data: Mapping[str, Any] | None) -> None:
+        self._action: pd.DataFrame = pd.DataFrame()
+        self._metrics: pd.DataFrame = pd.DataFrame()
+        self._details: dict[GroupDetail, Any] = {}
         if data is not None:
-            self._data.update(data)
+            action_data = data.get("action", [])
+            action_features = data.get("action_features", [])
+            if len(action_data) and len(action_features):
+                self._action = pd.DataFrame(action_data)
+
+            computed_metrics = set(GroupMetric.__args__).intersection(data)
+            if len(computed_metrics):
+                self._metrics = pd.DataFrame(
+                    {computed_metric: data[computed_metric] for computed_metric in computed_metrics}
+                )
+
+            computed_details = set(GroupDetail.__args__).intersection(data)
+            for computed_metric in computed_details:
+                self._details.update({computed_metric: data[computed_metric]})
+
 
     @overload
-    def __getitem__(self, key: Literal["influential_cases"]) -> list[list[dict]]: ...
+    def __getitem__(self, key: GroupComplexProperty) -> list[dict[str, float]] | list[dict[str, dict[Any, float]]] | list[dict[str, Any]]: ...
     @overload
-    def __getitem__(self, key: Literal["influential_cases"]) -> list[dict[str, dict[Any, float]]]: ...
-    @overload
-    def __getitem__(self, key: TableMetric) -> pd.DataFrame: ...
+    def __getitem__(self, key: GroupTableProperty) -> pd.DataFrame: ...
 
-    def __getitem__(self, key: Metric) -> Any:
-        value = self._data[key]
+    def __getitem__(self, key: GroupProperty) -> Any:
         if key == "action":
-            return pd.DataFrame(value)
-        elif key in TableMetric.__args__:
-            if key == "feature_full_residuals":
-                return pd.DataFrame(value)
-            return pd.DataFrame(value, columns=[key])
-        return value
+            return self._action
+        elif key == "details":
+            return self._details
+        elif key == "metrics":
+            return self._metrics
+        raise ValueError('Invalid key. Should be one of: "action", "details", or "metrics".')
 
     @overload
-    def get(self, key: TableMetric, /) -> pd.DataFrame | None: ...
+    def get(self, key: GroupComplexProperty, /) -> pd.DataFrame | None: ...
     @overload
-    def get(self, key: TableMetric, /, default: _VT) -> pd.DataFrame | _VT: ...
+    def get(self, key: GroupComplexProperty, /, default: _VT) -> pd.DataFrame | _VT: ...
+
+    @overload
+    def get(self, key: GroupTableProperty, /) -> pd.DataFrame | None: ...
+    @overload
+    def get(self, key: GroupTableProperty, /, default: _VT) -> pd.DataFrame | _VT: ...
 
     def get(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self, key: Metric, /, default: _VT | None = None
-    ) -> MetricValue | _VT | None:
+        self, key: GroupProperty, /, default: _VT | None = None
+    ) -> PropertyValue | _VT | None:
         return super().get(key, default=default)
 
-    def __iter__(self) -> Iterator[Metric]:
+    def __iter__(self) -> Iterator[GroupProperty]:
         """Iterate over the keys."""
-        return iter(self._data)
+        return iter(GroupProperty.__args__)
 
     def __len__(self) -> int:
         """Return the number of items."""
-        return len(self._data)
+        return len(GroupProperty.__args__)
 
     def __contains__(self, key: object) -> bool:
         """Check if key exists."""
-        return self._data.__contains__(key)
-
-    def __eq__(self, value: object) -> bool:
-        """Check object equals this object."""
-        return self._data.__eq__(value)
+        return GroupProperty.__args__.__contains__(key)
 
     def __repr__(self) -> str:
         """Return printable representation."""
-        if set(ComplexMetric.__args__).intersection(self._data):
-            return pformat(self._data)
-        return repr(self.to_dataframe())
-
-    def to_dataframe(self) -> pd.DataFrame:
-        """
-        Get the reaction as a DataFrame.
-
-        .. NOTE::
-            Complex metrics will be excluded from the returned DataFrame.
-            e.g. ``confusion_matrix`` and ``feature_robust_accuracy_contributions``
-
-        Returns
-        -------
-        DataFrame
-            The DataFrame representation of the reaction.
-        """
-        data = {k: v for k, v in self._data.items() if k not in ComplexMetric.__args__}
-        return pd.DataFrame(data).T.sort_index()
+        return pformat({
+            "action": self._action,
+            "details": self._details,
+            "metrics": self._metrics
+        })
 
     def to_dict(self) -> dict[str, Any]:
         """Get a copy of the reaction as plain dictionaries."""
-        return dict(deepcopy(self._data).items())
+        return dict(deepcopy({
+            "action": self._action.to_dict(),
+            "metrics": self._metrics.to_dict(),
+            "details": self._details,
+        }).items())
