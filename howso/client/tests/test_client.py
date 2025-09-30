@@ -498,7 +498,8 @@ class TestClient:
             new_cases=[cases2],
             familiarity_conviction_addition=True
         )
-        assert conviction is not None
+        assert conviction['metrics'].shape == (1, 1)
+        assert conviction['metrics']['familiarity_conviction_addition'][0] > 0
 
     def test_impute(self, trainee):
         """

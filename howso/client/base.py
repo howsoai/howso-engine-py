@@ -4219,10 +4219,6 @@ class AbstractHowsoClient(ABC):
                     features = internals.get_features_from_data(group)
                 serialized_cases.append(serialize_cases(group, features, feature_attributes))
 
-        if case_indices is not None:
-            for group_indices in case_indices:
-                util.validate_case_indices(group_indices)
-
         if self.configuration.verbose:
             print(f'Reacting to a set of cases on Trainee with id: {trainee_id}')
         result = self.execute(trainee_id, "react_group", {

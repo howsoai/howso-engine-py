@@ -14,8 +14,6 @@ __all__ = [
 
 _VT = TypeVar("_VT")
 
-GroupAction: TypeAlias = Literal["action"]
-
 GroupDetail: TypeAlias = Literal[
     "categorical_action_probabilities",  # A dict of feature name to dict of class to probability for each group
     "influential_cases", # a list of dicts for each group
@@ -45,8 +43,13 @@ GroupProperty: TypeAlias = Literal["action", "metrics", "details"]
 class GroupDetails(TypedDict):
     """The details supported for react_group."""
     categorical_action_probabilities: list[dict[Any, float]]
+    "The categorical action probabilities for each nominal action feature for each group."
+
     influential_cases: list[pd.DataFrame]
+    "The collection of influential cases to each group."
+
     feature_full_residuals: pd.DataFrame
+    "The full residuals for each action feature for each group."
 
 PropertyValue: TypeAlias = pd.DataFrame | GroupDetails
 """The value variants of all properties."""
