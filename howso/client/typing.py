@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 import os
 from typing import Any, Literal, Union
 
@@ -110,6 +111,9 @@ Precision: TypeAlias = Literal["exact", "similar"]
 
 SeriesIDTracking: TypeAlias = Literal["fixed", "dynamic", "no"]
 """Valid values for ``series_id_tracking`` parameters."""
+
+SeriesStopMap: TypeAlias = Mapping[str, Mapping[str, Any]]
+"""Valid values for ``series_stop_maps`` parameters."""
 
 TabularData2D: TypeAlias = Union[DataFrame, list[list[Any]]]
 """2-dimensional tabular data."""
