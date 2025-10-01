@@ -43,13 +43,13 @@ GroupProperty: TypeAlias = Literal["action", "metrics", "details"]
 class GroupDetails(TypedDict, total=False):
     """The details supported for react_group."""
     categorical_action_probabilities: list[dict[str, dict[Any, float]]]
-    "The categorical action probabilities for each nominal action feature for each group."
+    """The categorical action probabilities for each nominal action feature for each group."""
 
     influential_cases: list[pd.DataFrame]
-    "The collection of influential cases to each group."
+    """The collection of influential cases to each group."""
 
     feature_full_residuals: pd.DataFrame
-    "The full residuals for each action feature for each group."
+    """The full residuals for each action feature for each group."""
 
 PropertyValue: TypeAlias = pd.DataFrame | GroupDetails
 """The value variants of all properties."""
