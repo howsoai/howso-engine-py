@@ -19,7 +19,7 @@ GroupDetail: TypeAlias = Literal[
     "influential_cases", # a list of dicts for each group
     "feature_full_residuals", # a map of residuals for each action feature for each group
 ]
-"""Metric output keys of react group that do not translate directly into a DataFrame alongside other metrics."""
+"""Detail keys that can be requested and returned through react_group."""
 
 GroupMetric: TypeAlias = Literal[
     "familiarity_conviction_addition",
@@ -40,9 +40,9 @@ GroupMetric: TypeAlias = Literal[
 GroupProperty: TypeAlias = Literal["action", "metrics", "details"]
 """All output properties of the group reaction."""
 
-class GroupDetails(TypedDict):
+class GroupDetails(TypedDict, total=False):
     """The details supported for react_group."""
-    categorical_action_probabilities: list[dict[Any, float]]
+    categorical_action_probabilities: list[dict[str, dict[Any, float]]]
     "The categorical action probabilities for each nominal action feature for each group."
 
     influential_cases: list[pd.DataFrame]
@@ -71,7 +71,7 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
     def __init__(self, data: Mapping[str, Any] | None, attributes: Mapping) -> None:
         self._action: pd.DataFrame = pd.DataFrame()
         self._metrics: pd.DataFrame = pd.DataFrame()
-        self._details: dict[GroupDetail, Any] = {}
+        self._details: GroupDetails = {}
         if data is not None:
             action_data = data.get("action_values", [])
             action_features = data.get("action_features", [])
@@ -103,7 +103,7 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
                     self._details.update({"influential_cases": deserialized_inf_cases})
                 elif computed_detail == "categorical_action_probabilities":
                     self._details.update(
-                        {computed_detail: internals.update_caps_maps(data[computed_detail], attributes)}
+                        {"categorical_action_probabilities": internals.update_caps_maps(data[computed_detail], attributes)}
                     )
                 else:
                     # Currently the only possible detail here is feature_full_residuals
@@ -159,10 +159,21 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
             "metrics": self._metrics
         })
 
+
     def to_dict(self) -> dict[str, Any]:
         """Get a copy of the reaction as plain dictionaries."""
+
+        def _convert(obj: Any):
+            if isinstance(obj, list):
+                return [_convert(o) for o in obj]
+            elif isinstance(obj, dict):
+                return {k: _convert(v) for k, v in obj.items()}
+            elif isinstance(obj, pd.DataFrame):
+                return obj.to_dict(orient="records")
+            return obj
+
         return dict(deepcopy({
-            "action": self._action.to_dict(),
-            "metrics": self._metrics.to_dict(),
-            "details": self._details,
+            "action": self._action.to_dict(orient="records"),
+            "metrics": self._metrics.to_dict(orient="records"),
+            "details": _convert(self._details),
         }).items())

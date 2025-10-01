@@ -8,7 +8,6 @@ from pandas import DataFrame, Index
 
 from howso.client.client import get_howso_client_class
 from howso.client.schemas.aggregate_reaction import AggregateReaction
-from howso.client.schemas.group_reaction import GroupReaction
 from howso.client.schemas.reaction import Reaction
 from howso.client.typing import ValueMasses
 from howso.utilities import deserialize_cases, format_dataframe

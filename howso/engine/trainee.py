@@ -3188,7 +3188,7 @@ class Trainee(BaseTrainee):
         DataFrame
             The conviction of grouped cases.
         """
-        if isinstance(self.client, HowsoPandasClientMixin):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.react_group(
                 trainee_id=self.id,
                 action_features=action_features,
