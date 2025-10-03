@@ -50,19 +50,6 @@ class HowsoPandasClientMixin:
             return pd.Index(indices, dtype='int64')
         return pd.Index([], dtype='int64')
 
-    def react_group(self, *args, **kwargs) -> DataFrame:
-        """
-        Base: :func:`howso.client.AbstractHowsoClient.react_group`.
-
-        Returns
-        -------
-        DataFrame
-            A DataFrame of feature name columns to the conviction of grouped
-            cases rows.
-        """
-        cases = super().react_group(*args, **kwargs)
-        return deserialize_to_dataframe(cases)
-
     def get_cases(self, trainee_id: str, *args, **kwargs) -> DataFrame:
         """
         Base: :func:`howso.client.AbstractHowsoClient.get_cases`.

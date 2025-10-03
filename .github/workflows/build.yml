@@ -665,6 +665,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+    - name: Sleep
+      run: |
+        # Sometimes, there is a delay in GitHub recognizing the uploaded artifacts.
+        # Make sure the download succeeds by giving it some time.
+        sleep 15
+
     - name: Download Artifacts
       uses: actions/download-artifact@v4
       with:

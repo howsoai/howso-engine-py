@@ -28,7 +28,10 @@ else:
 cwd = Path(__file__).parent.parent.parent.parent
 iris_path = Path(cwd, 'utilities', 'tests', 'data', 'iris.csv')
 int_path = Path(cwd, 'utilities', 'tests', 'data', 'integers.csv')
-nypd_arrest_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet'))
+try:
+    nypd_arrest_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet'))
+except ImportError:
+    nypd_arrest_df = None
 stock_path = Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv')
 ts_path = Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv')
 
@@ -500,17 +503,21 @@ def test_get_names_without():
         features.get_names(without=without)
 
 
-@pytest.mark.parametrize("types, num", [
-    ("continuous", 4),
-    ({"continuous"}, 4),
-    (('nominal'), 1),
-    (['continuous', 'nominal'], 5),
+@pytest.mark.parametrize("types, data_types, num", [
+    ("continuous", None, 4),
+    ({"continuous"}, None, 4),
+    (('nominal'), None, 1),
+    (['continuous', 'nominal'], None, 5),
+    ("continuous", ['number'], 4),
+    (('nominal'), ['string'], 1),
+    (['continuous', 'nominal'], ['string', 'number'], 5),
+    (('nominal'), ['boolean'], 0),
 ])
-def test_get_names_types(types, num):
-    """Test the get_names() method with the types parameter."""
+def test_get_names_types(types, data_types, num):
+    """Test the get_names() method with the types and/or data_types parameter(s)."""
     df = pd.read_csv(iris_path)
     features = infer_feature_attributes(df)
-    names = features.get_names(types=types)
+    names = features.get_names(types=types, data_types=data_types)
     assert len(names) == num
 
 
@@ -1011,8 +1018,10 @@ def test_memory_usage_warning():
         infer_feature_attributes(df)
 
 
+@pytest.mark.skipif(nypd_arrest_df is None, reason="Cannot load Parquet files")
 def test_ambiguous_datetime_format():
     """Test that a non-ISO8601 datetime feature results in a warning."""
+    assert nypd_arrest_df is not None
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
         infer_feature_attributes(nypd_arrest_df)  # NYPD arrest data includes a non-ISO8601 date string
 

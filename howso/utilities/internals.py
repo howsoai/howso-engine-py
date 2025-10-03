@@ -6,15 +6,15 @@ Notice: These are internal utilities and are not intended to be
 """
 from __future__ import annotations
 
-from collections import OrderedDict
-from collections.abc import Generator, Iterable, Mapping
+from collections import OrderedDict, deque
+from collections.abc import Callable, Collection, Generator, Iterable, Mapping
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from copy import deepcopy
 import datetime
 import decimal
 from inspect import getfullargspec
 import json
 import logging
-import math
 from pathlib import Path
 import random
 import re
@@ -28,10 +28,11 @@ import numpy as np
 import pandas as pd
 from semantic_version import Version
 
+from .monitors import ProgressTimer
+
 logger = logging.getLogger(__name__)
 
-if t.TYPE_CHECKING:
-    from .monitors import ProgressTimer
+T = t.TypeVar("T")
 
 
 def deserialize_to_dataframe(
@@ -642,7 +643,74 @@ def get_packaged_engine_version() -> Version | None:
         return None
 
 
-class BatchScalingManager:
+class BaseBatchScalingManager(t.Protocol):
+    """Interface definition for scaling batching operations."""
+
+    @property
+    def batch_size(self) -> int:
+        """Get the current batch size."""
+        ...
+
+    @property
+    def thread_count(self) -> int:
+        """Get the current thread count."""
+        ...
+
+    @thread_count.setter
+    def thread_count(self, thread_count: int) -> None:
+        """Set the current thread count."""
+
+    def update(self, batch_duration: datetime.timedelta, memory_sizes: tuple[int, int] | None) -> int:
+        """
+        Update the batch size in response to activity happening.
+
+        Parameters
+        ----------
+        tick_duration : timedelta
+            The amount of time it took to process the most recent batch.
+        memory_sizes : tuple[int, int], optional
+            The input and output data sizes, if known.
+
+        Returns
+        -------
+        int
+            The new batch size.
+        """
+        ...
+
+class FixedBatchScalingManager(BaseBatchScalingManager):
+    """
+    A batch scaling manager that never changes the batch size.
+
+    Parameters
+    ----------
+    batch_size : int
+        The batch size.
+    """
+
+    def __init__(self, batch_size: int) -> None:
+        self._batch_size = batch_size
+
+    @property
+    def batch_size(self) -> int:
+        """Get the current batch size."""
+        return self._batch_size
+
+    @property
+    def thread_count(self) -> int:
+        """Return a fixed thread count."""
+        return 1
+
+    @thread_count.setter
+    def thread_count(self, thread_count: int) -> None:
+        """Ignore changes to the thread count."""
+
+    def update(self, batch_duration: datetime.timedelta, memory_sizes: tuple[int, int] | None) -> int:
+        """Do nothing and return the fixed batch size."""
+        return self._batch_size
+
+
+class BatchScalingManager(BaseBatchScalingManager):
     """
     Manages scaling batching operations.
 
@@ -650,14 +718,12 @@ class BatchScalingManager:
     ----------
     starting_size : int
         The requested starting batch size.
-    progress_monitor : ProgressTimer
-        A progress timer instance to use for scaling.
+    thread_count : int
+        The number of threads; reported batch size will always be a multiple
+        of this.
+    max_size : int, optional
+        The largest allowable batch size.
     """
-
-    # Internal to this class, `batch_size` is maintained as a floating point
-    # value for scaling accuracy and to prevent potential "traps" where the
-    # multiplier isn't enough to increase/decrease the amount to overcome the
-    # rounding to the nearest multiple of the minimum batch size.
 
     # Threshold by which batch sizes will be increased/decreased until
     # request-response time falls between these two times
@@ -665,12 +731,6 @@ class BatchScalingManager:
         datetime.timedelta(seconds=60),
         datetime.timedelta(seconds=75),
     )
-
-    # The batch size minimum and maximum (respectively). None as the maximum
-    # means no limit. For best results, the minimum batch size should be
-    # equal to the number of processor threads (cores) available to the
-    # receiving trainee.
-    size_limits: tuple[int, t.Optional[int]] = (1, None)
 
     # Limit by memory usage of request or response size (respectively)
     # In bytes, zero means no limit.
@@ -684,93 +744,72 @@ class BatchScalingManager:
     # See: https://en.wikipedia.org/wiki/Golden_ratio
     size_multiplier: tuple[float, float] = (1.618, 0.5)
 
-    class SendOptions(t.NamedTuple):
-        """Options that can be passed to the generator."""
-
-        tick_duration: t.Optional[datetime.timedelta]
-        memory_sizes: t.Optional[tuple[int, int]]
-
-    def __init__(  # type: ignore reportMissingSuperCall
+    def __init__(
         self,
         starting_size: int,
-        progress_monitor: ProgressTimer
+        thread_count: int = 1,
+        max_size: int | None = None
     ) -> None:
         """Initialize a new BatchScalingManager instance."""
-        self.starting_size = starting_size
-        self.progress = progress_monitor
+        # Internal to this class, `batch_size` is maintained as a floating point
+        # value for scaling accuracy and to prevent potential "traps" where the
+        # multiplier isn't enough to increase/decrease the amount to overcome the
+        # rounding to the nearest multiple of the minimum batch size.
+        self._batch_size = float(starting_size)
 
-    @staticmethod
-    def send(
-        gen: Generator[int, t.Optional[SendOptions], None], options: SendOptions
-    ) -> int | None:
-        """Send to generator and return None when stopped."""
-        try:
-            return gen.send(options)
-        except StopIteration:
-            return None
+        self._thread_count = thread_count
 
-    def gen_batch_size(self) -> Generator[int, t.Optional[SendOptions], None]:
+        self.max_size = max_size
+        """The largest allowable batch size."""
+
+    @property
+    def batch_size(self) -> int:
+        """Get the current batch size."""
+        return self.clamp(self.quantize(self._batch_size))
+
+    @batch_size.setter
+    def batch_size(self, batch_size: float) -> None:
+        """Manually set the current batch size."""
+        self._batch_size = batch_size
+
+    @property
+    def thread_count(self) -> int:
+        """Get the current thread count."""
+        return self._thread_count
+
+    @thread_count.setter
+    def thread_count(self, thread_count) -> None:
+        """Set the current thread count."""
+        # Approximate a new batch size based on
+        # the new number of threads available. This allows scaling to
+        # more quickly adapt to changes in the number of threads
+        # available.
+        self._batch_size = self.clamp(self._batch_size / self._thread_count * thread_count)
+        self._thread_count = thread_count
+
+    def update(self, batch_duration: datetime.timedelta, memory_sizes: tuple[int, int] | None) -> int:
         """
-        Return a generator to get the next batch size.
+        Update the batch size in response to activity happening.
 
-        When using "send" options with a tick_duration, progress updating must
-        be done manually and the last tick duration should be provided as
-        the parameter to "send". When not sending the tick_duration progress
-        updating will happen automatically. Additionally, the size of the
-        request and/or response can be provided via "send" to scale based on
-        memory usage.
+        Parameters
+        ----------
+        batch_duration : timedelta
+            The amount of time it took to process the most recent batch.
+        memory_sizes : tuple[int, int], optional
+            The input and output data sizes, if known.
+
+        Returns
+        -------
+        int
+            The new batch size.
         """
-        _previous_minimum_batch_size: float = self.size_limits[0]  # The number of threads available
-
-        if not self.progress.has_started:
-            raise ValueError("Batching has not yet started")
-
-        # batch_size is maintained as floating point.
-        batch_size: float = self.starting_size
-        while not self.progress.has_ended and not self.progress.is_complete:
-            # If necessary, clamp to the given size_limit boundaries.
-            batch_size = self.clamp(
-                batch_size, self.progress.current_tick, self.progress.total_ticks
-            )
-
-            # Quantize to a multiple of the minimum batch size (number of cores)
-            quantized_batch_size = max(
-                round(batch_size / self.size_limits[0]) * self.size_limits[0],
-                self.size_limits[0]
-            )
-
-            # Trim so we don't exceed the total size with this batch
-            remaining = self.progress.total_ticks - self.progress.current_tick
-
-            # Here's where the generator yields the batch size to use.
-            options = yield min(remaining, quantized_batch_size)
-
-            # Prepare for the new batch size...
-            tick_duration = options.tick_duration if options else None
-            memory_sizes = options.memory_sizes if options else None
-
-            if tick_duration is None:
-                # If send is not used, automatically update progress
-                tick_duration = self.progress.tick_duration
-                self.progress.update(quantized_batch_size)
-
-            if _previous_minimum_batch_size != self.size_limits[0]:
-                # There's been a change in the minimum size limits (number of
-                # available threads). Approximate a new batch size based on
-                # the new number of threads available. This allows scaling to
-                # more quickly adapt to changes in the number of threads
-                # available.
-                _batch_size_per_core = batch_size / _previous_minimum_batch_size
-                batch_size = _batch_size_per_core * self.size_limits[0]
-                _previous_minimum_batch_size = self.size_limits[0]
-
-            batch_size = self.scale(batch_size, tick_duration, memory_sizes)
-        return None
+        self._batch_size = self.scale(self._batch_size, batch_duration, memory_sizes)
+        return self.batch_size
 
     def scale(
         self,
         batch_size: float,
-        batch_duration: t.Optional[datetime.timedelta],
+        batch_duration: datetime.timedelta,
         memory_sizes: t.Optional[tuple[int, int]],
     ) -> float:
         """
@@ -790,9 +829,6 @@ class BatchScalingManager:
         int
             The new batch size.
         """
-        if batch_duration is None:
-            batch_duration = datetime.timedelta(0)
-
         adjust = None  # -1 = lower, 0/None = keep, 1 = raise
 
         # Adjust based on memory sizes
@@ -840,9 +876,13 @@ class BatchScalingManager:
             else:
                 batch_size = batch_size / self.size_multiplier[1]
 
-        return batch_size
+        return self.clamp(batch_size)
 
-    def clamp(self, batch_size: int | float, batch_offset: int, total: int) -> float:
+    @t.overload
+    def clamp(self, batch_size: int) -> int: ...
+    @t.overload
+    def clamp(self, batch_size: float) -> float: ...
+    def clamp(self, batch_size: int | float) -> int | float:
         """
         Clamp batch size between min/max allowed value.
 
@@ -850,23 +890,325 @@ class BatchScalingManager:
         ----------
         batch_size : int | float
             The current batch size.
-        batch_offset : int
-            The current batch offset.
-        total : int
-            The total number of the items being batched.
 
         Returns
         -------
-        float
+        int | float
             The new batch size.
         """
-        # Clamp batch size to the minimum requested batch size, but
-        # ensure it does not exceed total number of items batched
-        batch_size = min(max(batch_size, self.size_limits[0]), total - batch_offset)
-        if self.size_limits[1]:
-            # Limit batch size to maximum value
-            batch_size = min(batch_size, self.size_limits[1])
+        batch_size = max(batch_size, self.thread_count)
+        if self.max_size:
+            batch_size = min(batch_size, self.max_size)
         return batch_size
+
+    def quantize(self, batch_size: int | float) -> int:
+        """
+        Make the batch size be a multiple of the thread count.
+
+        Round to the nearest whole batch, but always emit at least one batch.
+        """
+        batches = max(round(batch_size / self.thread_count), 1)
+        return batches * self.thread_count
+
+
+
+class ReactInBatches:
+    """
+    Run some react-type operation in batches.
+
+    This performs all of the machinery of setting up a progress reporter,
+    setting and scaling the batch size, and potentially running requests
+    in parallel if this client supports that.
+
+    This is intended to be used with the client ``react``, ``react_series``,
+    or ``react_series_stationary`` methods, which all have a similar call
+    pattern.
+
+    `run` is intended to be the main entry point to this class, and typical
+    callers should not directly need the other methods or fields in this
+    class.
+
+    Parameters
+    ----------
+    trainee_id : str
+        The ID of the Trainee to react to.
+    params : dict[str, t.Any]
+        The engine react parameters.
+    progress : ProgressTimer
+        Progress tracker.
+    batch_scaler : BaseBatchScalingManager
+        Automatically update the batch size.
+    get_thread_count : Callable[[str], int]
+        Callback to get the current thread count for a trainee ID.
+    get_concurrency : Callable[[str], int | None]
+        Callback to get the number of operations it is reasonable to run
+        concurrently for a trainee ID.  Returns None if it is never
+        reasonable to run operations concurrently.
+    params_for_batch : Callable[[dict, int, int], dict]
+        A function that takes the initial parameter set and batch start
+        and end position, and returns the parameter set for this batch.
+        The function must return a copy of the parameters and not mutate
+        the parameters in place.
+    react_function : Callable[[str, dict], tuple[dict, int, int]]
+        The actual "react" function, taking the trainee ID and the
+        per-batch parameter set as parameters.
+    progress_callback : Callable[[ProgressTimer, dict], None], optional
+        A method to be called during batching to retrieve the progress
+        metrics.
+
+    """
+    def __init__(
+            self,
+            *,
+            trainee_id: str,
+            params: dict[str, t.Any],
+            progress: ProgressTimer,
+            batch_scaler: BaseBatchScalingManager,
+            get_thread_count: Callable[[str], int],
+            get_concurrency: Callable[[str], int | None],
+            params_for_batch: Callable[[dict[str, t.Any], int, int], dict[str, t.Any]],
+            react_function: Callable[[str, dict[str, t.Any]], tuple[dict[str, t.Any], int, int]],
+            progress_callback: Callable[[ProgressTimer, dict[str, t.Any] | None], None] | None = None,
+    ) -> None:
+        self.result = {'action_values': []}
+        """The final result of the computation."""
+
+        self._trainee_id = trainee_id
+        """The caller-supplied trainee ID."""
+
+        self._params = params
+        """The caller-supplied set of call parameters."""
+
+        self._futures: deque[tuple[int, Future[tuple[dict[str, t.Any], int, int]]]] = deque()
+        """
+        A double-ended queue of triples of batch size, start time, and futures.
+
+        These are in order the future was started.  The futures eventually
+        produce the results of the react function.
+        """
+
+        self._running: set[Future[tuple[dict[str, t.Any], int, int]]] = set()
+        """A set of incomplete futures."""
+
+        self._progress = progress
+        """The progress timer monitoring this execution."""
+
+        self._batch_scaler = batch_scaler
+        """Manager to dynamically scale the batch size."""
+
+        self._batch_scaling_future: tuple[datetime.datetime, Future[tuple[dict[t.Any, t.Any], int, int]]] | None = None
+        """A specific future that will update the batch scaler when complete, with its start time."""
+
+        self._get_thread_count = get_thread_count
+        """Dynamically produce the current trainee thread count."""
+
+        self._get_concurrency = get_concurrency
+        """Dynamically produce the number of concurrent requests that can be executed."""
+
+        self._params_for_batch = params_for_batch
+        """Produce the parameters for a specific batch."""
+
+        self._react_function = react_function
+        """The underlying react-type function to call."""
+
+        self._progress_callback = progress_callback
+        """A callback invoked after each batch completes with incremental results."""
+
+    def _send_progress(self, results: dict[str, t.Any] | None) -> None:
+        """Invoke the progress callback if needed."""
+        if self._progress_callback:
+            self._progress_callback(self._progress, results)
+
+    def _update_batch_size(self, batch_duration: datetime.timedelta, in_size: int, out_size: int) -> None:
+        """Update the batch scaler size if needed."""
+        # Ensure the minimum batch size continues to match the number of
+        # threads, even over scaling events.
+        self._batch_scaler.thread_count = max(self._get_thread_count(self._trainee_id), 1)
+        self._batch_scaler.update(batch_duration, (in_size, out_size))
+
+    @classmethod
+    def run(
+        cls,
+        *,
+        trainee_id: str,
+        params: dict[str, t.Any],
+        total_size: int,
+        batch_size: int | None,
+        initial_batch_size: int | None,
+        get_thread_count: Callable[[str], int],
+        get_concurrency: Callable[[str], int | None],
+        params_for_batch: Callable[[dict[str, t.Any], int, int], dict[str, t.Any]],
+        react_function: Callable[[str, dict[str, t.Any]], tuple[dict[str, t.Any], int, int]],
+        progress_callback: Callable[[ProgressTimer, dict[str, t.Any] | None], None] | None = None,
+    ) -> dict[str, t.Any]:
+        """Run a react-type operation in batches."""
+        with ProgressTimer(total_size) as progress:
+            # Come up with a batch size, if we weren't provided with one.
+            batch_scaler: BaseBatchScalingManager
+            if batch_size:
+                batch_scaler = FixedBatchScalingManager(batch_size)
+            else:
+                if not initial_batch_size:
+                    start_batch_size = max(get_thread_count(trainee_id), 1)
+                else:
+                    start_batch_size = initial_batch_size
+                batch_scaler = BatchScalingManager(start_batch_size, thread_count=max(get_thread_count(trainee_id), 1))
+
+            # Create the scaler object.
+            react_in_batches = cls(
+                trainee_id=trainee_id,
+                params=params,
+                progress=progress,
+                batch_scaler=batch_scaler,
+                get_thread_count=get_thread_count,
+                get_concurrency=get_concurrency,
+                params_for_batch=params_for_batch,
+                react_function=react_function,
+                progress_callback=progress_callback,
+            )
+
+            if get_concurrency(trainee_id) is None:
+                react_in_batches.serial()
+            else:
+                react_in_batches.parallel()
+            return react_in_batches.result
+
+    def serial(self) -> None:
+        """Run the operation running one batch at a time."""
+        batch_start = 0
+        self._send_progress(None)
+        while batch_start < self._progress.total_ticks:
+            batch_end = min(batch_start + self._batch_scaler.batch_size, self._progress.total_ticks)
+            batch_params = self._params_for_batch(self._params, batch_start, batch_end)
+            start = datetime.datetime.now(datetime.timezone.utc)
+            temp_result, in_size, out_size = self._react_function(self._trainee_id, batch_params)
+            end = datetime.datetime.now(datetime.timezone.utc)
+            self._progress.update(batch_end - batch_start)
+            self._send_progress(temp_result)
+            accumulate_react_result(self.result, temp_result)
+            self._update_batch_size(end - start, in_size, out_size)
+            batch_start = batch_end
+
+    def _consume_future(self) -> None:
+        """
+        Consume the oldest future in the queue.
+
+        Does nothing if the queue is empty.  Blocks if the future is not already complete.
+        """
+        if len(self._futures) == 0:
+            return
+        (batch_size, future) = self._futures.popleft()
+        logger.debug("committing batch of size %d", batch_size)
+        # (In this next line, future.result() blocks if the future's not already done.)
+        temp_result, _in_size, _out_size = future.result()
+        self._send_progress(temp_result)
+        accumulate_react_result(self.result, temp_result)
+
+    def _consume_ready_futures(self) -> None:
+        """Consume any completed futures as the oldest end of the queue."""
+        while len(self._futures) > 0 and self._futures[0][1].done():
+            self._consume_future()
+
+    def _wait_for_future(self) -> None:
+        """Wait for (at least) one future to finish and process its results."""
+        done, _not_done = wait(self._running, return_when=FIRST_COMPLETED)
+        logger.debug("finished %d batches", len(done))
+        for (batch_size, future) in self._futures:
+            # Update the progress monitor if this future just finished
+            if future in done:
+                self._running.remove(future)
+                self._progress.update(batch_size)
+                logger.debug("finished batch of size %d, total: %d/%d", batch_size, self._progress.current_tick, self._progress.total_ticks)
+                # Update the batch scaler if needed
+                if self._batch_scaling_future is not None and self._batch_scaling_future[1] is future:
+                    start_time = self._batch_scaling_future[0]
+                    _temp_result, in_size, out_size = future.result()
+                    end_time = datetime.datetime.now(datetime.timezone.utc)
+                    old_batch_size = self._batch_scaler.batch_size
+                    batch_duration = end_time - start_time
+                    self._update_batch_size(batch_duration, in_size, out_size)
+                    logger.debug("updating batch size %d -> %d (%s)", old_batch_size, self._batch_scaler.batch_size, batch_duration)
+                    # The next batch we submit will get to update the batch size
+                    self._batch_scaling_future = None
+        # Pop anything we can off the queue
+        self._consume_ready_futures()
+
+    def parallel(self) -> None:
+        """Run the operation using parallel threads."""
+        logger.debug("starting parallel batch react")
+        batch_start = 0
+        self._send_progress(None)
+        executor = ThreadPoolExecutor()
+        try:
+            while batch_start < self._progress.total_ticks:
+                max_running = self._get_concurrency(self._trainee_id) or 1
+                if len(self._running) < max_running:
+                    # Submit a new batch of cases
+                    batch_end = min(batch_start + self._batch_scaler.batch_size, self._progress.total_ticks)
+                    batch_params = self._params_for_batch(self._params, batch_start, batch_end)
+                    future = executor.submit(self._react_function, self._trainee_id, batch_params)
+                    self._futures.append((batch_end - batch_start, future))
+                    self._running.add(future)
+                    logger.debug("starting batch of size %d (%d/%d)", (batch_end - batch_start), len(self._futures), max_running)
+                    if self._batch_scaling_future is None:
+                        self._batch_scaling_future = (datetime.datetime.now(datetime.timezone.utc), future)
+                    batch_start = batch_end
+                else:
+                    self._wait_for_future()
+            # Now we've submitted all of the data; wait for any outstanding futures to complete.
+            while len(self._futures) > 0:
+                self._wait_for_future()
+        finally:
+            # If anything is left running, cancel those futures.  On normal
+            # completion we'll have waited for everything we know about.
+            executor.shutdown(wait=False, cancel_futures=True)
+        logger.debug("finished parallel batch react")
+
+class ParamsForBatch:
+    """
+    Helper callable class to get slices out of a react parameter set.
+
+    Parameters
+    ----------
+    slice_keys : Collection[str]
+        Names of keys in the parameters map that are lists, and need to be
+        sliced with the provided batch range.
+    num_to_generate_param : str, optional
+        If ``desired_conviction`` is set, then set this parameter to the batch size.
+    """
+    def __init__(self, slice_keys: Collection[str], num_to_generate_param: str | None = None):
+        self._slice_keys = slice_keys
+        self._num_to_generate_param = num_to_generate_param
+
+    def __call__(self, params: dict[str, t.Any], batch_start: int, batch_end: int) -> dict[str, t.Any]:
+        result = {}
+        for k, v in params.items():
+            if k in self._slice_keys and v is not None and len(v) > 1:
+                result[k] = v[batch_start:batch_end]
+            else:
+                result[k] = v
+        if self._num_to_generate_param and params.get("desired_conviction") is not None:
+            result[self._num_to_generate_param] = batch_end - batch_start
+        return result
+
+
+def batch_lists(lists: list[T], initial_batch_size: int) -> Generator[list[T], int]:
+    """
+    Break up a potentially long list of items into variable-size batches.
+
+    This is a bidirectional generator.  Calling `next()` on its result yields
+    a list of `initial_batch_size` items.  From this point, call `gen.send()`
+    with a desired number of items, and it will return a list of that many
+    items.  The generator raises `StopIteration` when the list is exhausted.
+
+    """
+    offset = 0
+    batch_size = initial_batch_size
+    while offset < len(lists):
+        batch = lists[offset:offset+batch_size]
+        next_batch_size = yield batch
+        offset += batch_size
+        batch_size = next_batch_size
 
 
 def show_core_warnings(core_warnings: Iterable[str | dict]):
@@ -913,7 +1255,7 @@ def to_pandas_datetime_format(f: str):
 
 def fix_feature_value_keys(
     input_dict: dict[str, t.Any],
-    feature_attributes: Mapping[t.Hashable, Mapping],
+    feature_attributes: Mapping[str, Mapping],
     feature_name: str
 ) -> dict[str | float | int, t.Any]:
     """
@@ -926,7 +1268,7 @@ def fix_feature_value_keys(
     ----------
     input_dict : dict[str, Any]
         The mapping with feature values as keys that may need fixing.
-    feature_attributes : Mapping[Hashable, Mapping]
+    feature_attributes : Mapping[str, Mapping]
         The feature attributes of the data.
     feature_name : str
         The name of the feature whose feature values make the keys of the dict.
@@ -951,9 +1293,9 @@ def fix_feature_value_keys(
     return output_dict
 
 def update_caps_maps(
-    caps_maps: list[dict[dict[str, float]]],
-    feature_attributes: Mapping[t.Hashable, Mapping]
-) -> list[dict[dict[str | int | float, float]]]:
+    caps_maps: list[dict[str, dict[str, float]]],
+    feature_attributes: Mapping[str, Mapping]
+) -> list[dict[str, dict[str | int | float, float]]]:
     """
     Cleans up misformatted keys from non-string nominal feature's CAP maps.
 
@@ -962,14 +1304,14 @@ def update_caps_maps(
 
     Parameters
     ----------
-    caps_maps : list[dict[dict[str, float]]]
+    caps_maps : list[dict[str, dict[str, float]]]
         The list of CAP maps.
     feature_attributes : Mapping[str, Mapping]
         The feature attributes of the data.
 
     Returns
     -------
-    list[dict[dict[str | int | float, float]]]
+    list[dict[str, dict[str | int | float, float]]]
         The updated list of CAP maps with cleaned up feature values as keys.
     """
     updated_caps_maps = []
@@ -987,8 +1329,8 @@ def update_caps_maps(
     return updated_caps_maps
 
 def update_confusion_matrix(
-    confusion_matrix: dict[str, dict | float],
-    feature_attributes: Mapping[t.Hashable, Mapping]
+    confusion_matrix: dict[str, dict[str, float | dict[str, t.Any]]],
+    feature_attributes: Mapping[str, Mapping]
 ) -> dict[str, t.Any]:
     """
     Cleans up misformatted keys from non-string nominal feature's confusion matrices.
@@ -998,9 +1340,9 @@ def update_confusion_matrix(
 
     Parameters
     ----------
-    confusion_matrix : dict[str, dict | float]
+    confusion_matrix : dict[str, dict[str, float | dict[str, t.Any]]]
         The mapping that defines the confusion matrix.
-    feature_attributes : Mapping[Hashable, Mapping]
+    feature_attributes : Mapping[str, Mapping]
         The feature attributes of the data.
 
     Returns

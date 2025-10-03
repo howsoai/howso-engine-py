@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import (
     Callable,
     Collection,
+    Generator,
     Mapping,
     MutableMapping,
 )
@@ -27,7 +28,7 @@ from howso.client.protocols import (
     LocalSaveableProtocol,
     ProjectClient,
 )
-from howso.client.schemas import AggregateReaction
+from howso.client.schemas import AggregateReaction, GroupReaction
 from howso.client.schemas import Project as BaseProject
 from howso.client.schemas import Reaction
 from howso.client.schemas import Session as BaseSession
@@ -49,6 +50,7 @@ from howso.client.typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
+    SeriesStopMap,
     SortByFeature,
     TabularData2D,
     TabularData3D,
@@ -628,7 +630,7 @@ class Trainee(BaseTrainee):
 
     def train(
         self,
-        cases: TabularData2D,
+        cases: TabularData2D | Generator[DataFrame, int],
         *,
         accumulate_weight_feature: t.Optional[str] = None,
         batch_size: t.Optional[int] = None,
@@ -636,6 +638,7 @@ class Trainee(BaseTrainee):
         features: t.Optional[Collection[str]] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
+        num_cases: int | None = None,
         progress_callback: t.Optional[Callable] = None,
         series: t.Optional[str] = None,
         skip_auto_analyze: bool = False,
@@ -646,10 +649,20 @@ class Trainee(BaseTrainee):
         """
         Train one or more cases into the trainee (model).
 
+        `cases` may be:
+
+        1. A pandas `DataFrame`.  `features` is optional; if it is provided
+           then only these specific columns from the `DataFrame` are used.
+        2. A row-major list of lists of values.  `features` is required.
+        3. A generator that yields `DataFrame` with a batch of cases, and
+           accepts back an int with the desired size of the next batch.
+           `features` is handled the same as for an individual `DataFrame`.
+
         Parameters
         ----------
-        cases : DataFrame or 2-dimensional list of object
-            One or more cases to train into the model.
+        cases : DataFrame or 2-dimensional list of object or generator of DataFrame
+            One or more cases to train into the model.  Must be a list or a
+            `DataFrame` if `series` is also specified.
         accumulate_weight_feature : str, optional
             Name of feature into which to accumulate neighbors'
             influences as weight for ablated cases. If unspecified, will not
@@ -716,6 +729,7 @@ class Trainee(BaseTrainee):
                 features=features,
                 initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
+                num_cases=num_cases,
                 progress_callback=progress_callback,
                 series=series,
                 skip_auto_analyze=skip_auto_analyze,
@@ -760,19 +774,19 @@ class Trainee(BaseTrainee):
         auto_ablation_enabled: bool = False,
         *,
         ablated_cases_distribution_batch_size: int = 100,
-        abs_threshold_map: AblationThresholdMap = None,
+        abs_threshold_map: t.Optional[AblationThresholdMap] = None,
         auto_ablation_influence_weight_entropy_threshold: float = 0.15,
         auto_ablation_weight_feature: str = ".case_weight",
         batch_size: int = 2_000,
         conviction_lower_threshold: t.Optional[float] = None,
         conviction_upper_threshold: t.Optional[float] = None,
-        delta_threshold_map: AblationThresholdMap = None,
+        delta_threshold_map: t.Optional[AblationThresholdMap] = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         influence_weight_entropy_sample_size: int = 2_000,
         min_num_cases: int = 10_000,
         max_num_cases: int = 200_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
-        rel_threshold_map: AblationThresholdMap = None,
+        rel_threshold_map: t.Optional[AblationThresholdMap] = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
         tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,
@@ -1233,6 +1247,7 @@ class Trainee(BaseTrainee):
         input_is_substituted: bool = False,
         into_series_store: t.Optional[str] = None,
         leave_case_out: bool = False,
+        new_case_min_distance_ratio: t.Optional[float] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
@@ -1243,7 +1258,7 @@ class Trainee(BaseTrainee):
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -1607,6 +1622,10 @@ class Trainee(BaseTrainee):
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
                 computations.
+            - relevant_values : bool or list of strings, optional
+                When true outputs a map of each context feature name to a list of relevant values for that
+                feature given the context. If a list of feature names, will only output relevant values for
+                each feature specified.
             - selected_prediction_stats : list[Prediction_Stats], optional.
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
@@ -1736,6 +1755,14 @@ class Trainee(BaseTrainee):
             When True and specified along with ``case_indices``, each individual
             react will respectively ignore the corresponding case specified
             by ``case_indices`` by leaving it out.
+        new_case_min_distance_ratio : float, optional
+            Parameter that adjusts the required distance ratio for a newly
+            generated case to be considered private. When unspecified, defaults
+            to 1.0 and generated cases with a ratio of 1.0 or greater are
+            considered private. Larger values will increase strictness of
+            privacy check. Smaller values will loosen the privacy check. Must
+            be a positive number, since 0 would function same as
+            `generate_new_cases='no'`.
         new_case_threshold : {"max", "min", "most_similar"}, default "min"
             Distance to determine the privacy cutoff.
 
@@ -1776,9 +1803,9 @@ class Trainee(BaseTrainee):
             When True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
             be used if the Trainee has them.
-        use_regional_residuals : bool, default True
-            When False, uses global residuals. When True, calculates and uses
-            regional residuals, which may increase runtime noticeably.
+        use_differential_privacy : bool, default False
+            If True will use differentially private approach to adding noise
+            during generative reacts.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -1817,6 +1844,7 @@ class Trainee(BaseTrainee):
             input_is_substituted=input_is_substituted,
             into_series_store=into_series_store,
             leave_case_out=leave_case_out,
+            new_case_min_distance_ratio=new_case_min_distance_ratio,
             new_case_threshold=new_case_threshold,
             num_cases_to_generate=num_cases_to_generate,
             ordered_by_specified_features=ordered_by_specified_features,
@@ -1829,7 +1857,7 @@ class Trainee(BaseTrainee):
             suppress_warning=suppress_warning,
             use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
             use_case_weights=use_case_weights,
-            use_regional_residuals=use_regional_residuals,
+            use_differential_privacy=use_differential_privacy,
             weight_feature=weight_feature,
         )
 
@@ -1855,6 +1883,7 @@ class Trainee(BaseTrainee):
         input_is_substituted: bool = False,
         leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
+        new_case_min_distance_ratio: t.Optional[float] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
@@ -1867,13 +1896,13 @@ class Trainee(BaseTrainee):
         series_id_tracking: SeriesIDTracking = "fixed",
         series_id_values: t.Optional[TabularData2D] = None,
         series_index: str = ".series",
-        series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
+        series_stop_maps: t.Optional[list[SeriesStopMap]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
         use_all_features: bool = True,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         """
@@ -1988,6 +2017,14 @@ class Trainee(BaseTrainee):
             with ``continue_series``, this defines the maximum length of the
             forecast. Must provide either one for all series, or exactly
             one per series.
+        new_case_min_distance_ratio : float, optional
+            Parameter that adjusts the required distance ratio for a newly
+            generated case to be considered private. When unspecified, defaults
+            to 1.0 and generated cases with a ratio of 1.0 or greater are
+            considered private. Larger values will increase strictness of
+            privacy check. Smaller values will loosen the privacy check. Must
+            be a positive number, since 0 would function same as
+            `generate_new_cases='no'`.
         new_case_threshold : str, optional
             See parameter ``new_case_threshold`` in :meth:`react`.
         num_series_to_generate : int, default 1
@@ -2055,8 +2092,8 @@ class Trainee(BaseTrainee):
             to derive them, reducing the expected runtime but possibly reducing accuracy.
         use_case_weights : bool, optional
             See parameter ``use_case_weights`` in :meth:`react`.
-        use_regional_residuals : bool, default True
-            See parameter ``use_regional_residuals`` in :meth:`react`.
+        use_differential_privacy : bool, default False
+            See parameter ``use_differential_privacy`` in :meth:`react`.
         weight_feature : str, optional
             See parameter ``weight_feature`` in :meth:`react`.
 
@@ -2092,6 +2129,7 @@ class Trainee(BaseTrainee):
                 initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
                 max_series_lengths=max_series_lengths,
+                new_case_min_distance_ratio=new_case_min_distance_ratio,
                 new_case_threshold=new_case_threshold,
                 num_series_to_generate=num_series_to_generate,
                 ordered_by_specified_features=ordered_by_specified_features,
@@ -2110,7 +2148,7 @@ class Trainee(BaseTrainee):
                 use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
                 use_all_features=use_all_features,
                 use_case_weights=use_case_weights,
-                use_regional_residuals=use_regional_residuals,
+                use_differential_privacy=use_differential_privacy,
                 weight_feature=weight_feature,
             )
         else:
@@ -2135,7 +2173,7 @@ class Trainee(BaseTrainee):
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_derived_ts_features: bool = True,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -2222,10 +2260,9 @@ class Trainee(BaseTrainee):
         use_derived_ts_features : bool, default True
             If True, then time-series features derived from features specified
             as contexts will additionally be added as context features.
-        use_regional_residuals : bool, default True
-            If False, global residuals will be used in generative predictions.
-            If True, regional residuals will be computed and used instead. This
-            may increase runtime noticeable.
+        use_differential_privacy : bool, default False
+            If True will use differentially private approach to adding noise
+            during generative reacts.
         weight_feature : str, optional
             The name of the weight feature to be used. Should be used in
             combination with ``use_case_weights``.
@@ -2259,7 +2296,7 @@ class Trainee(BaseTrainee):
                 series_id_values=series_id_values,
                 use_case_weights=use_case_weights,
                 use_derived_ts_features=use_derived_ts_features,
-                use_regional_residuals=use_regional_residuals,
+                use_differential_privacy=use_differential_privacy,
                 weight_feature=weight_feature,
             )
         else:
@@ -3028,10 +3065,12 @@ class Trainee(BaseTrainee):
     def react_group(
         self,
         *,
-        case_indices: t.Optional[CaseIndices] = None,
+        action_features: t.Optional[Collection[str]] = None,
+        case_indices: t.Optional[Collection[CaseIndices]] = None,
         conditions: t.Optional[list[Mapping]] = None,
+        details: t.Optional[Mapping[str, bool]] = None,
         distance_contributions: bool = False,
-        familiarity_conviction_addition: bool = True,
+        familiarity_conviction_addition: bool = False,
         familiarity_conviction_removal: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
@@ -3042,7 +3081,7 @@ class Trainee(BaseTrainee):
         use_case_weights: t.Optional[bool] = None,
         features: t.Optional[Collection[str]] = None,
         weight_feature: t.Optional[str] = None,
-    ) -> DataFrame:
+    ) -> GroupReaction:
         """
         Computes specified data for a **set** of cases.
 
@@ -3051,7 +3090,11 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        case_indices: list of lists of tuples of {str, int}, optional
+        action_features : list of str, optional
+            A list of features whose values should be predicted for
+            each group. Each group of cases gets a single action value for each
+            feature.
+        case_indices : list of lists of lists of tuples of {str, int}, optional
             A list of lists of case indices tuples containing the session ID and
             the session training indices that uniquely identify trained cases.
             Each sublist defines a set of trained cases to react to. Only one of
@@ -3078,10 +3121,25 @@ class Trainee(BaseTrainee):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
+        details : dict of str to bool, optional
+            Ignored if action features are not specified.
+            If details are specified, the response will contain the requested
+            explanation data along with the group reaction. Below are the valid keys
+            and data types for the different details.
+
+            - influential_cases : bool, optional
+                If true, returns the cases influential to the prediction of the
+                action values for each group.
+            - categorical_action_probabilities : bool, optional
+                If true, returns the categorical action probabilities for the
+                nominal action features for each group.
+            - feature_full_residuals : bool, optional
+                If true, returns the full residuals of the action features
+                predicted for each group.
         distance_contributions : bool, default False
             Calculate and output distance contribution ratios in
             the output dict for each case.
-        familiarity_conviction_addition : bool, default True
+        familiarity_conviction_addition : bool, default False
             Calculate and output familiarity conviction of adding the
             specified cases.
         familiarity_conviction_removal : bool, default False
@@ -3130,12 +3188,14 @@ class Trainee(BaseTrainee):
         DataFrame
             The conviction of grouped cases.
         """
-        if isinstance(self.client, HowsoPandasClientMixin):
+        if isinstance(self.client, AbstractHowsoClient):
             return self.client.react_group(
                 trainee_id=self.id,
+                action_features=action_features,
                 new_cases=new_cases,
                 case_indices=case_indices,
                 conditions=conditions,
+                details=details,
                 features=features,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
@@ -3621,6 +3681,10 @@ class Trainee(BaseTrainee):
                 "selected_prediction_stats" parameter in the `details` parameter.
                 Uses full calculations, which uses leave-one-out for features for
                 computations.
+            - relevant_values : bool or list of strings, optional
+                When true outputs a map of each context feature name to a list of relevant values for that
+                feature given the context. If a list of feature names, will only output relevant values for
+                each feature specified.
             - selected_prediction_stats : list, optional
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 

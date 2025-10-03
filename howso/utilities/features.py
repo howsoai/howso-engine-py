@@ -173,7 +173,7 @@ class FeatureSerializer:
     def deserialize(
         cls,
         data: Iterable[Iterable[t.Any] | Mapping[str, t.Any]],
-        columns: Iterable[str],
+        columns: t.Optional[Iterable[str]] = None,
         features: t.Optional[Mapping] = None
     ) -> pd.DataFrame:
         """
@@ -186,7 +186,7 @@ class FeatureSerializer:
         ----------
         data : list of list or list of dict
             The context data.
-        columns : Iterable of str
+        columns : Iterable of str, optional
             The case column mapping. The order corresponds to the order of cases in output.
             `columns` must be provided for non-DataFrame Iterables.
 

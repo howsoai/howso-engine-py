@@ -7,11 +7,14 @@ from abc import (
 from collections.abc import (
     Callable,
     Collection,
+    Generator,
     Iterable,
     Mapping,
     MutableMapping,
     Sized,
 )
+from contextlib import suppress
+from datetime import datetime, timezone
 from pathlib import Path
 import typing as t
 from uuid import UUID
@@ -27,6 +30,7 @@ from howso.utilities.constants import (  # noqa: E501 type: ignore reportPrivate
     _RENAMED_DETAIL_KEYS_EXTRA,
 )
 from howso.utilities.feature_attributes.base import (
+    FeatureAttributesBase,
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
 )
@@ -40,6 +44,7 @@ from .exceptions import (
 from .schemas import (
     HowsoVersion,
     Project,
+    GroupReaction,
     Reaction,
     Session,
     Trainee,
@@ -59,6 +64,7 @@ from .typing import (
     Persistence,
     Precision,
     SeriesIDTracking,
+    SeriesStopMap,
     SortByFeature,
     TabularData2D,
     TabularData3D,
@@ -78,7 +84,11 @@ class AbstractHowsoClient(ABC):
     """The client configuration options."""
 
     ERROR_MESSAGES = {
-        "missing_session": "There is currently no active session. Begin a new session to continue."
+        "missing_session": "There is currently no active session. Begin a new session to continue.",
+        "train_series_generator": (
+            "When training from a series, the provided cases cannot come from "
+            "a generator.  Use a list or DataFrame instead."
+        )
     }
     """Mapping of error code to default error message."""
 
@@ -91,11 +101,6 @@ class AbstractHowsoClient(ABC):
 
     SUPPORTED_PRECISION_VALUES = ["exact", "similar"]
     """Allowed values for precision."""
-
-    @property
-    def batch_scaler_class(self):
-        """The batch scaling manager class used by operations that batch requests."""
-        return internals.BatchScalingManager
 
     @property
     def verbose(self) -> bool:
@@ -410,6 +415,23 @@ class AbstractHowsoClient(ABC):
             configuration parameters.
         """
 
+    def get_trainee_concurrency(self, trainee_id: str) -> int | None:
+        """
+        Get the number of read requests a Trainee can usefully run in parallel.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee.
+
+        Returns
+        -------
+        int | None
+            The current number of possible parallel requests, or None if the
+            Trainee can never usefully run multiple concurrent requests.
+        """
+        return None
+
     @abstractmethod
     def query_trainees(self, search_terms: t.Optional[str] = None) -> list[dict]:
         """Query accessible Trainees."""
@@ -486,7 +508,7 @@ class AbstractHowsoClient(ABC):
     def train(  # noqa: C901
         self,
         trainee_id: str,
-        cases: TabularData2D,
+        cases: TabularData2D | Generator[DataFrame, int],
         features: t.Optional[Collection[str]] = None,
         *,
         accumulate_weight_feature: t.Optional[str] = None,
@@ -494,6 +516,7 @@ class AbstractHowsoClient(ABC):
         derived_features: t.Optional[Collection[str]] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
+        num_cases: int | None = None,
         progress_callback: t.Optional[Callable] = None,
         series: t.Optional[str] = None,
         skip_auto_analyze: bool = False,
@@ -508,8 +531,11 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the target Trainee.
-        cases : list of list of object or pandas.DataFrame
-            One or more cases to train into the model.
+        cases : list of list of object or pandas.DataFrame or generator
+                yielding DataFrame and accepting int
+            One or more cases to train into the model.  If this is a
+            generator, this method will send back a desired length for the
+            next DataFrame to be yielded.
         features : Collection of str, optional
             The feature names corresponding to the case values.
             This parameter should be provided in the following scenarios:
@@ -543,6 +569,9 @@ class AbstractHowsoClient(ABC):
         input_is_substituted : bool, default False
             if True assumes provided nominal feature values have
             already been substituted.
+        num_cases : int, optional
+            Number of cases, used only for progress reporting and only when
+            `cases` is a generator.
         progress_callback : callable, optional
             A callback method that will be called before each
             batched call to train and at the end of training. The method is
@@ -557,6 +586,7 @@ class AbstractHowsoClient(ABC):
             the value(s) of this case are appended to all cases in the series.
             If cases is the same length as the series, the value of each case
             in cases is applied in order to each of the cases in the series.
+            cases must not be a generator if this option is provided.
         skip_auto_analyze : bool, default False
             When true, the Trainee will not auto-analyze when appropriate.
             Instead, the return dict will have a "needs_analyze" flag if an
@@ -588,21 +618,15 @@ class AbstractHowsoClient(ABC):
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
 
+        if series and not isinstance(cases, (list, DataFrame)):
+            raise HowsoError(self.ERROR_MESSAGES["train_series_generator"], code="train_series_generator")
+
         # Make sure single table dicts are wrapped by SingleTableFeatureAttributes
         if (
             isinstance(feature_attributes, Mapping) and
             not isinstance(feature_attributes, MultiTableFeatureAttributes)
         ):
             feature_attributes = SingleTableFeatureAttributes(feature_attributes, {})
-
-        # Check to see if the feature attributes still generally describe
-        # the data, and warn the user if they do not
-        if isinstance(cases, DataFrame) and validate:
-            try:
-                feature_attributes.validate(cases)
-            except NotImplementedError:
-                # MultiTableFeatureAttributes does not yet support DataFrame validation
-                pass
 
         # See if any features were inferred to have data that is unsupported by the OS.
         # Issue a warning and drop the feature before training, if so.
@@ -613,45 +637,92 @@ class AbstractHowsoClient(ABC):
         elif isinstance(feature_attributes, SingleTableFeatureAttributes):
             unsupported_features = [feat for feat in feature_attributes.keys()
                                     if feature_attributes.has_unsupported_data(feat)]
-        if isinstance(cases, DataFrame):
+        if not isinstance(cases, list):
             for feature in unsupported_features:
                 warnings.warn(
                     f'Ignoring feature {feature} as it contains values that are too '
                     'large or small for your operating system. Please evaluate the '
                     'bounds for this feature.')
-                cases.drop(feature, axis=1, inplace=True)
+                if isinstance(cases, DataFrame):
+                    cases.drop(feature, axis=1, inplace=True)
 
         util.validate_list_shape(features, 1, "features", "str")
-        util.validate_list_shape(cases, 2, "cases", "list", allow_none=False)
-        if features is None:
-            features = internals.get_features_from_data(cases)
-        serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True) or []
 
-        status = {}
+        # Create the batch scaler.
+        batch_scaler: internals.BaseBatchScalingManager
+        if series is not None:
+            # If training series, always send full size
+            # (We have already checked that we do not have a generator)
+            assert isinstance(cases, (list, DataFrame))
+            batch_scaler = internals.FixedBatchScalingManager(len(cases))
+        elif batch_size and isinstance(cases, (list, DataFrame)):
+            # Caller requested a fixed batch size
+            batch_scaler = internals.FixedBatchScalingManager(batch_size)
+        else:
+            # Scale the batch size automatically
+            start_batch_size = initial_batch_size or self.train_initial_batch_size
+            batch_scaler = internals.BatchScalingManager(start_batch_size, max(self._get_trainee_thread_count(trainee_id), 1))
+
+        # If we weren't given a case generator, wrap the cases we have in one.
+        gen: Generator[TabularData2D, int]
+        if isinstance(cases, (list, DataFrame)):
+            # Validate the data up front.
+            self._train_validate_cases(cases, feature_attributes, validate)
+            if features is None:
+                features = internals.get_features_from_data(cases)
+            serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True) or []
+            gen = internals.batch_lists(serialized_cases, batch_scaler.batch_size)
+        else:
+            gen = cases
+
+        # We need to know (or guess at) a number of cases to create a progress
+        # timer.
+        if isinstance(cases, (list, DataFrame)):
+            # Use the actual number of cases, ignore the parameter if given.
+            num_cases = len(cases)
+        elif num_cases is None:  # and cases is a generator
+            # Start at 0, and we'll need to dynamically update as we go along.
+            num_cases = 0
+
+        status: TrainStatus = {}
 
         if self.configuration.verbose:
             print(f'Training session(s) on Trainee with id: {trainee_id}')
 
-        with ProgressTimer(len(serialized_cases)) as progress:
-            gen_batch_size = None
-            batch_scaler = None
-            if series is not None:
-                # If training series, always send full size
-                batch_size = len(serialized_cases)
-            if not batch_size:
-                # Scale the batch size automatically
-                start_batch_size = initial_batch_size or self.train_initial_batch_size
-                batch_scaler = self.batch_scaler_class(start_batch_size, progress)
-                gen_batch_size = batch_scaler.gen_batch_size()
-                batch_size = next(gen_batch_size, None)
+        with ProgressTimer(num_cases) as progress:
+            # TODO: this could fail if the generator produces nothing at all,
+            # in which case we should do something useful.
+            batch = next(gen)
 
-            while not progress.is_complete and batch_size:
-                if isinstance(progress_callback, Callable):
+            while True:
+                if isinstance(batch, DataFrame):
+                    # Validate each batch of cases separately.
+                    self._train_validate_cases(batch, feature_attributes, validate)
+                    # Come up with the feature list, if this is the first batch we've ever seen.
+                    if features is None:
+                        features = internals.get_features_from_data(batch)
+                    # If there are unsupported features, they need to be dropped in each batch.
+                    for feature in unsupported_features:
+                        batch.drop(features, axis=1, inplace=True)
+                    # Turn the batch into data primitives to pass off to the engine.
+                    batch_cases = serialize_cases(batch, features, feature_attributes, warn=True) or []
+                else:
+                    # We've already validated and serialized the data, so use this batch as-is.
+                    batch_cases = batch
+                num_batch_cases = len(batch_cases)
+
+                # If the batch scaler allows setting the number of cases, set it to the actual number we got.
+                if isinstance(batch_scaler, internals.BatchScalingManager) and num_batch_cases != batch_scaler.batch_size:
+                    batch_scaler.batch_size = num_batch_cases
+
+                # It's possible we've had to guess at the total count, so make
+                # sure the total count at least includes this batch.
+                progress.total_ticks = max(progress.total_ticks, progress.current_tick + num_batch_cases)
+                if callable(progress_callback):
                     progress_callback(progress)
-                start = progress.current_tick
-                end = progress.current_tick + batch_size
+                start_time = datetime.now(timezone.utc)
                 response, in_size, out_size = self.execute_sized(trainee_id, "train", {
-                    "cases": serialized_cases[start:end],
+                    "cases": batch_cases,
                     "accumulate_weight_feature": accumulate_weight_feature,
                     "derived_features": derived_features,
                     "features": features,
@@ -662,27 +733,48 @@ class AbstractHowsoClient(ABC):
                     "skip_reduce_data": skip_reduce_data,
                     "train_weights_only": train_weights_only,
                 })
+                end_time = datetime.now(timezone.utc)
 
                 if response and response.get('status') == 'analyze':
                     status['needs_analyze'] = True
                 if response and response.get('status') == 'reduce_data':
                     status['needs_data_reduction'] = True
 
-                if batch_scaler is None or gen_batch_size is None:
-                    progress.update(batch_size)
-                else:
-                    batch_size = batch_scaler.send(
-                        gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size)))
+                progress.update(num_batch_cases)
+                batch_scaler.update(end_time - start_time, (in_size, out_size))
+
+                try:
+                    batch = gen.send(batch_scaler.batch_size)
+                except StopIteration:
+                    break
 
         # Final call to batch callback on completion
-        if isinstance(progress_callback, Callable):
+        if callable(progress_callback):
             progress_callback(progress)
 
         self._store_session(trainee_id, self.active_session)
         self._auto_persist_trainee(trainee_id)
 
         return status
+
+    def _train_validate_cases(self, cases: TabularData2D, feature_attributes: FeatureAttributesBase, validate: bool):
+        """
+        Validate a batch of cases as passed to `train()`.
+
+        If `train()` was passed a `pd.DataFrame` or a list of cases, this
+        expects the entire set of casses passed up front.  If it was passed a
+        generator, then it expects a single batch out of the generator.
+
+        Other parameters are generally passed through from `train()`.
+        """
+        # Check to see if the feature attributes still generally describe
+        # the data, and warn the user if they do not
+        if isinstance(cases, DataFrame) and validate:
+            # MultiTableFeatureAttributes does not yet support DataFrame validation
+            with suppress(NotImplementedError):
+                feature_attributes.validate(cases)
+
+        util.validate_list_shape(cases, 2, "cases", "list", allow_none=False)
 
     def impute(
         self,
@@ -1586,6 +1678,7 @@ class AbstractHowsoClient(ABC):
         input_is_substituted: bool = False,
         into_series_store: t.Optional[str] = None,
         leave_case_out: bool = False,
+        new_case_min_distance_ratio: t.Optional[float] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_cases_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
@@ -1598,7 +1691,7 @@ class AbstractHowsoClient(ABC):
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -1969,6 +2062,10 @@ class AbstractHowsoClient(ABC):
                 Uses only the context features of the reacted case to determine that area.
                 Uses full calculations, which uses leave-one-out context features for
                 computations.
+            - relevant_values : bool or list of strings, optional
+                When true outputs a map of each context feature name to a list of relevant values for that
+                feature given the context. If a list of feature names, will only output relevant values for
+                each feature specified.
             - selected_prediction_stats : list, optional.
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
@@ -2045,9 +2142,9 @@ class AbstractHowsoClient(ABC):
             The name of a series store. If specified, will store an internal
             record of all react contexts for this session and series to be used
             later with train series.
-        use_regional_residuals : bool
-            If false uses global residuals, if True calculates and uses
-            regional residuals, which may increase runtime noticably.
+        use_differential_privacy : bool, default False
+            If True will use differentially private approach to adding noise
+            during generative reacts.
         feature_bounds_map : dict of dict
             A mapping of feature names to the bounds for the
             feature values to be generated in. For continuous features this
@@ -2152,6 +2249,14 @@ class AbstractHowsoClient(ABC):
             batched call to react and at the end of reacting. The method is
             given a ProgressTimer containing metrics on the progress and timing
             of the react operation, and the batch result.
+        new_case_min_distance_ratio : float, optional
+            Parameter that adjusts the required distance ratio for a newly
+            generated case to be considered private. When unspecified, defaults
+            to 1.0 and generated cases with a ratio of 1.0 or greater are
+            considered private. Larger values will increase strictness of
+            privacy check. Smaller values will loosen the privacy check. Must
+            be a positive number, since 0 would function same as
+            `generate_new_cases='no'`.
         new_case_threshold : str, optional
             Distance to determine the privacy cutoff. If None,
             will default to "min".
@@ -2263,15 +2368,6 @@ class AbstractHowsoClient(ABC):
                 " following values - ['min', 'max', 'most_similar',]"
             )
 
-        if details is not None and 'robust_computation' in details:
-            details = dict(details)
-            details['robust_influences'] = details['robust_computation']
-            details['robust_residuals'] = details['robust_computation']
-            del details['robust_computation']
-            warnings.warn(
-                'The detail "robust_computation" is deprecated and will be '
-                'removed in a future release. Please use "robust_residuals" '
-                'and/or "robust_influences" instead.', DeprecationWarning)
 
         if details is not None and 'local_case_feature_residual_conviction_robust' in details:
             details = dict(details)
@@ -2328,9 +2424,10 @@ class AbstractHowsoClient(ABC):
                 "use_case_weights": use_case_weights,
                 "leave_case_out": leave_case_out,
                 "preserve_feature_values": preserve_feature_values,
+                "new_case_min_distance_ratio": new_case_min_distance_ratio,
                 "new_case_threshold": new_case_threshold,
                 "details": details,
-                "return_context_values": return_context_values
+                "return_context_values": return_context_values,
             }
         else:
             if (
@@ -2364,7 +2461,7 @@ class AbstractHowsoClient(ABC):
                 "feature_post_process_code_map": feature_post_process_code_map,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
-                "use_regional_residuals": use_regional_residuals,
+                "use_differential_privacy": use_differential_privacy,
                 "desired_conviction": desired_conviction,
                 "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy,
                 "feature_bounds_map": feature_bounds_map,
@@ -2372,6 +2469,7 @@ class AbstractHowsoClient(ABC):
                 "goal_features_map": goal_features_map,
                 "ordered_by_specified_features": ordered_by_specified_features,
                 "preserve_feature_values": preserve_feature_values,
+                "new_case_min_distance_ratio": new_case_min_distance_ratio,
                 "new_case_threshold": new_case_threshold,
                 "into_series_store": into_series_store,
                 "input_is_substituted": input_is_substituted,
@@ -2389,12 +2487,16 @@ class AbstractHowsoClient(ABC):
             # Run in batch
             if self.configuration.verbose:
                 print(f'Batch reacting to context on Trainee with id: {trainee_id}')
-            response = self._batch_react(
-                trainee_id,
-                react_params,
+            response = internals.ReactInBatches.run(
+                trainee_id=trainee_id,
+                params=react_params,
+                total_size=total_size,
                 batch_size=batch_size,
                 initial_batch_size=initial_batch_size,
-                total_size=total_size,
+                get_thread_count=self._get_trainee_thread_count,
+                get_concurrency=self.get_trainee_concurrency,
+                params_for_batch=internals.ParamsForBatch({"action_values", "context_values", "case_indices", "post_process_values"}, num_to_generate_param="num_cases_to_generate"),
+                react_function=self._react,
                 progress_callback=progress_callback
             )
         else:
@@ -2442,105 +2544,6 @@ class AbstractHowsoClient(ABC):
 
         return Reaction(response.get('action'), detail_response)
 
-    def _batch_react(
-        self,
-        trainee_id: str,
-        params: dict,
-        *,
-        batch_size: t.Optional[int] = None,
-        initial_batch_size: t.Optional[int] = None,
-        total_size: int,
-        progress_callback: t.Optional[Callable] = None
-    ):
-        """
-        Make react requests in batch.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to react to.
-        params : dict
-            The engine react parameters.
-        batch_size : int, optional
-            Define the number of cases to react to at once. If left unspecified,
-            the batch size will be determined automatically.
-        initial_batch_size : int, optional
-            Define the number of cases to react to in the first batch. If
-            unspecified, the value of the ``react_initial_batch_size`` property
-            is used. The number of cases in following batches will be
-            automatically adjusted. This value is ignored if ``batch_size`` is
-            specified.
-        total_size : int
-            The total size of the data that will be batched.
-        progress_callback : callable, optional
-            A method to be called during batching to retrieve the progress
-            metrics.
-
-        Returns
-        -------
-        dict
-            The react response.
-        """
-        temp_result = None
-        accumulated_result = {'action_values': []}
-
-        actions = params.get('action_values')
-        contexts = params.get('context_values')
-        case_indices = params.get('case_indices')
-        post_process_values = params.get('post_process_values')
-
-        with ProgressTimer(total_size) as progress:
-            gen_batch_size = None
-            batch_scaler = None
-            if not batch_size:
-                if not initial_batch_size:
-                    start_batch_size = max(self._get_trainee_thread_count(trainee_id), 1)
-                else:
-                    start_batch_size = initial_batch_size
-                # Scale the batch size automatically
-                batch_scaler = self.batch_scaler_class(start_batch_size, progress)
-                gen_batch_size = batch_scaler.gen_batch_size()
-                batch_size = next(gen_batch_size, None)
-
-            while not progress.is_complete and batch_size is not None:
-                if isinstance(progress_callback, Callable):
-                    progress_callback(progress, temp_result)
-                batch_start = progress.current_tick
-                batch_end = progress.current_tick + batch_size
-
-                if actions is not None and len(actions) > 1:
-                    params['action_values'] = actions[batch_start:batch_end]
-                if contexts is not None and len(contexts) > 1:
-                    params['context_values'] = contexts[batch_start:batch_end]
-                if case_indices is not None and len(case_indices) > 1:
-                    params['case_indices'] = case_indices[batch_start:batch_end]
-                if post_process_values is not None and len(post_process_values) > 1:
-                    params['post_process_values'] = post_process_values[batch_start:batch_end]
-
-                if params.get('desired_conviction') is not None:
-                    params['num_cases_to_generate'] = batch_size
-                temp_result, in_size, out_size = self._react(trainee_id, params)
-
-                internals.accumulate_react_result(accumulated_result, temp_result)
-                if batch_scaler is None or gen_batch_size is None:
-                    progress.update(batch_size)
-                else:
-                    # Ensure the minimum batch size continues to match the
-                    # number of threads,even over scaling events.
-                    batch_scaler.size_limits = (
-                        max(self._get_trainee_thread_count(trainee_id), 1),
-                        batch_scaler.size_limits[1]
-                    )
-                    batch_size = batch_scaler.send(
-                        gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size))
-                    )
-
-        # Final call to callback on completion
-        if isinstance(progress_callback, Callable):
-            progress_callback(progress, temp_result)
-
-        return accumulated_result
 
     def _react(self, trainee_id: str, params: dict) -> tuple[dict, int, int]:
         """
@@ -2752,7 +2755,7 @@ class AbstractHowsoClient(ABC):
                     target_context_values = context_values[i]
 
             if context_features and (
-                not target_context_values or
+                target_context_values is None or
                 not isinstance(target_context_values, Sized) or
                 len(target_context_values) != len(context_features)
             ):
@@ -2786,6 +2789,7 @@ class AbstractHowsoClient(ABC):
         input_is_substituted: bool = False,
         leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
+        new_case_min_distance_ratio: t.Optional[float] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
         ordered_by_specified_features: bool = False,
@@ -2798,13 +2802,13 @@ class AbstractHowsoClient(ABC):
         series_id_tracking: SeriesIDTracking = "fixed",
         series_id_values: t.Optional[TabularData2D] = None,
         series_index: t.Optional[str] = None,
-        series_stop_maps: t.Optional[list[Mapping[str, Mapping[str, t.Any]]]] = None,
+        series_stop_maps: t.Optional[list[SeriesStopMap]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
         use_aggregation_based_differential_privacy: bool = False,
         use_all_features: bool = True,
         use_case_weights: t.Optional[bool] = None,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None
     ) -> Reaction:
         """
@@ -2993,10 +2997,18 @@ class AbstractHowsoClient(ABC):
             See parameter ``use_case_weights`` in :meth:`AbstractHowsoClient.react`.
         preserve_feature_values : iterable of str
             See parameter ``preserve_feature_values`` in :meth:`AbstractHowsoClient.react`.
+        new_case_min_distance_ratio : float, optional
+            Parameter that adjusts the required distance ratio for a newly
+            generated case to be considered private. When unspecified, defaults
+            to 1.0 and generated cases with a ratio of 1.0 or greater are
+            considered private. Larger values will increase strictness of
+            privacy check. Smaller values will loosen the privacy check. Must
+            be a positive number, since 0 would function same as
+            `generate_new_cases='no'`.
         new_case_threshold : str
             See parameter ``new_case_threshold`` in :meth:`AbstractHowsoClient.react`.
-        use_regional_residuals : bool
-            See parameter ``use_regional_residuals`` in :meth:`AbstractHowsoClient.react`.
+        use_differential_privacy : bool
+            See parameter ``use_differential_privacy`` in :meth:`AbstractHowsoClient.react`.
         feature_bounds_map: dict of dict
             See parameter ``feature_bounds_map`` in :meth:`AbstractHowsoClient.react`.
         generate_new_cases : {"always", "attempt", "no"}
@@ -3112,6 +3124,7 @@ class AbstractHowsoClient(ABC):
                 "goal_features_map": goal_features_map,
                 "leave_series_out": leave_series_out,
                 "preserve_feature_values": preserve_feature_values,
+                "new_case_min_distance_ratio": new_case_min_distance_ratio,
                 "new_case_threshold": new_case_threshold,
                 "input_is_substituted": input_is_substituted,
                 "substitute_output": substitute_output,
@@ -3164,7 +3177,7 @@ class AbstractHowsoClient(ABC):
                 "series_id_values": series_id_values,
                 "leave_series_out": leave_series_out,
                 "use_all_features": use_all_features,
-                "use_regional_residuals": use_regional_residuals,
+                "use_differential_privacy": use_differential_privacy,
                 "desired_conviction": desired_conviction,
                 "feature_bounds_map": feature_bounds_map,
                 "goal_features_map": goal_features_map,
@@ -3175,6 +3188,7 @@ class AbstractHowsoClient(ABC):
                 "weight_feature": weight_feature,
                 "use_case_weights": use_case_weights,
                 "preserve_feature_values": preserve_feature_values,
+                "new_case_min_distance_ratio": new_case_min_distance_ratio,
                 "new_case_threshold": new_case_threshold,
                 "details": details,
                 "series_id_tracking": series_id_tracking,
@@ -3185,13 +3199,18 @@ class AbstractHowsoClient(ABC):
         if batch_size or self._should_react_batch(react_params, total_size):
             if self.configuration.verbose:
                 print(f'Batch series reacting on trainee with id: {trainee_id}')
-            response = self._batch_react_series(
-                trainee_id,
-                react_params,
+            response = internals.ReactInBatches.run(
+                trainee_id=trainee_id,
+                params=react_params,
                 total_size=total_size,
                 batch_size=batch_size,
                 initial_batch_size=initial_batch_size,
-                progress_callback=progress_callback)
+                get_thread_count=self._get_trainee_thread_count,
+                get_concurrency=self.get_trainee_concurrency,
+                params_for_batch=internals.ParamsForBatch({"max_series_lengths", "series_context_values", "series_stop_maps", "series_id_values"}, num_to_generate_param="num_series_to_generate"),
+                react_function=self._react_series,
+                progress_callback=progress_callback
+            )
         else:
             if self.configuration.verbose:
                 print(f'Series reacting on trainee with id: {trainee_id}')
@@ -3219,103 +3238,6 @@ class AbstractHowsoClient(ABC):
 
         series_df = util.build_react_series_df(response, series_index=series_index)
         return Reaction(series_df, response.get('details'))
-
-    def _batch_react_series(  # noqa: C901
-        self,
-        trainee_id: str,
-        params: dict,
-        *,
-        batch_size: t.Optional[int] = None,
-        initial_batch_size: t.Optional[int] = None,
-        total_size: int,
-        progress_callback: t.Optional[Callable] = None
-    ):
-        """
-        Make react series requests in batch.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to react to.
-        params : dict
-            The engine react series parameters.
-        batch_size: int, optional
-            Define the number of series to react to at once. If left
-            unspecified, the batch size will be determined automatically.
-        initial_batch_size: int, optional
-            The number of series to react to in the first batch. If unspecified,
-            the number will be determined automatically. The number of series
-            in following batches will be automatically adjusted. This value is
-            ignored if ``batch_size`` is specified.
-        total_size : int
-            The total size of the data that will be batched.
-        progress_callback : callable, optional
-            A function to be called during batching to retrieve or
-            report progress metrics.
-
-        Returns
-        -------
-        dict
-            The `react_series` response.
-        """
-        temp_result = None
-        accumulated_result = {'action_values': []}
-
-        series_id_values = params.get('series_id_values')
-        max_series_lengths = params.get('max_series_lengths')
-        series_context_values = params.get('series_context_values')
-        series_stop_maps = params.get('series_stop_maps')
-
-        with ProgressTimer(total_size) as progress:
-            batch_scaler = None
-            gen_batch_size = None
-            if not batch_size:
-                if not initial_batch_size:
-                    start_batch_size = max(self._get_trainee_thread_count(trainee_id), 1)
-                else:
-                    start_batch_size = initial_batch_size
-                batch_scaler = self.batch_scaler_class(start_batch_size, progress)
-                gen_batch_size = batch_scaler.gen_batch_size()
-                batch_size = next(gen_batch_size, None)
-
-            while not progress.is_complete and batch_size is not None:
-                if isinstance(progress_callback, Callable):
-                    progress_callback(progress, temp_result)
-                batch_start = progress.current_tick
-                batch_end = progress.current_tick + batch_size
-
-                if max_series_lengths is not None and len(max_series_lengths) > 1:
-                    params['max_series_lengths'] = max_series_lengths[batch_start:batch_end]
-                if series_context_values is not None and len(series_context_values) > 1:
-                    params['series_context_values'] = series_context_values[batch_start:batch_end]
-                if series_stop_maps is not None and len(series_stop_maps) > 1:
-                    params['series_stop_maps'] = series_stop_maps[batch_start:batch_end]
-                if series_id_values is not None and len(series_id_values) > 1:
-                    params['series_id_values'] = series_id_values[batch_start:batch_end]
-
-                if params.get('desired_conviction') is not None:
-                    params['num_series_to_generate'] = batch_size
-                temp_result, in_size, out_size = self._react_series(trainee_id, params)
-
-                internals.accumulate_react_result(accumulated_result, temp_result)
-                if batch_scaler is None or gen_batch_size is None:
-                    progress.update(batch_size)
-                else:
-                    # Ensure the minimum batch size continues to match the
-                    # number of threads,even over scaling events.
-                    batch_scaler.size_limits = (
-                        max(self._get_trainee_thread_count(trainee_id), 1),
-                        batch_scaler.size_limits[1]
-                    )
-                    batch_size = batch_scaler.send(
-                        gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size)))
-
-        # Final call to callback on completion
-        if isinstance(progress_callback, Callable):
-            progress_callback(progress, temp_result)
-
-        return accumulated_result
 
     def _react_series(self, trainee_id: str, params: dict):
         """
@@ -3375,7 +3297,7 @@ class AbstractHowsoClient(ABC):
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: t.Optional[bool] = None,
         use_derived_ts_features: bool = True,
-        use_regional_residuals: bool = True,
+        use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
     ) -> Reaction:
         r"""
@@ -3462,10 +3384,9 @@ class AbstractHowsoClient(ABC):
         use_derived_ts_features : bool, default True
             If True, then time-series features derived from features specified
             as contexts will additionally be added as context features.
-        use_regional_residuals : bool, default True
-            If False, global residuals will be used in generative predictions.
-            If True, regional residuals will be computed and used instead. This
-            may increase runtime noticeable.
+        use_differential_privacy : bool, default False
+            If True will use differentially private approach to adding noise
+            during generative reacts.
         weight_feature : str, optional
             The name of the weight feature to be used. Should be used in
             combination with ``use_case_weights``.
@@ -3544,7 +3465,7 @@ class AbstractHowsoClient(ABC):
             "series_id_values": serialized_series_id_values,
             "use_case_weights": use_case_weights,
             "use_derived_ts_features": use_derived_ts_features,
-            "use_regional_residuals": use_regional_residuals,
+            "use_differential_privacy": use_differential_privacy,
             "goal_features_map": goal_features_map,
             "weight_feature": weight_feature,
         }
@@ -3552,13 +3473,18 @@ class AbstractHowsoClient(ABC):
         if self._should_react_batch(react_stationary_params, total_size):
             if self.configuration.verbose:
                 print(f'Batch stationary series reacting on trainee with id: {trainee_id}')
-            response = self._batch_react_series_stationary(
-                trainee_id,
-                react_stationary_params,
+            response = internals.ReactInBatches.run(
+                trainee_id=trainee_id,
+                params=react_stationary_params,
                 total_size=total_size,
                 batch_size=batch_size,
                 initial_batch_size=initial_batch_size,
-                progress_callback=progress_callback)
+                get_thread_count=self._get_trainee_thread_count,
+                get_concurrency=self.get_trainee_concurrency,
+                params_for_batch=internals.ParamsForBatch({"series_id_values", "series_context_values"}),
+                react_function=self._react_series_stationary,
+                progress_callback=progress_callback
+            )
         else:
             if self.configuration.verbose:
                 print(f'Stationary series reacting on trainee with id: {trainee_id}')
@@ -3576,95 +3502,6 @@ class AbstractHowsoClient(ABC):
         self._auto_persist_trainee(trainee_id)
         response = internals.format_react_response(response)
         return Reaction(response.get('action'), response.get('details'))
-
-    def _batch_react_series_stationary(  # noqa: C901
-        self,
-        trainee_id: str,
-        params: dict,
-        *,
-        batch_size: t.Optional[int] = None,
-        initial_batch_size: t.Optional[int] = None,
-        total_size: int,
-        progress_callback: t.Optional[Callable] = None
-    ):
-        """
-        Make react series stationary requests in batch.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The ID of the Trainee to react to.
-        params : dict
-            The engine react series stationary parameters.
-        batch_size: int, optional
-            Define the number of series to react to at once. If left
-            unspecified, the batch size will be determined automatically.
-        initial_batch_size: int, optional
-            The number of series to react to in the first batch. If unspecified,
-            the number will be determined automatically. The number of series
-            in following batches will be automatically adjusted. This value is
-            ignored if ``batch_size`` is specified.
-        total_size : int
-            The total size of the data that will be batched.
-        progress_callback : callable, optional
-            A function to be called during batching to retrieve or
-            report progress metrics.
-
-        Returns
-        -------
-        dict
-            The `react_series_stationary` response.
-        """
-        temp_result = None
-        accumulated_result = {'action_values': []}
-
-        series_id_values = params.get('series_id_values')
-        series_context_values = params.get('series_context_values')
-
-        with ProgressTimer(total_size) as progress:
-            batch_scaler = None
-            gen_batch_size = None
-            if not batch_size:
-                if not initial_batch_size:
-                    start_batch_size = max(self._get_trainee_thread_count(trainee_id), 1)
-                else:
-                    start_batch_size = initial_batch_size
-                batch_scaler = self.batch_scaler_class(start_batch_size, progress)
-                gen_batch_size = batch_scaler.gen_batch_size()
-                batch_size = next(gen_batch_size, None)
-
-            while not progress.is_complete and batch_size is not None:
-                if isinstance(progress_callback, Callable):
-                    progress_callback(progress, temp_result)
-                batch_start = progress.current_tick
-                batch_end = progress.current_tick + batch_size
-
-                if series_id_values is not None:
-                    params['series_id_values'] = series_id_values[batch_start:batch_end]
-                if series_context_values is not None:
-                    params['series_context_values'] = series_context_values[batch_start:batch_end]
-
-                temp_result, in_size, out_size = self._react_series_stationary(trainee_id, params)
-
-                internals.accumulate_react_result(accumulated_result, temp_result)
-                if batch_scaler is None or gen_batch_size is None:
-                    progress.update(batch_size)
-                else:
-                    # Ensure the minimum batch size continues to match the
-                    # number of threads,even over scaling events.
-                    batch_scaler.size_limits = (
-                        max(self._get_trainee_thread_count(trainee_id), 1),
-                        batch_scaler.size_limits[1]
-                    )
-                    batch_size = batch_scaler.send(
-                        gen_batch_size,
-                        batch_scaler.SendOptions(None, (in_size, out_size)))
-
-        # Final call to callback on completion
-        if isinstance(progress_callback, Callable):
-            progress_callback(progress, temp_result)
-
-        return accumulated_result
 
     def _react_series_stationary(self, trainee_id: str, params: dict):
         """
@@ -3918,6 +3755,10 @@ class AbstractHowsoClient(ABC):
                 Compute accuracy contributions by scrambling each feature and
                 using the robust (power set/permutations) set of remaining
                 context features for each prediction.
+            - relevant_values : bool or list of strings, optional
+                When true outputs a map of each context feature name to a list of relevant values for that
+                feature given the context. If a list of feature names, will only output relevant values for
+                each feature specified.
             - action_condition : map of str -> any, optional
                 A condition map to select the action set, which is the collection of cases
                 reacted to while computing the requested metrics.
@@ -4257,11 +4098,13 @@ class AbstractHowsoClient(ABC):
         self,
         trainee_id: str,
         *,
-        case_indices: t.Optional[CaseIndices] = None,
+        action_features: t.Optional[Collection[str]] = None,
+        case_indices: t.Optional[Collection[CaseIndices]] = None,
         conditions: t.Optional[list[Mapping]] = None,
+        details: t.Optional[Mapping[str, bool]] = None,
         features: t.Optional[Collection[str]] = None,
         distance_contributions: bool = False,
-        familiarity_conviction_addition: bool = True,
+        familiarity_conviction_addition: bool = False,
         familiarity_conviction_removal: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
@@ -4271,24 +4114,25 @@ class AbstractHowsoClient(ABC):
         similarity_conviction: bool = False,
         weight_feature: t.Optional[str] = None,
         use_case_weights: t.Optional[bool] = None,
-    ) -> dict:
+    ) -> GroupReaction:
         """
-        Computes specified data for a **set** of cases.
-
-        Return the list of familiarity convictions (and optionally, distance
-        contributions or p values) for each set.
+        Computes specified data for groups of cases.
 
         Parameters
         ----------
         trainee_id : str
             The trainee id.
 
-        case_indices: list of lists of tuples of {str, int}, optional
+        action_features : list of str, optional
+            A list of features whose values should be predicted for
+            each group. Each group of cases gets a single action value for each
+            feature.
+        case_indices : list of lists of lists of tuples of {str, int}, optional
             A list of lists of case indices tuples containing the session ID and
             the session training indices that uniquely identify trained cases.
             Each sublist defines a set of trained cases to react to. Only one of
             ``case_indices``, ``conditions``, or ``new_cases`` may be specified.
-        conditions: list of Mapping, optional
+        conditions : list of Mapping, optional
             A list of mappings that define conditions which will select sets of
             trained cases to react to. Only one of ``case_indices``,
             ``conditions``, or ``new_cases`` may be specified.
@@ -4310,12 +4154,27 @@ class AbstractHowsoClient(ABC):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
+        details : dict of str to bool, optional
+            Ignored if action features are not specified.
+            If details are specified, the response will contain the requested
+            explanation data along with the group reaction. Below are the valid keys
+            and data types for the different details.
+
+            - influential_cases : bool, optional
+                If true, returns the cases influential to the prediction of the
+                action values for each group.
+            - categorical_action_probabilities : bool, optional
+                If true, returns the categorical action probabilities for the
+                nominal action features for each group.
+            - feature_full_residuals : bool, optional
+                If true, returns the full residuals of the action features
+                predicted for each group.
         features : Collection of str, optional
             The feature names to consider while calculating convictions.
         distance_contributions : bool, default False
             Calculate and output distance contribution ratios in
             the output dict for each case.
-        familiarity_conviction_addition : bool, default True
+        familiarity_conviction_addition : bool, default False
             Calculate and output familiarity conviction of adding the
             specified cases.
         familiarity_conviction_removal : bool, default False
@@ -4373,16 +4232,15 @@ class AbstractHowsoClient(ABC):
                     features = internals.get_features_from_data(group)
                 serialized_cases.append(serialize_cases(group, features, feature_attributes))
 
-        if case_indices is not None:
-            util.validate_case_indices(case_indices)
-
         if self.configuration.verbose:
             print(f'Reacting to a set of cases on Trainee with id: {trainee_id}')
         result = self.execute(trainee_id, "react_group", {
+            "action_features": action_features,
             "features": features,
             "new_cases": serialized_cases,
             "conditions": conditions,
             "case_indices": case_indices,
+            "details": details,
             "distance_contributions": distance_contributions,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
@@ -4396,7 +4254,7 @@ class AbstractHowsoClient(ABC):
         })
         if result is None:
             result = dict()
-        return result
+        return GroupReaction(result, feature_attributes)
 
     def evaluate(
         self,
@@ -4574,7 +4432,6 @@ class AbstractHowsoClient(ABC):
         util.validate_list_shape(action_features, 1, "action_features", "str")
         util.validate_list_shape(rebalance_features, 1, "rebalance_features", "str")
         util.validate_list_shape(p_values, 1, "p_values", "int")
-        # util.validate_list_shape(k_values, 2, "k_values", "float")
         util.validate_list_shape(dt_values, 1, "dt_values", "float")
 
         if targeted_model not in ['single_targeted', 'omni_targeted', 'targetless', None]:
@@ -4929,19 +4786,19 @@ class AbstractHowsoClient(ABC):
         auto_ablation_enabled: bool = False,
         *,
         ablated_cases_distribution_batch_size: int = 100,
-        abs_threshold_map: AblationThresholdMap = None,
+        abs_threshold_map: t.Optional[AblationThresholdMap] = None,
         auto_ablation_influence_weight_entropy_threshold: float = 0.15,
         auto_ablation_weight_feature: str = ".case_weight",
         batch_size: int = 2_000,
         conviction_lower_threshold: t.Optional[float] = None,
         conviction_upper_threshold: t.Optional[float] = None,
-        delta_threshold_map: AblationThresholdMap = None,
+        delta_threshold_map: t.Optional[AblationThresholdMap] = None,
         exact_prediction_features: t.Optional[Collection[str]] = None,
         influence_weight_entropy_sample_size: int = 2_000,
         min_num_cases: int = 10_000,
         max_num_cases: int = 200_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
-        rel_threshold_map: AblationThresholdMap = None,
+        rel_threshold_map: t.Optional[AblationThresholdMap] = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
         tolerance_prediction_threshold_map: t.Optional[Mapping[str, tuple[float, float]]] = None,

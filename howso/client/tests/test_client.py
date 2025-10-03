@@ -26,7 +26,7 @@ from howso.client.exceptions import (
     HowsoError,
 )
 from howso.client.protocols import ProjectClient
-from howso.client.schemas.reaction import Reaction
+from howso.client.schemas import Reaction, GroupReaction
 from howso.direct import HowsoDirectClient
 from howso.utilities.constants import (  # type: ignore reportPrivateUsage
     _RENAMED_DETAIL_KEYS,
@@ -492,8 +492,14 @@ class TestClient:
                   ['23', '24'],
                   ['25', '26'],
                   ['27', '28']]
-        conviction = self.client.react_group(trainee.id, new_cases=[cases2], features=['penguin', 'play'])
-        assert conviction is not None
+        conviction = self.client.react_group(
+            trainee.id,
+            features=['penguin', 'play'],
+            new_cases=[cases2],
+            familiarity_conviction_addition=True
+        )
+        assert conviction['metrics'].shape == (1, 1)
+        assert conviction['metrics']['familiarity_conviction_addition'][0] > 0
 
     def test_impute(self, trainee):
         """
@@ -1227,16 +1233,18 @@ class TestBaseClient:
         features = ['sepal_length', 'sepal_width', 'petal_length',
                     'petal_width', 'class']
         ret = self.client.react_group(
-            trainee.id, new_cases=new_cases, features=features)
+            trainee.id, new_cases=new_cases, features=features,
+            familiarity_conviction_addition=True)
         out, _ = capsys.readouterr()
-        assert isinstance(ret, dict)
+        assert isinstance(ret, GroupReaction)
 
         df = pd.DataFrame([[1, 2, 4, 4, 4]], columns=features)
         new_cases = [df]
         ret = self.client.react_group(
-            trainee.id, new_cases=new_cases, features=features)
+            trainee.id, new_cases=new_cases, features=features,
+            familiarity_conviction_addition=True)
         out, _ = capsys.readouterr()
-        assert isinstance(ret, dict)
+        assert isinstance(ret, GroupReaction)
 
         # 2d list of cases, which is invalid
         new_cases = [[1, 2, 3, 4, 5],
@@ -1244,7 +1252,8 @@ class TestBaseClient:
                      [7, 8, 9, 10, 11]]
         with pytest.raises(ValueError) as exc:
             ret = self.client.react_group(
-                trainee.id, new_cases=new_cases, features=features)
+                trainee.id, new_cases=new_cases, features=features,
+                familiarity_conviction_addition=True)
         assert (
             "Improper shape of `new_cases` values passed. "
             "`new_cases` must be a 3d list of object."
