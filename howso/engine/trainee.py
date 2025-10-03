@@ -3373,8 +3373,11 @@ class Trainee(BaseTrainee):
         self,
         *,
         analyze: t.Optional[bool] = None,
+        clustering: bool = False,
+        extra_cases: t.Optional[int] = None,
+        expansion_sc_threshold: t.Optional[float] = None,
         distance_contribution: str | bool = False,
-        distance_contribution_holdout: bool | int = False,
+        # distance_contribution_holdout: bool | int = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,
         features: t.Optional[Collection[str]] = None,
@@ -3441,7 +3444,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 analyze=analyze,
                 distance_contribution=distance_contribution,
-                distance_contribution_holdout=distance_contribution_holdout,
+                # distance_contribution_holdout=distance_contribution_holdout,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
                 influence_weight_entropy=influence_weight_entropy,
@@ -3452,6 +3455,9 @@ class Trainee(BaseTrainee):
                 features=features,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
+                clustering=clustering,
+                extra_cases=extra_cases,
+                expansion_sc_threshold=expansion_sc_threshold,
             )
             self._features = self.client.resolve_feature_attributes(self.id)
         else:

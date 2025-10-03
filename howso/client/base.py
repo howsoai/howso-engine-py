@@ -3709,8 +3709,11 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         *,
         analyze: t.Optional[bool] = None,
+        clustering: bool = False,
+        extra_cases: t.Optional[int] = None,
+        expansion_sc_threshold: t.Optional[float] = None,
         distance_contribution: bool | str = False,
-        distance_contribution_holdout: bool | int = False,
+        # distance_contribution_holdout: bool | int = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
         features: t.Optional[Collection[str]] = None,
@@ -3793,9 +3796,12 @@ class AbstractHowsoClient(ABC):
             "p_value_of_removal": p_value_of_removal,
             "similarity_conviction": similarity_conviction,
             "distance_contribution": distance_contribution,
-            "distance_contribution_holdout": distance_contribution_holdout,
+            # "distance_contribution_holdout": distance_contribution_holdout,
             "weight_feature": weight_feature,
             "use_case_weights": use_case_weights,
+            "clustering": clustering,
+            "extra_cases": extra_cases,
+            "expansion_sc_threshold": expansion_sc_threshold,
         })
         self._auto_persist_trainee(trainee_id)
 
