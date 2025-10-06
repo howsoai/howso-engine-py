@@ -4261,13 +4261,14 @@ class AbstractHowsoClient(ABC):
         features_to_code_map : Mapping of str to str
             A dictionary with feature name keys and custom Amalgam code string values.
 
-            The custom code can use "#feature_name 0" to reference the value
-            of that feature for each case.
+            The custom code can use "(call value {feature \"feature name\"})"
+            to reference the value of that feature for each case.
         aggregation_code : str, optional
             A string of custom Amalgam code that can access the list of values
             derived form the custom code in features_to_code_map.
-            The custom code can use "#feature_name 0" to reference the list of
-            values derived from using the custom code in features_to_code_map.
+            The custom code can use "(call value {feature \"feature name\"})"
+            to reference the list of values derived from using the custom code
+            in features_to_code_map.
 
         Returns
         -------
