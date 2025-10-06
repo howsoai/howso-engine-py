@@ -3434,10 +3434,8 @@ class Trainee(BaseTrainee):
         *,
         analyze: t.Optional[bool] = None,
         clustering: bool = False,
-        extra_cases: t.Optional[int] = None,
         expansion_sc_threshold: t.Optional[float] = None,
         distance_contribution: str | bool = False,
-        # distance_contribution_holdout: bool | int = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,
         features: t.Optional[Collection[str]] = None,
@@ -3454,9 +3452,14 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        analyze: bool, default None
+        analyze : bool, default None
             When set to True, will enable auto_analyze, and run analyze with
             these specified features computing their values.
+        clustering : bool, optional
+            If True, will cluster and store cluster ids into ".cluster_id".
+			Will also compute and overwrite distance contributions and similarity convictions.
+        expansion_sc_threshold : float, optional
+            Similarity conviction threshold of cases considered for expansion of cluster
         distance_contribution : bool or str, default False
             The name of the feature to store distance contribution.
             If set to True the values will be stored to the feature
@@ -3504,7 +3507,6 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 analyze=analyze,
                 distance_contribution=distance_contribution,
-                # distance_contribution_holdout=distance_contribution_holdout,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
                 influence_weight_entropy=influence_weight_entropy,
@@ -3516,7 +3518,6 @@ class Trainee(BaseTrainee):
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
                 clustering=clustering,
-                extra_cases=extra_cases,
                 expansion_sc_threshold=expansion_sc_threshold,
             )
             self._features = self.client.resolve_feature_attributes(self.id)
