@@ -3436,7 +3436,6 @@ class Trainee(BaseTrainee):
         clustering: bool = False,
         clustering_expansion_threshold: t.Optional[float] = None,
         clustering_inclusion_relative_threshold: t.Optional[float] = None,
-        expansion_sc_threshold: t.Optional[float] = None,
         distance_contribution: str | bool = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,
@@ -3469,8 +3468,6 @@ class Trainee(BaseTrainee):
             The initially unclustered candidate cases' distance contribution needs to be less than
             this value times the max distance contribution from their nearest cluster to be included
             in that cluster. If none is provided, will default to 1.5
-        expansion_sc_threshold : float, optional
-            Similarity conviction threshold of cases considered for expansion of cluster
         distance_contribution : bool or str, default False
             The name of the feature to store distance contribution.
             If set to True the values will be stored to the feature
@@ -3529,7 +3526,6 @@ class Trainee(BaseTrainee):
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
                 clustering=clustering,
-                expansion_sc_threshold=expansion_sc_threshold,
             )
             self._features = self.client.resolve_feature_attributes(self.id)
         else:

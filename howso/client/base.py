@@ -3549,7 +3549,6 @@ class AbstractHowsoClient(ABC):
         clustering: t.Optional[bool] = None,
         clustering_expansion_threshold: t.Optional[float] = None,
         clustering_inclusion_relative_threshold: t.Optional[float] = None,
-        expansion_sc_threshold: t.Optional[float] = None,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
@@ -3584,8 +3583,6 @@ class AbstractHowsoClient(ABC):
             The initially unclustered candidate cases' distance contribution needs to be less than
             this value times the max distance contribution from their nearest cluster to be included
             in that cluster. If none is provided, will default to 1.5
-        expansion_sc_threshold : float, optional
-            similarity conviction threshold of cases considered for expansion of cluster
         features : iterable of str, optional
             An iterable of features to calculate convictions.
         familiarity_conviction_addition : bool or str, default False
@@ -3646,7 +3643,6 @@ class AbstractHowsoClient(ABC):
             "weight_feature": weight_feature,
             "use_case_weights": use_case_weights,
             "clustering": clustering,
-            "expansion_sc_threshold": expansion_sc_threshold,
         })
         self._auto_persist_trainee(trainee_id)
 
