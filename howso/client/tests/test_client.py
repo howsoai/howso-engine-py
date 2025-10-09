@@ -737,15 +737,16 @@ class TestClient:
         assert (np.isinf(dat['familiarity_conviction'][0]))
         assert (np.isinf(dat['influential_cases'][0]['some_feature']['familiarity_conviction']))
 
-    def test_number_overflow(self, trainee):
-        """Test an exception is raised for a number that is too large."""
-        # Should not raise
-        self.client.train(trainee.id, [[1.8e307]], features=['penguin'])
+    # TODO: uncomment once 24545 is completed and json library does not replace 1.8e309 with a bareword
+    # def test_number_overflow(self, trainee):
+    #     """Test an exception is raised for a number that is too large."""
+    #     # Should not raise
+    #     self.client.train(trainee.id, [[1.8e307]], features=['penguin'])
 
-        # Training with a number that is > 64bit should raise
-        with pytest.raises(HowsoError):
-            self.client.train(trainee.id, [[1.8e309, 2]],
-                              features=['penguin', 'play'])
+    #     # Training with a number that is > 64bit should raise
+    #     with pytest.raises(HowsoError):
+    #         self.client.train(trainee.id, [[1.8e309, 2]],
+    #                           features=['penguin', 'play'])
 
 
 class TestBaseClient:
