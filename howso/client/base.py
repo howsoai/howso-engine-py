@@ -3567,7 +3567,7 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to calculate and store conviction for.
-        analyze : bool, default None
+        analyze : bool, optional
             When set to True, will enable auto_analyze, and run analyze with
             these specified features computing their values.
         clustering : bool, optional

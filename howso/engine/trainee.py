@@ -3452,7 +3452,7 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        analyze : bool, default None
+        analyze : bool, optional
             When set to True, will enable auto_analyze, and run analyze with
             these specified features computing their values.
         clustering : bool, optional
