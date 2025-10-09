@@ -3546,6 +3546,9 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         *,
         analyze: t.Optional[bool] = None,
+        clustering: t.Optional[bool] = None,
+        clustering_expansion_threshold: t.Optional[float] = None,
+        clustering_inclusion_relative_threshold: t.Optional[float] = None,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
@@ -3565,9 +3568,21 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to calculate and store conviction for.
-        analyze: bool, default None
+        analyze : bool, optional
             When set to True, will enable auto_analyze, and run analyze with
             these specified features computing their values.
+        clustering : bool, optional
+            If True, will cluster and store cluster ids into ".cluster_id".
+			Will also compute and overwrite distance contributions and similarity convictions.
+        clustering_expansion_threshold : float, optional
+            Similarity conviction threshold of cases considered for expansion of a cluster, only
+            cases with similarity conviction equal to or greater than this value will be
+            considered to be clustered in the same cluster as their neighbors. If none is provided,
+            will default to 0.5
+        clustering_inclusion_relative_threshold : float, optional
+            The initially unclustered candidate cases' distance contribution needs to be less than
+            this value times the max distance contribution from their nearest cluster to be included
+            in that cluster. If none is provided, will default to 1.5
         features : iterable of str, optional
             An iterable of features to calculate convictions.
         familiarity_conviction_addition : bool or str, default False
@@ -3616,6 +3631,9 @@ class AbstractHowsoClient(ABC):
             print(f'Reacting into features on Trainee with id: {trainee_id}')
         self.execute(trainee_id, "react_into_features", {
             "analyze": analyze,
+            "clustering": clustering,
+            "clustering_expansion_threshold": clustering_expansion_threshold,
+            "clustering_inclusion_relative_threshold": clustering_inclusion_relative_threshold,
             "features": features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
