@@ -582,7 +582,7 @@ class HowsoEstimator(BaseEstimator):
             features=features,
             analyze=analyze,
             clustering=clustering,
-            clustering_expansion_threshold=clustering_expansion_threshold=,
+            clustering_expansion_threshold=clustering_expansion_threshold,
             clustering_inclusion_relative_threshold=clustering_inclusion_relative_threshold,
             distance_contribution=distance_contribution,
             familiarity_conviction_addition=familiarity_conviction_addition,

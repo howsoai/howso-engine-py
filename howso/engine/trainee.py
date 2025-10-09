@@ -3514,6 +3514,9 @@ class Trainee(BaseTrainee):
             self.client.react_into_features(
                 trainee_id=self.id,
                 analyze=analyze,
+                clustering=clustering,
+                clustering_expansion_threshold=clustering_expansion_threshold,
+                clustering_inclusion_relative_threshold=clustering_inclusion_relative_threshold,
                 distance_contribution=distance_contribution,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
@@ -3525,7 +3528,6 @@ class Trainee(BaseTrainee):
                 features=features,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
-                clustering=clustering,
             )
             self._features = self.client.resolve_feature_attributes(self.id)
         else:

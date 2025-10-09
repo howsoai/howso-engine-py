@@ -3631,6 +3631,9 @@ class AbstractHowsoClient(ABC):
             print(f'Reacting into features on Trainee with id: {trainee_id}')
         self.execute(trainee_id, "react_into_features", {
             "analyze": analyze,
+            "clustering": clustering,
+            "clustering_expansion_threshold": clustering_expansion_threshold,
+            "clustering_inclusion_relative_threshold": clustering_inclusion_relative_threshold,
             "features": features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
@@ -3642,7 +3645,6 @@ class AbstractHowsoClient(ABC):
             "distance_contribution": distance_contribution,
             "weight_feature": weight_feature,
             "use_case_weights": use_case_weights,
-            "clustering": clustering,
         })
         self._auto_persist_trainee(trainee_id)
 
