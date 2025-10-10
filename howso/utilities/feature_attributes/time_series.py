@@ -141,6 +141,9 @@ class InferFeatureAttributesTimeSeries:
 
         time_feature_deltas = None
         for f_name in feature_names:
+            if features[f_name].get('data_type') in {"json", "yaml", "amalgam", "string_mixable"}:
+                # continuous semi-structured data should not infer these derived values
+                continue
             if features[f_name]['type'] == "continuous" and 'time_series' in features[f_name]:
                 # Set delta_max for all continuous features to the observed maximum
                 # difference between two values times e.
