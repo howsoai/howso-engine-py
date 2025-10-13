@@ -835,6 +835,18 @@ class InferFeatureAttributesBase(ABC):
         # Make updates with the `merge` function
         merge = FeatureAttributesBase.merge
 
+        # If any ordinals were specified in *both* `types` and `ordinal_feature_values`,
+        # set the bounds from `ordinal_feature_values` first else `merge` will raise an
+        # error about missing bounds.
+        pre_processed_ordinals = []
+        for feat_name in preset_types:
+            if feat_name in ordinal_feature_values:
+                self.attributes = merge(self.attributes, {feat_name: {
+                    'type': 'ordinal',
+                    'bounds': {'allowed': ordinal_feature_values[feat_name]}
+                }})
+                pre_processed_ordinals.append(feat_name)
+
         # Update the feature attributes dictionary with the user-defined base types
         self.attributes = merge(self.attributes, preset_types)
 
@@ -847,10 +859,11 @@ class InferFeatureAttributesBase(ABC):
 
             # EXPLICITLY DECLARED ORDINALS
             if feature_name in ordinal_feature_values:
-                self.attributes = merge(self.attributes, {feature_name: {
-                    'type': 'ordinal',
-                    'bounds': {'allowed': ordinal_feature_values[feature_name]}
-                }})
+                if feature_name not in pre_processed_ordinals:
+                    self.attributes = merge(self.attributes, {feature_name: {
+                        'type': 'ordinal',
+                        'bounds': {'allowed': ordinal_feature_values[feature_name]}
+                    }})
 
             # EXPLICITLY DECLARED DATETIME & TIME FEATURES
             elif self.datetime_feature_formats.get(feature_name, None):
