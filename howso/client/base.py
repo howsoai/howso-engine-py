@@ -1926,9 +1926,9 @@ class AbstractHowsoClient(ABC):
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context were not in the
-                dataset for all context features in the local data area. Averages
-                out the result of predictions for all cases in this local data
-                area. Uses full calculations, which uses leave-one-out for cases for
+                dataset for all context features. Averages out the result of
+                predictions for all cases in this local data area. Uses full
+                calculations, which uses leave-one-out for cases for
                 computations. Directional feature contributions are returned
                 under the key 'feature_full_directional_prediction_contributions'.
             - feature_full_prediction_contributions_for_case: bool, optional
