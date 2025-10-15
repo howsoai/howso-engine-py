@@ -86,6 +86,8 @@ class Reaction(abc.MutableMapping):
         "influential_cases",
         "most_similar_case_indices",
         "most_similar_cases",
+        "non_clustered_distance_contribution",
+        "non_clustered_similarity_conviction",
         "observational_errors",
         "outlying_feature_values",
         "prediction_stats",
