@@ -1722,7 +1722,9 @@ class AbstractHowsoClient(ABC):
             If `actions` is a DataFrame, overrides what columns will be used
             in `action_values` supplied to the Engine.
             ".cluster_id" may be listed as an action feature to predict the cluster
-            of a case.
+            of a case. If listed, "non_clustered_distance_contribution" and
+            "non_clustered_similarity_contribution" will be automatically returned as
+            a detail.
 
             >>> action_features = ['rain_chance', 'is_sunny']
 

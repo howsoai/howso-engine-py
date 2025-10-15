@@ -1284,7 +1284,9 @@ class Trainee(BaseTrainee):
             If `actions` is a DataFrame, overrides what columns will be used
             in `action_values` supplied to the Engine.
             ".cluster_id" may be listed as an action feature to predict the cluster
-            of a case.
+            of a case. If listed, "non_clustered_distance_contribution" and
+            "non_clustered_similarity_contribution" will be automatically returned as
+            a detail.
         actions : DataFrame or 2-dimensional list of object, optional
             One or more action values to use for action features. If specified,
             will only return the specified explanation details for the given
