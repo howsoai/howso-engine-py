@@ -1269,7 +1269,7 @@ class Trainee(BaseTrainee):
         conditioned on the optionally provided ``contexts``.
 
         If ``desired_conviction`` is **not** specified, executes a discriminative
-        react. Provided a list of ``contexts``, the trainee reacts to the model
+        react. Provided a list of ``contexts``, the trainee reacts to the data
         and produces predictions for the specified actions.
 
         Parameters
@@ -1292,7 +1292,7 @@ class Trainee(BaseTrainee):
             list, `action_features` must also be specified.
         allow_nulls : bool, default False
             When true will allow return of null values if there
-            are nulls in the local model for the action features, applicable
+            are nulls in the local data for the action features, applicable
             only to discriminative reacts.
         batch_size: int, optional
             Define the number of cases to react to at once. If left unspecified,
@@ -1398,7 +1398,7 @@ class Trainee(BaseTrainee):
                           features.
             - case_full_accuracy_contributions : bool, optional
                 If True, outputs each influential case's accuracy contributions
-                of predicting the action feature in the local model area, as if
+                of predicting the action feature in the local data area, as if
                 each individual case were included versus not included. Uses
                 only the context features of the reacted case to determine that
                 area. Uses full calculations, which uses leave-one-out for
@@ -1412,7 +1412,7 @@ class Trainee(BaseTrainee):
                 computations.
             - case_robust_accuracy_contributions : bool, optional
                 If True, outputs each influential case's accuracy contributions
-                of predicting the action feature in the local model area, as if
+                of predicting the action feature in the local data area, as if
                 each individual case were included versus not included. Uses
                 only the context features of the reacted case to determine that
                 area. Uses robust calculations, which uses uniform sampling
@@ -1433,7 +1433,7 @@ class Trainee(BaseTrainee):
                 feature_weights, feature_deviations, nominal_class_counts,
                 and use_irw.
 
-                - k: the number of cases used for the local model.
+                - k: the number of cases used for the local data.
                 - p: the parameter for the Lebesgue space.
                 - distance_transform: the distance transform used as an
                   exponent to convert distances to raw influence weights.
@@ -1471,20 +1471,23 @@ class Trainee(BaseTrainee):
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature given the context. Uses only
                 the context features of the reacted case to determine that
-                area. Uses full calculations, which uses leave-one-out for
-                cases for computations.
+                area. Averages out the result of predictions for all cases in
+                this local data area. Uses full calculations, which uses
+                leave-one-out for cases for computations.
             - feature_full_accuracy_contributions_ex_post : bool, optional
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature as an explanation detail given
                 that the specified prediction was already made as specified by
                 the action value. Uses both context and action features of the
-                reacted case to determine that area. Uses full calculations,
-                which uses leave-one-out for cases for computations.
+                reacted case to determine that area. Averages out the result of
+                predictions for all cases in this local data area. Uses full
+                calculations, which uses leave-one-out for cases for computations.
             - feature_full_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context were not in the
-                model for all context features in the local model area. Uses
+                model for all context features. Averages out the result of
+                predictions for all cases in this local data area. Uses
                 full calculations, which uses leave-one-out for cases for
                 computations. Directional feature contributions are returned
                 under the key 'feature_full_directional_prediction_contributions'.
@@ -1492,11 +1495,11 @@ class Trainee(BaseTrainee):
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context feature were not
-                in the model for all context features in this case, using only
-                the values from this specific case. Uses
-                full calculations, which uses leave-one-out for cases for
-                computations. Directional case feature
-                contributions are returned under the
+                in the dataset for all context features. Predicts action feature
+                value using only using only the values from this specific case.
+                Uses full calculations, which uses leave-one-out for cases for
+                computations. Directional case feature contributions are
+                returned under the
                 'feature_full_directional_prediction_contributions_for_case' key.
             - feature_full_residual_convictions_for_case : bool, optional
                 If True, outputs this case's feature residual convictions for
@@ -1523,21 +1526,25 @@ class Trainee(BaseTrainee):
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature given the context. Uses only
                 the context features of the reacted case to determine that
-                area. Uses robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
+                area. Averages out the result of predictions for all cases in
+                this local data area. Uses robust calculations, which uses
+                uniform sampling from the power set of features as the
+                contexts for predictions.
             - feature_robust_accuracy_contributions_ex_post : bool, optional
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature as an explanation detail given
                 that the specified prediction was already made as specified by
                 the action value. Uses both context and action features of the
-                reacted case to determine that area. Uses robust calculations,
-                which uses uniform sampling from the power set of features as
-                the contexts for predictions.
+                reacted case to determine that area. Averages out the result
+                of predictions for all cases in this local data area. Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions.
             - feature_robust_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context were not in the
-                model for all context features in the local model area Uses
+                dataset for all context features. Averages out the result of
+                predictions for all cases in this local data area. Uses
                 robust calculations, which uses uniform sampling from the power
                 set of features as the contexts for predictions. Directional feature
                 contributions are returned under the key
@@ -1546,11 +1553,11 @@ class Trainee(BaseTrainee):
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context feature were not
-                in the model for all context features in this case, using only
-                the values from this specific case. Uses robust calculations,
-                which uses uniform sampling from the power set of features as
-                the contexts for predictions. Directional case prediction
-                contributions are returned under the
+                in the dataset for all context features. Predicts action feature
+                value using only the values from this specific case. Uses robust
+                calculations, which uses uniform sampling from the power set of
+                features as the contexts for predictions. Directional case
+                prediction contributions are returned under the
                 'feature_robust_directional_feature_contributions_for_case' key.
             - feature_robust_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
@@ -1612,7 +1619,7 @@ class Trainee(BaseTrainee):
             - outlying_feature_values : bool, optional
                 If True, outputs the reacted case's context feature values that
                 are outside the min or max of the corresponding feature values
-                of all the cases in the local model area. Uses only the context
+                of all the cases in the local data area. Uses only the context
                 features of the reacted case to determine that area.
             - prediction_stats : bool, optional
                 When true outputs feature prediction stats for all (context
