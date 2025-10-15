@@ -1283,6 +1283,8 @@ class Trainee(BaseTrainee):
             Feature names to treat as action features during react.
             If `actions` is a DataFrame, overrides what columns will be used
             in `action_values` supplied to the Engine.
+            ".cluster_id" may be listed as an action feature to predict the cluster
+            of a case.
         actions : DataFrame or 2-dimensional list of object, optional
             One or more action values to use for action features. If specified,
             will only return the specified explanation details for the given
