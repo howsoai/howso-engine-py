@@ -1699,7 +1699,7 @@ class AbstractHowsoClient(ABC):
 
         If desired_conviction is not specified, executes a discriminative
         react: provided a list of context values, the trainee reacts to the
-        model and produces predictions for the specified actions. If
+        data and produces predictions for the specified actions. If
         desired_conviction is specified, executes a generative react,
         produces action_values for the specified action_features conditioned
         on the optionally provided contexts.
@@ -1740,7 +1740,7 @@ class AbstractHowsoClient(ABC):
 
         allow_nulls : bool, default False
             When true will allow return of null values if there
-            are nulls in the local model for the action features, applicable
+            are nulls in the local data for the action features, applicable
             only to discriminative reacts.
 
         batch_size: int, optional
@@ -1842,7 +1842,7 @@ class AbstractHowsoClient(ABC):
                           features.
             - case_full_accuracy_contributions : bool, optional
                 If True, outputs each influential case's accuracy contributions
-                of predicting the action feature in the local model area, as if
+                of predicting the action feature in the local data area, as if
                 each individual case were included versus not included. Uses
                 only the context features of the reacted case to determine that
                 area. Uses full calculations, which uses leave-one-out for
@@ -1856,7 +1856,7 @@ class AbstractHowsoClient(ABC):
                 computations.
             - case_robust_accuracy_contributions : bool, optional
                 If True, outputs each influential case's accuracy contributions
-                of predicting the action feature in the local model
+                of predicting the action feature in the local data
                 area, as if each individual case were included versus not
                 included. Uses only the context features of the reacted case to
                 determine that area. Uses robust calculations, which uses
@@ -1877,7 +1877,7 @@ class AbstractHowsoClient(ABC):
                 feature_weights, feature_deviations, nominal_class_counts,
                 and use_irw.
 
-                - k: the number of cases used for the local model.
+                - k: the number of cases used for the local data.
                 - p: the parameter for the Lebesgue space.
                 - distance_transform: the distance transform used as an
                   exponent to convert distances to raw influence weights.
@@ -1915,29 +1915,32 @@ class AbstractHowsoClient(ABC):
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature given the context. Uses only
                 the context features of the reacted case to determine that
-                area. Uses full calculations, which uses leave-one-out for
-                cases for computations.
+                area. Averages out the result of predictions for all cases in
+                this local data area. Uses full calculations, which uses
+                leave-one-out for cases for computations.
             - feature_full_accuracy_contributions_ex_post : bool, optional
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature as an explanation detail given
                 that the specified prediction was already made as specified by
                 the action value. Uses both context and action features of the
-                reacted case to determine that area. Uses full calculations,
-                which uses leave-one-out for cases for computations.
+                reacted case to determine that area. Averages out the result of
+                predictions for all cases in this local data area. Uses full
+                calculations, which uses leave-one-out for cases for computations.
             - feature_full_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context were not in the
-                model for all context features in the local model area. Uses
-                full calculations, which uses leave-one-out for cases for
+                dataset for all context features. Averages out the result of
+                predictions for all cases in this local data area. Uses full
+                calculations, which uses leave-one-out for cases for
                 computations. Directional feature contributions are returned
                 under the key 'feature_full_directional_prediction_contributions'.
             - feature_full_prediction_contributions_for_case: bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context feature were not
-                in the model for all context features in this case, using only
-                the values from this specific case. Uses
+                in the dataset for all context features. Predicts action feature
+                value using only the values from this specific case. Uses
                 full calculations, which uses leave-one-out for cases for
                 computations. Directional case feature
                 contributions are returned under the
@@ -1967,34 +1970,38 @@ class AbstractHowsoClient(ABC):
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature given the context. Uses only
                 the context features of the reacted case to determine that
-                area. Uses robust calculations, which uses uniform sampling
-                from the power set of features as the contexts for predictions.
+                area. Averages out the result of predictions for all cases in
+                this local data area. Uses robust calculations, which uses
+                uniform sampling from the power set of features as the contexts
+                for predictions.
             - feature_robust_accuracy_contributions_ex_post : bool, optional
                 If True, outputs each context feature's accuracy contributions
                 of predicting the action feature as an explanation detail given
                 that the specified prediction was already made as specified by
                 the action value. Uses both context and action features of the
-                reacted case to determine that area. Uses robust calculations,
-                which uses uniform sampling from the power set of features as
-                the contexts for predictions.
+                reacted case to determine that area. Averages out the result of
+                predictions for all cases in this local data area. Uses robust
+                calculations, which uses uniform sampling from the power set of
+                features as the contexts for predictions.
             - feature_robust_prediction_contributions : bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context were not in the
-                model for all context features in the local model area Uses
-                robust calculations, which uses uniform sampling from the power
-                set of features as the contexts for predictions. Directional feature
-                contributions are returned under the key
+                dataset for all context features. Averages out the result of
+                predictions for all cases in this local data area. Uses robust
+                calculations, which uses uniform sampling from the power set
+                of features as the contexts for predictions. Directional
+                feature contributions are returned under the key
                 'feature_robust_directional_prediction_contributions'.
             - feature_robust_prediction_contributions_for_case: bool, optional
                 If True outputs each context feature's absolute and directional
                 differences between the predicted action feature value and the
                 predicted action feature value if each context feature were not
-                in the model for all context features in this case, using only
-                the values from this specific case. Uses robust calculations,
-                which uses uniform sampling from the power set of features as
-                the contexts for predictions. Directional case prediction
-                contributions are returned under the
+                in the dataset for all context features. Predicts action feature
+                value using only the values from this specific case. Uses
+                robust calculations, which uses uniform sampling from the power
+                set of features as the contexts for predictions. Directional
+                case prediction contributions are returned under the
                 'feature_robust_directional_feature_contributions_for_case' key.
             - feature_robust_residuals : bool, optional
                 If True, outputs feature residuals for all (context and action)
@@ -2056,7 +2063,7 @@ class AbstractHowsoClient(ABC):
             - outlying_feature_values : bool, optional
                 If True, outputs the reacted case's context feature values that
                 are outside the min or max of the corresponding feature values
-                of all the cases in the local model area. Uses only the context
+                of all the cases in the local data area. Uses only the context
                 features of the reacted case to determine that area.
             - prediction_stats : bool, optional
                 When true outputs feature prediction stats for all (context
