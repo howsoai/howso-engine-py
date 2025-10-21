@@ -35,13 +35,13 @@ Furthermore, Trainees are auditable, debuggable, and editable.
 
 ## General Overview
 
-This Repo provides the Python interface with
+This repo provides the Python interface with
 [Howso Engine](https://github.com/howsoai/howso-engine) that exposes the Howso
 Engine functionality. The Client objects directly interface with the engine API
 endpoints while the Trainee objects provides the python functionality for
 general users. Client functions may be called by the user but for most workflows
 the Trainee functionality is sufficient. Each Trainee represents an individual
-Machine Learning object or model that can perform functions like training and
+machine learning object with data set that can perform functions like training and
 predicting, while a client may manage the API interface for multiple Trainees.
 
 ## Supported Platforms
@@ -72,7 +72,7 @@ verify_howso_install
 ```
 
 See the Howso Engine
-[Install Guide](https://docs.howso.com/getting_started/installing.html) for
+[Install Guide](https://docs.howso.com/en/release-latest/getting_started/installing.html) for
 additional help and troubleshooting information.
 
 ## Usage
@@ -85,7 +85,7 @@ Below is a very high-level set of steps recommended for using the Howso Engine:
 1. Define the feature attributes of the data (Feature types, bounds, etc.)
 2. Create a Trainee and set the feature attributes
 3. Train the Trainee with the data
-4. Call Analyze on the Trainee to find optimal hyperparameters
+4. Call Analyze on the Trainee to characterize uncertainty and update it for inference
 5. Explore your data!
 
 Once the Trainee has been given feature attributes, trained, and analyzed, then
@@ -111,7 +111,7 @@ basic workflows as well as additional information about:
 
 There is also a set of basic [Jupyter notebooks](https://jupyter.org/) to run
 that provides a
-[complete set of examples](https://docs.howso.com/examples/index.html) of how
+[complete set of examples](https://docs.howso.com/en/release-latest/examples/index.html) of how
 to use Howso Engine.
 
 ## License
