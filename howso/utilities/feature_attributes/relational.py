@@ -753,11 +753,11 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 guess_nominals = False
             else:
                 # Guess nominals if ALL of:
-                #   - `col_min` and `col_max` are both greater than zero
+                #   - `col_min` and `col_max` are both >= -1 (often a "special" number that could indicate nominality)
                 #   - Their length is at least 5
                 #   - They have the same length
                 guess_nominals = (
-                    col_min > 0 and col_max > 0 and
+                    col_min >= -1 and col_max >= -1 and
                     len(str(col_min)) >= 5 and
                     len(str(col_min)) == len(str(col_max))
                 )
