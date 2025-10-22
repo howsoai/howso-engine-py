@@ -256,16 +256,18 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
 
     time_series_type_default : str, default 'rate'
         (Optional) Type specifying how time series is generated.
-        One of 'rate' or 'delta', default is 'rate'. If 'rate',
+        One of 'rate', 'delta', or 'covariate'. Default is 'rate'. If 'rate',
         it uses the difference of the current value from its
         previous value divided by the change in time since the
         previous value. When 'delta' is specified, just uses
         the difference of the current value from its previous value
-        regardless of the elapsed time.
+        regardless of the elapsed time. When 'covariate' is specified,
+        feature values are predicted via interpolation at each timestep
+        rather than being derived using a delta or rate.
 
     time_series_types_override : dict, default None
         (Optional) Dict of features and their corresponding time series type,
-        one of 'rate' or 'delta', used to override ``time_series_type_default``
+        one of 'rate', 'delta', or 'covariate'. Used to override ``time_series_type_default``
         for the specified features.
 
     types: dict, default None
