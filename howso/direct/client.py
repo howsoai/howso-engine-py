@@ -654,7 +654,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 json_payload = json.dumps(payload)
                 result = self.amlg.execute_entity_json(trainee_id, label, json_payload)
             else:
-                json_payload = json.dumps({"payload": payload, "method": label, "path": path})
+                json_payload = json.dumps({"payload": payload, "method": label, "path": list(path)})
                 result = self.amlg.execute_entity_json(trainee_id, "execute_on_subtrainee", json_payload)
         except ValueError as err:
             raise HowsoError('Invalid payload - please check for infinity or NaN values') from err
@@ -1871,6 +1871,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         CombineTraineesResult
             The resulting status of the combined Trainee data.
         """
+        if child_ids is not None:
+            child_ids = list(child_ids)
         response = self.execute(
             trainee_id,
             "combine_with_subtrainees",
