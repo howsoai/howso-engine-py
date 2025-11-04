@@ -471,9 +471,13 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def _initialize_trainee(self, trainee_id: str):
         """Create a new Amalgam entity."""
+        json_file_params = ""
+        if self._howso_ext == ".amlg":
+            json_file_params = """{"escape_contained_resource_names": false}"""
         status = self.amlg.load_entity(
             handle=trainee_id,
-            file_path=str(self._howso_absolute_path)
+            file_path=str(self._howso_absolute_path),
+            json_file_params=json_file_params
         )
         if not status.loaded:
             status_msg = status.message or "An unknown error occurred"
