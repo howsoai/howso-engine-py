@@ -113,7 +113,8 @@ def test_combine_trainee_with_subtrainees(
         hierarchy = client.get_hierarchy(parent.id)
         assert len(hierarchy.get("children", [])) == 2
 
-        client.combine_trainee_with_subtrainees(parent.id, child_ids)
+        result = client.combine_trainee_with_subtrainees(parent.id, child_ids)
+        assert result["status"] == "analyzed"
 
         # Child trainees should now be deleted
         hierarchy = client.get_hierarchy(parent.id)

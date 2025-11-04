@@ -1842,6 +1842,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         dict
             The hierarchy schema of the Trainee.
         """
+        if trainee_path is not None:
+            trainee_path = list(trainee_path)
         return self.execute(trainee_id, "get_hierarchy", {"path_list": trainee_path})
 
     def combine_trainee_with_subtrainees(
