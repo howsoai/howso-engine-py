@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Collection, Mapping, MutableMapping
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -41,7 +41,7 @@ from howso.client.schemas import (
     TraineeVersion,
 )
 from howso.client.typing import LibraryType, Persistence
-from howso.direct.schemas import DirectTrainee
+from howso.direct.schemas import CombineTraineesResult, DirectTrainee
 from howso.utilities import internals
 
 # Client version
@@ -54,6 +54,9 @@ _VERSION_CHECKED = False
 DT_FORMAT_KEY = 'date_time_format'
 HYPERPARAMETER_KEY = "hyperparameter_map"
 VERSION_CHECK_HOST = "https://version-check.howso.com"
+
+SUBTRAINEE_CONTAINER = ".trainee_container"
+"""The name of the Amalgam entity that contains sub-Trainees in hierarchy."""
 
 # Cache of trainee information shared across client instances
 _trainee_cache = TraineeCache()
@@ -479,7 +482,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             status_msg = status.message or "An unknown error occurred"
             raise HowsoError(
                 f'Failed to initialize the Trainee "{trainee_id}": {status_msg}')
-        
+
         self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
 
         self.execute(trainee_id, "initialize", {
@@ -616,7 +619,15 @@ class HowsoDirectClient(AbstractHowsoClient):
             return None
         return path.stat().st_size
 
-    def execute(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> t.Any:
+    def execute(
+        self,
+        trainee_id: str,
+        label: str,
+        payload: t.Any,
+        *,
+        path: Collection[str] | None = None,
+        **kwargs,
+    ) -> t.Any:
         """
         Execute a label in Howso engine.
 
@@ -628,6 +639,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             The label to execute.
         payload : Any
             The payload to send to label.
+        path : Collection of str, optional
+            The hierarchy path to a sub-Trainee from the root Trainee specified by `trainee_id`. When specified,
+            the label execution will operate on this sub-Trainee.
 
         Returns
         -------
@@ -636,8 +650,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         payload = self.sanitize_for_json(payload, exclude_null=True)
         try:
-            json_payload = json.dumps(payload)
-            result = self.amlg.execute_entity_json(trainee_id, label, json_payload)
+            if path is None:
+                json_payload = json.dumps(payload)
+                result = self.amlg.execute_entity_json(trainee_id, label, json_payload)
+            else:
+                json_payload = json.dumps({"payload": payload, "method": label, "path": path})
+                result = self.amlg.execute_entity_json(trainee_id, "execute_on_subtrainee", json_payload)
         except ValueError as err:
             raise HowsoError('Invalid payload - please check for infinity or NaN values') from err
         return self._deserialize(label, result)
@@ -906,6 +924,113 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
         self.trainee_cache.set(new_trainee, feature_attributes=features)
         return new_trainee
+
+    def create_trainee_from_bytes(
+        self,
+        id: str | uuid.UUID,
+        content: bytes,
+        *,
+        file_type: t.Literal["amlg", "caml"] = "amlg",
+        path: Collection[str] | None = None,
+        child_id: str | uuid.UUID | None = None,
+    ) -> Trainee:
+        """
+        Create a new Trainee given the Trainee file data as bytes.
+
+        Parameters
+        ----------
+        id : str or UUID
+            The Trainee id to use. If `path` is specified, this is the ID of the root Trainee in the hierarchy.
+        content : bytes
+            The Trainee data as bytes.
+        file_type : {"amlg", "caml"}, default "amlg"
+            The type of byte data provided in content.
+        path : Collection of str, optional
+            If specified, creates the Trainee as a sub-Trainee at the provided hierarchy path.
+        child_id : str or UUID, optional
+            The ID to use for the sub-Trainee when `path` is specified. Defaults to a new UUID.
+
+        Returns
+        -------
+        Trainee
+            The `Trainee` object that was created.
+        """
+        trainee_id = str(id)
+        entity_path = None
+        if path is not None:
+            path = list(path)
+            if len(path) == 0:
+                raise ValueError("`path` must contain at least one item.")
+            entity_path = [SUBTRAINEE_CONTAINER, *path]
+            self._resolve_trainee(trainee_id)
+
+        status = self.amlg.load_entity_bytes(
+            trainee_id,
+            content,
+            file_type=file_type,
+            json_file_params='{"execute_on_load": true}',
+            entity_path=entity_path,
+        )
+        if not status.loaded:
+            status_msg = status.message or "An unknown error occurred"
+            raise HowsoError(f'Failed to load Trainee "{trainee_id}" from bytes: {status_msg}')
+
+        if path is not None:
+            root_trainee = self.trainee_cache.get(trainee_id)
+            sub_trainee_id = str(child_id or uuid.uuid4())
+            self.execute(trainee_id, "add_hierarchy_relationship", {"id": sub_trainee_id})
+
+            # Build the trainee object from the sub-trainee metadata
+            metadata = self.execute(trainee_id, "get_metadata", {}, path=path)
+            if metadata is None:
+                metadata = {}
+            persistence = metadata.get("persistence", root_trainee.persistence)
+            file_size = None
+            if persistence == "always":
+                file_size = self._trainee_size(trainee_id)
+
+            return DirectTrainee(
+                id=sub_trainee_id,
+                name=metadata.get("name"),
+                persistence=persistence,
+                metadata=metadata.get("metadata"),
+                file_size=file_size,
+            )
+        else:
+            self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
+            return self._get_trainee_from_engine(trainee_id)
+
+    def trainee_to_bytes(
+        self,
+        trainee_id: str,
+        *,
+        file_type: t.Literal["amlg", "caml"] = "amlg",
+        trainee_path: Collection[str] | None = None,
+    ) -> bytes | None:
+        """
+        Get the Trainee file data as bytes.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee being retrieved. If `path` is specified, the ID of the root Trainee in the hierarchy.
+        file_type : {"amlg", "caml"}, default "amlg"
+            The type of byte data to return.
+        trainee_path : Collection of str, optional
+            The hierarchy path to a sub-Trainee from the root Trainee specified by `trainee_id`.
+
+        Returns
+        -------
+        bytes or None
+            The Trainee file data as bytes.
+        """
+        if trainee_path is not None:
+            trainee_path = [SUBTRAINEE_CONTAINER, *trainee_path]
+        return self.amlg.store_entity_bytes(
+            handle=trainee_id,
+            file_type=file_type,
+            entity_path=trainee_path,
+        )
 
     def update_trainee(self, trainee: Mapping | Trainee) -> Trainee:
         """
@@ -1700,3 +1825,56 @@ class HowsoDirectClient(AbstractHowsoClient):
             # of loaded trainees, raise error
             raise HowsoError("Session not found")
         return updated_session
+
+    def get_hierarchy(self, trainee_id: str, *, trainee_path: Collection[str] | None = None) -> dict:
+        """
+        Get the hierarchy schema of a Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The root Trainee id.
+        trainee_path : Collection of str, optional
+            The path of a sub-Trainee to filter the hierarchy schema to.
+
+        Returns
+        -------
+        dict
+            The hierarchy schema of the Trainee.
+        """
+        return self.execute(trainee_id, "get_hierarchy", {"path_list": trainee_path})
+
+    def combine_trainee_with_subtrainees(
+        self,
+        trainee_id: str,
+        child_ids: Collection[str] | None = None,
+        *,
+        skip_auto_analyze: bool = False,
+    ) -> CombineTraineesResult:
+        """
+        Combine cases from child Trainees into the parent Trainee and delete the child Trainees.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of a parent Trainee to combine any child Trainees into.
+        child_ids : Collection of str, optional
+            The IDs of child Trainees to combine. If not specified, all immediate child Trainees will be combined.
+        skip_auto_analyze : bool, default False
+            When enabled, will not auto_analyze and will instead return the status "analyze" which indicates that
+            an analyze call is recommended.
+
+        Returns
+        -------
+        CombineTraineesResult
+            The resulting status of the combined Trainee data.
+        """
+        response = self.execute(
+            trainee_id,
+            "combine_with_subtrainees",
+            {
+                "child_ids": child_ids,
+                "skip_auto_analyze": skip_auto_analyze,
+            },
+        )
+        return CombineTraineesResult(status=response.get("status"))
