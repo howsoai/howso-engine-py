@@ -253,7 +253,7 @@ class FeatureAttributesBase(dict):
         min_bound = bounds.get('min')
         max_bound = bounds.get('max')
         # Get unique values but exclude NoneTypes
-        unique_values = series.dropna().unique()  # Un-comment and clean this up for JSON features (dicts -- unhashable)
+        unique_values = series.dropna().unique()
         additional_errors = 0
 
         if bounds.get('allowed'):
