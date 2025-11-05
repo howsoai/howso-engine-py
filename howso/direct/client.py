@@ -950,7 +950,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         file_type : {"amlg", "caml"}, default "amlg"
             The type of byte data provided in content.
         path : Iterable of str, optional
-            If specified, creates the Trainee as a sub-Trainee at the provided hierarchy path.
+            If specified, creates the Trainee as a sub-Trainee at the provided hierarchy path. An empty list will
+            create the sub-Trainee as a direct child of the root at a new random path.
         child_id : str or UUID, optional
             The ID to use for the sub-Trainee when `path` is specified. Defaults to a new UUID.
 
@@ -963,9 +964,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         entity_path = None
         if path is not None:
             path = list(path)
-            if len(path) == 0:
-                raise ValueError("`path` must contain at least one item.")
-            entity_path = [SUBTRAINEE_CONTAINER, *path]
+            # Each entity child must be preceded by the container name
+            if len(path):
+                entity_path = [p for item in path for p in (SUBTRAINEE_CONTAINER, item)]
+            else:
+                entity_path = [SUBTRAINEE_CONTAINER]
             self._resolve_trainee(trainee_id)
 
         status = self.amlg.load_entity_bytes(
@@ -982,7 +985,17 @@ class HowsoDirectClient(AbstractHowsoClient):
         if path is not None:
             root_trainee = self.trainee_cache.get(trainee_id)
             sub_trainee_id = str(child_id or uuid.uuid4())
-            self.execute(trainee_id, "add_hierarchy_relationship", {"id": sub_trainee_id})
+            parent_path = path[:-1] if len(path) > 1 else None
+            self.execute(
+                trainee_id,
+                "add_hierarchy_relationship",
+                {"id": sub_trainee_id, "entity_path_id": status.entity_path[-1]},
+                path=parent_path,
+            )
+            if len(path) == 0:
+                # An empty path list will have autocreated the child 1-level deep, capture its generated path
+                path = [t.cast(str, status.entity_path[-1])]
+            self.execute(trainee_id, "set_trainee_id", {"trainee_id": sub_trainee_id}, path=path)
 
             # Build the trainee object from the sub-trainee metadata
             metadata = self.execute(trainee_id, "get_metadata", {}, path=path)
@@ -1001,6 +1014,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 file_size=file_size,
             )
         else:
+            self.execute(trainee_id, "set_trainee_id", {"trainee_id": trainee_id})
             self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
             return self._get_trainee_from_engine(trainee_id)
 
@@ -1030,12 +1044,16 @@ class HowsoDirectClient(AbstractHowsoClient):
             a valid Trainee.
         """
         if trainee_path is not None:
-            trainee_path = [SUBTRAINEE_CONTAINER, *trainee_path]
-        return self.amlg.store_entity_bytes(
+            # Each entity child must be preceded by the container name
+            trainee_path = [p for item in trainee_path for p in (SUBTRAINEE_CONTAINER, item)]
+        content = self.amlg.store_entity_bytes(
             handle=trainee_id,
             file_type=file_type,
             entity_path=trainee_path,
         )
+        if content == b"":
+            return None
+        return content
 
     def update_trainee(self, trainee: Mapping | Trainee) -> Trainee:
         """
