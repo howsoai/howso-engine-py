@@ -4,11 +4,11 @@ from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 
-import pandas as pd
 import pytest
 
 from howso.client.schemas import Trainee
 from howso.direct import HowsoDirectClient
+from howso.utilities import is_valid_uuid
 from howso.utilities.testing import get_configurationless_test_client
 
 
@@ -63,28 +63,101 @@ def test_create_trainee_from_bytes(client: HowsoDirectClient, file_type: Literal
             assert content.startswith(b"caml")
 
         # Re-create it from bytes
-        new_trainee = client.create_trainee_from_bytes("test-from-bytes", content)
+        new_trainee = client.create_trainee_from_bytes("test-from-bytes", content, file_type=file_type)
         assert new_trainee is not None
         try:
             assert new_trainee.id == "test-from-bytes"
             assert new_trainee.name == "simple-trainee"
             assert new_trainee.metadata == {"simple": True}
             assert new_trainee.persistence == "allow"
+            # internal id should match handle
+            assert client.execute(new_trainee.id, "get_trainee_id", {}) == new_trainee.id
         finally:
             client.delete_trainee(new_trainee.id)
 
+
+@pytest.mark.parametrize(["file_type"], [("amlg",), ("caml",)])
+def test_create_sub_trainees_from_bytes(client: HowsoDirectClient, file_type: Literal["amlg", "caml"]) -> None:
+    """Test creation of a trainee from bytes."""
+    with simple_trainee(client, range(1, 5)) as trainee:
+        # Convert trainee to bytes
+        content = client.trainee_to_bytes(trainee.id, file_type=file_type)
+        assert content is not None
+        if file_type == "amlg":
+            assert content.startswith(b"(declare")
+        elif file_type == "caml":
+            assert content.startswith(b"caml")
+
         # Re-create it as a sub-trainee from bytes
-        child = client.create_trainee_from_bytes(trainee.id, content, path=["child"], child_id="child-from-bytes")
+        child = client.create_trainee_from_bytes(
+            trainee.id,
+            content,
+            path=["child"],
+            child_id="child-from-bytes",
+            file_type=file_type,
+        )
         assert child.id == "child-from-bytes"
         assert child.name == "simple-trainee"
         assert child.metadata == {"simple": True}
         assert child.persistence == "allow"
+        assert client.execute(trainee.id, "get_trainee_id", {}, path=["child"]) == child.id
+
+        # Re-create it as a sub-sub-trainee from bytes
+        grandchild = client.create_trainee_from_bytes(
+            trainee.id,
+            content,
+            path=["child", "grand-child"],
+            child_id="grand-child-from-bytes",
+            file_type=file_type,
+        )
+        assert grandchild.id == "grand-child-from-bytes"
+        assert grandchild.name == "simple-trainee"
+        assert grandchild.metadata == {"simple": True}
+        assert grandchild.persistence == "allow"
+        assert client.execute(trainee.id, "get_trainee_id", {}, path=["child", "grand-child"]) == grandchild.id
+
+        # Check the hierarchy schema
         hierarchy = client.get_hierarchy(trainee.id)
         children = hierarchy.get("children")
         assert isinstance(children, list)
         assert len(children) == 1
         assert children[0]["id"] == "child-from-bytes"
         assert children[0]["name"] == "simple-trainee"
+        grand_children = children[0].get("children")
+        assert isinstance(grand_children, list)
+        assert len(grand_children) == 1
+        assert grand_children[0]["id"] == "grand-child-from-bytes"
+        assert grand_children[0]["name"] == "simple-trainee"
+
+
+def test_create_sub_trainee_from_bytes_auto_path(client: HowsoDirectClient) -> None:
+    """Test creating sub-trainees from bytes with auto generated path and id."""
+    with ExitStack() as stack:
+        parent = stack.enter_context(simple_trainee(client, range(0, 5)))
+        trainee = stack.enter_context(simple_trainee(client, range(5, 10), id="child1"))
+        trainee_content = client.trainee_to_bytes(trainee.id)
+        assert trainee_content is not None
+
+        # Re-create trainee as a child
+        child = client.create_trainee_from_bytes(
+            parent.id,
+            content=trainee_content,
+            path=[],  # Auto generate the path
+        )
+        assert is_valid_uuid(child.id), child.id  # Should be auto-generated uuid
+        assert child.id != trainee.id
+        assert child.name == "simple-trainee"
+        assert child.metadata == {"simple": True}
+        assert child.persistence == "allow"
+
+        # Check hierarchy schema
+        hierarchy = client.get_hierarchy(parent.id)
+        assert hierarchy["id"] == parent.id
+        children = hierarchy.get("children")
+        assert isinstance(children, list)
+        assert len(children) == 1
+        assert children[0]["id"] == child.id
+        assert len(children[0]["path"]) == 1
 
 
 @pytest.mark.parametrize(["child_ids", "expected_cases"], [
