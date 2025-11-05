@@ -758,20 +758,19 @@ def test_unsupported_data(datetime_min_max, float_min_max, int_min_max):
 ])
 def test_json_yaml_features(value, is_json, is_yaml):
     """Test that infer_feature_attributes correctly identifies JSON and YAML features."""
-    df = pd.read_csv(iris_path)
-    df['sepal_width'] = value
+    df = pd.DataFrame({'a': [value]})
 
     features = infer_feature_attributes(df)
 
     if is_json:
-        assert features['sepal_width']['type'] == 'continuous'
-        assert features['sepal_width']['data_type'] == 'json'
+        assert features['a']['type'] == 'continuous'
+        assert features['a']['data_type'] == 'json'
     elif is_yaml:
-        assert features['sepal_width']['type'] == 'continuous'
-        assert features['sepal_width']['data_type'] == 'yaml'
+        assert features['a']['type'] == 'continuous'
+        assert features['a']['data_type'] == 'yaml'
     else:
-        assert features['sepal_width'].get('data_type') != 'json'
-        assert features['sepal_width'].get('data_type') != 'yaml'
+        assert features['a'].get('data_type') != 'json'
+        assert features['a'].get('data_type') != 'yaml'
 
 
 @pytest.mark.parametrize('max_workers', [0, 2])
