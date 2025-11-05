@@ -18,7 +18,6 @@ def simple_trainee(
     values: Iterable[int],
     *,
     id: str | None = None,
-    start_case_index: int = 0
 ) -> Generator[Trainee, None, None]:
     """Create a simple Trainee."""
     t = client.create_trainee(
@@ -28,7 +27,6 @@ def simple_trainee(
         features={"x": {"type": "continuous"}},
     )
     try:
-        # TODO - start_case_index
         client.train(t.id, [[v] for v in values], features=["x"])
         client.analyze(t.id)
         yield t
@@ -161,9 +159,9 @@ def test_create_sub_trainee_from_bytes_auto_path(client: HowsoDirectClient) -> N
 
 
 @pytest.mark.parametrize(["child_ids", "expected_cases"], [
-    (None, 15),
-    (["child1"], 10),
-    (["child1", "child2"], 15),
+    (None, 250),
+    (["child1"], 200),
+    (["child1", "child2"], 250),
 ])
 def test_combine_trainee_with_subtrainees(
     client: HowsoDirectClient,
@@ -172,9 +170,12 @@ def test_combine_trainee_with_subtrainees(
 ) -> None:
     """Test combining sub-trainees into parent."""
     with ExitStack() as stack:
-        parent = stack.enter_context(simple_trainee(client, range(0, 5)))
-        child1 = stack.enter_context(simple_trainee(client, range(5, 10), id="child1", start_case_index=5))
-        child2 = stack.enter_context(simple_trainee(client, range(10, 15), id="child2", start_case_index=10))
+        parent_session = client.begin_session("parent")
+        parent = stack.enter_context(simple_trainee(client, range(0, 100)))
+        child1_session = client.begin_session("child1")
+        child1 = stack.enter_context(simple_trainee(client, range(100, 200), id="child1"))
+        child2_session = client.begin_session("child2")
+        child2 = stack.enter_context(simple_trainee(client, range(200, 250), id="child2"))
 
         for child in [child1, child2]:
             # Currently the only way to create the hierarchy is to do so from bytes, recreate trainees as children
@@ -191,10 +192,22 @@ def test_combine_trainee_with_subtrainees(
 
         # Child trainees should now be deleted
         hierarchy = client.get_hierarchy(parent.id)
-        assert hierarchy.get("children", []) == []
+        expected_child_count = 0 if child_ids is None else 2 - len(child_ids)
+        assert len(hierarchy.get("children", [])) == expected_child_count
 
         # Validate the cases are now in the parent
-        cases = client.get_cases(parent.id, features=[".session_training_index", "x"])
+        cases = client.get_cases(parent.id, features=[".session", "x"])["cases"]
         assert len(cases) == expected_cases
-        assert cases["cases"][0] == [0, 0]
-        assert cases["cases"][6] == [6, 6]
+        parent_cases = [case[1:] for case in cases if case[0] == parent_session.id]
+        child1_cases = [case[1:] for case in cases if case[0] == child1_session.id]
+        child2_cases = [case[1:] for case in cases if case[0] == child2_session.id]
+
+        assert parent_cases == [[i] for i in range(0, 100)]
+        if child_ids is None or "child1" in child_ids:
+            assert child1_cases == [[i] for i in range(100, 200)]
+        else:
+            assert child1_cases == []
+        if child_ids is None or "child2" in child_ids:
+            assert child2_cases == [[i] for i in range(200, 250)]
+        else:
+            assert child2_cases == []
