@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping, MutableMapping
+from collections.abc import Iterable, Mapping, MutableMapping
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -629,7 +629,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         label: str,
         payload: t.Any,
         *,
-        path: Collection[str] | None = None,
+        path: Iterable[str] | None = None,
         **kwargs,
     ) -> t.Any:
         """
@@ -643,7 +643,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The label to execute.
         payload : Any
             The payload to send to label.
-        path : Collection of str, optional
+        path : Iterable of str, optional
             The hierarchy path to a sub-Trainee from the root Trainee specified by `trainee_id`. When specified,
             the label execution will operate on this sub-Trainee.
 
@@ -935,7 +935,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         content: bytes,
         *,
         file_type: t.Literal["amlg", "caml"] = "amlg",
-        path: Collection[str] | None = None,
+        path: Iterable[str] | None = None,
         child_id: str | uuid.UUID | None = None,
     ) -> Trainee:
         """
@@ -949,7 +949,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The Trainee data as bytes.
         file_type : {"amlg", "caml"}, default "amlg"
             The type of byte data provided in content.
-        path : Collection of str, optional
+        path : Iterable of str, optional
             If specified, creates the Trainee as a sub-Trainee at the provided hierarchy path.
         child_id : str or UUID, optional
             The ID to use for the sub-Trainee when `path` is specified. Defaults to a new UUID.
@@ -1009,7 +1009,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         *,
         file_type: t.Literal["amlg", "caml"] = "amlg",
-        trainee_path: Collection[str] | None = None,
+        trainee_path: Iterable[str] | None = None,
     ) -> bytes | None:
         """
         Get the Trainee file data as bytes.
@@ -1020,7 +1020,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The ID of the Trainee being retrieved. If `path` is specified, the ID of the root Trainee in the hierarchy.
         file_type : {"amlg", "caml"}, default "amlg"
             The type of byte data to return.
-        trainee_path : Collection of str, optional
+        trainee_path : Iterable of str, optional
             The hierarchy path to a sub-Trainee from the root Trainee specified by `trainee_id`.
 
         Returns
@@ -1830,7 +1830,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError("Session not found")
         return updated_session
 
-    def get_hierarchy(self, trainee_id: str, *, trainee_path: Collection[str] | None = None) -> dict:
+    def get_hierarchy(self, trainee_id: str, *, trainee_path: Iterable[str] | None = None) -> dict:
         """
         Get the hierarchy schema of a Trainee.
 
@@ -1838,7 +1838,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         trainee_id : str
             The root Trainee id.
-        trainee_path : Collection of str, optional
+        trainee_path : Iterable of str, optional
             The path of a sub-Trainee to filter the hierarchy schema to.
 
         Returns
@@ -1853,7 +1853,7 @@ class HowsoDirectClient(AbstractHowsoClient):
     def combine_trainee_with_subtrainees(
         self,
         trainee_id: str,
-        child_ids: Collection[str] | None = None,
+        child_ids: Iterable[str] | None = None,
         *,
         skip_auto_analyze: bool = False,
     ) -> CombineTraineesResult:
@@ -1864,7 +1864,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         trainee_id : str
             The ID of a parent Trainee to combine any child Trainees into.
-        child_ids : Collection of str, optional
+        child_ids : Iterable of str, optional
             The IDs of child Trainees to combine. If not specified, all immediate child Trainees will be combined.
         skip_auto_analyze : bool, default False
             When enabled, will not auto_analyze and will instead return the status "analyze" which indicates that
