@@ -1026,7 +1026,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         Returns
         -------
         bytes or None
-            The Trainee file data as bytes.
+            The Trainee file data as bytes. Or None if the `trainee_id` and/or `trainee_path` does not refer to
+            a valid Trainee.
         """
         if trainee_path is not None:
             trainee_path = [SUBTRAINEE_CONTAINER, *trainee_path]
@@ -1856,6 +1857,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         child_ids: Iterable[str] | None = None,
         *,
         skip_auto_analyze: bool = False,
+        trainee_path: Iterable[str] | None = None,
     ) -> CombineTraineesResult:
         """
         Combine cases from child Trainees into the parent Trainee and delete the child Trainees.
@@ -1863,12 +1865,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         Parameters
         ----------
         trainee_id : str
-            The ID of a parent Trainee to combine any child Trainees into.
+            The ID of a parent Trainee to combine any child Trainees into. When `trainee_path` is specified, this
+            is instead the root Trainee of the hierarchy.
         child_ids : Iterable of str, optional
             The IDs of child Trainees to combine. If not specified, all immediate child Trainees will be combined.
         skip_auto_analyze : bool, default False
             When enabled, will not auto_analyze and will instead return the status "analyze" which indicates that
             an analyze call is recommended.
+        trainee_path : Iterable of str, optional
+            The path of a sub-Trainee to combine any child Trainees into.
 
         Returns
         -------
@@ -1877,6 +1882,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if child_ids is not None:
             child_ids = list(child_ids)
+        if trainee_path is not None:
+            trainee_path = list(trainee_path)
         response = self.execute(
             trainee_id,
             "combine_with_subtrainees",
@@ -1884,5 +1891,6 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "child_ids": child_ids,
                 "skip_auto_analyze": skip_auto_analyze,
             },
+            path=trainee_path,
         )
         return CombineTraineesResult(status=response.get("status"))
