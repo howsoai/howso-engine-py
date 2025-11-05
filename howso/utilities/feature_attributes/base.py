@@ -244,7 +244,7 @@ class FeatureAttributesBase(dict):
         errors = []
 
         # Ensure that there are bounds to validate
-        if not isinstance(attributes.get('bounds'), Mapping):
+        if not isinstance(attributes.get("bounds"), Mapping) or attributes.get("data_type") in ["json", "yaml"]:
             return errors
 
         # Gather some data to use for validation
@@ -253,7 +253,7 @@ class FeatureAttributesBase(dict):
         min_bound = bounds.get('min')
         max_bound = bounds.get('max')
         # Get unique values but exclude NoneTypes
-        unique_values = series.dropna().unique()
+        unique_values = series.dropna().unique()  # Un-comment and clean this up for JSON features (dicts -- unhashable)
         additional_errors = 0
 
         if bounds.get('allowed'):
@@ -1489,12 +1489,16 @@ class InferFeatureAttributesBase(ABC):
 
             # Try to parse rand_val as JSON
             try:
-                if all([
-                    '{' not in rand_val and '}' not in rand_val,
-                    '[' not in rand_val and ']' not in rand_val,
-                ]):
-                    return False
-                json.loads(rand_val)
+                # Python objects and lists are valid JSON
+                if not isinstance(rand_val, str):
+                    json.dumps(rand_val)
+                else:
+                    if all([
+                        '{' not in rand_val and '}' not in rand_val,
+                        '[' not in rand_val and ']' not in rand_val,
+                    ]):
+                        return False
+                    json.loads(rand_val)
             except (TypeError, json.JSONDecodeError):
                 return False
 

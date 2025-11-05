@@ -753,6 +753,8 @@ def test_unsupported_data(datetime_min_max, float_min_max, int_min_max):
     ('abcdefg', False, False),
     ('abcd\nefg', False, False),
     (None, False, False),
+    ([1, 2, 3, 4], True, False),
+    ({'a': 'b', 'c': 'd'}, True, False),
 ])
 def test_json_yaml_features(value, is_json, is_yaml):
     """Test that infer_feature_attributes correctly identifies JSON and YAML features."""
