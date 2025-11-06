@@ -698,7 +698,6 @@ class AbstractHowsoClient(ABC):
             # TODO: this could fail if the generator produces nothing at all,
             # in which case we should do something useful.
             batch = next(gen)
-            first_batch = True
 
             while True:
                 if isinstance(batch, DataFrame):
@@ -738,10 +737,10 @@ class AbstractHowsoClient(ABC):
                     "skip_auto_analyze": skip_auto_analyze,
                     "skip_reduce_data": skip_reduce_data,
                     "train_weights_only": train_weights_only,
-                    "start_index": start_index if first_batch else None
+                    "start_index": start_index
                 })
                 end_time = datetime.now(timezone.utc)
-                first_batch = False
+                start_index = None
 
                 if response and response.get('status') == 'analyze':
                     status['needs_analyze'] = True
