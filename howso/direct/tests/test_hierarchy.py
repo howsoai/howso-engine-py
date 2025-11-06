@@ -46,14 +46,14 @@ def client(tmp_path: Path):
 
 
 @pytest.mark.parametrize(["file_type"], [("amlg",), ("caml",)])
-def test_create_trainee_from_bytes(client: HowsoDirectClient, file_type: Literal["amlg", "caml"]) -> None:
+def test_create_trainee_from_memory(client: HowsoDirectClient, file_type: Literal["amlg", "caml"]) -> None:
     """Test creation of a trainee from bytes."""
-    dne_content = client.trainee_to_bytes("dne", file_type=file_type)
+    dne_content = client.trainee_to_memory("dne", file_type=file_type)
     assert dne_content is None
 
     with simple_trainee(client, range(1, 5)) as trainee:
         # Convert trainee to bytes
-        content = client.trainee_to_bytes(trainee.id, file_type=file_type)
+        content = client.trainee_to_memory(trainee.id, file_type=file_type)
         assert content is not None
         if file_type == "amlg":
             assert content.startswith(b"(declare")
@@ -61,7 +61,7 @@ def test_create_trainee_from_bytes(client: HowsoDirectClient, file_type: Literal
             assert content.startswith(b"caml")
 
         # Re-create it from bytes
-        new_trainee = client.create_trainee_from_bytes("test-from-bytes", content, file_type=file_type)
+        new_trainee = client.create_trainee_from_memory("test-from-bytes", content, file_type=file_type)
         assert new_trainee is not None
         try:
             assert new_trainee.id == "test-from-bytes"
@@ -75,11 +75,11 @@ def test_create_trainee_from_bytes(client: HowsoDirectClient, file_type: Literal
 
 
 @pytest.mark.parametrize(["file_type"], [("amlg",), ("caml",)])
-def test_create_sub_trainees_from_bytes(client: HowsoDirectClient, file_type: Literal["amlg", "caml"]) -> None:
+def test_create_sub_trainees_from_memory(client: HowsoDirectClient, file_type: Literal["amlg", "caml"]) -> None:
     """Test creation of a trainee from bytes."""
     with simple_trainee(client, range(1, 5)) as trainee:
         # Convert trainee to bytes
-        content = client.trainee_to_bytes(trainee.id, file_type=file_type)
+        content = client.trainee_to_memory(trainee.id, file_type=file_type)
         assert content is not None
         if file_type == "amlg":
             assert content.startswith(b"(declare")
@@ -87,7 +87,7 @@ def test_create_sub_trainees_from_bytes(client: HowsoDirectClient, file_type: Li
             assert content.startswith(b"caml")
 
         # Re-create it as a sub-trainee from bytes
-        child = client.create_trainee_from_bytes(
+        child = client.create_trainee_from_memory(
             trainee.id,
             content,
             path=["child"],
@@ -101,7 +101,7 @@ def test_create_sub_trainees_from_bytes(client: HowsoDirectClient, file_type: Li
         assert client.execute(trainee.id, "get_trainee_id", {}, path=["child"]) == child.id
 
         # Re-create it as a sub-sub-trainee from bytes
-        grandchild = client.create_trainee_from_bytes(
+        grandchild = client.create_trainee_from_memory(
             trainee.id,
             content,
             path=["child", "grand-child"],
@@ -128,16 +128,16 @@ def test_create_sub_trainees_from_bytes(client: HowsoDirectClient, file_type: Li
         assert grand_children[0]["name"] == "simple-trainee"
 
 
-def test_create_sub_trainee_from_bytes_auto_path(client: HowsoDirectClient) -> None:
+def test_create_sub_trainee_from_memory_auto_path(client: HowsoDirectClient) -> None:
     """Test creating sub-trainees from bytes with auto generated path and id."""
     with ExitStack() as stack:
         parent = stack.enter_context(simple_trainee(client, range(0, 5)))
         trainee = stack.enter_context(simple_trainee(client, range(5, 10), id="child1"))
-        trainee_content = client.trainee_to_bytes(trainee.id)
+        trainee_content = client.trainee_to_memory(trainee.id)
         assert trainee_content is not None
 
         # Re-create trainee as a child
-        child = client.create_trainee_from_bytes(
+        child = client.create_trainee_from_memory(
             parent.id,
             content=trainee_content,
             path=[],  # Auto generate the path
@@ -179,9 +179,9 @@ def test_combine_trainee_with_subtrainees(
 
         for child in [child1, child2]:
             # Currently the only way to create the hierarchy is to do so from bytes, recreate trainees as children
-            content = client.trainee_to_bytes(child.id)
+            content = client.trainee_to_memory(child.id)
             assert content is not None
-            client.create_trainee_from_bytes(parent.id, content, path=[child.id], child_id=child.id)
+            client.create_trainee_from_memory(parent.id, content, path=[child.id], child_id=child.id)
 
         # Validate they are now children
         hierarchy = client.get_hierarchy(parent.id)

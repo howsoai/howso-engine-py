@@ -929,7 +929,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.trainee_cache.set(new_trainee, feature_attributes=features)
         return new_trainee
 
-    def create_trainee_from_bytes(
+    def create_trainee_from_memory(
         self,
         id: str | uuid.UUID,
         content: bytes,
@@ -971,7 +971,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 entity_path = [SUBTRAINEE_CONTAINER]
             self._resolve_trainee(trainee_id)
 
-        status = self.amlg.load_entity_bytes(
+        status = self.amlg.load_entity_from_memory(
             trainee_id,
             content,
             file_type=file_type,
@@ -1018,7 +1018,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
             return self._get_trainee_from_engine(trainee_id)
 
-    def trainee_to_bytes(
+    def trainee_to_memory(
         self,
         trainee_id: str,
         *,
@@ -1046,7 +1046,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if trainee_path is not None:
             # Each entity child must be preceded by the container name
             trainee_path = [p for item in trainee_path for p in (SUBTRAINEE_CONTAINER, item)]
-        content = self.amlg.store_entity_bytes(
+        content = self.amlg.store_entity_to_memory(
             handle=trainee_id,
             file_type=file_type,
             entity_path=trainee_path,
