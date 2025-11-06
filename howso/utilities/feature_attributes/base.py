@@ -244,7 +244,7 @@ class FeatureAttributesBase(dict):
         errors = []
 
         # Ensure that there are bounds to validate
-        if not isinstance(attributes.get('bounds'), Mapping):
+        if not isinstance(attributes.get("bounds"), Mapping) or attributes.get("data_type") in ["json", "yaml"]:
             return errors
 
         # Gather some data to use for validation
@@ -1489,12 +1489,13 @@ class InferFeatureAttributesBase(ABC):
 
             # Try to parse rand_val as JSON
             try:
-                if all([
-                    '{' not in rand_val and '}' not in rand_val,
-                    '[' not in rand_val and ']' not in rand_val,
-                ]):
-                    return False
-                json.loads(rand_val)
+                # Python objects and lists are valid JSON
+                if not isinstance(rand_val, str):
+                    json.dumps(rand_val)
+                else:
+                    if not any(c in rand_val for c in "{}[]"):
+                        return False
+                    json.loads(rand_val)
             except (TypeError, json.JSONDecodeError):
                 return False
 
