@@ -1493,10 +1493,7 @@ class InferFeatureAttributesBase(ABC):
                 if not isinstance(rand_val, str):
                     json.dumps(rand_val)
                 else:
-                    if all([
-                        '{' not in rand_val and '}' not in rand_val,
-                        '[' not in rand_val and ']' not in rand_val,
-                    ]):
+                    if not any(c in rand_val for c in "{}[]"):
                         return False
                     json.loads(rand_val)
             except (TypeError, json.JSONDecodeError):
