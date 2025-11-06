@@ -521,6 +521,7 @@ class AbstractHowsoClient(ABC):
         series: t.Optional[str] = None,
         skip_auto_analyze: bool = False,
         skip_reduce_data: bool = False,
+        start_index: t.Optional[int] = None,
         train_weights_only: bool = False,
         validate: bool = True,
     ) -> TrainStatus:
@@ -596,6 +597,10 @@ class AbstractHowsoClient(ABC):
             appropriate. Instead, the return dict will have a
             "needs_data_reduction" flag if a call to `reduce_data` is
             recommended.
+        start_index : int, optional
+            When specified, the indices of trained cases will start at this
+            value. This value must be greater than the latest index trained
+            in the active session.
         train_weights_only : bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -732,8 +737,10 @@ class AbstractHowsoClient(ABC):
                     "skip_auto_analyze": skip_auto_analyze,
                     "skip_reduce_data": skip_reduce_data,
                     "train_weights_only": train_weights_only,
+                    "start_index": start_index
                 })
                 end_time = datetime.now(timezone.utc)
+                start_index = None
 
                 if response and response.get('status') == 'analyze':
                     status['needs_analyze'] = True
