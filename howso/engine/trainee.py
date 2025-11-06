@@ -643,6 +643,7 @@ class Trainee(BaseTrainee):
         series: t.Optional[str] = None,
         skip_auto_analyze: bool = False,
         skip_reduce_data: bool = False,
+        start_index: t.Optional[int] = None,
         train_weights_only: bool = False,
         validate: bool = True,
     ):
@@ -710,6 +711,10 @@ class Trainee(BaseTrainee):
         skip_reduce_data : bool, default False
             When true, the Trainee will not call `reduce_data` when
             appropriate.
+        start_index : int, optional
+            When specified, the indices of trained cases will start at this
+            value. This value must be greater than the latest index trained
+            in the active session.
         train_weights_only:  bool, default False
             When true, and accumulate_weight_feature is provided,
             will accumulate all of the cases' neighbor weights instead of
@@ -734,6 +739,7 @@ class Trainee(BaseTrainee):
                 series=series,
                 skip_auto_analyze=skip_auto_analyze,
                 skip_reduce_data=skip_reduce_data,
+                start_index=start_index,
                 train_weights_only=train_weights_only,
                 validate=validate,
             )
