@@ -59,3 +59,9 @@ class DirectTrainee(Trainee):
 
         """
         self._file_size = size or 0
+
+
+class CombineTraineesResult(t.TypedDict):
+    """The result of combining sub-Trainees into their parent."""
+
+    status: t.Literal["analyze", "analyzed"] | None

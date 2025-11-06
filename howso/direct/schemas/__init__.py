@@ -1,5 +1,7 @@
-from .trainee import DirectTrainee
+from .trainee import CombineTraineesResult, DirectTrainee, DirectTraineeDict
 
 __all__ = [
-    "DirectTrainee"
+    "CombineTraineesResult",
+    "DirectTrainee",
+    "DirectTraineeDict",
 ]
