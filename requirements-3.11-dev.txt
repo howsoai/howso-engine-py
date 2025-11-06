@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.11-dev.txt --pip-args=None
 #
-amalgam-lang==24.0.7
+amalgam-lang==24.1.0
     # via howso-engine (pyproject.toml)
 astroid==4.0.1
     # via pylint
