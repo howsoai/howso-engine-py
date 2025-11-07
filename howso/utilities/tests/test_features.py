@@ -397,5 +397,4 @@ def test_boolean_features():
 
     # assert data_type is boolean for IFA
     for metric in nominal_react:
-        print(f"Checking {metric}: {nominal_react[metric]}")
         pd.testing.assert_frame_equal(nominal_react[metric], boolean_react[metric], check_exact=False, rtol=3)
