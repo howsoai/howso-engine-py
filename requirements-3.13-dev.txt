@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.13-dev.txt --pip-args=None
 #
-amalgam-lang==24.1.1
+amalgam-lang==25.0.0
     # via howso-engine (pyproject.toml)
 astroid==4.0.1
     # via pylint
@@ -20,7 +20,7 @@ charset-normalizer==3.4.4
     # via requests
 click==8.3.0
     # via pip-tools
-coverage[toml]==7.11.0
+coverage[toml]==7.11.1
     # via pytest-cov
 cryptography==46.0.3
     # via howso-engine (pyproject.toml)

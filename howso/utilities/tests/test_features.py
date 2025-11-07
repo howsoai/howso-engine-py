@@ -2,9 +2,11 @@ import datetime
 import decimal
 import json
 import locale
+from pathlib import Path
 import warnings
 
 
+from howso.engine import Trainee
 from howso.utilities import infer_feature_attributes
 from howso.utilities.features import FeatureSerializer, FeatureType
 from howso.utilities.internals import sanitize_for_json
@@ -20,6 +22,9 @@ import pytest
 import pytz
 
 from . import has_locales
+
+cwd = Path(__file__).parent.parent.parent
+monk_path = Path(cwd, 'utilities', 'tests', 'data', 'monk1.csv')
 
 
 @pytest.mark.parametrize('data_format', ['pandas', 'numpy'])
@@ -321,3 +326,81 @@ def test_date_locale_serialization(
         difference = df.compare(new_df)
         assert valid_dtype(new_df['a'].dtype)
         assert difference.empty
+
+
+def test_boolean_features():
+    """Test that binary nominal and boolean features result in a nearly equivalent output from HSE."""
+    # Columns of all 0s and 1s will be nominal ints by default
+    nominal_df = pd.read_csv(monk_path)
+    boolean_df = nominal_df.copy()
+    boolean_df["Has tie"] = boolean_df["Has tie"].astype("boolean")
+    boolean_df["Is smiling"] = boolean_df["Is smiling"].astype("boolean")
+    boolean_df["target"] = boolean_df["target"].astype("boolean")
+
+    # Compute feature attributes
+    nominal_attributes = infer_feature_attributes(nominal_df)
+    boolean_attributes = infer_feature_attributes(boolean_df)
+
+    # Ensure Pandas knows the boolean DataFrame has boolean types
+    assert boolean_attributes["target"]["data_type"] == "boolean"
+
+    # Train
+    nominal_trainee = Trainee(features=nominal_attributes)
+    nominal_trainee.train(nominal_df)
+
+    boolean_trainee = Trainee(features=boolean_attributes)
+    boolean_trainee.train(boolean_df)
+
+    # Set action/context features
+    action_features = ["target"]
+    context_features = [col for col in nominal_df.columns if col not in action_features]
+
+    # Set prediction stats/metrics
+    prediction_stats = [
+        "accuracy",
+        "adjusted_smape",
+        "smape",
+        "mae",
+        "mcc",
+        "recall",
+        "precision",
+        "r2",
+        "rmse",
+        "spearman_coeff",
+        "missing_value_accuracy",
+    ]
+    metrics = {
+        "estimated_residual_lower_bound": True,
+        "feature_full_residuals": True,
+        "feature_robust_residuals": True,
+        "feature_deviations": True,
+        "feature_full_prediction_contributions": True,
+        "feature_robust_prediction_contributions": True,
+        "feature_full_accuracy_contributions": True,
+        "feature_full_accuracy_contributions_permutation": True,
+        "feature_robust_accuracy_contributions": True,
+        "feature_robust_accuracy_contributions_permutation": True,
+    }
+
+    # Do a react for each data type
+    nominal_react = nominal_trainee.react_aggregate(action_features=action_features,
+                                                    feature_influences_action_feature="target",
+                                                    context_features=context_features,
+                                                    details={
+                                                        "prediction_stats": True,
+                                                        "selected_prediction_stats": prediction_stats,
+                                                        **metrics,
+                                                    })
+
+    boolean_react = boolean_trainee.react_aggregate(action_features=action_features,
+                                                    feature_influences_action_feature="target",
+                                                    context_features=context_features,
+                                                    details={
+                                                        "prediction_stats": True,
+                                                        "selected_prediction_stats": prediction_stats,
+                                                        **metrics,
+                                                    })
+
+    # Compare metrics within a precision of 3 decimals
+    for metric in nominal_react:
+        pd.testing.assert_frame_equal(nominal_react[metric], boolean_react[metric], check_exact=False, rtol=3)
