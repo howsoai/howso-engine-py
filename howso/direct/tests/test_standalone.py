@@ -89,3 +89,32 @@ def test_persistence_always_file_size(client: HowsoDirectClient, tmp_path: Path)
         if new_size < old_size:
             break  # the library has compacted
         old_size = new_size
+
+
+def test_load_subtrainee_from_memory(client: HowsoDirectClient, tmp_path: Path) -> None:
+    """Test loading a parent and child trainee both from memory."""
+    # Regression test for #24706
+    features = { "x": { "type": "continuous" }}
+
+    t1 = client.create_trainee(features=features)
+    client.train(t1.id, cases=[[1]], features=["x"])
+    client.persist_trainee(t1.id)
+    caml1 = (tmp_path / f"{t1.id}.caml").read_bytes()
+    client.delete_trainee(t1.id)
+
+    t2 = client.create_trainee(features=features)
+    client.train(t2.id, cases=[[2]], features=["x"], start_index=1)
+    client.persist_trainee(t2.id)
+    caml2 = (tmp_path / f"{t2.id}.caml").read_bytes()
+    client.delete_trainee(t2.id)
+
+    client.create_trainee_from_memory("test", caml1, file_type="caml")
+    try:
+        client.create_trainee_from_memory("test", caml2, file_type="caml", path=[])
+        client.combine_trainee_with_subtrainees("test")
+
+        df = client.get_cases("test")
+        assert df["features"] == ["x"]
+        assert df["cases"] == [[1], [2]]
+    finally:
+        client.delete_trainee("test")

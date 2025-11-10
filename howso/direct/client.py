@@ -1016,7 +1016,10 @@ class HowsoDirectClient(AbstractHowsoClient):
         else:
             self.execute(trainee_id, "set_trainee_id", {"trainee_id": trainee_id})
             self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
-            return self._get_trainee_from_engine(trainee_id)
+            new_trainee = self._get_trainee_from_engine(trainee_id)
+            self.trainee_cache.set(new_trainee)
+            self.resolve_feature_attributes(trainee_id)
+            return new_trainee
 
     def trainee_to_memory(
         self,
