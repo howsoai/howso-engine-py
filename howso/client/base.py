@@ -3863,6 +3863,10 @@ class AbstractHowsoClient(ABC):
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
             - estimated_residual_lower_bound : bool, optional
                 When True, computes and outputs estimated lower bound of residuals for specified action features.
+            - missing_information : bool, optional
+                For each feature in ``action_features``, return the average estimated missing information. This is
+                computed by measuring the surprisal between the full prediction and the prediction including the true
+                value in the context.
         convergence_min_size: int, optional
             The minimum size of the first batch of cases used when dynamically sampling robust
             residuals used to determine feature accuracy contributions. Defaults to 5000 when unspecified.

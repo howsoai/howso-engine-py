@@ -3702,6 +3702,10 @@ class Trainee(BaseTrainee):
                 For each feature in ``action_features``, use the robust
                 (power set/permutations) set of all other context features to predict
                 the feature and return the mean absolute error.
+            - missing_information : bool, optional
+                For each feature in ``action_features``, return the average estimated missing information. This is
+                computed by measuring the surprisal between the full prediction and the prediction including the true
+                value in the context.
             - prediction_stats : bool, optional
                 If True outputs full feature prediction stats for all features in
                 ``action_features``. The prediction stats returned are set by the
