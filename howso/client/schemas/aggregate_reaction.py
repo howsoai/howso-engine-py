@@ -43,6 +43,7 @@ TableMetric: TypeAlias = Literal[
     "spearman_coeff",
     "mcc",
     "missing_value_accuracy",
+    "missing_information"
 ]
 """Metric output keys of react aggregate that can be combined together into a DataFrame."""
 
