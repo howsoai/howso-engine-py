@@ -4827,7 +4827,7 @@ class AbstractHowsoClient(ABC):
         min_num_cases: int = 10_000,
         max_num_cases: int = 200_000,
         reduce_data_influence_weight_entropy_threshold: float = 0.6,
-        reduce_to_cases: int = 50_000,
+        reduce_max_cases: int = 50_000,
         rel_threshold_map: t.Optional[AblationThresholdMap] = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
         residual_prediction_features: t.Optional[Collection[str]] = None,
@@ -4878,7 +4878,7 @@ class AbstractHowsoClient(ABC):
             and the prediction <= (case value + MAX).
         reduce_data_influence_weight_entropy_threshold: float, default 0.6
             The influence weight entropy quantile that a case must be above in order to not be removed.
-        reduce_to_cases: int, default 50,000
+        reduce_max_cases: int, default 50,000
             The maximum number of cases that may remain after a call to reduce_data.
         relative_prediction_threshold_map : Optional[dict[str, float]], optional
             For each of the features specified, will ablate a case if
@@ -4922,7 +4922,7 @@ class AbstractHowsoClient(ABC):
             min_num_cases=min_num_cases,
             max_num_cases=max_num_cases,
             reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
-            reduce_to_cases=reduce_to_cases,
+            reduce_max_cases=reduce_max_cases,
             rel_threshold_map=rel_threshold_map,
             relative_prediction_threshold_map=relative_prediction_threshold_map,
             residual_prediction_features=residual_prediction_features,
