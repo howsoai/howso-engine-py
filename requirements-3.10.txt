@@ -4,9 +4,9 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --output-file=requirements-3.10.txt --pip-args=None
 #
-amalgam-lang==25.0.2
+amalgam-lang==25.1.0
     # via howso-engine (pyproject.toml)
-certifi==2025.10.5
+certifi==2025.11.12
     # via
     #   howso-engine (pyproject.toml)
     #   requests
@@ -18,7 +18,7 @@ cryptography==46.0.3
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
-faker==37.12.0
+faker==38.2.0
     # via howso-engine (pyproject.toml)
 humanize==4.14.0
     # via howso-engine (pyproject.toml)
