@@ -1,4 +1,5 @@
-import pmlb
+import pandas as pd
+from pathlib import Path
 import pytest
 
 from howso.utilities import infer_feature_attributes
@@ -6,7 +7,8 @@ from howso.utilities import infer_feature_attributes
 
 @pytest.fixture(scope="module", name="data")
 def load_data():
-    return pmlb.fetch_data("iris")
+    filename = Path(Path(__file__).parent, "data/iris.csv")
+    return pd.read_csv(filename)
 
 
 @pytest.fixture(scope="module", name="features")

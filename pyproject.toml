@@ -58,7 +58,6 @@ dev = [
    "mongomock",
    "pip-tools",
    "pipdeptree",
-   "pmlb",
    "pycodestyle",
    "pylint",
    "pytest<8.0",
