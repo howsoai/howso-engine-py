@@ -403,10 +403,12 @@ class Trainee(BaseTrainee):
             file_name = self.id
 
         if self.id:
-            self.client.amlg.store_entity(
-                handle=self.id,
-                file_path=self.client.resolve_trainee_filepath(file_name, filepath=file_path)
-            )
+            resolved_path = self.client.resolve_trainee_filepath(file_name, filepath=file_path)
+            is_persisted = self.client.amlg.store_entity(handle=self.id, file_path=resolved_path)
+            if not is_persisted:
+                raise HowsoError(
+                    f'Failed to write Trainee "{self.id}" to file path: {resolved_path}', code="persist_failed"
+                )
         else:
             raise ValueError("Trainee ID is needed for saving.")
 

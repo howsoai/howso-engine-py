@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from pytest_mock import MockFixture
 
 from amalgam.api import Amalgam
 from howso.client.exceptions import HowsoError
@@ -118,3 +119,36 @@ def test_load_subtrainee_from_memory(client: HowsoDirectClient, tmp_path: Path) 
         assert df["cases"] == [[1], [2]]
     finally:
         client.delete_trainee("test")
+
+
+def test_persistence_fails(mocker: MockFixture, client: HowsoDirectClient) -> None:
+    """Test persist raises when unable to write file."""
+    features = {"x": {"type": "continuous"}}
+    t1 = client.create_trainee(features=features)
+    client.train(t1.id, cases=[[1]], features=["x"])
+
+    def mock_store_entity(*args, **kwargs):
+        return False
+
+    mocker.patch.object(client.amlg, "store_entity", side_effect=mock_store_entity)
+
+    resolved_path = client.resolve_trainee_filepath(t1.id)
+
+    with pytest.raises(HowsoError) as error_info:
+        client.persist_trainee(t1.id)
+    assert error_info.value.code == "persist_failed"
+    assert error_info.value.message == f'Failed to write Trainee "{t1.id}" to file path: {resolved_path}'
+
+    with pytest.raises(HowsoError) as error_info:
+        client.release_trainee_resources(t1.id)
+    assert error_info.value.code == "persist_failed"
+    assert error_info.value.message == (
+        f'Failed to release resources for Trainee "{t1.id}", could not write Trainee to file path: {resolved_path}'
+    )
+
+    assert t1.persistence == "allow"
+    t1_new = t1.to_dict()
+    t1_new["persistence"] = "always"
+    with pytest.raises(HowsoError) as error_info:
+        client.update_trainee(t1_new)
+    assert error_info.value.code == "persist_failed"

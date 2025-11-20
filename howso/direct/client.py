@@ -457,12 +457,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         if new_file_size <= trainee.file_size * 2 and new_file_size <= trainee.file_size + 10485760:
             return
 
-        self.amlg.store_entity(
+        resolved_path = self.resolve_trainee_filepath(trainee_id)
+        is_persisted = self.amlg.store_entity(
             handle=trainee_id,
-            file_path=self.resolve_trainee_filepath(trainee_id),
+            file_path=resolved_path,
             persist=True,
             json_file_params='{"transactional":true,"flatten":true}'
         )
+        if not is_persisted:
+            warnings.warn(f'Failed to auto persist Trainee "{trainee_id}" to file path: {resolved_path}', UserWarning)
         trainee.file_size = self._trainee_size(trainee_id)
 
     def _store_session(self, trainee_id: str, session: Session):
@@ -1084,18 +1087,29 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if old_trainee.persistence == 'always' and instance.persistence != 'always':
             # Manually persist the trainee now, turning off transactional mode.
-            self.amlg.store_entity(
-                handle=instance.id,
-                file_path=self.resolve_trainee_filepath(instance.id)
-            )
+            resolved_path = self.resolve_trainee_filepath(instance.id)
+            is_persisted = self.amlg.store_entity(handle=instance.id, file_path=resolved_path)
+            if not is_persisted:
+                raise HowsoError(
+                    f'Failed to update persistence of Trainee "{instance.id}", '
+                    f"could not write Trainee to file path: {resolved_path}",
+                    code="persist_failed",
+                )
         elif instance.persistence == 'always' and old_trainee.persistence != 'always':
             # Manually persist the trainee, turning on transactional mode.
-            self.amlg.store_entity(
+            resolved_path = self.resolve_trainee_filepath(instance.id)
+            is_persisted = self.amlg.store_entity(
                 handle=instance.id,
-                file_path=self.resolve_trainee_filepath(instance.id),
+                file_path=resolved_path,
                 persist=True,
-                json_file_params='{"transactional":true,"flatten":true}'
+                json_file_params='{"transactional":true,"flatten":true}',
             )
+            if not is_persisted:
+                raise HowsoError(
+                    f'Failed to update persistence of Trainee "{instance.id}", '
+                    f"could not write Trainee to file path: {resolved_path}",
+                    code="persist_failed",
+                )
             instance.file_size = self._trainee_size(instance.id)
 
         metadata = {
@@ -1577,10 +1591,18 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             if trainee.persistence in ['allow', 'always']:
                 # Persist on unload
-                self.amlg.store_entity(
+                resolved_path = self.resolve_trainee_filepath(trainee_id)
+                is_persisted = self.amlg.store_entity(
                     handle=trainee_id,
-                    file_path=self.resolve_trainee_filepath(trainee_id)
+                    file_path=resolved_path,
                 )
+                if not is_persisted:
+                    # If persist fails, do not proceed to delete the trainee from memory
+                    raise HowsoError(
+                        f'Failed to release resources for Trainee "{trainee_id}", '
+                        f'could not write Trainee to file path: {resolved_path}',
+                        code="persist_failed",
+                    )
             elif trainee.persistence == "never":
                 raise HowsoError(
                     "Trainees set to never persist may not have their "
@@ -1618,12 +1640,17 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "persistence option to enable persistence.")
         transactional = (trainee is not None and trainee.persistence == 'always')
 
-        self.amlg.store_entity(
+        resolved_path = self.resolve_trainee_filepath(trainee_id)
+        is_persisted = self.amlg.store_entity(
             handle=trainee_id,
-            file_path=self.resolve_trainee_filepath(trainee_id),
+            file_path=resolved_path,
             persist=transactional,
             json_file_params='{"transactional":true,"flatten":true}' if transactional else ""
         )
+        if not is_persisted:
+            raise HowsoError(
+                f'Failed to write Trainee "{trainee_id}" to file path: {resolved_path}', code="persist_failed"
+            )
 
         if transactional:
             assert trainee is not None
