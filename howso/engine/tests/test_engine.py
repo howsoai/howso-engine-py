@@ -209,6 +209,21 @@ class TestEngine:
 
         assert load_training_cases == 150
 
+    def test_save_raises(self, mocker, trainee):
+        """Test save raises when unable to write file."""
+
+        def mock_store_entity(*args, **kwargs):
+            return False
+
+        mocker.patch.object(trainee.client.amlg, "store_entity", side_effect=mock_store_entity)
+
+        resolved_path = trainee.client.resolve_trainee_filepath("foobar.caml")
+
+        with pytest.raises(HowsoError) as error_info:
+            trainee.save("foobar.caml")
+        assert error_info.value.code == "persist_failed"
+        assert error_info.value.message == f'Failed to write Trainee "{trainee.id}" to file path: {resolved_path}'
+
     def test_save_load_bad_load(self):
         """Test bad disk load methods."""
         cwd = Path.cwd()
