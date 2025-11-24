@@ -551,3 +551,12 @@ def test_empty_string_first_non_nulls():
     adc = make_data_source(df)
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
         infer_feature_attributes(adc)
+
+
+def test_dataframe_datetime64_dtype_column():
+    """Test that IFA correctly handles datetime64 dtype columns."""
+    df = pd.DataFrame({'a': ['2025-11-24T14:30.000']})
+    # Convert to datetime64 dtype
+    df['a'] = df['a'].astype('datetime64[ns]')
+    adc = make_data_source(df)
+    infer_feature_attributes(adc)
