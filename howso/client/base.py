@@ -2554,13 +2554,13 @@ class AbstractHowsoClient(ABC):
                             detail_response[extra_old_key] = detail_response[extra_new_key]
                             del detail_response[extra_new_key]
 
-            if "categorical_action_probabilities" in detail_response:
+            if "categorical_action_probabilities" in detail_response:  # TODO this is handled in Reaction now
                 detail_response["categorical_action_probabilities"] = internals.update_caps_maps(
                     detail_response["categorical_action_probabilities"],
                     feature_attributes
                 )
 
-        return Reaction(response.get('action'), detail_response)
+        return Reaction(response.get('action'), detail_response, feature_attributes)
 
 
     def _react(self, trainee_id: str, params: dict) -> tuple[dict, int, int]:
@@ -3255,7 +3255,7 @@ class AbstractHowsoClient(ABC):
             )
 
         series_df = util.build_react_series_df(response, series_index=series_index)
-        return Reaction(series_df, response.get('details'))
+        return Reaction(series_df, response.get('details'), feature_attributes)
 
     def _react_series(self, trainee_id: str, params: dict):
         """
@@ -3519,7 +3519,7 @@ class AbstractHowsoClient(ABC):
             response = dict()
         self._auto_persist_trainee(trainee_id)
         response = internals.format_react_response(response)
-        return Reaction(response.get('action'), response.get('details'))
+        return Reaction(response.get('action'), response.get('details'), feature_attributes)
 
     def _react_series_stationary(self, trainee_id: str, params: dict):
         """

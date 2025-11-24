@@ -7,12 +7,14 @@ import platform
 from pprint import pprint
 import sys
 import uuid
+import warnings
 
 import numpy as np
 import pandas as pd
 import pytest
 
 import howso
+from howso.engine import Trainee
 from howso.client import HowsoClient
 from howso.client.client import _check_isfile  # type: ignore reportPrivateUsage
 from howso.client.client import (
@@ -1327,3 +1329,165 @@ class TestBaseClient:
         mocker.patch.object(Path, 'is_file', return_value=True)
         path = get_configuration_path()
         assert str(path) == 'howso.yml'
+
+    @pytest.mark.parametrize(
+        'details',
+        [
+            (
+                {'categorical_action_probabilities': True, },
+                'categorical_action_probabilities',
+            ),
+            (
+                {'distance_contribution': True, },
+                'distance_contribution',
+            ),
+            (
+                {'influential_cases': True, 'influential_cases_familiarity_convictions': True, },
+                'influential_cases',
+            ),
+            (
+                {'num_boundary_cases': 1, 'boundary_cases_familiarity_convictions': True},
+                'boundary_cases',
+            ),
+            (
+                {'outlying_feature_values': True, },
+                'outlying_feature_values',
+            ),
+            (
+                {'similarity_conviction': True, },
+                'similarity_conviction',
+            ),
+            (
+                {'feature_robust_residuals': True, },
+                'feature_robust_residuals',
+            ),
+            (
+                {'generate_attempts': True, },
+                'generate_attempts',
+            ),
+            (
+                {'prediction_stats': True, },
+                'prediction_stats',
+            ),
+            (
+                {'most_similar_cases': True, 'num_most_similar_case_indices': 1, 'distance_ratio': True},
+                'most_similar_cases',
+            ),
+        ]
+    )
+    def test_react_deserialization(self, details, trainee):
+        """Test that Reaction details are deserialized to their original type."""
+        cases = [['5', '6'],  # TODO use better data for this test
+                 ['7', '8'],
+                 ['9', '10'],
+                 ['11', '12'],
+                 ['13', '14'],
+                 ['15', '16'],
+                 ['17', '18'],
+                 ['19', '20'],
+                 ['21', '22'],
+                 ['23', '24'],
+                 ['25', '26']]
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            self.client.train(trainee.id, cases, features=['penguin', 'play'])
+
+            detail_param, detail_name = details
+
+            response = self.client.react(trainee.id,
+                                         contexts=[['5']],
+                                         context_features=['penguin'],
+                                         action_features=['play'],
+                                         generate_new_cases="attempt",
+                                         desired_conviction=5,
+                                         details=detail_param)
+
+            details_resp = response["details"]
+            raise Exception(details_resp[detail_name])
+            if detail_name in ["influential_cases", "boundary_cases"]:  # Should be a list of DataFrames
+                assert isinstance(details_resp[detail_name], list)
+                assert all(isinstance(item, pd.DataFrame) for item in details_resp[detail_name])
+            elif detail_name in ["generate_attempts"]:
+                assert isinstance(details_resp[detail_name], list)
+            elif detail_name in ["categorical_action_probabilities", "prediction_stats"]:
+                assert isinstance(details_resp[detail_name], list)
+                assert all(isinstance(item, dict) for item in details_resp[detail_name])
+            else:  # All other details expected to be a DataFrame
+                assert isinstance(details_resp[detail_name], pd.DataFrame)
+
+    @pytest.mark.parametrize(
+        'details',
+        [
+            (
+                {'categorical_action_probabilities': True, },
+                'categorical_action_probabilities',
+            ),
+            (
+                {'distance_contribution': True, },
+                'distance_contribution',
+            ),
+            (
+                {'influential_cases': True, 'influential_cases_familiarity_convictions': True, },
+                'influential_cases',
+            ),
+            (
+                {'num_boundary_cases': 1, 'boundary_cases_familiarity_convictions': True, },
+                'boundary_cases',
+            ),
+            (
+                {'outlying_feature_values': True, },
+                'outlying_feature_values',
+            ),
+            (
+                {'similarity_conviction': True, },
+                'similarity_conviction',
+            ),
+            (
+                {'feature_robust_residuals': True, },
+                'feature_robust_residuals',
+            ),
+            (
+                {'generate_attempts': True, },
+                'generate_attempts',
+            ),
+            (
+                {'prediction_stats': True, },
+                'prediction_stats',
+            ),
+            (
+                {'feature_deviations': True, },
+                'feature_deviations',
+            ),
+        ]
+    )
+    def test_react_deserialization_agg(self, details, trainee):
+        """Test that Reaction details are deserialized to their original type."""
+        t = Trainee()
+        t.train(pd.read_csv(iris_file_path))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            detail_param, detail_name = details
+
+            response = t.react_aggregate(
+                                        #contexts=[['1']],
+                                         context_features=['sepal_width'],
+                                         action_features=['class'],
+                                        #generate_new_cases="attempt",
+                                        #desired_conviction=5,
+                                         details=detail_param)
+
+            details_resp = response
+            if detail_name in ["influential_cases", "boundary_cases"]:  # Should be a list of DataFrames
+                assert isinstance(details_resp[detail_name], list)
+                assert all(isinstance(item, pd.DataFrame) for item in details_resp[detail_name])
+            elif detail_name in ["generate_attempts"]:
+                assert isinstance(details_resp[detail_name], list)
+            elif detail_name in ["categorical_action_probabilities", "prediction_stats"]:
+                assert isinstance(details_resp[detail_name], list)
+                assert all(isinstance(item, dict) for item in details_resp[detail_name])
+            else:  # All other details expected to be a DataFrame
+                raise Exception(details_resp[detail_name])
+                assert isinstance(details_resp[detail_name], pd.DataFrame)
