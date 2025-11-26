@@ -15,6 +15,7 @@ _VT = TypeVar("_VT")
 
 ComplexMetric: TypeAlias = Literal[
     "feature_robust_accuracy_contributions",  # A matrix of feature name to feature name
+    "value_robust_accuracy_contributions", # A dict containing "features", "feature_values", and "ac_values"
     "confusion_matrix",  # Features mapped to confusion matrix schemas
 ]
 """Metric output keys of react aggregate that do not translate directly into a DataFrame alongside other metrics."""
@@ -32,6 +33,7 @@ TableMetric: TypeAlias = Literal[
     "feature_full_accuracy_contributions_permutation",
     "feature_robust_accuracy_contributions",
     "feature_robust_accuracy_contributions_permutation",
+    "value_robust_accuracy_contributions",
     "adjusted_smape",
     "smape",
     "mae",
@@ -88,6 +90,10 @@ class AggregateReaction(Mapping[Metric, MetricValue]):
                 }
             elif key == "feature_robust_accuracy_contributions":
                 return pd.DataFrame(value)
+            elif key == "value_robust_accuracy_contributions":
+                df = pd.DataFrame(data=value['feature_values'], columns=value['features'])
+                df['ac_values'] = value['ac_values']
+                return df
             return pd.DataFrame({key: value}).T
         return value
 
