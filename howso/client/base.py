@@ -3700,6 +3700,9 @@ class AbstractHowsoClient(ABC):
         sample_model_fraction: t.Optional[float] = None,
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
+        value_robust_ac_action_feature: t.Optional[str] = None,
+        value_robust_ac_features: t.Optional[Collection[str]] = None,
+        value_robust_ac_max_num_buckets: int = 30,
         weight_feature: t.Optional[str] = None,
     ) -> dict[str, dict[str, t.Any]]:
         """
@@ -3863,6 +3866,9 @@ class AbstractHowsoClient(ABC):
                   in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
             - estimated_residual_lower_bound : bool, optional
                 When True, computes and outputs estimated lower bound of residuals for specified action features.
+            - value_robust_accuracy_contributions : bool, optional
+                Perform a focused computation to determine how all the individual combinations of specified
+                'value_robust_ac_features' values affect the accuracy of 'value_robust_ac_action_feature'.
             - missing_information : bool, optional
                 For each feature in ``action_features``, return the average estimated missing information. This is
                 computed by measuring the surprisal between the full prediction and the prediction including the true
@@ -3937,6 +3943,7 @@ class AbstractHowsoClient(ABC):
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions. Defaults to the
             smaller of 150000 or (6321 * number of context features).
+            Defaults to 100,000 for value_robust_accuracy_contributions.
         num_robust_influence_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions and robust prediction
@@ -3996,6 +4003,14 @@ class AbstractHowsoClient(ABC):
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
             will be used if the Trainee has them.
+        value_robust_ac_action_feature : str, optional
+			The name of the feature being predicted when computing the "value_robust_accuracy_contributions" detail.
+        value_robust_ac_features: list of str, optional
+            The feature names for which to measure the accuracy contributions across combinations of values when
+            computing the "value_robust_accuracy_contributions" detail.
+        value_robust_ac_max_num_buckets: int, default 30
+            The maximum number of buckets to bin continuous values into when computing the
+            "value_robust_accuracy_contributions" detail.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -4096,6 +4111,9 @@ class AbstractHowsoClient(ABC):
             "sample_model_fraction": sample_model_fraction,
             "sub_model_size": sub_model_size,
             "use_case_weights": use_case_weights,
+            "value_robust_ac_action_feature": value_robust_ac_action_feature,
+            "value_robust_ac_features": value_robust_ac_features,
+            "value_robust_ac_max_num_buckets": value_robust_ac_max_num_buckets,
             "weight_feature": weight_feature,
         })
         if stats is None:
