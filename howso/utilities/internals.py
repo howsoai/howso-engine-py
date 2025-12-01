@@ -1373,7 +1373,6 @@ def update_confusion_matrix(
     return updated_confusion_matrix_map
 
 
-
 class IgnoreWarnings:
     """
     Simple context manager to ignore Warnings.
