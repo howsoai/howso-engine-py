@@ -1422,7 +1422,7 @@ class TestBaseClient:
                                          details=detail_param)
 
             details_resp = response["details"]
-            if detail_name in ["influential_cases", "boundary_cases", "boundary_values"]:
+            if detail_name in ["influential_cases", "boundary_cases"]:
                 assert isinstance(details_resp[detail_name], list)
                 assert all(isinstance(item, pd.DataFrame) for item in details_resp[detail_name])
             elif detail_name in ["generate_attempts", "similarity_conviction", "distance_contribution"]:

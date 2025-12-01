@@ -18,8 +18,7 @@ def test_cases_with_details_add_reaction():
         'action': df
     }
 
-    cwd = Reaction()
-    cwd.add_reaction(react_response['action'], react_response['details'])
+    cwd = Reaction(react_response['action'], react_response['details'])
     cwd.add_reaction(react_response['action'].to_dict(), react_response['details'])
     # List of dicts
     cwd.add_reaction(react_response['action'].to_dict(orient='records'), react_response['details'])
