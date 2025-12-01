@@ -2554,12 +2554,6 @@ class AbstractHowsoClient(ABC):
                             detail_response[extra_old_key] = detail_response[extra_new_key]
                             del detail_response[extra_new_key]
 
-            if "categorical_action_probabilities" in detail_response:  # TODO this is handled in Reaction now
-                detail_response["categorical_action_probabilities"] = internals.update_caps_maps(
-                    detail_response["categorical_action_probabilities"],
-                    feature_attributes
-                )
-
         return Reaction(response.get('action'), detail_response, feature_attributes)
 
 
