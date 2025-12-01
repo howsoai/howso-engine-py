@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import MutableMapping
 from pprint import pformat
-from typing import Any, Literal, Mapping, overload, Sequence, TypeAlias, TypedDict
+from typing import Any, Literal, Mapping, Optional, overload, Sequence, TypeAlias, TypedDict
 
 import pandas as pd
 
@@ -13,67 +13,6 @@ from howso.utilities.internals import update_caps_maps
 __all__ = [
     "Reaction"
 ]
-
-
-# Details that are formatted into a list of DataFrames
-GROUPED_DATAFRAME_DETAILS = {
-    "boundary_cases",
-    "boundary_values",
-    "case_full_accuracy_contributions",
-    "case_full_prediction_contributions",
-    "case_robust_accuracy_contributions",
-    "case_robust_prediction_contributions",
-    "influential_cases",
-    "most_similar_case_indices",
-    "most_similar_cases",
-}
-
-# Details that are formatted into a DataFrame
-SINGLE_DATAFRAME_DETAILS = {
-    "context_values",
-    "derivation_parameters",
-    "distance_ratio_parts",
-    "feature_deviations",
-    "feature_full_accuracy_contributions_ex_post",
-    "feature_full_accuracy_contributions",
-    "feature_full_directional_prediction_contributions",
-    "feature_full_directional_prediction_contributions_for_case",
-    "feature_full_prediction_contributions_for_case",
-    "feature_full_prediction_contributions",
-    "feature_full_residual_convictions_for_case",
-    "feature_full_residuals_for_case",
-    "predicted_values_for_case",
-    "feature_full_residuals",
-    "feature_robust_accuracy_contributions_ex_post",
-    "feature_robust_accuracy_contributions",
-    "feature_robust_directional_prediction_contributions",
-    "feature_robust_directional_prediction_contributions_for_case",
-    "feature_robust_prediction_contributions_for_case",
-    "feature_robust_prediction_contributions",
-    "feature_robust_residuals_for_case",
-    "feature_robust_residuals",
-    "hypothetical_values",
-    "observational_errors",
-    "outlying_feature_values",
-    "relevant_values",
-}
-
-# Details that are special cases (prediction stats, CAP) or should otherwise be left alone
-OTHER_DETAILS = {
-    "action_features",
-    "categorical_action_probabilities",
-    "context_features",
-    "context_values",
-    "distance_contribution",
-    "distance_ratio",
-    "generate_attempts",
-    "non_clustered_distance_contribution",
-    "non_clustered_similarity_conviction",
-    "prediction_stats",
-    "similarity_conviction",
-    "aggregated_categorical_action_probabilities",
-    "series_generate_attempts",
-}
 
 # Details with case data that need to be deserialized
 DETAILS_WITH_CASE_DATA = {
@@ -100,7 +39,7 @@ class ReactDetails(TypedDict, total=False):
 
     boundary_cases: list[pd.DataFrame]
 
-    boundary_values: list[pd.DataFrame]
+    boundary_values: pd.DataFrame
 
     case_full_accuracy_contributions: list[pd.DataFrame]
 
@@ -211,10 +150,10 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails | list[ReactDetails]]):
     Parameters
     ----------
     action : pandas.DataFrame or list or dict, default None
-        (Optional) A DataFrame with columns representing the requested
+        A DataFrame with columns representing the requested
         features of ``react`` or ``react_series`` cases.
     details : MutableMapping, default None
-        (Optional) The details of results from ``react`` or ``react_series``
+        The details of results from ``react`` or ``react_series``
         when providing a ``details`` parameter.
     attributes : MutableMapping, default none
         (Optional) The feature attributes of the data.
@@ -225,12 +164,12 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails | list[ReactDetails]]):
     def __init__(self,
                  action: pd.DataFrame | list[MutableMapping[str, Any] | pd.DataFrame] | MutableMapping[str, Any],
                  details: MutableMapping[str, Any] | list[MutableMapping[str, Any]],
-                 attributes: MutableMapping[str, Any],
+                 attributes: Optional[MutableMapping[str, Any]] = None,
                  ):
         """Initialize the dictionary with the allowed keys."""
         self._attributes = attributes
         self._action = deserialize_cases(action, details["action_features"], attributes)
-        self._details = self.format_react_details(details) if details else {}
+        self._details = self.format_react_details(details)
 
     @overload
     def __getitem__(self, key: Literal["action"]) -> pd.DataFrame | list[pd.DataFrame]:
@@ -302,52 +241,49 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails | list[ReactDetails]]):
             If any of the provided keys are not valid.
         """
         formatted_details = {}
+
+        def _convert(detail_name, detail: Any) -> Any:
+            """Recursively format and deserialize details."""
+            # If the detail is not a list, return as-is
+            if not isinstance(detail, list):
+                return detail
+            # List of dict --> DataFrame
+            elif all(isinstance(v, dict) for v in detail):
+                # Special case: categorical action probabilities
+                if detail_name == "categorical_action_probabilities":
+                    return update_caps_maps(detail, self._attributes)
+                # Special case: prediction stats
+                elif detail_name == "prediction_stats":
+                    for group in detail:
+                        if "confusion_matrix" in group.keys():
+                            group["confusion_matrix"].update({
+                                k: {**v, "matrix": pd.DataFrame(v["matrix"])}
+                                if isinstance(v, Mapping) and "matrix" in v
+                                else v
+                                for k, v in group["confusion_matrix"].items()
+                            })
+                    return pd.DataFrame(detail).T
+                # Special case: details to be deserialized
+                elif detail_name in DETAILS_WITH_CASE_DATA:
+                    return format_dataframe(
+                        pd.DataFrame(detail),
+                        features=self._attributes
+                    )
+                # All other details
+                else:
+                    return pd.DataFrame(detail)
+
+            # Recurse
+            return [_convert(detail_name, v) for v in detail]
+
         for detail_name, detail in details.items():
-            # Special case: categorical_action_probabilities
-            if detail_name == "categorical_action_probabilities":
-                formatted_details.update(
-                    {detail_name: update_caps_maps(detail, self._attributes)}
-                )
-            # Special case: prediction_stats
-            elif detail_name == "prediction_stats":
-                for group in detail:
-                    if "confusion_matrix" in group.keys():
-                        group["confusion_matrix"].update({
-                            k: {**v, "matrix": pd.DataFrame(v["matrix"])}
-                            if isinstance(v, Mapping) and "matrix" in v
-                            else v
-                            for k, v in detail.items()
-                        })
-                # Remove from list and transpose if not time-series
-                if len(detail) == 1:
-                    detail = pd.DataFrame(detail[0]).T
-                formatted_details.update({detail_name: detail})
             # Special case: context_values
-            elif detail_name == "context_values":
+            if detail_name == "context_values":
                 context_columns = details.get('context_features')
                 formatted_details.update({detail_name: deserialize_cases(detail, context_columns, self._attributes)})
-            # Details that are to be a list of DataFrames
-            elif detail_name in GROUPED_DATAFRAME_DETAILS:
-                grouped_cases = []
-                for cases in detail:
-                    if detail_name in GROUPED_DATAFRAME_DETAILS.intersection(DETAILS_WITH_CASE_DATA):
-                        formatted_detail = format_dataframe(
-                            pd.DataFrame(cases),
-                            features=self._attributes
-                        )
-                    else:
-                        formatted_detail = pd.DataFrame(cases)
-                    grouped_cases.append(formatted_detail)
-                formatted_details.update({detail_name: grouped_cases})
-            # Details that are to be a DataFrame
-            elif detail_name in SINGLE_DATAFRAME_DETAILS:
-                formatted_detail = pd.DataFrame(detail)
-                if detail_name in SINGLE_DATAFRAME_DETAILS.intersection(DETAILS_WITH_CASE_DATA):
-                    formatted_detail = format_dataframe(formatted_detail, features=self._attributes)
-                formatted_details.update({detail_name: formatted_detail})
-            # Details that are something else, and should stay as-is
-            elif detail_name in OTHER_DETAILS:
-                formatted_details.update({detail_name: detail})
+            # Other valid details
+            elif detail_name in ReactDetails.__annotations__.keys():
+                formatted_details.update({detail_name: _convert(detail_name, detail)})
             # Unknown detail
             else:
                 raise ValueError(f"Unknown Reaction detail name: {detail_name}")
