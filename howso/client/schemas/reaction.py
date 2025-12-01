@@ -228,7 +228,7 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails | list[ReactDetails]]):
         Parameters
         ----------
         details : MutableMapping[str, Any]
-            A MutableMapping (dict-like) with keys that are members of `Reaction.KNOWN_KEYS`.
+            A MutableMapping (dict-like) with keys that are members of `ReactDetails`.
 
         Returns
         -------
