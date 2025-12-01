@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-from collections import abc
-from functools import singledispatchmethod
+from collections.abc import MutableMapping
 from pprint import pformat
-from typing import Any, get_args, Literal, TypeAlias, TypedDict, Mapping
-import warnings
+from typing import Any, Literal, Mapping, overload, Sequence, TypeAlias, TypedDict
 
-import numpy as np
 import pandas as pd
 
-from howso.internals import (
-    deserialize_to_dataframe,
-    update_caps_maps,
-)
-from howso.utilities import format_dataframe
-from howso.utilities.constants import _RENAMED_DETAIL_KEYS  # type: ignore reportPrivateUsage
+from howso.utilities import deserialize_cases, format_dataframe
+from howso.utilities.internals import update_caps_maps
 
 
 __all__ = [
@@ -22,7 +15,22 @@ __all__ = [
 ]
 
 
-SingleDataFrameDetail: TypeAlias = Literal[
+# Details that are formatted into a list of DataFrames
+GROUPED_DATAFRAME_DETAILS = {
+    "boundary_cases",
+    "boundary_values",
+    "case_full_accuracy_contributions",
+    "case_full_prediction_contributions",
+    "case_robust_accuracy_contributions",
+    "case_robust_prediction_contributions",
+    "influential_cases",
+    "most_similar_case_indices",
+    "most_similar_cases",
+}
+
+# Details that are formatted into a DataFrame
+SINGLE_DATAFRAME_DETAILS = {
+    "context_values",
     "derivation_parameters",
     "distance_ratio_parts",
     "feature_deviations",
@@ -48,34 +56,47 @@ SingleDataFrameDetail: TypeAlias = Literal[
     "observational_errors",
     "outlying_feature_values",
     "relevant_values",
-]
+}
 
-GroupedDataFrameDetail: TypeAlias = Literal[
-    "boundary_cases",
-    "boundary_values",
-    "case_full_accuracy_contributions",
-    "case_full_prediction_contributions",
-    "case_robust_accuracy_contributions",
-    "case_robust_prediction_contributions",
-    "influential_cases",
-    "most_similar_case_indices",
-    "most_similar_cases",
-]
-
-OtherDetail: TypeAlias = Literal[
+# Details that are special cases (prediction stats, CAP) or should otherwise be left alone
+OTHER_DETAILS = {
+    "action_features",
     "categorical_action_probabilities",
+    "context_features",
     "context_values",
     "distance_contribution",
+    "distance_ratio",
     "generate_attempts",
     "non_clustered_distance_contribution",
     "non_clustered_similarity_conviction",
     "prediction_stats",
     "similarity_conviction",
+    "aggregated_categorical_action_probabilities",
+    "series_generate_attempts",
+}
+
+# Details with case data that need to be deserialized
+DETAILS_WITH_CASE_DATA = {
+    "boundary_cases",
+    "boundary_values",
+    "hypothetical_values",
+    "influential_cases",
+    "most_similar_cases",
+    "outlying_feature_values",
+    "predicted_values_for_case",
+    "relevant_values",
+}
+
+ReactionKey: TypeAlias = Literal[
+    "action",
+    "details"
 ]
 
 
 class ReactDetails(TypedDict, total=False):
     """The details returned by `react`."""
+
+    action_features: list[str]
 
     boundary_cases: list[pd.DataFrame]
 
@@ -90,13 +111,16 @@ class ReactDetails(TypedDict, total=False):
     case_robust_prediction_contributions: list[pd.DataFrame]
 
     categorical_action_probabilities: list[dict[str, dict[Any, float]]]
-    """The categorical action probabilities for each nominal action feature for each group."""
+
+    context_features: list[str]
 
     context_values: pd.DataFrame
 
     derivation_parameters: pd.DataFrame
 
     distance_contribution: list[float]
+
+    distance_ratio: list[float]
 
     distance_ratio_parts: pd.DataFrame
 
@@ -118,10 +142,7 @@ class ReactDetails(TypedDict, total=False):
 
     feature_full_residuals_for_case: pd.DataFrame
 
-    predicted_values_for_case: pd.DataFrame
-
     feature_full_residuals: pd.DataFrame
-    """The full residuals for each action feature for each group."""
 
     feature_robust_accuracy_contributions_ex_post: pd.DataFrame
 
@@ -144,7 +165,6 @@ class ReactDetails(TypedDict, total=False):
     hypothetical_values: pd.DataFrame
 
     influential_cases: list[pd.DataFrame]
-    """The collection of influential cases to each group."""
 
     most_similar_case_indices: list[pd.DataFrame]
 
@@ -158,25 +178,27 @@ class ReactDetails(TypedDict, total=False):
 
     outlying_feature_values: pd.DataFrame
 
+    predicted_values_for_case: pd.DataFrame
+
     prediction_stats: dict[str, Any]
 
     relevant_values: pd.DataFrame
 
     similarity_conviction: list[float]
 
-    # Below are time-series ONLY
+    # Below are time-series only
 
-    aggregated_categorical_action_probabilities: list[pd.DataFrame]  # TODO verify this
+    aggregated_categorical_action_probabilities: list[pd.DataFrame]
 
     series_generate_attempts: list[float]
 
 
-class Reaction(abc.MutableMapping):
+class Reaction(MutableMapping[ReactionKey, ReactDetails | list[ReactDetails]]):
     """
     An implementation of a MutableMapping to hold a collection of react outputs.
 
     This is useful where the results need to be aggregated together from a
-    collection of single results or batched results to act as a single react outpu
+    collection of single results or batched results to act as a single react output.
 
     Additional Reactions can be aggregated by using the `add_reaction()`
     method. This will coalesce the new details into the correct places within
@@ -200,92 +222,65 @@ class Reaction(abc.MutableMapping):
 
     __slots__ = ("_action", "_details", "_attributes")
 
-    # TODO can these be TypeAliases instead and serve a dual purpose? (See GroupReaction)
-    SPECIAL_KEYS = {"action_features", }
-    KNOWN_KEYS = {  # NOTE: for react_series, these will all be the same except wrapped in an extra list (since they will change per series)
-        # These are dict[list] if not otherwise specified (ex. {'action_features': ['play'], 'similarity_conviction': [1024]})
-        "boundary_cases",  # list[DataFrame]
-        "boundary_cases_familiarity_convictions",  # N/A
-        "boundary_values",  # list[DataFrame]
-        "case_full_accuracy_contributions",  # list[DataFrame]
-        "case_full_prediction_contributions",  # list [DataFrame]
-        "case_robust_accuracy_contributions",  # list[DataFrame]
-        "case_robust_prediction_contributions",  # list[DataFrame]
-        "categorical_action_probabilities",  # SPECIAL CASE: Caps Maps update
-        "context_values",
-        "derivation_parameters",  # DataFrame
-        "distance_contribution",
-        "distance_ratio_parts",
-        "distance_ratio",
-        "feature_deviations",
-        "feature_full_accuracy_contributions_ex_post",
-        "feature_full_accuracy_contributions",
-        "feature_full_directional_prediction_contributions",
-        "feature_full_directional_prediction_contributions_for_case",
-        "feature_full_prediction_contributions_for_case",
-        "feature_full_prediction_contributions",
-        "feature_full_residual_convictions_for_case",
-        "feature_full_residuals_for_case",
-        "predicted_values_for_case",  # Insights is deserializing; do here and remove there # TODO
-        "feature_full_residuals",
-        "feature_robust_accuracy_contributions_ex_post",
-        "feature_robust_accuracy_contributions",
-        "feature_robust_directional_prediction_contributions",
-        "feature_robust_directional_prediction_contributions_for_case",
-        "feature_robust_prediction_contributions_for_case",
-        "feature_robust_prediction_contributions",
-        "feature_robust_residuals_for_case",
-        "feature_robust_residuals",
-        "generate_attempts",  # Just a list of numbers
-        "hypothetical_values",
-        "influential_cases_familiarity_convictions",
-        "influential_cases_raw_weights",
-        "influential_cases",  # list of DFs
-        "most_similar_case_indices",
-        "most_similar_cases",  # List of DFs
-        "non_clustered_distance_contribution",
-        "non_clustered_similarity_conviction",
-        "observational_errors",
-        "outlying_feature_values",
-        "prediction_stats",  # Confusion matrix thing
-        "relevant_values",
-        "similarity_conviction",
-        # react_series-only details
-        "aggregated_categorical_action_probabilities",
-        "series_generate_attempts",  # List of numbers (react_series ONLY)
-    }
-
-    # These detail keys are deprecated, but should be treated as KNOWN_KEYs
-    # during the deprecation period.
-    KNOWN_KEYS |= set(_RENAMED_DETAIL_KEYS.keys())
-
     def __init__(self,
-                 action: Optional[pd.DataFrame | list | dict] = None,
-                 details: Optional[abc.MutableMapping[str, Any]] = None,
-                 attributes: Optional[abc.MutableMapping[str, Any]] = None,
+                 action: pd.DataFrame | list[MutableMapping[str, Any] | pd.DataFrame] | MutableMapping[str, Any],
+                 details: MutableMapping[str, Any] | list[MutableMapping[str, Any]],
+                 attributes: MutableMapping[str, Any],
                  ):
         """Initialize the dictionary with the allowed keys."""
         self._attributes = attributes
-        self._action = action
+        self._action = deserialize_cases(action, details["action_features"], attributes)
         self._details = self.format_react_details(details) if details else {}
+
+    @overload
+    def __getitem__(self, key: Literal["action"]) -> pd.DataFrame | list[pd.DataFrame]:
+        """Get the action values from the Reaction."""
+        ...
+
+    @overload
+    def __getitem__(self, key: Literal["details"]) -> ReactDetails | list[ReactDetails]:
+        """Get the details from the Reaction."""
+        ...
 
     def __getitem__(self, key: str):
         """Get an item by key if the key is allowed."""
+        if key == "action":
+            return self._action
+        elif key == "details":
+            return self._details
         raise ValueError(f"Invalid key: {key}. Valid keys are 'action' or 'details'.")
 
-    @overload
-    def __getitem__(self, key: Literal["action"]) -> pd.DataFrame:
-        return self._action
+    def __setitem__(self, key: str, value: pd.DataFrame | list[Any] | MutableMapping[Any]):
+        """Set an item by key if the key is allowed."""
+        if key == "action":
+            self._action = value
+        elif key == "details":
+            self._details = value
+        else:
+            raise ValueError(f"Invalid key: {key}. Valid keys are 'action' or 'details'.")
 
-    @overload
-    def __getitem__(self, key: Literal["details"]) -> ReactDetails:
-        return self._details or {}
+    def __iter__(self):
+        """Iterate over the two valid keys."""
+        return iter({"action": self._action, "details": self._details})
+
+    def __len__(self):
+        """Get the length of this Reaction."""
+        return sum([self._action is not None, self._details is not None])
+
+    def __delitem__(self, key: str, value: pd.DataFrame | list[Any] | MutableMapping[Any]):
+        """Delete an item by key if the key is allowed."""
+        if key == "action":
+            self._action = None
+        elif key == "details":
+            self._details = None
+        else:
+            raise ValueError(f"Invalid key: {key}. Valid keys are 'action' or 'details'.")
 
     def __repr__(self) -> str:
-        """Return printable representation."""
+        """Return a printable representation of this Reaction."""
         return f"{repr(self._action)}\n{pformat(self._details)}"
 
-    def format_react_details(self, details: abc.MutableMapping[str, Any]) -> ReactDetails:
+    def format_react_details(self, details: MutableMapping[str, Any]) -> ReactDetails:
         """
         Converts any valid details from a react call to a DataFrame and deserializes them.
 
@@ -308,55 +303,58 @@ class Reaction(abc.MutableMapping):
         """
         formatted_details = {}
         for detail_name, detail in details.items():
-            # Special case: action_features
-            if detail_name == "action_features" or detail_name == "context_features":
-                continue
-            elif detail_name == "context_values":
-                pass  # TODO
             # Special case: categorical_action_probabilities
-            elif detail_name == "categorical_action_probabilities":
+            if detail_name == "categorical_action_probabilities":
                 formatted_details.update(
                     {detail_name: update_caps_maps(detail, self._attributes)}
                 )
             # Special case: prediction_stats
             elif detail_name == "prediction_stats":
                 for group in detail:
-                    if "confusion_matrix" in group.keys():  # TODO make sure this actually updates
+                    if "confusion_matrix" in group.keys():
                         group["confusion_matrix"].update({
                             k: {**v, "matrix": pd.DataFrame(v["matrix"])}
                             if isinstance(v, Mapping) and "matrix" in v
                             else v
                             for k, v in detail.items()
                         })
+                # Remove from list and transpose if not time-series
+                if len(detail) == 1:
+                    detail = pd.DataFrame(detail[0]).T
                 formatted_details.update({detail_name: detail})
+            # Special case: context_values
+            elif detail_name == "context_values":
+                context_columns = details.get('context_features')
+                formatted_details.update({detail_name: deserialize_cases(detail, context_columns, self._attributes)})
             # Details that are to be a list of DataFrames
-            elif detail_name in get_args(GroupedDataFrameDetail):
-                # Must deserialize each collection of cases for each group
-                # (List of DataFrames)
-                deserialized_cases = []
-                for group_cases in detail:
-                    deserialized_cases.append(
-                        format_dataframe(
-                            pd.DataFrame(group_cases),
+            elif detail_name in GROUPED_DATAFRAME_DETAILS:
+                grouped_cases = []
+                for cases in detail:
+                    if detail_name in GROUPED_DATAFRAME_DETAILS.intersection(DETAILS_WITH_CASE_DATA):
+                        formatted_detail = format_dataframe(
+                            pd.DataFrame(cases),
                             features=self._attributes
                         )
-                    )
-                formatted_details.update({detail_name: deserialized_cases})
+                    else:
+                        formatted_detail = pd.DataFrame(cases)
+                    grouped_cases.append(formatted_detail)
+                formatted_details.update({detail_name: grouped_cases})
             # Details that are to be a DataFrame
-            elif detail_name in get_args(SingleDataFrameDetail):
-                # TODO: make sure all details with case data are deserialized -- there might be more!
-                formatted_details.update({detail_name: pd.DataFrame(detail)})
+            elif detail_name in SINGLE_DATAFRAME_DETAILS:
+                formatted_detail = pd.DataFrame(detail)
+                if detail_name in SINGLE_DATAFRAME_DETAILS.intersection(DETAILS_WITH_CASE_DATA):
+                    formatted_detail = format_dataframe(formatted_detail, features=self._attributes)
+                formatted_details.update({detail_name: formatted_detail})
             # Details that are something else, and should stay as-is
-            elif detail_name in get_args(OtherDetail):
+            elif detail_name in OTHER_DETAILS:
                 formatted_details.update({detail_name: detail})
             # Unknown detail
             else:
-                raise ValueError(f"Unknown detail name: {detail_name}")
+                raise ValueError(f"Unknown Reaction detail name: {detail_name}")
 
         return formatted_details
 
-
-    def accumulate(self, reactions: Reaction | list[Reaction]):
+    def accumulate(self, reactions: Reaction | Sequence[Reaction]):
         """
         Merge one or more other Reaction objects into this Reaction.
 
@@ -365,12 +363,11 @@ class Reaction(abc.MutableMapping):
         reactions : list of Reaction
             One or more Reaction objects to accumulate to this Reaction.accumulate
         """
-        if isinstance(reactions, Reaction):
+        if not isinstance(reactions, Sequence):
             reactions = [reactions]
         for reaction in reactions:
             if not isinstance(reaction, Reaction):
                 raise TypeError(f"All items in `reactions` must be of type `Reaction` (found type: {type(reaction)}).")
-            # Existing code below:
             if reaction["action"] is not None:
                 if self._action is not None:
                     self._action = pd.concat([self._action, reaction["action"]])
@@ -379,13 +376,11 @@ class Reaction(abc.MutableMapping):
 
             if self._details is not None:
                 for key, detail in reaction["details"].items():
-                    if key not in self._details:
-                        self._details[key] = detail
-                    if key in self.SPECIAL_KEYS or key not in self.KNOWN_KEYS or (
-                        key == "context_values" and detail is None
-                    ):
+                    if detail is None:
                         continue
-                    if hasattr(detail, "extend") and callable(detail.extend):
+                    elif key not in self._details:
+                        self._details[key] = detail
+                    elif hasattr(detail, "extend") and callable(detail.extend):
                         self._details[key].extend(detail)
                     elif isinstance(detail, pd.DataFrame):
                         self._details[key] = pd.concat([self._details[key], detail])

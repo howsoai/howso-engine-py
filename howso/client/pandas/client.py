@@ -258,17 +258,8 @@ class HowsoPandasClientMixin:
                     An aggregated list of any requested details.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
-        feature_attributes = self.resolve_feature_attributes(trainee_id)
         response = super().react(trainee_id, *args, **kwargs)
-        columns = response['details'].get('action_features')
-        if 'prediction_stats' in response['details']: # TODO move to Reaction
-            response['details']['prediction_stats'] = pd.DataFrame(response['details']['prediction_stats'][0]).T
 
-        context_columns = response['details'].get('context_features')
-        if 'context_values' in response['details']: # TODO this deserialization should also probably be done in Reaction
-            response['details']['context_values'] = deserialize_cases(response['details']['context_values'], context_columns, feature_attributes)
-
-        response['action'] = deserialize_cases(response['action'], columns, feature_attributes)
         return response
 
 

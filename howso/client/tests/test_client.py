@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from copy import deepcopy
 import importlib.metadata
 import json
 import os
@@ -1370,14 +1371,30 @@ class TestBaseClient:
                 'prediction_stats',
             ),
             (
-                {'most_similar_cases': True, 'num_most_similar_case_indices': 1, 'distance_ratio': True},
-                'most_similar_cases',
+                {'boundary_value_context_features': ["penguin"]},
+                'boundary_values'
+            ),
+            (
+                {'observational_errors': True, },
+                'observational_errors'
+            ),
+            (
+                {'relevant_values': True, },
+                'relevant_values',
+            ),
+            (
+                {'feature_full_accuracy_contributions': True, },
+                'feature_full_accuracy_contributions',
+            ),
+            (
+                {'feature_deviations': True, },
+                'feature_deviations',
             ),
         ]
     )
-    def test_react_deserialization(self, details, trainee):
-        """Test that Reaction details are deserialized to their original type."""
-        cases = [['5', '6'],  # TODO use better data for this test
+    def test_react_format(self, details, trainee):
+        """Test that various Reaction details are correctly formatted."""
+        cases = [['5', '6'],
                  ['7', '8'],
                  ['9', '10'],
                  ['11', '12'],
@@ -1401,17 +1418,16 @@ class TestBaseClient:
                                          context_features=['penguin'],
                                          action_features=['play'],
                                          generate_new_cases="attempt",
-                                         desired_conviction=5,
+                                         desired_conviction=1,
                                          details=detail_param)
 
             details_resp = response["details"]
-            raise Exception(details_resp[detail_name])
-            if detail_name in ["influential_cases", "boundary_cases"]:  # Should be a list of DataFrames
+            if detail_name in ["influential_cases", "boundary_cases", "boundary_values"]:
                 assert isinstance(details_resp[detail_name], list)
                 assert all(isinstance(item, pd.DataFrame) for item in details_resp[detail_name])
-            elif detail_name in ["generate_attempts"]:
+            elif detail_name in ["generate_attempts", "similarity_conviction", "distance_contribution"]:
                 assert isinstance(details_resp[detail_name], list)
-            elif detail_name in ["categorical_action_probabilities", "prediction_stats"]:
+            elif detail_name in ["categorical_action_probabilities"]:
                 assert isinstance(details_resp[detail_name], list)
                 assert all(isinstance(item, dict) for item in details_resp[detail_name])
             else:  # All other details expected to be a DataFrame
@@ -1433,61 +1449,64 @@ class TestBaseClient:
                 'influential_cases',
             ),
             (
-                {'num_boundary_cases': 1, 'boundary_cases_familiarity_convictions': True, },
+                {'num_boundary_cases': 1, 'boundary_cases_familiarity_convictions': True},
                 'boundary_cases',
             ),
             (
                 {'outlying_feature_values': True, },
                 'outlying_feature_values',
             ),
-            (
-                {'similarity_conviction': True, },
-                'similarity_conviction',
-            ),
-            (
-                {'feature_robust_residuals': True, },
-                'feature_robust_residuals',
-            ),
-            (
-                {'generate_attempts': True, },
-                'generate_attempts',
-            ),
-            (
-                {'prediction_stats': True, },
-                'prediction_stats',
-            ),
-            (
-                {'feature_deviations': True, },
-                'feature_deviations',
-            ),
-        ]
-    )
-    def test_react_deserialization_agg(self, details, trainee):
-        """Test that Reaction details are deserialized to their original type."""
-        t = Trainee()
-        t.train(pd.read_csv(iris_file_path))
+        ])
+    def test_accumulate_reaction(self, details, trainee):
+        """Test the accumulation of two Reaction objects."""
+        cases = [['5', '6'],
+                 ['7', '8'],
+                 ['9', '10'],
+                 ['11', '12'],
+                 ['13', '14'],
+                 ['15', '16'],
+                 ['17', '18'],
+                 ['19', '20'],
+                 ['21', '22'],
+                 ['23', '24'],
+                 ['25', '26']]
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
+            self.client.train(trainee.id, cases, features=['penguin', 'play'])
+
             detail_param, detail_name = details
 
-            response = t.react_aggregate(
-                                        #contexts=[['1']],
-                                         context_features=['sepal_width'],
-                                         action_features=['class'],
-                                        #generate_new_cases="attempt",
-                                        #desired_conviction=5,
-                                         details=detail_param)
+            reaction_0 = self.client.react(trainee.id,
+                                           contexts=[['5']],
+                                           context_features=['penguin'],
+                                           action_features=['play'],
+                                           generate_new_cases="attempt",
+                                           desired_conviction=1,
+                                           details=detail_param)
 
-            details_resp = response
-            if detail_name in ["influential_cases", "boundary_cases"]:  # Should be a list of DataFrames
-                assert isinstance(details_resp[detail_name], list)
-                assert all(isinstance(item, pd.DataFrame) for item in details_resp[detail_name])
-            elif detail_name in ["generate_attempts"]:
-                assert isinstance(details_resp[detail_name], list)
-            elif detail_name in ["categorical_action_probabilities", "prediction_stats"]:
-                assert isinstance(details_resp[detail_name], list)
-                assert all(isinstance(item, dict) for item in details_resp[detail_name])
-            else:  # All other details expected to be a DataFrame
-                raise Exception(details_resp[detail_name])
-                assert isinstance(details_resp[detail_name], pd.DataFrame)
+            reaction_0_accum = deepcopy(reaction_0)
+
+            reaction_1 = self.client.react(trainee.id,
+                                           contexts=[['17']],
+                                           context_features=['penguin'],
+                                           action_features=['play'],
+                                           generate_new_cases="attempt",
+                                           desired_conviction=1,
+                                           details=detail_param)
+
+            reaction_0_accum.accumulate(reaction_1)
+
+            if isinstance(reaction_0["details"][detail_name], list):
+                combined_detail = reaction_0["details"][detail_name] + reaction_1["details"][detail_name]
+                assert isinstance(reaction_0_accum["details"][detail_name], list)
+                for idx, v in enumerate(reaction_0_accum["details"][detail_name]):
+                    if isinstance(v, pd.DataFrame):
+                        assert v.equals(combined_detail[idx])
+                    else:
+                        assert v == combined_detail[idx]
+            else:
+                combined_detail = pd.concat([reaction_0["details"][detail_name], reaction_1["details"][detail_name]])
+                assert isinstance(reaction_0_accum["details"][detail_name], pd.DataFrame)
+                assert reaction_0_accum["details"][detail_name].equals(combined_detail)
