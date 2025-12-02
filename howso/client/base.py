@@ -2509,7 +2509,7 @@ class AbstractHowsoClient(ABC):
                 suppress_warning=suppress_warning
             )
 
-        return Reaction(response.get("action"), response.get("details"), feature_attributes)
+        return Reaction(response["action"], response["details"], feature_attributes)
 
     def _react(self, trainee_id: str, params: dict) -> tuple[dict, int, int]:
         """
@@ -3467,7 +3467,7 @@ class AbstractHowsoClient(ABC):
             response = dict()
         self._auto_persist_trainee(trainee_id)
         response = internals.format_react_response(response)
-        return Reaction(response.get('action'), response.get('details'), feature_attributes)
+        return Reaction(response["action"], response["details"], feature_attributes)
 
     def _react_series_stationary(self, trainee_id: str, params: dict):
         """

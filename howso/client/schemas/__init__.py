@@ -2,7 +2,7 @@ from .aggregate_reaction import AggregateReaction
 from .base import BaseSchema
 from .group_reaction import GroupReaction
 from .project import Project, ProjectDict
-from .reaction import Reaction
+from .reaction import ReactDetails, Reaction
 from .session import Session, SessionDict
 from .trainee import (
     ResourceLimit, Trainee, TraineeDict, TraineeRuntime, TraineeRuntimeOptions, TraineeScaling,
