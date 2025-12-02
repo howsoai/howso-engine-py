@@ -408,7 +408,7 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
                 else:
                     self._action = reaction["action"]
 
-            if self._details is not None:
+            if reaction["details"] is not None:
                 for key, detail in reaction["details"].items():
                     if detail is None:
                         continue
