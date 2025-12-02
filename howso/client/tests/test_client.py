@@ -15,7 +15,6 @@ import pandas as pd
 import pytest
 
 import howso
-from howso.engine import Trainee
 from howso.client import HowsoClient
 from howso.client.client import _check_isfile  # type: ignore reportPrivateUsage
 from howso.client.client import (

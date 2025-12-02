@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import pytest
 
 from howso.client.schemas.reaction import Reaction
 
@@ -19,10 +18,10 @@ def test_cases_with_details_add_reaction():
     }
 
     cwd = Reaction(react_response['action'], react_response['details'])
-    cwd.add_reaction(react_response['action'].to_dict(), react_response['details'])
+    cwd.accumulate(react_response['action'].to_dict(), react_response['details'])
     # List of dicts
-    cwd.add_reaction(react_response['action'].to_dict(orient='records'), react_response['details'])
-    cwd.add_reaction(Reaction(react_response['action'], react_response['details']))
+    cwd.accumulate(react_response['action'].to_dict(orient='records'), react_response['details'])
+    cwd.accumulate(Reaction(react_response['action'], react_response['details']))
 
     assert cwd['action'].shape[0] == 16
 

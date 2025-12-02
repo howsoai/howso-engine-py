@@ -16,6 +16,7 @@ __all__ = [
     'GroupReaction',
     'Project',
     'ProjectDict',
+    'ReactDetails',
     'Reaction',
     'Session',
     'SessionDict',

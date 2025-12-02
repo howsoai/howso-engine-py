@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import MutableMapping
 from pprint import pformat
-from typing import Any, Literal, Mapping, Optional, overload, Sequence, TypeAlias, TypedDict
+from typing import Any, Iterable, Literal, Mapping, overload, Sequence, TypeAlias, TypedDict
 
 import pandas as pd
 
@@ -11,7 +11,8 @@ from howso.utilities.internals import update_caps_maps
 
 
 __all__ = [
-    "Reaction"
+    "ReactDetails",
+    "Reaction",
 ]
 
 # Details with case data that need to be deserialized
@@ -36,116 +37,206 @@ class ReactDetails(TypedDict, total=False):
     """The details returned by `react`."""
 
     action_features: list[str]
+    """A list of feature names that correspond to the predicted action values."""
 
     boundary_cases: list[pd.DataFrame]
+    """A list of DataFrames mapping boundary cases for each given case."""
 
     boundary_values: pd.DataFrame
+    """A DataFrame mapping feature names to the boundary values computed for them."""
 
     case_full_accuracy_contributions: list[pd.DataFrame]
+    """A list of DataFrames mapping the case index and full MDA for each influential case of each given case."""
 
     case_full_prediction_contributions: list[pd.DataFrame]
+    """
+    A list of DataFrames mapping the case index and the full contribution to the action feature for each
+    influential case of each given case.
+    """
 
     case_robust_accuracy_contributions: list[pd.DataFrame]
+    """A list of DataFrames mapping the case index and robust MDA for each influential case of each given case."""
 
     case_robust_prediction_contributions: list[pd.DataFrame]
+    """
+    A list of DataFrames mapping the case index and robust contribution to the action feature for each influential
+    case of each given case.
+    """
 
     categorical_action_probabilities: list[dict[str, dict[Any, float]]]
+    """A list of dicts of feature names to their estimated probabilities of each class for the given cases."""
 
     context_features: list[str]
+    """A list of feature names that correspond to the provided contexts."""
 
     context_values: pd.DataFrame
+    """A DataFrame mapping context feature names to the provided context values."""
 
     derivation_parameters: pd.DataFrame
+    """A DataFrame mapping the parameters used in the `react` call to their values."""
 
     distance_contribution: list[float]
+    """A list of the computed distance contribution for each given case."""
 
     distance_ratio: list[float]
+    """A list of the computed distance ratio for each given case."""
 
     distance_ratio_parts: pd.DataFrame
+    """A DataFrame of the parts that are used to compute the distance ratio for each case."""
 
     feature_deviations: pd.DataFrame
+    """
+    A DataFrame of the mean absolute error of predicting each feature using the full set of context features and
+    the feature being predicted as context.
+    """
 
     feature_full_accuracy_contributions_ex_post: pd.DataFrame
+    """
+    A DataFrame defining the local feature full MDA of the action feature for each feature in the query given the
+    prediction was already made as the given action value.
+    """
 
     feature_full_accuracy_contributions: pd.DataFrame
+    """A DataFrame defining the local feature full MDA of the action feature for each feature in the query."""
 
     feature_full_directional_prediction_contributions: pd.DataFrame
+    """
+    A DataFrame defining the local feature robust directional contributions of the action feature for each
+    feature in the query.
+    """
 
     feature_full_directional_prediction_contributions_for_case: pd.DataFrame
+    """
+    A DataFrame defining the local feature robust directional contributions of the action feature for each
+    feature each given case.
+    """
 
     feature_full_prediction_contributions_for_case: pd.DataFrame
+    """A DataFrame mapping the case index and full contribution to the action feature each given case."""
 
     feature_full_prediction_contributions: pd.DataFrame
+    """
+    A DataFrame defining the local feature full contributions of the action feature for each feature in the
+    query.
+    """
 
     feature_full_residual_convictions_for_case: pd.DataFrame
+    """A DataFrame mapping the feature name to feature full residual conviction for each given case."""
 
     feature_full_residuals_for_case: pd.DataFrame
+    """A DataFrame mapping the feature name to the full prediction residual for each given cas."""
 
     feature_full_residuals: pd.DataFrame
+    """A DataFrame of the local feature full residuals for each feature in the query."""
 
     feature_robust_accuracy_contributions_ex_post: pd.DataFrame
+    """
+    A DataFrame defining the local feature robust MDA of the action feature for each feature in the query given the
+    prediction was already made as the given action value.
+    """
 
     feature_robust_accuracy_contributions: pd.DataFrame
+    """A DataFrame defining the local feature robust MDA of the action feature for each feature in the query."""
 
-    feature_robust_directional_prediction_contributions: pd.Dataframe
+    feature_robust_directional_prediction_contributions: pd.DataFrame
+    """
+    A DataFrame defining the local feature robust directional contributions of the action feature for each feature
+    in the query.
+    """
 
     feature_robust_directional_prediction_contributions_for_case: pd.DataFrame
+    """
+    A DataFrame defining the local feature robust directional contributions of the action feature each given
+    case.
+    """
 
     feature_robust_prediction_contributions_for_case: pd.DataFrame
+    """A DataFrame defining the local feature robust contributions of the actiuon feature each given case."""
 
     feature_robust_prediction_contributions: pd.DataFrame
+    """
+    A DataFrame defining the local feature robust contributions of the actiuon feature for each feature in the
+    query.
+    """
 
     feature_robust_residuals_for_case: pd.DataFrame
+    """A DataFrame mapping feature name to the robust prediction residual for each given case."""
 
     feature_robust_residuals: pd.DataFrame
+    """A DataFrame defining the local feature robust residuals for each feature in the query."""
 
     generate_attempts: list[float]
+    """A list of the number of genereation attempts taken for each synthesized case."""
 
     hypothetical_values: pd.DataFrame
+    """
+    A DataFrame mapping feature name to feature values indicating how feature values would be predicted if the given
+    hypothetical values were true.
+    """
 
     influential_cases: list[pd.DataFrame]
+    """A list of DataFrames defining the influential cases for each given case."""
 
     most_similar_case_indices: list[pd.DataFrame]
+    """A list of DataFrames defining the most similar case indices and their distance from each given case."""
 
     most_similar_cases: list[pd.DataFrame]
+    """A list of DataFrames defining the most similar cases to each given case."""
 
     non_clustered_distance_contribution: list[float]
+    """A list of the computed distance contribution for each given case without its cluster ID."""
 
     non_clustered_similarity_conviction: list[float]
+    """A list of the computed similarity conviction for each given case without its cluster ID."""
 
     observational_errors: pd.DataFrame
+    """A DataFrame of the observational errors for each feature defined in the feature attributes."""
 
     outlying_feature_values: pd.DataFrame
+    """
+    A DataFrame mapping feature names to a description of the outlying values and the extremes observed among
+    similar cases.
+    """
 
     predicted_values_for_case: pd.DataFrame
+    """A DataFrame mapping feature name to predicted value for each given case."""
 
     prediction_stats: dict[str, Any]
+    """A dict mapping the resulting prediction stats for the region of cases nearest to each given case."""
 
     relevant_values: pd.DataFrame
+    """A DataFrame mapping feature name to the list of relevant values for each context."""
 
     similarity_conviction: list[float]
+    """A list of the average similarity conviction of cases in each group."""
 
     # Below are time-series only
 
     aggregated_categorical_action_probabilities: list[pd.DataFrame]
+    """
+    A list of DataFrames defining the aggregated categorical action probabilities for each nominal feature across
+    all of the cases of each series.
+    """
 
     series_generate_attempts: list[float]
+    """A list of generation attempts for each series as a whole."""
+
+    series_residuals: list[pd.DataFrame]
+    "A list of DataFrames of estimated uncertainties of continuous features for each time step of the series."
 
 
-class Reaction(MutableMapping[ReactionKey, ReactDetails | list[ReactDetails]]):
+class Reaction(MutableMapping[ReactionKey, ReactDetails]):
     """
     An implementation of a MutableMapping to hold a collection of react outputs.
 
     This is useful where the results need to be aggregated together from a
     collection of single results or batched results to act as a single react output.
 
-    Additional Reactions can be aggregated by using the `add_reaction()`
-    method. This will coalesce the new details into the correct places within
-    any existing reactions.
+    Additional Reactions can be aggregated by using the `accumulate` method. This will
+    coalesce the new details into the correct places within any existing reactions.
 
-    All individual action items (cases) can be returned with their
-    corresponding details via the ``gen_cases`` generator. The returned pair of
-    values will be returned as a Reaction.
+    All details with case data are deserialized to their original types, and all details
+    that can be represented in DataFrame format will be converted.
 
     Parameters
     ----------
@@ -162,26 +253,29 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails | list[ReactDetails]]):
     __slots__ = ("_action", "_details", "_attributes")
 
     def __init__(self,
-                 action: pd.DataFrame | list[MutableMapping[str, Any] | pd.DataFrame] | MutableMapping[str, Any],
-                 details: MutableMapping[str, Any] | list[MutableMapping[str, Any]],
-                 attributes: Optional[MutableMapping[str, Any]] = None,
+                 action: pd.DataFrame | list[MutableMapping[str, Any]],
+                 details: MutableMapping[str, Any],
+                 attributes: MutableMapping[str, Any],
                  ):
         """Initialize the dictionary with the allowed keys."""
         self._attributes = attributes
-        self._action = deserialize_cases(action, details["action_features"], attributes)
+        if isinstance(action, pd.DataFrame):
+            self._action = action
+        else:
+            self._action = deserialize_cases(action, details["action_features"], attributes)
         self._details = self.format_react_details(details)
 
     @overload
-    def __getitem__(self, key: Literal["action"]) -> pd.DataFrame | list[pd.DataFrame]:
+    def __getitem__(self, key: Literal["action"]) -> pd.DataFrame:
         """Get the action values from the Reaction."""
         ...
 
     @overload
-    def __getitem__(self, key: Literal["details"]) -> ReactDetails | list[ReactDetails]:
+    def __getitem__(self, key: Literal["details"]) -> ReactDetails:
         """Get the details from the Reaction."""
         ...
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> pd.DataFrame | ReactDetails:
         """Get an item by key if the key is allowed."""
         if key == "action":
             return self._action
@@ -189,24 +283,28 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails | list[ReactDetails]]):
             return self._details
         raise ValueError(f"Invalid key: {key}. Valid keys are 'action' or 'details'.")
 
-    def __setitem__(self, key: str, value: pd.DataFrame | list[Any] | MutableMapping[Any]):
+    def __setitem__(self, key: str, value: pd.DataFrame | list[MutableMapping[str, Any]]):
         """Set an item by key if the key is allowed."""
         if key == "action":
-            self._action = value
+            # If not provided a DataFrame, data is likely raw from HSE and needs to be deserialized
+            if not isinstance(value, pd.DataFrame):
+                self._action = deserialize_cases(value, self._details["action_features"], self._attributes)
+            else:
+                self._action = value
         elif key == "details":
             self._details = value
         else:
             raise ValueError(f"Invalid key: {key}. Valid keys are 'action' or 'details'.")
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[dict[str, pd.DataFrame | dict]]:
         """Iterate over the two valid keys."""
         return iter({"action": self._action, "details": self._details})
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Get the length of this Reaction."""
         return sum([self._action is not None, self._details is not None])
 
-    def __delitem__(self, key: str, value: pd.DataFrame | list[Any] | MutableMapping[Any]):
+    def __delitem__(self, key: str):
         """Delete an item by key if the key is allowed."""
         if key == "action":
             self._action = None
@@ -324,5 +422,5 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails | list[ReactDetails]]):
                         raise TypeError(
                             f"The value under the key {key} was expected to be a list (or another "
                             f"MutableSequence) or DataFrame but it is of type "
-                            f"{type(self._data['details'][key])} instead."
+                            f"{type(self._details[key])} instead."
                         )
