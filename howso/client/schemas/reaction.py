@@ -151,11 +151,11 @@ class ReactDetails(TypedDict, total=False):
     """
 
     feature_robust_prediction_contributions_for_case: pd.DataFrame
-    """A DataFrame defining the local feature robust contributions of the actiuon feature each given case."""
+    """A DataFrame defining the local feature robust contributions of the action feature each given case."""
 
     feature_robust_prediction_contributions: pd.DataFrame
     """
-    A DataFrame defining the local feature robust contributions of the actiuon feature for each feature in the
+    A DataFrame defining the local feature robust contributions of the action feature for each feature in the
     query.
     """
 
@@ -166,7 +166,7 @@ class ReactDetails(TypedDict, total=False):
     """A DataFrame defining the local feature robust residuals for each feature in the query."""
 
     generate_attempts: list[float]
-    """A list of the number of genereation attempts taken for each synthesized case."""
+    """A list of the number of generation attempts taken for each synthesized case."""
 
     hypothetical_values: pd.DataFrame
     """
@@ -222,7 +222,7 @@ class ReactDetails(TypedDict, total=False):
     """A list of generation attempts for each series as a whole."""
 
     series_residuals: list[pd.DataFrame]
-    "A list of DataFrames of estimated uncertainties of continuous features for each time step of the series."
+    """A list of DataFrames of estimated uncertainties of continuous features for each time step of the series."""
 
 
 class Reaction(MutableMapping[ReactionKey, ReactDetails]):
