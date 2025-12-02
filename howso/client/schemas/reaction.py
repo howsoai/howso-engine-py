@@ -247,7 +247,10 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
         The details of results from ``react`` or ``react_series``
         when providing a ``details`` parameter.
     attributes : MutableMapping, default none
-        (Optional) The feature attributes of the data.
+        The feature attributes of the data.
+    process_details : boolean, default True
+        Set to `False` if details have already been formatted and deserialized and
+        processed (for example, if details come from another `Reaction` object).
     """
 
     __slots__ = ("_action", "_details", "_attributes")
@@ -256,6 +259,7 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
                  action: pd.DataFrame | list[MutableMapping[str, Any]],
                  details: MutableMapping[str, Any],
                  attributes: MutableMapping[str, Any],
+                 process_details: bool = True,
                  ):
         """Initialize the dictionary with the allowed keys."""
         self._attributes = attributes
@@ -263,7 +267,10 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
             self._action = action
         else:
             self._action = deserialize_cases(action, details["action_features"], attributes)
-        self._details = self.format_react_details(details)
+        if process_details:
+            self._details = self.format_react_details(details)
+        else:
+            self._details = details
 
     @overload
     def __getitem__(self, key: Literal["action"]) -> pd.DataFrame:
@@ -414,6 +421,9 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
                         continue
                     elif key not in self._details:
                         self._details[key] = detail
+                    elif key in ["action_features", "context_features"]:
+                        # Special case: avoid duplicate entries in feature name lists
+                        self._details[key] = list(set(self._details[key] + detail))
                     elif hasattr(detail, "extend") and callable(detail.extend):
                         self._details[key].extend(detail)
                     elif isinstance(detail, pd.DataFrame):
