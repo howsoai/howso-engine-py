@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from howso.client.schemas.reaction import Reaction
+from howso.utilities import infer_feature_attributes
 
 
 def test_cases_with_details_add_reaction():
@@ -17,11 +18,13 @@ def test_cases_with_details_add_reaction():
         'action': df
     }
 
-    cwd = Reaction(react_response['action'], react_response['details'])
-    cwd.accumulate(react_response['action'].to_dict(), react_response['details'])
+    attributes = infer_feature_attributes(df)
+
+    cwd = Reaction(react_response['action'], react_response['details'], attributes)
+    cwd.accumulate(Reaction(react_response['action'].to_dict(), react_response['details'], attributes))
     # List of dicts
-    cwd.accumulate(react_response['action'].to_dict(orient='records'), react_response['details'])
-    cwd.accumulate(Reaction(react_response['action'], react_response['details']))
+    cwd.accumulate(Reaction(react_response['action'].to_dict(orient='records'), react_response['details'], attributes))
+    cwd.accumulate(Reaction(react_response['action'], react_response['details'], attributes))
 
     assert cwd['action'].shape[0] == 16
 
@@ -39,11 +42,13 @@ def test_cases_with_details_instantiate():
         'action': df
     }
 
-    cwd = Reaction(react_response['action'], react_response['details'])
+    attributes = infer_feature_attributes(df)
+
+    cwd = Reaction(react_response['action'], react_response['details'], attributes)
     assert cwd['action'].shape[0] == 4
 
-    cwd = Reaction(react_response['action'].to_dict(), react_response['details'])
+    cwd = Reaction(react_response['action'].to_dict(), react_response['details'], attributes)
     assert cwd['action'].shape[0] == 4
 
-    cwd = Reaction(react_response['action'].to_dict(orient='records'), react_response['details'])
+    cwd = Reaction(react_response['action'].to_dict(orient='records'), react_response['details'], attributes)
     assert cwd['action'].shape[0] == 4
