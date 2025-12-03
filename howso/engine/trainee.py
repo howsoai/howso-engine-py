@@ -3588,7 +3588,7 @@ class Trainee(BaseTrainee):
         use_case_weights: t.Optional[bool] = None,
         value_robust_contributions_action_feature: t.Optional[str] = None,
         value_robust_contributions_features: t.Optional[Collection[str]] = None,
-        value_robust_contributions_max_num_buckets: int = 30,
+        value_robust_contributions_num_buckets: int = 30,
         weight_feature: t.Optional[str] = None,
     ) -> AggregateReaction:
         """
@@ -3909,7 +3909,7 @@ class Trainee(BaseTrainee):
             The feature names for which to measure the accuracy contributions across combinations of values when
             computing the "value_robust_accuracy_contributions", "value_robust_prediction_contributions" or
             "value_robust_surprisal_asymmetry" details.
-        value_robust_contributions_max_num_buckets: int, default 30
+        value_robust_contributions_num_buckets: int, default 30
             The maximum number of buckets to bin continuous values into when computing the
             "value_robust_accuracy_contributions", "value_robust_prediction_contributions" or
             "value_robust_surprisal_asymmetry" details.
@@ -3953,7 +3953,7 @@ class Trainee(BaseTrainee):
                 use_case_weights=use_case_weights,
                 value_robust_contributions_features=value_robust_contributions_features,
                 value_robust_contributions_action_feature=value_robust_contributions_action_feature,
-                value_robust_contributions_max_num_buckets=value_robust_contributions_max_num_buckets,
+                value_robust_contributions_num_buckets=value_robust_contributions_num_buckets,
                 weight_feature=weight_feature,
             )
         else:
