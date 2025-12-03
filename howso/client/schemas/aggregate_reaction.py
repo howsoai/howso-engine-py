@@ -14,9 +14,14 @@ __all__ = [
 _VT = TypeVar("_VT")
 
 ComplexMetric: TypeAlias = Literal[
-    "feature_robust_accuracy_contributions",  # A matrix of feature name to feature name
-    "value_robust_accuracy_contributions", # A dict containing "features", "feature_values", and "ac_values"
-    "confusion_matrix",  # Features mapped to confusion matrix schemas
+    # A matrix of feature name to feature name
+    "feature_robust_accuracy_contributions",
+    # A dict containing "features", "feature_values", and some subset of "ac_values", "pc_values", and "pc_directional_values"
+    "value_robust_contributions",
+    # A dict containing "features", "feature_values", and "surprisal_asymmetries"
+    "value_robust_surprisal_asymmetry"
+    # Features mapped to confusion matrix schemas
+    "confusion_matrix",
 ]
 """Metric output keys of react aggregate that do not translate directly into a DataFrame alongside other metrics."""
 
@@ -33,13 +38,15 @@ TableMetric: TypeAlias = Literal[
     "feature_full_accuracy_contributions_permutation",
     "feature_robust_accuracy_contributions",
     "feature_robust_accuracy_contributions_permutation",
-    "value_robust_accuracy_contributions",
+    "value_robust_contributions",
+    "value_robust_surprisal_asymmetry"
     "adjusted_smape",
     "smape",
     "mae",
     "recall",
     "precision",
     "accuracy",
+    "confusion_matrix",
     "r2",
     "rmse",
     "spearman_coeff",
@@ -90,9 +97,20 @@ class AggregateReaction(Mapping[Metric, MetricValue]):
                 }
             elif key == "feature_robust_accuracy_contributions":
                 return pd.DataFrame(value)
-            elif key == "value_robust_accuracy_contributions":
+            elif key == "value_robust_contributions":
                 df = pd.DataFrame(data=value['feature_values'], columns=value['features'])
-                df['ac_values'] = value['ac_values']
+                # Any of these keys *could* be in value.
+                if "ac_values" in value:
+                    df['ac_values'] = value['ac_values']
+                if "pc_values" in value:
+                    df['pc_values'] = value['pc_values']
+                if "pc_directional_values" in value:
+                    df['pc_directional_values'] = value['pc_directional_values']
+                return df
+            elif key == "value_robust_surprisal_asymmetry":
+                df = pd.DataFrame(data=value['feature_values'], columns=value['features'])
+                # This key should always be in value
+                df['surprisal_asymmetries'] = value['surprisal_asymmetries']
                 return df
             return pd.DataFrame({key: value}).T
         return value
