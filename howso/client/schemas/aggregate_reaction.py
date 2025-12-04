@@ -39,7 +39,7 @@ TableMetric: TypeAlias = Literal[
     "feature_robust_accuracy_contributions",
     "feature_robust_accuracy_contributions_permutation",
     "value_robust_contributions",
-    "value_robust_surprisal_asymmetry"
+    "value_robust_surprisal_asymmetry",
     "adjusted_smape",
     "smape",
     "mae",
