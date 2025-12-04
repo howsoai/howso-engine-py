@@ -3842,7 +3842,7 @@ class Trainee(BaseTrainee):
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions. Defaults to the
             smaller of 150000 or (6321 * number of context features).
-            Defaults to 100,000 for value_robust_accuracy_contributions.
+            Defaults to 100,000 for all value-details.
         num_robust_influence_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions and robust prediction
