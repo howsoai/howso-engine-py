@@ -19,7 +19,7 @@ ComplexMetric: TypeAlias = Literal[
     # A dict containing "features", "feature_values", and some subset of "ac_values", "pc_values", and "pc_directional_values"
     "value_robust_contributions",
     # A dict containing "features", "feature_values", and "surprisal_asymmetries"
-    "value_robust_surprisal_asymmetry"
+    "value_robust_surprisal_asymmetry",
     # Features mapped to confusion matrix schemas
     "confusion_matrix",
 ]
