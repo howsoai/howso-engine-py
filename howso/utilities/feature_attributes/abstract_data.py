@@ -87,7 +87,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         if (
             isinstance(AbstractData, type) and
             isinstance(self.data, AbstractData) and
-            getattr(self.data, "_NATIVE_COMPUTE_TYPE") == "spark" and
+            getattr(self.data, "_NATIVE_COMPUTE_TYPE", None) == "spark" and
             "max_workers" not in kwargs
         ):
             kwargs["max_workers"] = 1
