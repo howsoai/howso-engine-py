@@ -46,7 +46,6 @@ TableMetric: TypeAlias = Literal[
     "recall",
     "precision",
     "accuracy",
-    "confusion_matrix",
     "r2",
     "rmse",
     "spearman_coeff",
