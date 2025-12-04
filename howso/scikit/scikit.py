@@ -469,9 +469,9 @@ class HowsoEstimator(BaseEstimator):
         )
 
         # Convert to dictionary, new trainee outputs a pd.DataFrame
-        results['action'] = results['action'].to_dict('records')
-        results['action'] = utils.replace_none_with_nan(results['action'])
-        action_values = pd.DataFrame(results['action']).values
+        action_as_dict = results['action'].to_dict('records')
+        action_as_dict = utils.replace_none_with_nan(action_as_dict)
+        action_values = pd.DataFrame(action_as_dict).values
         out = np.array(action_values).astype(float)
         out.shape = (out.shape[0],)
         if np.isnan(np.sum(out)):
