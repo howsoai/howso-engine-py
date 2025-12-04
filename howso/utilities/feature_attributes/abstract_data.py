@@ -81,7 +81,18 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
+        # For Spark compute types, multiprocessing is less-performant.
+        # If we're working with the SparkDataFrameData ADC, unless the user
+        # specifically sets `max_workers`, we want "sharding" disabled.
+        if (
+            isinstance(AbstractData, type) and
+            isinstance(self.data, AbstractData) and
+            getattr(self.data, "_NATIVE_COMPUTE_TYPE", None) == "spark" and
+            "max_workers" not in kwargs
+        ):
+            kwargs["max_workers"] = 1
         feature_attributes = self._process(**kwargs)
+
         self.emit_time_zone_warnings(self.missing_tz_features, self.utc_offset_features)
         self.emit_unknown_datetime_warnings(self.unknown_datetime_features)
         return SingleTableFeatureAttributes(

@@ -913,7 +913,7 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
     ):
         """Infer delta and rate min/max for each continuous feature and update the features dict."""
         feature_chunks = []
-        for chunk in self.data.yield_chunk():
+        for chunk in self.data.yield_chunk(chunk_size=50_000):
             feature_chunks.append(self._infer_delta_min_max_from_chunk(
                 chunk,
                 features,
