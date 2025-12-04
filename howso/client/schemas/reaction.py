@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import MutableMapping
 from pprint import pformat
-from typing import Any, Iterable, Literal, Mapping, overload, Sequence, TypeAlias, TypedDict
+from typing import Any, cast, Iterator, Literal, Mapping, overload, Sequence, TypeAlias, TypedDict
 
 import pandas as pd
 
@@ -225,7 +225,7 @@ class ReactDetails(TypedDict, total=False):
     """A list of DataFrames of estimated uncertainties of continuous features for each time step of the series."""
 
 
-class Reaction(MutableMapping[ReactionKey, ReactDetails]):
+class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
     """
     An implementation of a MutableMapping to hold a collection of react outputs.
 
@@ -253,24 +253,27 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
         processed (for example, if details come from another `Reaction` object).
     """
 
-    __slots__ = ("_action", "_details", "_attributes")
+    __slots__ = ("_action", "_details")
 
-    def __init__(self,
-                 action: pd.DataFrame | list[MutableMapping[str, Any]],
-                 details: MutableMapping[str, Any],
-                 attributes: MutableMapping[str, Any],
-                 process_details: bool = True,
-                 ):
+    def __init__(
+        self,
+        action: pd.DataFrame | list[Mapping[str, Any]],
+        details: Mapping[str, Any],
+        attributes: Mapping[str, Any],
+        *,
+        process_details: bool = True,
+    ):
         """Initialize the dictionary with the allowed keys."""
-        self._attributes = attributes
         if isinstance(action, pd.DataFrame):
             self._action = action
         else:
+            if "action_features" not in details:
+                raise ValueError("If `action` is not a DataFrame, `action_features` must be present in `details`.")
             self._action = deserialize_cases(action, details["action_features"], attributes)
         if process_details:
-            self._details = self.format_react_details(details)
+            self._details = self.format_react_details(details, attributes)
         else:
-            self._details = details
+            self._details = cast(ReactDetails, details)
 
     @overload
     def __getitem__(self, key: Literal["action"]) -> pd.DataFrame:
@@ -282,7 +285,7 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
         """Get the details from the Reaction."""
         ...
 
-    def __getitem__(self, key: str) -> pd.DataFrame | ReactDetails:
+    def __getitem__(self, key: ReactionKey) -> pd.DataFrame | ReactDetails:
         """Get an item by key if the key is allowed."""
         if key == "action":
             return self._action
@@ -290,41 +293,46 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
             return self._details
         raise ValueError(f"Invalid key: {key}. Valid keys are 'action' or 'details'.")
 
-    def __setitem__(self, key: str, value: pd.DataFrame | list[MutableMapping[str, Any]]):
+    @overload
+    def __setitem__(self, key: Literal["action"], value: pd.DataFrame):
+        """Set the action value."""
+        ...
+
+    @overload
+    def __setitem(self, key: Literal["details"], value: ReactDetails):
+        """Set the details value."""
+        ...
+
+    def __setitem__(self, key: ReactionKey, value: pd.DataFrame | ReactDetails):
         """Set an item by key if the key is allowed."""
         if key == "action":
             # If not provided a DataFrame, data is likely raw from HSE and needs to be deserialized
-            if not isinstance(value, pd.DataFrame):
-                self._action = deserialize_cases(value, self._details["action_features"], self._attributes)
-            else:
+            if isinstance(value, pd.DataFrame):
                 self._action = value
+            else:
+                raise ValueError("Value being set for `action` must be a Pandas DataFrame.")
         elif key == "details":
-            self._details = value
+            if isinstance(value, Mapping):
+                self._details = cast(ReactDetails, value)
+            else:
+                raise ValueError("Value being set for `details` must be a Mapping.")
         else:
             raise ValueError(f"Invalid key: {key}. Valid keys are 'action' or 'details'.")
 
-    def __iter__(self) -> Iterable[dict[str, pd.DataFrame | dict]]:
+    def __iter__(self) -> Iterator[ReactionKey]:
         """Iterate over the two valid keys."""
-        return iter({"action": self._action, "details": self._details})
+        return iter(ReactionKey.__args__)
 
     def __len__(self) -> int:
         """Get the length of this Reaction."""
-        return sum([self._action is not None, self._details is not None])
-
-    def __delitem__(self, key: str):
-        """Delete an item by key if the key is allowed."""
-        if key == "action":
-            self._action = None
-        elif key == "details":
-            self._details = None
-        else:
-            raise ValueError(f"Invalid key: {key}. Valid keys are 'action' or 'details'.")
+        return len(ReactionKey.__args__)
 
     def __repr__(self) -> str:
         """Return a printable representation of this Reaction."""
         return f"{repr(self._action)}\n{pformat(self._details)}"
 
-    def format_react_details(self, details: MutableMapping[str, Any]) -> ReactDetails:
+    @staticmethod
+    def format_react_details(details: MutableMapping[str, Any], attributes: Mapping[str, Any]) -> ReactDetails:
         """
         Converts any valid details from a react call to a DataFrame and deserializes them.
 
@@ -356,7 +364,7 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
             elif all(isinstance(v, dict) for v in detail):
                 # Special case: categorical action probabilities
                 if detail_name == "categorical_action_probabilities":
-                    return update_caps_maps(detail, self._attributes)
+                    return update_caps_maps(detail, attributes)
                 # Special case: prediction stats
                 elif detail_name == "prediction_stats":
                     for group in detail:
@@ -372,7 +380,7 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
                 elif detail_name in DETAILS_WITH_CASE_DATA:
                     return format_dataframe(
                         pd.DataFrame(detail),
-                        features=self._attributes
+                        features=attributes
                     )
                 # All other details
                 else:
@@ -385,7 +393,7 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
             # Special case: context_values
             if detail_name == "context_values":
                 context_columns = details.get('context_features')
-                formatted_details.update({detail_name: deserialize_cases(detail, context_columns, self._attributes)})
+                formatted_details.update({detail_name: deserialize_cases(detail, context_columns, attributes)})
             # Other valid details
             elif detail_name in ReactDetails.__annotations__.keys():
                 formatted_details.update({detail_name: _convert(detail_name, detail)})
@@ -393,7 +401,7 @@ class Reaction(MutableMapping[ReactionKey, ReactDetails]):
             else:
                 raise ValueError(f"Unknown Reaction detail name: {detail_name}")
 
-        return formatted_details
+        return ReactDetails(**formatted_details)
 
     def accumulate(self, reactions: Reaction | Sequence[Reaction]):
         """
