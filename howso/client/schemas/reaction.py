@@ -299,7 +299,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         ...
 
     @overload
-    def __setitem(self, key: Literal["details"], value: ReactDetails):
+    def __setitem__(self, key: Literal["details"], value: ReactDetails):
         """Set the details value."""
         ...
 
