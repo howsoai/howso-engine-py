@@ -718,9 +718,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             # Determine number of decimal places using
             # np.format_float_positional to handle scientific notation.
+            # Convert to numpy array for faster iteration
+            col_array = col.to_numpy()
             decimals = max([
                 len((str(np.format_float_positional(r))).split('.')[1])
-                for r in col
+                for r in col_array
             ])
 
             # specify decimal place. Proceed with training but issue a warning.

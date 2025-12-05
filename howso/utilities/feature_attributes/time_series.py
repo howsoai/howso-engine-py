@@ -226,7 +226,9 @@ class InferFeatureAttributesTimeSeries:
                                         future.cancel()
                                 continue
 
-                        df_c[f_name] = pd.concat(temp_results)
+                        # Concatenate all results at once (more efficient than multiple concats)
+                        if temp_results:
+                            df_c[f_name] = pd.concat(temp_results, ignore_index=True)
                     else:
                         try:
                             df_c[f_name] = _apply_date_to_epoch(df_c, f_name, dt_format)
@@ -286,22 +288,29 @@ class InferFeatureAttributesTimeSeries:
 
                         # compute each 1st order rate as: delta x / delta time
                         # higher order rates as: delta previous rate / delta time
-                        rates = [
-                            dx / (dt if dt != 0 else SMALLEST_TIME_DELTA)
-                            for dx, dt in zip(rates, time_feature_deltas)
-                        ]
+                        # Vectorized computation using numpy for better performance
+                        rates_array = np.asarray(rates)
+                        time_deltas_array = np.asarray(time_feature_deltas)
+                        # Avoid division by zero
+                        time_deltas_safe = np.where(
+                            time_deltas_array != 0,
+                            time_deltas_array,
+                            SMALLEST_TIME_DELTA
+                        )
+                        rates = rates_array / time_deltas_safe
 
-                        # remove NaNs
-                        no_nan_rates = [x for x in rates if pd.isna(x) is False]
+                        # remove NaNs using numpy boolean indexing (faster than list comprehension)
+                        no_nan_mask = ~np.isnan(rates)
+                        no_nan_rates = rates[no_nan_mask]
                         if len(no_nan_rates) == 0:
                             continue
 
                         # TODO: 15550: support user-specified min/max values
-                        rate_max = max(no_nan_rates)
+                        rate_max = float(np.max(no_nan_rates))
                         rate_max = rate_max * e if rate_max > 0 else rate_max / e
                         features[f_name]['time_series']['rate_max'].append(rate_max)
 
-                        rate_min = min(no_nan_rates)
+                        rate_min = float(np.min(no_nan_rates))
                         rate_min = rate_min / e if rate_min > 0 else rate_min * e
                         features[f_name]['time_series']['rate_min'].append(rate_min)
                     else:  # 'type' == "delta"
@@ -319,11 +328,11 @@ class InferFeatureAttributesTimeSeries:
                         no_nan_deltas: pd.Series = deltas.dropna()
                         if len(no_nan_deltas) == 0:
                             continue
-                        delta_max = max(no_nan_deltas)
+                        delta_max = float(no_nan_deltas.max())
                         delta_max = delta_max * e if delta_max > 0 else delta_max / e
                         features[f_name]['time_series']['delta_max'].append(delta_max)
 
-                        delta_min = min(no_nan_deltas)
+                        delta_min = float(no_nan_deltas.min())
                         # don't allow the time series time feature to go back in time
                         # TODO: 15550: support user-specified min/max values
                         if f_name == self.time_feature_name:
