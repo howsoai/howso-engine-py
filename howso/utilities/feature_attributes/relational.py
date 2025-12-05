@@ -878,24 +878,29 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                     # This loop grabs all the distinct values, then converts
                     # them according to the `format_dt` to a proper datetime
                     # instance, then compares them to find min and max values.
-                    min_date_obj = datetime.datetime.max
-                    max_date_obj = datetime.datetime.min
-
                     try:
                         unique_values = self._get_unique_values(feature_name)
+                        # Collect all date objects first, then find min/max once
+                        # (more efficient than comparing in loop, especially for many values)
+                        date_objects = []
                         # The comma in this loop is necessary since
                         # unique_values is a list of sqlalchemy Row values
                         for dt_str, in unique_values:
                             # Parse using the `format_dt` into a datetime
                             if dt_str:  # skip any empty values
                                 date_obj = datetime.datetime.strptime(dt_str, format_dt)
-                                min_date_obj = min(min_date_obj, date_obj)
-                                max_date_obj = max(max_date_obj, date_obj)
+                                date_objects.append(date_obj)
                         else:
-                            warnings.warn(
-                                f'Cannot guess the bounds for feature '
-                                f'"{feature_name}" without samples.')
-                            return None
+                            # If no valid dates were found, warn and return None
+                            if not date_objects:
+                                warnings.warn(
+                                    f'Cannot guess the bounds for feature '
+                                    f'"{feature_name}" without samples.')
+                                return None
+
+                        # Compute min/max from collected date objects
+                        min_date_obj = min(date_objects)
+                        max_date_obj = max(date_objects)
                     except Exception:  # noqa: Intentionally broad
                         warnings.warn(
                             f'Feature "{feature_name}" does not match the '
