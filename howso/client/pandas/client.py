@@ -166,71 +166,6 @@ class HowsoPandasClientMixin:
 
         return out_response
 
-    def react_series(
-        self,
-        trainee_id: str,
-        *args,
-        series_index: str = '.series',
-        **kwargs
-    ) -> Reaction:
-        """
-        Base: :func:`howso.client.AbstractHowsoClient.react_series`.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The trainee id.
-        series_index : str, default ".series"
-            When set to a string, will include the series index as a
-            column in the returned DataFrame using the column name given.
-            If set to None, no column will be added.
-
-        Returns
-        -------
-        Reaction:
-            A MutableMapping (dict-like) with these keys -> values:
-                action -> pandas.DataFrame
-                    A data frame of action values.
-
-                details -> dict or list
-                    An aggregated list of any requested details.
-        """
-        trainee_id = self._resolve_trainee(trainee_id).id
-        feature_attributes = self.resolve_feature_attributes(trainee_id)
-        response = super().react_series(trainee_id, *args, series_index=series_index, **kwargs)
-        response['action'] = format_dataframe(response.get("action"), feature_attributes)
-        return response
-
-    def react_series_stationary(
-        self,
-        trainee_id: str,
-        *args,
-        **kwargs,
-    ) -> Reaction:
-        """
-        Base: :meth:`howso.client.AbstractHowsoClient.react_series_stationary`.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The trainee id.
-
-        Returns
-        -------
-        Reaction:
-            A MutableMapping (dict-like) with these keys -> values:
-                action -> pandas.DataFrame
-                    A DataFrame of action values.
-
-                details -> dict or list
-                    An aggregated list of any requested details.
-        """
-        trainee_id = self._resolve_trainee(trainee_id).id
-        feature_attributes = self.resolve_feature_attributes(trainee_id)
-        response = super().react_series_stationary(trainee_id, *args, **kwargs)
-        response['action'] = format_dataframe(response.get("action"), feature_attributes)
-        return response
-
     def react_aggregate(self, *args, **kwargs) -> AggregateReaction:
         """
         Base: :func:`howso.client.AbstractHowsoClient.react_aggregate`.
@@ -242,34 +177,6 @@ class HowsoPandasClientMixin:
         """
         response = super().react_aggregate(*args, **kwargs)
         return AggregateReaction(response)
-
-    def react(self, trainee_id, *args, **kwargs) -> Reaction:
-        """
-        Base: :func:`howso.client.AbstractHowsoClient.react`.
-
-        Returns
-        -------
-        Reaction:
-            A MutableMapping (dict-like) with these keys -> values:
-                action -> pandas.DataFrame
-                    A data frame of action values.
-
-                details -> dict or list
-                    An aggregated list of any requested details.
-        """
-        trainee_id = self._resolve_trainee(trainee_id).id
-        feature_attributes = self.resolve_feature_attributes(trainee_id)
-        response = super().react(trainee_id, *args, **kwargs)
-        columns = response['details'].get('action_features')
-        if 'prediction_stats' in response['details']:
-            response['details']['prediction_stats'] = pd.DataFrame(response['details']['prediction_stats'][0]).T
-
-        context_columns = response['details'].get('context_features')
-        if 'context_values' in response['details']:
-            response['details']['context_values'] = deserialize_cases(response['details']['context_values'], context_columns, feature_attributes)
-
-        response['action'] = deserialize_cases(response['action'], columns, feature_attributes)
-        return response
 
 
 def get_howso_pandas_client(**kwargs):

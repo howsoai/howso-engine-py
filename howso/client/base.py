@@ -25,10 +25,6 @@ from pandas import DataFrame
 
 from howso.utilities import internals
 from howso.utilities import utilities as util
-from howso.utilities.constants import (  # noqa: E501 type: ignore reportPrivateUsage
-    _RENAMED_DETAIL_KEYS,
-    _RENAMED_DETAIL_KEYS_EXTRA,
-)
 from howso.utilities.feature_attributes.base import (
     FeatureAttributesBase,
     MultiTableFeatureAttributes,
@@ -2330,33 +2326,6 @@ class AbstractHowsoClient(ABC):
             )
         )
 
-        # Issue Deprecation Warnings on these old Details keys:
-        deprecated_keys_used = []
-        if details is not None:
-            details = dict(details)  # Makes it mutable.
-            deprecated_keys_used = list(set(details.keys()) & set(_RENAMED_DETAIL_KEYS.keys()))
-            replacements = [_RENAMED_DETAIL_KEYS[key] for key in deprecated_keys_used]
-            if deprecated_keys_used:
-                used_str = ", ".join(deprecated_keys_used)
-                replace_str = ", ".join(replacements)
-                if len(deprecated_keys_used) == 1:
-                    warnings.warn(
-                        f"The detail key '{used_str}' is deprecated and will "
-                        f"be removed in a future release. Use '{replace_str}' "
-                        f"instead.", DeprecationWarning
-                    )
-                else:
-                    warnings.warn(
-                        f"These detail keys are deprecated: [{used_str}] "
-                        f"and will be removed in a future release. Use these "
-                        f"respective replacements instead: [{replace_str}].",
-                        DeprecationWarning
-                    )
-            # Convert the keys in the details payload.
-            for old_key, new_key in zip(deprecated_keys_used, replacements):
-                details[new_key] = details[old_key]
-                del details[old_key]
-
         if post_process_values is not None and post_process_features is None:
             post_process_features = internals.get_features_from_data(
                 post_process_values,
@@ -2540,28 +2509,7 @@ class AbstractHowsoClient(ABC):
                 suppress_warning=suppress_warning
             )
 
-        # Convert new detail keys that were returned back to the requested ones
-        if detail_response := response.get('details'):
-            for key in deprecated_keys_used:
-                new_key = _RENAMED_DETAIL_KEYS[key]
-                if new_key in detail_response:
-                    detail_response[key] = detail_response[new_key]
-                    del detail_response[new_key]
-                if key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
-                    # This key has multiple return keys that should be renamed to the old:
-                    for extra_old_key, extra_new_key in _RENAMED_DETAIL_KEYS_EXTRA[key]['additional_keys'].items():
-                        if extra_new_key in detail_response:
-                            detail_response[extra_old_key] = detail_response[extra_new_key]
-                            del detail_response[extra_new_key]
-
-            if "categorical_action_probabilities" in detail_response:
-                detail_response["categorical_action_probabilities"] = internals.update_caps_maps(
-                    detail_response["categorical_action_probabilities"],
-                    feature_attributes
-                )
-
-        return Reaction(response.get('action'), detail_response)
-
+        return Reaction(response["action"], response["details"], feature_attributes)
 
     def _react(self, trainee_id: str, params: dict) -> tuple[dict, int, int]:
         """
@@ -3255,7 +3203,7 @@ class AbstractHowsoClient(ABC):
             )
 
         series_df = util.build_react_series_df(response, series_index=series_index)
-        return Reaction(series_df, response.get('details'))
+        return Reaction(series_df, response.get('details'), feature_attributes)
 
     def _react_series(self, trainee_id: str, params: dict):
         """
@@ -3519,7 +3467,7 @@ class AbstractHowsoClient(ABC):
             response = dict()
         self._auto_persist_trainee(trainee_id)
         response = internals.format_react_response(response)
-        return Reaction(response.get('action'), response.get('details'))
+        return Reaction(response["action"], response["details"], feature_attributes)
 
     def _react_series_stationary(self, trainee_id: str, params: dict):
         """
@@ -4045,33 +3993,6 @@ class AbstractHowsoClient(ABC):
                 if context_condition_precision not in self.SUPPORTED_PRECISION_VALUES:
                     warnings.warn(self.WARNING_MESSAGES['invalid_precision'].format("context_condition_precision"))
 
-        # Issue Deprecation Warnings on these old Details keys:
-        deprecated_keys_used = []
-        if details is not None:
-            details = dict(details)  # Makes it mutable.
-            deprecated_keys_used = list(set(details.keys()) & set(_RENAMED_DETAIL_KEYS.keys()))
-            replacements = [_RENAMED_DETAIL_KEYS[key] for key in deprecated_keys_used]
-            if deprecated_keys_used:
-                used_str = ", ".join(deprecated_keys_used)
-                replace_str = ", ".join(replacements)
-                if len(deprecated_keys_used) == 1:
-                    warnings.warn(
-                        f"The detail key '{used_str}' is deprecated and will "
-                        f"be removed in a future release. Use '{replace_str}' "
-                        f"instead.", DeprecationWarning
-                    )
-                else:
-                    warnings.warn(
-                        f"These detail keys are deprecated: [{used_str}] "
-                        f"and will be removed in a future release. Use these "
-                        f"respective replacements instead: [{replace_str}].",
-                        DeprecationWarning
-                    )
-            # Convert the keys in the details payload.
-            for old_key, new_key in zip(deprecated_keys_used, replacements):
-                details[new_key] = details[old_key]
-                del details[old_key]
-
         if num_robust_influence_samples is not None:
             num_robust_accuracy_contributions_samples = num_robust_influence_samples
             num_robust_accuracy_contributions_permutation_samples = num_robust_influence_samples
@@ -4131,23 +4052,9 @@ class AbstractHowsoClient(ABC):
         if stats is None:
             stats = dict()
 
-        # Convert new detail keys that were returned back to the requested ones
-        else:
-            for key in deprecated_keys_used:
-                new_key = _RENAMED_DETAIL_KEYS[key]
-                if new_key in stats:
-                    stats[key] = stats[new_key]
-                    del stats[new_key]
-
-                if key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
-                    # This key has multiple return keys that should be renamed to the old:
-                    for extra_old_key, extra_new_key in _RENAMED_DETAIL_KEYS_EXTRA[key]['additional_keys'].items():
-                        if extra_new_key in stats:
-                            stats[extra_old_key] = stats[extra_new_key]
-                            del stats[extra_new_key]
-
-            if "confusion_matrix" in stats:
-                stats['confusion_matrix'] = internals.update_confusion_matrix(stats['confusion_matrix'], feature_attributes)
+        elif "confusion_matrix" in stats:
+            stats['confusion_matrix'] = internals.update_confusion_matrix(stats['confusion_matrix'],
+                                                                          feature_attributes)
 
         self._auto_persist_trainee(trainee_id)
         return stats
