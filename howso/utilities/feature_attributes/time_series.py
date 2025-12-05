@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Collection, Iterable
+from collections.abc import Callable, Collection, Generator, Iterable
 from concurrent.futures import (
     as_completed,
+    FIRST_COMPLETED,
     Future,
     ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    wait,
 )
 import copy
+from functools import partial
 import logging
 from math import e
 import multiprocessing as mp
@@ -53,7 +57,6 @@ class InferFeatureAttributesTimeSeries:
         datetime_feature_formats: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
         id_feature_name: t.Optional[str | Iterable[str]] = None,
-        max_workers: t.Optional[int] = None,
         orders_of_derivatives: t.Optional[dict] = None,
     ) -> dict:
         """
@@ -104,17 +107,6 @@ class InferFeatureAttributesTimeSeries:
             feature with a 3rd order of derivative, setting its derived_orders
             to 2 will synthesize the 3rd order derivative value, and then use
             that synthed value to derive the 2nd and 1st order.
-
-        max_workers: int, optional
-            If unset or set to None (recommended), let the ProcessPoolExecutor
-            choose the best maximum number of process pool workers to process
-            columns in a multi-process fashion. In this case, if the product of the
-            data's rows and columns > 25,000,000 or the number of rows > 500,000
-            multiprocessing will used.
-
-            If defined with an integer > 0, manually set the number of max workers.
-            Otherwise, the feature attributes will be calculated serially. Setting
-            this parameter to zero (0) will disable multiprocessing.
 
         Returns
         -------
@@ -184,66 +176,22 @@ class InferFeatureAttributesTimeSeries:
                         df_c = chunk.loc[:, [f_name]]
 
                     # convert time feature to epoch
-                    if len(df_c) < 500_000 and max_workers is None:
-                        max_workers = 0
-                    if max_workers is None or max_workers >= 1:
-                        if max_workers is None:
-                            max_workers = os.cpu_count() or 1
-                        mp_context = mp.get_context("spawn")
-                        futures: dict[Future, str] = dict()
-
-                        with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
-                            df_chunks_generator = yield_dataframe_as_chunks(df_c, max_workers)
-                            for sub_chunk in df_chunks_generator:
-                                future = pool.submit(
-                                    _apply_date_to_epoch,
-                                    df=sub_chunk,
-                                    feature_name=f_name,
-                                    dt_format=dt_format
-                                )
-                                futures[future] = f_name
-
-                            temp_results = []
-                            try:
-                                for future in as_completed(futures):
-                                    response = future.result()
-                                    temp_results.append(response)
-                            except ValueError:
-                                # Cannot calculate deltas if date format is invalid, warn and continue
-                                if f_name == self.time_feature_name:
-                                    raise ValueError(
-                                        f'The date time format "{dt_format}" does not match the data of the '
-                                        f'time feature "{self.time_feature_name}".'
-                                    )
-                                warnings.warn(
-                                    f'Feature "{f_name}" does not match the '
-                                    f'provided date time format, unable to infer '
-                                    f'time series delta min/max.',
-                                    DatetimeFormatWarning
-                                )
-                                for future in futures:
-                                    if not future.done():
-                                        future.cancel()
-                                continue
-
-                        df_c[f_name] = pd.concat(temp_results)
-                    else:
-                        try:
-                            df_c[f_name] = _apply_date_to_epoch(df_c, f_name, dt_format)
-                        except ValueError:
-                            # Cannot calculate deltas if date format is invalid, warn and continue
-                            if f_name == self.time_feature_name:
-                                raise ValueError(
-                                    f'The date time format "{dt_format}" does not match the data of the '
-                                    f'time feature "{self.time_feature_name}".'
-                                )
-                            warnings.warn(
-                                f'Feature "{f_name}" does not match the '
-                                f'provided date time format, unable to infer '
-                                f'time series delta min/max.',
-                                DatetimeFormatWarning
+                    try:
+                        df_c[f_name] = _apply_date_to_epoch(df_c, f_name, dt_format)
+                    except ValueError:
+                        # Cannot calculate deltas if date format is invalid, warn and continue
+                        if f_name == self.time_feature_name:
+                            raise ValueError(
+                                f'The date time format "{dt_format}" does not match the data of the '
+                                f'time feature "{self.time_feature_name}".'
                             )
-                            continue
+                        warnings.warn(
+                            f'Feature "{f_name}" does not match the '
+                            f'provided date time format, unable to infer '
+                            f'time series delta min/max.',
+                            DatetimeFormatWarning
+                        )
+                        continue
 
                     # use Pandas' diff() to pull all the deltas for this feature
                     if isinstance(id_feature_name, list):
@@ -912,24 +860,48 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
         max_workers: t.Optional[int] = None
     ):
         """Infer delta and rate min/max for each continuous feature and update the features dict."""
+        from ...utilities.monitors import Timer
         feature_chunks = []
-        for chunk in self.data.yield_chunk(chunk_size=50_000):
-            feature_chunks.append(self._infer_delta_min_max_from_chunk(
-                chunk,
-                features,
-                datetime_feature_formats=datetime_feature_formats,
-                id_feature_name=id_feature_name,
-                orders_of_derivatives=orders_of_derivatives,
-                derived_orders=derived_orders,
-                max_workers=max_workers,
-            ))
+        with Timer(message=f"#### _infer_delta_min_max_from_chunk ({max_workers=})"):
+            if max_workers is None or max_workers > 1:
+                # Determine actual max workers
+                effective_max_workers = max_workers or os.cpu_count() or 4
+
+                func = partial(
+                    self._infer_delta_min_max_from_chunk,
+                    features=features,
+                    datetime_feature_formats=datetime_feature_formats,
+                    id_feature_name=id_feature_name,
+                    orders_of_derivatives=orders_of_derivatives,
+                    derived_orders=derived_orders,
+                )
+
+                with ThreadPoolExecutor(max_workers=effective_max_workers) as pool:
+                    for future in lazy_map(
+                        pool, func,
+                        self.data.yield_chunk(chunk_size=50_000),
+                        queue_length=2,
+                    ):
+                        feature_chunks.append(future.result())
+
+            else:
+                # Sequential processing
+                for chunk in self.data.yield_chunk(chunk_size=50_000):
+                    feature_chunks.append(self._infer_delta_min_max_from_chunk(
+                        chunk,
+                        features,
+                        datetime_feature_formats=datetime_feature_formats,
+                        id_feature_name=id_feature_name,
+                        orders_of_derivatives=orders_of_derivatives,
+                        derived_orders=derived_orders,
+                    ))
         # Recompute min/max across all chunks
         for f_name in features.keys():
             for chunk in feature_chunks:
                 rate_min = self._compute_time_series_min_max(chunk, features, f_name, 'rate_min', min)
-                rate_max = self._compute_time_series_min_max(chunk, features, f_name, 'rate_max', min)
+                rate_max = self._compute_time_series_min_max(chunk, features, f_name, 'rate_max', max)
                 delta_min = self._compute_time_series_min_max(chunk, features, f_name, 'delta_min', min)
-                delta_max = self._compute_time_series_min_max(chunk, features, f_name, 'delta_max', min)
+                delta_max = self._compute_time_series_min_max(chunk, features, f_name, 'delta_max', max)
                 if any([rate_min, rate_max, delta_min, delta_max]) and 'time_series' not in features[f_name]:
                     features[f_name]['time_series'] = {}
                 if rate_min:
@@ -938,7 +910,7 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                     features[f_name]['time_series']['rate_max'] = rate_max
                 if delta_min:
                     features[f_name]['time_series']['delta_min'] = delta_min
-                if delta_min:
+                if delta_max:
                     features[f_name]['time_series']['delta_max'] = delta_max
         return features
 
@@ -961,3 +933,100 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                 # Leave as-is
                 pass
         return dtype
+
+def lazy_map(
+    executor: ProcessPoolExecutor | ThreadPoolExecutor,
+    func: Callable,
+    *iterables: Iterable,
+    queue_length: t.Optional[int] = None
+) -> Generator[Future, None, None]:
+    """
+    Generate completed futures of ``func`` with arguments ``*iterables``.
+
+    This function acts as a combination of ``map()`` and ``as_completed()``,
+    but with lazy consumption from the iterables. Completed futures are
+    returned as they are completed, which may be in a different order than
+    they were fed into the executor.
+
+    Typical usage:
+
+    ```
+        # Note that this also works with ThreadPoolExecutor
+        with ProcessPoolExecutor(max_workers=4) as ex:
+            for future in lazy_map(ex, some_func, iterable1, iterable2):
+                try:
+                    result = future.result()
+                except Exception:
+                    # Do something with an exception raised in `some_func`
+                    ...
+                else:
+                    # Do something with the result
+                    ...
+    ```
+
+    Besides conveniently combining the ``map`` and ``as_completed`` functions
+    as described, this function only consumed from the given iterables when
+    workers in the pool are ready to process them. This can be paramount when
+    the iterables contain large datasets to keep memory usage at a minimum.
+
+    The function will stop drawing from ``*iterables`` once it reaches the end
+    of the shortest one (same as functools.zip()).
+
+    The futures returned are already on their ``done`` state, but returned as
+    futures (rather than results) to allow for the caller to handle the
+    exceptions, if any, as future.result() will raise the exception if there
+    was one during the processing of ``func``.
+
+    Parameters
+    ----------
+    executor : ProcessPoolExecutor or ThreadPoolExecutor
+        The instance of an executor.
+    func : callable
+        A Callable that will take as many arguments as there are
+        passed iterables.
+    iterables : iterables
+        One or more iterables that correspond to the args of ``func``.
+    queue_length : int, optional
+        The number of items, drawn from the provided ``iterables`` to queue-up
+        to be processed by ``func``. Setting this greater than the number of
+        max_workers of the executor can be useful when it requires some time to
+        prepare the inputs. If left unset, will be set to the same as
+        ``executor._max_workers``.
+
+    Returns
+    -------
+    Generator of Futures
+        A generator that yields the futures of ``func(*iterables)``.
+
+    Raises
+    ------
+    TimeoutError
+        If the entire result iterator could not be generated before the
+        given timeout.
+    Exception
+        If fn(*args) raises for any values.
+    """
+    futures: set[Future] = set()
+    args_iter = iter(zip(*iterables))
+    if queue_length:
+        queue_length = max(executor._max_workers, queue_length) # type: ignore
+    else:
+        queue_length = executor._max_workers # type: ignore
+
+    try:
+        while True:
+            for _ in range(max(0, queue_length - len(futures))):
+                # Take `next()` until StopIteration is raised.
+                args = next(args_iter)
+                # Submit the work to the executor
+                future = executor.submit(func, *args)
+                futures.add(future)
+
+            # Yield completed futures and remove them from the queue.
+            done, futures = wait(futures, return_when=FIRST_COMPLETED)
+            for future in done:
+                yield future
+
+    except StopIteration:
+        for future in as_completed(futures):
+            yield future
