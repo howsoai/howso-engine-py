@@ -300,12 +300,32 @@ class InferFeatureAttributesTimeSeries:
                         # for higher order rate computations
                         if order > 1:
                             rates = np.diff(np.array(rates))
+                            # For higher orders, we need to slice time_feature_deltas to match
+                            # the reduced length of rates (np.diff reduces length by 1)
+                            # Skip the first element to align with the diff result
+                            # Handle both pandas Series and numpy arrays
+                            if isinstance(time_feature_deltas, pd.Series):
+                                time_feature_deltas_aligned = time_feature_deltas.iloc[1:].values
+                            else:
+                                time_feature_deltas_aligned = np.asarray(time_feature_deltas)[1:]
+                        else:
+                            # For first order, convert to array but keep full length
+                            if isinstance(time_feature_deltas, pd.Series):
+                                time_feature_deltas_aligned = time_feature_deltas.values
+                            else:
+                                time_feature_deltas_aligned = np.asarray(time_feature_deltas)
 
                         # compute each 1st order rate as: delta x / delta time
                         # higher order rates as: delta previous rate / delta time
                         # Vectorized computation using numpy for better performance
                         rates_array = np.asarray(rates)
-                        time_deltas_array = np.asarray(time_feature_deltas)
+                        time_deltas_array = np.asarray(time_feature_deltas_aligned)
+                        # Ensure arrays have the same length
+                        if len(rates_array) != len(time_deltas_array):
+                            # If still mismatched, take the minimum length
+                            min_len = min(len(rates_array), len(time_deltas_array))
+                            rates_array = rates_array[:min_len]
+                            time_deltas_array = time_deltas_array[:min_len]
                         # Avoid division by zero
                         time_deltas_safe = np.where(
                             time_deltas_array != 0,
