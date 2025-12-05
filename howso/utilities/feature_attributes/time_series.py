@@ -32,7 +32,15 @@ SMALLEST_TIME_DELTA = 0.001
 
 def _apply_date_to_epoch(df: pd.DataFrame, feature_name: str, dt_format: str):
     """Internal function to aid multiprocessing of series feature attributes."""
-    return df[feature_name].apply(lambda x: date_to_epoch(x, dt_format))
+    series = df[feature_name]
+    # Optimize for datetime64 dtypes: use vectorized conversion to epoch
+    if pd.api.types.is_datetime64_any_dtype(series.dtype):
+        # Convert datetime64 to epoch seconds (vectorized, much faster than apply)
+        epoch_zero = pd.Timestamp('1970-01-01')
+        return (series - epoch_zero).dt.total_seconds()
+    else:
+        # Fall back to apply for string dates or other types
+        return series.apply(lambda x: date_to_epoch(x, dt_format))
 
 
 class InferFeatureAttributesTimeSeries:
@@ -140,6 +148,14 @@ class InferFeatureAttributesTimeSeries:
             derived_orders = dict()
 
         time_feature_deltas = None
+        # Cache groupby object for id_feature_name to avoid recreating it for each feature
+        cached_groupby = None
+        if id_feature_name:
+            if isinstance(id_feature_name, list):
+                cached_groupby = chunk.groupby(id_feature_name)
+            elif isinstance(id_feature_name, str):
+                cached_groupby = chunk.groupby([id_feature_name])
+
         for f_name in feature_names:
             if features[f_name].get('data_type') in {"json", "yaml", "amalgam", "string_mixable"}:
                 # continuous semi-structured data should not infer these derived values
@@ -257,10 +273,9 @@ class InferFeatureAttributesTimeSeries:
 
                 else:
                     # Use pandas' diff() to pull all the deltas for this feature
-                    if isinstance(id_feature_name, list):
-                        deltas = chunk.groupby(id_feature_name)[f_name].diff(1)
-                    elif isinstance(id_feature_name, str):
-                        deltas = chunk.groupby([id_feature_name])[f_name].diff(1)
+                    # Use cached groupby if available (more efficient than recreating for each feature)
+                    if cached_groupby is not None:
+                        deltas = cached_groupby[f_name].diff(1)
                     else:
                         deltas = chunk[f_name].diff(1)
 
