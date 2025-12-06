@@ -22,6 +22,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from pandas.core.dtypes.common import is_string_dtype
+import psutil
 
 from .abstract_data import InferFeatureAttributesAbstractData
 from .base import SingleTableFeatureAttributes
@@ -39,6 +40,246 @@ def _apply_date_to_epoch(df: pd.DataFrame, feature_name: str, dt_format: str):
     return df[feature_name].apply(lambda x: date_to_epoch(x, dt_format))
 
 
+def _infer_delta_min_max_from_chunk(  # noqa: C901
+    chunk: pd.DataFrame,
+    features: dict,
+    time_feature_name: str,
+    *,
+    datetime_feature_formats: t.Optional[dict] = None,
+    derived_orders: t.Optional[dict] = None,
+    id_feature_name: t.Optional[str | Iterable[str]] = None,
+    orders_of_derivatives: t.Optional[dict] = None,
+) -> dict:
+    """
+    Infer rate and delta min/max for each continuous feature and update the features dict.
+
+    This method will not introspect `self.data` but rather the provided DataFrame
+    in order to maintain compatibility with chunk scaling.
+
+    Parameters
+    ----------
+    chunk : pd.DataFrame
+        The data to infer delta min and max from.
+
+    features : dict, default None
+        (Optional) A partially filled features dict. If partially filled
+        attributes for a feature are passed in, those parameters will be
+        retained as is and the delta_min and delta_max attributes will be
+        inferred.
+
+    datetime_feature_formats : dict, default None
+        (Optional) Dict defining a custom (non-ISO8601) datetime format and
+        an optional locale for features with datetimes.  By default
+        datetime features are assumed to be in ISO8601 format.  Non-English
+        datetimes must have locales specified.  If locale is omitted, the
+        default system locale is used. The keys are the feature name, and
+        the values are a tuple of date time format and locale string:
+
+        Examples::
+
+            {
+                "start_date" : ("%Y-%m-%d %A %H.%M.%S", "es_ES"),
+                "end_date" : "%Y-%m-%d"
+            }
+
+    id_feature_name : str or list of str, default None
+        (Optional) The name(s) of the ID feature(s).
+
+    orders_of_derivatives : dict, default None
+        (Optional) Dict of features and their corresponding order of
+        derivatives for the specified type (delta/rate). If provided will
+        generate the specified number of derivatives and boundary values. If
+        set to 0, will not generate any delta/rate features. By default all
+        continuous features have an order value of 1.
+
+    derived_orders : dict, default None
+        (Optional) Dict of features to the number of orders of derivatives
+        that should be derived instead of synthesized. For example, for a
+        feature with a 3rd order of derivative, setting its derived_orders
+        to 2 will synthesize the 3rd order derivative value, and then use
+        that synthed value to derive the 2nd and 1st order.
+
+    Returns
+    -------
+    features : dict
+        Returns an updated feature attributes dictionary with inferred time series
+        information added under an additional ``time_series`` attribute for each
+        applicable feature.
+    """
+    # prevent circular import
+    from howso.client.exceptions import DatetimeFormatWarning
+
+    # Shallow copy top-level, deep copy only 'time_series' dicts as needed
+    features = {k: v.copy() for k, v in features.items()}
+
+    # Pre-compute feature processing order (time feature first)
+    feature_names = [f for f in features.keys() if f != time_feature_name]
+    feature_names = [time_feature_name] + feature_names
+
+    if orders_of_derivatives is None:
+        orders_of_derivatives = {}
+    if derived_orders is None:
+        derived_orders = {}
+
+    # Pre-compute groupby object once
+    groupby_obj = None
+    id_cols = None
+    if id_feature_name:
+        id_cols = [id_feature_name] if isinstance(id_feature_name, str) else list(id_feature_name)
+        groupby_obj = chunk.groupby(id_cols, sort=False)
+
+    # Pre-convert datetime columns to epoch in one pass
+    datetime_columns = {}
+    for f_name in feature_names:
+        if features[f_name].get('type') != 'continuous':
+            continue
+        if 'time_series' not in features[f_name]:
+            continue
+
+        dt_format = features[f_name].get('date_time_format')
+        if dt_format is None and isinstance(datetime_feature_formats, dict):
+            dt_format = datetime_feature_formats.get(f_name)
+            if isinstance(dt_format, Collection) and not isinstance(dt_format, str) and len(dt_format) == 2:
+                dt_format, _ = dt_format
+
+        if dt_format is not None:
+            datetime_columns[f_name] = dt_format
+
+    # Batch convert datetime columns
+    epoch_data = {}
+    for f_name, dt_format in datetime_columns.items():
+        try:
+            epoch_data[f_name] = chunk[f_name].apply(lambda x: date_to_epoch(x, dt_format))
+        except ValueError:
+            if f_name == time_feature_name:
+                raise ValueError(
+                    f'The date time format "{dt_format}" does not match the data of the '
+                    f'time feature "{time_feature_name}".'
+                )
+            warnings.warn(
+                f'Feature "{f_name}" does not match the provided date time format, '
+                f'unable to infer time series delta min/max.',
+                DatetimeFormatWarning
+            )
+
+    time_feature_deltas = None
+
+    for f_name in feature_names:
+        if features[f_name].get('data_type') in {"json", "yaml", "amalgam", "string_mixable"}:
+            continue
+
+        if features[f_name].get('type') != 'continuous' or 'time_series' not in features[f_name]:
+            continue
+
+        # Deep copy only the time_series dict we're modifying
+        features[f_name]['time_series'] = features[f_name]['time_series'].copy()
+        ts = features[f_name]['time_series']
+
+        num_orders = orders_of_derivatives.get(f_name, 1)
+        if num_orders > 1:
+            ts['order'] = num_orders
+
+        num_derived_orders = derived_orders.get(f_name, 0)
+        if num_derived_orders >= num_orders:
+            num_derived_orders = num_orders - 1
+            warnings.warn(
+                f'Overwriting the `derived_orders` value for "{f_name}" with {num_derived_orders} '
+                f'because it must be smaller than the "orders" value of {num_orders}.',
+            )
+        if num_derived_orders > 0:
+            ts['derived_orders'] = num_derived_orders
+
+        # Get data - either from pre-converted epoch or raw
+        if f_name in epoch_data:
+            col_data = epoch_data[f_name]
+        else:
+            col_data = chunk[f_name]
+
+        # Compute deltas using cached groupby
+        if groupby_obj is not None:
+            if f_name in epoch_data:
+                # Need to create a temporary series with the epoch data
+                deltas = col_data.groupby([chunk[c] for c in id_cols]).diff(1)
+            else:
+                deltas = groupby_obj[f_name].diff(1)
+        else:
+            deltas = col_data.diff(1)
+
+        if f_name == time_feature_name:
+            time_feature_deltas = deltas.values  # Convert to numpy once
+
+        # Process orders
+        ts_type = ts.get('type', 'rate')
+        rates = deltas.values if ts_type == 'rate' else None
+        deltas_arr = deltas if ts_type == 'delta' else None
+
+        for order in range(1, num_orders + 1):
+            if ts_type == 'rate':
+                if 'rate_max' not in ts:
+                    ts['rate_max'] = []
+                if 'rate_min' not in ts:
+                    ts['rate_min'] = []
+
+                if order > 1:
+                    rates = np.diff(rates)
+                    time_deltas = time_feature_deltas[order:]
+                else:
+                    time_deltas = time_feature_deltas
+
+                # Ensure same length
+                min_len = min(len(rates), len(time_deltas))
+                rates = rates[:min_len]
+                time_deltas = time_deltas[:min_len]
+
+                # Vectorized rate computation
+                time_deltas_safe = np.where(time_deltas != 0, time_deltas, SMALLEST_TIME_DELTA)
+                rates = rates / time_deltas_safe
+
+                # Filter NaN using numpy (faster than list comprehension)
+                valid_mask = ~np.isnan(rates)
+                valid_rates = rates[valid_mask]
+
+                if len(valid_rates) == 0:
+                    continue
+
+                rate_max = float(np.max(valid_rates))
+                rate_max = rate_max * e if rate_max > 0 else rate_max / e
+                ts['rate_max'].append(rate_max)
+
+                rate_min = float(np.min(valid_rates))
+                rate_min = rate_min / e if rate_min > 0 else rate_min * e
+                ts['rate_min'].append(rate_min)
+
+            else:  # delta
+                if 'delta_max' not in ts:
+                    ts['delta_max'] = []
+                if 'delta_min' not in ts:
+                    ts['delta_min'] = []
+
+                if deltas_arr is None:
+                    valid_deltas = []
+                else:
+                    if order > 1:
+                        deltas_arr = deltas_arr.diff(1)
+
+                    valid_deltas = deltas_arr.dropna()
+
+                if len(valid_deltas) == 0:
+                    continue
+
+                delta_max = float(valid_deltas.max())
+                delta_max = delta_max * e if delta_max > 0 else delta_max / e
+                ts['delta_max'].append(delta_max)
+
+                delta_min = float(valid_deltas.min())
+                if f_name == time_feature_name:
+                    ts['delta_min'].append(max(0, delta_min / e))
+                else:
+                    delta_min = delta_min / e if delta_min > 0 else delta_min * e
+                    ts['delta_min'].append(delta_min)
+
+    return features
+
 class InferFeatureAttributesTimeSeries:
     """Infer feature attributes for time series data."""
 
@@ -49,240 +290,7 @@ class InferFeatureAttributesTimeSeries:
         # Keep track of features that contain unsupported data
         self.unsupported = []
 
-    def _infer_delta_min_max_from_chunk(  # noqa: C901
-        self,
-        chunk: pd.DataFrame,
-        features: dict,
-        *,
-        datetime_feature_formats: t.Optional[dict] = None,
-        derived_orders: t.Optional[dict] = None,
-        id_feature_name: t.Optional[str | Iterable[str]] = None,
-        orders_of_derivatives: t.Optional[dict] = None,
-    ) -> dict:
-        """
-        Infer rate and delta min/max for each continuous feature and update the features dict.
-
-        This method will not introspect `self.data` but rather the provided DataFrame
-        in order to maintain compatibility with chunk scaling.
-
-        Parameters
-        ----------
-        chunk : pd.DataFrame
-            The data to infer delta min and max from.
-
-        features : dict, default None
-            (Optional) A partially filled features dict. If partially filled
-            attributes for a feature are passed in, those parameters will be
-            retained as is and the delta_min and delta_max attributes will be
-            inferred.
-
-        datetime_feature_formats : dict, default None
-            (Optional) Dict defining a custom (non-ISO8601) datetime format and
-            an optional locale for features with datetimes.  By default
-            datetime features are assumed to be in ISO8601 format.  Non-English
-            datetimes must have locales specified.  If locale is omitted, the
-            default system locale is used. The keys are the feature name, and
-            the values are a tuple of date time format and locale string:
-
-            Examples::
-
-                {
-                    "start_date" : ("%Y-%m-%d %A %H.%M.%S", "es_ES"),
-                    "end_date" : "%Y-%m-%d"
-                }
-
-        id_feature_name : str or list of str, default None
-            (Optional) The name(s) of the ID feature(s).
-
-        orders_of_derivatives : dict, default None
-            (Optional) Dict of features and their corresponding order of
-            derivatives for the specified type (delta/rate). If provided will
-            generate the specified number of derivatives and boundary values. If
-            set to 0, will not generate any delta/rate features. By default all
-            continuous features have an order value of 1.
-
-        derived_orders : dict, default None
-            (Optional) Dict of features to the number of orders of derivatives
-            that should be derived instead of synthesized. For example, for a
-            feature with a 3rd order of derivative, setting its derived_orders
-            to 2 will synthesize the 3rd order derivative value, and then use
-            that synthed value to derive the 2nd and 1st order.
-
-        Returns
-        -------
-        features : dict
-            Returns an updated feature attributes dictionary with inferred time series
-            information added under an additional ``time_series`` attribute for each
-            applicable feature.
-        """
-        # prevent circular import
-        from howso.client.exceptions import DatetimeFormatWarning
-        # Make a copy of the 'features' dict as it will be returned; don't modify original
-        features = copy.deepcopy(features)
-        # iterate over all features, ensuring that the time feature is the first
-        # one to be processed so that its deltas are cached
-        feature_names = set(features.keys())
-        feature_names.remove(self.time_feature_name)
-        feature_names = [self.time_feature_name] + list(feature_names)
-
-        if orders_of_derivatives is None:
-            orders_of_derivatives = dict()
-
-        if derived_orders is None:
-            derived_orders = dict()
-
-        time_feature_deltas = None
-        for f_name in feature_names:
-            if features[f_name].get('data_type') in {"json", "yaml", "amalgam", "string_mixable"}:
-                # continuous semi-structured data should not infer these derived values
-                continue
-            if features[f_name]['type'] == "continuous" and 'time_series' in features[f_name]:
-                # Set delta_max for all continuous features to the observed maximum
-                # difference between two values times e.
-                dt_format = features[f_name].get('date_time_format')
-                if dt_format is None and isinstance(datetime_feature_formats, dict):
-                    dt_format = datetime_feature_formats.get(f_name)
-                    if (
-                        not isinstance(dt_format, str) and
-                        isinstance(dt_format, Collection) and
-                        len(dt_format) == 2
-                    ):
-                        dt_format, _ = dt_format  # (format, locale)
-
-                # number of derivation orders, default to 1
-                num_orders = orders_of_derivatives.get(f_name, 1)
-                if num_orders > 1:
-                    features[f_name]['time_series']['order'] = num_orders
-
-                num_derived_orders = derived_orders.get(f_name, 0)
-                if num_derived_orders >= num_orders:
-                    old_derived_orders = num_derived_orders
-                    num_derived_orders = num_orders - 1
-                    warnings.warn(
-                        f'Overwriting the `derived_orders` value of {old_derived_orders} '
-                        f'for "{f_name}" with {num_derived_orders} because it must '
-                        f'be smaller than the "orders" value of {num_orders}.',
-                    )
-                if num_derived_orders > 0:
-                    features[f_name]['time_series']['derived_orders'] = num_derived_orders
-
-                if dt_format is not None:
-                    # copy just the id columns and the time feature
-                    if isinstance(id_feature_name, str):
-                        df_c = chunk.loc[:, [id_feature_name, f_name]]
-                    elif isinstance(id_feature_name, list):
-                        df_c = chunk.loc[:, id_feature_name + [f_name]]
-                    else:
-                        df_c = chunk.loc[:, [f_name]]
-
-                    # convert time feature to epoch
-                    try:
-                        df_c[f_name] = _apply_date_to_epoch(df_c, f_name, dt_format)
-                    except ValueError:
-                        # Cannot calculate deltas if date format is invalid, warn and continue
-                        if f_name == self.time_feature_name:
-                            raise ValueError(
-                                f'The date time format "{dt_format}" does not match the data of the '
-                                f'time feature "{self.time_feature_name}".'
-                            )
-                        warnings.warn(
-                            f'Feature "{f_name}" does not match the '
-                            f'provided date time format, unable to infer '
-                            f'time series delta min/max.',
-                            DatetimeFormatWarning
-                        )
-                        continue
-
-                    # use Pandas' diff() to pull all the deltas for this feature
-                    if isinstance(id_feature_name, list):
-                        deltas = df_c.groupby(id_feature_name)[f_name].diff(1)
-                    elif isinstance(id_feature_name, str):
-                        deltas = df_c.groupby([id_feature_name])[f_name].diff(1)
-                    else:
-                        deltas = df_c[f_name].diff(1)
-
-                else:
-                    # Use pandas' diff() to pull all the deltas for this feature
-                    if isinstance(id_feature_name, list):
-                        deltas = chunk.groupby(id_feature_name)[f_name].diff(1)
-                    elif isinstance(id_feature_name, str):
-                        deltas = chunk.groupby([id_feature_name])[f_name].diff(1)
-                    else:
-                        deltas = chunk[f_name].diff(1)
-
-                if f_name == self.time_feature_name:
-                    time_feature_deltas = deltas
-
-                # initial rates are same as deltas which will then be used as input
-                # to compute actual first order rates
-                rates = deltas
-
-                for order in range(1, num_orders + 1):
-
-                    # compute rate min and max for all rate features
-                    if features[f_name]['time_series']['type'] == "rate":
-
-                        if 'rate_max' not in features[f_name]['time_series']:
-                            features[f_name]['time_series']['rate_max'] = []
-                        if 'rate_min' not in features[f_name]['time_series']:
-                            features[f_name]['time_series']['rate_min'] = []
-
-                        # compute the deltas between previous rates as inputs
-                        # for higher order rate computations
-                        if order > 1:
-                            rates = np.diff(np.array(rates))
-
-                        # compute each 1st order rate as: delta x / delta time
-                        # higher order rates as: delta previous rate / delta time
-                        rates = [
-                            dx / (dt if dt != 0 else SMALLEST_TIME_DELTA)
-                            for dx, dt in zip(rates, time_feature_deltas)
-                        ]
-
-                        # remove NaNs
-                        no_nan_rates = [x for x in rates if pd.isna(x) is False]
-                        if len(no_nan_rates) == 0:
-                            continue
-
-                        # TODO: 15550: support user-specified min/max values
-                        rate_max = max(no_nan_rates)
-                        rate_max = rate_max * e if rate_max > 0 else rate_max / e
-                        features[f_name]['time_series']['rate_max'].append(rate_max)
-
-                        rate_min = min(no_nan_rates)
-                        rate_min = rate_min / e if rate_min > 0 else rate_min * e
-                        features[f_name]['time_series']['rate_min'].append(rate_min)
-                    else:  # 'type' == "delta"
-
-                        if 'delta_max' not in features[f_name]['time_series']:
-                            features[f_name]['time_series']['delta_max'] = []
-                        if 'delta_min' not in features[f_name]['time_series']:
-                            features[f_name]['time_series']['delta_min'] = []
-
-                        # compute new deltas between previous deltas as inputs
-                        # for higher order delta computations
-                        if order > 1:
-                            deltas = deltas.diff(1)
-
-                        no_nan_deltas: pd.Series = deltas.dropna()
-                        if len(no_nan_deltas) == 0:
-                            continue
-                        delta_max = max(no_nan_deltas)
-                        delta_max = delta_max * e if delta_max > 0 else delta_max / e
-                        features[f_name]['time_series']['delta_max'].append(delta_max)
-
-                        delta_min = min(no_nan_deltas)
-                        # don't allow the time series time feature to go back in time
-                        # TODO: 15550: support user-specified min/max values
-                        if f_name == self.time_feature_name:
-                            features[f_name]['time_series']['delta_min'].append(max(0, delta_min / e))
-                        else:
-                            delta_min = delta_min / e if delta_min > 0 else delta_min * e
-                            features[f_name]['time_series']['delta_min'].append(delta_min)
-
-        return features
-
-    def _set_rate_delta_bounds(self, btype: str, bounds: dict, features: dict):
+    def _set_rate_delta_bounds(self, btype: str, bounds: dict, features: dict) -> None:
         """Set optimally-specified rate/delta bounds in the features dict."""
         for feature in bounds.keys():
             # Check for any problems
@@ -786,9 +794,10 @@ class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
         max_workers: t.Optional[int] = None
     ):
         """Infer delta and rate min/max for each continuous feature and update the features dict."""
-        return self._infer_delta_min_max_from_chunk(
+        return _infer_delta_min_max_from_chunk(
             self.data,
             features,
+            self.time_feature_name,
             datetime_feature_formats=datetime_feature_formats,
             id_feature_name=id_feature_name,
             orders_of_derivatives=orders_of_derivatives,
@@ -860,58 +869,108 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
         max_workers: t.Optional[int] = None
     ):
         """Infer delta and rate min/max for each continuous feature and update the features dict."""
-        from ...utilities.monitors import Timer
-        feature_chunks = []
-        with Timer(message=f"#### _infer_delta_min_max_from_chunk ({max_workers=})"):
-            if max_workers is None or max_workers > 1:
-                # Determine actual max workers
-                effective_max_workers = max_workers or os.cpu_count() or 4
+        func = partial(
+            _infer_delta_min_max_from_chunk,
+            features=features,
+            time_feature_name=self.time_feature_name,
+            datetime_feature_formats=datetime_feature_formats,
+            id_feature_name=id_feature_name,
+            orders_of_derivatives=orders_of_derivatives,
+            derived_orders=derived_orders,
+        )
 
-                func = partial(
-                    self._infer_delta_min_max_from_chunk,
-                    features=features,
-                    datetime_feature_formats=datetime_feature_formats,
-                    id_feature_name=id_feature_name,
-                    orders_of_derivatives=orders_of_derivatives,
-                    derived_orders=derived_orders,
-                )
+        # Estimate the best chunk size based on available resources
+        effective_max_workers = max_workers if max_workers else (os.cpu_count() or 4)
+        chunk_size = _infer_optimal_chunk_size(
+            data=self.data,
+            max_workers=effective_max_workers,
+            min_chunk_size=20_000,
+            max_chunk_size=200_000,
+            sample_size=100,
+        )
 
-                with ThreadPoolExecutor(max_workers=effective_max_workers) as pool:
-                    for future in lazy_map(
-                        pool, func,
-                        self.data.yield_chunk(chunk_size=50_000),
-                        queue_length=2,
-                    ):
-                        feature_chunks.append(future.result())
+        # Check if parallelization is worthwhile
+        total_rows = self.data.get_row_count() or 0
+        use_parallel = effective_max_workers > 1 and total_rows > chunk_size
 
-            else:
-                # Sequential processing
-                for chunk in self.data.yield_chunk(chunk_size=50_000):
-                    feature_chunks.append(self._infer_delta_min_max_from_chunk(
-                        chunk,
-                        features,
-                        datetime_feature_formats=datetime_feature_formats,
-                        id_feature_name=id_feature_name,
-                        orders_of_derivatives=orders_of_derivatives,
-                        derived_orders=derived_orders,
-                    ))
-        # Recompute min/max across all chunks
+        if use_parallel:
+            feature_chunks = []
+            with ProcessPoolExecutor(max_workers=effective_max_workers) as pool:
+                for future in lazy_map(
+                    pool, func,
+                    self.data.yield_chunk(chunk_size=chunk_size),
+                    queue_length=effective_max_workers + 2,
+                ):
+                    feature_chunks.append(future.result())
+        else:
+            # Single chunk or single worker - process sequentially
+            feature_chunks = [
+                func(chunk) for chunk in self.data.yield_chunk(chunk_size=chunk_size)
+            ]
+
+        # Short-circuit if only one chunk
+        if len(feature_chunks) == 1:
+            return feature_chunks[0]
+
+        # Aggregate min/max across all chunks efficiently
+        return self._aggregate_chunk_results(features, feature_chunks)
+
+    def _aggregate_chunk_results(self, features: dict, feature_chunks: list[dict]) -> dict:
+        """
+        Aggregate time series min/max values across all chunks.
+
+        Parameters
+        ----------
+        features : dict
+            The base features dictionary to update.
+        feature_chunks : list of dict
+            List of feature dictionaries from each chunk.
+
+        Returns
+        -------
+        dict
+            Updated features dictionary with aggregated min/max values.
+        """
+        ts_keys = [
+            ('rate_min', min),
+            ('rate_max', max),
+            ('delta_min', min),
+            ('delta_max', max),
+        ]
+
         for f_name in features.keys():
+            # Collect all values for each key across chunks
+            aggregated: dict[str, list] = {key: [] for key, _ in ts_keys}
+
             for chunk in feature_chunks:
-                rate_min = self._compute_time_series_min_max(chunk, features, f_name, 'rate_min', min)
-                rate_max = self._compute_time_series_min_max(chunk, features, f_name, 'rate_max', max)
-                delta_min = self._compute_time_series_min_max(chunk, features, f_name, 'delta_min', min)
-                delta_max = self._compute_time_series_min_max(chunk, features, f_name, 'delta_max', max)
-                if any([rate_min, rate_max, delta_min, delta_max]) and 'time_series' not in features[f_name]:
-                    features[f_name]['time_series'] = {}
-                if rate_min:
-                    features[f_name]['time_series']['rate_min'] = rate_min
-                if rate_max:
-                    features[f_name]['time_series']['rate_max'] = rate_max
-                if delta_min:
-                    features[f_name]['time_series']['delta_min'] = delta_min
-                if delta_max:
-                    features[f_name]['time_series']['delta_max'] = delta_max
+                chunk_ts = chunk.get(f_name, {}).get('time_series', {})
+                for key, _ in ts_keys:
+                    if key in chunk_ts:
+                        aggregated[key].append(chunk_ts[key])
+
+            # Skip if no time series data found
+            if not any(aggregated.values()):
+                continue
+
+            # Ensure time_series dict exists
+            if 'time_series' not in features[f_name]:
+                features[f_name]['time_series'] = {}
+
+            # Compute aggregate for each key
+            for key, op in ts_keys:
+                if not aggregated[key]:
+                    continue
+
+                # Values are lists (one per order of derivative)
+                # Need to aggregate element-wise across chunks
+                num_orders = len(aggregated[key][0])
+                result = []
+                for order_idx in range(num_orders):
+                    values_at_order = [chunk_vals[order_idx] for chunk_vals in aggregated[key]]
+                    result.append(op(values_at_order))
+
+                features[f_name]['time_series'][key] = result
+
         return features
 
     def _cast_column(self, feature_name: str, new_type: t.Any):
@@ -934,11 +993,13 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                 pass
         return dtype
 
+
+# TODO: Move to utilities?
 def lazy_map(
     executor: ProcessPoolExecutor | ThreadPoolExecutor,
     func: Callable,
     *iterables: Iterable,
-    queue_length: t.Optional[int] = None
+    queue_length: int | None = None
 ) -> Generator[Future, None, None]:
     """
     Generate completed futures of ``func`` with arguments ``*iterables``.
@@ -1030,3 +1091,122 @@ def lazy_map(
     except StopIteration:
         for future in as_completed(futures):
             yield future
+
+
+def _infer_optimal_chunk_size(
+    data: IFACompatibleADCProtocol,
+    max_workers: int,
+    memory_fraction: float = 0.5,
+    min_chunk_size: int = 10_000,
+    max_chunk_size: int = 1_000_000,
+    sample_size: int = 1_000,
+) -> int:
+    """
+    Infer optimal chunk size based on available resources.
+
+    Parameters
+    ----------
+    data : IFACompatibleADCProtocol
+        The data source to estimate row size from.
+    max_workers : int
+        Number of parallel workers that will process chunks.
+    memory_fraction : float, default 0.5
+        Fraction of available RAM to use (0.5 = 50%).
+    min_chunk_size : int, default 5_000
+        Minimum chunk size to return.
+    max_chunk_size : int, default 1_000_000
+        Maximum chunk size to return.
+    sample_size : int, default 1_000
+        Number of rows to sample for estimating bytes per row.
+
+    Returns
+    -------
+    int
+        The calculated optimal chunk size.
+    """
+    try:
+        # Get available system memory
+        available_memory = psutil.virtual_memory().available
+        usable_memory = int(available_memory * memory_fraction)
+
+        # Estimate bytes per row from the data source
+        # Each worker will have a chunk in memory, plus overhead for processing
+        # (diff operations roughly double memory usage temporarily)
+        processing_overhead_factor = 3  # Account for intermediate dataframes
+
+        # Try to get row size estimate from data
+        bytes_per_row = _estimate_bytes_per_row(data, sample_size=sample_size)
+
+        # Memory per chunk = bytes_per_row * chunk_size * overhead
+        # Total memory = memory_per_chunk * max_workers
+        # Solve for chunk_size:
+        # chunk_size = usable_memory / (max_workers * bytes_per_row * overhead)
+        memory_based_chunk_size = usable_memory // (max_workers * bytes_per_row * processing_overhead_factor)
+
+        # Clamp to reasonable bounds
+        memory_based_chunk_size = max(min_chunk_size, min(memory_based_chunk_size, max_chunk_size))
+
+        # Now adjust to ensure even distribution across workers
+        if total_rows := data.get_row_count():
+            # Calculate how many chunks we'd get with the memory-based size
+            num_chunks = max(1, (total_rows + memory_based_chunk_size - 1) // memory_based_chunk_size)
+
+            # Round up to the nearest multiple of max_workers
+            num_chunks = ((num_chunks + max_workers - 1) // max_workers) * max_workers
+
+            # Recalculate chunk size based on the adjusted number of chunks
+            chunk_size = (total_rows + num_chunks - 1) // num_chunks
+
+            # Ensure we don't exceed memory constraints
+            chunk_size = min(chunk_size, memory_based_chunk_size)
+
+            # Final bounds check
+            chunk_size = max(min_chunk_size, min(chunk_size, max_chunk_size))
+        else:
+            chunk_size = memory_based_chunk_size
+
+    except Exception as e:
+        logger.warning(f"Could not calculate optimal chunk size: {e}. Using default.")
+        chunk_size = 50_000
+
+    return chunk_size
+
+
+def _estimate_bytes_per_row(
+    data: IFACompatibleADCProtocol,
+    sample_size: int = 1_000,
+    default_bytes_per_row: int = 1_000,
+) -> int:
+    """
+    Estimate the average bytes per row by sampling the data.
+
+    Parameters
+    ----------
+    data : IFACompatibleADCProtocol
+        The data source to sample from.
+    sample_size : int, default 1_000
+        Number of rows to sample for the estimate.
+    default_bytes_per_row : int, default 1_000
+        Fallback value if estimation fails.
+
+    Returns
+    -------
+    int
+        Estimated bytes per row.
+    """
+    try:
+        sample_chunk: pd.DataFrame = data.get_n_random_rows(samples=sample_size)
+
+        if sample_chunk is None or len(sample_chunk) == 0:
+            return default_bytes_per_row
+
+        # Compute average memory usage per row
+        total_bytes = sample_chunk.memory_usage(deep=True).sum()
+        bytes_per_row = int(total_bytes / len(sample_chunk))
+
+        # Ensure a reasonable minimum
+        return max(100, bytes_per_row)
+
+    except Exception as e:
+        logger.debug(f"Could not estimate bytes per row: {e}. Using default.")
+        return default_bytes_per_row
