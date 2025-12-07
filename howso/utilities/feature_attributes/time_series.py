@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Callable, Collection, Generator, Iterable
+from collections.abc import Callable, Collection, Generator, Iterable, MutableMapping
 from concurrent.futures import (
     as_completed,
     FIRST_COMPLETED,
@@ -131,12 +131,12 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
     # Pre-convert datetime columns to epoch in one pass
     datetime_columns = {}
     for f_name in feature_names:
-        if features[f_name].get('type') != 'continuous':
+        if features[f_name].get("type") != "continuous":
             continue
-        if 'time_series' not in features[f_name]:
+        if "time_series" not in features[f_name]:
             continue
 
-        dt_format = features[f_name].get('date_time_format')
+        dt_format = features[f_name].get("date_time_format")
         if dt_format is None and isinstance(datetime_feature_formats, dict):
             dt_format = datetime_feature_formats.get(f_name)
             if isinstance(dt_format, Collection) and not isinstance(dt_format, str) and len(dt_format) == 2:
@@ -158,26 +158,26 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
                 )
             warnings.warn(
                 f'Feature "{f_name}" does not match the provided date time format, '
-                f'unable to infer time series delta min/max.',
-                DatetimeFormatWarning
+                f"unable to infer time series delta min/max.",
+                DatetimeFormatWarning,
             )
 
     time_feature_deltas = None
 
     for f_name in feature_names:
-        if features[f_name].get('data_type') in {"json", "yaml", "amalgam", "string_mixable"}:
+        if features[f_name].get("data_type") in {"json", "yaml", "amalgam", "string_mixable"}:
             continue
 
-        if features[f_name].get('type') != 'continuous' or 'time_series' not in features[f_name]:
+        if features[f_name].get("type") != "continuous" or "time_series" not in features[f_name]:
             continue
 
         # Deep copy only the time_series dict we're modifying
-        features[f_name]['time_series'] = features[f_name]['time_series'].copy()
-        ts = features[f_name]['time_series']
+        features[f_name]["time_series"] = features[f_name]["time_series"].copy()
+        ts = features[f_name]["time_series"]
 
         num_orders = orders_of_derivatives.get(f_name, 1)
         if num_orders > 1:
-            ts['order'] = num_orders
+            ts["order"] = num_orders
 
         num_derived_orders = derived_orders.get(f_name, 0)
         if num_derived_orders >= num_orders:
@@ -187,7 +187,7 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
                 f'because it must be smaller than the "orders" value of {num_orders}.',
             )
         if num_derived_orders > 0:
-            ts['derived_orders'] = num_derived_orders
+            ts["derived_orders"] = num_derived_orders
 
         # Get data - either from pre-converted epoch or raw
         if f_name in epoch_data:
@@ -209,16 +209,16 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
             time_feature_deltas = deltas.values  # Convert to numpy once
 
         # Process orders
-        ts_type = ts.get('type', 'rate')
-        rates = deltas.values if ts_type == 'rate' else None
-        deltas_arr = deltas if ts_type == 'delta' else None
+        ts_type = ts.get("type", "rate")
+        rates = deltas.values if ts_type == "rate" else None
+        deltas_arr = deltas if ts_type == "delta" else None
 
         for order in range(1, num_orders + 1):
-            if ts_type == 'rate':
-                if 'rate_max' not in ts:
-                    ts['rate_max'] = []
-                if 'rate_min' not in ts:
-                    ts['rate_min'] = []
+            if ts_type == "rate":
+                if "rate_max" not in ts:
+                    ts["rate_max"] = []
+                if "rate_min" not in ts:
+                    ts["rate_min"] = []
 
                 if order > 1:
                     rates = np.diff(rates)
@@ -244,17 +244,17 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
 
                 rate_max = float(np.max(valid_rates))
                 rate_max = rate_max * e if rate_max > 0 else rate_max / e
-                ts['rate_max'].append(rate_max)
+                ts["rate_max"].append(rate_max)
 
                 rate_min = float(np.min(valid_rates))
                 rate_min = rate_min / e if rate_min > 0 else rate_min * e
-                ts['rate_min'].append(rate_min)
+                ts["rate_min"].append(rate_min)
 
             else:  # delta
-                if 'delta_max' not in ts:
-                    ts['delta_max'] = []
-                if 'delta_min' not in ts:
-                    ts['delta_min'] = []
+                if "delta_max" not in ts:
+                    ts["delta_max"] = []
+                if "delta_min" not in ts:
+                    ts["delta_min"] = []
 
                 if deltas_arr is None:
                     valid_deltas = []
@@ -269,16 +269,17 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
 
                 delta_max = float(valid_deltas.max())
                 delta_max = delta_max * e if delta_max > 0 else delta_max / e
-                ts['delta_max'].append(delta_max)
+                ts["delta_max"].append(delta_max)
 
                 delta_min = float(valid_deltas.min())
                 if f_name == time_feature_name:
-                    ts['delta_min'].append(max(0, delta_min / e))
+                    ts["delta_min"].append(max(0, delta_min / e))
                 else:
                     delta_min = delta_min / e if delta_min > 0 else delta_min * e
-                    ts['delta_min'].append(delta_min)
+                    ts["delta_min"].append(delta_min)
 
     return features
+
 
 class InferFeatureAttributesTimeSeries:
     """Infer feature attributes for time series data."""
@@ -296,23 +297,23 @@ class InferFeatureAttributesTimeSeries:
             # Check for any problems
             if feature not in features.keys():
                 raise ValueError(f"Unknown feature '{feature}' in {btype}_boundaries")
-            elif features[feature]['time_series']['type'] != btype:
+            elif features[feature]["time_series"]["type"] != btype:
                 warnings.warn(f"Ignoring {btype}_boundaries: feature type is not '{btype}'")
                 continue
             # Set specified values
-            if 'min' in bounds[feature] and f'{btype}_min' in features[feature]['time_series']:
-                num_orders = len(features[feature]['time_series'][f'{btype}_min'])
-                for order in bounds[feature]['min'].keys():
+            if "min" in bounds[feature] and f"{btype}_min" in features[feature]["time_series"]:
+                num_orders = len(features[feature]["time_series"][f"{btype}_min"])
+                for order in bounds[feature]["min"].keys():
                     # Only adjust in-range values; ignore any others
                     if int(order) < num_orders:
-                        features[feature]['time_series'][f'{btype}_min'][int(order)] = bounds[feature]['min'][order]
+                        features[feature]["time_series"][f"{btype}_min"][int(order)] = bounds[feature]["min"][order]
                     else:
                         warnings.warn(f"Ignoring {btype}_boundaries for order {order}: out of range")
-            if 'max' in bounds[feature] and f'{btype}_max' in features[feature]['time_series']:
-                num_orders = len(features[feature]['time_series'][f'{btype}_max'])
-                for order in bounds[feature]['max'].keys():
+            if "max" in bounds[feature] and f"{btype}_max" in features[feature]["time_series"]:
+                num_orders = len(features[feature]["time_series"][f"{btype}_max"])
+                for order in bounds[feature]["max"].keys():
                     if int(order) < num_orders:
-                        features[feature]['time_series'][f'{btype}_max'][int(order)] = bounds[feature]['max'][order]
+                        features[feature]["time_series"][f"{btype}_max"][int(order)] = bounds[feature]["max"][order]
                     else:
                         warnings.warn(f"Ignoring {btype}_boundaries for order {order}: out of range")
 
@@ -340,7 +341,7 @@ class InferFeatureAttributesTimeSeries:
         time_invariant_features: t.Optional[Iterable[str]] = None,
         tight_bounds: t.Optional[Iterable[str]] = None,
         time_feature_is_universal: t.Optional[bool] = None,
-        time_series_type_default: t.Optional[str] = 'rate',
+        time_series_type_default: t.Optional[str] = "rate",
         time_series_types_override: t.Optional[dict] = None,
         types: t.Optional[dict[str, str] | dict[str, t.MutableSequence[str]]] = None,
     ) -> dict:
@@ -607,13 +608,11 @@ class InferFeatureAttributesTimeSeries:
         elif isinstance(self.data, pd.DataFrame):
             infer = InferFeatureAttributesDataFrame(self.data)
         else:
-            raise ValueError('Cannot process data: unsupported type {type(self.data)} for time-series.')
+            raise ValueError("Cannot process data: unsupported type {type(self.data)} for time-series.")
 
         if mode_bound_features is None:
             feature_names = infer._get_feature_names()
-            mode_bound_features = [
-                f for f in feature_names if f != self.time_feature_name
-            ]
+            mode_bound_features = [f for f in feature_names if f != self.time_feature_name]
 
         if isinstance(id_feature_name, str):
             id_feature_names = [id_feature_name]
@@ -660,8 +659,7 @@ class InferFeatureAttributesTimeSeries:
                 time_invariant_features.append(id_feature)
 
         if self.time_feature_name in time_invariant_features:
-            raise ValueError('time_feature_name cannot be in the '
-                             'time_invariant_features list.')
+            raise ValueError("time_feature_name cannot be in the time_invariant_features list.")
 
         # Set all non time invariant features to be `time_series` features
         for f_name, _ in features.items():
@@ -671,54 +669,52 @@ class InferFeatureAttributesTimeSeries:
 
             if f_name not in time_invariant_features:
                 if time_series_types_override and f_name in time_series_types_override:
-                    features[f_name]['time_series'] = {
-                        'type': time_series_types_override[f_name]
-                    }
+                    features[f_name]["time_series"] = {"type": time_series_types_override[f_name]}
                 else:
-                    features[f_name]['time_series'] = {
-                        'type': time_series_type_default,
+                    features[f_name]["time_series"] = {
+                        "type": time_series_type_default,
                     }
 
         if num_lags is not None:
             if isinstance(num_lags, int):
                 for f_name, _ in features.items():
-                    if f_name != self.time_feature_name and 'time_series' in features[f_name]:
-                        features[f_name]['time_series']['num_lags'] = int(num_lags)
+                    if f_name != self.time_feature_name and "time_series" in features[f_name]:
+                        features[f_name]["time_series"]["num_lags"] = int(num_lags)
             elif isinstance(num_lags, dict):
                 for f_name, f_lags in num_lags.items():
-                    if 'time_series' in features[f_name]:
-                        features[f_name]['time_series']['num_lags'] = int(f_lags)
+                    if "time_series" in features[f_name]:
+                        features[f_name]["time_series"]["num_lags"] = int(f_lags)
         if lags is not None:
             if isinstance(lags, list):
                 for f_name, _ in features.items():
-                    if f_name != self.time_feature_name and 'time_series' in features[f_name]:
-                        if 'num_lags' in features[f_name]['time_series']:
-                            del features[f_name]['time_series']['num_lags']
-                        features[f_name]['time_series']['lags'] = lags
+                    if f_name != self.time_feature_name and "time_series" in features[f_name]:
+                        if "num_lags" in features[f_name]["time_series"]:
+                            del features[f_name]["time_series"]["num_lags"]
+                        features[f_name]["time_series"]["lags"] = lags
             elif isinstance(lags, dict):
                 for f_name, f_lags in lags.items():
                     # If lag_list is specified, lags is not used
-                    if 'num_lags' in features[f_name]['time_series']:
-                        del features[f_name]['time_series']['num_lags']
+                    if "num_lags" in features[f_name]["time_series"]:
+                        del features[f_name]["time_series"]["num_lags"]
                     if isinstance(f_lags, int):
                         f_lags = [f_lags]
                     elif not isinstance(f_lags, list):
-                        raise TypeError(f'Unsupported type for {f_name} lags value (must be list)')
-                    features[f_name]['time_series']['lags'] = f_lags
+                        raise TypeError(f"Unsupported type for {f_name} lags value (must be list)")
+                    features[f_name]["time_series"]["lags"] = f_lags
 
         if self.time_feature_name in features:
-            features[self.time_feature_name]['time_series']['time_feature'] = True
+            features[self.time_feature_name]["time_series"]["time_feature"] = True
 
             # Assign universal value if specified
             if time_feature_is_universal is not None:
-                features[self.time_feature_name]['time_series']['universal'] = time_feature_is_universal
+                features[self.time_feature_name]["time_series"]["universal"] = time_feature_is_universal
             # Force time_feature to be `continuous`
-            features[self.time_feature_name]['type'] = "continuous"
+            features[self.time_feature_name]["type"] = "continuous"
             # Set time_series as 'delta' so that lag and delta are computed
-            features[self.time_feature_name]['time_series']['type'] = "delta"
+            features[self.time_feature_name]["time_series"]["type"] = "delta"
             # Time feature might have `sensitive` and `subtype` attribute
             # which is not applicable to time feature.
-            features[self.time_feature_name].pop('subtype', None)
+            features[self.time_feature_name].pop("subtype", None)
 
             time_feature_dtype = self._get_column_dtype(self.time_feature_name)
 
@@ -728,7 +724,8 @@ class InferFeatureAttributesTimeSeries:
                 if test_value is not None and not is_valid_datetime_format(test_value, dt_format):
                     raise ValueError(
                         f'The date time format "{dt_format}" does not match the data of the time feature '
-                        f'"{self.time_feature_name}". Data sample: "{test_value}"')
+                        f'"{self.time_feature_name}". Data sample: "{test_value}"'
+                    )
 
             elif is_string_dtype(time_feature_dtype):
                 # if the time feature has no datetime format and is stored as a string,
@@ -736,10 +733,10 @@ class InferFeatureAttributesTimeSeries:
                 self._cast_column(self.time_feature_name, float)
 
             # time feature cannot be null
-            if 'bounds' in features[self.time_feature_name]:
-                features[self.time_feature_name]['bounds']['allow_null'] = False
+            if "bounds" in features[self.time_feature_name]:
+                features[self.time_feature_name]["bounds"]["allow_null"] = False
             else:
-                features[self.time_feature_name]['bounds'] = {'allow_null': False}
+                features[self.time_feature_name]["bounds"] = {"allow_null": False}
 
         features = self._infer_delta_min_max(
             features=features,
@@ -747,14 +744,14 @@ class InferFeatureAttributesTimeSeries:
             id_feature_name=id_feature_name,
             orders_of_derivatives=orders_of_derivatives,
             derived_orders=derived_orders,
-            max_workers=max_workers
+            max_workers=max_workers,
         )
 
         # Set any manually specified rate/delta boundaries
         if delta_boundaries is not None:
-            self._set_rate_delta_bounds('delta', delta_boundaries, features)
+            self._set_rate_delta_bounds("delta", delta_boundaries, features)
         if rate_boundaries is not None:
-            self._set_rate_delta_bounds('rate', rate_boundaries, features)
+            self._set_rate_delta_bounds("rate", rate_boundaries, features)
 
         return features
 
@@ -791,7 +788,7 @@ class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         orders_of_derivatives: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
-        max_workers: t.Optional[int] = None
+        max_workers: t.Optional[int] = None,
     ):
         """Infer delta and rate min/max for each continuous feature and update the features dict."""
         return _infer_delta_min_max_from_chunk(
@@ -850,8 +847,8 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
         The value returned by op(a, b), or the prospective feature attributes' value if none currently exist,
         or None if neither exist.
         """
-        current_val = features[f_name].get('time_series', {}).get(key)
-        possible_val = chunk_features[f_name].get('time_series', {}).get(key)
+        current_val = features[f_name].get("time_series", {}).get(key)
+        possible_val = chunk_features[f_name].get("time_series", {}).get(key)
         if current_val and possible_val:
             return op(current_val, possible_val)
         elif possible_val and not current_val:
@@ -866,19 +863,30 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         orders_of_derivatives: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
-        max_workers: t.Optional[int] = None
+        max_workers: t.Optional[int] = None,
     ):
         """Infer delta and rate min/max for each continuous feature and update the features dict."""
-        func = partial(
-            _infer_delta_min_max_from_chunk,
-            features=features,
-            time_feature_name=self.time_feature_name,
-            datetime_feature_formats=datetime_feature_formats,
-            id_feature_name=id_feature_name,
-            orders_of_derivatives=orders_of_derivatives,
-            derived_orders=derived_orders,
-        )
+        if getattr(self.data, "_NATIVE_COMPUTE_TYPE", None) == "spark":
+            # If self.data claims to be Spark-native, try that first. If
+            # pyspark is not available or there are other errors, display a
+            # useful message and fall back to python-native process.
+            try:
+                return self._infer_delta_min_max_spark_native(
+                    features=features,
+                    datetime_feature_formats=datetime_feature_formats,
+                    id_feature_name=id_feature_name,
+                    orders_of_derivatives=orders_of_derivatives,
+                    derived_orders=derived_orders,
+                )
+            except ImportError as e:
+                # Without PySpark, there's little we can do except display this log.
+                raise ImportError("To process Spark-native data, please install PySpark.") from e
+            except Exception as e:  # noqa: Deliberately broad.
+                logger.warning(
+                    f"Spark-native delta/min/max inference failed: {e}. Falling back to chunk-based processing."
+                )
 
+        # Non-Spark implementation
         # Estimate the best chunk size based on available resources
         effective_max_workers = max_workers if max_workers else (os.cpu_count() or 4)
         chunk_size = _infer_optimal_chunk_size(
@@ -893,20 +901,29 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
         total_rows = self.data.get_row_count() or 0
         use_parallel = effective_max_workers > 1 and total_rows > chunk_size
 
+        func = partial(
+            _infer_delta_min_max_from_chunk,
+            features=features,
+            time_feature_name=self.time_feature_name,
+            datetime_feature_formats=datetime_feature_formats,
+            id_feature_name=id_feature_name,
+            orders_of_derivatives=orders_of_derivatives,
+            derived_orders=derived_orders,
+        )
+
         if use_parallel:
             feature_chunks = []
             with ProcessPoolExecutor(max_workers=effective_max_workers) as pool:
                 for future in lazy_map(
-                    pool, func,
+                    pool,
+                    func,
                     self.data.yield_chunk(chunk_size=chunk_size),
                     queue_length=effective_max_workers + 2,
                 ):
                     feature_chunks.append(future.result())
         else:
             # Single chunk or single worker - process sequentially
-            feature_chunks = [
-                func(chunk) for chunk in self.data.yield_chunk(chunk_size=chunk_size)
-            ]
+            feature_chunks = [func(chunk) for chunk in self.data.yield_chunk(chunk_size=chunk_size)]
 
         # Short-circuit if only one chunk
         if len(feature_chunks) == 1:
@@ -914,6 +931,218 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
 
         # Aggregate min/max across all chunks efficiently
         return self._aggregate_chunk_results(features, feature_chunks)
+
+    def _infer_delta_min_max_spark_native(  # noqa: C901
+        self,
+        features: SingleTableFeatureAttributes | dict,
+        datetime_feature_formats: dict | None = None,
+        id_feature_name: str | Iterable[str] | None = None,
+        orders_of_derivatives: dict | None = None,
+        derived_orders: dict | None = None,
+    ) -> MutableMapping:
+        """
+        Infer delta and rate min/max using Spark-native window functions.
+
+        This processes all data on Spark workers and only collects the
+        aggregated min/max results to the driver.
+
+        Raises
+        ------
+        ImportError
+            When pyspark is not available.
+        """
+        from pyspark.sql import DataFrame as SparkDataFrame, functions as F
+        from pyspark.sql.window import Window
+
+        from howso.connectors.abstract_data.spark_dataframe_data import _python_to_java_datetime_format
+
+        def _convert_datetime_columns_spark(
+            spark_df: SparkDataFrame,
+            features: dict,
+            continuous_ts_features: list[str],
+            datetime_feature_formats: dict | None = None,
+        ) -> SparkDataFrame:
+            """Convert datetime columns to epoch seconds using Spark functions."""
+            for f_name in continuous_ts_features:
+                dt_format = features[f_name].get("date_time_format")
+                if dt_format is None and isinstance(datetime_feature_formats, dict):
+                    dt_format = datetime_feature_formats.get(f_name)
+                    if isinstance(dt_format, Collection) and not isinstance(dt_format, str) and len(dt_format) == 2:
+                        dt_format, _ = dt_format
+
+                if dt_format is not None:
+                    spark_format = _python_to_java_datetime_format(dt_format)
+                    spark_df = spark_df.withColumn(
+                        f"{f_name}_epoch", F.unix_timestamp(F.col(f_name), spark_format).cast("double")
+                    )
+
+            return spark_df
+
+        # Get the underlying Spark DataFrame
+        spark_df = self.data._sdf  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Shallow copy features
+        features = {k: v.copy() for k, v in features.items()}
+
+        if orders_of_derivatives is None:
+            orders_of_derivatives = {}
+        if derived_orders is None:
+            derived_orders = {}
+
+        # Build window specification
+        if id_feature_name:
+            id_cols = [id_feature_name] if isinstance(id_feature_name, str) else list(id_feature_name)
+            window = Window.partitionBy(*id_cols).orderBy(self.time_feature_name)
+        else:
+            window = Window.orderBy(self.time_feature_name)
+
+        # Identify features to process
+        continuous_ts_features = [
+            f_name
+            for f_name, f_attrs in features.items()
+            if f_attrs.get("type") == "continuous"
+            and "time_series" in f_attrs
+            and f_attrs.get("data_type") not in {"json", "yaml", "amalgam", "string_mixable"}
+        ]
+
+        if not continuous_ts_features:
+            return features
+
+        # Handle datetime conversions
+        converted_df = _convert_datetime_columns_spark(
+            spark_df, features, continuous_ts_features, datetime_feature_formats
+        )
+
+        # Compute deltas for all features in one pass
+        delta_df = converted_df
+        for f_name in continuous_ts_features:
+            col_name = f"{f_name}_epoch" if f"{f_name}_epoch" in delta_df.columns else f_name
+            delta_df = delta_df.withColumn(f"{f_name}_delta_1", F.col(col_name) - F.lag(col_name, 1).over(window))
+
+        # Compute time deltas
+        time_col = (
+            f"{self.time_feature_name}_epoch"
+            if f"{self.time_feature_name}_epoch" in delta_df.columns
+            else self.time_feature_name
+        )
+        delta_df = delta_df.withColumn("_time_delta_1", F.col(time_col) - F.lag(time_col, 1).over(window))
+
+        # Build aggregation expressions for all features and orders
+        agg_exprs = []
+        feature_order_map: dict[str, dict] = {}
+
+        for f_name in continuous_ts_features:
+            ts = features[f_name].get("time_series", {})
+            ts_type = ts.get("type", "rate")
+            num_orders = orders_of_derivatives.get(f_name, 1)
+
+            if num_orders == 0:
+                continue
+
+            feature_order_map[f_name] = {"type": ts_type, "num_orders": num_orders, "orders": []}
+
+            for order in range(1, num_orders + 1):
+                if ts_type == "rate":
+                    rate_col = f"{f_name}_rate_{order}"
+                    if order == 1:
+                        delta_df = delta_df.withColumn(
+                            rate_col,
+                            F.when(
+                                F.col("_time_delta_1") != 0, F.col(f"{f_name}_delta_1") / F.col("_time_delta_1")
+                            ).otherwise(F.col(f"{f_name}_delta_1") / F.lit(SMALLEST_TIME_DELTA)),
+                        )
+                    else:
+                        prev_rate_col = f"{f_name}_rate_{order - 1}"
+                        delta_df = delta_df.withColumn(
+                            rate_col, F.col(prev_rate_col) - F.lag(prev_rate_col, 1).over(window)
+                        )
+
+                    agg_exprs.extend(
+                        [
+                            F.min(rate_col).alias(f"{f_name}_rate_min_{order}"),
+                            F.max(rate_col).alias(f"{f_name}_rate_max_{order}"),
+                        ]
+                    )
+                    feature_order_map[f_name]["orders"].append(order)
+
+                else:  # delta
+                    delta_col = f"{f_name}_delta_{order}"
+                    if order > 1:
+                        prev_delta_col = f"{f_name}_delta_{order - 1}"
+                        delta_df = delta_df.withColumn(
+                            delta_col, F.col(prev_delta_col) - F.lag(prev_delta_col, 1).over(window)
+                        )
+
+                    agg_exprs.extend(
+                        [
+                            F.min(delta_col).alias(f"{f_name}_delta_min_{order}"),
+                            F.max(delta_col).alias(f"{f_name}_delta_max_{order}"),
+                        ]
+                    )
+                    feature_order_map[f_name]["orders"].append(order)
+
+        if not agg_exprs:
+            return features
+
+        # Single distributed aggregation
+        results = delta_df.agg(*agg_exprs).collect()[0].asDict()
+
+        # Update features dict from results
+        for f_name, order_info in feature_order_map.items():
+            ts_type = order_info["type"]
+            num_orders = order_info["num_orders"]
+
+            if "time_series" not in features[f_name]:
+                features[f_name]["time_series"] = {}
+            ts = features[f_name]["time_series"]
+
+            if num_orders > 1:
+                ts["order"] = num_orders
+
+            num_derived_orders = derived_orders.get(f_name, 0)
+            if num_derived_orders >= num_orders:
+                num_derived_orders = num_orders - 1
+            if num_derived_orders > 0:
+                ts["derived_orders"] = num_derived_orders
+
+            if ts_type == "rate":
+                ts["rate_min"] = []
+                ts["rate_max"] = []
+                for order in order_info["orders"]:
+                    rate_min = results.get(f"{f_name}_rate_min_{order}")
+                    rate_max = results.get(f"{f_name}_rate_max_{order}")
+
+                    if rate_min is not None:
+                        rate_min = float(rate_min)
+                        rate_min = rate_min / e if rate_min > 0 else rate_min * e
+                        ts["rate_min"].append(rate_min)
+
+                    if rate_max is not None:
+                        rate_max = float(rate_max)
+                        rate_max = rate_max * e if rate_max > 0 else rate_max / e
+                        ts["rate_max"].append(rate_max)
+
+            else:  # delta
+                ts["delta_min"] = []
+                ts["delta_max"] = []
+                for order in order_info["orders"]:
+                    delta_min = results.get(f"{f_name}_delta_min_{order}")
+                    delta_max = results.get(f"{f_name}_delta_max_{order}")
+
+                    if delta_max is not None:
+                        delta_max = float(delta_max)
+                        delta_max = delta_max * e if delta_max > 0 else delta_max / e
+                        ts["delta_max"].append(delta_max)
+
+                    if delta_min is not None:
+                        delta_min = float(delta_min)
+                        if f_name == self.time_feature_name:
+                            ts["delta_min"].append(max(0, delta_min / e))
+                        else:
+                            delta_min = delta_min / e if delta_min > 0 else delta_min * e
+                            ts["delta_min"].append(delta_min)
+
+        return features
 
     def _aggregate_chunk_results(self, features: dict, feature_chunks: list[dict]) -> dict:
         """
@@ -932,10 +1161,10 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
             Updated features dictionary with aggregated min/max values.
         """
         ts_keys = [
-            ('rate_min', min),
-            ('rate_max', max),
-            ('delta_min', min),
-            ('delta_max', max),
+            ("rate_min", min),
+            ("rate_max", max),
+            ("delta_min", min),
+            ("delta_max", max),
         ]
 
         for f_name in features.keys():
@@ -943,7 +1172,7 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
             aggregated: dict[str, list] = {key: [] for key, _ in ts_keys}
 
             for chunk in feature_chunks:
-                chunk_ts = chunk.get(f_name, {}).get('time_series', {})
+                chunk_ts = chunk.get(f_name, {}).get("time_series", {})
                 for key, _ in ts_keys:
                     if key in chunk_ts:
                         aggregated[key].append(chunk_ts[key])
@@ -953,8 +1182,8 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                 continue
 
             # Ensure time_series dict exists
-            if 'time_series' not in features[f_name]:
-                features[f_name]['time_series'] = {}
+            if "time_series" not in features[f_name]:
+                features[f_name]["time_series"] = {}
 
             # Compute aggregate for each key
             for key, op in ts_keys:
@@ -969,13 +1198,13 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                     values_at_order = [chunk_vals[order_idx] for chunk_vals in aggregated[key]]
                     result.append(op(values_at_order))
 
-                features[f_name]['time_series'][key] = result
+                features[f_name]["time_series"][key] = result
 
         return features
 
     def _cast_column(self, feature_name: str, new_type: t.Any):
         """Convert the column of the provided ``feature_name`` to a different dtype."""
-        raise ValueError('Invalid time feature data type: must be numeric or datetime.')
+        raise ValueError("Invalid time feature data type: must be numeric or datetime.")
 
     def _is_null_column(self, feature_name: str) -> bool:
         """Determine whether the provided column is all null values."""
@@ -999,7 +1228,7 @@ def lazy_map(
     executor: ProcessPoolExecutor | ThreadPoolExecutor,
     func: Callable,
     *iterables: Iterable,
-    queue_length: int | None = None
+    queue_length: int | None = None,
 ) -> Generator[Future, None, None]:
     """
     Generate completed futures of ``func`` with arguments ``*iterables``.
@@ -1070,9 +1299,9 @@ def lazy_map(
     futures: set[Future] = set()
     args_iter = iter(zip(*iterables))
     if queue_length:
-        queue_length = max(executor._max_workers, queue_length) # type: ignore
+        queue_length = max(executor._max_workers, queue_length)  # type: ignore
     else:
-        queue_length = executor._max_workers # type: ignore
+        queue_length = executor._max_workers  # type: ignore
 
     try:
         while True:
