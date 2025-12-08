@@ -1302,6 +1302,8 @@ class TestBaseClient:
                                          contexts=[[2, 2]],
                                          context_features=['sepal_width', 'sepal_length'],
                                          action_features=['petal_width'],
+                                         generate_new_cases='attempt',
+                                         desired_conviction=1,
                                          details=detail_param)
             details_resp = response["details"]
 
