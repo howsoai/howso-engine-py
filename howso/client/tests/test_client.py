@@ -1316,7 +1316,7 @@ class TestBaseClient:
                 assert isinstance(details_resp[detail_name], list)
                 assert all(isinstance(item, dict) for item in details_resp[detail_name])
             elif detail_name in ["relevant_values", "boundary_values"]:
-                assert all(isinstance(v, list) for item in details_resp[detail_name] for v in item.values())
+                assert all(isinstance(v, pd.Series) for item in details_resp[detail_name] for v in item.values())
             elif detail_name in ["outlying_feature_values"]:
                 assert all(isinstance(v, dict) for item in details_resp[detail_name] for v in item.values())
             else:  # All other details expected to be a DataFrame

@@ -173,13 +173,12 @@ class FeatureSerializer:
     @classmethod
     def deserialize(
         cls,
-        data: Iterable[Iterable[t.Any] | t.Sequence[Mapping[str, t.Any]] | Mapping[str, t.Any]],
+        data: Iterable[Iterable[t.Any]],
         columns: t.Optional[Iterable[str]] = None,
         features: t.Optional[Mapping] = None,
-        to_dataframe: bool = True,
     ) -> pd.DataFrame | Iterable[t.Any]:
         """
-        Deserialize case data and optionally convert to DataFrame format.
+        Deserialize case data and convert to DataFrame format.
 
         If feature attributes contain original typing information, columns
         will be converted to the same data type as original training cases.
@@ -199,52 +198,16 @@ class FeatureSerializer:
             (Optional) The dictionary of feature name to feature attributes.
 
             If not specified, no column typing will be attempted.
-        to_dataframe: bool, default True
-            (Optional) If False, leaves in place the original structure of `data`.
 
         Returns
         -------
         pandas.DataFrame
             The deserialized data.
         """
-        if to_dataframe:
-            df = deserialize_to_dataframe(data, columns)
-            if features is not None:
-                cls.format_dataframe(df, features)
-            return df
-        # Inspect format and leave as-is, but still deserialize cases
-        deserialized_data = []
-        if not isinstance(data, t.Sequence):
-            data = [data]
-        for case in data:
-            if not isinstance(case, Mapping):
-                raise ValueError("Failed to deserialize: provided object must be dict or list of dict if "
-                                 "`to_dataframe` is `False`.")
-            for feature_name, value in case.items():
-                try:
-                    if isinstance(value, t.Sequence) and features is not None:
-                        # Convert to Series and deserialize
-                        formatted_value = cls.format_column(pd.Series(value), features[feature_name]).to_list()
-                    elif isinstance(value, Mapping) and features is not None:
-                        # Grab each value in the mapping and deserialize
-                        formatted_value = deepcopy(value)
-                        for k, v in value.items():
-                            if isinstance(v, t.Sequence):
-                                deserialized_values = cls.format_column(pd.Series(v), features[feature_name]).to_list()
-                            else:
-                                # Value is not a list; temporarily convert for deserialization
-                                deserialized_values = cls.format_column(pd.Series([v]), features[feature_name]).item()
-                            formatted_value[k] = deserialized_values
-                    # Add deserialized cases to a reconstructed dict, then append to deserialized_data
-                    deserialized_data.append({feature_name: formatted_value})
-                except Exception:  # noqa: Deliberately broad
-                    warnings.warn(f"Failed to deserialize values under {feature_name}. "
-                                  "Current dtype will be retained.")
-                    deserialized_data.append({feature_name: value})
-        # Return deserialized_data if original data is a list, else return first/only element
-        if isinstance(data, t.Sequence):
-            return deserialized_data
-        return deserialized_data[0]
+        df = deserialize_to_dataframe(data, columns)
+        if features is not None:
+            cls.format_dataframe(df, features)
+        return df
 
     @classmethod
     def format_dataframe(cls, df: pd.DataFrame, features: Mapping
@@ -711,4 +674,5 @@ class FeatureSerializer:
 
 serialize_cases = FeatureSerializer.serialize
 deserialize_cases = FeatureSerializer.deserialize
+format_column = FeatureSerializer.format_column
 format_dataframe = FeatureSerializer.format_dataframe

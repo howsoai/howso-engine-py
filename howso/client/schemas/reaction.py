@@ -6,7 +6,7 @@ from typing import Any, cast, Iterator, Literal, Mapping, overload, Sequence, Ty
 
 import pandas as pd
 
-from howso.utilities import deserialize_cases, format_dataframe
+from howso.utilities import deserialize_cases, format_column, format_dataframe
 from howso.utilities.internals import update_caps_maps
 
 
@@ -395,9 +395,17 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                 context_columns = details.get('context_features')
                 formatted_details.update({detail_name: deserialize_cases(detail, context_columns, attributes)})
             # Special cases: non-DataFrames that need deserialization
-            elif detail_name in ["relevant_values", "boundary_values", "outlying_feature_values"]:
-                formatted_details.update({detail_name: deserialize_cases(detail, features=attributes,
-                                                                         to_dataframe=False)})
+            elif detail_name in ["relevant_values", "boundary_values"]:
+                deserialized_cases = []
+                for case in detail:
+                    deserialized_case = {}
+                    for k, v in case.items():
+                        deserialized_case[k] = format_column(pd.Series(v), feature=attributes[k])
+                    deserialized_cases.append(deserialized_case)
+                formatted_details.update({detail_name: deserialized_cases})
+            # Specail case: outlying_feature_values (leave as-is)
+            elif detail_name == "outlying_feature_values":
+                formatted_details.update({detail_name: detail})
             # Other valid details
             elif detail_name in ReactDetails.__annotations__.keys():
                 formatted_details.update({detail_name: _convert(detail_name, detail)})

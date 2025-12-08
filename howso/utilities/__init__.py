@@ -8,6 +8,7 @@ from .feature_attributes.base import (
 from .features import (  # noqa: F401
     deserialize_cases,
     FeatureType,
+    format_column,
     format_dataframe,
     serialize_cases,
 )
@@ -65,6 +66,7 @@ __all__ = [
     "FeatureAttributesBase",
     "FeatureType",
     "format_dataframe",
+    "format_column",
     "FrozenTimer",
     "get_kwargs",
     "infer_feature_attributes",
