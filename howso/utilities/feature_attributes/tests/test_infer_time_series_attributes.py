@@ -1,19 +1,23 @@
 """Tests infer_feature_attributes with time series data (InferFeatureAttributesTimeSeries)."""
 from collections import OrderedDict
 from pathlib import Path
+from pprint import pprint
 import warnings
 
 from howso import client
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
+from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 import numpy as np
 import pandas as pd
 import pytest
 
 
-data_path = (
+root_path = (
     Path(client.__file__).parent.parent
-).joinpath("utilities/tests/data/example_timeseries.csv")
+)
+data_path = root_path.joinpath("utilities/tests/data")
+example_timeseries_path = data_path.joinpath("example_timeseries.csv")
 
 # Partially defined dictionary-1
 features_1 = {
@@ -45,7 +49,7 @@ features_2 = OrderedDict(
 
 def test_infer_features_attributes_single_ID():
     """Litmus test for infer feature types for iris dataset."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
 
     # Define time format
     time_format = "%Y%m%d"
@@ -77,7 +81,7 @@ def test_infer_features_attributes_single_ID():
 
 def test_infer_features_attributes_multiple_ID():
     """Litmus test for infer feature types for iris dataset with multiple ID features."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
     df["ID2"] = df["ID"].copy()
 
     # Define time format
@@ -112,7 +116,7 @@ def test_infer_features_attributes_multiple_ID():
 
 def test_set_rate_delta_boundaries():
     """Test infer_feature_attributes for time series with rate/delta boundaries set."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
 
     # Define time format
     time_format = "%Y%m%d"
@@ -175,7 +179,7 @@ def test_set_rate_delta_boundaries():
 )
 def test_time_feature_is_universal(universal_value, expected):
     """Validates that time_feature_is_universal is working as expected."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
 
     # Define time format
     time_format = "%Y%m%d"
@@ -196,7 +200,7 @@ def test_time_feature_is_universal(universal_value, expected):
 
 def test_infer_features_attributes_tight_bounds_dependent_functionality():
     """Test tight bounds and dependent features functionality for time series IFA."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
 
     # Define time format
     time_format = "%Y%m%d"
@@ -225,7 +229,7 @@ def test_infer_features_attributes_tight_bounds_dependent_functionality():
 
 def test_invalid_time_feature_format():
     """Validates that an invalid time feature date_time_format raises."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
     time_feature_name = "date"
 
     with pytest.raises(ValueError, match="does not match the data"):
@@ -268,7 +272,7 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
 
 def test_lags():
     """Validates that `lags` can be set as an argument for time series IFA."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
 
     # The below should not raise any exceptions
     lags = {"date": 0}
@@ -283,7 +287,7 @@ def test_lags():
 def test_nominal_vs_continuous_detection():
     """Test that IFA correctly determines nominal vs. continuous features in time series data."""
     # Time-series data with 4756 cases, 41 series; avg. 116 cases/series; sqrt(116) ~= 10.77
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
     # Add a new integer column with n_uniques > sqrt(avg_n_cases_per_series) -- should be continuous
     series = np.resize(np.arange(11), len(df))
     np.random.shuffle(series)
@@ -330,3 +334,90 @@ def test_semi_structured_features(data_type: str, value: list[str]):
     assert features["inventory"]["original_type"] == {"data_type": "string"}
     assert features["inventory"]["time_series"]["type"] == "rate"
     assert features["inventory"]["time_series"]["num_lags"] == 3
+
+
+def test_time_series_features_pandas():
+    valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
+
+    df = pd.read_csv(data_path.joinpath("example_timeseries.csv"))
+    features = infer_feature_attributes(
+        df,
+        id_feature_name = "ID",
+        time_feature_name="date",
+        datetime_feature_formats={"date": "%Y%m%d"},
+    )
+    pprint(pprint(features))
+
+    for feature, attrs in features.items():
+        if "time_series" in attrs:
+            assert "time_series" in valid[feature]
+            if valid[feature]["time_series"]["type"] == "rate":
+                assert attrs["time_series"]["type"] == "rate"
+                assert valid[feature]["time_series"]["rate_min"] == attrs["time_series"]["rate_min"]
+                assert valid[feature]["time_series"]["rate_max"] == attrs["time_series"]["rate_max"]
+            elif valid[feature]["time_series"]["type"] == "delta":
+                assert attrs["time_series"]["type"] == "delta"
+                assert valid[feature]["time_series"]["delta_min"] == attrs["time_series"]["delta_min"]
+                assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
+            else:
+                raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+
+
+def test_time_series_features_pandas_native_date():
+    valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
+
+    df = pd.read_csv(data_path.joinpath("example_timeseries.csv"))
+    df["date"] = pd.to_datetime(df["date"], format="%Y%m%d")
+
+    features = infer_feature_attributes(
+        df,
+        id_feature_name = "ID",
+        time_feature_name="date",
+        datetime_feature_formats={"date": "%Y%m%d"},
+    )
+    pprint(pprint(features))
+
+    for feature, attrs in features.items():
+        if "time_series" in attrs:
+            assert "time_series" in valid[feature]
+            if valid[feature]["time_series"]["type"] == "rate":
+                assert attrs["time_series"]["type"] == "rate"
+                assert valid[feature]["time_series"]["rate_min"] == attrs["time_series"]["rate_min"]
+                assert valid[feature]["time_series"]["rate_max"] == attrs["time_series"]["rate_max"]
+            elif valid[feature]["time_series"]["type"] == "delta":
+                assert attrs["time_series"]["type"] == "delta"
+                assert valid[feature]["time_series"]["delta_min"] == attrs["time_series"]["delta_min"]
+                assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
+            else:
+                raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+
+
+def test_time_series_features_adc():
+    valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
+    try:
+        from howso.connectors import TabularFile
+    except ImportError:
+        pytest.skip("howso.connectors not available")
+    else:
+        adc = TabularFile(data_path.joinpath("example_timeseries.csv"))
+        features = infer_feature_attributes(
+            adc,
+            id_feature_name = "ID",
+            time_feature_name="date",
+            datetime_feature_formats={"date": "%Y%m%d"},
+        )
+        pprint(features)
+
+        for feature, attrs in features.items():
+            if "time_series" in attrs:
+                assert "time_series" in valid[feature]
+                if valid[feature]["time_series"]["type"] == "rate":
+                    assert attrs["time_series"]["type"] == "rate"
+                    assert valid[feature]["time_series"]["rate_min"] == attrs["time_series"]["rate_min"]
+                    assert valid[feature]["time_series"]["rate_max"] == attrs["time_series"]["rate_max"]
+                elif valid[feature]["time_series"]["type"] == "delta":
+                    assert attrs["time_series"]["type"] == "delta"
+                    assert valid[feature]["time_series"]["delta_min"] == attrs["time_series"]["delta_min"]
+                    assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
+                else:
+                    raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")

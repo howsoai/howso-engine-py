@@ -799,7 +799,6 @@ class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
             id_feature_name=id_feature_name,
             orders_of_derivatives=orders_of_derivatives,
             derived_orders=derived_orders,
-            max_workers=max_workers,
         )
 
     def _cast_column(self, feature_name: str, new_type: t.Any):
