@@ -42,8 +42,8 @@ class ReactDetails(TypedDict, total=False):
     boundary_cases: list[pd.DataFrame]
     """A list of DataFrames mapping boundary cases for each given case."""
 
-    boundary_values: pd.DataFrame
-    """A DataFrame mapping feature names to the boundary values computed for them."""
+    boundary_values: list[dict[str, list[Any]]]
+    """A list of dict feature names to the boundary values computed for them for each context."""
 
     case_full_accuracy_contributions: list[pd.DataFrame]
     """A list of DataFrames mapping the case index and full MDA for each influential case of each given case."""
@@ -192,9 +192,9 @@ class ReactDetails(TypedDict, total=False):
     observational_errors: pd.DataFrame
     """A DataFrame of the observational errors for each feature defined in the feature attributes."""
 
-    outlying_feature_values: pd.DataFrame
+    outlying_feature_values: list[dict[str, dict[str, Any]]]
     """
-    A DataFrame mapping feature names to a description of the outlying values and the extremes observed among
+    A list of dicts mapping feature names to a description of the outlying values and the extremes observed among
     similar cases.
     """
 
@@ -204,8 +204,8 @@ class ReactDetails(TypedDict, total=False):
     prediction_stats: dict[str, Any]
     """A dict mapping the resulting prediction stats for the region of cases nearest to each given case."""
 
-    relevant_values: pd.DataFrame
-    """A DataFrame mapping feature name to the list of relevant values for each context."""
+    relevant_values: list[dict[str, list[Any]]]
+    """A list of dict mapping feature name to the list of relevant values for each context."""
 
     similarity_conviction: list[float]
     """A list of the average similarity conviction of cases in each group."""
@@ -394,6 +394,10 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
             if detail_name == "context_values":
                 context_columns = details.get('context_features')
                 formatted_details.update({detail_name: deserialize_cases(detail, context_columns, attributes)})
+            # Special cases: non-DataFrames that need deserialization
+            elif detail_name in ["relevant_values", "boundary_values", "outlying_feature_values"]:
+                formatted_details.update({detail_name: deserialize_cases(detail, features=attributes,
+                                                                         to_dataframe=False)})
             # Other valid details
             elif detail_name in ReactDetails.__annotations__.keys():
                 formatted_details.update({detail_name: _convert(detail_name, detail)})

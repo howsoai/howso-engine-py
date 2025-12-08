@@ -1263,7 +1263,7 @@ class TestBaseClient:
                 'prediction_stats',
             ),
             (
-                {'boundary_value_context_features': ["penguin"]},
+                {'boundary_value_context_features': ["sepal_length"]},
                 'boundary_values'
             ),
             (
@@ -1279,41 +1279,32 @@ class TestBaseClient:
                 'feature_full_accuracy_contributions',
             ),
             (
-                {'feature_deviations': True, },
-                'feature_deviations',
+                {'feature_full_residuals': True, },
+                'feature_full_residuals',
+            ),
+            (
+                {'hypothetical_values': {'sepal_width': [1, 1.4]}, },
+                'hypothetical_values',
+            ),
+            (
+                {'feature_full_residuals_for_case': True},
+                'feature_full_residuals_for_case',
             ),
         ]
     )
     def test_react_format(self, details, trainee):
         """Test that various Reaction details are correctly formatted."""
-        cases = [['5', '6'],
-                 ['7', '8'],
-                 ['9', '10'],
-                 ['11', '12'],
-                 ['13', '14'],
-                 ['15', '16'],
-                 ['17', '18'],
-                 ['19', '20'],
-                 ['21', '22'],
-                 ['23', '24'],
-                 ['25', '26']]
-
+        df = pd.read_csv(iris_file_path)
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-
-            self.client.train(trainee.id, cases, features=['penguin', 'play'])
-
             detail_param, detail_name = details
-
+            self.client.train(trainee.id, df)
             response = self.client.react(trainee.id,
-                                         contexts=[['5']],
-                                         context_features=['penguin'],
-                                         action_features=['play'],
-                                         generate_new_cases="attempt",
-                                         desired_conviction=1,
+                                         contexts=[[2, 2]],
+                                         context_features=['sepal_width', 'sepal_length'],
+                                         action_features=['petal_width'],
                                          details=detail_param)
-
             details_resp = response["details"]
+
             if detail_name in ["influential_cases", "boundary_cases"]:
                 assert isinstance(details_resp[detail_name], list)
                 assert all(isinstance(item, pd.DataFrame) for item in details_resp[detail_name])
@@ -1322,6 +1313,10 @@ class TestBaseClient:
             elif detail_name in ["categorical_action_probabilities"]:
                 assert isinstance(details_resp[detail_name], list)
                 assert all(isinstance(item, dict) for item in details_resp[detail_name])
+            elif detail_name in ["relevant_values", "boundary_values"]:
+                assert all(isinstance(v, list) for item in details_resp[detail_name] for v in item.values())
+            elif detail_name in ["outlying_feature_values"]:
+                assert all(isinstance(v, dict) for item in details_resp[detail_name] for v in item.values())
             else:  # All other details expected to be a DataFrame
                 assert isinstance(details_resp[detail_name], pd.DataFrame)
 

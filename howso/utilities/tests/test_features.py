@@ -116,6 +116,35 @@ def test_feature_deserialization(data_format, data, original_type, should_warn):
         assert difference.empty
 
 
+@pytest.mark.parametrize("data", [
+    [{"sepal_length": ["1", "2", "3"], "petal_length": ["3", "2", "1"]},
+     {"sepal_length": ["1", "2", "3"], "petal_length": ["3", "2", "1"]}],
+    {"sepal_length": ["1", "2", "3"]},
+    {"sepal_length": {"foo": "1", "bar": ["2", "3"]}},
+    {"sepal_length": {"foo": "1", "bar": ["2", "3"]}, "petal_length": {"foo": "1", "bar": "2"}},
+])
+def test_deserialize_custom_detail(data):
+    """Test case serialization with data in "custom" formats that should not be converted to DataFrame."""
+    def assert_all_values_of_type(data, type):
+        if isinstance(data, list):
+            for v in data:
+                assert_all_values_of_type(v, type)
+        else:
+            assert isinstance(data, type)
+    features = {"sepal_length": {"original_type": {"data_type": str(FeatureType.NUMERIC), "size": 8}},
+                "petal_length": {"original_type": {"data_type": str(FeatureType.NUMERIC), "size": 8}}}
+    data = FeatureSerializer.deserialize(data, features=features, to_dataframe=False)
+    if not isinstance(data, list):
+        data = list[data]
+    for case in data:
+        for value in case.values():
+            if isinstance(value, list):
+                assert all(isinstance(v, float) for v in value)
+            else:
+                for v in value.values():
+                    assert_all_values_of_type(v, float)
+
+
 @pytest.mark.parametrize('data, expected_dtype, original_type', [
     # Integers
     ([[1], [2]], 'int8',
