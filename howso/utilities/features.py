@@ -176,9 +176,9 @@ class FeatureSerializer:
         data: Iterable[Iterable[t.Any]],
         columns: t.Optional[Iterable[str]] = None,
         features: t.Optional[Mapping] = None,
-    ) -> pd.DataFrame | Iterable[t.Any]:
+    ) -> pd.DataFrame:
         """
-        Deserialize case data and convert to DataFrame format.
+        Deserialize case data into a DataFrame.
 
         If feature attributes contain original typing information, columns
         will be converted to the same data type as original training cases.
