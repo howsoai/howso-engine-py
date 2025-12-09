@@ -3235,7 +3235,7 @@ class AbstractHowsoClient(ABC):
 
         # batch_result always has action_features and action_values
         ret['action_features'] = batch_result.pop('action_features') or []
-        ret['action'] = batch_result.pop('action_values')
+        ret['action'] = batch_result.pop('action_values') or []
 
         # ensure all the details items are output as well
         for k, v in batch_result.items():
@@ -3499,7 +3499,7 @@ class AbstractHowsoClient(ABC):
 
         # batch_result always has action_features and action_values
         ret['action_features'] = batch_result.pop('action_features') or []
-        ret['action_values'] = batch_result.pop('action_values')
+        ret['action_values'] = batch_result.pop('action_values') or []
 
         # ensure all the details items are output as well
         for k, v in batch_result.items():
