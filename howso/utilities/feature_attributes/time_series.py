@@ -30,11 +30,6 @@ logger = logging.getLogger(__name__)
 SMALLEST_TIME_DELTA = 0.001
 
 
-def _apply_date_to_epoch(df: pd.DataFrame, feature_name: str, dt_format: str):
-    """Internal function to aid multiprocessing of series feature attributes."""
-    return df[feature_name].apply(lambda x: date_to_epoch(x, dt_format))
-
-
 def _infer_delta_min_max_from_chunk(  # noqa: C901
     chunk: pd.DataFrame,
     features: dict,
@@ -1349,7 +1344,7 @@ def _estimate_bytes_per_row(
     try:
         sample_chunk: pd.DataFrame = data.get_n_random_rows(samples=sample_size)
 
-        if sample_chunk is None or len(sample_chunk) == 0:
+        if sample_chunk is None or len(sample_chunk) == 0:  # pyright: ignore[reportUnnecessaryComparison]
             return default_bytes_per_row
 
         # Compute average memory usage per row
