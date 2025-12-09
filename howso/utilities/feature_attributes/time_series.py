@@ -1044,6 +1044,8 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                 if ts_type == "rate":
                     rate_col = f"{f_name}_rate_{order}"
                     if order == 1:
+                        # rate_1 = delta_1 / time_delta_1
+                        # Pandas: rates = deltas / time_deltas (same row alignment)
                         delta_df = delta_df.withColumn(
                             rate_col,
                             F.when(
@@ -1051,9 +1053,41 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                             ).otherwise(F.col(f"{f_name}_delta_1") / F.lit(SMALLEST_TIME_DELTA)),
                         )
                     else:
+                        # For order > 1: rate_N = diff(rate_{N-1}) / time_delta
+                        # Pandas: rates = np.diff(rates) / time_deltas[order:]
+                        #
+                        # In Pandas, np.diff(rates)[i] = rates[i+1] - rates[i], and this gets
+                        # divided by time_deltas[i] where time_deltas = time_feature_deltas[order:].
+                        # So np.diff(rates)[i] is divided by time_feature_deltas[i + order].
+                        #
+                        # In Spark row-wise: at row R, rate_diff = rate[R] - rate[R-1].
+                        # Spark row R's rate_diff corresponds to Pandas np.diff index (R - order + 1),
+                        # because Spark's first valid rate_diff for order N appears at row N.
+                        # To match Pandas, we need time_feature_deltas[(R - order + 1) + order]
+                        # = time_feature_deltas[R + 1], achieved via lead(_time_delta_1, 1).
                         prev_rate_col = f"{f_name}_rate_{order - 1}"
+                        rate_diff_col = f"{f_name}_rate_diff_{order}"
                         delta_df = delta_df.withColumn(
-                            rate_col, F.col(prev_rate_col) - F.lag(prev_rate_col, 1).over(window)
+                            rate_diff_col, F.col(prev_rate_col) - F.lag(prev_rate_col, 1).over(window)
+                        )
+                        # Use lead to get time_delta from 1 row ahead
+                        # When lead_time_delta is NULL (last row), exclude from computation
+                        # to match Pandas behavior which truncates arrays to align lengths
+                        #
+                        # Derivation: In Pandas, np.diff(rates)[i] is divided by time_feature_deltas[i + order].
+                        # Spark row R's rate_diff corresponds to Pandas np.diff index (R - order + 1).
+                        # So we need time_feature_deltas[(R - order + 1) + order] = time_feature_deltas[R + 1].
+                        # This is achieved by lead(_time_delta_1, 1) regardless of order.
+                        lead_time_delta = F.lead("_time_delta_1", 1).over(window)
+                        delta_df = delta_df.withColumn(
+                            rate_col,
+                            F.when(
+                                lead_time_delta.isNotNull(),
+                                F.when(
+                                    lead_time_delta != 0,
+                                    F.col(rate_diff_col) / lead_time_delta,
+                                ).otherwise(F.col(rate_diff_col) / F.lit(SMALLEST_TIME_DELTA)),
+                            ).otherwise(None),  # Exclude rows where lead is NULL (matches Pandas truncation)
                         )
 
                     agg_exprs.extend(
@@ -1067,6 +1101,8 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                 else:  # delta
                     delta_col = f"{f_name}_delta_{order}"
                     if order > 1:
+                        # Compute diff of previous delta: delta_N = delta_{N-1}[i] - delta_{N-1}[i-1]
+                        # This matches Pandas: deltas_arr = deltas_arr.diff(1)
                         prev_delta_col = f"{f_name}_delta_{order - 1}"
                         delta_df = delta_df.withColumn(
                             delta_col, F.col(prev_delta_col) - F.lag(prev_delta_col, 1).over(window)
@@ -1101,6 +1137,10 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
             num_derived_orders = derived_orders.get(f_name, 0)
             if num_derived_orders >= num_orders:
                 num_derived_orders = num_orders - 1
+                warnings.warn(
+                    f'Overwriting the `derived_orders` value for "{f_name}" with {num_derived_orders} '
+                    f'because it must be smaller than the "orders" value of {num_orders}.',
+                )
             if num_derived_orders > 0:
                 ts["derived_orders"] = num_derived_orders
 
