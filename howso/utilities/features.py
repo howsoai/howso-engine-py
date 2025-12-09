@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from copy import deepcopy
 import decimal
 from enum import Enum
 from functools import partial
@@ -174,7 +175,7 @@ class FeatureSerializer:
         cls,
         data: Iterable[Iterable[t.Any] | Mapping[str, t.Any]],
         columns: t.Optional[Iterable[str]] = None,
-        features: t.Optional[Mapping] = None
+        features: t.Optional[Mapping] = None,
     ) -> pd.DataFrame:
         """
         Deserialize case data into a DataFrame.
@@ -673,4 +674,5 @@ class FeatureSerializer:
 
 serialize_cases = FeatureSerializer.serialize
 deserialize_cases = FeatureSerializer.deserialize
+format_column = FeatureSerializer.format_column
 format_dataframe = FeatureSerializer.format_dataframe

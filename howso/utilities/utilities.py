@@ -216,7 +216,7 @@ def is_valid_datetime_format(value: t.Any, time_format: str | None) -> bool:
         return False
 
 
-def replace_none_with_nan(dat: Mapping) -> list[dict]:
+def replace_none_with_nan(dat: list[t.Mapping[str, t.Any]] | pd.DataFrame) -> list[dict] | pd.DataFrame:
     """
     Replace None values with NaN values.
 
@@ -231,11 +231,15 @@ def replace_none_with_nan(dat: Mapping) -> list[dict]:
     -------
     list[dict]
     """
+    if isinstance(dat, pd.DataFrame):
+        return dat.where(pd.notnull(dat), np.nan)
+
     return [
         {
-            key: float('nan') if value is None else value
+            key: np.nan if value is None else value
             for key, value in action.items()
-        } for action in dat
+        }
+        for action in dat
     ]
 
 

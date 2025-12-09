@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from copy import deepcopy
 import importlib.metadata
 import json
 import os
@@ -7,6 +8,7 @@ import platform
 from pprint import pprint
 import sys
 import uuid
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -28,10 +30,6 @@ from howso.client.exceptions import (
 from howso.client.protocols import ProjectClient
 from howso.client.schemas import Reaction, GroupReaction
 from howso.direct import HowsoDirectClient
-from howso.utilities.constants import (  # type: ignore reportPrivateUsage
-    _RENAMED_DETAIL_KEYS,
-    _RENAMED_DETAIL_KEYS_EXTRA,
-)
 from howso.utilities.testing import (
     get_configurationless_test_client,
     get_test_options,
@@ -612,109 +610,6 @@ class TestClient:
                                          details=audit_detail_set)
             details = response['details']
             assert (all(details[key] is not None for key in keys_to_expect))
-
-    @pytest.mark.parametrize('old_key,new_key', _RENAMED_DETAIL_KEYS.items())
-    def test_deprecated_detail_keys_react(self, trainee, old_key, new_key):
-        """Ensure using any of the deprecated keys raises a warning, but continues to work."""
-        # These keys shouldn't be tested like this:
-        if new_key in [
-            "feature_full_directional_prediction_contributions",
-            "feature_robust_directional_prediction_contributions",
-            "feature_full_accuracy_contributions_permutation",
-            "feature_robust_accuracy_contributions_permutation",
-        ]:
-            return
-
-        with pytest.warns(DeprecationWarning) as record:
-            self.client.train(
-                trainee.id, [[1, 2], [1, 2], [1, 2]],
-                features=['penguin', 'play']
-            )
-            reaction = self.client.react(
-                trainee.id,
-                contexts=[['1']],
-                context_features=['penguin'],
-                action_features=['play'],
-                details={old_key: True}
-            )
-
-        # Check that the correct warning was raised.
-        assert len(record)
-        # There may be multiple warnings. Ensure at least one of them contains
-        # the deprecation message.
-        assert any([
-            f"'{old_key}' is deprecated" in str(r.message)
-            for r in record
-        ])
-
-        # We DO want the old_key to be present during the deprecation period.
-        assert old_key in reaction.get('details', {}).keys()
-
-        # We do NOT want the new_key present during the deprecation period.
-        assert new_key not in reaction.get('details', {}).keys()
-
-        # Some keys request multiple keys to be returned, these too should be
-        # converted to the old names if the old name was originally used.
-        if old_key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
-            for old_extra_key, new_extra_key in _RENAMED_DETAIL_KEYS_EXTRA[old_key]["additional_keys"].items():
-                assert new_extra_key not in reaction.get('details', {}).keys()
-                assert old_extra_key in reaction.get('details', {}).keys()
-
-    @pytest.mark.parametrize('old_key,new_key', _RENAMED_DETAIL_KEYS.items())
-    def test_deprecated_detail_keys_react_aggregate(self, trainee, old_key, new_key):
-        """Ensure using any of the deprecated keys raises a warning, but continues to work."""
-        # These keys shouldn't be tested like this:
-        if new_key in {
-            "case_full_prediction_contributions",
-            "case_robust_prediction_contributions",
-            "feature_full_prediction_contributions_for_case",
-            "feature_robust_prediction_contributions_for_case",
-            "feature_full_residual_convictions_for_case",
-            "feature_full_residuals_for_case",
-            "feature_robust_residuals_for_case",
-            "case_full_accuracy_contributions",
-            "case_robust_accuracy_contributions",
-            "feature_full_directional_prediction_contributions",
-            "feature_robust_directional_prediction_contributions",
-            "feature_full_accuracy_contributions_ex_post",
-            "feature_robust_accuracy_contributions_ex_post",
-        }:
-            return
-
-        with pytest.warns(DeprecationWarning) as record:
-            self.client.train(
-                trainee.id, [[1, 2], [1, 2], [1, 2]],
-                features=['penguin', 'play']
-            )
-            response = self.client.react_aggregate(
-                trainee.id,
-                prediction_stats_action_feature='penguin',
-                feature_influences_action_feature='penguin',
-                num_samples=1,
-                details={old_key: True}
-            )
-
-        # Check that the correct warning was raised.
-        assert len(record)
-        # There may be multiple warnings. Ensure at least one of them contains
-        # the deprecation message.
-        assert any([
-            f"'{old_key}' is deprecated" in str(r.message)
-            for r in record
-        ])
-
-        # We DO want the old_key to be present during the deprecation period.
-        assert old_key in response.keys()
-
-        # We do NOT want the new_key present during the deprecation period.
-        assert new_key not in response.keys()
-
-        # Some keys request multiple keys to be returned, these too should be
-        # converted to the old names if the old name was originally used.
-        if old_key in _RENAMED_DETAIL_KEYS_EXTRA.keys():
-            for old_extra_key, new_extra_key in _RENAMED_DETAIL_KEYS_EXTRA[old_key]["additional_keys"].items():
-                assert new_extra_key not in response.keys()
-                assert old_extra_key in response.keys()
 
     def test_get_version(self):
         """Test get_version()."""
@@ -1327,3 +1222,176 @@ class TestBaseClient:
         mocker.patch.object(Path, 'is_file', return_value=True)
         path = get_configuration_path()
         assert str(path) == 'howso.yml'
+
+    @pytest.mark.parametrize(
+        'details',
+        [
+            (
+                {'categorical_action_probabilities': True, },
+                'categorical_action_probabilities',
+            ),
+            (
+                {'distance_contribution': True, },
+                'distance_contribution',
+            ),
+            (
+                {'influential_cases': True, 'influential_cases_familiarity_convictions': True, },
+                'influential_cases',
+            ),
+            (
+                {'num_boundary_cases': 1, 'boundary_cases_familiarity_convictions': True},
+                'boundary_cases',
+            ),
+            (
+                {'outlying_feature_values': True, },
+                'outlying_feature_values',
+            ),
+            (
+                {'similarity_conviction': True, },
+                'similarity_conviction',
+            ),
+            (
+                {'feature_robust_residuals': True, },
+                'feature_robust_residuals',
+            ),
+            (
+                {'generate_attempts': True, },
+                'generate_attempts',
+            ),
+            (
+                {'prediction_stats': True, },
+                'prediction_stats',
+            ),
+            (
+                {'observational_errors': True, },
+                'observational_errors'
+            ),
+            (
+                {'relevant_values': True, },
+                'relevant_values',
+            ),
+            (
+                {'feature_full_accuracy_contributions': True, },
+                'feature_full_accuracy_contributions',
+            ),
+            (
+                {'feature_full_residuals': True, },
+                'feature_full_residuals',
+            ),
+            (
+                {'hypothetical_values': {'sepal_width': [1, 1.4]}, },
+                'hypothetical_values',
+            ),
+            (
+                {'feature_full_residuals_for_case': True},
+                'feature_full_residuals_for_case',
+            ),
+        ]
+    )
+    def test_react_format(self, details, trainee):
+        """Test that various Reaction details are correctly formatted."""
+        df = pd.read_csv(iris_file_path)
+        with warnings.catch_warnings():
+            detail_param, detail_name = details
+            self.client.train(trainee.id, df)
+            response = self.client.react(trainee.id,
+                                         contexts=[[2, 2]],
+                                         context_features=['sepal_width', 'sepal_length'],
+                                         action_features=['petal_width'],
+                                         generate_new_cases='attempt',
+                                         desired_conviction=1,
+                                         details=detail_param)
+            details_resp = response["details"]
+
+            if detail_name in ["influential_cases", "boundary_cases"]:
+                assert isinstance(details_resp[detail_name], list)
+                assert all(isinstance(item, pd.DataFrame) for item in details_resp[detail_name])
+            elif detail_name in ["generate_attempts", "similarity_conviction", "distance_contribution"]:
+                assert isinstance(details_resp[detail_name], list)
+            elif detail_name in ["categorical_action_probabilities"]:
+                assert isinstance(details_resp[detail_name], list)
+                assert all(isinstance(item, dict) for item in details_resp[detail_name])
+            elif detail_name in ["relevant_values"]:
+                assert all(isinstance(v, pd.Series) for item in details_resp[detail_name] for v in item.values())
+            elif detail_name in ["outlying_feature_values"]:
+                assert all(isinstance(v, dict) for item in details_resp[detail_name] for v in item.values())
+            else:  # All other details expected to be a DataFrame
+                assert isinstance(details_resp[detail_name], pd.DataFrame)
+
+    @pytest.mark.parametrize(
+        'details',
+        [
+            (
+                {'categorical_action_probabilities': True, },
+                'categorical_action_probabilities',
+            ),
+            (
+                {'distance_contribution': True, },
+                'distance_contribution',
+            ),
+            (
+                {'influential_cases': True, 'influential_cases_familiarity_convictions': True, },
+                'influential_cases',
+            ),
+            (
+                {'num_boundary_cases': 1, 'boundary_cases_familiarity_convictions': True},
+                'boundary_cases',
+            ),
+            (
+                {'outlying_feature_values': True, },
+                'outlying_feature_values',
+            ),
+        ])
+    def test_accumulate_reaction(self, details, trainee):
+        """Test the accumulation of two Reaction objects."""
+        cases = [['5', '6'],
+                 ['7', '8'],
+                 ['9', '10'],
+                 ['11', '12'],
+                 ['13', '14'],
+                 ['15', '16'],
+                 ['17', '18'],
+                 ['19', '20'],
+                 ['21', '22'],
+                 ['23', '24'],
+                 ['25', '26']]
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            self.client.train(trainee.id, cases, features=['penguin', 'play'])
+
+            detail_param, detail_name = details
+
+            reaction_0 = self.client.react(trainee.id,
+                                           contexts=[['5']],
+                                           context_features=['penguin'],
+                                           action_features=['play'],
+                                           generate_new_cases="attempt",
+                                           desired_conviction=1,
+                                           details=detail_param)
+
+            reaction_0_accum = deepcopy(reaction_0)
+
+            reaction_1 = self.client.react(trainee.id,
+                                           contexts=[['17']],
+                                           context_features=['penguin'],
+                                           action_features=['play'],
+                                           generate_new_cases="attempt",
+                                           desired_conviction=1,
+                                           details=detail_param)
+
+            reaction_0_accum.accumulate(reaction_1)
+
+            if isinstance(reaction_0["details"][detail_name], list):
+                combined_detail = reaction_0["details"][detail_name] + reaction_1["details"][detail_name]
+                assert isinstance(reaction_0_accum["details"][detail_name], list)
+                for idx, v in enumerate(reaction_0_accum["details"][detail_name]):
+                    if isinstance(v, pd.DataFrame):
+                        assert v.equals(combined_detail[idx])
+                    else:
+                        assert v == combined_detail[idx]
+            else:
+                combined_detail = pd.concat([reaction_0["details"][detail_name], reaction_1["details"][detail_name]])
+                assert isinstance(reaction_0_accum["details"][detail_name], pd.DataFrame)
+                assert reaction_0_accum["details"][detail_name].equals(combined_detail)
