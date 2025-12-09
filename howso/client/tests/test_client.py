@@ -1263,10 +1263,6 @@ class TestBaseClient:
                 'prediction_stats',
             ),
             (
-                {'boundary_value_context_features': ["sepal_length"]},
-                'boundary_values'
-            ),
-            (
                 {'observational_errors': True, },
                 'observational_errors'
             ),
@@ -1315,7 +1311,7 @@ class TestBaseClient:
             elif detail_name in ["categorical_action_probabilities"]:
                 assert isinstance(details_resp[detail_name], list)
                 assert all(isinstance(item, dict) for item in details_resp[detail_name])
-            elif detail_name in ["relevant_values", "boundary_values"]:
+            elif detail_name in ["relevant_values"]:
                 assert all(isinstance(v, pd.Series) for item in details_resp[detail_name] for v in item.values())
             elif detail_name in ["outlying_feature_values"]:
                 assert all(isinstance(v, dict) for item in details_resp[detail_name] for v in item.values())

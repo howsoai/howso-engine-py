@@ -394,8 +394,8 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
             if detail_name == "context_values":
                 context_columns = details.get('context_features')
                 formatted_details.update({detail_name: deserialize_cases(detail, context_columns, attributes)})
-            # Special cases: non-DataFrames that need deserialization
-            elif detail_name in ["relevant_values", "boundary_values"]:
+            # Special case: relevant_values
+            elif detail_name == "relevant_values":
                 deserialized_cases = []
                 for case in detail:
                     deserialized_case = {}
@@ -403,8 +403,8 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                         deserialized_case[k] = format_column(pd.Series(v), feature=attributes[k])
                     deserialized_cases.append(deserialized_case)
                 formatted_details.update({detail_name: deserialized_cases})
-            # Specail case: outlying_feature_values (leave as-is)
-            elif detail_name == "outlying_feature_values":
+            # Specail case: outlying_feature_values and boundary_values (leave as-is)
+            elif detail_name in ["outlying_feature_values", "boundary_values"]:
                 formatted_details.update({detail_name: detail})
             # Other valid details
             elif detail_name in ReactDetails.__annotations__.keys():
