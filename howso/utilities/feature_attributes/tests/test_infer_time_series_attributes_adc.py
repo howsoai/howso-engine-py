@@ -574,3 +574,35 @@ def test_infer_time_series(spark, default_time_zone):
 
     # 6. Verify derived_orders is clamped down to 2
     assert features["value"]["time_series"]["derived_orders"] == 2
+
+
+@pytest.mark.parametrize(
+    "data_type, value",
+    [
+        ("json", ['{"potion": 5, "gauntlet": 2}', '{"staff": 1, "potion": 2}']),
+        ("yaml", ["potion: 5\ngauntlet: 2", "staff: 1\npotion: 2"]),
+    ],
+)
+def test_semi_structured_features_spark_native(spark, data_type: str, value: list[str]):
+    """Test that IFA detects semi structured features."""
+    df = pd.DataFrame([
+        {"class": "Fighter", "turn": 1, "hp": 100, "magic": 0, "inventory": value[0]},
+        {"class": "Fighter", "turn": 2, "hp": 70, "magic": 0, "inventory": value[0]},
+        {"class": "Mage", "turn": 1, "hp": 100, "magic": 100, "inventory": value[1]},
+        {"class": "Mage", "turn": 2, "hp": 100, "magic": 85, "inventory": value[1]},
+    ])
+    connector = SparkDataFrameData(
+        spark.createDataFrame(df)
+    )
+
+    features = infer_feature_attributes(
+        connector,
+        time_feature_name="turn",
+        id_feature_name="class",
+        num_lags=3
+    )
+    assert features["inventory"]["type"] == "continuous"
+    assert features["inventory"]["data_type"] == data_type
+    assert features["inventory"]["original_type"] == {"data_type": "string"}
+    assert features["inventory"]["time_series"]["type"] == "rate"
+    assert features["inventory"]["time_series"]["num_lags"] == 3

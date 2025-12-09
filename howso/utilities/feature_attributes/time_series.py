@@ -1,20 +1,11 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Callable, Collection, Generator, Iterable, MutableMapping
-from concurrent.futures import (
-    as_completed,
-    FIRST_COMPLETED,
-    Future,
-    ProcessPoolExecutor,
-    ThreadPoolExecutor,
-    wait,
-)
-import copy
+from collections.abc import Collection, Iterable, MutableMapping
+from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 import logging
 from math import e
-import multiprocessing as mp
 import os
 import typing as t
 import warnings
@@ -28,7 +19,11 @@ from .abstract_data import InferFeatureAttributesAbstractData
 from .base import SingleTableFeatureAttributes
 from .pandas import InferFeatureAttributesDataFrame
 from .protocols import IFACompatibleADCProtocol
-from ..utilities import date_to_epoch, is_valid_datetime_format, yield_dataframe_as_chunks
+from ..utilities import (
+    date_to_epoch,
+    is_valid_datetime_format,
+    lazy_map,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1248,105 +1243,6 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                 # Leave as-is
                 pass
         return dtype
-
-
-# TODO: Move to utilities?
-def lazy_map(
-    executor: ProcessPoolExecutor | ThreadPoolExecutor,
-    func: Callable,
-    *iterables: Iterable,
-    queue_length: int | None = None,
-) -> Generator[Future, None, None]:
-    """
-    Generate completed futures of ``func`` with arguments ``*iterables``.
-
-    This function acts as a combination of ``map()`` and ``as_completed()``,
-    but with lazy consumption from the iterables. Completed futures are
-    returned as they are completed, which may be in a different order than
-    they were fed into the executor.
-
-    Typical usage:
-
-    ```
-        # Note that this also works with ThreadPoolExecutor
-        with ProcessPoolExecutor(max_workers=4) as ex:
-            for future in lazy_map(ex, some_func, iterable1, iterable2):
-                try:
-                    result = future.result()
-                except Exception:
-                    # Do something with an exception raised in `some_func`
-                    ...
-                else:
-                    # Do something with the result
-                    ...
-    ```
-
-    Besides conveniently combining the ``map`` and ``as_completed`` functions
-    as described, this function only consumed from the given iterables when
-    workers in the pool are ready to process them. This can be paramount when
-    the iterables contain large datasets to keep memory usage at a minimum.
-
-    The function will stop drawing from ``*iterables`` once it reaches the end
-    of the shortest one (same as functools.zip()).
-
-    The futures returned are already on their ``done`` state, but returned as
-    futures (rather than results) to allow for the caller to handle the
-    exceptions, if any, as future.result() will raise the exception if there
-    was one during the processing of ``func``.
-
-    Parameters
-    ----------
-    executor : ProcessPoolExecutor or ThreadPoolExecutor
-        The instance of an executor.
-    func : callable
-        A Callable that will take as many arguments as there are
-        passed iterables.
-    iterables : iterables
-        One or more iterables that correspond to the args of ``func``.
-    queue_length : int, optional
-        The number of items, drawn from the provided ``iterables`` to queue-up
-        to be processed by ``func``. Setting this greater than the number of
-        max_workers of the executor can be useful when it requires some time to
-        prepare the inputs. If left unset, will be set to the same as
-        ``executor._max_workers``.
-
-    Returns
-    -------
-    Generator of Futures
-        A generator that yields the futures of ``func(*iterables)``.
-
-    Raises
-    ------
-    TimeoutError
-        If the entire result iterator could not be generated before the
-        given timeout.
-    Exception
-        If fn(*args) raises for any values.
-    """
-    futures: set[Future] = set()
-    args_iter = iter(zip(*iterables))
-    if queue_length:
-        queue_length = max(executor._max_workers, queue_length)  # type: ignore
-    else:
-        queue_length = executor._max_workers  # type: ignore
-
-    try:
-        while True:
-            for _ in range(max(0, queue_length - len(futures))):
-                # Take `next()` until StopIteration is raised.
-                args = next(args_iter)
-                # Submit the work to the executor
-                future = executor.submit(func, *args)
-                futures.add(future)
-
-            # Yield completed futures and remove them from the queue.
-            done, futures = wait(futures, return_when=FIRST_COMPLETED)
-            for future in done:
-                yield future
-
-    except StopIteration:
-        for future in as_completed(futures):
-            yield future
 
 
 def _infer_optimal_chunk_size(
