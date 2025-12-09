@@ -222,7 +222,7 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
 
                 if order > 1:
                     rates = np.diff(rates)
-                    time_deltas = time_feature_deltas[order:]
+                    time_deltas = time_feature_deltas[1:]
                 else:
                     time_deltas = time_feature_deltas
 
@@ -1054,40 +1054,28 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                         )
                     else:
                         # For order > 1: rate_N = diff(rate_{N-1}) / time_delta
-                        # Pandas: rates = np.diff(rates) / time_deltas[order:]
+                        # Pandas: rates = np.diff(rates) / time_deltas[1:]
                         #
-                        # In Pandas, np.diff(rates)[i] = rates[i+1] - rates[i], and this gets
-                        # divided by time_deltas[i] where time_deltas = time_feature_deltas[order:].
-                        # So np.diff(rates)[i] is divided by time_feature_deltas[i + order].
+                        # np.diff(rates)[i] = rates[i+1] - rates[i], divided by time_deltas[i]
+                        # where time_deltas = time_feature_deltas[1:].
+                        # So np.diff(rates)[i] is divided by time_feature_deltas[i + 1].
                         #
                         # In Spark row-wise: at row R, rate_diff = rate[R] - rate[R-1].
-                        # Spark row R's rate_diff corresponds to Pandas np.diff index (R - order + 1),
-                        # because Spark's first valid rate_diff for order N appears at row N.
-                        # To match Pandas, we need time_feature_deltas[(R - order + 1) + order]
-                        # = time_feature_deltas[R + 1], achieved via lead(_time_delta_1, 1).
+                        # This corresponds to np.diff index (R - 1), since Spark's diff at row 1
+                        # equals np.diff[0]. So we need time_feature_deltas[(R-1) + 1] = time_feature_deltas[R],
+                        # which is the current row's time delta.
                         prev_rate_col = f"{f_name}_rate_{order - 1}"
                         rate_diff_col = f"{f_name}_rate_diff_{order}"
                         delta_df = delta_df.withColumn(
                             rate_diff_col, F.col(prev_rate_col) - F.lag(prev_rate_col, 1).over(window)
                         )
-                        # Use lead to get time_delta from 1 row ahead
-                        # When lead_time_delta is NULL (last row), exclude from computation
-                        # to match Pandas behavior which truncates arrays to align lengths
-                        #
-                        # Derivation: In Pandas, np.diff(rates)[i] is divided by time_feature_deltas[i + order].
-                        # Spark row R's rate_diff corresponds to Pandas np.diff index (R - order + 1).
-                        # So we need time_feature_deltas[(R - order + 1) + order] = time_feature_deltas[R + 1].
-                        # This is achieved by lead(_time_delta_1, 1) regardless of order.
-                        lead_time_delta = F.lead("_time_delta_1", 1).over(window)
+                        # Use current row's time_delta (matches Pandas time_feature_deltas[1:] alignment)
                         delta_df = delta_df.withColumn(
                             rate_col,
                             F.when(
-                                lead_time_delta.isNotNull(),
-                                F.when(
-                                    lead_time_delta != 0,
-                                    F.col(rate_diff_col) / lead_time_delta,
-                                ).otherwise(F.col(rate_diff_col) / F.lit(SMALLEST_TIME_DELTA)),
-                            ).otherwise(None),  # Exclude rows where lead is NULL (matches Pandas truncation)
+                                F.col("_time_delta_1") != 0,
+                                F.col(rate_diff_col) / F.col("_time_delta_1"),
+                            ).otherwise(F.col(rate_diff_col) / F.lit(SMALLEST_TIME_DELTA)),
                         )
 
                     agg_exprs.extend(
