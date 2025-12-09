@@ -970,7 +970,7 @@ class ReactInBatches:
             react_function: Callable[[str, dict[str, t.Any]], tuple[dict[str, t.Any], int, int]],
             progress_callback: Callable[[ProgressTimer, dict[str, t.Any] | None], None] | None = None,
     ) -> None:
-        self.result = {'action_values': []}
+        self.result = {}
         """The final result of the computation."""
 
         self._trainee_id = trainee_id
