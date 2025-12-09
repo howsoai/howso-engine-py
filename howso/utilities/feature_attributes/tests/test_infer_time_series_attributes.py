@@ -373,7 +373,6 @@ def test_time_series_features_pandas_native_date():
         df,
         id_feature_name = "ID",
         time_feature_name="date",
-        datetime_feature_formats={"date": "%Y%m%d"},
     )
     pprint(pprint(features))
 
@@ -390,34 +389,3 @@ def test_time_series_features_pandas_native_date():
                 assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
             else:
                 raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
-
-
-def test_time_series_features_adc():
-    valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
-    try:
-        from howso.connectors import TabularFile
-    except ImportError:
-        pytest.skip("howso.connectors not available")
-    else:
-        adc = TabularFile(data_path.joinpath("example_timeseries.csv"))
-        features = infer_feature_attributes(
-            adc,
-            id_feature_name = "ID",
-            time_feature_name="date",
-            datetime_feature_formats={"date": "%Y%m%d"},
-        )
-        pprint(features)
-
-        for feature, attrs in features.items():
-            if "time_series" in attrs:
-                assert "time_series" in valid[feature]
-                if valid[feature]["time_series"]["type"] == "rate":
-                    assert attrs["time_series"]["type"] == "rate"
-                    assert valid[feature]["time_series"]["rate_min"] == attrs["time_series"]["rate_min"]
-                    assert valid[feature]["time_series"]["rate_max"] == attrs["time_series"]["rate_max"]
-                elif valid[feature]["time_series"]["type"] == "delta":
-                    assert attrs["time_series"]["type"] == "delta"
-                    assert valid[feature]["time_series"]["delta_min"] == attrs["time_series"]["delta_min"]
-                    assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
-                else:
-                    raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")

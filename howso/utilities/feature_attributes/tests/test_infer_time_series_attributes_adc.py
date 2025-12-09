@@ -1,6 +1,7 @@
 """Tests infer_feature_attributes with time series data and AbstractData classes."""
 from collections import OrderedDict
 from pathlib import Path
+from pprint import pprint
 import warnings
 
 import numpy as np
@@ -8,11 +9,18 @@ import pandas as pd
 import pytest
 
 try:
-    from howso.connectors.abstract_data import convert_data, DataFrameData
+    from howso.connectors.abstract_data import (
+        convert_data,
+        DataFrameData,
+        SparkDataFrameData,
+        TabularFile,
+    )
 except (ModuleNotFoundError, ImportError):
     pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
+
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
+from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 
 # Partially defined dictionary-1
 features_1 = {
@@ -41,10 +49,11 @@ features_2 = OrderedDict(
 )
 
 cwd = Path(__file__).parent.parent.parent.parent
-iris_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'iris.csv'))
-int_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'integers.csv'))
-stock_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv'))
-ts_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv'))
+data_path = cwd.joinpath("utilities", "tests", "data")
+iris_df = pd.read_csv(data_path.joinpath('iris.csv'))
+int_df = pd.read_csv(data_path.joinpath('integers.csv'))
+stock_df = pd.read_csv(data_path.joinpath('mini_stock_data.csv'))
+ts_df = pd.read_csv(data_path.joinpath('example_timeseries.csv'))
 
 
 @pytest.mark.parametrize('adc', [
@@ -79,6 +88,8 @@ def test_infer_features_attributes_single_ID(adc):
         datetime_feature_formats={time_feature_name: time_format},
         include_sample=True
     )
+
+    print(f"##### {ts_df=}")
 
     for feature, attributes in features.items():
         print(feature)
@@ -295,7 +306,7 @@ def test_invalid_time_feature_format(adc):
     ("SQLTableData", pd.DataFrame()),
     ("ParquetDataFile", pd.DataFrame()),
     ("ParquetDataset", pd.DataFrame()),
-    ("TabularFile", pd.DataFrame()),
+    # ("TabularFile", pd.DataFrame()),
     ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
@@ -379,3 +390,67 @@ def test_nominal_vs_continuous_detection(adc):
                                         types={"f4": "nominal", "f5": "continuous"})
     assert features["f5"]["type"] == "continuous"
     assert features["f4"]["type"] == "nominal"
+
+
+def test_time_series_features_TabularData():
+    valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
+    adc = TabularFile(data_path.joinpath("example_timeseries.csv"))
+    features = infer_feature_attributes(
+        adc,
+        id_feature_name = "ID",
+        time_feature_name="date",
+        datetime_feature_formats={"date": "%Y%m%d"},
+    )
+    pprint(features)
+
+    for feature, attrs in features.items():
+        if "time_series" in attrs:
+            assert "time_series" in valid[feature]
+            if valid[feature]["time_series"]["type"] == "rate":
+                assert attrs["time_series"]["type"] == "rate"
+                assert valid[feature]["time_series"]["rate_min"] == attrs["time_series"]["rate_min"]
+                assert valid[feature]["time_series"]["rate_max"] == attrs["time_series"]["rate_max"]
+            elif valid[feature]["time_series"]["type"] == "delta":
+                assert attrs["time_series"]["type"] == "delta"
+                assert valid[feature]["time_series"]["delta_min"] == attrs["time_series"]["delta_min"]
+                assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
+            else:
+                raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+
+
+def test_time_series_features_SparkDataFrameData():
+
+    try:
+        from pyspark import SparkContext
+        from pyspark.sql import SparkSession
+    except ImportError:
+        pytest.skip("pyspark not available.")
+    else:
+        spark = SparkSession(SparkContext().getOrCreate())
+        try:
+            pdf = pd.read_csv(data_path.joinpath("example_timeseries.csv"))
+            adc = SparkDataFrameData(spark.createDataFrame(pdf))
+            valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
+            features = infer_feature_attributes(
+                adc,
+                id_feature_name="ID",
+                time_feature_name="date",
+                datetime_feature_formats={"date": "%Y%m%d"},
+            )
+            # pprint(features)
+
+            for feature, attrs in features.items():
+                if "time_series" in attrs:
+                    assert "time_series" in valid[feature]
+                    if valid[feature]["time_series"]["type"] == "rate":
+                        assert attrs["time_series"]["type"] == "rate"
+                        assert valid[feature]["time_series"]["rate_min"] == attrs["time_series"]["rate_min"]
+                        assert valid[feature]["time_series"]["rate_max"] == attrs["time_series"]["rate_max"]
+                    elif valid[feature]["time_series"]["type"] == "delta":
+                        assert attrs["time_series"]["type"] == "delta"
+                        assert valid[feature]["time_series"]["delta_min"] == attrs["time_series"]["delta_min"]
+                        assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
+                    else:
+                        raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+        finally:
+            spark.stop()

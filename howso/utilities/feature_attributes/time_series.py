@@ -621,7 +621,7 @@ class InferFeatureAttributesTimeSeries:
         else:
             id_feature_names = []
 
-        num_series = infer._get_unique_count(id_feature_names) if id_feature_names else 1
+        num_series = infer._get_unique_count(id_feature_names) if id_feature_names else 1 # pyright: ignore[reportPrivateUsage]
 
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
@@ -1159,20 +1159,20 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
         dict
             Updated features dictionary with aggregated min/max values.
         """
-        ts_keys = [
-            ("rate_min", min),
-            ("rate_max", max),
-            ("delta_min", min),
-            ("delta_max", max),
-        ]
+        ts_keys = {
+            "rate_min": min,
+            "rate_max": max,
+            "delta_min": min,
+            "delta_max": max,
+        }
 
-        for f_name in features.keys():
+        for f_name in features:
             # Collect all values for each key across chunks
-            aggregated: dict[str, list] = {key: [] for key, _ in ts_keys}
+            aggregated: dict[str, list] = {key: [] for key in ts_keys}
 
             for chunk in feature_chunks:
                 chunk_ts = chunk.get(f_name, {}).get("time_series", {})
-                for key, _ in ts_keys:
+                for key in ts_keys:
                     if key in chunk_ts:
                         aggregated[key].append(chunk_ts[key])
 
@@ -1185,7 +1185,7 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                 features[f_name]["time_series"] = {}
 
             # Compute aggregate for each key
-            for key, op in ts_keys:
+            for key, op in ts_keys.items():
                 if not aggregated[key]:
                     continue
 
@@ -1207,7 +1207,7 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
 
     def _is_null_column(self, feature_name: str) -> bool:
         """Determine whether the provided column is all null values."""
-        return self.data.get_num_cases == 0
+        return self.data.get_num_cases(feature_name) == 0
 
     def _get_column_dtype(self, feature_name: str) -> np.dtype:
         """Get the dtype of the provided ``feature_name``."""
