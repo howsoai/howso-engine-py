@@ -2,6 +2,7 @@
 from collections import OrderedDict
 from pathlib import Path
 from pprint import pprint
+import random
 import warnings
 
 from howso import client
@@ -389,3 +390,53 @@ def test_time_series_features_pandas_native_date():
                 assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
             else:
                 raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+
+def test_nominals_are_ignored_in_ifa_for_ts():
+    """Ensure that nominals are never marked for a TS type in IFA."""
+    df = pd.read_csv(data_path.joinpath("mini_stock_data.csv"))
+
+    # Add a nominal column that varies (this dataset's existing nominals are
+    # all identical, and one is the ID feature.)
+    action_map = {
+        "BUY": 0.2,
+        "HOLD": 0.6,
+        "SELL": 0.2
+    }
+    df["ACTION"] = random.choices(list(action_map.keys()), weights=list(action_map.values()), k=len(df))
+
+    # Also, add a semi-structured feature such as JSON for good measure. A
+    # semi-structured data feature should also be ignored, even though it is
+    # continuous.
+    config_map = {
+        '{"alpha": 0.1}': 0.1,
+        '{"beta": 0.2}': 0.2,
+        '{"gamma": 0.3}': 0.3,
+        '{"delta": 0.4}': 0.4
+    }
+    df["CONFIG"] = random.choices(list(config_map.keys()), weights=list(config_map.values()), k=len(df))
+
+    features = infer_feature_attributes(
+        df,
+        id_feature_name = "SERIES",
+        time_feature_name="DATE",
+        default_time_zone="UTC",
+    )
+
+    # Verify that the semi-structured JSON continuous was set to continuous.
+    assert features["CONFIG"]["type"] == "continuous" and features["CONFIG"]["data_type"] == "json"
+
+    # Make sure continuous still work as expected...
+    for feature in features.get_names(types=["continuous"]):
+        # We do not wish to assert that semi-structured string-continuous features have time_series:type set.
+        if features[feature]["data_type"] in {"json", "yaml", "amalgam", "string_mixable"}:
+            continue
+        assert "time_series" in features[feature]
+        assert features[feature]["time_series"]["type"] in {"rate", "delta", "invariant"}
+
+    # Are there any bad nominals?
+    bad_nominals = [
+        feature for feature in features.get_names(types=["nominal"])
+        if "time_series" in features[feature]
+    ]
+    print(", ".join(bad_nominals))
+    assert bool(bad_nominals) is False

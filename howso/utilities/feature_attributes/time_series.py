@@ -103,7 +103,7 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
     features = {k: v.copy() for k, v in features.items()}
 
     # Pre-compute feature processing order (time feature first)
-    feature_names = [f for f in features.keys() if f != time_feature_name]
+    feature_names = [f for f in features if f != time_feature_name]
     feature_names = [time_feature_name] + feature_names
 
     if orders_of_derivatives is None:
@@ -652,7 +652,15 @@ class InferFeatureAttributesTimeSeries:
             raise ValueError("time_feature_name cannot be in the time_invariant_features list.")
 
         # Set all non time invariant features to be `time_series` features
-        for f_name, _ in features.items():
+        for f_name in features:
+            # Ignore all non-continuous types...
+            if features[f_name]["type"] != "continuous":
+                continue
+
+            # Ignore semi-structured string-continuous types...
+            if features[f_name]["data_type"] in {"json", "yaml", "amalgam", "string_mixable"}:
+                continue
+
             # Mark all features which are completely NaN as time-invariant.
             if self._is_null_column(f_name):
                 time_invariant_features.append(f_name)
