@@ -92,8 +92,6 @@ def test_infer_features_attributes_single_ID(adc):
         include_sample=True
     )
 
-    print(f"##### {ts_df=}")
-
     for feature, attributes in features.items():
         print(feature)
         assert expected_types[feature] == attributes['type']
@@ -309,7 +307,7 @@ def test_invalid_time_feature_format(adc):
     ("SQLTableData", pd.DataFrame()),
     ("ParquetDataFile", pd.DataFrame()),
     ("ParquetDataset", pd.DataFrame()),
-    # ("TabularFile", pd.DataFrame()),
+    # ("TabularFile", pd.DataFrame()),  # See note in `test_infer_feature_attributes.py`
     ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
@@ -431,7 +429,6 @@ def test_time_series_features_SparkDataFrameData(spark):
         time_feature_name="date",
         datetime_feature_formats={"date": "%Y%m%d"},
     )
-    # pprint(features)
 
     for feature, attrs in features.items():
         if "time_series" in attrs:
@@ -483,7 +480,7 @@ def test_infer_time_series(spark, default_time_zone):
     assert "time_series" not in features["ID"]
 
     # 1a. Make sure time series type is 'rate'
-    assert features["gender"]["time_series"]["type"] == 'rate'
+    assert "type" not in features["gender"]["time_series"]
     assert features["value"]["time_series"]["type"] == 'rate'
     assert features["balance"]["time_series"]["type"] == 'rate'
     assert features["bal_scaled"]["time_series"]["type"] == 'rate'
@@ -506,7 +503,7 @@ def test_infer_time_series(spark, default_time_zone):
 
     # 2. Verify custom-specified delta features are correctly set
     assert features["time"]["time_series"]["type"] == 'delta'
-    assert features["gender"]["time_series"]["type"] == 'rate'
+    assert "type" not in features["gender"]["time_series"]
     assert features["value"]["time_series"]["type"] == 'rate'
     assert features["balance"]["time_series"]["type"] == 'delta'
     assert features["bal_scaled"]["time_series"]["type"] == 'delta'
@@ -526,7 +523,7 @@ def test_infer_time_series(spark, default_time_zone):
 
     # 3. Verify all features set as 'delta'
     assert features["time"]["time_series"]["type"] == 'delta'
-    assert features["gender"]["time_series"]["type"] == 'delta'
+    assert "type" not in features["gender"]["time_series"]
     assert features["value"]["time_series"]["type"] == 'delta'
     assert features["balance"]["time_series"]["type"] == 'delta'
     assert features["bal_scaled"]["time_series"]["type"] == 'delta'
@@ -605,11 +602,16 @@ def test_semi_structured_features_spark_native(spark, data_type: str, value: lis
     assert features["inventory"]["type"] == "continuous"
     assert features["inventory"]["data_type"] == data_type
     assert features["inventory"]["original_type"] == {"data_type": "string"}
-    assert features["inventory"]["time_series"]["type"] == "rate"
+    assert "type" not in features["inventory"]["time_series"]
     assert features["inventory"]["time_series"]["num_lags"] == 3
 
 def test_nominals_are_ignored_in_ifa_for_ts(spark):
-    """Ensure that nominals are never marked for a TS type in IFA."""
+    """
+    Ensure that nominals are never marked for a TS type in IFA.
+
+    They should still have a "time_series" attribute dict though, so that lags
+    can be stored there if necessary.
+    """
     df = pd.read_csv(data_path.joinpath("mini_stock_data.csv"))
 
     # Add a nominal column that varies (this dataset's existing nominals are
@@ -654,10 +656,12 @@ def test_nominals_are_ignored_in_ifa_for_ts(spark):
         assert "time_series" in features[feature]
         assert features[feature]["time_series"]["type"] in {"rate", "delta", "invariant"}
 
-    # Are there any bad nominals?
+    # Are there any bad nominals? (the ID feature does not count)
+    # Test that a "time_series" key exists, but that it does not contain a "type".
+    nominals = set(features.get_names(types=["nominals"])) - {"SERIES", }
     bad_nominals = [
-        feature for feature in features.get_names(types=["nominal"])
-        if "time_series" in features[feature]
+        feature for feature in nominals
+        if feature != "SERIES" and "time_series" not in features[feature] or "type" in features[feature]["time_series"]
     ]
     print(", ".join(bad_nominals))
     assert bool(bad_nominals) is False

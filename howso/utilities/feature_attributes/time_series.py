@@ -75,6 +75,9 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
     id_feature_name : str or list of str, default None
         (Optional) The name(s) of the ID feature(s).
 
+    time_feature_name : str, default None
+        (Optional, required for time series) The name of the time feature.
+
     orders_of_derivatives : dict, default None
         (Optional) Dict of features and their corresponding order of
         derivatives for the specified type (delta/rate). If provided will
@@ -653,14 +656,6 @@ class InferFeatureAttributesTimeSeries:
 
         # Set all non time invariant features to be `time_series` features
         for f_name in features:
-            # Ignore all non-continuous types...
-            if features[f_name]["type"] != "continuous":
-                continue
-
-            # Ignore semi-structured string-continuous types...
-            if features[f_name]["data_type"] in {"json", "yaml", "amalgam", "string_mixable"}:
-                continue
-
             # Mark all features which are completely NaN as time-invariant.
             if self._is_null_column(f_name):
                 time_invariant_features.append(f_name)
@@ -668,6 +663,13 @@ class InferFeatureAttributesTimeSeries:
             if f_name not in time_invariant_features:
                 if time_series_types_override and f_name in time_series_types_override:
                     features[f_name]["time_series"] = {"type": time_series_types_override[f_name]}
+                # Non-continuous or semi-structure types get just an empty "time_series" dict.
+                elif (
+                    features[f_name]["type"] != "continuous" or
+                    features[f_name]["data_type"] in {"json", "yaml", "amalgam", "string_mixable"}
+                ):
+                    features[f_name]["time_series"] = {}
+                # The remaining get the default "type"
                 else:
                     features[f_name]["time_series"] = {
                         "type": time_series_type_default,
