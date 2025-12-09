@@ -173,7 +173,7 @@ class FeatureSerializer:
     @classmethod
     def deserialize(
         cls,
-        data: Iterable[Iterable[t.Any]],
+        data: Iterable[Iterable[t.Any] | Mapping[str, t.Any]],
         columns: t.Optional[Iterable[str]] = None,
         features: t.Optional[Mapping] = None,
     ) -> pd.DataFrame:

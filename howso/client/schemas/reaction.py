@@ -204,7 +204,7 @@ class ReactDetails(TypedDict, total=False):
     prediction_stats: dict[str, Any]
     """A dict mapping the resulting prediction stats for the region of cases nearest to each given case."""
 
-    relevant_values: list[dict[str, list[Any]]]
+    relevant_values: list[dict[str, pd.Series]]
     """A list of dict mapping feature name to the list of relevant values for each context."""
 
     similarity_conviction: list[float]
