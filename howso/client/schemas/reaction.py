@@ -246,7 +246,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
     details : MutableMapping, default None
         The details of results from ``react`` or ``react_series``
         when providing a ``details`` parameter.
-    attributes : MutableMapping, default none
+    feature_attributes : MutableMapping, default none
         The feature attributes of the data.
     process_details : boolean, default True
         Set to `False` if details have already been formatted and deserialized and
@@ -259,7 +259,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         self,
         action: pd.DataFrame | list[Mapping[str, Any]],
         details: Mapping[str, Any],
-        attributes: Mapping[str, Any],
+        feature_attributes: Mapping[str, Any],
         *,
         process_details: bool = True,
     ):
@@ -269,9 +269,9 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         else:
             if "action_features" not in details:
                 raise ValueError("If `action` is not a DataFrame, `action_features` must be present in `details`.")
-            self._action = deserialize_cases(action, details["action_features"], attributes)
+            self._action = deserialize_cases(action, details["action_features"], feature_attributes)
         if process_details:
-            self._details = self.format_react_details(details, attributes)
+            self._details = self.format_react_details(details, feature_attributes)
         else:
             self._details = cast(ReactDetails, details)
 
@@ -332,7 +332,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         return f"{repr(self._action)}\n{pformat(self._details)}"
 
     @staticmethod
-    def format_react_details(details: MutableMapping[str, Any], attributes: Mapping[str, Any]) -> ReactDetails:
+    def format_react_details(details: MutableMapping[str, Any], feature_attributes: Mapping[str, Any]) -> ReactDetails:
         """
         Converts any valid details from a react call to a DataFrame and deserializes them.
 
@@ -342,6 +342,8 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         ----------
         details : MutableMapping[str, Any]
             A MutableMapping (dict-like) with keys that are members of `ReactDetails`.
+        feature_attributes : Mapping[str, Any]
+            The feature attributes used during the react() call.
 
         Returns
         -------
@@ -364,7 +366,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
             elif all(isinstance(v, dict) for v in detail):
                 # Special case: categorical action probabilities
                 if detail_name == "categorical_action_probabilities":
-                    return update_caps_maps(detail, attributes)
+                    return update_caps_maps(detail, feature_attributes)
                 # Special case: prediction stats
                 elif detail_name == "prediction_stats":
                     for group in detail:
@@ -380,7 +382,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                 elif detail_name in DETAILS_WITH_CASE_DATA:
                     return format_dataframe(
                         pd.DataFrame(detail),
-                        features=attributes
+                        features=feature_attributes
                     )
                 # All other details
                 else:
@@ -393,14 +395,14 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
             # Special case: context_values
             if detail_name == "context_values":
                 context_columns = details.get('context_features')
-                formatted_details.update({detail_name: deserialize_cases(detail, context_columns, attributes)})
+                formatted_details.update({detail_name: deserialize_cases(detail, context_columns, feature_attributes)})
             # Special case: relevant_values
             elif detail_name == "relevant_values":
                 deserialized_cases = []
                 for case in detail:
                     deserialized_case = {}
                     for k, v in case.items():
-                        deserialized_case[k] = format_column(pd.Series(v), feature=attributes[k])
+                        deserialized_case[k] = format_column(pd.Series(v), feature=feature_attributes[k])
                     deserialized_cases.append(deserialized_case)
                 formatted_details.update({detail_name: deserialized_cases})
             # Specail case: outlying_feature_values and boundary_values (leave as-is)
