@@ -225,7 +225,7 @@ def replace_none_with_nan(dat: list[t.Mapping[str, t.Any]] | pd.DataFrame) -> li
 
     Parameters
     ----------
-    dat : list of dict of key-values
+    dat : list of dict of key-values or DataFrame
 
     Returns
     -------
