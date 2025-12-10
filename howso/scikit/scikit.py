@@ -969,8 +969,7 @@ class HowsoEstimator(BaseEstimator):
                 details=details
             )
 
-        # Convert to Dictionary
-        audit_data['action'] = audit_data['action'].to_dict('records')
+        audit_data['action'] = audit_data['action']
         audit_data['action'] = utils.replace_none_with_nan(audit_data['action'])
         return audit_data
 
