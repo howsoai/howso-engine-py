@@ -969,7 +969,6 @@ class HowsoEstimator(BaseEstimator):
                 details=details
             )
 
-        audit_data['action'] = audit_data['action']
         audit_data['action'] = utils.replace_none_with_nan(audit_data['action'])
         return audit_data
 
