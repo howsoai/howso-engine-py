@@ -2767,7 +2767,7 @@ class AbstractHowsoClient(ABC):
         series_id_features: t.Optional[Collection[str]] = None,
         series_id_tracking: SeriesIDTracking = "fixed",
         series_id_values: t.Optional[TabularData2D] = None,
-        series_index: t.Optional[str] = None,
+        series_index: t.Optional[str] = ".series",
         series_stop_maps: t.Optional[list[SeriesStopMap]] = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
