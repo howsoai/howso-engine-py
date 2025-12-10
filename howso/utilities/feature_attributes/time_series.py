@@ -32,7 +32,15 @@ SMALLEST_TIME_DELTA = 0.001
 
 def _apply_date_to_epoch(df: pd.DataFrame, feature_name: str, dt_format: str):
     """Internal function to aid multiprocessing of series feature attributes."""
-    return df[feature_name].apply(lambda x: date_to_epoch(x, dt_format))
+    series = df[feature_name]
+    # Optimize for datetime64 dtypes: use vectorized conversion to epoch
+    if pd.api.types.is_datetime64_any_dtype(series.dtype):
+        # Convert datetime64 to epoch seconds (vectorized, much faster than apply)
+        epoch_zero = pd.Timestamp('1970-01-01')
+        return (series - epoch_zero).dt.total_seconds()
+    else:
+        # Fall back to apply for string dates or other types
+        return series.apply(lambda x: date_to_epoch(x, dt_format))
 
 
 class InferFeatureAttributesTimeSeries:
@@ -140,6 +148,14 @@ class InferFeatureAttributesTimeSeries:
             derived_orders = dict()
 
         time_feature_deltas = None
+        # Cache groupby object for id_feature_name to avoid recreating it for each feature
+        cached_groupby = None
+        if id_feature_name:
+            if isinstance(id_feature_name, list):
+                cached_groupby = chunk.groupby(id_feature_name)
+            elif isinstance(id_feature_name, str):
+                cached_groupby = chunk.groupby([id_feature_name])
+
         for f_name in feature_names:
             if features[f_name].get('data_type') in {"json", "yaml", "amalgam", "string_mixable"}:
                 # continuous semi-structured data should not infer these derived values
@@ -226,7 +242,9 @@ class InferFeatureAttributesTimeSeries:
                                         future.cancel()
                                 continue
 
-                        df_c[f_name] = pd.concat(temp_results)
+                        # Concatenate all results at once (more efficient than multiple concats)
+                        if temp_results:
+                            df_c[f_name] = pd.concat(temp_results, ignore_index=True)
                     else:
                         try:
                             df_c[f_name] = _apply_date_to_epoch(df_c, f_name, dt_format)
@@ -255,10 +273,9 @@ class InferFeatureAttributesTimeSeries:
 
                 else:
                     # Use pandas' diff() to pull all the deltas for this feature
-                    if isinstance(id_feature_name, list):
-                        deltas = chunk.groupby(id_feature_name)[f_name].diff(1)
-                    elif isinstance(id_feature_name, str):
-                        deltas = chunk.groupby([id_feature_name])[f_name].diff(1)
+                    # Use cached groupby if available (more efficient than recreating for each feature)
+                    if cached_groupby is not None:
+                        deltas = cached_groupby[f_name].diff(1)
                     else:
                         deltas = chunk[f_name].diff(1)
 
@@ -283,25 +300,52 @@ class InferFeatureAttributesTimeSeries:
                         # for higher order rate computations
                         if order > 1:
                             rates = np.diff(np.array(rates))
+                            # For higher orders, we need to slice time_feature_deltas to match
+                            # the reduced length of rates (np.diff reduces length by 1)
+                            # Skip the first element to align with the diff result
+                            # Handle both pandas Series and numpy arrays
+                            if isinstance(time_feature_deltas, pd.Series):
+                                time_feature_deltas_aligned = time_feature_deltas.iloc[1:].values
+                            else:
+                                time_feature_deltas_aligned = np.asarray(time_feature_deltas)[1:]
+                        else:
+                            # For first order, convert to array but keep full length
+                            if isinstance(time_feature_deltas, pd.Series):
+                                time_feature_deltas_aligned = time_feature_deltas.values
+                            else:
+                                time_feature_deltas_aligned = np.asarray(time_feature_deltas)
 
                         # compute each 1st order rate as: delta x / delta time
                         # higher order rates as: delta previous rate / delta time
-                        rates = [
-                            dx / (dt if dt != 0 else SMALLEST_TIME_DELTA)
-                            for dx, dt in zip(rates, time_feature_deltas)
-                        ]
+                        # Vectorized computation using numpy for better performance
+                        rates_array = np.asarray(rates)
+                        time_deltas_array = np.asarray(time_feature_deltas_aligned)
+                        # Ensure arrays have the same length
+                        if len(rates_array) != len(time_deltas_array):
+                            # If still mismatched, take the minimum length
+                            min_len = min(len(rates_array), len(time_deltas_array))
+                            rates_array = rates_array[:min_len]
+                            time_deltas_array = time_deltas_array[:min_len]
+                        # Avoid division by zero
+                        time_deltas_safe = np.where(
+                            time_deltas_array != 0,
+                            time_deltas_array,
+                            SMALLEST_TIME_DELTA
+                        )
+                        rates = rates_array / time_deltas_safe
 
-                        # remove NaNs
-                        no_nan_rates = [x for x in rates if pd.isna(x) is False]
+                        # remove NaNs using numpy boolean indexing (faster than list comprehension)
+                        no_nan_mask = ~np.isnan(rates)
+                        no_nan_rates = rates[no_nan_mask]
                         if len(no_nan_rates) == 0:
                             continue
 
                         # TODO: 15550: support user-specified min/max values
-                        rate_max = max(no_nan_rates)
+                        rate_max = float(np.max(no_nan_rates))
                         rate_max = rate_max * e if rate_max > 0 else rate_max / e
                         features[f_name]['time_series']['rate_max'].append(rate_max)
 
-                        rate_min = min(no_nan_rates)
+                        rate_min = float(np.min(no_nan_rates))
                         rate_min = rate_min / e if rate_min > 0 else rate_min * e
                         features[f_name]['time_series']['rate_min'].append(rate_min)
                     else:  # 'type' == "delta"
@@ -319,11 +363,11 @@ class InferFeatureAttributesTimeSeries:
                         no_nan_deltas: pd.Series = deltas.dropna()
                         if len(no_nan_deltas) == 0:
                             continue
-                        delta_max = max(no_nan_deltas)
+                        delta_max = float(no_nan_deltas.max())
                         delta_max = delta_max * e if delta_max > 0 else delta_max / e
                         features[f_name]['time_series']['delta_max'].append(delta_max)
 
-                        delta_min = min(no_nan_deltas)
+                        delta_min = float(no_nan_deltas.min())
                         # don't allow the time series time feature to go back in time
                         # TODO: 15550: support user-specified min/max values
                         if f_name == self.time_feature_name:
