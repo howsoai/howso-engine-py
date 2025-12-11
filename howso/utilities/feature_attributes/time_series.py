@@ -30,6 +30,24 @@ logger = logging.getLogger(__name__)
 SMALLEST_TIME_DELTA = 0.001
 
 
+def _get_theoretical_min_rate(observed_min_rate: float | None = None) -> float | None:
+    """Bound and expand the given MINIMUM rate."""
+    if observed_min_rate is None:
+        return None
+
+    observed_min_rate = float(observed_min_rate)
+    return observed_min_rate / e if observed_min_rate > 0 else observed_min_rate * e
+
+
+def _get_theoretical_max_rate(observed_max_rate: float | None = None) -> float | None:
+    """Bound and expand the given MAXIMUM rate."""
+    if observed_max_rate is None:
+        return None
+
+    observed_max_rate = float(observed_max_rate)
+    return observed_max_rate * e if observed_max_rate > 0 else observed_max_rate / e
+
+
 def _infer_delta_min_max_from_chunk(  # noqa: C901
     chunk: pd.DataFrame,
     features: dict,
@@ -235,12 +253,10 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
                 if len(valid_rates) == 0:
                     continue
 
-                rate_max = float(np.max(valid_rates))
-                rate_max = rate_max * e if rate_max > 0 else rate_max / e
+                rate_max = _get_theoretical_max_rate(float(np.max(valid_rates)))
                 ts["rate_max"].append(rate_max)
 
-                rate_min = float(np.min(valid_rates))
-                rate_min = rate_min / e if rate_min > 0 else rate_min * e
+                rate_min = _get_theoretical_min_rate(float(np.min(valid_rates)))
                 ts["rate_min"].append(rate_min)
 
             else:  # delta
@@ -260,15 +276,13 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
                 if len(valid_deltas) == 0:
                     continue
 
-                delta_max = float(valid_deltas.max())
-                delta_max = delta_max * e if delta_max > 0 else delta_max / e
+                delta_max = _get_theoretical_max_rate(float(valid_deltas.max()))
                 ts["delta_max"].append(delta_max)
 
-                delta_min = float(valid_deltas.min())
+                delta_min = _get_theoretical_min_rate(float(valid_deltas.min()))
                 if f_name == time_feature_name:
-                    ts["delta_min"].append(max(0, delta_min / e))
+                    ts["delta_min"].append(max(0, delta_min))
                 else:
-                    delta_min = delta_min / e if delta_min > 0 else delta_min * e
                     ts["delta_min"].append(delta_min)
 
     return features
@@ -1139,14 +1153,10 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                     rate_min = results.get(f"{f_name}_rate_min_{order}")
                     rate_max = results.get(f"{f_name}_rate_max_{order}")
 
-                    if rate_min is not None:
-                        rate_min = float(rate_min)
-                        rate_min = rate_min / e if rate_min > 0 else rate_min * e
+                    if (rate_min := _get_theoretical_min_rate(rate_min)) is not None:
                         ts["rate_min"].append(rate_min)
 
-                    if rate_max is not None:
-                        rate_max = float(rate_max)
-                        rate_max = rate_max * e if rate_max > 0 else rate_max / e
+                    if (rate_max := _get_theoretical_max_rate(rate_max)) is not None:
                         ts["rate_max"].append(rate_max)
 
             else:  # delta
@@ -1156,20 +1166,17 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                     delta_min = results.get(f"{f_name}_delta_min_{order}")
                     delta_max = results.get(f"{f_name}_delta_max_{order}")
 
-                    if delta_max is not None:
-                        delta_max = float(delta_max)
-                        delta_max = delta_max * e if delta_max > 0 else delta_max / e
+                    if (delta_max := _get_theoretical_max_rate(delta_max)) is not None:
                         ts["delta_max"].append(delta_max)
 
-                    if delta_min is not None:
-                        delta_min = float(delta_min)
+                    if (delta_min := _get_theoretical_min_rate(delta_min)) is not None:
                         if f_name == self.time_feature_name:
                             ts["delta_min"].append(max(0, delta_min / e))
                         else:
-                            delta_min = delta_min / e if delta_min > 0 else delta_min * e
                             ts["delta_min"].append(delta_min)
 
         return features
+
 
     def _aggregate_chunk_results(self, features: dict, feature_chunks: list[dict]) -> dict:
         """
