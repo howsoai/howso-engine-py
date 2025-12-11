@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.13-dev.txt --pip-args=None
 #
-amalgam-lang==25.2.1
+amalgam-lang==25.2.2
     # via howso-engine (pyproject.toml)
 astroid==4.0.2
     # via pylint
@@ -158,7 +158,7 @@ tzdata==2025.2
     # via
     #   faker
     #   pandas
-urllib3==2.6.1
+urllib3==2.6.2
     # via requests
 wheel==0.45.1
     # via pip-tools

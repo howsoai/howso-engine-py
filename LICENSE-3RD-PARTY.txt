@@ -3745,12 +3745,12 @@ limitations under the License.
 
 
 urllib3
-2.6.1
+2.6.2
 MIT
 Andrey Petrov <andrey.petrov@shazow.net>
 https://github.com/urllib3/urllib3/blob/main/CHANGES.rst
 HTTP library with thread-safe connection pooling, file post, and more.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/urllib3-2.6.1.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/urllib3-2.6.2.dist-info/licenses/LICENSE.txt
 MIT License
 
 Copyright (c) 2008-2020 Andrey Petrov and contributors.
