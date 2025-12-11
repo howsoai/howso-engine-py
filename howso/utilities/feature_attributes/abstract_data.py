@@ -88,7 +88,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             isinstance(AbstractData, type) and
             isinstance(self.data, AbstractData) and
             getattr(self.data, "_NATIVE_COMPUTE_TYPE", None) == "spark" and
-            "max_workers" not in kwargs
+            ("max_workers" not in kwargs or kwargs["max_workers"] is None)
         ):
             kwargs["max_workers"] = 1
         feature_attributes = self._process(**kwargs)
@@ -333,7 +333,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
     def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
         """Get the number of unique values in the provided column(s)."""
-        return self.data.get_unique_count(feature_name)
+        return self.data.get_unique_count(feature_name)  # pyright: ignore[reportAttributeAccessIssue]
 
     @classmethod
     def _value_to_number(cls, value: t.Any) -> t.Any:

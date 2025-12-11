@@ -134,6 +134,14 @@ class IFACompatibleADCProtocol(t.Protocol):
     """
 
     @abstractmethod
+    def get_row_count(self) -> int | None:
+        """Get the number of rows in the data source."""
+
+    @abstractmethod
+    def get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
+        """Get random samples from the given data frame as a data frame."""
+
+    @abstractmethod
     def get_decimal_places(self, column_name: t.Hashable) -> int:
         """Get the number of decimal places for values in the given column, if applicable."""
 

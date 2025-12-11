@@ -213,7 +213,7 @@ class TestInferFeatureAttributes:
         assert "time_series" not in features["ID"]
 
         # 1a. Make sure time series type is 'rate'
-        assert features["gender"]["time_series"]["type"] == 'rate'
+        # gender is nominal
         assert features["value"]["time_series"]["type"] == 'rate'
         assert features["balance"]["time_series"]["type"] == 'rate'
         assert features["bal_scaled"]["time_series"]["type"] == 'rate'
@@ -236,7 +236,6 @@ class TestInferFeatureAttributes:
 
         # 2. Verify custom-specified delta features are correctly set
         assert features["time"]["time_series"]["type"] == 'delta'
-        assert features["gender"]["time_series"]["type"] == 'rate'
         assert features["value"]["time_series"]["type"] == 'rate'
         assert features["balance"]["time_series"]["type"] == 'delta'
         assert features["bal_scaled"]["time_series"]["type"] == 'delta'
@@ -256,7 +255,7 @@ class TestInferFeatureAttributes:
 
         # 3. Verify all features set as 'delta'
         assert features["time"]["time_series"]["type"] == 'delta'
-        assert features["gender"]["time_series"]["type"] == 'delta'
+        # gender is nominal
         assert features["value"]["time_series"]["type"] == 'delta'
         assert features["balance"]["time_series"]["type"] == 'delta'
         assert features["bal_scaled"]["time_series"]["type"] == 'delta'

@@ -40,6 +40,7 @@ dependencies = [
    "mmh3",
    "numpy~=2.2.0",
    "pandas",
+   "psutil",
    "pyjwt~=2.0",
    "pyyaml~=6.0",
    "requests>=2.32.4,<3.0",

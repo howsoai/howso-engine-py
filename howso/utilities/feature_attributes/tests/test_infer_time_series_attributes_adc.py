@@ -1,6 +1,10 @@
 """Tests infer_feature_attributes with time series data and AbstractData classes."""
 from collections import OrderedDict
+from math import e
 from pathlib import Path
+from pprint import pprint
+import random
+from typing import Any
 import warnings
 
 import numpy as np
@@ -8,11 +12,18 @@ import pandas as pd
 import pytest
 
 try:
-    from howso.connectors.abstract_data import convert_data, DataFrameData
+    from howso.connectors.abstract_data import (
+        convert_data,
+        DataFrameData,
+        SparkDataFrameData,
+        TabularFile,
+    )
 except (ModuleNotFoundError, ImportError):
     pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
+
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
+from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 
 # Partially defined dictionary-1
 features_1 = {
@@ -41,10 +52,11 @@ features_2 = OrderedDict(
 )
 
 cwd = Path(__file__).parent.parent.parent.parent
-iris_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'iris.csv'))
-int_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'integers.csv'))
-stock_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv'))
-ts_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv'))
+data_path = cwd.joinpath("utilities", "tests", "data")
+iris_df = pd.read_csv(data_path.joinpath('iris.csv'))
+int_df = pd.read_csv(data_path.joinpath('integers.csv'))
+stock_df = pd.read_csv(data_path.joinpath('mini_stock_data.csv'))
+ts_df = pd.read_csv(data_path.joinpath('example_timeseries.csv'))
 
 
 @pytest.mark.parametrize('adc', [
@@ -295,7 +307,7 @@ def test_invalid_time_feature_format(adc):
     ("SQLTableData", pd.DataFrame()),
     ("ParquetDataFile", pd.DataFrame()),
     ("ParquetDataset", pd.DataFrame()),
-    ("TabularFile", pd.DataFrame()),
+    # ("TabularFile", pd.DataFrame()),  # See note in `test_infer_feature_attributes.py`
     ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
@@ -379,3 +391,277 @@ def test_nominal_vs_continuous_detection(adc):
                                         types={"f4": "nominal", "f5": "continuous"})
     assert features["f5"]["type"] == "continuous"
     assert features["f4"]["type"] == "nominal"
+
+
+def test_time_series_features_TabularData():
+    valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
+    adc = TabularFile(data_path.joinpath("example_timeseries.csv"))
+    features = infer_feature_attributes(
+        adc,
+        id_feature_name = "ID",
+        time_feature_name="date",
+        datetime_feature_formats={"date": "%Y%m%d"},
+    )
+    pprint(features)
+
+    for feature, attrs in features.items():
+        if "time_series" in attrs:
+            assert "time_series" in valid[feature]
+            if valid[feature]["time_series"]["type"] == "rate":
+                assert attrs["time_series"]["type"] == "rate"
+                assert valid[feature]["time_series"]["rate_min"] == attrs["time_series"]["rate_min"]
+                assert valid[feature]["time_series"]["rate_max"] == attrs["time_series"]["rate_max"]
+            elif valid[feature]["time_series"]["type"] == "delta":
+                assert attrs["time_series"]["type"] == "delta"
+                assert valid[feature]["time_series"]["delta_min"] == attrs["time_series"]["delta_min"]
+                assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
+            else:
+                raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+
+
+def test_time_series_features_SparkDataFrameData(spark):
+    pdf = pd.read_csv(data_path.joinpath("example_timeseries.csv"))
+    adc = SparkDataFrameData(spark.createDataFrame(pdf))
+    valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
+    features = infer_feature_attributes(
+        adc,
+        id_feature_name="ID",
+        time_feature_name="date",
+        datetime_feature_formats={"date": "%Y%m%d"},
+    )
+
+    for feature, attrs in features.items():
+        if "time_series" in attrs:
+            assert "time_series" in valid[feature]
+            if valid[feature]["time_series"]["type"] == "rate":
+                assert attrs["time_series"]["type"] == "rate"
+                assert valid[feature]["time_series"]["rate_min"] == attrs["time_series"]["rate_min"]
+                assert valid[feature]["time_series"]["rate_max"] == attrs["time_series"]["rate_max"]
+            elif valid[feature]["time_series"]["type"] == "delta":
+                assert attrs["time_series"]["type"] == "delta"
+                assert valid[feature]["time_series"]["delta_min"] == attrs["time_series"]["delta_min"]
+                assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
+            else:
+                raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+
+
+@pytest.mark.parametrize(("default_time_zone", ), [("EST", ), ("UTC", ), (None, )])
+def test_infer_time_series(spark, default_time_zone):
+    """
+    Test test_infer_time_series.
+
+    Test the `infer_feature_attributes` for time series to make sure
+    warnings and other behavior is as per specification.
+    """
+    data = {
+        "ID": ["a", "a", "a", "a", "a", "a"],
+        "time": [1, 2, 3, 4, 5, 6],
+        "gender": ["male", "male", "male", "female", "female", "female"],
+        "value": [11, 12, 15, 18, 23, 31],
+        "balance": [1.0, 2.0, 3.0, 4.0, 4.9, 5.8],
+        "bal_scaled": [10, 20, 30, 40, 49, 58]
+    }
+    connector = SparkDataFrameData(
+        spark.createDataFrame(pd.DataFrame(data))
+    )
+
+    ifa_kwargs: dict[Any, Any] = dict(
+        time_feature_name="time",
+        id_feature_name="ID",
+    )
+    if default_time_zone:
+        ifa_kwargs.update(default_time_zone="EST")
+
+    features = infer_feature_attributes(connector, **ifa_kwargs)
+
+    # 1. Verify time series types
+    assert features["time"]["time_series"]["type"] == 'delta'
+    assert features["time"]["time_series"]["time_feature"] is True
+    assert "time_series" not in features["ID"]
+
+    # 1a. Make sure time series type is 'rate'
+    assert "type" not in features["gender"]["time_series"]
+    assert features["value"]["time_series"]["type"] == 'rate'
+    assert features["balance"]["time_series"]["type"] == 'rate'
+    assert features["bal_scaled"]["time_series"]["type"] == 'rate'
+
+    # 1b. Make sure rate min/max are stored, but not delta min/max
+    assert "rate_max" in features["bal_scaled"]["time_series"]
+    assert "rate_min" in features["bal_scaled"]["time_series"]
+    assert "delta_max" not in features["bal_scaled"]["time_series"]
+    assert "delta_min" not in features["bal_scaled"]["time_series"]
+
+    features = infer_feature_attributes(
+        connector,
+        time_feature_name="time",
+        id_feature_name="ID",
+        time_series_types_override={
+            "balance": "delta",
+            "bal_scaled": "delta"
+        }
+    )
+
+    # 2. Verify custom-specified delta features are correctly set
+    assert features["time"]["time_series"]["type"] == 'delta'
+    assert "type" not in features["gender"]["time_series"]
+    assert features["value"]["time_series"]["type"] == 'rate'
+    assert features["balance"]["time_series"]["type"] == 'delta'
+    assert features["bal_scaled"]["time_series"]["type"] == 'delta'
+
+    # 2a. Make sure for delta feature, delta min/max are stored instead
+    assert "rate_max" not in features["bal_scaled"]["time_series"]
+    assert "rate_min" not in features["bal_scaled"]["time_series"]
+    assert "delta_max" in features["bal_scaled"]["time_series"]
+    assert "delta_min" in features["bal_scaled"]["time_series"]
+
+    features = infer_feature_attributes(
+        connector,
+        time_feature_name="time",
+        id_feature_name="ID",
+        time_series_type_default='delta'
+    )
+
+    # 3. Verify all features set as 'delta'
+    assert features["time"]["time_series"]["type"] == 'delta'
+    assert "type" not in features["gender"]["time_series"]
+    assert features["value"]["time_series"]["type"] == 'delta'
+    assert features["balance"]["time_series"]["type"] == 'delta'
+    assert features["bal_scaled"]["time_series"]["type"] == 'delta'
+
+    # 3a. Make sure delta min/max are stored instead of rate min/max
+    assert "rate_max" not in features["value"]["time_series"]
+    assert "rate_min" not in features["value"]["time_series"]
+    assert "delta_max" in features["value"]["time_series"]
+    assert "delta_min" in features["value"]["time_series"]
+
+    features = infer_feature_attributes(
+        connector,
+        time_feature_name="time",
+        id_feature_name="ID",
+        time_invariant_features=["gender", "balance"]
+    )
+
+    # 4. Verify time invariant features are correct, others use defaults
+    assert "time_series" not in features["gender"]
+    assert "time_series" not in features["balance"]
+    assert features["value"]["time_series"]["type"] == 'rate'
+    assert features["bal_scaled"]["time_series"]["type"] == 'rate'
+
+    features = infer_feature_attributes(
+        connector,
+        time_feature_name="time",
+        id_feature_name="ID",
+        time_series_types_override={
+            "bal_scaled": "delta"
+        },
+        orders_of_derivatives={
+            "value": 3,
+            "bal_scaled": 2
+        },
+        derived_orders={"value": 3}
+    )
+
+    # 5. Verify high order rates and deltas are correctly computed
+    assert features["value"]["time_series"]["order"] == 3
+    assert features["value"]["time_series"]["rate_min"] == [1 / e, 0.0, -2 * e]
+    assert features["value"]["time_series"]["rate_max"] == [8 * e, 3 * e, 2 * e]
+
+    assert features["bal_scaled"]["time_series"]["order"] == 2
+    assert features["bal_scaled"]["time_series"]["delta_min"] == [9 / e, -e]
+    assert features["bal_scaled"]["time_series"]["delta_max"] == [10 * e, 0.0]
+
+    # 6. Verify derived_orders is clamped down to 2
+    assert features["value"]["time_series"]["derived_orders"] == 2
+
+
+@pytest.mark.parametrize(
+    "data_type, value",
+    [
+        ("json", ['{"potion": 5, "gauntlet": 2}', '{"staff": 1, "potion": 2}']),
+        ("yaml", ["potion: 5\ngauntlet: 2", "staff: 1\npotion: 2"]),
+    ],
+)
+def test_semi_structured_features_spark_native(spark, data_type: str, value: list[str]):
+    """Test that IFA detects semi structured features."""
+    df = pd.DataFrame([
+        {"class": "Fighter", "turn": 1, "hp": 100, "magic": 0, "inventory": value[0]},
+        {"class": "Fighter", "turn": 2, "hp": 70, "magic": 0, "inventory": value[0]},
+        {"class": "Mage", "turn": 1, "hp": 100, "magic": 100, "inventory": value[1]},
+        {"class": "Mage", "turn": 2, "hp": 100, "magic": 85, "inventory": value[1]},
+    ])
+    connector = SparkDataFrameData(
+        spark.createDataFrame(df)
+    )
+
+    features = infer_feature_attributes(
+        connector,
+        time_feature_name="turn",
+        id_feature_name="class",
+        num_lags=3
+    )
+    assert features["inventory"]["type"] == "continuous"
+    assert features["inventory"]["data_type"] == data_type
+    assert features["inventory"]["original_type"] == {"data_type": "string"}
+    assert "type" not in features["inventory"]["time_series"]
+    assert features["inventory"]["time_series"]["num_lags"] == 3
+
+def test_nominals_are_ignored_in_ifa_for_ts(spark):
+    """
+    Ensure that nominals are never marked for a TS type in IFA.
+
+    They should still have a "time_series" attribute dict though, so that lags
+    can be stored there if necessary.
+    """
+    df = pd.read_csv(data_path.joinpath("mini_stock_data.csv"))
+
+    # Add a nominal column that varies (this dataset's existing nominals are
+    # all identical, and one is the ID feature.)
+    action_map = {
+        "BUY": 0.2,
+        "HOLD": 0.6,
+        "SELL": 0.2
+    }
+    df["ACTION"] = random.choices(list(action_map.keys()), weights=list(action_map.values()), k=len(df))
+
+    # Also, add a semi-structured feature such as JSON for good measure. A
+    # semi-structured data feature should also be ignored, even though it is
+    # continuous.
+    config_map = {
+        '{"alpha": 0.1}': 0.1,
+        '{"beta": 0.2}': 0.2,
+        '{"gamma": 0.3}': 0.3,
+        '{"delta": 0.4}': 0.4
+    }
+    df["CONFIG"] = random.choices(list(config_map.keys()), weights=list(config_map.values()), k=len(df))
+
+    connector = SparkDataFrameData(
+        spark.createDataFrame(df)
+    )
+
+    features = infer_feature_attributes(
+        connector,
+        id_feature_name = "SERIES",
+        time_feature_name="DATE",
+        default_time_zone="UTC",
+    )
+
+    # Verify that the semi-structured JSON continuous was set to continuous.
+    assert features["CONFIG"]["type"] == "continuous" and features["CONFIG"]["data_type"] == "json"
+
+    # Make sure continuous still work as expected...
+    for feature in features.get_names(types=["continuous"]):
+        # We do not wish to assert that semi-structured string-continuous features have time_series:type set.
+        if features[feature]["data_type"] in {"json", "yaml", "amalgam", "string_mixable"}:
+            continue
+        assert "time_series" in features[feature]
+        assert features[feature]["time_series"]["type"] in {"rate", "delta", "invariant"}
+
+    # Are there any bad nominals? (the ID feature does not count)
+    # Test that a "time_series" key exists, but that it does not contain a "type".
+    nominals = set(features.get_names(types=["nominals"])) - {"SERIES", }
+    bad_nominals = [
+        feature for feature in nominals
+        if feature != "SERIES" and "time_series" not in features[feature] or "type" in features[feature]["time_series"]
+    ]
+    print(", ".join(bad_nominals))
+    assert bool(bad_nominals) is False
