@@ -265,7 +265,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
     ):
         """Initialize the dictionary with the allowed keys."""
         if isinstance(action, pd.DataFrame):
-            self._action = action
+            self._action = format_dataframe(action, feature_attributes)
         else:
             if "action_features" not in details:
                 raise ValueError("If `action` is not a DataFrame, `action_features` must be present in `details`.")
