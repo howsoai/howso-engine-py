@@ -1295,15 +1295,16 @@ class TestBaseClient:
             detail_param, detail_name = details
             self.client.train(trainee.id, df)
             response = self.client.react(trainee.id,
-                                         contexts=[[2, 2]],
+                                         contexts=[[2, 2], [1, 2]],
                                          context_features=['sepal_width', 'sepal_length'],
                                          action_features=['petal_width'],
                                          generate_new_cases='attempt',
+                                         num_cases_to_generate=2,
                                          desired_conviction=1,
                                          details=detail_param)
             details_resp = response["details"]
 
-            if detail_name in ["influential_cases", "boundary_cases"]:
+            if detail_name in ["influential_cases", "boundary_cases", "prediction_stats"]:
                 assert isinstance(details_resp[detail_name], list)
                 assert all(isinstance(item, pd.DataFrame) for item in details_resp[detail_name])
             elif detail_name in ["generate_attempts", "similarity_conviction", "distance_contribution"]:
