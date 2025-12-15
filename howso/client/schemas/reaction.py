@@ -201,8 +201,11 @@ class ReactDetails(TypedDict, total=False):
     predicted_values_for_case: pd.DataFrame
     """A DataFrame mapping feature name to predicted value for each given case."""
 
-    prediction_stats: dict[str, Any]
-    """A dict mapping the resulting prediction stats for the region of cases nearest to each given case."""
+    prediction_stats: list[pd.DataFrame]
+    """
+    A list of DataFrames mapping the resulting prediction stats for the region of cases nearest to each given case
+    for each context.
+    """
 
     relevant_values: list[dict[str, pd.Series]]
     """A list of dict mapping feature name to the list of relevant values for each context."""
@@ -369,6 +372,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                     return update_caps_maps(detail, feature_attributes)
                 # Special case: prediction stats
                 elif detail_name == "prediction_stats":
+                    pred_stats_groups = []
                     for group in detail:
                         if "confusion_matrix" in group.keys():
                             group["confusion_matrix"].update({
@@ -377,7 +381,8 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                                 else v
                                 for k, v in group["confusion_matrix"].items()
                             })
-                    return pd.DataFrame(detail).T
+                        pred_stats_groups.append(pd.DataFrame(group).T)
+                    return pred_stats_groups
                 # Special case: details to be deserialized
                 elif detail_name in DETAILS_WITH_CASE_DATA:
                     return format_dataframe(

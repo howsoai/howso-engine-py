@@ -2683,8 +2683,9 @@ class AbstractHowsoClient(ABC):
         if context_values is not None:
             if len(context_values) != 1 and len(context_values) != num_cases_to_generate:
                 raise HowsoError(
-                    "The number of case `contexts` provided does not match the "
-                    "number of cases to generate."
+                    f"The number of case `contexts` provided ({len(context_values)}) does not "
+                    f"match the number of cases to generate ({num_cases_to_generate}). You can "
+                    "adjust the number of cases to generate with `num_cases_to_generate`."
                 )
 
         if context_features and not context_values:
