@@ -17,6 +17,10 @@ from .monitors import (
     ProgressTimer,
     Timer,
 )
+from .tokenizing import (
+    HowsoTokenizer,
+    TokenizerProtocol,
+)
 from .utilities import (  # noqa: F401
     align_data,
     build_react_series_df,
@@ -70,6 +74,7 @@ __all__ = [
     "format_column",
     "FrozenTimer",
     "get_kwargs",
+    "HowsoTokenizer",
     "infer_feature_attributes",
     "is_valid_uuid",
     "ISO_8601_DATE_FORMAT",
@@ -92,6 +97,7 @@ __all__ = [
     "StopExecution",
     "time_to_seconds",
     "Timer",
+    "TokenizerProtocol",
     "UserFriendlyExit",
     "validate_case_indices",
     "validate_datetime_iso8061",

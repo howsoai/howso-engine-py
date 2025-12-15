@@ -30,6 +30,8 @@ from howso.client.exceptions import (
 from howso.client.protocols import ProjectClient
 from howso.client.schemas import Reaction, GroupReaction
 from howso.direct import HowsoDirectClient
+from howso.engine import Trainee
+from howso.utilities import infer_feature_attributes
 from howso.utilities.testing import (
     get_configurationless_test_client,
     get_test_options,

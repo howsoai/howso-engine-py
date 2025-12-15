@@ -42,7 +42,7 @@ from howso.client.schemas import (
 )
 from howso.client.typing import LibraryType, Persistence
 from howso.direct.schemas import CombineTraineesResult, DirectTrainee
-from howso.utilities import internals
+from howso.utilities import HowsoTokenizer, internals, TokenizerProtocol
 
 # Client version
 CLIENT_VERSION = importlib.metadata.version('howso-engine')
@@ -137,6 +137,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         howso_path: Path | str = DEFAULT_ENGINE_PATH,
         howso_fname: str = "howso.caml",
         react_initial_batch_size: int = 10,
+        tokenizer: t.Optional[TokenizerProtocol] = None,
         trace: bool = False,
         train_initial_batch_size: int = 100,
         verbose: bool = False,
@@ -175,6 +176,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._react_discriminative_batch_threshold = 10
         self._react_initial_batch_size = react_initial_batch_size
         self._train_initial_batch_size = train_initial_batch_size
+        self._tokenizer = tokenizer or HowsoTokenizer()
 
         if not self._howso_dir.is_dir():
             raise HowsoError(f"The provided 'howso_path' is not a directory: {self._howso_dir}")

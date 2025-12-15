@@ -1,11 +1,11 @@
 from collections.abc import Mapping, Iterator
 from copy import deepcopy
 from pprint import pformat
-from typing import Any, Literal, overload, TypeAlias, TypeVar, TypedDict
+from typing import Any, Literal, Optional, overload, TypeAlias, TypeVar, TypedDict
 
 import pandas as pd
 
-from howso.utilities import format_dataframe, deserialize_cases
+from howso.utilities import format_dataframe, deserialize_cases, HowsoTokenizer, TokenizerProtocol
 from howso.utilities import internals
 
 __all__ = [
@@ -64,14 +64,20 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
         The response object of react_group.
     attributes : Mapping
         The feature attributes of the data.
+    tokenizer : TokenizerProtocol, default None
+        An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a
+        detokenizer method for deserializing tokenizable strings. If not specified, defaults to using
+        :class:`howso.utilities.HowsoTokenizer`.
     """
 
     __slots__ = ("_metrics", "_action", "_details")
 
-    def __init__(self, data: Mapping[str, Any] | None, attributes: Mapping) -> None:
+    def __init__(self, data: Mapping[str, Any] | None, attributes: Mapping,
+                 tokenizer: Optional[TokenizerProtocol] = None) -> None:
         self._action: pd.DataFrame = pd.DataFrame()
         self._metrics: pd.DataFrame = pd.DataFrame()
         self._details: GroupDetails = {}
+        tokenizer = tokenizer or HowsoTokenizer()
         if data is not None:
             action_data = data.get("action_values", [])
             action_features = data.get("action_features", [])
@@ -79,7 +85,8 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
                 self._action = deserialize_cases(
                     data=action_data,
                     columns=action_features,
-                    features=attributes
+                    features=attributes,
+                    tokenizer=tokenizer
                 )
 
             computed_metrics = set(GroupMetric.__args__).intersection(data)
@@ -97,7 +104,8 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
                         deserialized_inf_cases.append(
                             format_dataframe(
                                 pd.DataFrame(group_inf_cases),
-                                features=attributes
+                                features=attributes,
+                                tokenizer=tokenizer,
                             )
                         )
                     self._details.update({"influential_cases": deserialized_inf_cases})

@@ -1053,3 +1053,33 @@ def test_empty_string_first_non_nulls():
     df = pd.DataFrame({'a': ['', 'ahoy', 'howdy'], 'b': ['\n', '8/26/2025', '8/3/1999']})
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
         infer_feature_attributes(df)
+
+
+def test_infer_tokenizable_string():
+    """Test that IFA correctly detects and sets feature attributes for short tokenizable text."""
+    data = {
+        "product": [
+            "turbo-encabulator",
+            "banana-phone",
+            "boneless-pizza",
+        ],
+        "rating": [
+            5,
+            3,
+            1,
+        ],
+        "review": [
+            "Not only provides inverse reactive current for use in unilateral phase detractors, but is also capable "
+            "of automatically synchronizing cardinal gram-meters.",
+            "it's ok. works well enough. the connection isn't very clear but what else can you expect from a banana.",
+            "they forgot to take the bones out!!!!11"
+        ],
+    }
+    df = pd.DataFrame(data)
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["review"]["data_type"] == "json"
+    assert feature_attributes["review"]["type"] == "continuous"
+    assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
+    # Product should still be a nominal string
+    assert feature_attributes["product"]["data_type"] == "string"
+    assert feature_attributes["product"]["type"] == "nominal"

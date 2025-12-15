@@ -249,7 +249,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     while num_samples <= max_samples:
                         # First, determine if the string resembles common time-only formats
                         if re.match(TIME_PATTERN, first_non_null) or re.match(SIMPLE_TIME_PATTERN,
-                                                                            first_non_null):
+                                                                              first_non_null):
                             return FeatureType.TIME, {}
                         # If this doesn't contain numbers, then report it as a string.
                         if first_non_null and not any(c.isnumeric() for c in first_non_null):
@@ -906,6 +906,15 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             return {
                 'type': 'continuous',
                 'data_type': 'yaml'
+            }
+        elif (self.attributes.get(feature_name, {}).get("type") == "continuous"
+              or self._is_tokenizable_string(feature_name)):
+            # If this string feature was pre-set to be continuous, but is not JSON/YAML, assume tokenizable string
+            return {
+                "type": "continuous",
+                "data_type": "json",
+                # Also set the original_type here so that we do not need to re-check _is_tokenizable_string
+                "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
             }
         else:
             return self._infer_unknown_attributes(feature_name)

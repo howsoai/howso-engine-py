@@ -36,6 +36,7 @@ import numpy as np
 import pandas as pd
 
 from .internals import serialize_models
+from .tokenizing import TokenizerProtocol
 
 if t.TYPE_CHECKING:
     from howso.client.typing import NormalizeMethod
@@ -780,6 +781,31 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
 
             # store the serialized datetime value
             case[i] = dt_value
+
+
+def tokenize_strings(cases: list[list[t.Any]], features: Iterable[str], feature_attributes: Mapping,
+                     tokenizer: TokenizerProtocol) -> None:
+    """
+    Processes tokenizable strings in the provided cases by tokenizing or detokenizing them in place.
+
+    Parameters
+    ----------
+    cases : list of list of Any
+        A 2d list of case values corresponding to the provided feature names.
+    features : list of str
+        The list of feature names.
+    feature_attributes : Mapping
+        The feature attributes of the provided features.
+    tokenizer : TokenizerProtocol
+        An object satisfying :class:`howso.client.protocols.TokenizerProtocol` to use for (de-)tokenizing.
+    """
+    if not isinstance(tokenizer, TokenizerProtocol):
+        raise ValueError("The class provided under `token_processor` must satisfy the `TokenizerProtocol` protocol.")
+    for idx, feature_name in enumerate(features):
+        if feature_attributes[feature_name].get("original_type", {}).get("data_type") != "tokenizable_string":
+            continue
+        for case_group in cases:
+            case_group[idx] = tokenizer.tokenize(case_group[idx])
 
 
 def is_valid_uuid(value: str | uuid.UUID, version: int = 4) -> bool:

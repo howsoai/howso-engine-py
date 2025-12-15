@@ -981,17 +981,18 @@ class InferFeatureAttributesBase(ABC):
             if self._has_unique_constraint(feature_name):
                 self.attributes[feature_name]['unique'] = True
 
-            # Add original type to feature
-            if original_type := typing_info.pop('original_type', None):
-                self.attributes[feature_name]['original_type'] = {
-                    'data_type': str(original_type),
-                    **typing_info
-                }
-            elif feature_type is not None:
-                self.attributes[feature_name]['original_type'] = {
-                    'data_type': str(feature_type),
-                    **typing_info
-                }
+            # Add original type to feature if not already set
+            if not self.attributes[feature_name].get("original_type"):
+                if original_type := typing_info.pop('original_type', None):
+                    self.attributes[feature_name]['original_type'] = {
+                        'data_type': str(original_type),
+                        **typing_info
+                    }
+                elif feature_type is not None:
+                    self.attributes[feature_name]['original_type'] = {
+                        'data_type': str(feature_type),
+                        **typing_info
+                    }
 
             # DECLARED DEPENDENTS
             # First determine if there are any dependent features in the partial features dict
@@ -1535,6 +1536,34 @@ class InferFeatureAttributesBase(ABC):
                 if len(sample.split(':')) <= 1 or '\n' not in sample:
                     return False
             except yaml.YAMLError:
+                return False
+
+        return True
+
+    def _is_tokenizable_string(self, feature: str) -> bool:
+        """
+        Return whether the given feature is a good candidate to be a tokenizable string.
+
+        Parameters
+        ----------
+        feature: string
+            The feature to check the values of.
+
+        Returns
+        -------
+        True if the column values are good candidates for tokenizable strings.
+        """
+        # If there is no data, return False
+        first_non_none = self._get_first_non_null(feature)
+        if first_non_none is None:
+            return False
+
+        # Sample up-to 30 random values
+        for _ in range(30):
+            sample = self._get_random_value(feature, no_nulls=True)
+
+            # Does the string have at least 3 spaces, and is it longer than the length of a GUID?
+            if len(sample.split(" ")) < 4 or len(sample) <= 36:
                 return False
 
         return True

@@ -84,7 +84,9 @@ monk_path = Path(cwd, 'utilities', 'tests', 'data', 'monk1.csv')
     ([None, 'test'],
      {'data_type': str(FeatureType.STRING)}, False),
     ([True, False], {'data_type': str(FeatureType.BOOLEAN)}, False),
-    ([None, None], {'data_type': str(FeatureType.UNKNOWN)}, False)
+    ([None, None], {'data_type': str(FeatureType.UNKNOWN)}, False),
+    (["The quick brown fox jumped over the lazy dog."],
+     {"data_type": FeatureType.TOKENIZABLE_STRING.value}, False),
 ])
 def test_feature_deserialization(data_format, data, original_type, should_warn):
     """
