@@ -1398,3 +1398,39 @@ class TestBaseClient:
                 combined_detail = pd.concat([reaction_0["details"][detail_name], reaction_1["details"][detail_name]])
                 assert isinstance(reaction_0_accum["details"][detail_name], pd.DataFrame)
                 assert reaction_0_accum["details"][detail_name].equals(combined_detail)
+
+    def test_tokenizable_strings_reaction(self):
+        """Test that IFA correctly detects and sets feature attributes for short tokenizable text."""
+        data = {
+            "product": [
+                "turbo-encabulator",
+                "banana-phone",
+                "boneless-pizza",
+            ],
+            "rating": [
+                5,
+                3,
+                1,
+            ],
+            "review": [
+                "Not only provides inverse reactive current for use in unilateral phase detractors, but is also capable "
+                "of automatically synchronizing cardinal gram-meters.",
+                "it's ok. works well enough. the connection isn't very clear but what else can you expect from a banana.",
+                "they forgot to take the bones out!!!!11"
+            ],
+        }
+        df = pd.DataFrame(data)
+        feature_attributes = infer_feature_attributes(df)
+        assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
+        t = Trainee(features=feature_attributes)
+        self.client.train(t.id, df)
+        reaction = self.client.react(
+            contexts=[[5, 'turbo-encabulator']],
+            context_features=['rating', 'product'],
+            action_features=['review'],
+            generate_new_cases='attempt',
+            num_cases_to_generate=2,
+            desired_conviction=1,
+            details={"influential_cases": True}
+        )
+        raise Exception(reaction)  # TODO this is going to fail for now (needs new HSE version)

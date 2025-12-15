@@ -2333,7 +2333,7 @@ class AbstractHowsoClient(ABC):
                 data_parameter='post_process_values',
                 features_parameter='post_process_features')
         post_process_values = serialize_cases(post_process_values, post_process_features, feature_attributes,
-                                              tokenizer=tokenizer)
+                                              tokenizer=self._tokenizer)
 
         if post_process_values is not None and contexts is not None:
             if (len(contexts) > 1 and len(post_process_values) > 1 and
