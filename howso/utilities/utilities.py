@@ -799,7 +799,7 @@ def stringify_json(cases: list[list[t.Any]], features: Iterable[str], feature_at
     """
     for idx, feature_name in enumerate(features):
         # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
-        if (feature_attributes[feature_name].get("data_type") == "json"
+        if (feature_attributes.get("feature_name", {}).get("data_type") == "json"
             and feature_attributes[feature_name].get(
                 "original_type", {}).get("data_type") in ["object", "tokenizable_string"]):
             for case_group in cases:
@@ -825,7 +825,7 @@ def tokenize_strings(cases: list[list[t.Any]], features: Iterable[str], feature_
     if not isinstance(tokenizer, TokenizerProtocol):
         raise ValueError("The class provided under `token_processor` must satisfy the `TokenizerProtocol` protocol.")
     for idx, feature_name in enumerate(features):
-        if feature_attributes[feature_name].get("original_type", {}).get("data_type") != "tokenizable_string":
+        if feature_attributes.get(feature_name, {}).get("original_type", {}).get("data_type") != "tokenizable_string":
             continue
         for case_group in cases:
             case_group[idx] = tokenizer.tokenize(case_group[idx])

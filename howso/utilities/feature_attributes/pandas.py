@@ -914,17 +914,30 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 'type': 'continuous',
                 'data_type': 'yaml'
             }
-        elif (self.attributes.get(feature_name, {}).get("type") == "continuous"
-              or self._is_tokenizable_string(feature_name)):
-            # If this string feature was pre-set to be continuous, but is not JSON/YAML, assume tokenizable string
-            return {
-                "type": "continuous",
-                "data_type": "json",
-                # Also set the original_type here so that we do not need to re-check _is_tokenizable_string
-                "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
-            }
         else:
-            return self._infer_unknown_attributes(feature_name)
+            # Check if the string is obviously tokenizable
+            is_tokenizable_string = self._is_tokenizable_string(feature_name)
+            # If not, the user may have pre-set the type as "continuous" to force it to be so;
+            # but that may also be the case for string ints or floats. Check that first.
+            if not is_tokenizable_string and self.attributes.get(feature_name, {}).get("type") == "continuous":
+                try:
+                    # If the column can be converted to float, and was set to be "continuous",
+                    # it is probably not a tokenizable string.
+                    col = self.data[feature_name]
+                    col.astype('float')
+                except Exception:  # noqa: Intentionally broad
+                    # If it cannot be converted to float, but it was set to be "continuous",
+                    # it is probably a tokenizable string.
+                    is_tokenizable_string = True
+            if is_tokenizable_string:
+                return {
+                    "type": "continuous",
+                    "data_type": "json",
+                    # Also set the original_type here so that we do not need to re-check _is_tokenizable_string
+                    "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
+                }
+            else:
+                return self._infer_unknown_attributes(feature_name)
 
     def _infer_unknown_attributes(self, feature_name: str) -> dict:
         return {
