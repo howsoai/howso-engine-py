@@ -104,6 +104,10 @@ class HowsoDirectClient(AbstractHowsoClient):
     react_initial_batch_size: int, default 10
         The default number of cases to react to in the first batch
         for calls to :meth:`HowsoDirectClient.react`.
+    tokenizer : TokenizerProtocol, default None
+        An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a tokenizer and
+        `detokenize` method for processing tokenizable strings. If not specified, defaults to using
+        :class:`howso.utilities.HowsoTokenizer`.
     trace : bool, default False
         When true, enables tracing of Amalgam operations. This will generate an
         execution trace file useful in debugging, the filename will use the

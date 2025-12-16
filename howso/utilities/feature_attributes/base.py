@@ -1558,13 +1558,18 @@ class InferFeatureAttributesBase(ABC):
         if first_non_none is None:
             return False
 
+        whitespace_counts = []
+        len_counts = []
+
         # Sample up-to 30 random values
         for _ in range(30):
             sample = self._get_random_value(feature, no_nulls=True)
+            whitespace_counts.append(len(sample.split(" ")))
+            len_counts.append(len(sample))
 
-            # Does the string have at least 3 spaces, and is it longer than the length of a GUID?
-            if len(sample.split(" ")) < 4 or len(sample) <= 36:
-                return False
+        # Does the feature on average have at least 3 spaces, and is it on average longer than the length of a GUID?
+        if (sum(whitespace_counts) / len(whitespace_counts)) < 4 or (sum(len_counts) / len(len_counts)) <= 36:
+            return False
 
         return True
 

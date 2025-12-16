@@ -1,5 +1,6 @@
-import re
 from typing import Protocol, runtime_checkable
+
+from sacremoses import MosesDetokenizer, MosesTokenizer
 
 
 @runtime_checkable
@@ -16,43 +17,42 @@ class TokenizerProtocol(Protocol):
 
 
 class HowsoTokenizer:
-    """This is a naive implementation of a general text tokenizer, detokenizer for the Howso Engine."""
+    """Howso wrapper for the Moses tokenizer."""
 
-    def __init__(self):
-        self._tokenize_pattern = re.compile(r'\w+|[^\w\s]')
-        self._sentence_pattern = re.compile(r'(?<=[.!?])\s+')
+    def __init__(self, lang='en'):
+        """Initialize the tokenizer."""
+        self.lang = lang
+        self._mt = MosesTokenizer(lang=self.lang)
+        self._md = MosesDetokenizer(lang=self.lang)
 
     def tokenize(self, text: str) -> list[str]:
-        """Tokenize text into lowercase tokens."""
-        # findall is already quite fast; using a list comp with .lower()
-        return [t.lower() for t in self._tokenize_pattern.findall(text)]
+        """
+        Tokenizes a string into a list of strings.
+
+        Parameters
+        ----------
+        text : str
+            The string to be tokenized.
+
+        Returns
+        -------
+        list of str
+            The tokenized string.
+        """
+        return self._mt.tokenize(text)
 
     def detokenize(self, tokens: list[str]) -> str:
-        """Reconstruct text from tokens."""
-        if not tokens:
-            return ""
+        """
+        Detokenizes a list of strings into a string.
 
-        result = []
-        prev_was_apostrophe_or_hyphen = False
+        Parameters
+        ----------
+        tokens: list of str
+            The list of strings to be recombobulated.
 
-        for token in tokens:
-            # Skip non-string tokens (malformed data)
-            if not isinstance(token, str):
-                continue
-            # Quickly check if first char is alphanumeric, it's a word
-            if token and token[0].isalnum():
-                if prev_was_apostrophe_or_hyphen:
-                    result.append(token)
-                else:
-                    result.append(' ')
-                    result.append(token)
-                prev_was_apostrophe_or_hyphen = False
-            else:
-                result.append(token)
-                prev_was_apostrophe_or_hyphen = (token in ["'", "-"])
-
-        text = ''.join(result).strip()
-
-        # Capitalize sentences
-        sentences = self._sentence_pattern.split(text)
-        return ' '.join(s.capitalize() for s in sentences)
+        Returns
+        -------
+        str
+            The recombobulated string.
+        """
+        return self._md.detokenize(tokens)
