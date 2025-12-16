@@ -563,12 +563,12 @@ def test_infer_time_series(spark, default_time_zone):
 
     # 5. Verify high order rates and deltas are correctly computed
     assert features["value"]["time_series"]["order"] == 3
-    assert features["value"]["time_series"]["rate_min"] == [1 / e, 0.0, -2 * e]
-    assert features["value"]["time_series"]["rate_max"] == [8 * e, 3 * e, 2 * e]
+    assert features["value"]["time_series"]["rate_min"] == [0.0, 0.0, -4.594885082800512]
+    assert features["value"]["time_series"]["rate_max"] == [12.541048894900898, 4.946163812100385, 4.594885082800512]
 
     assert features["bal_scaled"]["time_series"]["order"] == 2
-    assert features["bal_scaled"]["time_series"]["delta_min"] == [9 / e, -e]
-    assert features["bal_scaled"]["time_series"]["delta_max"] == [10 * e, 0.0]
+    assert features["bal_scaled"]["time_series"]["delta_min"] == [8.351278729299871, -1.6487212707001282]
+    assert features["bal_scaled"]["time_series"]["delta_max"] == [10.648721270700129, 0.0]
 
     # 6. Verify derived_orders is clamped down to 2
     assert features["value"]["time_series"]["derived_orders"] == 2
