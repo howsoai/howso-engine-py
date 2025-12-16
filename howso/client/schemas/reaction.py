@@ -256,7 +256,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         processed (for example, if details come from another `Reaction` object).
     tokenizer : TokenizerProtocol, default None
         An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a
-        detokenizer method for deserializing tokenizable strings. If not specified, defaults to using
+        `detokenize` method for deserializing tokenizable strings. If not specified, defaults to using
         :class:`howso.utilities.HowsoTokenizer`.
     """
 
@@ -281,7 +281,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
             self._action = deserialize_cases(action, details["action_features"], feature_attributes,
                                              tokenizer=tokenizer)
         if process_details:
-            self._details = self.format_react_details(details, feature_attributes)
+            self._details = self.format_react_details(details, feature_attributes, tokenizer=tokenizer)
         else:
             self._details = cast(ReactDetails, details)
 

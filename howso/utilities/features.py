@@ -4,6 +4,7 @@ from collections.abc import Iterable, Mapping
 import decimal
 from enum import Enum
 from functools import partial
+import json
 import locale
 import typing as t
 import warnings
@@ -30,6 +31,7 @@ from .utilities import (
     LocaleOverride,
     seconds_to_time,
     serialize_datetimes,
+    stringify_json,
     tokenize_strings,
 )
 
@@ -89,7 +91,7 @@ class FeatureSerializer:
             The dictionary of feature name to feature attributes.
         tokenizer : TokenizerProtocol, default None
             An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a tokenizer and
-            detokenizer method for processing tokenizable strings. If not specified, defaults to using
+            `detokenize` method for processing tokenizable strings. If not specified, defaults to using
             :class:`howso.utilities.HowsoTokenizer`.
         warn : bool, default False
             If warnings should be raised by serializer.
@@ -181,6 +183,9 @@ class FeatureSerializer:
         # Tokenize any tokenizable strings
         tokenize_strings(result, columns, features, tokenizer=tokenizer or HowsoTokenizer())
 
+        # Stringify any raw JSONs
+        stringify_json(result, columns, features)
+
         return result
 
     @classmethod
@@ -214,7 +219,7 @@ class FeatureSerializer:
             If not specified, no column typing will be attempted.
         tokenizer : TokenizerProtocol, default None
             An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a tokenizer and
-            detokenizer method for processing tokenizable strings. If not specified, defaults to using
+            `detokenize` method for processing tokenizable strings. If not specified, defaults to using
             :class:`howso.utilities.HowsoTokenizer`.
 
         Returns
@@ -245,7 +250,7 @@ class FeatureSerializer:
             The dictionary of feature name to feature attributes.
         tokenizer : TokenizerProtocol, default None
             An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a tokenizer and
-            detokenizer method for processing tokenizable strings. If not specified, defaults to using
+            `detokenize` method for processing tokenizable strings. If not specified, defaults to using
             :class:`howso.utilities.HowsoTokenizer`.
 
         Returns
@@ -276,7 +281,7 @@ class FeatureSerializer:
             The feature attributes for the column.
         tokenizer : TokenizerProtocol, default None
             An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a tokenizer and
-            detokenizer method for processing tokenizable strings. If not specified, defaults to using
+            `detokenize` method for processing tokenizable strings. If not specified, defaults to using
             :class:`howso.utilities.HowsoTokenizer`.
 
         Returns
@@ -671,7 +676,7 @@ class FeatureSerializer:
             The feature attributes for the column.
         tokenizer : TokenizerProtocol, default None
             An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a tokenizer and
-            detokenizer method for processing tokenizable strings. If not specified, defaults to using
+            `detokenize` method for processing tokenizable strings. If not specified, defaults to using
             :class:`howso.utilities.HowsoTokenizer`.
 
         Returns
@@ -680,7 +685,7 @@ class FeatureSerializer:
             The formatted column.
         """
         tokenizer = tokenizer or HowsoTokenizer()
-        return pd.Series(tokenizer.detokenize(case) for case in column)
+        return pd.Series(tokenizer.detokenize(json.loads(case)) for case in column)
 
     @classmethod
     def format_unknown_column(cls, column: pd.Series, feature: Mapping

@@ -19,6 +19,7 @@ from pandas.core.dtypes.common import (
     is_datetime64_any_dtype,
     is_float_dtype,
     is_integer_dtype,
+    is_string_dtype,
     is_timedelta64_dtype,
     is_unsigned_integer_dtype,
 )
@@ -898,6 +899,12 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     'data_type': 'number',
                 }
         elif self._is_json_feature(feature_name):
+            if not is_string_dtype(self.data[feature_name]):
+                return {
+                    'type': 'continuous',
+                    'data_type': 'json',
+                    "original_type": {"data_type": FeatureType.UNKNOWN.value},
+                }
             return {
                 'type': 'continuous',
                 'data_type': 'json'

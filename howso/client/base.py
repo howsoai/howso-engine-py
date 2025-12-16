@@ -2357,7 +2357,6 @@ class AbstractHowsoClient(ABC):
                 " following values - ['min', 'max', 'most_similar',]"
             )
 
-
         if details is not None and 'local_case_feature_residual_conviction_robust' in details:
             details = dict(details)
             details['case_feature_residual_conviction_robust'] = details.pop(

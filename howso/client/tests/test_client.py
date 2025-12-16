@@ -1400,7 +1400,7 @@ class TestBaseClient:
                 assert reaction_0_accum["details"][detail_name].equals(combined_detail)
 
     def test_tokenizable_strings_reaction(self):
-        """Test that IFA correctly detects and sets feature attributes for short tokenizable text."""
+        """Test that tokenizable strings can be processed and are correctly serialized and deserialized."""
         data = {
             "product": [
                 "turbo-encabulator",
@@ -1422,15 +1422,20 @@ class TestBaseClient:
         df = pd.DataFrame(data)
         feature_attributes = infer_feature_attributes(df)
         assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
-        t = Trainee(features=feature_attributes)
-        self.client.train(t.id, df)
+        assert feature_attributes["review"]["data_type"] == "json"
+        assert feature_attributes["review"]["type"] == "continuous"
+        client = HowsoClient()
+        t = Trainee()
+        client.set_feature_attributes(t.id, feature_attributes)
+        client.train(t.id, df)
         reaction = self.client.react(
+            t.id,
             contexts=[[5, 'turbo-encabulator']],
             context_features=['rating', 'product'],
             action_features=['review'],
             generate_new_cases='attempt',
-            num_cases_to_generate=2,
-            desired_conviction=1,
-            details={"influential_cases": True}
+            details={"influential_cases": True},
+            desired_conviction=5,
         )
-        raise Exception(reaction)  # TODO this is going to fail for now (needs new HSE version)
+        assert reaction["action"].iloc[0]["review"] == df.iloc[0]["review"]
+        assert reaction["details"]["influential_cases"][0].iloc[0]["review"] == df.iloc[0]["review"]

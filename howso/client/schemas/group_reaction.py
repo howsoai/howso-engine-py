@@ -66,7 +66,7 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
         The feature attributes of the data.
     tokenizer : TokenizerProtocol, default None
         An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a
-        detokenizer method for deserializing tokenizable strings. If not specified, defaults to using
+        `detokenize` method for deserializing tokenizable strings. If not specified, defaults to using
         :class:`howso.utilities.HowsoTokenizer`.
     """
 

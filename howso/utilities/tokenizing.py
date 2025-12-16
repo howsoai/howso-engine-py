@@ -16,66 +16,43 @@ class TokenizerProtocol(Protocol):
 
 
 class HowsoTokenizer:
-    """Default tokenizer and detokenizer implementations."""
+    """This is a naive implementation of a general text tokenizer, detokenizer for the Howso Engine."""
 
     def __init__(self):
-        self._word_pattern = re.compile(r'\w+')
         self._tokenize_pattern = re.compile(r'\w+|[^\w\s]')
         self._sentence_pattern = re.compile(r'(?<=[.!?])\s+')
 
-    def _tokenize_with_punctuation(self, text):
-        """
-        Tokenize text, keeping punctuation as separate tokens.
-
-        Parameters
-        ----------
-        text: string
-
-        Returns
-        -------
-        list of strings
-        """
-        # This regex splits on word boundaries but keeps punctuation
-        # \w+ matches word characters, [^\w\s] matches punctuation
-        tokens = self._tokenize_pattern.findall(text)
-        return tokens
-
-    def tokenize(self, text) -> list[str]:
-        """
-        Tokenize a string using CountVectorizer.
-
-        Parameters
-        ----------
-            text: String to tokenize
-
-        Returns
-        -------
-            tokens: List of tokens
-            counts: Dictionary mapping tokens to their counts
-        """
-        return [token.lower() for token in self._tokenize_with_punctuation(text)]
+    def tokenize(self, text: str) -> list[str]:
+        """Tokenize text into lowercase tokens."""
+        # findall is already quite fast; using a list comp with .lower()
+        return [t.lower() for t in self._tokenize_pattern.findall(text)]
 
     def detokenize(self, tokens: list[str]) -> str:
-        """
-        Construct text from the list of tokens.
+        """Reconstruct text from tokens."""
+        if not tokens:
+            return ""
 
-        Parameters
-        ----------
-            text: String to tokenize
-
-        Returns
-        -------
-            tokens: List of tokens
-            counts: Dictionary mapping tokens to their counts
-        """
         result = []
+        prev_was_apostrophe_or_hyphen = False
+
         for token in tokens:
-            if self._word_pattern.match(token):
-                result.append(' ' + token)
+            # Skip non-string tokens (malformed data)
+            if not isinstance(token, str):
+                continue
+            # Quickly check if first char is alphanumeric, it's a word
+            if token and token[0].isalnum():
+                if prev_was_apostrophe_or_hyphen:
+                    result.append(token)
+                else:
+                    result.append(' ')
+                    result.append(token)
+                prev_was_apostrophe_or_hyphen = False
             else:
                 result.append(token)
+                prev_was_apostrophe_or_hyphen = (token in ["'", "-"])
+
         text = ''.join(result).strip()
-        # Split into sentences and capitalize each one
+
+        # Capitalize sentences
         sentences = self._sentence_pattern.split(text)
-        capitalized_sentences = [s.capitalize() for s in sentences]
-        return ' '.join(capitalized_sentences)
+        return ' '.join(s.capitalize() for s in sentences)

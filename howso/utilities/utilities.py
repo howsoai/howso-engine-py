@@ -18,6 +18,7 @@ from concurrent.futures import (
 )
 import datetime as dt
 import inspect
+import json
 import locale as python_locale
 from math import (
     ceil,
@@ -781,6 +782,28 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
 
             # store the serialized datetime value
             case[i] = dt_value
+
+
+def stringify_json(cases: list[list[t.Any]], features: Iterable[str], feature_attributes: Mapping) -> None:
+    """
+    Ensures that any JSON features have their cases stringified.
+
+    Parameters
+    ----------
+    cases : list of list of Any
+        A 2d list of case values corresponding to the provided feature names.
+    features : list of str
+        The list of feature names.
+    feature_attributes : Mapping
+        The feature attributes of the provided features.
+    """
+    for idx, feature_name in enumerate(features):
+        # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
+        if (feature_attributes[feature_name].get("data_type") == "json"
+            and feature_attributes[feature_name].get(
+                "original_type", {}).get("data_type") in ["object", "tokenizable_string"]):
+            for case_group in cases:
+                case_group[idx] = json.dumps(case_group[idx])
 
 
 def tokenize_strings(cases: list[list[t.Any]], features: Iterable[str], feature_attributes: Mapping,
