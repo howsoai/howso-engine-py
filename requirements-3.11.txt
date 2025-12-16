@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --output-file=requirements-3.11.txt --pip-args=None
 #
-amalgam-lang==25.2.2
+amalgam-lang==25.2.3
     # via howso-engine (pyproject.toml)
 certifi==2025.11.12
     # via
@@ -62,7 +62,7 @@ six==1.17.0
     # via python-dateutil
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)
-tzdata==2025.2
+tzdata==2025.3
     # via
     #   faker
     #   pandas

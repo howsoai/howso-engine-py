@@ -3721,12 +3721,12 @@ PERFORMANCE OF THIS SOFTWARE.
 
 
 tzdata
-2025.2
-Apache Software License
+2025.3
+Apache-2.0
 Python Software Foundation
 https://github.com/python/tzdata
 Provider of IANA time zone data
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/tzdata-2025.2.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/tzdata-2025.3.dist-info/licenses/LICENSE
 Apache Software License 2.0
 
 Copyright (c) 2020, Paul Ganssle (Google)
