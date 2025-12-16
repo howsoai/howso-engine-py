@@ -3587,6 +3587,7 @@ class Trainee(BaseTrainee):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         value_robust_contributions_action_feature: t.Optional[str] = None,
+        value_robust_contributions_buckets: t.Optional[dict[str, list[tuple[float, float]]]] = None,
         value_robust_contributions_features: t.Optional[Collection[str]] = None,
         value_robust_contributions_num_buckets: int = 30,
         value_robust_contributions_min_samples: int = 15,
@@ -3906,6 +3907,10 @@ class Trainee(BaseTrainee):
         value_robust_contributions_action_feature : str, optional
 			The name of the feature being predicted when computing the "value_robust_accuracy_contributions",
             "value_robust_prediction_contributions" or "value_robust_surprisal_asymmetry" details.
+        value_robust_contributions_buckets : dict of str to list of tuples of float and float, optional
+            A mapping of continuous feature names to lists of ranges defined as two float tuples that describe the
+            buckets to compute metrics for when computing the "value_robust_accuracy_contributions",
+            "value_robust_prediction_contributions" or "value_robust_surprisal_asymmetry" details.
         value_robust_contributions_features: list of str, optional
             The feature names for which to measure the accuracy contributions across combinations of values when
             computing the "value_robust_accuracy_contributions", "value_robust_prediction_contributions" or
@@ -3958,6 +3963,7 @@ class Trainee(BaseTrainee):
                 use_case_weights=use_case_weights,
                 value_robust_contributions_features=value_robust_contributions_features,
                 value_robust_contributions_action_feature=value_robust_contributions_action_feature,
+                value_robust_contributions_buckets=value_robust_contributions_buckets,
                 value_robust_contributions_num_buckets=value_robust_contributions_num_buckets,
                 value_robust_contributions_min_samples=value_robust_contributions_min_samples,
                 weight_feature=weight_feature,
