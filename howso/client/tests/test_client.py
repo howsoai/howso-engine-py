@@ -1413,10 +1413,11 @@ class TestBaseClient:
                 1,
             ],
             "review": [
-                "Not only provides inverse reactive current for use in unilateral phase detractors, but is also capable "
-                "of automatically synchronizing cardinal gram-meters.",
-                "it's ok. works well enough. the connection isn't very clear but what else can you expect from a banana.",
-                "they forgot to take the bones out!!!!11"
+                "Not only provides inverse reactive current for use in unilateral phase detractors, but is also "
+                "capable of automatically synchronizing cardinal gram-meters.",
+                "it's ok. works well enough. the connection isn't very clear but what else can you expect from a "
+                "banana.",
+                "they forgot to take the bones out!!!!11",
             ],
         }
         df = pd.DataFrame(data)
