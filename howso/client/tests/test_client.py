@@ -30,6 +30,8 @@ from howso.client.exceptions import (
 from howso.client.protocols import ProjectClient
 from howso.client.schemas import Reaction, GroupReaction
 from howso.direct import HowsoDirectClient
+from howso.engine import Trainee
+from howso.utilities import infer_feature_attributes
 from howso.utilities.testing import (
     get_configurationless_test_client,
     get_test_options,
@@ -1396,3 +1398,45 @@ class TestBaseClient:
                 combined_detail = pd.concat([reaction_0["details"][detail_name], reaction_1["details"][detail_name]])
                 assert isinstance(reaction_0_accum["details"][detail_name], pd.DataFrame)
                 assert reaction_0_accum["details"][detail_name].equals(combined_detail)
+
+    def test_tokenizable_strings_reaction(self):
+        """Test that tokenizable strings can be processed and are correctly serialized and deserialized."""
+        data = {
+            "product": [
+                "turbo-encabulator",
+                "banana-phone",
+                "boneless-pizza",
+            ],
+            "rating": [
+                5,
+                3,
+                1,
+            ],
+            "review": [
+                "Not only provides inverse reactive current for use in unilateral phase detractors, but is also "
+                "capable of automatically synchronizing cardinal gram-meters.",
+                "it's ok. works well enough. the connection isn't very clear but what else can you expect from a "
+                "banana.",
+                "they forgot to take the bones out!!!!11",
+            ],
+        }
+        df = pd.DataFrame(data)
+        feature_attributes = infer_feature_attributes(df)
+        assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
+        assert feature_attributes["review"]["data_type"] == "json"
+        assert feature_attributes["review"]["type"] == "continuous"
+        client = HowsoClient()
+        t = Trainee()
+        client.set_feature_attributes(t.id, feature_attributes)
+        client.train(t.id, df)
+        reaction = self.client.react(
+            t.id,
+            contexts=[[5, 'turbo-encabulator']],
+            context_features=['rating', 'product'],
+            action_features=['review'],
+            generate_new_cases='attempt',
+            details={"influential_cases": True},
+            desired_conviction=5,
+        )
+        assert reaction["action"].iloc[0]["review"] == df.iloc[0]["review"]
+        assert reaction["details"]["influential_cases"][0].iloc[0]["review"] == df.iloc[0]["review"]

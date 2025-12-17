@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from collections.abc import MutableMapping
 from pprint import pformat
-from typing import Any, cast, Iterator, Literal, Mapping, overload, Sequence, TypeAlias, TypedDict
+from typing import Any, cast, Iterator, Literal, Mapping, Optional, overload, Sequence, TypeAlias, TypedDict
 
 import pandas as pd
 
-from howso.utilities import deserialize_cases, format_column, format_dataframe
+from howso.utilities import deserialize_cases, format_column, format_dataframe, HowsoTokenizer, TokenizerProtocol
 from howso.utilities.internals import update_caps_maps
 
 
@@ -254,6 +254,10 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
     process_details : boolean, default True
         Set to `False` if details have already been formatted and deserialized and
         processed (for example, if details come from another `Reaction` object).
+    tokenizer : TokenizerProtocol, default None
+        An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a
+        `detokenize` method for deserializing tokenizable strings. If not specified, defaults to using
+        :class:`howso.utilities.HowsoTokenizer`.
     """
 
     __slots__ = ("_action", "_details")
@@ -265,16 +269,19 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         feature_attributes: Mapping[str, Any],
         *,
         process_details: bool = True,
+        tokenizer: Optional[TokenizerProtocol] = None,
     ):
         """Initialize the dictionary with the allowed keys."""
+        tokenizer = tokenizer or HowsoTokenizer()
         if isinstance(action, pd.DataFrame):
-            self._action = format_dataframe(action, feature_attributes)
+            self._action = format_dataframe(action, feature_attributes, tokenizer=tokenizer)
         else:
             if "action_features" not in details:
                 raise ValueError("If `action` is not a DataFrame, `action_features` must be present in `details`.")
-            self._action = deserialize_cases(action, details["action_features"], feature_attributes)
+            self._action = deserialize_cases(action, details["action_features"], feature_attributes,
+                                             tokenizer=tokenizer)
         if process_details:
-            self._details = self.format_react_details(details, feature_attributes)
+            self._details = self.format_react_details(details, feature_attributes, tokenizer=tokenizer)
         else:
             self._details = cast(ReactDetails, details)
 
@@ -335,7 +342,9 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         return f"{repr(self._action)}\n{pformat(self._details)}"
 
     @staticmethod
-    def format_react_details(details: MutableMapping[str, Any], feature_attributes: Mapping[str, Any]) -> ReactDetails:
+    def format_react_details(details: MutableMapping[str, Any],  # noqa: C901
+                             feature_attributes: Mapping[str, Any],
+                             tokenizer: TokenizerProtocol) -> ReactDetails:
         """
         Converts any valid details from a react call to a DataFrame and deserializes them.
 
@@ -387,7 +396,8 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                 elif detail_name in DETAILS_WITH_CASE_DATA:
                     return format_dataframe(
                         pd.DataFrame(detail),
-                        features=feature_attributes
+                        features=feature_attributes,
+                        tokenizer=tokenizer
                     )
                 # All other details
                 else:

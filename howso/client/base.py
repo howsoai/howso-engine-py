@@ -671,7 +671,8 @@ class AbstractHowsoClient(ABC):
             self._train_validate_cases(cases, feature_attributes, validate)
             if features is None:
                 features = internals.get_features_from_data(cases)
-            serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True) or []
+            serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True,
+                                               tokenizer=self._tokenizer) or []
             gen = internals.batch_lists(serialized_cases, batch_scaler.batch_size)
         else:
             gen = cases
@@ -706,7 +707,7 @@ class AbstractHowsoClient(ABC):
                     for feature in unsupported_features:
                         batch.drop(features, axis=1, inplace=True)
                     # Turn the batch into data primitives to pass off to the engine.
-                    batch_cases = serialize_cases(batch, features, feature_attributes, warn=True) or []
+                    batch_cases = serialize_cases(batch, features, feature_attributes, warn=True, tokenizer=self._tokenizer) or []
                 else:
                     # We've already validated and serialized the data, so use this batch as-is.
                     batch_cases = batch
@@ -1172,7 +1173,7 @@ class AbstractHowsoClient(ABC):
             feature_attributes = self.resolve_feature_attributes(trainee_id)
             if features is None:
                 features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
-            serialized_feature_values = serialize_cases(feature_values, features, feature_attributes)
+            serialized_feature_values = serialize_cases(feature_values, features, feature_attributes, tokenizer=self._tokenizer)
             if serialized_feature_values:
                 # Only a single case should be provided
                 serialized_feature_values = serialized_feature_values[0]
@@ -1261,7 +1262,7 @@ class AbstractHowsoClient(ABC):
             )
 
         # Preprocess contexts
-        serialized_contexts = serialize_cases(contexts, context_features, feature_attributes)
+        serialized_contexts = serialize_cases(contexts, context_features, feature_attributes, tokenizer=self._tokenizer)
 
         if self.configuration.verbose:
             print(f'Appending to series store for Trainee with id: {trainee_id}, and series: {series}')
@@ -2331,7 +2332,8 @@ class AbstractHowsoClient(ABC):
                 post_process_values,
                 data_parameter='post_process_values',
                 features_parameter='post_process_features')
-        post_process_values = serialize_cases(post_process_values, post_process_features, feature_attributes)
+        post_process_values = serialize_cases(post_process_values, post_process_features, feature_attributes,
+                                              tokenizer=self._tokenizer)
 
         if post_process_values is not None and contexts is not None:
             if (len(contexts) > 1 and len(post_process_values) > 1 and
@@ -2354,7 +2356,6 @@ class AbstractHowsoClient(ABC):
                 "`new_case_threshold` is not valid. It accepts one of the"
                 " following values - ['min', 'max', 'most_similar',]"
             )
-
 
         if details is not None and 'local_case_feature_residual_conviction_robust' in details:
             details = dict(details)
@@ -2509,7 +2510,7 @@ class AbstractHowsoClient(ABC):
                 suppress_warning=suppress_warning
             )
 
-        return Reaction(response["action"], response["details"], feature_attributes)
+        return Reaction(response["action"], response["details"], feature_attributes, tokenizer=self._tokenizer)
 
     def _react(self, trainee_id: str, params: dict) -> tuple[dict, int, int]:
         """
@@ -2615,7 +2616,8 @@ class AbstractHowsoClient(ABC):
                 context_values,
                 data_parameter='contexts',
                 features_parameter='context_features')
-        serialized_contexts = serialize_cases(context_values, context_features, feature_attributes)
+        serialized_contexts = serialize_cases(context_values, context_features, feature_attributes,
+                                              tokenizer=self._tokenizer)
 
         # Preprocess action values
         if action_values is not None and action_features is None:
@@ -2624,7 +2626,8 @@ class AbstractHowsoClient(ABC):
                 action_values,
                 data_parameter='actions',
                 features_parameter='action_features')
-        serialized_actions = serialize_cases(action_values, action_features, feature_attributes)
+        serialized_actions = serialize_cases(action_values, action_features, feature_attributes,
+                                             tokenizer=self._tokenizer)
 
         return action_features, serialized_actions, context_features, serialized_contexts
 
@@ -3039,7 +3042,8 @@ class AbstractHowsoClient(ABC):
                         data_parameter="series_context_values",
                         features_parameter="series_context_features")
                 serialized_series_context_values.append(
-                    serialize_cases(series, series_context_features, feature_attributes))
+                    serialize_cases(series, series_context_features, feature_attributes,
+                                    tokenizer=self._tokenizer))
 
         if new_case_threshold not in [None, "min", "max", "most_similar"]:
             raise ValueError(
@@ -3204,7 +3208,7 @@ class AbstractHowsoClient(ABC):
             )
 
         series_df = util.build_react_series_df(response, series_index=series_index)
-        return Reaction(series_df, response.get('details'), feature_attributes)
+        return Reaction(series_df, response.get('details'), feature_attributes, tokenizer=self._tokenizer)
 
     def _react_series(self, trainee_id: str, params: dict):
         """
@@ -3410,14 +3414,16 @@ class AbstractHowsoClient(ABC):
                         data_parameter="series_context_values",
                         features_parameter="series_context_features")
                 serialized_series_context_values.append(
-                    serialize_cases(series, series_context_features, feature_attributes))
+                    serialize_cases(series, series_context_features, feature_attributes,
+                                    tokenizer=self._tokenizer))
 
         if series_id_values is not None and series_id_features is None:
             series_id_features = internals.get_features_from_data(
                 series_id_values,
                 data_parameter='series_id_values',
                 features_parameter='series_id_features')
-        serialized_series_id_values = serialize_cases(series_id_values, series_id_features, feature_attributes)
+        serialized_series_id_values = serialize_cases(series_id_values, series_id_features, feature_attributes,
+                                                      tokenizer=self._tokenizer)
 
         react_stationary_params = {
             "action_features": action_features,
@@ -3468,7 +3474,7 @@ class AbstractHowsoClient(ABC):
             response = dict()
         self._auto_persist_trainee(trainee_id)
         response = internals.format_react_response(response)
-        return Reaction(response["action"], response["details"], feature_attributes)
+        return Reaction(response["action"], response["details"], feature_attributes, tokenizer=self._tokenizer)
 
     def _react_series_stationary(self, trainee_id: str, params: dict):
         """
@@ -4208,7 +4214,8 @@ class AbstractHowsoClient(ABC):
             for group in new_cases:
                 if features is None:
                     features = internals.get_features_from_data(group)
-                serialized_cases.append(serialize_cases(group, features, feature_attributes))
+                serialized_cases.append(serialize_cases(group, features, feature_attributes,
+                                                        tokenizer=self._tokenizer))
 
         if self.configuration.verbose:
             print(f'Reacting to a set of cases on Trainee with id: {trainee_id}')
@@ -4232,7 +4239,7 @@ class AbstractHowsoClient(ABC):
         })
         if result is None:
             result = dict()
-        return GroupReaction(result, feature_attributes)
+        return GroupReaction(result, feature_attributes, tokenizer=self._tokenizer)
 
     def evaluate(
         self,
@@ -5515,12 +5522,12 @@ class AbstractHowsoClient(ABC):
             if features is None:
                 features = internals.get_features_from_data(
                     from_values, data_parameter='from_values')
-            from_values = serialize_cases(from_values, features, feature_attributes)
+            from_values = serialize_cases(from_values, features, feature_attributes, tokenizer=self._tokenizer)
         if to_values is not None:
             if features is None:
                 features = internals.get_features_from_data(
                     to_values, data_parameter='to_values')
-            to_values = serialize_cases(to_values, features, feature_attributes)
+            to_values = serialize_cases(to_values, features, feature_attributes, tokenizer=self._tokenizer)
 
         if self.configuration.verbose:
             print(f'Getting pairwise distances for Trainee with id: {trainee_id}')
@@ -5617,7 +5624,7 @@ class AbstractHowsoClient(ABC):
 
             if features is None:
                 features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
-            feature_values = serialize_cases(feature_values, features, feature_attributes)
+            feature_values = serialize_cases(feature_values, features, feature_attributes, tokenizer=self._tokenizer)
             if feature_values:
                 # Only a single case should be provided
                 feature_values = feature_values[0]
