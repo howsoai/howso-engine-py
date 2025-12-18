@@ -1,12 +1,12 @@
 """Tests the `infer_feature_attributes` package."""
 from collections import OrderedDict
+from collections.abc import Iterable
 from copy import copy
 import datetime
 import json
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
-from typing import Iterable
 import warnings
 
 from howso.utilities.feature_attributes import infer_feature_attributes
