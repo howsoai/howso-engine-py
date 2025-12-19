@@ -4309,11 +4309,11 @@ class AbstractHowsoClient(ABC):
         num_feature_probability_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
-        reduce_only: t.Optional[bool] = None,
+        reduce_only: bool = False,
         targeted_model: t.Optional[TargetedModel] = None,
         use_case_weights: t.Optional[bool] = None,
         use_deviations: t.Optional[bool] = None,
-        use_sdm: t.Optional[bool] = True,
+        use_sdm: bool = True,
         weight_feature: t.Optional[str] = None,
         **kwargs
     ):
@@ -4550,11 +4550,11 @@ class AbstractHowsoClient(ABC):
         num_feature_probability_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
-        reduce_only: t.Optional[bool] = None,
+        reduce_only: bool = False,
         targeted_model: t.Optional[TargetedModel] = None,
         use_deviations: t.Optional[bool] = None,
         use_case_weights: t.Optional[bool] = None,
-        use_sdm: t.Optional[bool] = True,
+        use_sdm: bool = True,
         weight_feature: t.Optional[str] = None,
         **kwargs
     ):
