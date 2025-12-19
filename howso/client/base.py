@@ -4309,6 +4309,7 @@ class AbstractHowsoClient(ABC):
         num_feature_probability_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
+        reduce_only: t.Optional[bool] = None,
         targeted_model: t.Optional[TargetedModel] = None,
         use_case_weights: t.Optional[bool] = None,
         use_deviations: t.Optional[bool] = None,
@@ -4381,6 +4382,9 @@ class AbstractHowsoClient(ABC):
         rebalance_features : Collection[str], optional
             The list of features whose values to use to rebalance case
             weighting of the data and to store into weight_feature.
+        reduce_only: bool, default False
+            When true, used by reduce_data flow to simplify analyze flow by
+            skipping computation of feature weights.
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}, optional
             Type of hyperparameter targeting.
             Valid options include:
@@ -4471,6 +4475,7 @@ class AbstractHowsoClient(ABC):
             analysis_sub_model_size=analysis_sub_model_size,
             p_values=p_values,
             rebalance_features=rebalance_features,
+            reduce_only=reduce_only,
             targeted_model=targeted_model,
             use_deviations=use_deviations,
             use_sdm=use_sdm,
@@ -4545,6 +4550,7 @@ class AbstractHowsoClient(ABC):
         num_feature_probability_samples: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
+        reduce_only: t.Optional[bool] = None,
         targeted_model: t.Optional[TargetedModel] = None,
         use_deviations: t.Optional[bool] = None,
         use_case_weights: t.Optional[bool] = None,
@@ -4611,6 +4617,9 @@ class AbstractHowsoClient(ABC):
         rebalance_features : Collection[str], optional
             The list of features whose values to use to rebalance case
             weighting of the data and to store into weight_feature.
+        reduce_only: bool, default False
+            When true, used by reduce_data flow to simplify analyze flow by
+            skipping computation of feature weights.
         targeted_model : Literal["omni_targeted", "single_targeted", "targetless"], optional
             Type of hyperparameter targeting.
             Valid options include:
@@ -4741,6 +4750,7 @@ class AbstractHowsoClient(ABC):
             "num_analysis_samples": num_analysis_samples,
             "analysis_sub_model_size": analysis_sub_model_size,
             "use_deviations": use_deviations,
+            "reduce_only": reduce_only,
             "inverse_residuals_as_weights": inverse_residuals_as_weights,
             "use_case_weights": use_case_weights,
             "use_sdm": use_sdm,
