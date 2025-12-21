@@ -48,7 +48,7 @@ dependencies = [
    "sacremoses",
    "semantic-version~=2.0",
    "typing-extensions~=4.9",
-   "amalgam-lang==25.2.3", # Use exact since Engine is exact in version.json
+   "amalgam-lang==25.2.4", # Use exact since Engine is exact in version.json
 ]
 
 [project.optional-dependencies]
