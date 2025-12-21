@@ -1,10 +1,10 @@
 Faker
-38.2.0
+39.0.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/faker-38.2.0.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/faker-39.0.0.dist-info/licenses/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -499,12 +499,12 @@ A library to handle automated deprecations
 
 
 humanize
-4.14.0
+4.15.0
 MIT
 Jason Moiron <jmoiron@jmoiron.net>
 https://github.com/python-humanize/humanize
 Python humanize utilities
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/humanize-4.14.0.dist-info/licenses/LICENCE
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/humanize-4.15.0.dist-info/licenses/LICENCE
 Copyright (c) 2010-2020 Jason Moiron and Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
