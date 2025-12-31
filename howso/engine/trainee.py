@@ -901,23 +901,19 @@ class Trainee(BaseTrainee):
         self,
         features: t.Optional[Collection[str]] = None,
         distribute_weight_feature: t.Optional[str] = None,
-        influence_weight_entropy_threshold: t.Optional[float] = None,
+        reduce_max_cases: t.Optional[int] = None,
         skip_auto_analyze: bool = False,
         **kwargs,
     ) -> dict:
         """
         Smartly reduce the amount of trained cases while accumulating case weights.
 
-        Determines which cases to remove by comparing the influence weight entropy of each trained
-        case to the ``influence_weight_entropy_threshold`` quantile of existing influence weight
-        entropies.
-
         .. note::
             All ablation endpoints, including :meth:`reduce_data` are experimental and may have their
             API changed without deprecation.
 
         .. seealso::
-            The default ``distribute_weight_feature`` and ``influence_weight_entropy_threshold`` are
+            The default ``distribute_weight_feature`` and ``reduce_max_cases`` are
             pulled from the auto-ablation parameters, which can be set or retrieved with
             :meth:`set_auto_ablation_params` and :meth:`get_auto_ablation_params`, respectively.
 
@@ -932,10 +928,10 @@ class Trainee(BaseTrainee):
             The name of the weight feature to accumulate case weights to as cases are removed. This
             defaults to the value of ``auto_ablation_weight_feature`` from :meth:`set_auto_ablation_params`,
             which defaults to ".case_weight".
-        influence_weight_entropy_threshold : float, optional
-            The quantile of influence weight entropy above which cases will be removed. This defaults
-            to the value of ``reduce_data_influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
-            which defaults to 0.6.
+        reduce_max_cases : int, optional
+            The maximum number of cases that may remain after a call to reduce_data.
+            Defaults to the value stored within the Trainee via :meth:`set_auto_ablation_params`,
+            which defaults to 50,000.
         skip_auto_analyze : bool, default False
             Whether to skip auto-analyzing as cases are removed.
 
@@ -950,7 +946,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 features=features,
                 distribute_weight_feature=distribute_weight_feature,
-                influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+                reduce_max_cases=reduce_max_cases,
                 skip_auto_analyze=skip_auto_analyze,
                 **kwargs,
             )
