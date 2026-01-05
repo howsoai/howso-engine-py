@@ -101,7 +101,11 @@ def test_feature_deserialization(data_format, data, original_type, should_warn):
         warnings.simplefilter(action=action, append=True)
         columns = ['a']
         df = pd.DataFrame(pd.Series(data, name='a'))
-        features = infer_feature_attributes(df, default_time_zone="UTC")
+        if original_type["data_type"] == FeatureType.TOKENIZABLE_STRING.value:
+            # Tokenizable strings must have their type pre-set to "continuous"
+            features = infer_feature_attributes(df, default_time_zone="UTC", types={"a": "continuous"})
+        else:            
+            features = infer_feature_attributes(df, default_time_zone="UTC")
         if data_format == "numpy":
             df_numpy = np.array(data)
             df_numpy = np.array([[value] for value in df_numpy])
