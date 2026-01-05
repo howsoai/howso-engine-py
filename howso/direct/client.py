@@ -43,6 +43,7 @@ from howso.client.schemas import (
 from howso.client.typing import LibraryType, Persistence
 from howso.direct.schemas import CombineTraineesResult, DirectTrainee
 from howso.utilities import HowsoTokenizer, internals, TokenizerProtocol
+from ..utilities.random import get_random_seed
 
 # Client version
 CLIENT_VERSION = importlib.metadata.version('howso-engine')
@@ -497,6 +498,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f'Failed to initialize the Trainee "{trainee_id}": {status_msg}')
 
         self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
+
+        # Reset the random seed; make sure we don't reuse a value embedded in howso.caml.
+        self.execute(trainee_id, "set_random_seed", {"seed": get_random_seed()})
 
         self.execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,
