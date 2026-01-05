@@ -915,11 +915,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 'data_type': 'yaml'
             }
         else:
-            # Check if the string is obviously tokenizable
-            is_tokenizable_string = self._is_tokenizable_string(feature_name)
-            # If not, the user may have pre-set the type as "continuous" to force it to be so;
+            # The user may have pre-set the type as "continuous" to force it to be considered a tokenizable string;
             # but that may also be the case for string ints or floats. Check that first.
-            if not is_tokenizable_string and self.attributes.get(feature_name, {}).get("type") == "continuous":
+            is_tokenizable_string = False
+            if self.attributes.get(feature_name, {}).get("type") == "continuous":
                 try:
                     # If the column can be converted to float, and was set to be "continuous",
                     # it is probably not a tokenizable string.
