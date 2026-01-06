@@ -746,43 +746,6 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
         return attributes
 
-    def _infer_string_attributes(self, feature_name: str) -> dict:
-        # Column has arbitrary string values, first check if they
-        # are ISO8601 datetimes.
-        if self._is_iso8601_datetime_column(feature_name):
-            # if datetime, determine the iso8601 format it's using
-            if first_non_null := self._get_first_non_null(feature_name):
-                fmt = determine_iso_format(first_non_null, feature_name)
-                return {
-                    'type': 'continuous',
-                    'data_type': 'formatted_date_time',
-                    'date_time_format': fmt
-                }
-            else:
-                # It isn't clear how this method would be called on a feature
-                # if it has no data, but just in case...
-                return {
-                    'type': 'continuous',
-                }
-        elif self._is_json_feature(feature_name):
-            return {
-                'type': 'continuous',
-                'data_type': 'json'
-            }
-        elif self._is_yaml_feature(feature_name):
-            return {
-                'type': 'continuous',
-                'data_type': 'yaml'
-            }
-        else:
-            return self._infer_unknown_attributes(feature_name)
-
-    def _infer_unknown_attributes(self, feature_name: str) -> dict:
-        return {
-            'type': 'nominal',
-            'data_type': 'string',
-        }
-
     def _get_unique_values(self, feature_name: str) -> set[t.Any]:
         """Return the set of unique values for the given feature."""
         return self.data.get_unique_values(feature_name)
