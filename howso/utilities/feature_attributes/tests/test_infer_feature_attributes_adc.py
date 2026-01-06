@@ -394,7 +394,9 @@ def test_preset_feature_types(adc, data, types, expected_types, is_valid):
                 # Make sure it is the correct type
                 assert features[feature_name]['type'] == expected_type
                 # All features in this test, including nominals, should have bounds (at the very least: `allow_null`)
-                assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
+                # EXCEPT for tokenizable strings
+                if features[feature_name].get("original_type", {}).get("data_type") != "tokenizable_string":
+                    assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
         else:
             with pytest.raises(ValueError):
                 infer_feature_attributes(adc, types=types)
