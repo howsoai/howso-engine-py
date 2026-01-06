@@ -1147,6 +1147,7 @@ class InferFeatureAttributesBase(ABC):
         """Get inferred attributes for the given integer column."""
 
     def _infer_string_attributes(self, feature_name: str) -> dict:
+        """Get inferred attributes for the given string column."""
         # Column has arbitrary string values, first check if they
         # are ISO8601 datetimes.
         if self._is_iso8601_datetime_column(feature_name):
@@ -1206,6 +1207,7 @@ class InferFeatureAttributesBase(ABC):
                 return self._infer_unknown_attributes(feature_name)
 
     def _infer_unknown_attributes(self, feature_name: str) -> dict:
+        """Get inferred attributes for the given unknown-type column."""
         return {
             'type': 'nominal',
             'data_type': 'string',
