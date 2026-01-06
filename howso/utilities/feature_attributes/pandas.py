@@ -19,7 +19,6 @@ from pandas.core.dtypes.common import (
     is_datetime64_any_dtype,
     is_float_dtype,
     is_integer_dtype,
-    is_string_dtype,
     is_timedelta64_dtype,
     is_unsigned_integer_dtype,
 )
@@ -878,71 +877,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             }
 
         return attributes
-
-    def _infer_string_attributes(self, feature_name: str) -> dict:
-        # Column has arbitrary string values, first check if they
-        # are ISO8601 datetimes.
-        if self._is_iso8601_datetime_column(feature_name):
-            # if datetime, determine the iso8601 format it's using
-            if first_non_null := self._get_first_non_null(feature_name):
-                fmt = determine_iso_format(first_non_null, feature_name)
-                return {
-                    'type': 'continuous',
-                    'data_type': 'formatted_date_time',
-                    'date_time_format': fmt
-                }
-            else:
-                # It isn't clear how this method would be called on a feature
-                # if it has no data, but just in case...
-                return {
-                    'type': 'continuous',
-                    'data_type': 'number',
-                }
-        elif self._is_json_feature(feature_name):
-            if not is_string_dtype(self.data[feature_name]):
-                return {
-                    'type': 'continuous',
-                    'data_type': 'json',
-                    "original_type": {"data_type": FeatureType.UNKNOWN.value},
-                }
-            return {
-                'type': 'continuous',
-                'data_type': 'json'
-            }
-        elif self._is_yaml_feature(feature_name):
-            return {
-                'type': 'continuous',
-                'data_type': 'yaml'
-            }
-        else:
-            # The user may have pre-set the type as "continuous" to force it to be considered a tokenizable string;
-            # but that may also be the case for string ints or floats. Check that first.
-            is_tokenizable_string = False
-            if self.attributes.get(feature_name, {}).get("type") == "continuous":
-                try:
-                    # If the column can be converted to float, and was set to be "continuous",
-                    # it is probably not a tokenizable string.
-                    col = self.data[feature_name]
-                    col.astype('float')
-                except Exception:  # noqa: Intentionally broad
-                    # If it cannot be converted to float, but it was set to be "continuous",
-                    # it is probably a tokenizable string.
-                    is_tokenizable_string = True
-            if is_tokenizable_string:
-                return {
-                    "type": "continuous",
-                    "data_type": "json",
-                    # Also set the original_type here so that we do not need to re-check _is_tokenizable_string
-                    "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
-                }
-            else:
-                return self._infer_unknown_attributes(feature_name)
-
-    def _infer_unknown_attributes(self, feature_name: str) -> dict:
-        return {
-            'type': 'nominal',
-            'data_type': 'string',
-        }
 
     def _get_unique_values(self, feature_name: str) -> set[t.Any]:
         """Return the set of unique values for the given feature."""

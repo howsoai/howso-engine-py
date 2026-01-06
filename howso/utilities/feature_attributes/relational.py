@@ -9,6 +9,7 @@ import logging
 from math import ceil, isnan, log
 import re
 import typing as t
+from typing_extensions import override
 import warnings
 
 import numpy as np
@@ -777,6 +778,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         return attributes
 
+    @override
     def _infer_string_attributes(self, feature_name: str) -> dict:
         preset_feature_type = self.attributes.get(feature_name, {}).get('type')
         if (
@@ -802,12 +804,6 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             }
         else:
             return self._infer_unknown_attributes(feature_name)
-
-    def _infer_unknown_attributes(self, feature_name: str) -> dict:
-        return {
-            'type': 'nominal',
-            'data_type': 'string',
-        }
 
     def _infer_feature_bounds(  # noqa: C901
         self,

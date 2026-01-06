@@ -605,6 +605,7 @@ def test_semi_structured_features_spark_native(spark, data_type: str, value: lis
     assert "type" not in features["inventory"]["time_series"]
     assert features["inventory"]["time_series"]["num_lags"] == 3
 
+
 def test_nominals_are_ignored_in_ifa_for_ts(spark):
     """
     Ensure that nominals are never marked for a TS type in IFA.
@@ -640,7 +641,7 @@ def test_nominals_are_ignored_in_ifa_for_ts(spark):
 
     features = infer_feature_attributes(
         connector,
-        id_feature_name = "SERIES",
+        id_feature_name="SERIES",
         time_feature_name="DATE",
         default_time_zone="UTC",
     )
