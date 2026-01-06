@@ -468,10 +468,8 @@ class HowsoEstimator(BaseEstimator):
             context_features=self.feature_names
         )
 
-        # Convert to dictionary, new trainee outputs a pd.DataFrame
-        results['action'] = results['action'].to_dict('records')
-        results['action'] = utils.replace_none_with_nan(results['action'])
-        action_values = pd.DataFrame(results['action']).values
+        results["action"] = utils.replace_none_with_nan(results["action"])
+        action_values = results["action"].values
         out = np.array(action_values).astype(float)
         out.shape = (out.shape[0],)
         if np.isnan(np.sum(out)):
@@ -971,8 +969,6 @@ class HowsoEstimator(BaseEstimator):
                 details=details
             )
 
-        # Convert to Dictionary
-        audit_data['action'] = audit_data['action'].to_dict('records')
         audit_data['action'] = utils.replace_none_with_nan(audit_data['action'])
         return audit_data
 

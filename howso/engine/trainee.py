@@ -901,23 +901,19 @@ class Trainee(BaseTrainee):
         self,
         features: t.Optional[Collection[str]] = None,
         distribute_weight_feature: t.Optional[str] = None,
-        influence_weight_entropy_threshold: t.Optional[float] = None,
+        reduce_max_cases: t.Optional[int] = None,
         skip_auto_analyze: bool = False,
         **kwargs,
     ) -> dict:
         """
         Smartly reduce the amount of trained cases while accumulating case weights.
 
-        Determines which cases to remove by comparing the influence weight entropy of each trained
-        case to the ``influence_weight_entropy_threshold`` quantile of existing influence weight
-        entropies.
-
         .. note::
             All ablation endpoints, including :meth:`reduce_data` are experimental and may have their
             API changed without deprecation.
 
         .. seealso::
-            The default ``distribute_weight_feature`` and ``influence_weight_entropy_threshold`` are
+            The default ``distribute_weight_feature`` and ``reduce_max_cases`` are
             pulled from the auto-ablation parameters, which can be set or retrieved with
             :meth:`set_auto_ablation_params` and :meth:`get_auto_ablation_params`, respectively.
 
@@ -932,10 +928,10 @@ class Trainee(BaseTrainee):
             The name of the weight feature to accumulate case weights to as cases are removed. This
             defaults to the value of ``auto_ablation_weight_feature`` from :meth:`set_auto_ablation_params`,
             which defaults to ".case_weight".
-        influence_weight_entropy_threshold : float, optional
-            The quantile of influence weight entropy above which cases will be removed. This defaults
-            to the value of ``reduce_data_influence_weight_entropy_threshold`` from :meth:`set_auto_ablation_params`,
-            which defaults to 0.6.
+        reduce_max_cases : int, optional
+            The maximum number of cases that may remain after a call to reduce_data.
+            Defaults to the value stored within the Trainee via :meth:`set_auto_ablation_params`,
+            which defaults to 50,000.
         skip_auto_analyze : bool, default False
             Whether to skip auto-analyzing as cases are removed.
 
@@ -950,7 +946,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 features=features,
                 distribute_weight_feature=distribute_weight_feature,
-                influence_weight_entropy_threshold=influence_weight_entropy_threshold,
+                reduce_max_cases=reduce_max_cases,
                 skip_auto_analyze=skip_auto_analyze,
                 **kwargs,
             )
@@ -1020,10 +1016,11 @@ class Trainee(BaseTrainee):
         analysis_sub_model_size: t.Optional[int] = None,
         p_values: t.Optional[Collection[float]] = None,
         rebalance_features: t.Optional[t.Collection[str]] = None,
+        reduce_only: bool = False,
         targeted_model: t.Optional[TargetedModel] = None,
         use_case_weights: t.Optional[bool] = None,
         use_deviations: t.Optional[bool] = None,
-        use_sdm: t.Optional[bool] = True,
+        use_sdm: bool = True,
         weight_feature: t.Optional[str] = None,
         **kwargs
     ):
@@ -1090,6 +1087,9 @@ class Trainee(BaseTrainee):
         rebalance_features : Collection[str], optional
             The list of features whose values to use to rebalance case
             weighting of the data and to store into weight_feature.
+        reduce_only: bool, default False
+            When true, used by reduce_data flow to simplify analyze flow by
+            skipping computation of feature weights.
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}, optional
             Type of hyperparameter targeting.
             Valid options include:
@@ -1144,6 +1144,7 @@ class Trainee(BaseTrainee):
                 analysis_sub_model_size=analysis_sub_model_size,
                 p_values=p_values,
                 rebalance_features=rebalance_features,
+                reduce_only=reduce_only,
                 targeted_model=targeted_model,
                 use_deviations=use_deviations,
                 use_sdm=use_sdm,
@@ -3587,8 +3588,10 @@ class Trainee(BaseTrainee):
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
         value_robust_contributions_action_feature: t.Optional[str] = None,
+        value_robust_contributions_buckets: t.Optional[dict[str, list[tuple[float, float]]]] = None,
         value_robust_contributions_features: t.Optional[Collection[str]] = None,
         value_robust_contributions_num_buckets: int = 30,
+        value_robust_contributions_min_samples: int = 15,
         weight_feature: t.Optional[str] = None,
     ) -> AggregateReaction:
         """
@@ -3905,6 +3908,10 @@ class Trainee(BaseTrainee):
         value_robust_contributions_action_feature : str, optional
 			The name of the feature being predicted when computing the "value_robust_accuracy_contributions",
             "value_robust_prediction_contributions" or "value_robust_surprisal_asymmetry" details.
+        value_robust_contributions_buckets : dict of str to list of tuples of float and float, optional
+            A mapping of continuous feature names to lists of ranges defined as two float tuples that describe the
+            buckets to compute metrics for when computing the "value_robust_accuracy_contributions",
+            "value_robust_prediction_contributions" or "value_robust_surprisal_asymmetry" details.
         value_robust_contributions_features: list of str, optional
             The feature names for which to measure the accuracy contributions across combinations of values when
             computing the "value_robust_accuracy_contributions", "value_robust_prediction_contributions" or
@@ -3913,6 +3920,10 @@ class Trainee(BaseTrainee):
             The maximum number of buckets to bin continuous values into when computing the
             "value_robust_accuracy_contributions", "value_robust_prediction_contributions" or
             "value_robust_surprisal_asymmetry" details.
+        value_robust_contributions_num_samples: int, default 15
+            The minumum number of samples required for a combination of feature values for its
+            aggregated measure to be returned when computing the "value_robust_accuracy_contributions",
+            "value_robust_prediction_contributions" or "value_robust_surprisal_asymmetry" details.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3953,7 +3964,9 @@ class Trainee(BaseTrainee):
                 use_case_weights=use_case_weights,
                 value_robust_contributions_features=value_robust_contributions_features,
                 value_robust_contributions_action_feature=value_robust_contributions_action_feature,
+                value_robust_contributions_buckets=value_robust_contributions_buckets,
                 value_robust_contributions_num_buckets=value_robust_contributions_num_buckets,
+                value_robust_contributions_min_samples=value_robust_contributions_min_samples,
                 weight_feature=weight_feature,
             )
         else:

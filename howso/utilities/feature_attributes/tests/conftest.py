@@ -115,3 +115,37 @@ def adc(request):
     else:  # Pandas DataFrame
         adc_gen = pd_dataframe_data(df)
     yield from adc_gen
+
+
+@pytest.fixture(scope="session", name="spark")
+def spark_session():
+    """
+    Session-scoped Spark session fixture compatible with pytest-xdist.
+
+    Each xdist worker gets its own Spark session with a unique app name
+    to avoid conflicts when running tests in parallel.
+    """
+    try:
+        from pyspark.sql import SparkSession
+    except ImportError:
+        pytest.skip("pyspark not available")
+
+    import os
+
+    # Get xdist worker id, or "master" if not running under xdist
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
+
+    # Create a unique app name per worker to avoid conflicts
+    spark = (
+        SparkSession.builder
+        .appName(f"pytest-{worker_id}")
+        .master("local[2]")
+        .config("spark.ui.enabled", "false")  # Disable UI to avoid port conflicts
+        .config("spark.driver.host", "localhost")
+        .config("spark.sql.shuffle.partitions", "2")  # Reduce for small test data
+        .getOrCreate()
+    )
+
+    yield spark
+
+    spark.stop()

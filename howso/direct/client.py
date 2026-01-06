@@ -42,7 +42,8 @@ from howso.client.schemas import (
 )
 from howso.client.typing import LibraryType, Persistence
 from howso.direct.schemas import CombineTraineesResult, DirectTrainee
-from howso.utilities import internals
+from howso.utilities import HowsoTokenizer, internals, TokenizerProtocol
+from ..utilities.random import get_random_seed
 
 # Client version
 CLIENT_VERSION = importlib.metadata.version('howso-engine')
@@ -104,6 +105,10 @@ class HowsoDirectClient(AbstractHowsoClient):
     react_initial_batch_size: int, default 10
         The default number of cases to react to in the first batch
         for calls to :meth:`HowsoDirectClient.react`.
+    tokenizer : TokenizerProtocol, default None
+        An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a tokenizer and
+        `detokenize` method for processing tokenizable strings. If not specified, defaults to using
+        :class:`howso.utilities.HowsoTokenizer`.
     trace : bool, default False
         When true, enables tracing of Amalgam operations. This will generate an
         execution trace file useful in debugging, the filename will use the
@@ -137,6 +142,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         howso_path: Path | str = DEFAULT_ENGINE_PATH,
         howso_fname: str = "howso.caml",
         react_initial_batch_size: int = 10,
+        tokenizer: t.Optional[TokenizerProtocol] = None,
         trace: bool = False,
         train_initial_batch_size: int = 100,
         verbose: bool = False,
@@ -175,6 +181,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self._react_discriminative_batch_threshold = 10
         self._react_initial_batch_size = react_initial_batch_size
         self._train_initial_batch_size = train_initial_batch_size
+        self._tokenizer = tokenizer or HowsoTokenizer()
 
         if not self._howso_dir.is_dir():
             raise HowsoError(f"The provided 'howso_path' is not a directory: {self._howso_dir}")
@@ -491,6 +498,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f'Failed to initialize the Trainee "{trainee_id}": {status_msg}')
 
         self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
+
+        # Reset the random seed; make sure we don't reuse a value embedded in howso.caml.
+        self.execute(trainee_id, "set_random_seed", {"seed": get_random_seed()})
 
         self.execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,

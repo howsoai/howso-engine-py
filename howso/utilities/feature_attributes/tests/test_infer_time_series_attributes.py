@@ -1,19 +1,24 @@
 """Tests infer_feature_attributes with time series data (InferFeatureAttributesTimeSeries)."""
 from collections import OrderedDict
 from pathlib import Path
+from pprint import pprint
+import random
 import warnings
 
 from howso import client
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
+from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 import numpy as np
 import pandas as pd
 import pytest
 
 
-data_path = (
+root_path = (
     Path(client.__file__).parent.parent
-).joinpath("utilities/tests/data/example_timeseries.csv")
+)
+data_path = root_path.joinpath("utilities/tests/data")
+example_timeseries_path = data_path.joinpath("example_timeseries.csv")
 
 # Partially defined dictionary-1
 features_1 = {
@@ -45,7 +50,7 @@ features_2 = OrderedDict(
 
 def test_infer_features_attributes_single_ID():
     """Litmus test for infer feature types for iris dataset."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
 
     # Define time format
     time_format = "%Y%m%d"
@@ -77,7 +82,7 @@ def test_infer_features_attributes_single_ID():
 
 def test_infer_features_attributes_multiple_ID():
     """Litmus test for infer feature types for iris dataset with multiple ID features."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
     df["ID2"] = df["ID"].copy()
 
     # Define time format
@@ -112,7 +117,7 @@ def test_infer_features_attributes_multiple_ID():
 
 def test_set_rate_delta_boundaries():
     """Test infer_feature_attributes for time series with rate/delta boundaries set."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
 
     # Define time format
     time_format = "%Y%m%d"
@@ -175,7 +180,7 @@ def test_set_rate_delta_boundaries():
 )
 def test_time_feature_is_universal(universal_value, expected):
     """Validates that time_feature_is_universal is working as expected."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
 
     # Define time format
     time_format = "%Y%m%d"
@@ -196,7 +201,7 @@ def test_time_feature_is_universal(universal_value, expected):
 
 def test_infer_features_attributes_tight_bounds_dependent_functionality():
     """Test tight bounds and dependent features functionality for time series IFA."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
 
     # Define time format
     time_format = "%Y%m%d"
@@ -225,7 +230,7 @@ def test_infer_features_attributes_tight_bounds_dependent_functionality():
 
 def test_invalid_time_feature_format():
     """Validates that an invalid time feature date_time_format raises."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
     time_feature_name = "date"
 
     with pytest.raises(ValueError, match="does not match the data"):
@@ -268,7 +273,7 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
 
 def test_lags():
     """Validates that `lags` can be set as an argument for time series IFA."""
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
 
     # The below should not raise any exceptions
     lags = {"date": 0}
@@ -283,7 +288,7 @@ def test_lags():
 def test_nominal_vs_continuous_detection():
     """Test that IFA correctly determines nominal vs. continuous features in time series data."""
     # Time-series data with 4756 cases, 41 series; avg. 116 cases/series; sqrt(116) ~= 10.77
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(example_timeseries_path)
     # Add a new integer column with n_uniques > sqrt(avg_n_cases_per_series) -- should be continuous
     series = np.resize(np.arange(11), len(df))
     np.random.shuffle(series)
@@ -328,5 +333,117 @@ def test_semi_structured_features(data_type: str, value: list[str]):
     assert features["inventory"]["type"] == "continuous"
     assert features["inventory"]["data_type"] == data_type
     assert features["inventory"]["original_type"] == {"data_type": "string"}
-    assert features["inventory"]["time_series"]["type"] == "rate"
+    assert "type" not in features["inventory"]["time_series"]
     assert features["inventory"]["time_series"]["num_lags"] == 3
+
+
+def test_time_series_features_pandas():
+    valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
+
+    df = pd.read_csv(data_path.joinpath("example_timeseries.csv"))
+    features = infer_feature_attributes(
+        df,
+        id_feature_name = "ID",
+        time_feature_name="date",
+        datetime_feature_formats={"date": "%Y%m%d"},
+    )
+    pprint(pprint(features))
+
+    for feature, attrs in features.items():
+        if "time_series" in attrs:
+            assert "time_series" in valid[feature]
+            if valid[feature]["time_series"]["type"] == "rate":
+                assert attrs["time_series"]["type"] == "rate"
+                assert valid[feature]["time_series"]["rate_min"] == attrs["time_series"]["rate_min"]
+                assert valid[feature]["time_series"]["rate_max"] == attrs["time_series"]["rate_max"]
+            elif valid[feature]["time_series"]["type"] == "delta":
+                assert attrs["time_series"]["type"] == "delta"
+                assert valid[feature]["time_series"]["delta_min"] == attrs["time_series"]["delta_min"]
+                assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
+            else:
+                raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+
+
+def test_time_series_features_pandas_native_date():
+    valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
+
+    df = pd.read_csv(data_path.joinpath("example_timeseries.csv"))
+    df["date"] = pd.to_datetime(df["date"], format="%Y%m%d")
+
+    features = infer_feature_attributes(
+        df,
+        id_feature_name = "ID",
+        time_feature_name="date",
+    )
+    pprint(pprint(features))
+
+    for feature, attrs in features.items():
+        if "time_series" in attrs:
+            assert "time_series" in valid[feature]
+            if valid[feature]["time_series"]["type"] == "rate":
+                assert attrs["time_series"]["type"] == "rate"
+                assert valid[feature]["time_series"]["rate_min"] == attrs["time_series"]["rate_min"]
+                assert valid[feature]["time_series"]["rate_max"] == attrs["time_series"]["rate_max"]
+            elif valid[feature]["time_series"]["type"] == "delta":
+                assert attrs["time_series"]["type"] == "delta"
+                assert valid[feature]["time_series"]["delta_min"] == attrs["time_series"]["delta_min"]
+                assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
+            else:
+                raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+
+def test_nominals_are_ignored_in_ifa_for_ts():
+    """
+    Ensure that nominals are never marked for a TS type in IFA.
+
+    They should still have a "time_series" attribute dict though, so that lags
+    can be stored there if necessary.
+    """
+    df = pd.read_csv(data_path.joinpath("mini_stock_data.csv"))
+
+    # Add a nominal column that varies (this dataset's existing nominals are
+    # all identical, and one is the ID feature.)
+    action_map = {
+        "BUY": 0.2,
+        "HOLD": 0.6,
+        "SELL": 0.2
+    }
+    df["ACTION"] = random.choices(list(action_map.keys()), weights=list(action_map.values()), k=len(df))
+
+    # Also, add a semi-structured feature such as JSON for good measure. A
+    # semi-structured data feature should also be ignored, even though it is
+    # continuous.
+    config_map = {
+        '{"alpha": 0.1}': 0.1,
+        '{"beta": 0.2}': 0.2,
+        '{"gamma": 0.3}': 0.3,
+        '{"delta": 0.4}': 0.4
+    }
+    df["CONFIG"] = random.choices(list(config_map.keys()), weights=list(config_map.values()), k=len(df))
+
+    features = infer_feature_attributes(
+        df,
+        id_feature_name = "SERIES",
+        time_feature_name="DATE",
+        default_time_zone="UTC",
+    )
+
+    # Verify that the semi-structured JSON continuous was set to continuous.
+    assert features["CONFIG"]["type"] == "continuous" and features["CONFIG"]["data_type"] == "json"
+
+    # Make sure continuous still work as expected...
+    for feature in features.get_names(types=["continuous"]):
+        # We do not wish to assert that semi-structured string-continuous features have time_series:type set.
+        if features[feature]["data_type"] in {"json", "yaml", "amalgam", "string_mixable"}:
+            continue
+        assert "time_series" in features[feature]
+        assert features[feature]["time_series"]["type"] in {"rate", "delta", "invariant"}
+
+    # Are there any bad nominals? (the ID feature does not count)
+    # Test that a "time_series" key exists, but that it does not contain a "type".
+    nominals = set(features.get_names(types=["nominals"])) - {"SERIES", }
+    bad_nominals = [
+        feature for feature in nominals
+        if feature != "SERIES" and "time_series" not in features[feature] or "type" in features[feature]["time_series"]
+    ]
+    print(", ".join(bad_nominals))
+    assert bool(bad_nominals) is False

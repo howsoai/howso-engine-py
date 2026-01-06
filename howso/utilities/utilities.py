@@ -3,12 +3,22 @@ from __future__ import annotations
 from collections.abc import (
     Callable,
     Collection,
+    Generator,
     Iterable,
     Mapping,
     Sequence,
 )
+from concurrent.futures import (
+    as_completed,
+    FIRST_COMPLETED,
+    Future,
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    wait,
+)
 import datetime as dt
 import inspect
+import json
 import locale as python_locale
 from math import (
     ceil,
@@ -21,13 +31,13 @@ import typing as t
 import uuid
 import warnings
 
-from dateutil.parser import isoparse
-from dateutil.parser import parse as dt_parse
+from dateutil.parser import isoparse, parse as dt_parse
 from dateutil.tz import tzoffset
 import numpy as np
 import pandas as pd
 
 from .internals import serialize_models
+from .tokenizing import TokenizerProtocol
 
 if t.TYPE_CHECKING:
     from howso.client.typing import NormalizeMethod
@@ -216,7 +226,7 @@ def is_valid_datetime_format(value: t.Any, time_format: str | None) -> bool:
         return False
 
 
-def replace_none_with_nan(dat: Mapping) -> list[dict]:
+def replace_none_with_nan(dat: list[t.Mapping[str, t.Any]] | pd.DataFrame) -> list[dict] | pd.DataFrame:
     """
     Replace None values with NaN values.
 
@@ -225,17 +235,21 @@ def replace_none_with_nan(dat: Mapping) -> list[dict]:
 
     Parameters
     ----------
-    dat : list of dict of key-values
+    dat : list of dict of key-values or DataFrame
 
     Returns
     -------
     list[dict]
     """
+    if isinstance(dat, pd.DataFrame):
+        return dat.where(pd.notnull(dat), np.nan)
+
     return [
         {
-            key: float('nan') if value is None else value
+            key: np.nan if value is None else value
             for key, value in action.items()
-        } for action in dat
+        }
+        for action in dat
     ]
 
 
@@ -768,6 +782,53 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
 
             # store the serialized datetime value
             case[i] = dt_value
+
+
+def stringify_json(cases: list[list[t.Any]], features: Iterable[str], feature_attributes: Mapping) -> None:
+    """
+    Ensures that any JSON features have their cases stringified.
+
+    Parameters
+    ----------
+    cases : list of list of Any
+        A 2d list of case values corresponding to the provided feature names.
+    features : list of str
+        The list of feature names.
+    feature_attributes : Mapping
+        The feature attributes of the provided features.
+    """
+    for idx, feature_name in enumerate(features):
+        # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
+        if (feature_attributes.get(feature_name, {}).get("data_type") == "json"
+            and feature_attributes[feature_name].get(
+                "original_type", {}).get("data_type") in ["object", "tokenizable_string"]):
+            for case_group in cases:
+                case_group[idx] = json.dumps(case_group[idx])
+
+
+def tokenize_strings(cases: list[list[t.Any]], features: Iterable[str], feature_attributes: Mapping,
+                     tokenizer: TokenizerProtocol) -> None:
+    """
+    Processes tokenizable strings in the provided cases by tokenizing or detokenizing them in place.
+
+    Parameters
+    ----------
+    cases : list of list of Any
+        A 2d list of case values corresponding to the provided feature names.
+    features : list of str
+        The list of feature names.
+    feature_attributes : Mapping
+        The feature attributes of the provided features.
+    tokenizer : TokenizerProtocol
+        An object satisfying :class:`howso.client.protocols.TokenizerProtocol` to use for (de-)tokenizing.
+    """
+    if not isinstance(tokenizer, TokenizerProtocol):
+        raise ValueError("The class provided under `token_processor` must satisfy the `TokenizerProtocol` protocol.")
+    for idx, feature_name in enumerate(features):
+        if feature_attributes.get(feature_name, {}).get("original_type", {}).get("data_type") != "tokenizable_string":
+            continue
+        for case_group in cases:
+            case_group[idx] = tokenizer.tokenize(case_group[idx])
 
 
 def is_valid_uuid(value: str | uuid.UUID, version: int = 4) -> bool:
@@ -1534,3 +1595,101 @@ def infer_time_feature_cycle_length(time_format_str: str) -> int:
         return 1
     else:
         raise ValueError("Unsupported time format")
+
+
+def lazy_map(
+    executor: ProcessPoolExecutor | ThreadPoolExecutor,
+    func: Callable,
+    *iterables: Iterable,
+    queue_length: int | None = None,
+) -> Generator[Future, None, None]:
+    """
+    Generate completed futures of ``func`` with arguments ``*iterables``.
+
+    This function acts as a combination of ``map()`` and ``as_completed()``,
+    but with lazy consumption from the iterables. Completed futures are
+    returned as they are completed, which may be in a different order than
+    they were fed into the executor.
+
+    Typical usage:
+
+    ```
+        # Note that this also works with ThreadPoolExecutor
+        with ProcessPoolExecutor(max_workers=4) as ex:
+            for future in lazy_map(ex, some_func, iterable1, iterable2):
+                try:
+                    result = future.result()
+                except Exception:
+                    # Do something with an exception raised in `some_func`
+                    ...
+                else:
+                    # Do something with the result
+                    ...
+    ```
+
+    Besides conveniently combining the ``map`` and ``as_completed`` functions
+    as described, this function only consumed from the given iterables when
+    workers in the pool are ready to process them. This can be paramount when
+    the iterables contain large datasets to keep memory usage at a minimum.
+
+    The function will stop drawing from ``*iterables`` once it reaches the end
+    of the shortest one (same as functools.zip()).
+
+    The futures returned are already on their ``done`` state, but returned as
+    futures (rather than results) to allow for the caller to handle the
+    exceptions, if any, as future.result() will raise the exception if there
+    was one during the processing of ``func``.
+
+    Parameters
+    ----------
+    executor : ProcessPoolExecutor or ThreadPoolExecutor
+        The instance of an executor.
+    func : callable
+        A Callable that will take as many arguments as there are
+        passed iterables.
+    iterables : iterables
+        One or more iterables that correspond to the args of ``func``.
+    queue_length : int, optional
+        The number of items, drawn from the provided ``iterables`` to queue-up
+        to be processed by ``func``. Setting this greater than the number of
+        max_workers of the executor can be useful when it requires some time to
+        prepare the inputs. If left unset, will be set to the same as
+        ``executor._max_workers``.
+
+    Returns
+    -------
+    Generator of Futures
+        A generator that yields the futures of ``func(*iterables)``.
+
+    Raises
+    ------
+    TimeoutError
+        If the entire result iterator could not be generated before the
+        given timeout.
+    Exception
+        If fn(*args) raises for any values.
+    """
+    futures: set[Future] = set()
+    args_iter = iter(zip(*iterables))
+    if queue_length:
+        queue_length = max(executor._max_workers, queue_length)  # type: ignore
+    else:
+        queue_length = executor._max_workers  # type: ignore
+
+    try:
+        while True:
+            for _ in range(max(0, queue_length - len(futures))):
+                # Take `next()` until StopIteration is raised.
+                args = next(args_iter)
+                # Submit the work to the executor
+                future = executor.submit(func, *args)
+                futures.add(future)
+
+            # Yield completed futures and remove them from the queue.
+            done, futures = wait(futures, return_when=FIRST_COMPLETED)
+            for future in done:
+                yield future
+
+    except StopIteration:
+        for future in as_completed(futures):
+            yield future

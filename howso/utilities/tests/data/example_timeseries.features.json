@@ -1,0 +1,129 @@
+{
+    "feature_attributes": {
+        "ID": {
+            "type": "nominal",
+            "data_type": "number",
+            "decimal_places": 0,
+            "original_type": {
+                "data_type": "integer",
+                "size": 8
+            },
+            "default_time_zone": "UTC",
+            "id_feature": true,
+            "bounds": {
+                "allow_null": false
+            },
+            "non_sensitive": true
+        },
+        "f1": {
+            "type": "continuous",
+            "data_type": "number",
+            "decimal_places": 4,
+            "original_type": {
+                "data_type": "numeric",
+                "size": 8
+            },
+            "default_time_zone": "UTC",
+            "bounds": {
+                "min": 0,
+                "max": 7530.1287,
+                "allow_null": true,
+                "observed_min": 38.778,
+                "observed_max": 4582.5119
+            },
+            "time_series": {
+                "type": "rate",
+                "rate_max": [
+                    0.0009364130023173787
+                ],
+                "rate_min": [
+                    -0.0007603590521979044
+                ]
+            }
+        },
+        "f2": {
+            "type": "continuous",
+            "data_type": "number",
+            "decimal_places": 4,
+            "original_type": {
+                "data_type": "numeric",
+                "size": 8
+            },
+            "default_time_zone": "UTC",
+            "bounds": {
+                "min": 0,
+                "max": 7861.4348,
+                "allow_null": true,
+                "observed_min": 42.0278,
+                "observed_max": 4784.7379
+            },
+            "time_series": {
+                "type": "rate",
+                "rate_max": [
+                    0.0010006335215035477
+                ],
+                "rate_min": [
+                    -0.000733975740738912
+                ]
+            }
+        },
+        "f3": {
+            "type": "continuous",
+            "data_type": "number",
+            "decimal_places": 4,
+            "original_type": {
+                "data_type": "numeric",
+                "size": 8
+            },
+            "default_time_zone": "UTC",
+            "bounds": {
+                "min": 0,
+                "max": 7439.1083,
+                "allow_null": true,
+                "observed_min": 36.7147,
+                "observed_max": 4526.4934
+            },
+            "time_series": {
+                "type": "rate",
+                "rate_max": [
+                    0.0008585693841499001
+                ],
+                "rate_min": [
+                    -0.0006440173034834043
+                ]
+            }
+        },
+        "date": {
+            "type": "continuous",
+            "data_type": "formatted_date_time",
+            "date_time_format": "%Y-%m-%dT%H:%M:%S",
+            "original_type": {
+                "data_type": "datetime"
+            },
+            "default_time_zone": "UTC",
+            "bounds": {
+                "observed_min": "2010-01-31T00:00:00",
+                "observed_max": "2019-08-31T00:00:00",
+                "min": "2003-11-14T02:58:57",
+                "max": "2025-11-16T21:01:02",
+                "allow_null": false
+            },
+            "time_series": {
+                "type": "delta",
+                "time_feature": true,
+                "delta_max": [
+                    2846548.553365473
+                ],
+                "delta_min": [
+                    2251051.446634527
+                ]
+            }
+        }
+    },
+    "params": {
+        "id_feature_name": "ID",
+        "default_time_zone": "UTC",
+        "time_feature_name": "date"
+    },
+    "unsupported": []
+}

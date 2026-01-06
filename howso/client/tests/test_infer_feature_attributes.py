@@ -213,7 +213,7 @@ class TestInferFeatureAttributes:
         assert "time_series" not in features["ID"]
 
         # 1a. Make sure time series type is 'rate'
-        assert features["gender"]["time_series"]["type"] == 'rate'
+        # gender is nominal
         assert features["value"]["time_series"]["type"] == 'rate'
         assert features["balance"]["time_series"]["type"] == 'rate'
         assert features["bal_scaled"]["time_series"]["type"] == 'rate'
@@ -236,7 +236,6 @@ class TestInferFeatureAttributes:
 
         # 2. Verify custom-specified delta features are correctly set
         assert features["time"]["time_series"]["type"] == 'delta'
-        assert features["gender"]["time_series"]["type"] == 'rate'
         assert features["value"]["time_series"]["type"] == 'rate'
         assert features["balance"]["time_series"]["type"] == 'delta'
         assert features["bal_scaled"]["time_series"]["type"] == 'delta'
@@ -256,7 +255,7 @@ class TestInferFeatureAttributes:
 
         # 3. Verify all features set as 'delta'
         assert features["time"]["time_series"]["type"] == 'delta'
-        assert features["gender"]["time_series"]["type"] == 'delta'
+        # gender is nominal
         assert features["value"]["time_series"]["type"] == 'delta'
         assert features["balance"]["time_series"]["type"] == 'delta'
         assert features["bal_scaled"]["time_series"]["type"] == 'delta'
@@ -296,12 +295,12 @@ class TestInferFeatureAttributes:
 
         # 5. Verify high order rates and deltas are correctly computed
         assert features["value"]["time_series"]["order"] == 3
-        assert features["value"]["time_series"]["rate_min"] == [1 / e, 0.0, -2 * e]
-        assert features["value"]["time_series"]["rate_max"] == [8 * e, 3 * e, 2 * e]
+        assert features["value"]["time_series"]["rate_min"] == [0.0, 0.0, -4.594885082800512]
+        assert features["value"]["time_series"]["rate_max"] == [12.541048894900898, 4.946163812100385, 4.594885082800512]
 
         assert features["bal_scaled"]["time_series"]["order"] == 2
-        assert features["bal_scaled"]["time_series"]["delta_min"] == [9 / e, -e]
-        assert features["bal_scaled"]["time_series"]["delta_max"] == [10 * e, 0.0]
+        assert features["bal_scaled"]["time_series"]["delta_min"] == [8.351278729299871, -1.6487212707001282]
+        assert features["bal_scaled"]["time_series"]["delta_max"] == [10.648721270700129, 0.0]
 
         # 6. Verify derived_orders is clamped down to 2
         assert features["value"]["time_series"]["derived_orders"] == 2

@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.11-dev.txt --pip-args=None
 #
-amalgam-lang==25.2.0
+amalgam-lang==25.2.5
     # via howso-engine (pyproject.toml)
 astroid==4.0.2
     # via pylint
@@ -19,8 +19,10 @@ cffi==2.0.0
 charset-normalizer==3.4.4
     # via requests
 click==8.3.1
-    # via pip-tools
-coverage[toml]==7.12.0
+    # via
+    #   pip-tools
+    #   sacremoses
+coverage[toml]==7.13.1
     # via pytest-cov
 cryptography==46.0.3
     # via howso-engine (pyproject.toml)
@@ -32,7 +34,7 @@ dill==0.4.0
     #   pylint
 execnet==2.1.2
     # via pytest-xdist
-faker==38.2.0
+faker==40.1.0
     # via howso-engine (pyproject.toml)
 flake8==3.9.2
     # via
@@ -42,7 +44,7 @@ flake8-docstrings==1.7.0
     # via howso-engine (pyproject.toml)
 flake8-import-order==0.19.2
     # via howso-engine (pyproject.toml)
-humanize==4.14.0
+humanize==4.15.0
     # via howso-engine (pyproject.toml)
 idna==3.11
     # via requests
@@ -50,8 +52,10 @@ iniconfig==2.3.0
     # via pytest
 isort==7.0.0
     # via pylint
-joblib==1.5.2
-    # via scikit-learn
+joblib==1.5.3
+    # via
+    #   sacremoses
+    #   scikit-learn
 markdown-it-py==4.0.0
     # via rich
 mccabe==0.6.1
@@ -83,12 +87,14 @@ pip-tools==7.5.2
     # via howso-engine (pyproject.toml)
 pipdeptree==2.30.0
     # via howso-engine (pyproject.toml)
-platformdirs==4.5.0
+platformdirs==4.5.1
     # via pylint
 pluggy==1.6.0
     # via
     #   pytest
     #   pytest-cov
+psutil==7.2.1
+    # via howso-engine (pyproject.toml)
 pycodestyle==2.7.0
     # via
     #   flake8
@@ -130,11 +136,15 @@ pytz==2025.2
     #   pandas
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
+regex==2025.11.3
+    # via sacremoses
 requests==2.32.5
     # via howso-engine (pyproject.toml)
 rich==14.2.0
     # via howso-engine (pyproject.toml)
-scikit-learn==1.7.2
+sacremoses==0.1.1
+    # via howso-engine (pyproject.toml)
+scikit-learn==1.8.0
     # via howso-engine (pyproject.toml)
 scipy==1.16.3
     # via scikit-learn
@@ -150,13 +160,15 @@ threadpoolctl==3.6.0
     # via scikit-learn
 tomlkit==0.13.3
     # via pylint
+tqdm==4.67.1
+    # via sacremoses
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)
-tzdata==2025.2
+tzdata==2025.3
     # via
     #   faker
     #   pandas
-urllib3==2.5.0
+urllib3==2.6.2
     # via requests
 wheel==0.45.1
     # via pip-tools

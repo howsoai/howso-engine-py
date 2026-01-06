@@ -981,17 +981,18 @@ class InferFeatureAttributesBase(ABC):
             if self._has_unique_constraint(feature_name):
                 self.attributes[feature_name]['unique'] = True
 
-            # Add original type to feature
-            if original_type := typing_info.pop('original_type', None):
-                self.attributes[feature_name]['original_type'] = {
-                    'data_type': str(original_type),
-                    **typing_info
-                }
-            elif feature_type is not None:
-                self.attributes[feature_name]['original_type'] = {
-                    'data_type': str(feature_type),
-                    **typing_info
-                }
+            # Add original type to feature if not already set
+            if not self.attributes[feature_name].get("original_type"):
+                if original_type := typing_info.pop('original_type', None):
+                    self.attributes[feature_name]['original_type'] = {
+                        'data_type': str(original_type),
+                        **typing_info
+                    }
+                elif feature_type is not None:
+                    self.attributes[feature_name]['original_type'] = {
+                        'data_type': str(feature_type),
+                        **typing_info
+                    }
 
             # DECLARED DEPENDENTS
             # First determine if there are any dependent features in the partial features dict
