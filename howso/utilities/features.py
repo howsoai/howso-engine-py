@@ -37,6 +37,7 @@ from .utilities import (
 
 
 __all__ = [
+    "convert_primitive_to_feature_type",
     "FeatureSerializer",
     "FeatureType",
     "deserialize_cases",
@@ -62,6 +63,20 @@ class FeatureType(Enum):
     def __str__(self):
         """Return a string representation."""
         return str(self.value)
+
+
+def convert_primitive_to_feature_type(value: t.Any):
+    """Convert a primitive value's data type to FeatureType. Returns 'object' if not primitive."""
+    if isinstance(value, str):
+        return FeatureType.STRING.value
+    elif isinstance(value, bool):
+        return FeatureType.BOOLEAN.value
+    elif isinstance(value, int):
+        return FeatureType.INTEGER.value
+    elif isinstance(value, float):
+        return FeatureType.NUMERIC.value
+    # A non-primitive type
+    return FeatureType.UNKNOWN
 
 
 class FeatureSerializer:
