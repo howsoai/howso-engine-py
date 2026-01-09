@@ -92,7 +92,7 @@ def date_to_epoch(
     """
     # pd.isnull covers the cases - None, `np.nan` and `pd.na`
     if pd.isnull(date_obj):
-        return date_obj
+        return None
 
     # if timestamp is passed in, convert it to string in the correct
     # format first

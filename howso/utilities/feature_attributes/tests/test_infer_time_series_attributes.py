@@ -1,5 +1,6 @@
 """Tests infer_feature_attributes with time series data (InferFeatureAttributesTimeSeries)."""
 from collections import OrderedDict
+from datetime import datetime
 from pathlib import Path
 from pprint import pprint
 import random
@@ -390,6 +391,16 @@ def test_time_series_features_pandas_native_date():
                 assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
             else:
                 raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+
+
+def test_missing_time():
+    df = pd.DataFrame(
+        {"time": [datetime.fromtimestamp(1234567890), None, datetime.fromtimestamp(1234567892)],
+         "id": [1, 1, 1],
+         "value": [1, 2, 3]}
+    )
+    features = infer_feature_attributes(df, time_feature_name="time", id_feature_name="id", default_time_zone="UTC")
+    assert features is not None
 
 def test_nominals_are_ignored_in_ifa_for_ts():
     """
