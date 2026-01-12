@@ -1444,9 +1444,9 @@ class TestBaseClient:
     def test_json_feature_types(self):
         """Test that JSON features stored as Python data structures have their primitive types maintained."""
         tests = [
-            ({"a": "str", "b": 1, "c": 2.7, "d": True, "e": {"a1": "str", "b1": {"c1": [1, 2, 3]}}},
+            ({"a": "str", "b": "1", "c": "2.7", "d": True, "e": {"a1": "str", "b1": {"c1": [1, 2, 3]}}},
             {"a": "string", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "integer"}}}),
-            ({"a": "str", "b": 9, "c": 3.3, "d": False, "e": {"a1": "str2", "b1": {"c1": [1, 2, 3, 4, 5, 6, 7]}}},
+            ({"a": "str", "b": "1", "c": "3.3", "d": False, "e": {"a1": "str2", "b1": {"c1": [1, 2, 3, 4, 5, 6, 7]}}},
             {"a": "string", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "integer"}}}),
             ({"a": 3, "b": 1.5, "c": 2.7, "d": True, "e": {"a1": 5, "b1": {"c1": [1, 2, 3]}}},
             {"a": "integer", "b": "numeric", "c": "numeric", "d": "boolean", "e": {"a1": "integer", "b1": {"c1": "integer"}}}),
@@ -1493,7 +1493,6 @@ class TestBaseClient:
                 contexts=[["b"]],
                 context_features=['bar'],
                 action_features=['foo'],
-                generate_new_cases='attempt',
                 details={"influential_cases": True},
                 desired_conviction=5,
             )
@@ -1517,7 +1516,6 @@ class TestBaseClient:
                 contexts=[["a"]],
                 context_features=['bar'],
                 action_features=['foo'],
-                generate_new_cases='attempt',
                 details={"influential_cases": True},
                 desired_conviction=5,
             )
