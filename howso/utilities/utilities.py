@@ -806,6 +806,38 @@ def stringify_json(cases: list[list[t.Any]], features: Iterable[str], feature_at
                 case_group[idx] = json.dumps(case_group[idx])
 
 
+def _convert_json_subtypes(data: t.Any, type_map: dict[str, t.Any] | t.Any):
+    """Recursively convert primitive types according to the type map for an arbitrary Python data structure."""
+    # Avoid circular import
+    from .features import cast_primitive_from_feature_type
+    if isinstance(data, list):
+        return [cast_primitive_from_feature_type(d, type_map) for d in data]
+    elif not isinstance(data, Mapping):
+        return cast_primitive_from_feature_type(data, type_map)
+    return {key: _convert_json_subtypes(data[key], type_map.get(key, "object")) for key in data.keys()}
+
+
+def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> None:
+    """
+    Ensures that any JSON features have their cases destringified.
+
+    Parameters
+    ----------
+    cases : list of list of Any
+        A 2d list of case values corresponding to the provided feature names.
+    feature_attributes : Mapping
+        The feature attributes of the feature to which the provided cases belong.
+    """
+    destringified_cases = []
+    for case_to_destringify in cases:
+        formatted_case = json.loads(case_to_destringify)
+        type_map = feature_attributes.get("original_type", {}).get("type_map")
+        if type_map:
+            formatted_case = _convert_json_subtypes(formatted_case, type_map)
+        destringified_cases.append(formatted_case)
+    return pd.Series(destringified_cases)
+
+
 def tokenize_strings(cases: list[list[t.Any]], features: Iterable[str], feature_attributes: Mapping,
                      tokenizer: TokenizerProtocol) -> None:
     """

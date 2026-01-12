@@ -1227,7 +1227,7 @@ class InferFeatureAttributesBase(ABC):
                 return {
                     "type": "continuous",
                     "data_type": "json",
-                    "original_type": {"type_map": type_map},
+                    "original_type": {"type_map": type_map, "data_type": FeatureType.UNKNOWN.value},
                 }
             return {
                 "type": "continuous",

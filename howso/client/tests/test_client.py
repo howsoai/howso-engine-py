@@ -1429,7 +1429,7 @@ class TestBaseClient:
         t = Trainee()
         client.set_feature_attributes(t.id, feature_attributes)
         client.train(t.id, df)
-        reaction = self.client.react(
+        reaction = client.react(
             t.id,
             contexts=[[5, 'turbo-encabulator']],
             context_features=['rating', 'product'],
@@ -1440,3 +1440,88 @@ class TestBaseClient:
         )
         assert reaction["action"].iloc[0]["review"] == df.iloc[0]["review"]
         assert reaction["details"]["influential_cases"][0].iloc[0]["review"] == df.iloc[0]["review"]
+
+    def test_json_feature_types(self):
+        """Test that JSON features stored as Python data structures have their primitive types maintained."""
+        tests = [
+            ({"a": "str", "b": 1, "c": 2.7, "d": True, "e": {"a1": "str", "b1": {"c1": [1, 2, 3]}}},
+            {"a": "string", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "integer"}}}),
+            ({"a": "str", "b": 9, "c": 3.3, "d": False, "e": {"a1": "str2", "b1": {"c1": [1, 2, 3, 4, 5, 6, 7]}}},
+            {"a": "string", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "integer"}}}),
+            ({"a": 3, "b": 1.5, "c": 2.7, "d": True, "e": {"a1": 5, "b1": {"c1": [1, 2, 3]}}},
+            {"a": "integer", "b": "numeric", "c": "numeric", "d": "boolean", "e": {"a1": "integer", "b1": {"c1": "integer"}}}),
+            ({"a": 3, "b": 1, "c": 2.7, "d": True, "e": {"a1": "str", "b1": {"c1": [1, True, "foo"]}}},
+            {"a": "integer", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "object"}}}),
+        ]
+        data_uniform_types = pd.DataFrame({"foo": [tests[0][0], tests[1][0]], "bar": ["a", "b"]})
+        data_uniform_except_list = pd.DataFrame({"foo": [tests[2][0], tests[3][0]], "bar": ["a", "b"]})
+        data_non_uniform = pd.DataFrame({"foo": [tests[0][0], tests[1][0], tests[2][0]], "bar": ["a", "b", "c"]})
+
+        # Types should be preserved with no warnings (dict)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            feature_attributes = infer_feature_attributes(data_uniform_types)
+            assert feature_attributes["foo"]["data_type"] == "json"
+            assert feature_attributes["foo"]["type"] == "continuous"
+            client = HowsoClient()
+            t = Trainee()
+            client.set_feature_attributes(t.id, feature_attributes)
+            client.train(t.id, data_uniform_types)
+            reaction = client.react(
+                t.id,
+                contexts=[["a"]],
+                context_features=['bar'],
+                action_features=['foo'],
+                details={"influential_cases": True},
+                desired_conviction=5,
+            )
+            # Cannot compare
+            assert reaction["action"].iloc[0]["foo"] == data_uniform_types.iloc[0]["foo"]
+            assert reaction["details"]["influential_cases"][0].iloc[0]["foo"] == tests[0][0]
+
+        # All types except for the nested list should be preserved and a warning issued
+        with pytest.warns(match="contains a key 'c1' whose value is a list of mixed types"):
+            feature_attributes = infer_feature_attributes(data_uniform_except_list)
+            assert feature_attributes["foo"]["data_type"] == "json"
+            assert feature_attributes["foo"]["type"] == "continuous"
+            client = HowsoClient()
+            t = Trainee()
+            client.set_feature_attributes(t.id, feature_attributes)
+            client.train(t.id, data_uniform_except_list)
+            reaction = client.react(
+                t.id,
+                contexts=[["b"]],
+                context_features=['bar'],
+                action_features=['foo'],
+                generate_new_cases='attempt',
+                details={"influential_cases": True},
+                desired_conviction=5,
+            )
+            expected_case = deepcopy(tests[3][0])
+            # The list under this key has mixed types so it will come back as-is when deserialized
+            expected_case["e"]["b1"]["c1"] = json.loads(json.dumps(expected_case["e"]["b1"]["c1"]))
+            assert reaction["action"].iloc[0]["foo"] == expected_case
+            assert reaction["details"]["influential_cases"][0].iloc[0]["foo"] == expected_case
+
+        # Types cannot be preserved, warning issued
+        with pytest.warns(match="inconsistent types and/or keys across cases."):
+            feature_attributes = infer_feature_attributes(data_non_uniform)
+            assert feature_attributes["foo"]["data_type"] == "json"
+            assert feature_attributes["foo"]["type"] == "continuous"
+            client = HowsoClient()
+            t = Trainee()
+            client.set_feature_attributes(t.id, feature_attributes)
+            client.train(t.id, data_non_uniform)
+            reaction = client.react(
+                t.id,
+                contexts=[["a"]],
+                context_features=['bar'],
+                action_features=['foo'],
+                generate_new_cases='attempt',
+                details={"influential_cases": True},
+                desired_conviction=5,
+            )
+            # Cases of "foo" have mixed types so they will come back as-is when deserialized
+            expected_case = json.loads(json.dumps(tests[0][0]))
+            assert reaction["action"].iloc[0]["foo"] == expected_case
+            assert reaction["details"]["influential_cases"][0].iloc[0]["foo"] == expected_case
