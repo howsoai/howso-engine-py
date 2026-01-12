@@ -320,7 +320,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 return val
         return None
 
-    def get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
+    def _get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
         """
         Get random samples from the given data as a DataFrame.
 
