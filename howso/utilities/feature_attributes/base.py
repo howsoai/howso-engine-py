@@ -1159,10 +1159,16 @@ class InferFeatureAttributesBase(ABC):
         def _recursive_get_types(data: t.Any, key: str = None) -> dict:
             """Recursively determine primitive types for an arbitrary Python data structure."""
             nonlocal has_complex_type
+            # Value is a list
             if isinstance(data, Sequence):
                 list_type = FeatureType.UNKNOWN.value
-                for i in range(10):
-                    rand_val = data[np.random.randint(len(data))]
+                # Iterate through 10 random values of a list of len>10, or through the entire list if len<=10.
+                iterations = min(len(data), 10)
+                if len(data) > 10:
+                    # Shuffle data so that the first 10 indices are randomized
+                    data = list(pd.Series(data).sample(frac=1))
+                for idx in range(iterations):
+                    rand_val = data[idx]
                     if rand_val is None:
                         # We can still retain primitive types with NoneTypes present in the data structure
                         continue
@@ -1176,8 +1182,10 @@ class InferFeatureAttributesBase(ABC):
                         # A non-primitive type was found in the data
                         has_complex_type = True
                 return list_type
+            # Base case: not a list or dict
             elif not isinstance(data, Mapping):
                 return convert_primitive_to_feature_type(data)
+            # Value is a dict
             return {key: _recursive_get_types(data[key], key=key) for key in data.keys()}
 
         # Sample up to 5 random values
@@ -1756,6 +1764,10 @@ class InferFeatureAttributesBase(ABC):
             Additional typing information about the feature or None if the
             column could not be found.
         """
+
+    @abstractmethod
+    def _get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
+        """Get random samples from the given data as a DataFrame."""
 
     @abstractmethod
     def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any:
