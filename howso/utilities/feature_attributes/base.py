@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence, Sequence
+from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence
 from copy import deepcopy
 import datetime
 from functools import singledispatchmethod
@@ -18,7 +18,6 @@ from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
 import numpy as np
 import pandas as pd
-from pandas.core.dtypes.common import is_string_dtype
 import pytz
 import yaml
 
@@ -1160,7 +1159,7 @@ class InferFeatureAttributesBase(ABC):
             """Recursively determine primitive types for an arbitrary Python data structure."""
             nonlocal has_complex_type
             # Value is a list
-            if isinstance(data, Sequence):
+            if isinstance(data, MutableSequence):
                 list_type = FeatureType.UNKNOWN.value
                 # Iterate through 10 random values of a list of len>10, or through the entire list if len<=10.
                 iterations = min(len(data), 10)
@@ -1230,7 +1229,7 @@ class InferFeatureAttributesBase(ABC):
                 }
         elif self._is_json_feature(feature_name):
             first_non_null = self._get_first_non_null(feature_name)
-            if isinstance(first_non_null, Mapping) or isinstance(first_non_null, Sequence):
+            if isinstance(first_non_null, Mapping) or isinstance(first_non_null, MutableSequence):
                 type_map = self._get_primitive_type_schema(feature_name) or {}
                 return {
                     "type": "continuous",
