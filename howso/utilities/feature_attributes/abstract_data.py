@@ -320,6 +320,29 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 return val
         return None
 
+    def _get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
+        """
+        Get random samples from the given data as a DataFrame.
+
+        Parameters
+        ----------
+        samples : int, default 5000
+            The number of samples to randomly get from the ADC.
+        seed : int, default None
+            (Optional) The random number seed to use.
+
+        Returns
+        -------
+        pd.DataFrame
+            A Pandas DataFrame containing the original header from the source file
+            followed by the requested number of samples.
+        """
+        df = self.data.get_n_random_rows(samples, seed=seed)
+        # Remove the header if it was included
+        if len(df) > samples:
+            df.drop(index=0, inplace=True)
+        return df
+
     def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
         """
         Return a random sample from the given column.
