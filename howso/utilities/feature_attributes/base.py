@@ -1187,9 +1187,9 @@ class InferFeatureAttributesBase(ABC):
             # Value is a dict
             return {key: _recursive_get_types(data[key], key=key) for key in data.keys()}
 
-        # Sample up to 5 random values
+        # Sample up to 10 random values
         type_maps = []
-        for idx in range(5):
+        for idx in range(10):
             sample = self._get_random_value(feature_name, no_nulls=True)
             type_maps.append(_recursive_get_types(sample))
 
