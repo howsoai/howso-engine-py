@@ -1119,6 +1119,6 @@ def test_json_features_types():
         df = pd.DataFrame({"foo": [tests[3][0]]})
         infer_feature_attributes(df)
     with pytest.warns(match="inconsistent types and/or keys across cases."):
-        df = pd.DataFrame({"foo": [tests[0][0], tests[2][0]]})
+        df = pd.DataFrame({"foo": [tests[0][0], tests[2][0], tests[1][0]]})
         attributes = infer_feature_attributes(df)
         assert not attributes["foo"]["original_type"]["type_map"]

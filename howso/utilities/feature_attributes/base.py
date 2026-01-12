@@ -1194,7 +1194,7 @@ class InferFeatureAttributesBase(ABC):
             type_maps.append(_recursive_get_types(sample))
 
         # Issue a warning if keys or types are not consistent across cases
-        for idx in range(1, 5):
+        for idx in range(1, 10):
             if type_maps[0] != type_maps[idx]:
                 warnings.warn(f"JSON feature '{feature_name} has inconsistent types and/or keys across cases. "
                               "Original types will not be preserved.")
