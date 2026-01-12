@@ -823,8 +823,8 @@ def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> None:
 
     Parameters
     ----------
-    cases : list of list of Any
-        A 2d list of case values corresponding to the provided feature names.
+    cases : pd.Series
+        A Pandas Series of case values.
     feature_attributes : Mapping
         The feature attributes of the feature to which the provided cases belong.
     """
