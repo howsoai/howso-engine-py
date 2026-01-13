@@ -1,9 +1,9 @@
 """Tests infer_feature_attributes with time series data and AbstractData classes."""
 from collections import OrderedDict
-from math import e
 from pathlib import Path
 from pprint import pprint
 import random
+import sys
 from typing import Any
 import warnings
 
@@ -20,6 +20,9 @@ try:
     )
 except (ModuleNotFoundError, ImportError):
     pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
+
+if sys.platform.startswith("win"):
+    pytest.skip("Skipping due to excessive Spark/ADC runtimes on Windows", allow_module_level=True)
 
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
@@ -669,3 +672,26 @@ def test_nominals_are_ignored_in_ifa_for_ts(spark):
     print(", ".join(bad_nominals))
     assert bool(bad_nominals) is False
 
+
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_offset_indices(adc):
+    """Test that IFA succeeds even when DataFrame indices are non-standard."""
+    df = ts_df.copy()
+    df.index = df.index + 100
+    convert_data(DataFrameData(df), adc)
+    features = infer_feature_attributes(
+        adc,
+        id_feature_name="ID",
+        time_feature_name="date",
+        datetime_feature_formats={"date": "%Y%m%d"},
+        default_time_zone="utc",
+    )
+    assert features
