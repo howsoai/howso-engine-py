@@ -20,6 +20,7 @@ root_path = (
 )
 data_path = root_path.joinpath("utilities/tests/data")
 example_timeseries_path = data_path.joinpath("example_timeseries.csv")
+mini_stock_data_path = data_path.joinpath("mini_stock_data.csv")
 
 # Partially defined dictionary-1
 features_1 = {
@@ -458,3 +459,19 @@ def test_nominals_are_ignored_in_ifa_for_ts():
     ]
     print(", ".join(bad_nominals))
     assert bool(bad_nominals) is False
+
+
+def test_nominal_id_feature():
+    """Validates that IFA can handle nominal ID features."""
+    df = pd.read_csv(mini_stock_data_path)
+
+    # Identify the ID feature
+    id_feature_name = "DATE"
+
+    features = infer_feature_attributes(
+        df,
+        id_feature_name=id_feature_name,
+        default_time_zone="UTC",
+    )
+    assert "id_feature" in features[id_feature_name]
+    features.validate(df, raise_errors=True)

@@ -1673,7 +1673,6 @@ class InferFeatureAttributesBase(ABC):
             # with 'data_type':number attribute to prevent string conversion.
             if feature_attributes[id_feature_name]['type'] == 'continuous':
                 feature_attributes[id_feature_name]['type'] = 'nominal'
-                feature_attributes[id_feature_name]['data_type'] = 'number'
                 if 'decimal_places' in feature_attributes[id_feature_name]:
                     del feature_attributes[id_feature_name]['decimal_places']
 
