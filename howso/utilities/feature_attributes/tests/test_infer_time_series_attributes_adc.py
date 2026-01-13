@@ -3,6 +3,7 @@ from collections import OrderedDict
 from pathlib import Path
 from pprint import pprint
 import random
+import sys
 from typing import Any
 import warnings
 
@@ -19,6 +20,9 @@ try:
     )
 except (ModuleNotFoundError, ImportError):
     pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
+
+if sys.platform.startswith("win"):
+    pytest.skip("Skipping due to excessive Spark/ADC runtimes on Windows", allow_module_level=True)
 
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
