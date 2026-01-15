@@ -292,15 +292,16 @@ class FeatureSerializer:
         pandas.DataFrame
             The formatted data.
         """
-        for col in df.columns.tolist():
+        original_feature_order = df.columns.tolist()
+        for col in original_feature_order:
             try:
                 attributes = features[col]
             except (TypeError, KeyError):
                 # Column not in feature attributes, skip column
                 continue
-            new_values = cls.format_column(df.loc[:, col], attributes, tokenizer=tokenizer)
-            df = df.astype({col: new_values.dtype})
-            df.loc[:, col] = new_values
+            new_values = cls.format_column(df[col], attributes, tokenizer=tokenizer)
+            df = df.drop(columns=col)
+            df[col] = new_values
         return df
 
     @classmethod
