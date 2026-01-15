@@ -251,10 +251,6 @@ def test_date_feature_serialization(
         expected_df = pd.DataFrame(pd.Series(expected_data, name='a'))
 
         difference = expected_df.compare(new_df)
-        print(df['a'].dtype)
-        print(df['a'])
-        print(new_df['a'].dtype)
-        print(new_df['a'])
         assert valid_dtype(new_df['a'].dtype)
         assert difference.empty
 
