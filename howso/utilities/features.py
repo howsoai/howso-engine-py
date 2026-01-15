@@ -263,7 +263,7 @@ class FeatureSerializer:
         """
         df = deserialize_to_dataframe(data, columns)
         if features is not None:
-            cls.format_dataframe(df, features, tokenizer=tokenizer)
+            df = cls.format_dataframe(df, features, tokenizer=tokenizer)
         return df
 
     @classmethod
@@ -292,14 +292,18 @@ class FeatureSerializer:
         pandas.DataFrame
             The formatted data.
         """
-        for col in df.columns.tolist():
+        original_feature_order = df.columns.tolist()
+        for col in original_feature_order:
             try:
                 attributes = features[col]
             except (TypeError, KeyError):
                 # Column not in feature attributes, skip column
                 continue
-            df[col] = cls.format_column(df[col], attributes, tokenizer=tokenizer)
-        return df
+            new_values = cls.format_column(df[col], attributes, tokenizer=tokenizer)
+            df = df.drop(columns=col)
+            df[col] = new_values
+            
+        return df[original_feature_order]
 
     @classmethod
     def format_column(cls, column: pd.Series,  # noqa: C901
