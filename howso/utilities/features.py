@@ -263,7 +263,7 @@ class FeatureSerializer:
         """
         df = deserialize_to_dataframe(data, columns)
         if features is not None:
-            cls.format_dataframe(df, features, tokenizer=tokenizer)
+            df = cls.format_dataframe(df, features, tokenizer=tokenizer)
         return df
 
     @classmethod
@@ -298,7 +298,9 @@ class FeatureSerializer:
             except (TypeError, KeyError):
                 # Column not in feature attributes, skip column
                 continue
-            df.loc[:, col] = cls.format_column(df[col], attributes, tokenizer=tokenizer)
+            new_values = cls.format_column(df.loc[:, col], attributes, tokenizer=tokenizer)
+            df = df.astype({col: new_values.dtype})
+            df.loc[:, col] = new_values
         return df
 
     @classmethod
