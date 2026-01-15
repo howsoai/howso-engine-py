@@ -302,7 +302,8 @@ class FeatureSerializer:
             new_values = cls.format_column(df[col], attributes, tokenizer=tokenizer)
             df = df.drop(columns=col)
             df[col] = new_values
-        return df
+            
+        return df[original_feature_order]
 
     @classmethod
     def format_column(cls, column: pd.Series,  # noqa: C901
