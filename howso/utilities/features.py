@@ -298,7 +298,7 @@ class FeatureSerializer:
             except (TypeError, KeyError):
                 # Column not in feature attributes, skip column
                 continue
-            df[col] = cls.format_column(df[col], attributes, tokenizer=tokenizer)
+            df.loc[:, col] = cls.format_column(df[col], attributes, tokenizer=tokenizer)
         return df
 
     @classmethod
