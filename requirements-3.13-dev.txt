@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.13-dev.txt --pip-args=None
 #
-amalgam-lang==25.2.6
+amalgam-lang==25.2.7
     # via howso-engine (pyproject.toml)
 astroid==4.0.3
     # via pylint
@@ -34,7 +34,7 @@ dill==0.4.0
     #   pylint
 execnet==2.1.2
     # via pytest-xdist
-faker==40.1.0
+faker==40.1.2
     # via howso-engine (pyproject.toml)
 flake8==3.9.2
     # via
@@ -136,7 +136,7 @@ pytz==2025.2
     #   pandas
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
-regex==2025.11.3
+regex==2026.1.15
     # via sacremoses
 requests==2.32.5
     # via howso-engine (pyproject.toml)
@@ -158,16 +158,14 @@ snowballstemmer==3.0.1
     # via pydocstyle
 threadpoolctl==3.6.0
     # via scikit-learn
-tomlkit==0.13.3
+tomlkit==0.14.0
     # via pylint
 tqdm==4.67.1
     # via sacremoses
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)
 tzdata==2025.3
-    # via
-    #   faker
-    #   pandas
+    # via pandas
 urllib3==2.6.3
     # via
     #   howso-engine (pyproject.toml)
