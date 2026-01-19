@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping
 from concurrent.futures import as_completed, Future, ProcessPoolExecutor
 import datetime
 import decimal
+import json
 import logging
 from math import isnan, prod
 import multiprocessing as mp
@@ -268,18 +269,20 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                                 # but we now need to check if the 'time' component is zero. If so, we can cast to
                                 # a Numpy datetime64[D] dtype.
                                 #
-                                # However, we need to be careful with this -- if the user has a datetime feature of the format
-                                # '%y-%m-%d' for example, the `to_datetime()` conversion above will add an empty time component
-                                # as previously described. But, if the user has a datetime feature that *actually* has an empty
-                                # time component in the string -- say, '%y-%m-%dT00:00:00' -- we must respect the original
-                                # format even if it is intended to be a date-only feature.
+                                # However, we need to be careful with this -- if the user has a datetime feature of
+                                # the format '%y-%m-%d' for example, the `to_datetime()` conversion above will add an
+                                # empty time component as previously described. But, if the user has a datetime feature
+                                # that *actually* has an empty time component in the string -- say, '%y-%m-%dT00:00:00'
+                                # -- we must respect the original format even if it is intended to be a date-only
+                                # feature.
                                 if all([converted_val.time() == pd.Timestamp(0).time(),
                                         converted_val.tz is None,
                                         # Ensure there is no time component in the unconverted string
                                         'T' not in first_non_null,
                                         '00:00:00' not in first_non_null]):
                                     converted_dtype = np.datetime64(converted_val, 'D').dtype
-                                # Specify an original_type here to ensure the DataFrame is unchanged during deserialization
+                                # Specify an original_type here to ensure the DataFrame is unchanged during
+                                # deserialization
                                 typing_info = {'original_type': FeatureType.STRING}
                                 if converted_dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
                                     return FeatureType.DATE, typing_info
@@ -377,12 +380,34 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             return cases.iloc[np.random.randint(len(cases))]
 
+    def _make_hashable(self, value):
+        """Convert a value to a hashable representation that preserves type information if it is a dict."""
+        if isinstance(value, dict):
+            return tuple(sorted((k, self._make_hashable(v)) for k, v in value.items()))
+        elif isinstance(value, list):
+            return tuple(self._make_hashable(v) for v in value)
+        elif isinstance(value, (int, float, str, bool, type(None))):
+            # Preserve type by including it in the tuple
+            return (type(value).__name__, value)
+        else:
+            # For other types, use string representation with type
+            return (type(value).__name__, str(value))
+
     def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
         """Get the number of unique values in the provided feature(s)."""
         if isinstance(feature_name, str):
-            num_uniques = self.data[feature_name].nunique()
+            try:
+                num_uniques = self.data[feature_name].nunique()
+            except TypeError:
+                num_uniques = self.data[feature_name].apply(self._make_hashable).nunique()
         elif isinstance(feature_name, Iterable):
-            num_uniques = len(self.data[feature_name].drop_duplicates())
+            try:
+                num_uniques = len(self.data[feature_name].drop_duplicates())
+            except TypeError:
+                temp_df = self.data[feature_name].apply(
+                    lambda col: col.apply(self._make_hashable)
+                )
+                num_uniques = len(temp_df.drop_duplicates())
         else:
             raise ValueError(f"`Feature_name` must be of type `str` or `Iterable[str]`, not {type(feature_name)}.")
         return num_uniques
@@ -901,6 +926,16 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
         return attributes
 
-    def _get_unique_values(self, feature_name: str) -> set[t.Any]:
-        """Return the set of unique values for the given feature."""
-        return set(self.data[feature_name].unique())
+    def _get_unique_values(self, feature_name: str) -> set[t.Any] | list[t.Any]:
+        """Return the set (or list for unhashable types) of unique values for the given feature."""
+        try:
+            return list(self.data[feature_name].unique())
+        except TypeError:
+            unique_vals = []
+            seen_hashable = set()
+            for val in self.data[feature_name]:
+                hashable = self._make_hashable(val)
+                if hashable not in seen_hashable:
+                    seen_hashable.add(hashable)
+                    unique_vals.append(val)  # Keep original value
+            return unique_vals
