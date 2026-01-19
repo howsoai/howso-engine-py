@@ -4,7 +4,6 @@ from collections.abc import Iterable, Mapping
 from concurrent.futures import as_completed, Future, ProcessPoolExecutor
 import datetime
 import decimal
-import json
 import logging
 from math import isnan, prod
 import multiprocessing as mp
@@ -380,8 +379,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             return cases.iloc[np.random.randint(len(cases))]
 
-    def _make_hashable(self, value):
-        """Convert a value to a hashable representation that preserves type information if it is a dict."""
+    def _make_hashable(self, value: t.Any):
+        """Convert a value to a hashable representation that preserves type information."""
         if isinstance(value, dict):
             return tuple(sorted((k, self._make_hashable(v)) for k, v in value.items()))
         elif isinstance(value, list):
