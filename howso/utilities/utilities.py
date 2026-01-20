@@ -24,6 +24,7 @@ from math import (
     ceil,
     isnan,
 )
+import pickle
 import re
 import sys
 import threading
@@ -33,6 +34,7 @@ import warnings
 
 from dateutil.parser import isoparse, parse as dt_parse
 from dateutil.tz import tzoffset
+import mmh3
 import numpy as np
 import pandas as pd
 
@@ -1725,3 +1727,11 @@ def lazy_map(
     except StopIteration:
         for future in as_completed(futures):
             yield future
+
+
+def get_hash(value: t.Any) -> int:
+    """Gets a hashed pickle of the provided value."""
+    # Use pickle to serialize
+    pickled = pickle.dumps(value, protocol=pickle.HIGHEST_PROTOCOL)
+    # Return a hash of the pickled bytes for efficient comparison
+    return mmh3.hash128(pickled)
