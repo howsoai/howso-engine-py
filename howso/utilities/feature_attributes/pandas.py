@@ -30,6 +30,7 @@ from ..utilities import (
     date_to_epoch,
     determine_iso_format,
     epoch_to_date,
+    get_hash,
     infer_time_feature_cycle_length,
     infer_time_format,
     ISO_8601_DATE_FORMAT,
@@ -379,32 +380,19 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             return cases.iloc[np.random.randint(len(cases))]
 
-    def _make_hashable(self, value: t.Any):
-        """Convert a value to a hashable representation that preserves type information."""
-        if isinstance(value, dict):
-            return tuple(sorted((k, self._make_hashable(v)) for k, v in value.items()))
-        elif isinstance(value, list):
-            return tuple(self._make_hashable(v) for v in value)
-        elif isinstance(value, (int, float, str, bool, type(None))):
-            # Preserve type by including it in the tuple
-            return (type(value).__name__, value)
-        else:
-            # For other types, use string representation with type
-            return (type(value).__name__, str(value))
-
     def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
         """Get the number of unique values in the provided feature(s)."""
         if isinstance(feature_name, str):
             try:
                 num_uniques = self.data[feature_name].nunique()
             except TypeError:
-                num_uniques = self.data[feature_name].apply(self._make_hashable).nunique()
+                num_uniques = self.data[feature_name].apply(get_hash).nunique()
         elif isinstance(feature_name, Iterable):
             try:
                 num_uniques = len(self.data[feature_name].drop_duplicates())
             except TypeError:
                 temp_df = self.data[feature_name].apply(
-                    lambda col: col.apply(self._make_hashable)
+                    lambda col: col.apply(get_hash)
                 )
                 num_uniques = len(temp_df.drop_duplicates())
         else:
@@ -933,7 +921,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             unique_vals = []
             seen_hashable = set()
             for val in self.data[feature_name]:
-                hashable = self._make_hashable(val)
+                hashable = get_hash(val)
                 if hashable not in seen_hashable:
                     seen_hashable.add(hashable)
                     unique_vals.append(val)  # Keep original value
