@@ -1145,7 +1145,7 @@ class InferFeatureAttributesBase(ABC):
     def _infer_integer_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given integer column."""
 
-    def _get_primitive_type_schema(self, feature_name: str) -> dict:
+    def _get_primitive_type_schema(self, feature_name: str) -> dict:  # noqa: C901
         """Get a map of keys to types for a JSON feature stored as a Python dict or list."""
         # If there is no data, return False
         first_non_none = self._get_first_non_null(feature_name)
@@ -1188,13 +1188,19 @@ class InferFeatureAttributesBase(ABC):
             return {key: _recursive_get_types(data[key], key=key) for key in data.keys()}
 
         # Sample up to 10 random values
+        # OR every value if < 10
         type_maps = []
-        for idx in range(10):
-            sample = self._get_random_value(feature_name, no_nulls=True)
-            type_maps.append(_recursive_get_types(sample))
+        if (count := self._get_unique_count(feature_name)) < 10:
+            for sample in self._get_unique_values(feature_name):
+                type_maps.append(_recursive_get_types(sample))
+        else:
+            count = 10
+            for idx in range(10):
+                sample = self._get_random_value(feature_name, no_nulls=True)
+                type_maps.append(_recursive_get_types(sample))
 
         # Issue a warning if keys or types are not consistent across cases
-        for idx in range(1, 10):
+        for idx in range(1, count):
             if type_maps[0] != type_maps[idx]:
                 warnings.warn(f"JSON feature '{feature_name} has inconsistent types and/or keys across cases. "
                               "Original types will not be preserved.")
