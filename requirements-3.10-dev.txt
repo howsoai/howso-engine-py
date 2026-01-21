@@ -28,7 +28,7 @@ cryptography==46.0.3
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
-dill==0.4.0
+dill==0.4.1
     # via
     #   howso-engine (pyproject.toml)
     #   pylint
@@ -76,7 +76,7 @@ numpy==2.2.6
     #   pandas
     #   scikit-learn
     #   scipy
-packaging==25.0
+packaging==26.0
     # via
     #   build
     #   deprecation
@@ -102,7 +102,7 @@ pycodestyle==2.7.0
     #   flake8
     #   flake8-import-order
     #   howso-engine (pyproject.toml)
-pycparser==2.23
+pycparser==3.0
     # via cffi
 pydocstyle==6.3.0
     # via flake8-docstrings
@@ -134,6 +134,7 @@ python-dateutil==2.9.0.post0
     # via pandas
 pytz==2025.2
     # via
+    #   howso-engine (pyproject.toml)
     #   mongomock
     #   pandas
 pyyaml==6.0.3
@@ -191,7 +192,7 @@ pip==25.3
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==80.9.0
+setuptools==80.10.1
     # via
     #   flake8-import-order
     #   pip-tools
