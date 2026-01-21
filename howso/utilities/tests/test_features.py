@@ -4,6 +4,7 @@ import json
 import locale
 from pathlib import Path
 import warnings
+from zoneinfo import ZoneInfo
 
 
 from howso.engine import Trainee
@@ -19,7 +20,6 @@ from pandas.core.dtypes.common import (
     is_string_dtype,
 )
 import pytest
-import pytz
 
 from . import has_locales
 
@@ -30,15 +30,15 @@ monk_path = Path(cwd, 'utilities', 'tests', 'data', 'monk1.csv')
 @pytest.mark.parametrize('data_format', ['pandas', 'numpy'])
 @pytest.mark.parametrize('data, original_type, should_warn', [
     ([datetime.datetime(2020, 10, 10, 10, 5,
-                        tzinfo=pytz.timezone('US/Eastern'))],
+                        tzinfo=ZoneInfo('US/Eastern'))],
      {'data_type': str(FeatureType.DATETIME), 'timezone': 'US/Eastern'}, False),
-    ([datetime.datetime(2020, 10, 10, 10, 5, tzinfo=pytz.FixedOffset(-300))],
+    ([datetime.datetime(2020, 10, 10, 10, 5, tzinfo=datetime.timezone(datetime.timedelta(minutes=-300)))],
      {'data_type': str(FeatureType.DATETIME)}, True),
     ([datetime.datetime.fromisoformat("2022-01-01")],
      {'data_type': str(FeatureType.DATE)}, False),
     ([datetime.datetime.fromisoformat("2022-01-01T10:00:00-05:00")],
-     {'data_type': str(FeatureType.DATETIME)}, False),
-    ([datetime.datetime(2022, 1, 1, 10, 0, 0, tzinfo=pytz.timezone("GMT"))],
+     {'data_type': str(FeatureType.DATETIME)}, True),
+    ([datetime.datetime(2022, 1, 1, 10, 0, 0, tzinfo=ZoneInfo("GMT"))],
      {'data_type': str(FeatureType.DATETIME), 'timezone': 'GMT'}, False),
     ([datetime.date.fromisoformat("2022-01-01")],
      {'data_type': str(FeatureType.DATE)}, False),
@@ -183,30 +183,30 @@ def test_feature_deserialization_number_conversions(data, original_type,
 @pytest.mark.parametrize('data, dt_format, valid_dtype, expected_data, default_tz, should_warn', [
     (
         [datetime.datetime(2020, 10, 25, 10, 5,
-                           tzinfo=pytz.timezone('US/Eastern'))],
+                           tzinfo=ZoneInfo('US/Eastern'))],
         '%Y-%m-%dT%H:%M:%S%z', lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
         [datetime.datetime(2020, 10, 25, 10, 5,
-                           tzinfo=pytz.timezone('US/Eastern'))], None, False,
+                           tzinfo=ZoneInfo('US/Eastern'))], None, False,
     ),
     (
         [datetime.datetime(2020, 10, 25, 10, 5,
-                           tzinfo=pytz.timezone('US/Eastern'))],
+                           tzinfo=ZoneInfo('US/Eastern'))],
         '%Y-%m-%dT%H:%M:%S', lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
         [datetime.datetime(2020, 10, 25, 10, 5,
-                           tzinfo=pytz.timezone('US/Eastern'))], None, False,
+                           tzinfo=ZoneInfo('US/Eastern'))], None, False,
     ),
     (
-        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.timezone('UTC'))],
+        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=ZoneInfo('UTC'))],
         '%Y-%m-%dT%H:%M:%S', lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
-        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.timezone('UTC'))], None, False,
+        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=ZoneInfo('UTC'))], None, False,
     ),
     (
-        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.FixedOffset(-300))],
+        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=datetime.timezone(datetime.timedelta(minutes=-300)))],
         '%Y-%m-%dT%H:%M:%S%z', lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
-        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.FixedOffset(-300))], None, True,
+        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=datetime.timezone(datetime.timedelta(minutes=-300)))], None, True,
     ),
     (
-        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=pytz.FixedOffset(-300))],
+        [datetime.datetime(2020, 10, 25, 10, 5, tzinfo=datetime.timezone(datetime.timedelta(minutes=-300)))],
         '%Y-%m-%dT%I:%M:%S %p', lambda dtype: is_datetime64_dtype(dtype),
         [datetime.datetime(2020, 10, 25, 10, 5)], None, True,
     ),
@@ -265,19 +265,19 @@ def test_date_feature_serialization(
             'fr_FR', 'iso8859-1', locale.LC_ALL, '%a %d %B %Y %X',
             lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
             [datetime.datetime(2020, 11, 25, 10, 5,
-                               tzinfo=pytz.timezone('Europe/Paris'))],
+                               tzinfo=ZoneInfo('Europe/Paris'))],
         ),
         (
             'fr_FR', 'iso8859-1', locale.LC_ALL, '%a %d %B %Y %X %z',
             lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
             [datetime.datetime(2020, 11, 25, 10, 5,
-                               tzinfo=pytz.timezone('Europe/Paris'))],
+                               tzinfo=ZoneInfo('Europe/Paris'))],
         ),
         (
             'fr_FR', 'utf-8', locale.LC_ALL, '%a %d %B %Y %X %z',
             lambda dtype: isinstance(dtype, pd.DatetimeTZDtype),
             [datetime.datetime(2020, 11, 25, 10, 5,
-                               tzinfo=pytz.timezone('Europe/Paris'))],
+                               tzinfo=ZoneInfo('Europe/Paris'))],
         ),
         (
             'fr_FR', None, locale.LC_ALL, '%a %d %B %Y %X',
