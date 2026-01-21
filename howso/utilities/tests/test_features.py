@@ -37,7 +37,7 @@ monk_path = Path(cwd, 'utilities', 'tests', 'data', 'monk1.csv')
     ([datetime.datetime.fromisoformat("2022-01-01")],
      {'data_type': str(FeatureType.DATE)}, False),
     ([datetime.datetime.fromisoformat("2022-01-01T10:00:00-05:00")],
-     {'data_type': str(FeatureType.DATETIME)}, False),
+     {'data_type': str(FeatureType.DATETIME)}, True),
     ([datetime.datetime(2022, 1, 1, 10, 0, 0, tzinfo=ZoneInfo("GMT"))],
      {'data_type': str(FeatureType.DATETIME), 'timezone': 'GMT'}, False),
     ([datetime.date.fromisoformat("2022-01-01")],
