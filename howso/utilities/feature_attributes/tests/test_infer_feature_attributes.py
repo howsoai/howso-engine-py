@@ -8,6 +8,8 @@ from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
 import warnings
+from zoneinfo import ZoneInfo
+
 
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.base import FeatureAttributesBase, FLOAT_MAX, FLOAT_MIN, INTEGER_MAX
@@ -16,7 +18,6 @@ from howso.utilities.features import FeatureType
 import numpy as np
 import pandas as pd
 import pytest
-import pytz
 
 if platform.system().lower() == 'windows':
     DT_MAX = '6053-01-24'
@@ -157,9 +158,9 @@ def test_integer_nominality(feature, nominality):
      {'data_type': str(FeatureType.DATETIME)}),
     (pd.DataFrame([[datetime.datetime.now()]], columns=['a']),
      {'data_type': str(FeatureType.DATETIME)}),
-    (pd.DataFrame([[datetime.datetime.now(pytz.timezone('US/Eastern'))]], columns=['a']),
+    (pd.DataFrame([[datetime.datetime.now(ZoneInfo('US/Eastern'))]], columns=['a']),
      {'data_type': str(FeatureType.DATETIME), 'timezone': 'US/Eastern'}),
-    (pd.DataFrame([[datetime.datetime.now(pytz.FixedOffset(300))]], columns=['a']),
+    (pd.DataFrame([[datetime.datetime.now(datetime.timezone(datetime.timedelta(minutes=300)))]], columns=['a']),
      {'data_type': str(FeatureType.DATETIME)}),
     # Date
     (pd.DataFrame([[datetime.date(2020, 1, 1)]], columns=['a']),
@@ -395,27 +396,27 @@ def test_dependent_features(should_include, dependent_features):
     ),
     (
         None,
-        [datetime.datetime(1905, 1, 1, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(2020, 1, 15, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(2022, 3, 26, tzinfo=pytz.FixedOffset(300))],
+        [datetime.datetime(1905, 1, 1, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(2020, 1, 15, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(2022, 3, 26, tzinfo=datetime.timezone(datetime.timedelta(minutes=300)))],
         {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
          'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
     ),
     (
         None,
-        [datetime.datetime(1905, 1, 1, tzinfo=pytz.FixedOffset(100)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(-400)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(2020, 1, 15, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(2022, 3, 26, tzinfo=pytz.FixedOffset(300))],
+        [datetime.datetime(1905, 1, 1, tzinfo=datetime.timezone(datetime.timedelta(minutes=100))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=-400))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(2020, 1, 15, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(2022, 3, 26, tzinfo=datetime.timezone(datetime.timedelta(minutes=300)))],
         {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
          'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
     ),
