@@ -530,7 +530,7 @@ def sanitize_for_json(obj: t.Any):  # noqa: C901
         if pd.isnull(obj):
             return None
         # Format datetime objects
-        return obj.isoformat()
+        return obj.isoformat()  # TODO: the problem here is that if someone uses datetime.datetime for a date-only feature, it'll include the empty time component and come back from HSE as invalid. We need to look at feature attributes and intercept it as this is an understandable "mistake."
     elif isinstance(obj, datetime.timedelta):
         # Convert time deltas to total seconds
         return obj.total_seconds()
