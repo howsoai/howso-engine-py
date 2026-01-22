@@ -8,6 +8,7 @@ import json
 import locale
 import typing as t
 import warnings
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,6 @@ from pandas.core.dtypes.common import (
     is_datetime64_any_dtype,
     is_timedelta64_dtype,
 )
-import pytz
 
 from .internals import (
     deserialize_to_dataframe,
@@ -425,8 +425,8 @@ class FeatureSerializer:
         tz = typing_info.get('timezone')
         if tz is not None:
             try:
-                tz = pytz.timezone(tz)
-            except pytz.UnknownTimeZoneError:
+                tz = ZoneInfo(tz)
+            except KeyError:
                 warnings.warn(
                     f'Unknown timezone "{tz}" for feature "{column.name}", '
                     'datetime column may not contain original timezone '
@@ -534,17 +534,18 @@ class FeatureSerializer:
             return cls.format_datetime_column(column, feature)
         else:
             # Time feature does not use a date_time_format, treat as seconds
+            tz = None
             try:
-                tz = typing_info['timezone']
-                if tz is not None:
-                    tz = pytz.timezone(tz)
-            except pytz.UnknownTimeZoneError:
-                tz = None
-                warnings.warn(
-                    f'Unknown timezone defined for column "{column.name}", '
-                    'column will not be timezone aware.')
+                tz_name = typing_info['timezone']
+                if tz_name is not None:
+                    try:
+                        tz = ZoneInfo(tz_name)
+                    except KeyError:
+                        warnings.warn(
+                            f'Unknown timezone defined for column "{column.name}", '
+                            'column will not be timezone aware.')
             except (TypeError, KeyError):
-                tz = None
+                pass
 
             return column.apply(partial(seconds_to_time, tzinfo=tz))
 

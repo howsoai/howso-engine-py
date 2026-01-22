@@ -13,12 +13,12 @@ from pathlib import Path
 import platform
 import typing as t
 import warnings
+from zoneinfo import ZoneInfo
 
 from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
 import numpy as np
 import pandas as pd
-import pytz
 import yaml
 
 from howso.utilities.features import convert_primitive_to_feature_type, FeatureType
@@ -1519,8 +1519,7 @@ class InferFeatureAttributesBase(ABC):
                     rand_val = self._get_random_value(feature_name)
                     if isinstance(rand_val, datetime.datetime):
                         # Some datetime objects might have a time zone attribute not visible as a string
-                        if getattr(rand_val, 'tzinfo', None) is not None and not isinstance(rand_val.tzinfo,
-                                                                                            pytz._FixedOffset):
+                        if getattr(rand_val, 'tzinfo', None) is not None and isinstance(rand_val.tzinfo, ZoneInfo):
                             continue
                     # Warn in case of UTC offset -- could lead to unexpected results due to time zone
                     # differences

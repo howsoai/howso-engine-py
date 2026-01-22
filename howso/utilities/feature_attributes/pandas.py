@@ -10,6 +10,7 @@ import multiprocessing as mp
 import re
 import typing as t
 import warnings
+from zoneinfo import ZoneInfo
 
 from dateutil.parser import parse as dt_parse
 import numpy as np
@@ -22,7 +23,6 @@ from pandas.core.dtypes.common import (
     is_timedelta64_dtype,
     is_unsigned_integer_dtype,
 )
-import pytz
 
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
 from ..features import FeatureType
@@ -218,10 +218,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                         return FeatureType.DATE, {}
                 # Datetime feature (with timezone info)
                 if isinstance(dtype, pd.DatetimeTZDtype):
-                    if isinstance(dtype.tz, pytz.BaseTzInfo) and dtype.tz.zone:
-                        # If using a named time zone capture it, otherwise
-                        # rely on the offset in the iso8601 format
-                        typing_info['timezone'] = dtype.tz.zone
+                    # If using a named time zone capture it, otherwise
+                    # rely on the offset in the iso8601 format
+                    tz_name = getattr(dtype.tz, 'key', None) or getattr(dtype.tz, 'zone', None)
+                    if tz_name:
+                        typing_info['timezone'] = tz_name
                 # Datetime feature with no timezone info
                 return FeatureType.DATETIME, typing_info
 
@@ -287,10 +288,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                                 if converted_dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
                                     return FeatureType.DATE, typing_info
                                 elif isinstance(converted_dtype, pd.DatetimeTZDtype) or getattr(converted_dtype.tz):
-                                    if isinstance(converted_dtype.tz, pytz.BaseTzInfo) and converted_dtype.tz.zone:
-                                        # If using a named time zone capture it, otherwise
-                                        # rely on the offset in the iso8601 format
-                                        typing_info['timezone'] = converted_dtype.tz.zone
+                                    # If using a named time zone capture it, otherwise
+                                    # rely on the offset in the iso8601 format
+                                    tz_name = getattr(converted_dtype.tz, 'key', None) or getattr(converted_dtype.tz, 'zone', None)
+                                    if tz_name:
+                                        typing_info['timezone'] = tz_name
                                 return FeatureType.DATETIME, typing_info
 
                             else:
@@ -564,7 +566,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                             # mode to timezone aware so we can correctly detect
                             # the number of instances of it in the original
                             # column.
-                            col_modes = col_modes.dt.tz_localize(pytz.utc)
+                            col_modes = col_modes.dt.tz_localize(datetime.timezone.utc)
                             col_modes = col_modes.dt.tz_convert(column.dt.tz)
 
                         # If the mode for the feature is same as an original

@@ -10,6 +10,7 @@ from math import isnan
 import re
 import typing as t
 import warnings
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -21,7 +22,6 @@ from pandas.core.dtypes.common import (
     is_timedelta64_dtype,
     is_unsigned_integer_dtype,
 )
-import pytz
 
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
 from .protocols import IFACompatibleADCProtocol
@@ -188,10 +188,11 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 if dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
                     return FeatureType.DATE, {}
                 elif isinstance(dtype, pd.DatetimeTZDtype):
-                    if isinstance(dtype.tz, pytz.BaseTzInfo) and dtype.tz.zone:
-                        # If using a named time zone capture it, otherwise
-                        # rely on the offset in the iso8601 format
-                        typing_info['timezone'] = dtype.tz.zone
+                    # If using a named time zone capture it, otherwise
+                    # rely on the offset in the iso8601 format
+                    tz_name = getattr(dtype.tz, 'key', None) or getattr(dtype.tz, 'zone', None)
+                    if tz_name:
+                        typing_info['timezone'] = tz_name
                 return FeatureType.DATETIME, typing_info
 
             elif is_timedelta64_dtype(dtype):
@@ -263,10 +264,11 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                         if converted_dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
                             return FeatureType.DATE, {}
                         elif isinstance(converted_dtype, pd.DatetimeTZDtype):
-                            if isinstance(converted_dtype.tz, pytz.BaseTzInfo) and converted_dtype.tz.zone:
-                                # If using a named time zone capture it, otherwise
-                                # rely on the offset in the iso8601 format
-                                typing_info['timezone'] = converted_dtype.tz.zone
+                            # If using a named time zone capture it, otherwise
+                            # rely on the offset in the iso8601 format
+                            tz_name = getattr(converted_dtype.tz, 'key', None) or getattr(converted_dtype.tz, 'zone', None)
+                            if tz_name:
+                                typing_info['timezone'] = tz_name
                         return FeatureType.DATETIME, typing_info
                     else:
                         # Only add this to the warning list if we've tried `max_samples` times to
