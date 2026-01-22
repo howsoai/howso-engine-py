@@ -40,7 +40,7 @@ numpy==2.2.6
     #   pandas
 packaging==26.0
     # via deprecation
-pandas==3.0.0
+pandas==2.3.3
     # via howso-engine (pyproject.toml)
 psutil==7.2.1
     # via howso-engine (pyproject.toml)
@@ -51,6 +51,8 @@ pygments==2.19.2
 pyjwt==2.10.1
     # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
+    # via pandas
+pytz==2025.2
     # via pandas
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
@@ -70,6 +72,8 @@ tqdm==4.67.1
     # via sacremoses
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)
+tzdata==2025.3
+    # via pandas
 urllib3==2.6.3
     # via
     #   howso-engine (pyproject.toml)
