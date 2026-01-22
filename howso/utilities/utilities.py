@@ -803,7 +803,7 @@ def stringify_json(cases: list[list[t.Any]], features: Iterable[str], feature_at
         # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
         if (feature_attributes.get(feature_name, {}).get("data_type") == "json"
             and feature_attributes[feature_name].get(
-                "original_type", {}).get("data_type") in ["object", "tokenizable_string"]):
+                "original_type", {}).get("data_type") in ["container", "tokenizable_string"]):
             for case_group in cases:
                 case_group[idx] = json.dumps(case_group[idx])
 
