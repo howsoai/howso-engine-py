@@ -61,6 +61,7 @@ class FeatureType(Enum):
     DATE = "date"
     TIME = "time"
     TIMEDELTA = "timedelta"
+    CONTAINER = "container"
 
     def __str__(self):
         """Return a string representation."""
@@ -349,6 +350,8 @@ class FeatureSerializer:
             return cls.format_timedelta_column(column, feature)
         elif data_type == FeatureType.BOOLEAN.value:
             return cls.format_boolean_column(column, feature)
+        elif data_type == FeatureType.CONTAINER.value:
+            return cls.format_container_column(column, feature)
         else:
             return cls.format_unknown_column(column, feature)
 
@@ -744,11 +747,27 @@ class FeatureSerializer:
         pandas.Series
             The formatted column.
         """
-        # JSON that needs destringifying and type preservation
-        if feature.get("data_type") == "json" and feature.get("original_type", {}).get("data_type") == "object":
-            return destringify_json(column, feature)
         # Unknown original type, don't modify column
         return column
+
+    @classmethod
+    def format_container_column(cls, column: pd.Series, feature: Mapping) -> pd.Series:
+        """
+        Format a container column (a Python Mapping/Sequence).
+
+        Parameters
+        ----------
+        column : pandas.Series
+            The column to format.
+        feature : Mapping
+            The feature attributes for the column.
+
+        Returns
+        -------
+        pandas.Series
+            The formatted column.
+        """
+        return destringify_json(column, feature)
 
     @staticmethod
     def _get_typing_info(feature: t.Optional[Mapping]) -> dict:

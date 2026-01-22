@@ -1700,12 +1700,12 @@ License: LGPL-2.1-or-later
 
 
 packaging
-25.0
-Apache Software License; BSD License
+26.0
+Apache-2.0 OR BSD-2-Clause
 Donald Stufft <donald@stufft.io>
 https://github.com/pypa/packaging
 Core utilities for Python packages
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/packaging-25.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/packaging-26.0.dist-info/licenses/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to this software is made
 under the terms of *both* these licenses.
@@ -3045,12 +3045,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 pycparser
-2.23
-BSD License
-Eli Bendersky
+3.0
+BSD-3-Clause
+Eli Bendersky <eliben@gmail.com>
 https://github.com/eliben/pycparser
 C parser in Python
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pycparser-2.23.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pycparser-3.0.dist-info/licenses/LICENSE
 pycparser -- A C parser in Python
 
 Copyright (c) 2008-2022, Eli Bendersky

@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --output-file=requirements-3.11.txt --pip-args=None
 #
-amalgam-lang==25.2.7
+amalgam-lang==25.3.0
     # via howso-engine (pyproject.toml)
 certifi==2026.1.4
     # via
@@ -38,13 +38,13 @@ numpy==2.2.6
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
-packaging==25.0
+packaging==26.0
     # via deprecation
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
 psutil==7.2.1
     # via howso-engine (pyproject.toml)
-pycparser==2.23
+pycparser==3.0
     # via cffi
 pygments==2.19.2
     # via rich

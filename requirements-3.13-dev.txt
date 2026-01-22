@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.13-dev.txt --pip-args=None
 #
-amalgam-lang==25.2.7
+amalgam-lang==25.3.0
     # via howso-engine (pyproject.toml)
 astroid==4.0.3
     # via pylint
@@ -28,7 +28,7 @@ cryptography==46.0.3
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
-dill==0.4.0
+dill==0.4.1
     # via
     #   howso-engine (pyproject.toml)
     #   pylint
@@ -74,13 +74,14 @@ numpy==2.2.6
     #   pandas
     #   scikit-learn
     #   scipy
-packaging==25.0
+packaging==26.0
     # via
     #   build
     #   deprecation
     #   mongomock
     #   pipdeptree
     #   pytest
+    #   wheel
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
 pip-tools==7.5.2
@@ -100,7 +101,7 @@ pycodestyle==2.7.0
     #   flake8
     #   flake8-import-order
     #   howso-engine (pyproject.toml)
-pycparser==2.23
+pycparser==3.0
     # via cffi
 pydocstyle==6.3.0
     # via flake8-docstrings
@@ -170,7 +171,7 @@ urllib3==2.6.3
     # via
     #   howso-engine (pyproject.toml)
     #   requests
-wheel==0.45.1
+wheel==0.46.2
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:
@@ -178,7 +179,7 @@ pip==25.3
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==80.9.0
+setuptools==80.10.1
     # via
     #   flake8-import-order
     #   pip-tools

@@ -1106,6 +1106,7 @@ def test_json_features_types():
             df = pd.DataFrame({"foo": [test[0]]})
             attributes = infer_feature_attributes(df)
             assert attributes["foo"]["data_type"] == "json"
+            assert attributes["foo"]["original_type"]["data_type"] == FeatureType.CONTAINER.value
             assert attributes["foo"]["original_type"]["type_map"] == test[1]
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -1113,6 +1114,7 @@ def test_json_features_types():
         df = pd.DataFrame({"foo": [tests[0][0], tests[1][0]]})
         attributes = infer_feature_attributes(df)
         assert attributes["foo"]["data_type"] == "json"
+        assert attributes["foo"]["original_type"]["data_type"] == FeatureType.CONTAINER.value
         assert attributes["foo"]["original_type"]["type_map"] == tests[0][1]
 
     # Test applicable warnings

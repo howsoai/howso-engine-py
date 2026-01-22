@@ -1463,6 +1463,7 @@ class TestBaseClient:
             feature_attributes = infer_feature_attributes(data_uniform_types)
             assert feature_attributes["foo"]["data_type"] == "json"
             assert feature_attributes["foo"]["type"] == "continuous"
+            assert feature_attributes["foo"]["original_type"]["data_type"] == "container"
             client = HowsoClient()
             t = Trainee()
             client.set_feature_attributes(t.id, feature_attributes)
@@ -1484,6 +1485,7 @@ class TestBaseClient:
             feature_attributes = infer_feature_attributes(data_uniform_except_list)
             assert feature_attributes["foo"]["data_type"] == "json"
             assert feature_attributes["foo"]["type"] == "continuous"
+            assert feature_attributes["foo"]["original_type"]["data_type"] == "container"
             client = HowsoClient()
             t = Trainee()
             client.set_feature_attributes(t.id, feature_attributes)
@@ -1507,6 +1509,7 @@ class TestBaseClient:
             feature_attributes = infer_feature_attributes(data_non_uniform)
             assert feature_attributes["foo"]["data_type"] == "json"
             assert feature_attributes["foo"]["type"] == "continuous"
+            assert feature_attributes["foo"]["original_type"]["data_type"] == "container"
             client = HowsoClient()
             t = Trainee()
             client.set_feature_attributes(t.id, feature_attributes)
