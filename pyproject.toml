@@ -39,7 +39,7 @@ dependencies = [
    "humanize>=4.0.0",
    "mmh3",
    "numpy~=2.2.0",
-   "pandas",
+   "pandas<3.0",
    "psutil",
    "pyjwt~=2.0",
    "pyyaml~=6.0",
