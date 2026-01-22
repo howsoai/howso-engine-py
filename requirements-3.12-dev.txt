@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.12-dev.txt --pip-args=None
 #
-amalgam-lang==25.2.7
+amalgam-lang==25.3.0
     # via howso-engine (pyproject.toml)
 astroid==4.0.3
     # via pylint
@@ -28,7 +28,7 @@ cryptography==46.0.3
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
-dill==0.4.0
+dill==0.4.1
     # via
     #   howso-engine (pyproject.toml)
     #   pylint
@@ -74,14 +74,15 @@ numpy==2.2.6
     #   pandas
     #   scikit-learn
     #   scipy
-packaging==25.0
+packaging==26.0
     # via
     #   build
     #   deprecation
     #   mongomock
     #   pipdeptree
     #   pytest
-pandas==2.3.3
+    #   wheel
+pandas==3.0.0
     # via howso-engine (pyproject.toml)
 pip-tools==7.5.2
     # via howso-engine (pyproject.toml)
@@ -100,7 +101,7 @@ pycodestyle==2.7.0
     #   flake8
     #   flake8-import-order
     #   howso-engine (pyproject.toml)
-pycparser==2.23
+pycparser==3.0
     # via cffi
 pydocstyle==6.3.0
     # via flake8-docstrings
@@ -131,9 +132,7 @@ pytest-xdist==3.8.0
 python-dateutil==2.9.0.post0
     # via pandas
 pytz==2025.2
-    # via
-    #   mongomock
-    #   pandas
+    # via mongomock
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
 regex==2026.1.15
@@ -164,13 +163,11 @@ tqdm==4.67.1
     # via sacremoses
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)
-tzdata==2025.3
-    # via pandas
 urllib3==2.6.3
     # via
     #   howso-engine (pyproject.toml)
     #   requests
-wheel==0.45.1
+wheel==0.46.2
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:
@@ -178,7 +175,7 @@ pip==25.3
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==80.9.0
+setuptools==80.10.1
     # via
     #   flake8-import-order
     #   pip-tools
