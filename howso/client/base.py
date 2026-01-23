@@ -3060,11 +3060,12 @@ class AbstractHowsoClient(ABC):
             )
 
         # Ensure that the format of the final_time_steps are consistent with the feature attributes
-        final_time_steps, invalid_values = internals.coerce_date_time_formats(final_time_steps, feature_attributes)
-        if invalid_values:
-            raise ValueError("The provided `final_time_steps` contain one or more values that do not match the "
-                             f"`date_time_format` of the time feature (sample: '{invalid_values[0]}'). Please "
-                             "verify the feature attributes or update the `final_time_steps`.")
+        if final_time_steps:
+            final_time_steps, invalid_values = internals.coerce_date_time_formats(final_time_steps, feature_attributes)
+            if invalid_values:
+                raise ValueError("The provided `final_time_steps` contain one or more values that do not match the "
+                                f"`date_time_format` of the time feature (sample: '{invalid_values[0]}'). Please "
+                                "verify the feature attributes or update the `final_time_steps`.")
 
         # All of these params must be of length 1 or N
         # where N is the length of the largest
