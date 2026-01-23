@@ -662,7 +662,8 @@ class AbstractHowsoClient(ABC):
         else:
             # Scale the batch size automatically
             start_batch_size = initial_batch_size or self.train_initial_batch_size
-            batch_scaler = internals.BatchScalingManager(start_batch_size, max(self._get_trainee_thread_count(trainee_id), 1))
+            batch_scaler = internals.BatchScalingManager(start_batch_size,
+                                                         max(self._get_trainee_thread_count(trainee_id), 1))
 
         # If we weren't given a case generator, wrap the cases we have in one.
         gen: Generator[TabularData2D, int]
@@ -707,14 +708,16 @@ class AbstractHowsoClient(ABC):
                     for feature in unsupported_features:
                         batch.drop(features, axis=1, inplace=True)
                     # Turn the batch into data primitives to pass off to the engine.
-                    batch_cases = serialize_cases(batch, features, feature_attributes, warn=True, tokenizer=self._tokenizer) or []
+                    batch_cases = serialize_cases(batch, features, feature_attributes, warn=True,
+                                                  tokenizer=self._tokenizer) or []
                 else:
                     # We've already validated and serialized the data, so use this batch as-is.
                     batch_cases = batch
                 num_batch_cases = len(batch_cases)
 
                 # If the batch scaler allows setting the number of cases, set it to the actual number we got.
-                if isinstance(batch_scaler, internals.BatchScalingManager) and num_batch_cases != batch_scaler.batch_size:
+                if isinstance(batch_scaler,
+                              internals.BatchScalingManager) and num_batch_cases != batch_scaler.batch_size:
                     batch_scaler.batch_size = num_batch_cases
 
                 # It's possible we've had to guess at the total count, so make
@@ -1173,7 +1176,8 @@ class AbstractHowsoClient(ABC):
             feature_attributes = self.resolve_feature_attributes(trainee_id)
             if features is None:
                 features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
-            serialized_feature_values = serialize_cases(feature_values, features, feature_attributes, tokenizer=self._tokenizer)
+            serialized_feature_values = serialize_cases(feature_values, features, feature_attributes,
+                                                        tokenizer=self._tokenizer)
             if serialized_feature_values:
                 # Only a single case should be provided
                 serialized_feature_values = serialized_feature_values[0]
@@ -1262,7 +1266,8 @@ class AbstractHowsoClient(ABC):
             )
 
         # Preprocess contexts
-        serialized_contexts = serialize_cases(contexts, context_features, feature_attributes, tokenizer=self._tokenizer)
+        serialized_contexts = serialize_cases(contexts, context_features, feature_attributes,
+                                              tokenizer=self._tokenizer)
 
         if self.configuration.verbose:
             print(f'Appending to series store for Trainee with id: {trainee_id}, and series: {series}')
@@ -2483,7 +2488,9 @@ class AbstractHowsoClient(ABC):
                 initial_batch_size=initial_batch_size,
                 get_thread_count=self._get_trainee_thread_count,
                 get_concurrency=self.get_trainee_concurrency,
-                params_for_batch=internals.ParamsForBatch({"action_values", "context_values", "case_indices", "post_process_values"}, num_to_generate_param="num_cases_to_generate"),
+                params_for_batch=internals.ParamsForBatch({"action_values", "context_values", "case_indices",
+                                                           "post_process_values"},
+                                                          num_to_generate_param="num_cases_to_generate"),
                 react_function=self._react,
                 progress_callback=progress_callback
             )
@@ -3052,6 +3059,13 @@ class AbstractHowsoClient(ABC):
                 " following values - ['min', 'max', 'most_similar',]"
             )
 
+        # Ensure that the format of the final_time_steps are consistent with the feature attributes
+        final_time_steps, invalid_values = internals.coerce_date_time_formats(final_time_steps, feature_attributes)
+        if invalid_values:
+            raise ValueError("The provided `final_time_steps` contain one or more values that do not match the "
+                             f"`date_time_format` of the time feature (sample: '{invalid_values[0]}'). Please "
+                             "verify the feature attributes or update the `final_time_steps`.")
+
         # All of these params must be of length 1 or N
         # where N is the length of the largest
         one_or_more_params = [
@@ -3178,7 +3192,9 @@ class AbstractHowsoClient(ABC):
                 initial_batch_size=initial_batch_size,
                 get_thread_count=self._get_trainee_thread_count,
                 get_concurrency=self.get_trainee_concurrency,
-                params_for_batch=internals.ParamsForBatch({"max_series_lengths", "series_context_values", "series_stop_maps", "series_id_values"}, num_to_generate_param="num_series_to_generate"),
+                params_for_batch=internals.ParamsForBatch(
+                    {"max_series_lengths", "series_context_values", "series_stop_maps", "series_id_values"},
+                    num_to_generate_param="num_series_to_generate"),
                 react_function=self._react_series,
                 progress_callback=progress_callback
             )
@@ -3546,7 +3562,7 @@ class AbstractHowsoClient(ABC):
             these specified features computing their values.
         clustering : bool, optional
             If True, will cluster and store cluster ids into ".cluster_id".
-			Will also compute and overwrite distance contributions and similarity convictions.
+            Will also compute and overwrite distance contributions and similarity convictions.
         clustering_expansion_threshold : float, optional
             Similarity conviction threshold of cases considered for expansion of a cluster, only
             cases with similarity conviction equal to or greater than this value will be
@@ -3573,7 +3589,7 @@ class AbstractHowsoClient(ABC):
         overwrite: bool, default False
             When true will forcibly overwrite previously stored values.
             Default is false, will error out if trying to
-			react_into_features for a feature that already exists.
+            react_into_features for a feature that already exists.
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition
             values. If set to True the values will be stored to the feature
@@ -3753,13 +3769,13 @@ class AbstractHowsoClient(ABC):
                         - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
-                          range. Only applicable to continuous and numeric ordinal
-                          features. Either the lower bound or upper bound can be
-                          None to express an open bound. If both bounds are None,
-                          then all cases with non-missing values are selected.
+                            range. Only applicable to continuous and numeric ordinal
+                            features. Either the lower bound or upper bound can be
+                            None to express an open bound. If both bounds are None,
+                            then all cases with non-missing values are selected.
                         - An array of string values, must match any of these values
-                          exactly. Only applicable to nominal and string ordinal
-                          features.
+                            exactly. Only applicable to nominal and string ordinal
+                            features.
             - action_num_samples : int, optional
                 The maximum number of action cases used in calculating conditional prediction stats.
                 If ``action_condition`` is set and no value is specified, will use k if precision is "similar" or
@@ -3779,13 +3795,13 @@ class AbstractHowsoClient(ABC):
                         - None, must be missing a value
                         - A value, must match exactly.
                         - An array of two numeric values, specifying an inclusive
-                          range. Only applicable to continuous and numeric ordinal
-                          features. Either the lower bound or upper bound can be
-                          None to express an open bound. If both bounds are None,
-                          then all cases with non-missing values are selected.
+                            range. Only applicable to continuous and numeric ordinal
+                            features. Either the lower bound or upper bound can be
+                            None to express an open bound. If both bounds are None,
+                            then all cases with non-missing values are selected.
                         - An array of string values, must match any of these values
-                          exactly. Only applicable to nominal and string ordinal
-                          features.
+                            exactly. Only applicable to nominal and string ordinal
+                            features.
             - context_condition_num_samples : int, optional
                 Limit on the number of context cases when ``context_condition_precision`` is set to "similar".
                 If None, will be set to k.
@@ -3798,29 +3814,29 @@ class AbstractHowsoClient(ABC):
 
                 - all : Returns all the the available prediction stats, including the confusion matrix.
                 - accuracy : The number of correct predictions divided by the
-                  total number of predictions.
+                    total number of predictions.
                 - confusion_matrix : A sparse map of actual feature value to a map of
-                  predicted feature value to counts.
+                    predicted feature value to counts.
                 - mae : Mean absolute error. For continuous features, this is
-                  calculated as the mean of absolute values of the difference
-                  between the actual and predicted values. For nominal features,
-                  this is 1 - the average categorical action probability of each case's
-                  correct classes. Categorical action probabilities are the probabilities
-                  for each class for the action feature.
+                    calculated as the mean of absolute values of the difference
+                    between the actual and predicted values. For nominal features,
+                    this is 1 - the average categorical action probability of each case's
+                    correct classes. Categorical action probabilities are the probabilities
+                    for each class for the action feature.
                 - precision : Precision (positive predictive) value for nominal
-                  features only.
+                    features only.
                 - r2 : The r-squared coefficient of determination, for
-                  continuous features only.
+                    continuous features only.
                 - recall : Recall (sensitivity) value for nominal features only.
                 - rmse : Root mean squared error, for continuous features only.
                 - spearman_coeff : Spearman's rank correlation coefficient,
-                  for continuous features only.
+                    for continuous features only.
                 - mcc : Matthews correlation coefficient, for nominal features only.
                 - smape : Symmetric mean absolute percentage error, for continuous features only.
                 - adjusted_smape : Adjusted symmetric mean absolute percentage error, for
-                  continuous features only. Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
-                  actual value. The minimum gap for each feature is the smallest difference between two values
-                  in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
+                    continuous features only. Adjusted SMAPE adds the minimum gap / 2 to each forecasted and
+                    actual value. The minimum gap for each feature is the smallest difference between two values
+                    in the data. This helps alleviate limitations with smape when the values are 0 or near 0.
             - estimated_residual_lower_bound : bool, optional
                 When True, computes and outputs estimated lower bound of residuals for specified action features.
             - value_robust_accuracy_contributions : bool, optional
@@ -3834,7 +3850,7 @@ class AbstractHowsoClient(ABC):
             - value_robust_surprisal_asymmetry : bool. optional
                 Perform a focused computation to determine how all the individual values of specified
                 'value_robust_contributions_features' relationships with `value_robust_contributions_action_feature"
-			    vary in terms of AC-surprisal asymmetry.
+                vary in terms of AC-surprisal asymmetry.
             - missing_information : bool, optional
                 For each feature in ``action_features``, return the average estimated missing information. This is
                 computed by measuring the surprisal between the full prediction and the prediction including the true
@@ -3881,9 +3897,9 @@ class AbstractHowsoClient(ABC):
             Valid keys in the map are:
 
                 - "goal": "min" or "max", will make a prediction while minimizing or
-                  maximizing the value for the feature.
+                    maximizing the value for the feature.
                 - "value" : somevalue, will make a prediction while approaching the
-                  specified value.
+                    specified value.
 
             .. NOTE::
                 Nominal features only support "value", "goal" is ignored.
@@ -3970,7 +3986,7 @@ class AbstractHowsoClient(ABC):
             `weight_feature` weight. If unspecified, case weights
             will be used if the Trainee has them.
         value_robust_contributions_action_feature : str, optional
-			The name of the feature being predicted when computing the "value_robust_accuracy_contributions",
+            The name of the feature being predicted when computing the "value_robust_accuracy_contributions",
             "value_robust_prediction_contributions" or "value_robust_surprisal_asymmetry" details.
         value_robust_contributions_buckets : dict of str to list of tuples of float and float, optional
             A mapping of continuous feature names to lists of ranges defined as two float tuples that describe the
@@ -4248,7 +4264,7 @@ class AbstractHowsoClient(ABC):
         *,
         aggregation_code: t.Optional[str] = None
     ) -> Evaluation:
-        """
+        r"""
         Evaluate custom code on feature values of all cases in the trainee.
 
         Parameters
@@ -4317,7 +4333,7 @@ class AbstractHowsoClient(ABC):
         weight_feature: t.Optional[str] = None,
         **kwargs
     ):
-        """
+        r"""
         Analyzes a Trainee.
 
         Parameters
@@ -4558,7 +4574,7 @@ class AbstractHowsoClient(ABC):
         weight_feature: t.Optional[str] = None,
         **kwargs
     ):
-        """
+        r"""
         Set Trainee parameters for auto analysis.
 
         Parameters

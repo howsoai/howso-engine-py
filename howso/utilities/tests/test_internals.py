@@ -1,6 +1,7 @@
-from datetime import timedelta
+import datetime
 import warnings
 
+import pandas as pd
 import pytest
 from semantic_version import Version
 
@@ -261,10 +262,10 @@ def test_fixed_batch_scaler() -> None:
 
     # Even with the scale-up and scale-down events from the normal batch
     # scaler tests, this still emits a fixed size.
-    batch_scaler.update(timedelta(seconds=30), None)
+    batch_scaler.update(datetime.timedelta(seconds=30), None)
     assert batch_scaler.batch_size == 100
 
-    batch_scaler.update(timedelta(seconds=90), None)
+    batch_scaler.update(datetime.timedelta(seconds=90), None)
     assert batch_scaler.batch_size == 100
 
     # Cannot manually set the size.
@@ -278,24 +279,24 @@ def test_batch_scaler_time() -> None:
 
     # Send a batch shorter than 60 seconds and it should scale up.
     # Internal factor increases by sqrt(5)/2, rounded to a multiple of 4.
-    batch_scaler.update(timedelta(seconds=30), None)
+    batch_scaler.update(datetime.timedelta(seconds=30), None)
     assert batch_scaler.batch_size == 160
 
     # This will hit the maximum size, which rounds down to the thread count.
-    batch_scaler.update(timedelta(seconds=30), None)
+    batch_scaler.update(datetime.timedelta(seconds=30), None)
     assert batch_scaler.batch_size == 248
 
     # This will stay there
-    batch_scaler.update(timedelta(seconds=30), None)
+    batch_scaler.update(datetime.timedelta(seconds=30), None)
     assert batch_scaler.batch_size == 248
 
     # Send a batch longer than 75 seconds and it should scale down.
     # Internal factor decreases by 0.5.
-    batch_scaler.update(timedelta(seconds=90), None)
+    batch_scaler.update(datetime.timedelta(seconds=90), None)
     assert batch_scaler.batch_size == 124
 
     # Anything 60-75 seconds should be unchanged.
-    batch_scaler.update(timedelta(seconds=70), None)
+    batch_scaler.update(datetime.timedelta(seconds=70), None)
     assert batch_scaler.batch_size == 124
 
 
@@ -323,5 +324,133 @@ def test_batch_scaler_modify() -> None:
     assert batch_scaler.batch_size == 84  # which is different (rounded)
 
     # Scaling follows the internal size, even if it rounds differently.
-    batch_scaler.update(timedelta(seconds=90), None)
+    batch_scaler.update(datetime.timedelta(seconds=90), None)
     assert batch_scaler.batch_size == 40  # which is not half of the previous value
+
+
+@pytest.mark.parametrize(
+    "date_time_values,feature_attributes,expected_coerced,expected_uncoercible,expected_error",
+    [
+        # Test 1: Missing time feature raises HowsoError
+        (
+            [datetime.date(2024, 1, 15)],
+            {"feature1": {"type": "continuous"}},
+            None,
+            None,
+            (ValueError, "Time feature not found")
+        ),
+        # Test 2: Time feature without date_time_format raises HowsoError
+        (
+            [datetime.date(2024, 1, 15)],
+            {"time_col": {"time_series": {"time_feature": True}}},
+            None,
+            None,
+            (ValueError, "missing a `date_time_format`")
+        ),
+        # Test 3: Valid datetime.date objects matching date-only format
+        (
+            [datetime.date(2024, 1, 15), datetime.date(2024, 1, 16)],
+            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
+            [datetime.date(2024, 1, 15), datetime.date(2024, 1, 16)],
+            [],
+            None
+        ),
+        # Test 4: Coerce datetime.date to datetime.datetime when format has time component
+        (
+            [datetime.date(2024, 1, 15)],
+            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d %H:%M:%S"}},
+            [datetime.datetime(2024, 1, 15, 0, 0, 0)],
+            [],
+            None
+        ),
+        # Test 5: Coerce datetime.datetime with empty time to date when format is date-only
+        (
+            [datetime.datetime(2024, 1, 15, 0, 0, 0)],
+            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
+            [datetime.date(2024, 1, 15)],
+            [],
+            None
+        ),
+        # Test 6: Valid datetime.datetime objects matching datetime format
+        (
+            [datetime.datetime(2024, 1, 15, 14, 30, 45)],
+            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d %H:%M:%S"}},
+            [datetime.datetime(2024, 1, 15, 14, 30, 45)],
+            [],
+            None
+        ),
+        # Test 7: Valid string values matching format
+        (
+            ["2024-01-15", "2024-01-16"],
+            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
+            ["2024-01-15", "2024-01-16"],
+            [],
+            None
+        ),
+        # Test 8: Invalid string values don't match format
+        (
+            ["2024-01-15", "15/01/2024", "invalid"],
+            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
+            ["2024-01-15"],
+            ["15/01/2024", "invalid"],
+            None
+        ),
+        # Test 9: Mixed valid and invalid values
+        (
+            [
+                datetime.datetime(2024, 1, 15, 14, 30),
+                datetime.date(2024, 1, 16),
+                "2024-01-17 10:00",
+                "invalid-date"
+            ],
+            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d %H:%M"}},
+            [
+                datetime.datetime(2024, 1, 15, 14, 30),
+                datetime.datetime(2024, 1, 16, 0, 0),
+                "2024-01-17 10:00"
+            ],
+            ["invalid-date"],
+            None
+        ),
+        # Test 10: Don't coerce datetime with non-empty time component to date
+        (
+            [datetime.datetime(2024, 1, 15, 14, 30, 0)],
+            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
+            [],
+            [datetime.datetime(2024, 1, 15, 14, 30, 0)],
+            None
+        ),
+        # Test 11: Don't coerce datetime with timezone to date
+        (
+            [pd.Timestamp("2024-01-15", tz="UTC").to_pydatetime()],
+            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
+            [],
+            [pd.Timestamp("2024-01-15", tz="UTC").to_pydatetime()],
+            None
+        ),
+    ],
+    ids=[
+        "missing_time_feature",
+        "missing_date_time_format",
+        "valid_dates",
+        "coerce_date_to_datetime",
+        "coerce_datetime_to_date",
+        "valid_datetimes",
+        "valid_strings",
+        "invalid_strings",
+        "mixed_valid_invalid",
+        "dont_coerce_nonempty_time",
+        "dont_coerce_timezone",
+    ]
+)
+def test_coerce_date_time_formats(date_time_values, feature_attributes, expected_coerced, expected_uncoercible,
+                                  expected_error):
+    """Test coercion of date/time values to match feature attributes."""
+    if expected_error:
+        error_class, error_message = expected_error
+        with pytest.raises(error_class, match=error_message):
+            internals.coerce_date_time_formats(date_time_values, feature_attributes)
+    else:
+        coerced, uncoercible = internals.coerce_date_time_formats(date_time_values, feature_attributes)
+        assert coerced == expected_coerced
+        assert uncoercible == expected_uncoercible

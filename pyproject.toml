@@ -42,7 +42,6 @@ dependencies = [
    "pandas<3.0",
    "psutil",
    "pyjwt~=2.0",
-   "pytz",
    "pyyaml~=6.0",
    "requests>=2.32.4,<3.0",
    "rich>=12.5.1",
