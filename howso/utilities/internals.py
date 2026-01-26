@@ -1413,7 +1413,7 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
     """
     Verify that the provided list of date(time) values conform to the feature attributes of the time feature.
 
-    Coerces the provided values to the correct format if there are any minor discrepancies.
+    Coerce the provided values to the correct format if there are any minor discrepancies.
 
     Parameters
     ----------
@@ -1430,7 +1430,7 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
     ------
     ValueError
         If the provided feature attributes do not indicate a time feature, or if the time feature's attributes do not
-        contain a date_time_format.
+        contain a `date_time_format`.
     """
     time_feature_format = None
     for feature, attributes in feature_attributes.items():
