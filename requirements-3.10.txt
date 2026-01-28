@@ -60,7 +60,7 @@ regex==2026.1.15
     # via sacremoses
 requests==2.32.5
     # via howso-engine (pyproject.toml)
-rich==14.2.0
+rich==14.3.1
     # via howso-engine (pyproject.toml)
 sacremoses==0.1.1
     # via howso-engine (pyproject.toml)
