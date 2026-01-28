@@ -678,6 +678,7 @@ class BaseBatchScalingManager(t.Protocol):
         """
         ...
 
+
 class FixedBatchScalingManager(BaseBatchScalingManager):
     """
     A batch scaling manager that never changes the batch size.
@@ -879,9 +880,11 @@ class BatchScalingManager(BaseBatchScalingManager):
         return self.clamp(batch_size)
 
     @t.overload
-    def clamp(self, batch_size: int) -> int: ...
+    def clamp(self, batch_size: int) -> int: ...  # noqa: E704 D102
+
     @t.overload
-    def clamp(self, batch_size: float) -> float: ...
+    def clamp(self, batch_size: float) -> float: ...  # noqa: E704 D102
+
     def clamp(self, batch_size: int | float) -> int | float:
         """
         Clamp batch size between min/max allowed value.
@@ -909,7 +912,6 @@ class BatchScalingManager(BaseBatchScalingManager):
         """
         batches = max(round(batch_size / self.thread_count), 1)
         return batches * self.thread_count
-
 
 
 class ReactInBatches:
@@ -957,6 +959,7 @@ class ReactInBatches:
         metrics.
 
     """
+
     def __init__(
             self,
             *,
@@ -1118,7 +1121,8 @@ class ReactInBatches:
             if future in done:
                 self._running.remove(future)
                 self._progress.update(batch_size)
-                logger.debug("finished batch of size %d, total: %d/%d", batch_size, self._progress.current_tick, self._progress.total_ticks)
+                logger.debug("finished batch of size %d, total: %d/%d", batch_size, self._progress.current_tick,
+                             self._progress.total_ticks)
                 # Update the batch scaler if needed
                 if self._batch_scaling_future is not None and self._batch_scaling_future[1] is future:
                     start_time = self._batch_scaling_future[0]
@@ -1127,7 +1131,8 @@ class ReactInBatches:
                     old_batch_size = self._batch_scaler.batch_size
                     batch_duration = end_time - start_time
                     self._update_batch_size(batch_duration, in_size, out_size)
-                    logger.debug("updating batch size %d -> %d (%s)", old_batch_size, self._batch_scaler.batch_size, batch_duration)
+                    logger.debug("updating batch size %d -> %d (%s)", old_batch_size, self._batch_scaler.batch_size,
+                                 batch_duration)
                     # The next batch we submit will get to update the batch size
                     self._batch_scaling_future = None
         # Pop anything we can off the queue
@@ -1149,7 +1154,8 @@ class ReactInBatches:
                     future = executor.submit(self._react_function, self._trainee_id, batch_params)
                     self._futures.append((batch_end - batch_start, future))
                     self._running.add(future)
-                    logger.debug("starting batch of size %d (%d/%d)", (batch_end - batch_start), len(self._futures), max_running)
+                    logger.debug("starting batch of size %d (%d/%d)", (batch_end - batch_start), len(self._futures),
+                                 max_running)
                     if self._batch_scaling_future is None:
                         self._batch_scaling_future = (datetime.datetime.now(datetime.timezone.utc), future)
                     batch_start = batch_end
@@ -1164,6 +1170,7 @@ class ReactInBatches:
             executor.shutdown(wait=False, cancel_futures=True)
         logger.debug("finished parallel batch react")
 
+
 class ParamsForBatch:
     """
     Helper callable class to get slices out of a react parameter set.
@@ -1176,11 +1183,13 @@ class ParamsForBatch:
     num_to_generate_param : str, optional
         If ``desired_conviction`` is set, then set this parameter to the batch size.
     """
+
     def __init__(self, slice_keys: Collection[str], num_to_generate_param: str | None = None):
         self._slice_keys = slice_keys
         self._num_to_generate_param = num_to_generate_param
 
     def __call__(self, params: dict[str, t.Any], batch_start: int, batch_end: int) -> dict[str, t.Any]:
+        """Get slices out of a react parameter set."""
         result = {}
         for k, v in params.items():
             if k in self._slice_keys and v is not None and len(v) > 1:
@@ -1205,7 +1214,7 @@ def batch_lists(lists: list[T], initial_batch_size: int) -> Generator[list[T], i
     offset = 0
     batch_size = initial_batch_size
     while offset < len(lists):
-        batch = lists[offset:offset+batch_size]
+        batch = lists[offset:offset + batch_size]
         next_batch_size = yield batch
         offset += batch_size
         batch_size = next_batch_size
@@ -1292,6 +1301,7 @@ def fix_feature_value_keys(
                 output_dict[str(k)] = v
     return output_dict
 
+
 def update_caps_maps(
     caps_maps: list[dict[str, dict[str, float]]],
     feature_attributes: Mapping[str, Mapping]
@@ -1327,6 +1337,7 @@ def update_caps_maps(
         updated_caps_maps.append(updated_caps_map)
 
     return updated_caps_maps
+
 
 def update_confusion_matrix(
     confusion_matrix: dict[str, dict[str, float | dict[str, t.Any]]],
@@ -1371,6 +1382,130 @@ def update_confusion_matrix(
         updated_confusion_matrix_map[feature] = updated_feature_cm_map
 
     return updated_confusion_matrix_map
+
+
+def _datetime_matches_format(dt_obj: datetime.date | datetime.datetime, fmt: str) -> bool:
+    """Check whether an arbitrary datetime.date(time) object matches the provided format string."""
+    try:
+        # If dt_obj is a timezone-aware datetime and format doesn't include timezone directives, reject it
+        if isinstance(dt_obj, datetime.datetime) and dt_obj.tzinfo is not None:
+            # Check if format has timezone directives
+            tz_directives = r'%[zZ]'
+            if not re.search(tz_directives, fmt):
+                return False
+
+        # If fmt is timezone-aware and dt_obj is naive, reject it
+        if isinstance(dt_obj, datetime.datetime) and dt_obj.tzinfo is None:
+            # Check if format has timezone directives
+            tz_directives = r'%[zZ]'
+            if re.search(tz_directives, fmt):
+                return False
+
+        # If dt_obj is a datetime with non-empty time and format has no time directives, reject it
+        if isinstance(dt_obj, datetime.datetime):
+            time_directives = r'%[HIMSfpXTR]'
+            has_time_in_format = bool(re.search(time_directives, fmt))
+            has_nonempty_time = dt_obj.time() != datetime.time(0)
+            if has_nonempty_time and not has_time_in_format:
+                return False
+
+        date_str = dt_obj.strftime(fmt)
+        datetime.datetime.strptime(date_str, fmt)
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
+def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: dict) -> tuple[list[t.Any]]:  # noqa: C901 E501
+    """
+    Verify that the provided list of date(time) values conform to the feature attributes of the time feature.
+
+    Coerce the provided values to the correct format if there are any minor discrepancies.
+
+    Parameters
+    ----------
+    date_time_values : list of Any
+        The date/time values to verify.
+    feature_attributes : dict
+        The feature attributes to compare the date/time formats against.
+
+    Returns
+    -------
+        valid_time_values : list of Any
+            The list of the provided datetime values as strings and coerced to match the time feature's format.
+        coerced_time_values : list of tuple of Any, Any
+            A list of tuples of the provided datetime value and the datetime string it was coerced to, if applicable.
+        invalid_time_values: list of Any
+            A list of the provided datetime values that could not be coerced to match the time feature's format.
+
+    Raises
+    ------
+    ValueError
+        If the provided feature attributes do not indicate a time feature, or if the time feature's attributes do not
+        contain a `date_time_format`.
+    """
+    time_feature_format = None
+    for feature, attributes in feature_attributes.items():
+        if attributes.get("time_series", {}).get("time_feature") is True:
+            time_feature_format = attributes.get("date_time_format")
+    if not time_feature_format:
+        raise ValueError("Time feature not found in provided feature attributes, or time feature is missing a "
+                         "`date_time_format`.")
+    valid_time_values = []
+    coerced_time_values = []
+    invalid_time_values = []
+    # Verify that all the values in date_time_values match time_feature_format
+    for val in date_time_values:
+
+        # If val is a timezone-aware datetime and time_feature_format doesn't include timezone directives, reject it
+        if isinstance(val, datetime.datetime) and val.tzinfo is not None:
+            # Check if format has timezone directives
+            tz_directives = r'%[zZ]'
+            if not re.search(tz_directives, time_feature_format):
+                invalid_time_values.append(val)
+                continue
+
+        # If time_feature_format is timezone-aware and val is naive, reject it
+        elif isinstance(val, datetime.datetime) and val.tzinfo is None:
+            # Check if format has timezone directives
+            tz_directives = r'%[zZ]'
+            if re.search(tz_directives, time_feature_format):
+                invalid_time_values.append(val)
+                continue
+
+        # Now use Pandas to try to coerce the value into a Pandas datetime and then into a string of the desired format
+        try:
+            series = pd.to_datetime(pd.Series([val]))
+            formatted_coerced_value = series.iloc[0].strftime(time_feature_format)
+            valid_time_values.append(formatted_coerced_value)
+            # Great, it works! But check if the value was coerced from the original.
+            if isinstance(val, datetime.date):
+                # If the original value is a datetime.date object (of which datetime.datetime is a subclass), convert
+                # the (potentially) coerced string to a datetime.date/time to compare with the original.
+                coerced_val_as_dt_obj = datetime.datetime.strptime(formatted_coerced_value, time_feature_format)
+                # If the original value was not a datetime.datetime (just a date), we need to check if time was added.
+                if not isinstance(val, datetime.datetime):
+                    # Check if the format string contains time directives
+                    time_directives = r'%[HIMS]'
+                    if re.search(time_directives, time_feature_format):
+                        # Time component was added, so this is a coercion
+                        coerced_time_values.append((val, formatted_coerced_value))
+                    else:
+                        # Format is date-only, so compare as dates
+                        coerced_val_as_dt_obj = coerced_val_as_dt_obj.date()
+                        if coerced_val_as_dt_obj != val:
+                            coerced_time_values.append((val, formatted_coerced_value))
+                else:
+                    # Original was datetime.datetime, compare as datetime
+                    if coerced_val_as_dt_obj != val:
+                        coerced_time_values.append((val, formatted_coerced_value))
+            elif isinstance(val, str) and formatted_coerced_value != val:
+                coerced_time_values.append((val, formatted_coerced_value))
+        except Exception:  # noqa: Intentionally broad
+            # Something went wrong, and the value cannot be used.
+            invalid_time_values.append(val)
+
+    return valid_time_values, coerced_time_values, invalid_time_values
 
 
 class IgnoreWarnings:

@@ -10,7 +10,6 @@ import multiprocessing as mp
 import re
 import typing as t
 import warnings
-from zoneinfo import ZoneInfo
 
 from dateutil.parser import parse as dt_parse
 import numpy as np
@@ -290,7 +289,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                                 elif isinstance(converted_dtype, pd.DatetimeTZDtype) or getattr(converted_dtype.tz):
                                     # If using a named time zone capture it, otherwise
                                     # rely on the offset in the iso8601 format
-                                    tz_name = getattr(converted_dtype.tz, 'key', None) or getattr(converted_dtype.tz, 'zone', None)
+                                    tz_name = getattr(converted_dtype.tz, 'key', None) or getattr(converted_dtype.tz,
+                                                                                                  'zone', None)
                                     if tz_name:
                                         typing_info['timezone'] = tz_name
                                 return FeatureType.DATETIME, typing_info
