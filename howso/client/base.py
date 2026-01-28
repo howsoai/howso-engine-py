@@ -3071,17 +3071,17 @@ class AbstractHowsoClient(ABC):
             elif coerced_values:
                 # Show up to 3 examples of coerced final_time_steps
                 sample_coercions = coerced_values[:3]
-                coercion_examples = ", ".join(
+                coercion_examples = "\n\t- ".join(
                     [f"{original} -> {coerced}" for original, coerced in sample_coercions]
                 )
                 total_coerced = len(coerced_values)
                 warning_msg = (
                     f"One or more of the provided `final_time_steps` were coerced and stringified to match "
                     f"the `date_time_format` of the time feature. {total_coerced} value(s) coerced. "
-                    f"Examples: {coercion_examples}"
+                    f"Samples:\n\t- {coercion_examples}"
                 )
                 if total_coerced > 3:
-                    warning_msg += f" (and {total_coerced - 3} more)"
+                    warning_msg += f"\n\t - ... (and {total_coerced - 3} more)"
                 warnings.warn(warning_msg)
 
         # All of these params must be of length 1 or N

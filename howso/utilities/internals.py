@@ -1416,7 +1416,7 @@ def _datetime_matches_format(dt_obj: datetime.date | datetime.datetime, fmt: str
         return False
 
 
-def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: dict) -> tuple[list[t.Any]]:
+def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: dict) -> tuple[list[t.Any]]:  # noqa: C901 E501
     """
     Verify that the provided list of date(time) values conform to the feature attributes of the time feature.
 
