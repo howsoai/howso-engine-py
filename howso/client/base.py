@@ -3062,14 +3062,27 @@ class AbstractHowsoClient(ABC):
         # Ensure that the format of the final_time_steps are consistent with the feature attributes
         if final_time_steps:
             final_time_steps, coerced_values, invalid_values = internals.coerce_date_time_formats(final_time_steps,
-                                                                                              feature_attributes)
+                                                                                                  feature_attributes)
             if invalid_values:
                 raise ValueError("The provided `final_time_steps` contain one or more values that do not match the "
-                                 f"`date_time_format` of the time feature (sample: '{invalid_values[0]}'). Please "
-                                 "verify the feature attributes or update the `final_time_steps`.")
+                                 "`date_time_format` of the time feature and cannot be coerced "
+                                 f"(sample: '{invalid_values[0]}'). Please verify the feature attributes or update "
+                                 "the `final_time_steps`.")
             elif coerced_values:
-                warnings.warn("One or more of the provided `final_time_steps` were coerced to match the "
-                              "`date_time_format` of the time feature. Please ")
+                # Show up to 3 examples of coerced final_time_steps
+                sample_coercions = coerced_values[:3]
+                coercion_examples = ", ".join(
+                    [f"{original} -> {coerced}" for original, coerced in sample_coercions]
+                )
+                total_coerced = len(coerced_values)
+                warning_msg = (
+                    f"One or more of the provided `final_time_steps` were coerced and stringified to match "
+                    f"the `date_time_format` of the time feature. {total_coerced} value(s) coerced. "
+                    f"Examples: {coercion_examples}"
+                )
+                if total_coerced > 3:
+                    warning_msg += f" (and {total_coerced - 3} more)"
+                warnings.warn(warning_msg)
 
         # All of these params must be of length 1 or N
         # where N is the length of the largest

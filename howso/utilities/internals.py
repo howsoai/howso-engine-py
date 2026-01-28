@@ -1475,7 +1475,7 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
 
         # Now use Pandas to try to coerce the value into a Pandas datetime and then into a string of the desired format
         try:
-            series = pd.Series([val]).astype("datetime64[ns]")
+            series = pd.to_datetime(pd.Series([val]))
             formatted_coerced_value = series.iloc[0].strftime(time_feature_format)
             valid_time_values.append(formatted_coerced_value)
             # Great, it works! But check if the value was coerced from the original.
@@ -1483,13 +1483,22 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
                 # If the original value is a datetime.date object (of which datetime.datetime is a subclass), convert
                 # the (potentially) coerced string to a datetime.date/time to compare with the original.
                 coerced_val_as_dt_obj = datetime.datetime.strptime(formatted_coerced_value, time_feature_format)
-                # If the original value was not a datetime, drop the time component
+                # If the original value was not a datetime.datetime (just a date), we need to check if time was added.
                 if not isinstance(val, datetime.datetime):
-                    coerced_val_as_dt_obj = coerced_val_as_dt_obj.date()
-                # If the "coerced" datetime object does not match the original, it was *actually* coerced from a
-                # different format and should be placed into that bucket for future reference.
-                if coerced_val_as_dt_obj != val:
-                    coerced_time_values.append((val, formatted_coerced_value))
+                    # Check if the format string contains time directives
+                    time_directives = r'%[HIMS]'
+                    if re.search(time_directives, time_feature_format):
+                        # Time component was added, so this is a coercion
+                        coerced_time_values.append((val, formatted_coerced_value))
+                    else:
+                        # Format is date-only, so compare as dates
+                        coerced_val_as_dt_obj = coerced_val_as_dt_obj.date()
+                        if coerced_val_as_dt_obj != val:
+                            coerced_time_values.append((val, formatted_coerced_value))
+                else:
+                    # Original was datetime.datetime, compare as datetime
+                    if coerced_val_as_dt_obj != val:
+                        coerced_time_values.append((val, formatted_coerced_value))
             elif isinstance(val, str) and formatted_coerced_value != val:
                 coerced_time_values.append((val, formatted_coerced_value))
         except Exception:  # noqa: Intentionally broad
