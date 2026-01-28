@@ -1394,6 +1394,13 @@ def _datetime_matches_format(dt_obj: datetime.date | datetime.datetime, fmt: str
             if not re.search(tz_directives, fmt):
                 return False
 
+        # If fmt is timezone-aware and dt_obj is naive, reject it
+        if isinstance(dt_obj, datetime.datetime) and dt_obj.tzinfo is None:
+            # Check if format has timezone directives
+            tz_directives = r'%[zZ]'
+            if re.search(tz_directives, fmt):
+                return False
+
         # If dt_obj is a datetime with non-empty time and format has no time directives, reject it
         if isinstance(dt_obj, datetime.datetime):
             time_directives = r'%[HIMSfpXTR]'
@@ -1409,7 +1416,7 @@ def _datetime_matches_format(dt_obj: datetime.date | datetime.datetime, fmt: str
         return False
 
 
-def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: dict) -> list[t.Any]:
+def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: dict) -> tuple[list[t.Any]]:
     """
     Verify that the provided list of date(time) values conform to the feature attributes of the time feature.
 
@@ -1424,7 +1431,12 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
 
     Returns
     -------
-    The list of date/time values, potentially coerced to the expected format.
+        valid_time_values : list of Any
+            The list of the provided datetime values as strings and coerced to match the time feature's format.
+        coerced_time_values : list of tuple of Any, Any
+            A list of tuples of the provided datetime value and the datetime string it was coerced to, if applicable.
+        invalid_time_values: list of Any
+            A list of the provided datetime values that could not be coerced to match the time feature's format.
 
     Raises
     ------
@@ -1439,53 +1451,52 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
     if not time_feature_format:
         raise ValueError("Time feature not found in provided feature attributes, or time feature is missing a "
                          "`date_time_format`.")
-    coerced_vals = []
-    uncoercible_vals = []
-    is_valid = True
+    valid_time_values = []
+    coerced_time_values = []
+    invalid_time_values = []
     # Verify that all the values in date_time_values match time_feature_format
     for val in date_time_values:
-        coerced_val = val
-        # Datetime object
-        if isinstance(val, datetime.datetime):
-            # Common issue: time_feature_format is a date but date_time_values is a list of datetimes
-            # with an empty time component (will error in HSE once converted to ISO8601)
-            if all([val.time() == pd.Timestamp(0).time(), getattr(val, "tzinfo", None) is None,
-                    "T" not in time_feature_format,
-                    "00:00:00" not in time_feature_format]):
-                # The time feature is just a date, and the time component is empty; coerce to datetime.date
-                coerced_val = coerced_val.date()
-            is_valid = _datetime_matches_format(coerced_val, time_feature_format)
-        # Date object
-        elif isinstance(val, datetime.date):
-            # If time_feature_format includes a time component, but a datetime.date object was provided, convert to
-            # datetime.datetime with an empty time component
-            time_directives = r'%[HIMSfpXTR]'
-            if bool(re.search(time_directives, time_feature_format)):
-                coerced_val = datetime.datetime.combine(coerced_val, datetime.time())
-            is_valid = _datetime_matches_format(coerced_val, time_feature_format)
-        # Pandas Timestamp object
-        elif isinstance(val, pd.Timestamp):
-            # Convert to native datetime first
-            coerced_val = val.to_pydatetime()
-            # Apply same logic as datetime.datetime
-            if all([coerced_val.time() == pd.Timestamp(0).time(), getattr(coerced_val, "tzinfo", None) is None,
-                    "T" not in time_feature_format, "00:00:00" not in time_feature_format]):
-                # The time feature is just a date, and the time component is empty; coerce to datetime.date
-                coerced_val = coerced_val.date()
-            is_valid = _datetime_matches_format(coerced_val, time_feature_format)
-        # String
-        elif isinstance(val, str):
-            try:
-                datetime.datetime.strptime(val, time_feature_format)
-            except ValueError:
-                is_valid = False
 
-        if is_valid:
-            coerced_vals.append(coerced_val)
-        else:
-            uncoercible_vals.append(val)
+        # If val is a timezone-aware datetime and time_feature_format doesn't include timezone directives, reject it
+        if isinstance(val, datetime.datetime) and val.tzinfo is not None:
+            # Check if format has timezone directives
+            tz_directives = r'%[zZ]'
+            if not re.search(tz_directives, time_feature_format):
+                invalid_time_values.append(val)
+                continue
 
-    return coerced_vals, uncoercible_vals
+        # If time_feature_format is timezone-aware and val is naive, reject it
+        elif isinstance(val, datetime.datetime) and val.tzinfo is None:
+            # Check if format has timezone directives
+            tz_directives = r'%[zZ]'
+            if re.search(tz_directives, time_feature_format):
+                invalid_time_values.append(val)
+                continue
+
+        # Now use Pandas to try to coerce the value into a Pandas datetime and then into a string of the desired format
+        try:
+            series = pd.Series([val]).astype("datetime64[ns]")
+            formatted_coerced_value = series.iloc[0].strftime(time_feature_format)
+            valid_time_values.append(formatted_coerced_value)
+            # Great, it works! But check if the value was coerced from the original.
+            if isinstance(val, datetime.date):
+                # If the original value is a datetime.date object (of which datetime.datetime is a subclass), convert
+                # the (potentially) coerced string to a datetime.date/time to compare with the original.
+                coerced_val_as_dt_obj = datetime.datetime.strptime(formatted_coerced_value, time_feature_format)
+                # If the original value was not a datetime, drop the time component
+                if not isinstance(val, datetime.datetime):
+                    coerced_val_as_dt_obj = coerced_val_as_dt_obj.date()
+                # If the "coerced" datetime object does not match the original, it was *actually* coerced from a
+                # different format and should be placed into that bucket for future reference.
+                if coerced_val_as_dt_obj != val:
+                    coerced_time_values.append((val, formatted_coerced_value))
+            elif isinstance(val, str) and formatted_coerced_value != val:
+                coerced_time_values.append((val, formatted_coerced_value))
+        except Exception:  # noqa: Intentionally broad
+            # Something went wrong, and the value cannot be used.
+            invalid_time_values.append(val)
+
+    return valid_time_values, coerced_time_values, invalid_time_values
 
 
 class IgnoreWarnings:

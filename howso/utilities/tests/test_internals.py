@@ -329,128 +329,128 @@ def test_batch_scaler_modify() -> None:
 
 
 @pytest.mark.parametrize(
-    "date_time_values,feature_attributes,expected_coerced,expected_uncoercible,expected_error",
+    "date_time_values,time_feature_format,expected_valid,expected_coerced,expected_invalid",
     [
-        # Test 1: Missing time feature raises HowsoError
+        # All values already match the format perfectly and are strings
         (
-            [datetime.date(2024, 1, 15)],
-            {"feature1": {"type": "continuous"}},
-            None,
-            None,
-            (ValueError, "Time feature not found")
-        ),
-        # Test 2: Time feature without date_time_format raises HowsoError
-        (
-            [datetime.date(2024, 1, 15)],
-            {"time_col": {"time_series": {"time_feature": True}}},
-            None,
-            None,
-            (ValueError, "missing a `date_time_format`")
-        ),
-        # Test 3: Valid datetime.date objects matching date-only format
-        (
-            [datetime.date(2024, 1, 15), datetime.date(2024, 1, 16)],
-            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
-            [datetime.date(2024, 1, 15), datetime.date(2024, 1, 16)],
+            ["2024-01-15 14:30:00", "2024-02-20 09:15:00"],
+            "%Y-%m-%d %H:%M:%S",
+            ["2024-01-15 14:30:00", "2024-02-20 09:15:00"],
             [],
-            None
-        ),
-        # Test 4: Coerce datetime.date to datetime.datetime when format has time component
-        (
-            [datetime.date(2024, 1, 15)],
-            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d %H:%M:%S"}},
-            [datetime.datetime(2024, 1, 15, 0, 0, 0)],
             [],
-            None
         ),
-        # Test 5: Coerce datetime.datetime with empty time to date when format is date-only
+        # datetime.date objects coerced to datetime format (time added as 00:00:00)
         (
-            [datetime.datetime(2024, 1, 15, 0, 0, 0)],
-            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
-            [datetime.date(2024, 1, 15)],
-            [],
-            None
-        ),
-        # Test 6: Valid datetime.datetime objects matching datetime format
-        (
-            [datetime.datetime(2024, 1, 15, 14, 30, 45)],
-            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d %H:%M:%S"}},
-            [datetime.datetime(2024, 1, 15, 14, 30, 45)],
-            [],
-            None
-        ),
-        # Test 7: Valid string values matching format
-        (
-            ["2024-01-15", "2024-01-16"],
-            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
-            ["2024-01-15", "2024-01-16"],
-            [],
-            None
-        ),
-        # Test 8: Invalid string values don't match format
-        (
-            ["2024-01-15", "15/01/2024", "invalid"],
-            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
-            ["2024-01-15"],
-            ["15/01/2024", "invalid"],
-            None
-        ),
-        # Test 9: Mixed valid and invalid values
-        (
+            [datetime.date(2024, 1, 15), datetime.date(2024, 2, 20)],
+            "%Y-%m-%d %H:%M:%S",
+            ["2024-01-15 00:00:00", "2024-02-20 00:00:00"],
             [
-                datetime.datetime(2024, 1, 15, 14, 30),
-                datetime.date(2024, 1, 16),
-                "2024-01-17 10:00",
-                "invalid-date"
+                (datetime.date(2024, 1, 15), "2024-01-15 00:00:00"),
+                (datetime.date(2024, 2, 20), "2024-02-20 00:00:00"),
             ],
-            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d %H:%M"}},
-            [
-                datetime.datetime(2024, 1, 15, 14, 30),
-                datetime.datetime(2024, 1, 16, 0, 0),
-                "2024-01-17 10:00"
-            ],
+            [],
+        ),
+        # datetime.date objects matching date-only format (no coercion)
+        (
+            [datetime.date(2024, 1, 15), datetime.date(2024, 2, 20)],
+            "%Y-%m-%d",
+            ["2024-01-15", "2024-02-20"],
+            [],
+            [],
+        ),
+        # String values that need format coercion
+        (
+            ["01/15/2024", "02/20/2024"],
+            "%Y-%m-%d",
+            ["2024-01-15", "2024-02-20"],
+            [("01/15/2024", "2024-01-15"), ("02/20/2024", "2024-02-20")],
+            [],
+        ),
+        # Mixed valid and invalid values
+        (
+            ["2024-01-15", "invalid-date", datetime.date(2024, 2, 20)],
+            "%Y-%m-%d",
+            ["2024-01-15", "2024-02-20"],
+            [],
             ["invalid-date"],
-            None
         ),
-        # Test 10: Don't coerce datetime with non-empty time component to date
+        # Timezone-aware datetime rejected when format has no timezone directive
+        (
+            [datetime.datetime(2024, 1, 15, 14, 30, 0, tzinfo=datetime.timezone.utc)],
+            "%Y-%m-%d %H:%M:%S",
+            [],
+            [],
+            [datetime.datetime(2024, 1, 15, 14, 30, 0, tzinfo=datetime.timezone.utc)],
+        ),
+        # Timezone-naive datetime rejected when format has timezone directive
         (
             [datetime.datetime(2024, 1, 15, 14, 30, 0)],
-            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
+            "%Y-%m-%d %H:%M:%S%z",
+            [],
             [],
             [datetime.datetime(2024, 1, 15, 14, 30, 0)],
-            None
         ),
-        # Test 11: Don't coerce datetime with timezone to date
+        # Timezone-aware datetime accepted when format has timezone directive
         (
-            [pd.Timestamp("2024-01-15", tz="UTC").to_pydatetime()],
-            {"time_col": {"time_series": {"time_feature": True}, "date_time_format": "%Y-%m-%d"}},
+            [datetime.datetime(2024, 1, 15, 14, 30, 0, tzinfo=datetime.timezone.utc)],
+            "%Y-%m-%d %H:%M:%S%z",
+            ["2024-01-15 14:30:00+0000"],
             [],
-            [pd.Timestamp("2024-01-15", tz="UTC").to_pydatetime()],
-            None
+            [],
+        ),
+        # datetime.datetime with time component coerced to different datetime format
+        (
+            [datetime.datetime(2024, 1, 15, 14, 30, 45)],
+            "%m/%d/%Y %I:%M %p",
+            ["01/15/2024 02:30 PM"],
+            [(datetime.datetime(2024, 1, 15, 14, 30, 45), "01/15/2024 02:30 PM")],
+            [],
+        ),
+        # datetime.datetime with time component coerced to date-only format
+        (
+            [datetime.datetime(2024, 1, 15, 14, 30, 45)],
+            "%m-%d-%Y",
+            ["01-15-2024"],
+            [(datetime.datetime(2024, 1, 15, 14, 30, 45), "01-15-2024")],
+            [],
         ),
     ],
-    ids=[
-        "missing_time_feature",
-        "missing_date_time_format",
-        "valid_dates",
-        "coerce_date_to_datetime",
-        "coerce_datetime_to_date",
-        "valid_datetimes",
-        "valid_strings",
-        "invalid_strings",
-        "mixed_valid_invalid",
-        "dont_coerce_nonempty_time",
-        "dont_coerce_timezone",
-    ]
 )
-def test_coerce_date_time_formats(date_time_values, feature_attributes, expected_coerced, expected_uncoercible,
-                                  expected_error):
-    """Test coercion of date/time values to match feature attributes."""
-    if expected_error:
-        error_class, error_message = expected_error
-        with pytest.raises(error_class, match=error_message):
-            internals.coerce_date_time_formats(date_time_values, feature_attributes)
-    else:
-        coerced, uncoercible = internals.coerce_date_time_formats(date_time_values, feature_attributes)
-        assert coerced == expected_coerced
-        assert uncoercible == expected_uncoercible
+def test_coerce_date_time_formats(
+    date_time_values, time_feature_format, expected_valid, expected_coerced, expected_invalid
+):
+    """Test the coerce_date_time_formats function with various input scenarios."""
+    # Create minimal feature_attributes structure
+    feature_attributes = {
+        "time_feature": {
+            "time_series": {"time_feature": True},
+            "date_time_format": time_feature_format,
+        }
+    }
+
+    valid, coerced, invalid = internals.coerce_date_time_formats(date_time_values, feature_attributes)
+
+    assert valid == expected_valid, f"Valid values mismatch: {valid} != {expected_valid}"
+    assert coerced == expected_coerced, f"Coerced values mismatch: {coerced} != {expected_coerced}"
+    assert invalid == expected_invalid, f"Invalid values mismatch: {invalid} != {expected_invalid}"
+
+
+def test_coerce_date_time_formats_missing_time_feature():
+    """Test that ValueError is raised when time feature is missing."""
+    feature_attributes = {"some_feature": {"type": "continuous"}}
+
+    with pytest.raises(ValueError, match="Time feature not found"):
+        internals.coerce_date_time_formats(["2024-01-15"], feature_attributes)
+
+
+def test_coerce_date_time_formats_missing_date_time_format():
+    """Test that ValueError is raised when date_time_format is missing."""
+    feature_attributes = {
+        "time_feature": {
+            "time_series": {"time_feature": True},
+            # Missing date_time_format
+        }
+    }
+
+    with pytest.raises(ValueError, match="Time feature not found"):
+        internals.coerce_date_time_formats(["2024-01-15"], feature_attributes)
