@@ -3694,6 +3694,7 @@ class AbstractHowsoClient(ABC):
         value_robust_contributions_features: t.Optional[Collection[str]] = None,
         value_robust_contributions_num_buckets: int = 30,
         value_robust_contributions_min_samples: int = 15,
+        value_robust_contributions_min_cases: int = 15,
         weight_feature: t.Optional[str] = None,
     ) -> dict[str, dict[str, t.Any]]:
         """
@@ -4018,10 +4019,15 @@ class AbstractHowsoClient(ABC):
             The maximum number of buckets to bin continuous values into when computing the
             "value_robust_accuracy_contributions", "value_robust_prediction_contributions" or
             "value_robust_surprisal_asymmetry" details.
-        value_robust_contributions_num_samples: int, default 15
+        value_robust_contributions_min_samples: int, default 15
             The minumum number of samples required for a combination of feature values for its
             aggregated measure to be returned when computing the "value_robust_accuracy_contributions",
             "value_robust_prediction_contributions" or "value_robust_surprisal_asymmetry" details.
+        value_robust_contributions_min_cases: int, default 15
+            The minimum number of unique cases for a given nominal class or continuous bucket to be
+            used as a possible feature value when collecting all combinations of feature values in
+            the data to report metrics over. If unspecified, there is no filtering based on number
+            of unique cases.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -4100,6 +4106,7 @@ class AbstractHowsoClient(ABC):
             "value_robust_contributions_features": value_robust_contributions_features,
             "value_robust_contributions_num_buckets": value_robust_contributions_num_buckets,
             "value_robust_contributions_min_samples": value_robust_contributions_min_samples,
+            "value_robust_contributions_min_cases": value_robust_contributions_min_cases,
             "weight_feature": weight_feature,
         })
         if stats is None:
