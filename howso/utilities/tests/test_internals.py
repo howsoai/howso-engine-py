@@ -414,6 +414,14 @@ def test_batch_scaler_modify() -> None:
             [(datetime.datetime(2024, 1, 15, 14, 30, 45), "01-15-2024")],
             [],
         ),
+        # Integer time feature values and no time feature format
+        (
+            [1, 2, 3],
+            None,
+            [1, 2, 3],
+            [],
+            [],
+        ),
     ],
 )
 def test_coerce_date_time_formats(
@@ -428,7 +436,7 @@ def test_coerce_date_time_formats(
         }
     }
 
-    valid, coerced, invalid = internals.coerce_date_time_formats(date_time_values, feature_attributes)
+    valid, coerced, invalid, _ = internals.coerce_date_time_formats(date_time_values, feature_attributes)
 
     assert valid == expected_valid, f"Valid values mismatch: {valid} != {expected_valid}"
     assert coerced == expected_coerced, f"Coerced values mismatch: {coerced} != {expected_coerced}"
