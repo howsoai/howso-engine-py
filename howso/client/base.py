@@ -3061,13 +3061,18 @@ class AbstractHowsoClient(ABC):
 
         # Ensure that the format of the final_time_steps are consistent with the feature attributes
         if final_time_steps:
-            final_time_steps, coerced_values, invalid_values = internals.coerce_date_time_formats(final_time_steps,
-                                                                                                  feature_attributes)
+            final_time_steps, coerced_values, invalid_values, time_feature_format = internals.coerce_date_time_formats(
+                final_time_steps, feature_attributes)
             if invalid_values:
-                raise ValueError("The provided `final_time_steps` contain one or more values that do not match the "
-                                 "`date_time_format` of the time feature and cannot be coerced "
-                                 f"(sample: '{invalid_values[0]}'). Please verify the feature attributes or update "
-                                 "the `final_time_steps`.")
+                if not time_feature_format:
+                    msg = ("If no `date_time_format` is present in the time feature's attributes, "
+                           "all time feature values and provided `final_time_steps` must be integers or floats.")
+                else:
+                    msg = ("The provided `final_time_steps` contain one or more values that do not match the "
+                           "`date_time_format` of the time feature and cannot be coerced "
+                           f"(sample: '{invalid_values[0]}'). Please verify the feature attributes or update "
+                           "the `final_time_steps`.")
+                raise ValueError(msg)
             elif coerced_values:
                 # Show up to 3 examples of coerced final_time_steps
                 sample_coercions = coerced_values[:3]

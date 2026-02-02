@@ -1435,27 +1435,37 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
             The list of the provided datetime values as strings and coerced to match the time feature's format.
         coerced_time_values : list of tuple of Any, Any
             A list of tuples of the provided datetime value and the datetime string it was coerced to, if applicable.
-        invalid_time_values: list of Any
+        invalid_time_values : list of Any
             A list of the provided datetime values that could not be coerced to match the time feature's format.
-
+        time_feature_format : str or None
+            The datetime format of the time feature in the provided feature attributes, if it exists.
     Raises
     ------
     ValueError
         If the provided feature attributes do not indicate a time feature, or if the time feature's attributes do not
         contain a `date_time_format`.
     """
+    time_feature_found = False
     time_feature_format = None
     for feature, attributes in feature_attributes.items():
         if attributes.get("time_series", {}).get("time_feature") is True:
+            time_feature_found = True
             time_feature_format = attributes.get("date_time_format")
-    if not time_feature_format:
-        raise ValueError("Time feature not found in provided feature attributes, or time feature is missing a "
-                         "`date_time_format`.")
+    if not time_feature_found:
+        raise ValueError("The provided feature attributes do not indicate a time feature.")
     valid_time_values = []
     coerced_time_values = []
     invalid_time_values = []
     # Verify that all the values in date_time_values match time_feature_format
     for val in date_time_values:
+
+        # If no datetime format was found in the time feature's attributes, it must be an integer
+        if not time_feature_format:
+            if not isinstance(val, int) or not isinstance(val, float):
+                invalid_time_values.append(val)
+            else:
+                valid_time_values.append(val)
+            continue
 
         # If val is a timezone-aware datetime and time_feature_format doesn't include timezone directives, reject it
         if isinstance(val, datetime.datetime) and val.tzinfo is not None:
@@ -1505,7 +1515,7 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
             # Something went wrong, and the value cannot be used.
             invalid_time_values.append(val)
 
-    return valid_time_values, coerced_time_values, invalid_time_values
+    return valid_time_values, coerced_time_values, invalid_time_values, time_feature_format
 
 
 class IgnoreWarnings:
