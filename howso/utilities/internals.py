@@ -1461,7 +1461,7 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
 
         # If no datetime format was found in the time feature's attributes, it must be an integer
         if not time_feature_format:
-            if not isinstance(val, int):
+            if not isinstance(val, int) or not isinstance(val, float):
                 invalid_time_values.append(val)
             else:
                 valid_time_values.append(val)

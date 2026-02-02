@@ -3065,8 +3065,8 @@ class AbstractHowsoClient(ABC):
                 final_time_steps, feature_attributes)
             if invalid_values:
                 if not time_feature_format:
-                    msg = ("If no `time_feature_format` is present in the time feature's attributes, "
-                           "all time feature values and provided `final_time_steps` must be integers.")
+                    msg = ("If no `date_time_format` is present in the time feature's attributes, "
+                           "all time feature values and provided `final_time_steps` must be integers or floats.")
                 else:
                     msg = ("The provided `final_time_steps` contain one or more values that do not match the "
                            "`date_time_format` of the time feature and cannot be coerced "
