@@ -4,10 +4,34 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.13-dev.txt --pip-args=None
 #
+aiobotocore==2.26.0
+    # via
+    #   howso-engine-connectors
+    #   s3fs
+aiohappyeyeballs==2.6.1
+    # via aiohttp
+aiohttp==3.13.3
+    # via
+    #   aiobotocore
+    #   s3fs
+aioitertools==0.13.0
+    # via aiobotocore
+aiosignal==1.4.0
+    # via aiohttp
 amalgam-lang==26.0.0
     # via howso-engine (pyproject.toml)
 astroid==4.0.3
     # via pylint
+attrs==25.4.0
+    # via aiohttp
+boto3==1.41.5
+    # via howso-engine-connectors
+botocore==1.41.5
+    # via
+    #   aiobotocore
+    #   boto3
+    #   howso-engine-connectors
+    #   s3transfer
 build==1.4.0
     # via pip-tools
 certifi==2026.1.4
@@ -16,22 +40,31 @@ certifi==2026.1.4
     #   requests
 cffi==2.0.0
     # via cryptography
+chardet==5.2.0
+    # via howso-engine-connectors
 charset-normalizer==3.4.4
     # via requests
 click==8.3.1
     # via
+    #   dask
     #   pip-tools
     #   sacremoses
+cloudpickle==3.1.2
+    # via dask
 coverage[toml]==7.13.3
     # via pytest-cov
 cryptography==46.0.4
     # via howso-engine (pyproject.toml)
+dask[array,dataframe]==2026.1.2
+    # via howso-engine-connectors
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
 dill==0.4.1
     # via
     #   howso-engine (pyproject.toml)
     #   pylint
+dnspython==2.8.0
+    # via pymongo
 execnet==2.1.2
     # via pytest-xdist
 faker==40.1.2
@@ -44,18 +77,40 @@ flake8-docstrings==1.7.0
     # via howso-engine (pyproject.toml)
 flake8-import-order==0.19.2
     # via howso-engine (pyproject.toml)
+frozenlist==1.8.0
+    # via
+    #   aiohttp
+    #   aiosignal
+fsspec==2026.1.0
+    # via
+    #   dask
+    #   howso-engine-connectors
+    #   s3fs
+greenlet==3.3.1
+    # via sqlalchemy
+howso-engine-connectors==3.0.1
+    # via howso-engine (pyproject.toml)
 humanize==4.15.0
     # via howso-engine (pyproject.toml)
 idna==3.11
-    # via requests
+    # via
+    #   requests
+    #   yarl
 iniconfig==2.3.0
     # via pytest
 isort==7.0.0
     # via pylint
+jmespath==1.1.0
+    # via
+    #   aiobotocore
+    #   boto3
+    #   botocore
 joblib==1.5.3
     # via
     #   sacremoses
     #   scikit-learn
+locket==1.0.0
+    # via partd
 markdown-it-py==4.0.0
     # via rich
 mccabe==0.6.1
@@ -65,25 +120,40 @@ mccabe==0.6.1
 mdurl==0.1.2
     # via markdown-it-py
 mmh3==5.2.0
-    # via howso-engine (pyproject.toml)
-mongomock==4.3.0
-    # via howso-engine (pyproject.toml)
-numpy==2.4.2
     # via
     #   howso-engine (pyproject.toml)
+    #   howso-engine-connectors
+mongomock==4.3.0
+    # via howso-engine (pyproject.toml)
+multidict==6.7.1
+    # via
+    #   aiobotocore
+    #   aiohttp
+    #   yarl
+numpy==2.4.2
+    # via
+    #   dask
+    #   howso-engine (pyproject.toml)
+    #   howso-engine-connectors
     #   pandas
     #   scikit-learn
     #   scipy
 packaging==26.0
     # via
     #   build
+    #   dask
     #   deprecation
     #   mongomock
     #   pipdeptree
     #   pytest
     #   wheel
 pandas==2.3.3
-    # via howso-engine (pyproject.toml)
+    # via
+    #   dask
+    #   howso-engine (pyproject.toml)
+    #   howso-engine-connectors
+partd==1.4.2
+    # via dask
 pip-tools==7.5.2
     # via howso-engine (pyproject.toml)
 pipdeptree==2.30.0
@@ -94,8 +164,16 @@ pluggy==1.6.0
     # via
     #   pytest
     #   pytest-cov
+propcache==0.4.1
+    # via
+    #   aiohttp
+    #   yarl
 psutil==7.2.2
     # via howso-engine (pyproject.toml)
+pyarrow==23.0.0
+    # via
+    #   dask
+    #   howso-engine-connectors
 pycodestyle==2.7.0
     # via
     #   flake8
@@ -113,6 +191,8 @@ pyjwt==2.11.0
     # via howso-engine (pyproject.toml)
 pylint==4.0.4
     # via howso-engine (pyproject.toml)
+pymongo==4.16.0
+    # via howso-engine-connectors
 pyproject-hooks==1.2.0
     # via
     #   build
@@ -130,19 +210,28 @@ pytest-mock==1.13.0
 pytest-xdist==3.8.0
     # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
-    # via pandas
+    # via
+    #   aiobotocore
+    #   botocore
+    #   pandas
 pytz==2025.2
     # via
     #   mongomock
     #   pandas
 pyyaml==6.0.3
-    # via howso-engine (pyproject.toml)
+    # via
+    #   dask
+    #   howso-engine (pyproject.toml)
 regex==2026.1.15
     # via sacremoses
 requests==2.32.5
     # via howso-engine (pyproject.toml)
 rich==14.3.2
     # via howso-engine (pyproject.toml)
+s3fs==2026.1.0
+    # via howso-engine-connectors
+s3transfer==0.15.0
+    # via boto3
 sacremoses==0.1.1
     # via howso-engine (pyproject.toml)
 scikit-learn==1.8.0
@@ -155,24 +244,39 @@ sentinels==1.1.1
     # via mongomock
 six==1.17.0
     # via python-dateutil
+smart-open==6.4.0
+    # via howso-engine-connectors
 snowballstemmer==3.0.1
     # via pydocstyle
+sqlalchemy==2.0.46
+    # via howso-engine-connectors
 threadpoolctl==3.6.0
     # via scikit-learn
 tomlkit==0.14.0
     # via pylint
-tqdm==4.67.2
+toolz==1.1.0
+    # via
+    #   dask
+    #   partd
+tqdm==4.67.3
     # via sacremoses
 typing-extensions==4.15.0
-    # via howso-engine (pyproject.toml)
+    # via
+    #   howso-engine (pyproject.toml)
+    #   sqlalchemy
 tzdata==2025.3
     # via pandas
 urllib3==2.6.3
     # via
+    #   botocore
     #   howso-engine (pyproject.toml)
     #   requests
 wheel==0.46.3
     # via pip-tools
+wrapt==1.17.3
+    # via aiobotocore
+yarl==1.22.0
+    # via aiohttp
 
 # The following packages are considered to be unsafe in a requirements file:
 pip==26.0
