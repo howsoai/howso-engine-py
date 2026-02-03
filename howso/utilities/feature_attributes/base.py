@@ -25,6 +25,9 @@ from howso.utilities.features import convert_primitive_to_feature_type, FeatureT
 from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 from ..utilities import determine_iso_format
 
+if t.TYPE_CHECKING:
+    from howso.client.typing import FeatureAttributes
+
 logger = logging.getLogger(__name__)
 
 # Format string tokens for datetime and time-only features
@@ -42,7 +45,7 @@ WIN_DT_MAX = '6053-01-24'
 FeatureAttributesBaseType = t.TypeVar('FeatureAttributesBaseType', bound='FeatureAttributesBase')
 
 
-class FeatureAttributesBase(dict):
+class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
     def __init__(self, feature_attributes: Mapping, params: dict = {}, unsupported: list[str] = []):
