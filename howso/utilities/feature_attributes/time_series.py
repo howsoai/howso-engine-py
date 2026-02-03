@@ -928,13 +928,20 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                 for future in lazy_map(
                     pool,
                     func,
-                    self.data.yield_chunk(chunk_size=chunk_size),
+                    self.data.yield_chunk(
+                        chunk_size=chunk_size,
+                        maintain_natural_order=True
+                    ),
                     queue_length=effective_max_workers + 2,
                 ):
                     feature_chunks.append(future.result())
         else:
             # Single chunk or single worker - process sequentially
-            feature_chunks = [func(chunk) for chunk in self.data.yield_chunk(chunk_size=chunk_size)]
+            feature_chunks = [
+                func(chunk) for chunk in self.data.yield_chunk(
+                    chunk_size=chunk_size, maintain_natural_order=True
+                )
+            ]
 
         # Short-circuit if only one chunk
         if len(feature_chunks) == 1:
