@@ -83,7 +83,6 @@ def test_infer_feature_attributes(adc):
     features = infer_feature_attributes(adc)
 
     for feature, attributes in features.items():
-        print(feature)
         assert expected_types[feature] == attributes['type']
 
 
