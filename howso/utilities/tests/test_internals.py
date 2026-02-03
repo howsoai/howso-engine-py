@@ -447,7 +447,7 @@ def test_coerce_date_time_formats_missing_time_feature():
     """Test that ValueError is raised when time feature is missing."""
     feature_attributes = {"some_feature": {"type": "continuous"}}
 
-    with pytest.raises(ValueError, match="Time feature not found"):
+    with pytest.raises(ValueError, match="The provided feature attributes do not indicate a time feature"):
         internals.coerce_date_time_formats(["2024-01-15"], feature_attributes)
 
 
@@ -460,5 +460,7 @@ def test_coerce_date_time_formats_missing_date_time_format():
         }
     }
 
-    with pytest.raises(ValueError, match="Time feature not found"):
-        internals.coerce_date_time_formats(["2024-01-15"], feature_attributes)
+    # Should come back as invalid
+    _, _, invalid, _ = internals.coerce_date_time_formats(["2024-01-15"], feature_attributes)
+    assert len(invalid) == 1
+    assert invalid[0] == "2024-01-15"

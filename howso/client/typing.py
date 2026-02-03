@@ -380,6 +380,24 @@ class FeatureAttributes(TypedDict):
     max_row_lag: NotRequired[int]
     """The number of time steps traced back by the maximum lag feature created for this feature."""
 
+    nominal_numbers: NotRequired[bool]
+    """
+    Controls how numbers are compared in semi-structured features.
+    Only applicable to code features (when `data_type` is json/yaml/amalgam).
+
+    Defaults to false, compares similarity of values.
+    When true, assumes that all numbers will match only if identical.
+    """
+
+    nominal_strings: NotRequired[bool]
+    """
+    Controls how strings are compared in semi-structured features.
+    Only applicable to code features (when `data_type` is json/yaml/amalgam).
+
+    Defaults to true, assumes that all strings will match only if identical.
+    When false, uses string edit distance to compare similarity.
+    """
+
     non_sensitive: NotRequired[bool]
     """
     Flag a categorical nominal feature as non-sensitive.
@@ -472,6 +490,12 @@ class FeatureAttributes(TypedDict):
 
     ts_type: NotRequired[Literal["lag", "delta", "rate"]]
     """The type of value being captured by this time-series feature."""
+
+    types_must_match: NotRequired[bool]
+    """
+    Defaults to true, when true considers nodes common if their types match.
+    Only applicable to code features (when `data_type` is json/yaml/amalgam).
+    """
 
     unique: NotRequired[bool]
     """Flag feature as only having unique values. Only applicable to nominal features."""
