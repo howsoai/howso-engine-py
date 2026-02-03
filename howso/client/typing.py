@@ -389,7 +389,7 @@ class FeatureAttributes(TypedDict):
     When true, assumes that all numbers will match only if identical.
     """
 
-    nominal_stringsn: NotRequired[bool]
+    nominal_strings: NotRequired[bool]
     """
     Controls how strings are compared in semi-structured features.
     Only applicable to code features (when `data_type` is json/yaml/amalgam).
