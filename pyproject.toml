@@ -58,7 +58,6 @@ dev = [
    "flake8-docstrings",
    "flake8-import-order",
    "flake8~=3.0",
-   "howso-engine-connectors>=3.0.1",
    "mongomock",
    "pip-tools",
    "pipdeptree",
