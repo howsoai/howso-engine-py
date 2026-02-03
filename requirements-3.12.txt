@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --output-file=requirements-3.12.txt --pip-args=None
 #
-amalgam-lang==25.3.0
+amalgam-lang==26.0.0
     # via howso-engine (pyproject.toml)
 certifi==2026.1.4
     # via
@@ -16,7 +16,7 @@ charset-normalizer==3.4.4
     # via requests
 click==8.3.1
     # via sacremoses
-cryptography==46.0.3
+cryptography==46.0.4
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
@@ -34,7 +34,7 @@ mdurl==0.1.2
     # via markdown-it-py
 mmh3==5.2.0
     # via howso-engine (pyproject.toml)
-numpy==2.4.1
+numpy==2.4.2
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
@@ -42,13 +42,13 @@ packaging==26.0
     # via deprecation
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
-psutil==7.2.1
+psutil==7.2.2
     # via howso-engine (pyproject.toml)
 pycparser==3.0
     # via cffi
 pygments==2.19.2
     # via rich
-pyjwt==2.10.1
+pyjwt==2.11.0
     # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via pandas
@@ -60,7 +60,7 @@ regex==2026.1.15
     # via sacremoses
 requests==2.32.5
     # via howso-engine (pyproject.toml)
-rich==14.3.1
+rich==14.3.2
     # via howso-engine (pyproject.toml)
 sacremoses==0.1.1
     # via howso-engine (pyproject.toml)
@@ -68,7 +68,7 @@ semantic-version==2.10.0
     # via howso-engine (pyproject.toml)
 six==1.17.0
     # via python-dateutil
-tqdm==4.67.1
+tqdm==4.67.2
     # via sacremoses
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)

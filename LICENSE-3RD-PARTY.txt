@@ -27,12 +27,12 @@ THE SOFTWARE.
 
 
 PyJWT
-2.10.1
-MIT License
+2.11.0
+MIT
 Jose Padilla <hello@jpadilla.com>
 https://github.com/jpadilla/pyjwt
 JSON Web Token implementation in Python
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/PyJWT-2.10.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pyjwt-2.11.0.dist-info/licenses/LICENSE
 The MIT License (MIT)
 
 Copyright (c) 2015-2022 José Padilla
@@ -277,12 +277,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 cryptography
-46.0.3
+46.0.4
 Apache-2.0 OR BSD-3-Clause
 The Python Cryptographic Authority and individual contributors <cryptography-dev@python.org>
 https://github.com/pyca/cryptography
 cryptography is a package which provides cryptographic recipes and primitives to Python developers.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/cryptography-46.0.3.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/cryptography-46.0.4.dist-info/licenses/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to cryptography are made
 under the terms of *both* these licenses.
@@ -720,12 +720,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-2.4.1
+2.4.2
 BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/numpy-2.4.1.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/numpy-2.4.2.dist-info/licenses/LICENSE.txt
 Copyright (c) 2005-2025, NumPy Developers.
 All rights reserved.
 
@@ -2971,12 +2971,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 psutil
-7.2.1
+7.2.2
 BSD-3-Clause
 Giampaolo Rodola
 https://github.com/giampaolo/psutil
 Cross-platform lib for process and system monitoring.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/psutil-7.2.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/psutil-7.2.2.dist-info/LICENSE
 BSD 3-Clause License
 
 Copyright (c) 2009, Jay Loden, Dave Daeschler, Giampaolo Rodola
@@ -3566,12 +3566,12 @@ Python HTTP for Humans.
 
 
 rich
-14.3.1
+14.3.2
 MIT License
 Will McGugan
 https://github.com/Textualize/rich
 Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/rich-14.3.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/rich-14.3.2.dist-info/LICENSE
 Copyright (c) 2020 Will McGugan
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -3682,12 +3682,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 tqdm
-4.67.1
-MIT License; Mozilla Public License 2.0 (MPL 2.0)
+4.67.2
+MPL-2.0 AND MIT
 UNKNOWN
 https://tqdm.github.io
 Fast, Extensible Progress Meter
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/tqdm-4.67.1.dist-info/LICENCE
+/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/tqdm-4.67.2.dist-info/licenses/LICENCE
 `tqdm` is a product of collaborative work.
 Unless otherwise stated, all authors (see commit logs) retain copyright
 for their respective work, and release the work under the MIT licence
@@ -3697,7 +3697,7 @@ Exceptions or notable authors are listed below
 in reverse chronological order:
 
 * files: *
-  MPL-2.0 2015-2024 (c) Casper da Costa-Luis
+  MPL-2.0 2015-2026 (c) Casper da Costa-Luis
   [casperdcl](https://github.com/casperdcl).
 * files: tqdm/_tqdm.py
   MIT 2016 (c) [PR #96] on behalf of Google Inc.
