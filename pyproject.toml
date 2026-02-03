@@ -36,6 +36,7 @@ dependencies = [
    "cryptography>=2.9.2",
    "deprecation~=2.0",
    "Faker>=4.1.1",
+   "howso-engine-connectors>=3.0.1",
    "humanize>=4.0.0",
    "mmh3",
    "numpy",
