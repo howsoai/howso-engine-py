@@ -6,7 +6,7 @@ install_deps() {
   python --version
   python -m pip install -r requirements-${1}-dev.txt --user --no-deps
   # Needed for some unit tests
-  python -m pip install "howso-engine-connectors[dev]>=3.0.1" --user
+  python -m pip install "howso-engine-connectors[dev]~=3.1" --user
   python -m pip install --no-deps -e .
 }
 
