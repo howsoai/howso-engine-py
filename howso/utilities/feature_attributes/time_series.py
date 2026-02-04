@@ -15,7 +15,6 @@ import pandas as pd
 from pandas.core.dtypes.common import is_string_dtype
 import psutil
 
-
 from .abstract_data import InferFeatureAttributesAbstractData
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
 from .pandas import InferFeatureAttributesDataFrame
