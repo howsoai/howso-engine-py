@@ -15,6 +15,8 @@ import pandas as pd
 from pandas.core.dtypes.common import is_string_dtype
 import psutil
 
+from howso.connectors.abstract_data import get_chunk_groups
+
 from .abstract_data import InferFeatureAttributesAbstractData
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
 from .pandas import InferFeatureAttributesDataFrame
@@ -922,26 +924,28 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
             derived_orders=derived_orders,
         )
 
+        group_map = self.data.get_group_map(column_name=id_feature_name)  # type: ignore
+        groups = get_chunk_groups(group_map=group_map, chunk_size=chunk_size)
+        chunk_iterator = self.data.yield_grouped_chunk(  # type: ignore
+            column_name=id_feature_name,
+            groups=groups,
+            feature_attributes=features,
+            time_feature=self.time_feature_name,
+        )
+
         if use_parallel:
             feature_chunks = []
             with ProcessPoolExecutor(max_workers=effective_max_workers) as pool:
                 for future in lazy_map(
                     pool,
                     func,
-                    self.data.yield_chunk(
-                        chunk_size=chunk_size,
-                        maintain_natural_order=True
-                    ),
+                    chunk_iterator,
                     queue_length=effective_max_workers + 2,
                 ):
                     feature_chunks.append(future.result())
         else:
             # Single chunk or single worker - process sequentially
-            feature_chunks = [
-                func(chunk) for chunk in self.data.yield_chunk(
-                    chunk_size=chunk_size, maintain_natural_order=True
-                )
-            ]
+            feature_chunks = [func(chunk) for chunk in chunk_iterator]
 
         # Short-circuit if only one chunk
         if len(feature_chunks) == 1:

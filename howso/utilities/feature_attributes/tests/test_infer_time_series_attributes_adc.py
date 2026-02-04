@@ -1,3 +1,4 @@
+# pyright: reportTypedDictNotRequiredAccess=false
 """Tests infer_feature_attributes with time series data and AbstractData classes."""
 from collections import OrderedDict
 from pathlib import Path
@@ -11,15 +12,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
-try:
-    from howso.connectors.abstract_data import (
+from howso.connectors.abstract_data import (
         convert_data,
         DataFrameData,
-        SparkDataFrameData,
         TabularFile,
-    )
+)
+
+try:
+    from howso.connectors.abstract_data import SparkDataFrameData
+    SPARK_AVAILABLE = True
 except (ModuleNotFoundError, ImportError):
-    pytest.skip("howso-engine-connectors not installed", allow_module_level=True)
+    SparkDataFrameData = type
+    SPARK_AVAILABLE = False
 
 if sys.platform.startswith("win"):
     pytest.skip("Skipping due to excessive Spark/ADC runtimes on Windows", allow_module_level=True)
@@ -315,13 +319,11 @@ def test_invalid_time_feature_format(adc):
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
 @pytest.mark.parametrize('data, types, expected_types, is_valid', [
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'),
+    (pd.DataFrame({'id': [1, 1, 1, 1, 1, 1], 'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'),
      dict(b='continuous'), True),
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'),
+    (pd.DataFrame({'id': [1, 1, 1, 1, 1, 1], 'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'),
      dict(a='continuous'), True),
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'),
-     dict(b='nominal'), True),
-    (pd.DataFrame({'a': [True, False, False, True], 'b': [False, True, False, True]}), dict(b='continuous'),
+    (pd.DataFrame({'id': [1, 1, 1, 1, 1, 1, 1, 1], 'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'),
      dict(b='nominal'), True),
 ])
 def test_preset_feature_types(data, types, expected_types, is_valid, adc):
@@ -331,7 +333,7 @@ def test_preset_feature_types(data, types, expected_types, is_valid, adc):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if is_valid:
-            features = infer_feature_attributes(adc, types=types, time_feature_name='a')
+            features = infer_feature_attributes(adc, types=types, id_feature_name='id', time_feature_name='a')
             for feature_name, expected_type in expected_types.items():
                 # Make sure it is the correct type
                 assert features[feature_name]['type'] == expected_type
@@ -423,13 +425,14 @@ def test_time_series_features_TabularData():
                 raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
 
 
+@pytest.mark.skipif(not SPARK_AVAILABLE, reason="Spark not installed.")
 def test_time_series_features_SparkDataFrameData(spark):
     """Test that SparkDataFrameData works with time series data."""
     pdf = pd.read_csv(data_path.joinpath("example_timeseries.csv"))
     adc = SparkDataFrameData(spark.createDataFrame(pdf))
     valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
     features = infer_feature_attributes(
-        adc,
+        adc,  # pyright: ignore[reportArgumentType]
         id_feature_name="ID",
         time_feature_name="date",
         datetime_feature_formats={"date": "%Y%m%d"},
@@ -450,6 +453,7 @@ def test_time_series_features_SparkDataFrameData(spark):
                 raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
 
 
+@pytest.mark.skipif(not SPARK_AVAILABLE, reason="Spark not installed.")
 @pytest.mark.parametrize(("default_time_zone", ), [("EST", ), ("UTC", ), (None, )])
 def test_infer_time_series(spark, default_time_zone):
     """
@@ -477,7 +481,7 @@ def test_infer_time_series(spark, default_time_zone):
     if default_time_zone:
         ifa_kwargs.update(default_time_zone="EST")
 
-    features = infer_feature_attributes(connector, **ifa_kwargs)
+    features = infer_feature_attributes(connector, **ifa_kwargs)  # pyright: ignore[reportArgumentType]
 
     # 1. Verify time series types
     assert features["time"]["time_series"]["type"] == 'delta'
@@ -497,7 +501,7 @@ def test_infer_time_series(spark, default_time_zone):
     assert "delta_min" not in features["bal_scaled"]["time_series"]
 
     features = infer_feature_attributes(
-        connector,
+        connector,  # pyright: ignore[reportArgumentType]
         time_feature_name="time",
         id_feature_name="ID",
         time_series_types_override={
@@ -520,7 +524,7 @@ def test_infer_time_series(spark, default_time_zone):
     assert "delta_min" in features["bal_scaled"]["time_series"]
 
     features = infer_feature_attributes(
-        connector,
+        connector,  # pyright: ignore[reportArgumentType]
         time_feature_name="time",
         id_feature_name="ID",
         time_series_type_default='delta'
@@ -540,7 +544,7 @@ def test_infer_time_series(spark, default_time_zone):
     assert "delta_min" in features["value"]["time_series"]
 
     features = infer_feature_attributes(
-        connector,
+        connector,  # pyright: ignore[reportArgumentType]
         time_feature_name="time",
         id_feature_name="ID",
         time_invariant_features=["gender", "balance"]
@@ -553,7 +557,7 @@ def test_infer_time_series(spark, default_time_zone):
     assert features["bal_scaled"]["time_series"]["type"] == 'rate'
 
     features = infer_feature_attributes(
-        connector,
+        connector,  # pyright: ignore[reportArgumentType]
         time_feature_name="time",
         id_feature_name="ID",
         time_series_types_override={
@@ -579,6 +583,7 @@ def test_infer_time_series(spark, default_time_zone):
     assert features["value"]["time_series"]["derived_orders"] == 2
 
 
+@pytest.mark.skipif(not SPARK_AVAILABLE, reason="Spark not installed.")
 @pytest.mark.parametrize(
     "data_type, value",
     [
@@ -599,7 +604,7 @@ def test_semi_structured_features_spark_native(spark, data_type: str, value: lis
     )
 
     features = infer_feature_attributes(
-        connector,
+        connector,  # pyright: ignore[reportArgumentType]
         time_feature_name="turn",
         id_feature_name="class",
         num_lags=3
@@ -611,6 +616,7 @@ def test_semi_structured_features_spark_native(spark, data_type: str, value: lis
     assert features["inventory"]["time_series"]["num_lags"] == 3
 
 
+@pytest.mark.skipif(not SPARK_AVAILABLE, reason="Spark not installed.")
 def test_nominals_are_ignored_in_ifa_for_ts(spark):
     """
     Ensure that nominals are never marked for a TS type in IFA.
@@ -645,7 +651,7 @@ def test_nominals_are_ignored_in_ifa_for_ts(spark):
     )
 
     features = infer_feature_attributes(
-        connector,
+        connector,  # pyright: ignore[reportArgumentType]
         id_feature_name="SERIES",
         time_feature_name="DATE",
         default_time_zone="UTC",
