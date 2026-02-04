@@ -15,7 +15,6 @@ import pandas as pd
 from pandas.core.dtypes.common import is_string_dtype
 import psutil
 
-from howso.connectors.abstract_data import get_chunk_groups
 
 from .abstract_data import InferFeatureAttributesAbstractData
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
@@ -924,14 +923,19 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
             derived_orders=derived_orders,
         )
 
-        group_map = self.data.get_group_map(column_name=id_feature_name)  # type: ignore
-        groups = get_chunk_groups(group_map=group_map, chunk_size=chunk_size)
-        chunk_iterator = self.data.yield_grouped_chunk(  # type: ignore
-            column_name=id_feature_name,
-            groups=groups,
-            feature_attributes=features,
-            time_feature=self.time_feature_name,
-        )
+        try:
+            from howso.connectors.abstract_data import get_chunk_groups
+        except (ModuleNotFoundError, ImportError):
+            chunk_iterator = self.data.yield_chunk(chunk_size=chunk_size)  # type: ignore
+        else:
+            group_map = self.data.get_group_map(column_name=id_feature_name)  # type: ignore
+            groups = get_chunk_groups(group_map=group_map, chunk_size=chunk_size)
+            chunk_iterator = self.data.yield_grouped_chunk(  # type: ignore
+                column_name=id_feature_name,
+                groups=groups,
+                feature_attributes=features,
+                time_feature=self.time_feature_name,
+            )
 
         if use_parallel:
             feature_chunks = []
