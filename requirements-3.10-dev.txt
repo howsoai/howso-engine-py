@@ -170,7 +170,7 @@ tomli==2.4.0
     #   pytest
 tomlkit==0.14.0
     # via pylint
-tqdm==4.67.2
+tqdm==4.67.3
     # via sacremoses
 typing-extensions==4.15.0
     # via

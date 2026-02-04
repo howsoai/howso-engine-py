@@ -68,7 +68,7 @@ semantic-version==2.10.0
     # via howso-engine (pyproject.toml)
 six==1.17.0
     # via python-dateutil
-tqdm==4.67.2
+tqdm==4.67.3
     # via sacremoses
 typing-extensions==4.15.0
     # via
