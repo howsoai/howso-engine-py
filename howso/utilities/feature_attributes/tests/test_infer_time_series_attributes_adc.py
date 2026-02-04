@@ -12,12 +12,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from howso.connectors.abstract_data import (
-        convert_data,
-        DataFrameData,
-        TabularFile,
-)
-
+try:
+    from howso.connectors.abstract_data import (
+            convert_data,
+            DataFrameData,
+            TabularFile,
+    )
+except (ModuleNotFoundError, ImportError):
+    pytest.skip("Skipping because howso-engine-connectors is not installed", allow_module_level=True)
 try:
     from howso.connectors.abstract_data import SparkDataFrameData
     SPARK_AVAILABLE = True
