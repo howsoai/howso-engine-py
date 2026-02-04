@@ -472,15 +472,15 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                     errors.extend(self._validate_dtype(data, feature, 'datetime64',
                                                        coerced_df, coerce=coerce,
                                                        localize_datetimes=localize_datetimes))
+
+                # Check semi-structured type (object)
+                elif attributes.get("data_type") in {"json", "yaml", "amalgam", "string", "string_mixable"}:
+                    errors.extend(self._validate_dtype(data, feature, "object", coerced_df, coerce=coerce))
+
                 # Check type (float)
                 elif attributes.get('decimal_places', -1) > 0:
                     errors.extend(self._validate_dtype(data, feature, 'float64',
                                                        coerced_df, coerce=coerce))
-
-                # Check semi-structured type (object)
-                elif attributes.get("data_type") in {"json", "yaml", "amalgam"}:
-                    errors.extend(self._validate_dtype(data, feature, "object", coerced_df, coerce=coerce))
-
                 # Check type (nullable Int)
                 elif self._allows_null(attributes):
                     errors.extend(self._validate_dtype(data, feature, nullable_int_dtype,
