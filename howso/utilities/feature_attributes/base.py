@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from howso.utilities.features import convert_primitive_to_feature_type, FeatureType
+from howso.utilities.features import FeatureType
 from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 from ..utilities import determine_iso_format
 
@@ -1153,74 +1153,6 @@ class InferFeatureAttributesBase(ABC):
     def _infer_integer_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given integer column."""
 
-    def _get_primitive_type_schema(self, feature_name: str) -> dict:  # noqa: C901
-        """Get a map of keys to types for a JSON feature stored as a Python dict or list."""
-        # If there is no data, return False
-        first_non_none = self._get_first_non_null(feature_name)
-        if first_non_none is None:
-            return False
-
-        # Keep track of whether there are any non-primitive types in the data
-        has_complex_type = False
-
-        def _recursive_get_types(data: t.Any, key: str = None) -> dict:
-            """Recursively determine primitive types for an arbitrary Python data structure."""
-            nonlocal has_complex_type
-            # Value is a list
-            if isinstance(data, MutableSequence):
-                list_type = FeatureType.UNKNOWN.value
-                # Iterate through 10 random values of a list of len>10, or through the entire list if len<=10.
-                iterations = min(len(data), 10)
-                if len(data) > 10:
-                    # Shuffle data so that the first 10 indices are randomized
-                    data = list(pd.Series(data).sample(frac=1))
-                for idx in range(iterations):
-                    rand_val = data[idx]
-                    if rand_val is None:
-                        # We can still retain primitive types with NoneTypes present in the data structure
-                        continue
-                    elif list_type == FeatureType.UNKNOWN.value:
-                        list_type = convert_primitive_to_feature_type(rand_val)
-                    elif list_type != convert_primitive_to_feature_type(rand_val):
-                        warnings.warn(f"JSON feature '{feature_name}' contains a key '{key}' whose value is a list of "
-                                      "mixed types. Original types under this key will not be preserved.")
-                        return FeatureType.UNKNOWN.value
-                    elif list_type == FeatureType.UNKNOWN.value:
-                        # A non-primitive type was found in the data
-                        has_complex_type = True
-                return list_type
-            # Base case: not a list or dict
-            elif not isinstance(data, Mapping):
-                return convert_primitive_to_feature_type(data)
-            # Value is a dict
-            return {key: _recursive_get_types(data[key], key=key) for key in data.keys()}
-
-        # Sample up to 10 random values
-        # OR every value if < 10
-        type_maps = []
-        if (count := self._get_unique_count(feature_name)) < 10:
-            for sample in self._get_unique_values(feature_name):
-                type_maps.append(_recursive_get_types(sample))
-        else:
-            count = 10
-            for idx in range(10):
-                sample = self._get_random_value(feature_name, no_nulls=True)
-                type_maps.append(_recursive_get_types(sample))
-
-        # Issue a warning if keys or types are not consistent across cases
-        for idx in range(1, count):
-            if type_maps[0] != type_maps[idx]:
-                warnings.warn(f"JSON feature '{feature_name} has inconsistent types and/or keys across cases. "
-                              "Original types will not be preserved.")
-                return
-
-        # Issue a warning if any non-primitive types were found
-        if has_complex_type:
-            warnings.warn(f"JSON feature '{feature_name}' contains at least one instance of a non-primitive type. "
-                          "Only uniform, primitive types will be preserved in semistructured features.")
-
-        return type_maps[0]
-
     def _infer_string_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given string column."""
         # Column has arbitrary string values, first check if they
@@ -1244,11 +1176,10 @@ class InferFeatureAttributesBase(ABC):
         elif self._is_json_feature(feature_name):
             first_non_null = self._get_first_non_null(feature_name)
             if isinstance(first_non_null, Mapping) or isinstance(first_non_null, MutableSequence):
-                type_map = self._get_primitive_type_schema(feature_name) or {}
                 return {
                     "type": "continuous",
                     "data_type": "json",
-                    "original_type": {"type_map": type_map, "data_type": FeatureType.CONTAINER.value},
+                    "original_type": {"data_type": FeatureType.CONTAINER.value},
                 }
             return {
                 "type": "continuous",
