@@ -6,8 +6,6 @@ from .feature_attributes.base import (
     SingleTableFeatureAttributes,
 )
 from .features import (  # noqa: F401
-    cast_primitive_from_feature_type,
-    convert_primitive_to_feature_type,
     deserialize_cases,
     FeatureType,
     format_column,
@@ -66,8 +64,6 @@ __all__ = [
     "align_data",
     "build_react_series_df",
     "check_feature_names",
-    "cast_primitive_from_feature_type",
-    "convert_primitive_to_feature_type",
     "format_confusion_matrix",
     "date_format_is_iso",
     "date_to_epoch",
