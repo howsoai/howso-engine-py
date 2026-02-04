@@ -240,7 +240,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         ]
 
     def _validate_bounds(self, data: pd.DataFrame, feature: str,  # noqa: C901
-                         attributes: dict) -> list[str]:
+                         attributes: FeatureAttributes) -> list[str]:
         """Validate the feature bounds of the provided DataFrame."""
         # Import here to avoid circular import
         from howso.utilities import date_to_epoch
@@ -388,7 +388,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         return errors
 
     @staticmethod
-    def _allows_null(attributes: dict) -> bool:
+    def _allows_null(attributes: FeatureAttributes) -> bool:
         """Return whether the given attributes indicates the allowance of null values."""
         return 'bounds' in attributes and attributes['bounds'].get('allow_null', False)
 
@@ -397,7 +397,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                      allow_missing_features: bool = False, localize_datetimes=True, nullable_int_dtype='Int64'):
         errors = []
         coerced_df = data.copy(deep=True)
-        features = self[table_name] if table_name else self
+        features = t.cast(dict[str, "FeatureAttributes"], self[table_name] if table_name else self)
 
         for feature, attributes in features.items():
             if feature not in data.columns:
@@ -472,6 +472,11 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                     errors.extend(self._validate_dtype(data, feature, 'datetime64',
                                                        coerced_df, coerce=coerce,
                                                        localize_datetimes=localize_datetimes))
+
+                # Check semi-structured type (object)
+                elif attributes.get("data_type") in {"json", "yaml", "amalgam", "string", "string_mixable"}:
+                    errors.extend(self._validate_dtype(data, feature, "object", coerced_df, coerce=coerce))
+
                 # Check type (float)
                 elif attributes.get('decimal_places', -1) > 0:
                     errors.extend(self._validate_dtype(data, feature, 'float64',
