@@ -77,7 +77,7 @@ def cast_primitive_from_feature_type(data: int | float | str | bool, new_type: s
             return bool(data)
         elif new_type == FeatureType.INTEGER.value and not isinstance(data, int):
             return int(data)
-        elif new_type == FeatureType.FLOAT.value and not isinstance(data, float):
+        elif new_type == FeatureType.NUMERIC.value and not isinstance(data, float):
             return float(data)
     except Exception:  # noqa: Intentionally broad
         # This is a QoL operation and it should not stop execution if there is a problem
@@ -96,7 +96,7 @@ def convert_primitive_to_feature_type(value: t.Any):
     elif isinstance(value, float):
         return FeatureType.NUMERIC.value
     # A non-primitive type
-    return FeatureType.UNKNOWN
+    return FeatureType.UNKNOWN.value
 
 
 class FeatureSerializer:
@@ -303,7 +303,7 @@ class FeatureSerializer:
             new_values = cls.format_column(df[col], attributes, tokenizer=tokenizer)
             df = df.drop(columns=col)
             df[col] = new_values
-            
+
         return df[original_feature_order]
 
     @classmethod
