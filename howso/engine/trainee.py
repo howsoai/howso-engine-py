@@ -3693,7 +3693,7 @@ class Trainee(BaseTrainee):
                 under the key 'feature_full_prediction_contributions' and returns the mean
                 delta under the key 'feature_full_directional_prediction_contributions'.
                 Note: not recommended for semi-structured data action features due to weak signal
-                due to its high dimensionality, accuracy contributions should be computed instead.
+                caused by its high dimensionality, accuracy contributions should be computed instead.
             - feature_full_residuals : bool, optional
                 For each feature in ``action_features``, use the context features to predict
                 the feature and return the mean absolute error. When ``prediction_stats`` in
@@ -3714,8 +3714,8 @@ class Trainee(BaseTrainee):
                 and without the context features in the model. Returns the mean absolute delta
                 under the key 'feature_robust_prediction_contributions' and returns the mean
                 delta under the key 'feature_robust_directional_prediction_contributions'.
-                Note: not recommended for semi-structured data action features due to weak
-                signal due to its high dimensionality, accuracy contributions should be computed instead.
+                Note: not recommended for semi-structured data action features due to weak signal
+                caused by its high dimensionality, accuracy contributions should be computed instead.
             - feature_robust_residuals : bool, optional
                 For each feature in ``action_features``, use the robust
                 (power set/permutations) set of all other context features to predict

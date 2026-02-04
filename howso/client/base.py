@@ -3752,7 +3752,7 @@ class AbstractHowsoClient(ABC):
                 under the key 'feature_full_prediction_contributions' and returns the mean
                 delta under the key 'feature_full_directional_prediction_contributions'.
                 Note: not recommended for semi-structured data action features due to weak signal
-                due to its high dimensionality, accuracy contributions should be computed instead.
+                caused by its high dimensionality, accuracy contributions should be computed instead.
             - feature_robust_prediction_contributions : bool, optional
                 For each context_feature, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
@@ -3761,7 +3761,7 @@ class AbstractHowsoClient(ABC):
                 under the key 'feature_robust_prediction_contributions' and returns the mean
                 delta under the key 'feature_robust_directional_prediction_contributions'.
                 Note: not recommended for semi-structured data action features due to weak signal
-                due to its high dimensionality, accuracy contributions should be computed instead.
+                caused by its high dimensionality, accuracy contributions should be computed instead.
             - feature_deviations : bool, optional
                 For each feature in ``action_features``, use the context features
                 and the feature being predicted as context to predict the feature
