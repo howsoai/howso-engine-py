@@ -317,7 +317,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         """
         if not strip:
             return self.data.get_first_non_null(feature_name)
-        for chunk in self.data.yield_chunk():
+        for chunk in self.data.yield_chunk(maintain_natural_order=True):
             if val := next((x for x in chunk[feature_name].dropna() if str(x).strip()), None):
                 return val
         return None
