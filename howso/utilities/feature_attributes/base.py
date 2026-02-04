@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from howso.utilities.features import convert_primitive_to_feature_type, FeatureType
+from howso.utilities.features import FeatureType
 from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 from ..utilities import determine_iso_format
 
