@@ -656,6 +656,46 @@ def test_validate_df_multiple_dtypes(ftype, data_type, decimal_places, bounds, d
     assert pd.api.types.is_datetime64_any_dtype(coerced_df['DATE'].dtype)
 
 
+@pytest.mark.parametrize(
+    ("data", "expected_data_type", "expected_orig_type"),
+    (
+        ({"a": 1}, "json", "container"),
+        ([1, 2, 3], "json", "container"),
+        ('{"a": 1}', "json", "string"),
+        ('["a", "b", "c"]', "json", "string"),
+        ("doc:\n  abc: 1", "yaml", "string"),
+        ("(list 1 2 3)", "amalgam", "string"),
+        ('(assoc "a" 1 "b" 2)', "amalgam", "string"),
+    ),
+)
+def test_validate_df_semi_structured(data, expected_data_type: str, expected_orig_type: str):
+    """Test validate_df handles semi-structured features correctly."""
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "doc": [data, None, data],
+    })
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        feature_attributes = infer_feature_attributes(df)
+
+    attrs = feature_attributes["doc"]
+
+    assert "original_type" in attrs
+    assert attrs["original_type"]["data_type"] == expected_orig_type
+
+    if expected_data_type == "amalgam":
+        # Amalgam is not automatically inferred set it manually
+        attrs["type"] = "continuous"
+        attrs["data_type"] = "amalgam"
+    else:
+        assert attrs["type"] == "continuous"
+        assert attrs.get("data_type") == expected_data_type
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        feature_attributes.validate(df, raise_errors=True)
+
+
 @pytest.mark.parametrize("extra_attrs, success", (
     ({}, False),
     ({'auto_derive_on_train': False}, False),

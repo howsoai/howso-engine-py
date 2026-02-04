@@ -269,7 +269,7 @@ class FeatureSerializer:
             new_values = cls.format_column(df[col], attributes, tokenizer=tokenizer)
             df = df.drop(columns=col)
             df[col] = new_values
-            
+
         return df[original_feature_order]
 
     @classmethod
