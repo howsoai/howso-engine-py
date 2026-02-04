@@ -808,7 +808,7 @@ def stringify_json(cases: list[list[t.Any]], features: Iterable[str], feature_at
                 case_group[idx] = json.dumps(case_group[idx])
 
 
-def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> None:
+def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> None | pd.Series:
     """
     Ensures that any JSON features have their cases destringified.
 
