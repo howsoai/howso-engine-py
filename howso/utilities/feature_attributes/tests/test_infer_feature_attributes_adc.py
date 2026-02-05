@@ -602,23 +602,3 @@ def test_infer_tokenizable_string(adc):
     # Product should still be a nominal string
     assert feature_attributes["product"]["data_type"] == "string"
     assert feature_attributes["product"]["type"] == "nominal"
-
-
-@pytest.mark.parametrize('adc', [
-    # Only MongoDBData and DataFrameData support Python objects as data
-    ("MongoDBData", pd.DataFrame()),
-    ("DataFrameData", pd.DataFrame()),
-], indirect=True)
-def test_json_features_types(adc):
-    """Test that IFA includes type information for JSON features that are Python dicts/lists for applicable ADCs."""
-    test = (
-        {"a": "str", "b": 1, "c": 2.7, "d": True, "e": {"a1": "str", "b1": {"c1": [1, 2, 3]}}},
-        {"a": "string", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "integer"}}}
-    )
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        df = pd.DataFrame({"foo": [test[0]]})
-        convert_data(DataFrameData(df), adc)
-        attributes = infer_feature_attributes(adc)
-        assert attributes["foo"]["data_type"] == "json"
-        assert attributes["foo"]["original_type"]["type_map"] == test[1]

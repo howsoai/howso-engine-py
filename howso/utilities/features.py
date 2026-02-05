@@ -38,8 +38,6 @@ from .utilities import (
 
 
 __all__ = [
-    "cast_primitive_from_feature_type",
-    "convert_primitive_to_feature_type",
     "FeatureSerializer",
     "FeatureType",
     "deserialize_cases",
@@ -66,38 +64,6 @@ class FeatureType(Enum):
     def __str__(self):
         """Return a string representation."""
         return str(self.value)
-
-
-def cast_primitive_from_feature_type(data: int | float | str | bool, new_type: str):
-    """Cast a primitive value to the provided FeatureType value if it does not match."""
-    try:
-        if new_type == FeatureType.STRING.value and not isinstance(data, str):
-            return str(data)
-        elif new_type == FeatureType.BOOLEAN.value and not isinstance(data, bool):
-            return bool(data)
-        elif new_type == FeatureType.INTEGER.value and not isinstance(data, int):
-            return int(data)
-        elif new_type == FeatureType.FLOAT.value and not isinstance(data, float):
-            return float(data)
-    except Exception:  # noqa: Intentionally broad
-        # This is a QoL operation and it should not stop execution if there is a problem
-        pass
-    return data
-
-
-def convert_primitive_to_feature_type(value: t.Any):
-    """Convert a primitive value's data type to FeatureType. Returns 'object' if not primitive."""
-    if isinstance(value, str):
-        return FeatureType.STRING.value
-    elif isinstance(value, bool):
-        return FeatureType.BOOLEAN.value
-    elif isinstance(value, int):
-        return FeatureType.INTEGER.value
-    elif isinstance(value, float):
-        return FeatureType.NUMERIC.value
-    # A non-primitive type
-    return FeatureType.UNKNOWN
-
 
 class FeatureSerializer:
     """Adapter for serialization and deserialization of feature data."""
@@ -303,7 +269,7 @@ class FeatureSerializer:
             new_values = cls.format_column(df[col], attributes, tokenizer=tokenizer)
             df = df.drop(columns=col)
             df[col] = new_values
-            
+
         return df[original_feature_order]
 
     @classmethod
