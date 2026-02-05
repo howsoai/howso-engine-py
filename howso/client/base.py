@@ -1687,6 +1687,7 @@ class AbstractHowsoClient(ABC):
         input_is_substituted: bool = False,
         into_series_store: t.Optional[str] = None,
         leave_case_out: bool = False,
+        mutate_schema_features: t.Optional[Collection[str]] = None,
         new_case_min_distance_ratio: t.Optional[float] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_cases_to_generate: int = 1,
@@ -2152,6 +2153,10 @@ class AbstractHowsoClient(ABC):
             If set to True and specified along with case_indices,
             each individual react will respectively ignore the corresponding
             case specified by case_indices by leaving it out.
+        mutate_schema_features : iterable of str, optional
+            List of semi-structured features whose values will be mutated,
+            possibly changing their schema in generative reacts. Ignored in
+            discriminative reacts.
         initial_batch_size: int, optional
             Define the number of cases to react to in the first batch. If
             unspecified, the value of the ``react_initial_batch_size`` property
@@ -2460,6 +2465,7 @@ class AbstractHowsoClient(ABC):
                 "feature_bounds_map": feature_bounds_map,
                 "generate_new_cases": generate_new_cases,
                 "goal_features_map": goal_features_map,
+                "mutate_schema_features": mutate_schema_features,
                 "ordered_by_specified_features": ordered_by_specified_features,
                 "preserve_feature_values": preserve_feature_values,
                 "new_case_min_distance_ratio": new_case_min_distance_ratio,
@@ -2766,6 +2772,7 @@ class AbstractHowsoClient(ABC):
         input_is_substituted: bool = False,
         leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
+        mutate_schema_features: t.Optional[Collection[str]] = None,
         new_case_min_distance_ratio: t.Optional[float] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
@@ -2974,6 +2981,10 @@ class AbstractHowsoClient(ABC):
             See parameter ``use_case_weights`` in :meth:`AbstractHowsoClient.react`.
         preserve_feature_values : iterable of str
             See parameter ``preserve_feature_values`` in :meth:`AbstractHowsoClient.react`.
+        mutate_schema_features : iterable of str, optional
+            List of semi-structured features whose values will be mutated,
+            possibly changing their schema in generative reacts. Ignored in
+            discriminative reacts.
         new_case_min_distance_ratio : float, optional
             Parameter that adjusts the required distance ratio for a newly
             generated case to be considered private. When unspecified, defaults
@@ -3190,6 +3201,7 @@ class AbstractHowsoClient(ABC):
                 "feature_bounds_map": feature_bounds_map,
                 "goal_features_map": goal_features_map,
                 "generate_new_cases": generate_new_cases,
+                "mutate_schema_features": mutate_schema_features,
                 "ordered_by_specified_features": ordered_by_specified_features,
                 "input_is_substituted": input_is_substituted,
                 "substitute_output": substitute_output,
