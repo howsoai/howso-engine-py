@@ -26,7 +26,7 @@ from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 from ..utilities import determine_iso_format
 
 if t.TYPE_CHECKING:
-    from howso.client.typing import FeatureAttributes
+    from howso.client.typing import DuplicateFeatureGroup, FeatureAttributes
 
 logger = logging.getLogger(__name__)
 
@@ -763,6 +763,7 @@ class InferFeatureAttributesBase(ABC):
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
+                 duplicate_feature_groups: t.Optional[list[DuplicateFeatureGroup]] = None,
                  id_feature_name: t.Optional[str | Iterable[str]] = None,
                  include_extended_nominal_probabilities: t.Optional[bool] = False,
                  include_sample: bool = False,
@@ -1107,6 +1108,17 @@ class InferFeatureAttributesBase(ABC):
 
         # Validate datetimes after any user-defined features have been re-implemented
         self._validate_date_times()
+
+        # Configure the duplicated feature attributes according to the input if given.
+        if duplicate_feature_groups:
+            for dfg in duplicate_feature_groups:
+                duplicated_features = dfg['duplicated_features']
+                key_features = dfg['key_features']
+
+                for f in duplicated_features:
+                    if f in self.attributes:
+                        self.attributes[f]['joined_on'] = key_features
+
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {}

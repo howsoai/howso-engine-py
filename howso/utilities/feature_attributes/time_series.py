@@ -1,4 +1,5 @@
 from __future__ import annotations
+from PIL.ImageChops import duplicate
 
 from abc import abstractmethod
 from collections.abc import Collection, Iterable, MutableMapping
@@ -24,6 +25,9 @@ from ..utilities import (
     is_valid_datetime_format,
     lazy_map,
 )
+
+if t.TYPE_CHECKING:
+    from howso.client.typing import DuplicateFeatureGroup
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +334,7 @@ class InferFeatureAttributesTimeSeries:
         delta_boundaries: t.Optional[dict] = None,
         dependent_features: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
+        duplicate_feature_groups: t.Optional[list[DuplicateFeatureGroup]] = None,
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         include_extended_nominal_probabilities: t.Optional[bool] = False,
         include_sample: bool = False,
@@ -633,6 +638,7 @@ class InferFeatureAttributesTimeSeries:
             datetime_feature_formats=datetime_feature_formats,
             default_time_zone=default_time_zone,
             dependent_features=dependent_features,
+            duplicate_feature_groups=duplicate_feature_groups,
             id_feature_name=id_feature_name,
             include_extended_nominal_probabilities=include_extended_nominal_probabilities,
             include_sample=include_sample,
