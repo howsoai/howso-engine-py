@@ -1681,6 +1681,7 @@ class AbstractHowsoClient(ABC):
         feature_bounds_map: t.Optional[Mapping] = None,
         feature_pre_process_code_map: t.Optional[Mapping] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
+        filter_duplicate_values: bool = False,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
         initial_batch_size: t.Optional[int] = None,
@@ -2202,7 +2203,10 @@ class AbstractHowsoClient(ABC):
             resulting value will be used as part of the context for following
             action features. The custom code will have access to all context
             feature values and previously generated action feature values.
-
+        filter_duplicate_values : bool, default False
+            When true, predictions of features with duplicated values will be
+            made while holding out other cases that had the same values
+            duplicated.
         generate_new_cases : {"always", "attempt", "no"}, default "no"
             (Optional) Whether to generate new cases.
 
@@ -2411,6 +2415,7 @@ class AbstractHowsoClient(ABC):
                 "derived_action_features": derived_action_features,
                 "feature_pre_process_code_map": feature_pre_process_code_map,
                 "feature_post_process_code_map": feature_post_process_code_map,
+                "filter_duplicate_values": filter_duplicate_values,
                 "goal_features_map": goal_features_map,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
@@ -2457,6 +2462,7 @@ class AbstractHowsoClient(ABC):
                 "derived_action_features": derived_action_features,
                 "feature_pre_process_code_map": feature_pre_process_code_map,
                 "feature_post_process_code_map": feature_post_process_code_map,
+                "filter_duplicate_values": filter_duplicate_values,
                 "post_process_features": post_process_features,
                 "post_process_values": post_process_values,
                 "use_differential_privacy": use_differential_privacy,
@@ -2764,6 +2770,7 @@ class AbstractHowsoClient(ABC):
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
+        filter_duplicate_values: bool = False,
         final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -2897,6 +2904,10 @@ class AbstractHowsoClient(ABC):
             feature values and previously generated action feature values of
             the timestep being generated, as well as the feature values of all
             previously generated timesteps.
+        filter_duplicate_values : bool, default False
+            When true, predictions of features with duplicated values will be
+            made while holding out other cases that had the same values
+            duplicated.
         series_context_features : iterable of str, optional
             List of context features corresponding to ``series_context_values``.
         series_context_values : list of list of list of object or list of DataFrame, optional
@@ -3130,6 +3141,7 @@ class AbstractHowsoClient(ABC):
                 "constraints": constraints,
                 "continue_series": continue_series,
                 "feature_post_process_code_map": feature_post_process_code_map,
+                "filter_duplicate_values": filter_duplicate_values,
                 "final_time_steps": final_time_steps,
                 "init_time_steps": init_time_steps,
                 "series_stop_maps": series_stop_maps,
@@ -3183,6 +3195,7 @@ class AbstractHowsoClient(ABC):
                 "constraints": constraints,
                 "continue_series": continue_series,
                 "feature_post_process_code_map": feature_post_process_code_map,
+                "filter_duplicate_values": filter_duplicate_values,
                 "final_time_steps": final_time_steps,
                 "init_time_steps": init_time_steps,
                 "series_stop_maps": series_stop_maps,
@@ -3689,6 +3702,7 @@ class AbstractHowsoClient(ABC):
         convergence_threshold: t.Optional[float] = None,
         features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
+        filter_duplicate_values: bool = False,
         forecast_window_length: t.Optional[float] = None,
         goal_dependent_features: t.Optional[Collection[str]] = None,
         goal_features_map: t.Optional[Mapping] = None,
@@ -3914,6 +3928,10 @@ class AbstractHowsoClient(ABC):
         feature_influences_action_feature : str, optional
             When computing feature influences such as accuracy and prediction contributions, use this feature as
             the action feature.  If feature influences ``details`` are selected, this feature must be provided.
+        filter_duplicate_values : bool, default False
+            When true, predictions of features with duplicated values will be
+            made while holding out other cases that had the same values
+            duplicated.
         forecast_window_length : float, optional
             A value specifing a length of time over which to measure the accuracy of forecasts. When
             specified, returned prediction statistics and full residuals will be measuring the accuracy
@@ -4107,6 +4125,7 @@ class AbstractHowsoClient(ABC):
             "convergence_threshold": convergence_threshold,
             "features_to_derive": features_to_derive,
             "feature_influences_action_feature": feature_influences_action_feature,
+            "filter_duplicate_values": filter_duplicate_values,
             "forecast_window_length": forecast_window_length,
             "goal_dependent_features": goal_dependent_features,
             "goal_features_map": goal_features_map,

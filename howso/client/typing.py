@@ -242,6 +242,20 @@ class FeatureTimeSeries(TypedDict, total=False):
     the default.
     """
 
+class DuplicateFeatureGroup(TypedDict):
+    """
+    Configuration for a single collection of duplicate features.
+
+    Configuration describing both the list of duplicated features and the list
+    of "key" features whose values can be used to find the groups of cases that
+    all use the same duplicated values.
+    """
+
+    key_features: list[str]
+    """List of the features whose values can be used to find groups of cases with the same duplicated values."""
+
+    duplicated_features: list [str]
+    """List of features whose values are duplicated across multiple cases from a single observation."""
 
 class FeatureAttributes(TypedDict):
     """
@@ -342,6 +356,14 @@ class FeatureAttributes(TypedDict):
 
     Should be used when there are multi-type value features that tightly depend
     on values based on other multi-type value features.
+    """
+
+    joined_on: NotRequired[list[str]]
+    """
+    Features whose values can be used to select other cases that have the same
+    duplicated value for this feature.
+
+    Should be used when this is a duplicated feature.
     """
 
     derived_feature_code: NotRequired[str]
