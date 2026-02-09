@@ -281,6 +281,7 @@ class FeatureAttributes(TypedDict):
     `max` in the `bounds` attribute.
 
     Examples:
+
         - degrees: values 0-359, cycle_length = 360
         - days: values 0-6, cycle_length = 7
         - hours: values 0-23, cycle_length = 24
@@ -305,6 +306,7 @@ class FeatureAttributes(TypedDict):
     Default is `string` for nominals and `number` for continuous.
 
     Valid values:
+
         - string: nominal or continuous
         - number: nominal or continuous
         - formatted_date_time: nominal or continuous
@@ -359,6 +361,7 @@ class FeatureAttributes(TypedDict):
     operations on feature values referenced via feature name and row offset.
 
     Examples:
+
         - ``(call value {feature \"x\" lag 1})``:
           Use value for feature 'x' from the previously processed row (offset 1, one lag value).
         - ``(- (call value {feature \"y\" lag 0}) (call value {feature \"x\" lag 1}))``:
