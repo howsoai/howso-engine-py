@@ -26,7 +26,7 @@ from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 from ..utilities import determine_iso_format
 
 if t.TYPE_CHECKING:
-    from howso.client.typing import DuplicateFeatureGroup, FeatureAttributes
+    from howso.client.typing import FanoutFeatureGroup, FeatureAttributes
 
 logger = logging.getLogger(__name__)
 
@@ -763,7 +763,7 @@ class InferFeatureAttributesBase(ABC):
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
-                 fanout_feature_groups: t.Optional[list[DuplicateFeatureGroup]] = None,
+                 fanout_feature_groups: t.Optional[list[FanoutFeatureGroup]] = None,
                  id_feature_name: t.Optional[str | Iterable[str]] = None,
                  include_extended_nominal_probabilities: t.Optional[bool] = False,
                  include_sample: bool = False,
