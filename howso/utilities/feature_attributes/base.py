@@ -1117,7 +1117,7 @@ class InferFeatureAttributesBase(ABC):
 
                 for f in fanout_features:
                     if f in self.attributes:
-                        self.attributes[f]['joined_on'] = key_features
+                        self.attributes[f]['fanout_on'] = key_features
                     else:
                         warnings.warn(f'Feature {f} exists in value given for `fanout_feature_groups`, '
                                                 'but was not computed in feature attributes.')

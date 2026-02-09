@@ -358,7 +358,7 @@ class FeatureAttributes(TypedDict):
     on values based on other multi-type value features.
     """
 
-    joined_on: NotRequired[list[str]]
+    fanout_on: NotRequired[list[str]]
     """
     Features whose values can be used to select other cases that have the same
     duplicated value for this fan-out feature.
