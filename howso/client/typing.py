@@ -244,9 +244,9 @@ class FeatureTimeSeries(TypedDict, total=False):
 
 class DuplicateFeatureGroup(TypedDict):
     """
-    Configuration for a single collection of duplicate features.
+    Configuration for a single collection of fan-out features.
 
-    Configuration describing both the list of duplicated features and the list
+    Configuration describing both the list of fan-out features and the list
     of "key" features whose values can be used to find the groups of cases that
     all use the same duplicated values.
     """
@@ -254,8 +254,8 @@ class DuplicateFeatureGroup(TypedDict):
     key_features: list[str]
     """List of the features whose values can be used to find groups of cases with the same duplicated values."""
 
-    duplicated_features: list [str]
-    """List of features whose values are duplicated across multiple cases from a single observation."""
+    fanout_features: list [str]
+    """List of features whose values are fanned out across multiple cases from a single observation."""
 
 class FeatureAttributes(TypedDict):
     """
@@ -361,9 +361,9 @@ class FeatureAttributes(TypedDict):
     joined_on: NotRequired[list[str]]
     """
     Features whose values can be used to select other cases that have the same
-    duplicated value for this feature.
+    duplicated value for this fan-out feature.
 
-    Should be used when this is a duplicated feature.
+    Should be used when this is a fan-out feature.
     """
 
     derived_feature_code: NotRequired[str]

@@ -763,7 +763,7 @@ class InferFeatureAttributesBase(ABC):
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
-                 duplicate_feature_groups: t.Optional[list[DuplicateFeatureGroup]] = None,
+                 fanout_feature_groups: t.Optional[list[DuplicateFeatureGroup]] = None,
                  id_feature_name: t.Optional[str | Iterable[str]] = None,
                  include_extended_nominal_probabilities: t.Optional[bool] = False,
                  include_sample: bool = False,
@@ -1109,15 +1109,18 @@ class InferFeatureAttributesBase(ABC):
         # Validate datetimes after any user-defined features have been re-implemented
         self._validate_date_times()
 
-        # Configure the duplicated feature attributes according to the input if given.
-        if duplicate_feature_groups:
-            for dfg in duplicate_feature_groups:
-                duplicated_features = dfg['duplicated_features']
+        # Configure the fanout feature attributes according to the input if given.
+        if fanout_feature_groups:
+            for dfg in fanout_feature_groups:
+                fanout_features = dfg['fanout_features']
                 key_features = dfg['key_features']
 
-                for f in duplicated_features:
+                for f in fanout_features:
                     if f in self.attributes:
                         self.attributes[f]['joined_on'] = key_features
+                    else:
+                        warnings.warn(f'Feature {f} exists in value given for `fanout_feature_groups`, '
+                                                'but was not computed in feature attributes.')
 
 
         # Re-order the keys like the original dataframe
@@ -1127,7 +1130,7 @@ class InferFeatureAttributesBase(ABC):
             if hasattr(fname, 'name'):
                 fname = fname.name
             if fname not in self.attributes.keys():
-                warnings.warn(f'Feature {fname} exists in provided data but was not computed in feature attributes')
+                warnings.warn(f'Feature {fname} exists in provided data but was not computed in feature attributes.')
                 continue
             ordered_attributes[fname] = self.attributes[fname]
 

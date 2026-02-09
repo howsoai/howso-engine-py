@@ -1255,7 +1255,7 @@ class Trainee(BaseTrainee):
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
         feature_pre_process_code_map: t.Optional[Mapping] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
-        filter_duplicate_values: bool = False,
+        filter_fanout_values: bool = False,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
         initial_batch_size: t.Optional[int] = None,
@@ -1724,8 +1724,8 @@ class Trainee(BaseTrainee):
             resulting value will be used as part of the context for following
             action features. The custom code will have access to all context
             feature values and previously generated action feature values.
-        filter_duplicate_values : bool, default False
-            When true, predictions of features with duplicated values will be
+        filter_fanout_values : bool, default False
+            When true, predictions of features with fanned out values will be
             made while holding out other cases that had the same values
             duplicated.
         generate_new_cases : {"always", "attempt", "no"}, default "no"
@@ -1872,7 +1872,7 @@ class Trainee(BaseTrainee):
             feature_bounds_map=feature_bounds_map,
             feature_pre_process_code_map=feature_pre_process_code_map,
             feature_post_process_code_map=feature_post_process_code_map,
-            filter_duplicate_values=filter_duplicate_values,
+            filter_fanout_values=filter_fanout_values,
             generate_new_cases=generate_new_cases,
             goal_features_map=goal_features_map,
             initial_batch_size=initial_batch_size,
@@ -1911,7 +1911,7 @@ class Trainee(BaseTrainee):
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
-        filter_duplicate_values: bool = False,
+        filter_fanout_values: bool = False,
         final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -2023,8 +2023,8 @@ class Trainee(BaseTrainee):
             feature values and previously generated action feature values of
             the time-step being generated, as well as the feature values of all
             previously generated time-steps.
-        filter_duplicate_values : bool, default False
-            When true, predictions of features with duplicated values will be
+        filter_fanout_values : bool, default False
+            When true, predictions of features with fanned out values will be
             made while holding out other cases that had the same values
             duplicated.
         final_time_steps: list of object, optional
@@ -2167,7 +2167,7 @@ class Trainee(BaseTrainee):
                 exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
                 feature_bounds_map=feature_bounds_map,
                 feature_post_process_code_map=feature_post_process_code_map,
-                filter_duplicate_values=filter_duplicate_values,
+                filter_fanout_values=filter_fanout_values,
                 final_time_steps=final_time_steps,
                 generate_new_cases=generate_new_cases,
                 goal_features_map=goal_features_map,
@@ -3593,7 +3593,7 @@ class Trainee(BaseTrainee):
         convergence_threshold: t.Optional[float] = None,
         features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
-        filter_duplicate_values: bool = False,
+        filter_fanout_values: bool = False,
         forecast_window_length: t.Optional[float] = None,
         goal_dependent_features: t.Optional[Collection[str]] = None,
         goal_features_map: t.Optional[Mapping] = None,
@@ -3823,8 +3823,8 @@ class Trainee(BaseTrainee):
             not providing this feature will return a matrix where each feature is used as an action feature. However,
             providing this feature if 'feature_robust_accuracy_contributions' is selected is still accepted, and will
             return just the feature influences for the selected feature.
-        filter_duplicate_values : bool, default False
-            When true, predictions of features with duplicated values will be
+        filter_fanout_values : bool, default False
+            When true, predictions of features with fanned out values will be
             made while holding out other cases that had the same values
             duplicated.
         forecast_window_length : float, optional
@@ -3983,7 +3983,7 @@ class Trainee(BaseTrainee):
                 convergence_threshold=convergence_threshold,
                 features_to_derive=features_to_derive,
                 feature_influences_action_feature=feature_influences_action_feature,
-                filter_duplicate_values=filter_duplicate_values,
+                filter_fanout_values=filter_fanout_values,
                 forecast_window_length=forecast_window_length,
                 goal_dependent_features=goal_dependent_features,
                 goal_features_map=goal_features_map,

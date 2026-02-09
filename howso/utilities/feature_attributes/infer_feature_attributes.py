@@ -119,9 +119,9 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
         to 2 will synthesize the 3rd order derivative value, and then use
         that synthed value to derive the 2nd and 1st order.
 
-    duplicate_feature_groups : list of dict, optional
-        (Optional) List of dicts containing "key_features" and "duplicate_features" keys. "duplicate_features"
-        is a list of features with values duplicated across multiple cases. "key_features" is a list of features
+    fanout_feature_groups : list of dict, optional
+        (Optional) List of dicts containing "key_features" and "fanout_features" keys. "fanout_features"
+        is a list of features with values fanned out across multiple cases. "key_features" is a list of features
         whose values can be used to select groups of cases that have the same duplicated values.
 
     id_feature_name : str or list of str, default None

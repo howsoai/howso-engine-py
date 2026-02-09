@@ -334,7 +334,7 @@ class InferFeatureAttributesTimeSeries:
         delta_boundaries: t.Optional[dict] = None,
         dependent_features: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
-        duplicate_feature_groups: t.Optional[list[DuplicateFeatureGroup]] = None,
+        fanout_feature_groups: t.Optional[list[DuplicateFeatureGroup]] = None,
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         include_extended_nominal_probabilities: t.Optional[bool] = False,
         include_sample: bool = False,
@@ -453,9 +453,9 @@ class InferFeatureAttributesTimeSeries:
             to 2 will synthesize the 3rd order derivative value, and then use
             that synthed value to derive the 2nd and 1st order.
 
-        duplicate_feature_groups : list of dict, optional
-            (Optional) List of dicts containing "key_features" and "duplicate_features" keys. "duplicate_features"
-            is a list of features with values duplicated across multiple cases. "key_features" is a list of features
+        fanout_feature_groups : list of dict, optional
+            (Optional) List of dicts containing "key_features" and "fanout_features" keys. "fanout_features"
+            is a list of features with values fanned out across multiple cases. "key_features" is a list of features
             whose values can be used to select groups of cases that have the same duplicated values.
 
         id_feature_name : str or list of str default None
@@ -643,7 +643,7 @@ class InferFeatureAttributesTimeSeries:
             datetime_feature_formats=datetime_feature_formats,
             default_time_zone=default_time_zone,
             dependent_features=dependent_features,
-            duplicate_feature_groups=duplicate_feature_groups,
+            fanout_feature_groups=fanout_feature_groups,
             id_feature_name=id_feature_name,
             include_extended_nominal_probabilities=include_extended_nominal_probabilities,
             include_sample=include_sample,
