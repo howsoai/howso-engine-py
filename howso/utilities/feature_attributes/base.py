@@ -763,6 +763,7 @@ class InferFeatureAttributesBase(ABC):
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
+                 fanout_feature_map: t.Optional[dict[tuple[str] | str, list[str]]] = None,
                  id_feature_name: t.Optional[str | Iterable[str]] = None,
                  include_extended_nominal_probabilities: t.Optional[bool] = False,
                  include_sample: bool = False,
@@ -1108,6 +1109,15 @@ class InferFeatureAttributesBase(ABC):
         # Validate datetimes after any user-defined features have been re-implemented
         self._validate_date_times()
 
+        # Configure the fanout feature attributes according to the input if given.
+        if fanout_feature_map:
+            for key_features, fanout_features in fanout_feature_map.items():
+                if isinstance(key_features, str):
+                    key_features = [key_features]
+                for f in fanout_features:
+                    if f in self.attributes:
+                        self.attributes[f]['fanout_on'] = list(key_features)
+
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
         for fname in self.data.columns:
@@ -1115,7 +1125,7 @@ class InferFeatureAttributesBase(ABC):
             if hasattr(fname, 'name'):
                 fname = fname.name
             if fname not in self.attributes.keys():
-                warnings.warn(f'Feature {fname} exists in provided data but was not computed in feature attributes')
+                warnings.warn(f'Feature {fname} exists in provided data but was not computed in feature attributes.')
                 continue
             ordered_attributes[fname] = self.attributes[fname]
 

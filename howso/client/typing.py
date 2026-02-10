@@ -242,7 +242,6 @@ class FeatureTimeSeries(TypedDict, total=False):
     the default.
     """
 
-
 class FeatureAttributes(TypedDict):
     """
     Attributes for a single feature.
@@ -342,6 +341,14 @@ class FeatureAttributes(TypedDict):
 
     Should be used when there are multi-type value features that tightly depend
     on values based on other multi-type value features.
+    """
+
+    fanout_on: NotRequired[list[str]]
+    """
+    Features whose values can be used to select other cases that have the same
+    duplicated value for this fan-out feature.
+
+    Should be used when this is a fan-out feature.
     """
 
     derived_feature_code: NotRequired[str]
