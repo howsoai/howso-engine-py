@@ -416,3 +416,9 @@ class TestEngine:
 
         for feature in data.columns:
             assert feature in total_df.columns
+    
+    def test_to_memory(self, trainee):
+        """
+        Test the passthrough to `to_memory` in the Trainee class.
+        """
+        assert isinstance(trainee.to_memory(), bytes)
