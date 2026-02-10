@@ -26,7 +26,7 @@ from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 from ..utilities import determine_iso_format
 
 if t.TYPE_CHECKING:
-    from howso.client.typing import FanoutFeatureGroup, FeatureAttributes
+    from howso.client.typing import FeatureAttributes
 
 logger = logging.getLogger(__name__)
 

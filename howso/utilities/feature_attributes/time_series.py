@@ -25,9 +25,6 @@ from ..utilities import (
     lazy_map,
 )
 
-if t.TYPE_CHECKING:
-    from howso.client.typing import FanoutFeatureGroup
-
 logger = logging.getLogger(__name__)
 
 SMALLEST_TIME_DELTA = 0.001
