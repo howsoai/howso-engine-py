@@ -333,7 +333,7 @@ class InferFeatureAttributesTimeSeries:
         delta_boundaries: t.Optional[dict] = None,
         dependent_features: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
-        fanout_feature_groups: t.Optional[list[FanoutFeatureGroup]] = None,
+        fanout_feature_map: t.Optional[dict[str | tuple[str], list[str]]] = None,
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         include_extended_nominal_probabilities: t.Optional[bool] = False,
         include_sample: bool = False,
@@ -452,10 +452,10 @@ class InferFeatureAttributesTimeSeries:
             to 2 will synthesize the 3rd order derivative value, and then use
             that synthed value to derive the 2nd and 1st order.
 
-        fanout_feature_groups : list of dict, optional
-            (Optional) List of dicts containing "key_features" and "fanout_features" keys. "fanout_features"
-            is a list of features with values fanned out across multiple cases. "key_features" is a list of features
-            whose values can be used to select groups of cases that have the same duplicated values.
+        fanout_feature_map : dict of str or tuple of str to list of str, optional
+            (Optional) Dict mapping "key" feature names or tuples of "key" feature names to list of "fanout" feature names.
+            Fanout features are features with values fanned out across multiple cases. Key features are features
+            whose values can be used to select groups of cases that have the same duplicated fanout values.
 
         id_feature_name : str or list of str default None
             (Optional) The name(s) of the ID feature(s).
@@ -642,7 +642,7 @@ class InferFeatureAttributesTimeSeries:
             datetime_feature_formats=datetime_feature_formats,
             default_time_zone=default_time_zone,
             dependent_features=dependent_features,
-            fanout_feature_groups=fanout_feature_groups,
+            fanout_feature_map=fanout_feature_map,
             id_feature_name=id_feature_name,
             include_extended_nominal_probabilities=include_extended_nominal_probabilities,
             include_sample=include_sample,

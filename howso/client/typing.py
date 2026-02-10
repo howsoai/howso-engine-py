@@ -242,21 +242,6 @@ class FeatureTimeSeries(TypedDict, total=False):
     the default.
     """
 
-class FanoutFeatureGroup(TypedDict):
-    """
-    Configuration for a single collection of fan-out features.
-
-    Configuration describing both the list of fan-out features and the list
-    of "key" features whose values can be used to find the groups of cases that
-    all use the same duplicated values.
-    """
-
-    key_features: list[str]
-    """List of the features whose values can be used to find groups of cases with the same duplicated values."""
-
-    fanout_features: list[str]
-    """List of features whose values are fanned out across multiple cases from a single observation."""
-
 class FeatureAttributes(TypedDict):
     """
     Attributes for a single feature.
