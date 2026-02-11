@@ -1656,6 +1656,7 @@ class AbstractHowsoClient(ABC):
             return dict()
         return value_masses.get("masses", {})
 
+    @util.console_feedback(text="Reacting")
     def react(  # noqa: C901
         self,
         trainee_id: str,
@@ -2736,6 +2737,7 @@ class AbstractHowsoClient(ABC):
 
         return context_features, context_values
 
+    @util.console_feedback(text="Reacting series")
     def react_series(  # noqa: C901
         self,
         trainee_id: str,
@@ -3248,6 +3250,7 @@ class AbstractHowsoClient(ABC):
 
         return ret, in_size, out_size
 
+    @util.console_feedback(text="Reacting series")
     def react_series_stationary(
         self,
         trainee_id: str,
@@ -3514,6 +3517,7 @@ class AbstractHowsoClient(ABC):
 
         return ret, in_size, out_size
 
+    @util.console_feedback(text="Reacting into features")
     def react_into_features(
         self,
         trainee_id: str,
@@ -3625,6 +3629,7 @@ class AbstractHowsoClient(ABC):
         cached_trainee = self.trainee_cache.get_item(trainee_id)
         cached_trainee["feature_attributes"] = self.get_feature_attributes(trainee_id)
 
+    @util.console_feedback(text="Reacting aggregate")
     def react_aggregate(  # noqa: C901
         self,
         trainee_id: str,
@@ -4078,6 +4083,7 @@ class AbstractHowsoClient(ABC):
         self._auto_persist_trainee(trainee_id)
         return stats
 
+    @util.console_feedback(text="Reacting group")
     def react_group(
         self,
         trainee_id: str,

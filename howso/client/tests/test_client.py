@@ -7,6 +7,7 @@ from pathlib import Path
 import platform
 from pprint import pprint
 import sys
+import time
 import uuid
 import warnings
 
@@ -32,6 +33,7 @@ from howso.client.schemas import Reaction, GroupReaction
 from howso.direct import HowsoDirectClient
 from howso.engine import Trainee
 from howso.utilities import infer_feature_attributes
+from howso.utilities import utilities as util
 from howso.utilities.testing import (
     get_configurationless_test_client,
     get_test_options,
@@ -853,6 +855,55 @@ class TestBaseClient:
         msg = ("If `contexts` are not specified, both `case_indices` and "
                "`preserve_feature_values` must be specified.")
         assert msg in str(exc.value)
+
+    def test_react_console_feedback_output(self, trainee, capsys, monkeypatch):
+        """Test that react emits periodic console feedback while running."""
+        # Train minimal data for this test. Avoid relying on helper methods
+        # defined in other test classes.
+        feature_names = list(self.client.get_feature_attributes(trainee.id).keys())
+        context_feature = feature_names[0]
+        action_feature = feature_names[-1]
+        self.client.train(
+            trainee.id,
+            cases=[
+                [1.0, 2.0, 3.0, 4.0, "A"],
+                [1.5, 2.5, 3.5, 4.5, "B"],
+                [2.0, 3.0, 4.0, 5.0, "A"],
+            ],
+            features=feature_names,
+        )
+        client_class = self.client.__class__
+
+        # Re-wrap react with shorter delays so test doesn't take too long.
+        original_react = client_class.react.__wrapped__
+        monkeypatch.setattr(
+            client_class,
+            "react",
+            util.console_feedback(
+                text="Reacting",
+                dormant_seconds=0,
+                frame_delay_seconds=0.05,
+            )(original_react),
+        )
+
+        # Ensure the call runs long enough for at least one frame to print.
+        original_single_react = client_class._react
+
+        def slow_react(instance, trainee_id, params):
+            time.sleep(0.15)
+            return original_single_react(instance, trainee_id, params)
+
+        monkeypatch.setattr(client_class, "_react", slow_react)
+
+        response = self.client.react(
+            trainee.id,
+            contexts=[[1.0]],
+            context_features=[context_feature],
+            action_features=[action_feature],
+        )
+        out, _ = capsys.readouterr()
+        assert isinstance(response, Reaction)
+        assert "Reacting ..." in out
 
     def test_get_num_training_cases(self, trainee):
         """Test the that output is the expected type: int."""

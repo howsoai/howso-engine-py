@@ -17,6 +17,7 @@ from concurrent.futures import (
     wait,
 )
 import datetime as dt
+from functools import wraps
 import inspect
 import json
 import locale as python_locale
@@ -27,6 +28,7 @@ from math import (
 import re
 import sys
 import threading
+import time
 import typing as t
 import uuid
 import warnings
@@ -384,6 +386,88 @@ def dprint(debug: bool | int, *argc, **kwargs):
                 print("", end=kwargs["end"])
             else:
                 print()
+
+
+def console_feedback(
+    text: str = "Processing",
+    dormant_seconds: int = 60,
+    frame_delay_seconds: int = 15,
+) -> Callable:
+    """
+    Decorate a function/method to display periodic processing feedback.
+
+    The primary purpose is to emit output while a long-running call is in
+    progress (for example, notebook environments that disconnect on inactivity).
+
+    Parameters
+    ----------
+    text: str, default "Processing"
+        The base text to display.
+    dormant_seconds: int, default 60
+        Initial seconds to wait before showing feedback.
+    frame_delay_seconds: int, default 15
+        Seconds between animation frames.
+
+    Returns
+    -------
+    Callable
+        Decorated function.
+    """
+    if dormant_seconds < 0:
+        raise ValueError("`dormant_seconds` must be greater than or equal to 0.")
+    if frame_delay_seconds <= 0:
+        raise ValueError("`frame_delay_seconds` must be greater than 0.")
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args: t.Any, **kwargs: t.Any) -> t.Any:
+            stop_event = threading.Event()
+
+            def spinner() -> None:
+                # Wait for the dormant period with frequent stop checks.
+                for _ in range(max(0, int(dormant_seconds * 10))):
+                    if stop_event.is_set():
+                        return
+                    time.sleep(0.1)
+
+                frames = [" ...", ". ..", ".. .", "... "]
+                frame_index = 0
+
+                while not stop_event.is_set():
+                    frame = frames[frame_index % len(frames)]
+                    try:
+                        sys.stdout.write(f"\r{text}{frame}")
+                        sys.stdout.flush()
+                    except Exception:  # noqa: Intentionally broad
+                        return
+
+                    # Wait for next frame with frequent stop checks.
+                    for _ in range(max(1, int(frame_delay_seconds * 10))):
+                        if stop_event.is_set():
+                            break
+                        time.sleep(0.1)
+
+                    frame_index += 1
+
+                # Clear the status line after completion.
+                try:
+                    sys.stdout.write("\r" + " " * (len(text) + 4) + "\r")
+                    sys.stdout.flush()
+                except Exception:  # noqa: Intentionally broad
+                    pass
+
+            thread = threading.Thread(target=spinner, daemon=True)
+            thread.start()
+
+            try:
+                return func(*args, **kwargs)
+            finally:
+                stop_event.set()
+                thread.join(timeout=1.0)
+
+        return wrapper
+
+    return decorator
 
 
 def determine_iso_format(str_date: str, fname: str) -> str:  # noqa: C901
