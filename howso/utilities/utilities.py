@@ -25,6 +25,7 @@ from math import (
     ceil,
     isnan,
 )
+import pickle
 import re
 import sys
 import threading
@@ -35,6 +36,7 @@ import warnings
 
 from dateutil.parser import isoparse, parse as dt_parse
 from dateutil.tz import tzoffset
+import mmh3
 import numpy as np
 import pandas as pd
 
@@ -94,7 +96,7 @@ def date_to_epoch(
     """
     # pd.isnull covers the cases - None, `np.nan` and `pd.na`
     if pd.isnull(date_obj):
-        return date_obj
+        return None
 
     # if timestamp is passed in, convert it to string in the correct
     # format first
@@ -885,9 +887,27 @@ def stringify_json(cases: list[list[t.Any]], features: Iterable[str], feature_at
         # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
         if (feature_attributes.get(feature_name, {}).get("data_type") == "json"
             and feature_attributes[feature_name].get(
-                "original_type", {}).get("data_type") in ["object", "tokenizable_string"]):
+                "original_type", {}).get("data_type") in ["container", "tokenizable_string"]):
             for case_group in cases:
                 case_group[idx] = json.dumps(case_group[idx])
+
+
+def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series:
+    """
+    Ensures that any JSON features have their cases destringified.
+
+    Parameters
+    ----------
+    cases : pd.Series
+        A Pandas Series of case values.
+    feature_attributes : Mapping
+        The feature attributes of the feature to which the provided cases belong.
+    """
+    destringified_cases = []
+    for case_to_destringify in cases:
+        formatted_case = json.loads(case_to_destringify)
+        destringified_cases.append(formatted_case)
+    return pd.Series(destringified_cases)
 
 
 def tokenize_strings(cases: list[list[t.Any]], features: Iterable[str], feature_attributes: Mapping,
@@ -1777,3 +1797,11 @@ def lazy_map(
     except StopIteration:
         for future in as_completed(futures):
             yield future
+
+
+def get_hash(value: t.Any) -> int:
+    """Gets a hashed pickle of the provided value."""
+    # Use pickle to serialize
+    pickled = pickle.dumps(value, protocol=pickle.HIGHEST_PROTOCOL)
+    # Return a hash of the pickled bytes for efficient comparison
+    return mmh3.hash128(pickled)

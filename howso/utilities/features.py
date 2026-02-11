@@ -8,6 +8,7 @@ import json
 import locale
 import typing as t
 import warnings
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,6 @@ from pandas.core.dtypes.common import (
     is_datetime64_any_dtype,
     is_timedelta64_dtype,
 )
-import pytz
 
 from .internals import (
     deserialize_to_dataframe,
@@ -28,6 +28,7 @@ from .tokenizing import (
 )
 from .utilities import (
     DATETIME_TIMEZONE_PATTERN,
+    destringify_json,
     LocaleOverride,
     seconds_to_time,
     serialize_datetimes,
@@ -58,11 +59,11 @@ class FeatureType(Enum):
     DATE = "date"
     TIME = "time"
     TIMEDELTA = "timedelta"
+    CONTAINER = "container"
 
     def __str__(self):
         """Return a string representation."""
         return str(self.value)
-
 
 class FeatureSerializer:
     """Adapter for serialization and deserialization of feature data."""
@@ -229,7 +230,7 @@ class FeatureSerializer:
         """
         df = deserialize_to_dataframe(data, columns)
         if features is not None:
-            cls.format_dataframe(df, features, tokenizer=tokenizer)
+            df = cls.format_dataframe(df, features, tokenizer=tokenizer)
         return df
 
     @classmethod
@@ -258,14 +259,18 @@ class FeatureSerializer:
         pandas.DataFrame
             The formatted data.
         """
-        for col in df.columns.tolist():
+        original_feature_order = df.columns.tolist()
+        for col in original_feature_order:
             try:
                 attributes = features[col]
             except (TypeError, KeyError):
                 # Column not in feature attributes, skip column
                 continue
-            df[col] = cls.format_column(df[col], attributes, tokenizer=tokenizer)
-        return df
+            new_values = cls.format_column(df[col], attributes, tokenizer=tokenizer)
+            df = df.drop(columns=col)
+            df[col] = new_values
+
+        return df[original_feature_order]
 
     @classmethod
     def format_column(cls, column: pd.Series,  # noqa: C901
@@ -311,6 +316,8 @@ class FeatureSerializer:
             return cls.format_timedelta_column(column, feature)
         elif data_type == FeatureType.BOOLEAN.value:
             return cls.format_boolean_column(column, feature)
+        elif data_type == FeatureType.CONTAINER.value:
+            return cls.format_container_column(column, feature)
         else:
             return cls.format_unknown_column(column, feature)
 
@@ -384,8 +391,8 @@ class FeatureSerializer:
         tz = typing_info.get('timezone')
         if tz is not None:
             try:
-                tz = pytz.timezone(tz)
-            except pytz.UnknownTimeZoneError:
+                tz = ZoneInfo(tz)
+            except KeyError:
                 warnings.warn(
                     f'Unknown timezone "{tz}" for feature "{column.name}", '
                     'datetime column may not contain original timezone '
@@ -493,17 +500,18 @@ class FeatureSerializer:
             return cls.format_datetime_column(column, feature)
         else:
             # Time feature does not use a date_time_format, treat as seconds
+            tz = None
             try:
-                tz = typing_info['timezone']
-                if tz is not None:
-                    tz = pytz.timezone(tz)
-            except pytz.UnknownTimeZoneError:
-                tz = None
-                warnings.warn(
-                    f'Unknown timezone defined for column "{column.name}", '
-                    'column will not be timezone aware.')
+                tz_name = typing_info['timezone']
+                if tz_name is not None:
+                    try:
+                        tz = ZoneInfo(tz_name)
+                    except KeyError:
+                        warnings.warn(
+                            f'Unknown timezone defined for column "{column.name}", '
+                            'column will not be timezone aware.')
             except (TypeError, KeyError):
-                tz = None
+                pass
 
             return column.apply(partial(seconds_to_time, tzinfo=tz))
 
@@ -707,6 +715,25 @@ class FeatureSerializer:
         """
         # Unknown original type, don't modify column
         return column
+
+    @classmethod
+    def format_container_column(cls, column: pd.Series, feature: Mapping) -> pd.Series:
+        """
+        Format a container column (a Python Mapping/Sequence).
+
+        Parameters
+        ----------
+        column : pandas.Series
+            The column to format.
+        feature : Mapping
+            The feature attributes for the column.
+
+        Returns
+        -------
+        pandas.Series
+            The formatted column.
+        """
+        return destringify_json(column, feature)
 
     @staticmethod
     def _get_typing_info(feature: t.Optional[Mapping]) -> dict:

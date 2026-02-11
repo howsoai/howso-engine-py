@@ -1,5 +1,6 @@
 """Tests infer_feature_attributes with time series data (InferFeatureAttributesTimeSeries)."""
 from collections import OrderedDict
+from datetime import datetime
 from pathlib import Path
 from pprint import pprint
 import random
@@ -19,6 +20,7 @@ root_path = (
 )
 data_path = root_path.joinpath("utilities/tests/data")
 example_timeseries_path = data_path.joinpath("example_timeseries.csv")
+mini_stock_data_path = data_path.joinpath("mini_stock_data.csv")
 
 # Partially defined dictionary-1
 features_1 = {
@@ -391,6 +393,16 @@ def test_time_series_features_pandas_native_date():
             else:
                 raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
 
+
+def test_missing_time():
+    df = pd.DataFrame(
+        {"time": [datetime.fromtimestamp(1234567890), None, datetime.fromtimestamp(1234567892)],
+         "id": [1, 1, 1],
+         "value": [1, 2, 3]}
+    )
+    features = infer_feature_attributes(df, time_feature_name="time", id_feature_name="id", default_time_zone="UTC")
+    assert features is not None
+
 def test_nominals_are_ignored_in_ifa_for_ts():
     """
     Ensure that nominals are never marked for a TS type in IFA.
@@ -447,3 +459,19 @@ def test_nominals_are_ignored_in_ifa_for_ts():
     ]
     print(", ".join(bad_nominals))
     assert bool(bad_nominals) is False
+
+
+def test_nominal_id_feature():
+    """Validates that IFA can handle nominal ID features."""
+    df = pd.read_csv(mini_stock_data_path)
+
+    # Identify the ID feature
+    id_feature_name = "DATE"
+
+    features = infer_feature_attributes(
+        df,
+        id_feature_name=id_feature_name,
+        default_time_zone="UTC",
+    )
+    assert "id_feature" in features[id_feature_name]
+    features.validate(df, raise_errors=True)

@@ -13,6 +13,7 @@ import pytest
 
 from howso.utilities import (
     format_confusion_matrix,
+    get_hash,
     get_kwargs,
     LocaleOverride,
     matrix_processing,
@@ -585,3 +586,38 @@ def test_confusion_matrix_formating_unseen_predicted_values_warning():
 
     assert labels == ["a", "b", "c"]
     np.testing.assert_array_equal(array_matrix, np.array([[10, 0, 0], [0, 0, 2], [0, 0, 0]]))
+
+
+def test_get_hash():
+    """Test that get_hash creates hashable representations for unhashable types."""
+    list_hash = get_hash([1, 2, 3])
+    same_list_hash = get_hash([1, 2, 3])
+    backwards_list_hash = get_hash([3, 2, 1])
+    dict_hash = get_hash({"a": 1, "b": 2})
+    set_hash = get_hash({1, 2, 3})
+    assert list_hash == same_list_hash
+    for other in [backwards_list_hash, dict_hash, set_hash]:
+        assert isinstance(other, int)
+        assert list_hash != other
+
+
+def test_get_hash_preserves_type_distinctions():
+    """Test that get_hash distinguishes between different types with same value."""
+    # Unhashable containers
+    dict_int = get_hash({"val": 1})
+    dict_float = get_hash({"val": 1.0})
+    dict_str = get_hash({"val": "1"})
+
+    # These should all be different because pickle preserves type info
+    assert dict_int != dict_float
+    assert dict_float != dict_str
+    assert dict_int != dict_str
+
+
+def test_get_hash_with_mixed_types():
+    """Test that get_hash handles mixed hashable and unhashable types."""
+    # List containing various types
+    mixed_list = [1, 2.5, "three", b"four", (5, 6), {"seven": 7}]
+    # Same list should hash consistently
+    mixed_list2 = [1, 2.5, "three", b"four", (5, 6), {"seven": 7}]
+    assert get_hash(mixed_list) == get_hash(mixed_list2)

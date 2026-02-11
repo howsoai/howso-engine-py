@@ -8,6 +8,8 @@ from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
 import warnings
+from zoneinfo import ZoneInfo
+
 
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.base import FeatureAttributesBase, FLOAT_MAX, FLOAT_MIN, INTEGER_MAX
@@ -16,7 +18,6 @@ from howso.utilities.features import FeatureType
 import numpy as np
 import pandas as pd
 import pytest
-import pytz
 
 if platform.system().lower() == 'windows':
     DT_MAX = '6053-01-24'
@@ -157,9 +158,9 @@ def test_integer_nominality(feature, nominality):
      {'data_type': str(FeatureType.DATETIME)}),
     (pd.DataFrame([[datetime.datetime.now()]], columns=['a']),
      {'data_type': str(FeatureType.DATETIME)}),
-    (pd.DataFrame([[datetime.datetime.now(pytz.timezone('US/Eastern'))]], columns=['a']),
+    (pd.DataFrame([[datetime.datetime.now(ZoneInfo('US/Eastern'))]], columns=['a']),
      {'data_type': str(FeatureType.DATETIME), 'timezone': 'US/Eastern'}),
-    (pd.DataFrame([[datetime.datetime.now(pytz.FixedOffset(300))]], columns=['a']),
+    (pd.DataFrame([[datetime.datetime.now(datetime.timezone(datetime.timedelta(minutes=300)))]], columns=['a']),
      {'data_type': str(FeatureType.DATETIME)}),
     # Date
     (pd.DataFrame([[datetime.date(2020, 1, 1)]], columns=['a']),
@@ -395,27 +396,27 @@ def test_dependent_features(should_include, dependent_features):
     ),
     (
         None,
-        [datetime.datetime(1905, 1, 1, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(2020, 1, 15, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(2022, 3, 26, tzinfo=pytz.FixedOffset(300))],
+        [datetime.datetime(1905, 1, 1, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(2020, 1, 15, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(2022, 3, 26, tzinfo=datetime.timezone(datetime.timedelta(minutes=300)))],
         {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
          'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
     ),
     (
         None,
-        [datetime.datetime(1905, 1, 1, tzinfo=pytz.FixedOffset(100)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(-400)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(1904, 5, 3, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(2020, 1, 15, tzinfo=pytz.FixedOffset(300)),
-         datetime.datetime(2022, 3, 26, tzinfo=pytz.FixedOffset(300))],
+        [datetime.datetime(1905, 1, 1, tzinfo=datetime.timezone(datetime.timedelta(minutes=100))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=-400))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(2020, 1, 15, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
+         datetime.datetime(2022, 3, 26, tzinfo=datetime.timezone(datetime.timedelta(minutes=300)))],
         {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
          'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
     ),
@@ -653,6 +654,46 @@ def test_validate_df_multiple_dtypes(ftype, data_type, decimal_places, bounds, d
     assert coerced_df is not None
     # coerced_df should also contain a coerced DATE column, as it is originally detected as a string
     assert pd.api.types.is_datetime64_any_dtype(coerced_df['DATE'].dtype)
+
+
+@pytest.mark.parametrize(
+    ("data", "expected_data_type", "expected_orig_type"),
+    (
+        ({"a": 1}, "json", "container"),
+        ([1, 2, 3], "json", "container"),
+        ('{"a": 1}', "json", "string"),
+        ('["a", "b", "c"]', "json", "string"),
+        ("doc:\n  abc: 1", "yaml", "string"),
+        ("(list 1 2 3)", "amalgam", "string"),
+        ('(assoc "a" 1 "b" 2)', "amalgam", "string"),
+    ),
+)
+def test_validate_df_semi_structured(data, expected_data_type: str, expected_orig_type: str):
+    """Test validate_df handles semi-structured features correctly."""
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "doc": [data, None, data],
+    })
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        feature_attributes = infer_feature_attributes(df)
+
+    attrs = feature_attributes["doc"]
+
+    assert "original_type" in attrs
+    assert attrs["original_type"]["data_type"] == expected_orig_type
+
+    if expected_data_type == "amalgam":
+        # Amalgam is not automatically inferred set it manually
+        attrs["type"] = "continuous"
+        attrs["data_type"] = "amalgam"
+    else:
+        assert attrs["type"] == "continuous"
+        assert attrs.get("data_type") == expected_data_type
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        feature_attributes.validate(df, raise_errors=True)
 
 
 @pytest.mark.parametrize("extra_attrs, success", (

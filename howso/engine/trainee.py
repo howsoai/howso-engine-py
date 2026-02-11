@@ -1255,12 +1255,14 @@ class Trainee(BaseTrainee):
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
         feature_pre_process_code_map: t.Optional[Mapping] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
+        filter_fanout_values: bool = False,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
         initial_batch_size: t.Optional[int] = None,
         input_is_substituted: bool = False,
         into_series_store: t.Optional[str] = None,
         leave_case_out: bool = False,
+        mutate_schema_features: t.Optional[Collection[str]] = None,
         new_case_min_distance_ratio: t.Optional[float] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_cases_to_generate: int = 1,
@@ -1722,7 +1724,10 @@ class Trainee(BaseTrainee):
             resulting value will be used as part of the context for following
             action features. The custom code will have access to all context
             feature values and previously generated action feature values.
-
+        filter_fanout_values : bool, default False
+            When true, predictions of features with fanned out values will be
+            made while holding out other cases that had the same values
+            duplicated.
         generate_new_cases : {"always", "attempt", "no"}, default "no"
             This parameter takes in a string that may be one of the following:
 
@@ -1780,6 +1785,10 @@ class Trainee(BaseTrainee):
             When True and specified along with ``case_indices``, each individual
             react will respectively ignore the corresponding case specified
             by ``case_indices`` by leaving it out.
+        mutate_schema_features : list of str, optional
+            List of semi-structured features whose values will be mutated,
+            possibly changing their schema in generative reacts. Ignored in
+            discriminative reacts.
         new_case_min_distance_ratio : float, optional
             Parameter that adjusts the required distance ratio for a newly
             generated case to be considered private. When unspecified, defaults
@@ -1863,12 +1872,14 @@ class Trainee(BaseTrainee):
             feature_bounds_map=feature_bounds_map,
             feature_pre_process_code_map=feature_pre_process_code_map,
             feature_post_process_code_map=feature_post_process_code_map,
+            filter_fanout_values=filter_fanout_values,
             generate_new_cases=generate_new_cases,
             goal_features_map=goal_features_map,
             initial_batch_size=initial_batch_size,
             input_is_substituted=input_is_substituted,
             into_series_store=into_series_store,
             leave_case_out=leave_case_out,
+            mutate_schema_features=mutate_schema_features,
             new_case_min_distance_ratio=new_case_min_distance_ratio,
             new_case_threshold=new_case_threshold,
             num_cases_to_generate=num_cases_to_generate,
@@ -1900,6 +1911,7 @@ class Trainee(BaseTrainee):
         exclude_novel_nominals_from_uniqueness_check: bool = False,
         feature_bounds_map: t.Optional[Mapping[str, Mapping[str, t.Any]]] = None,
         feature_post_process_code_map: t.Optional[Mapping] = None,
+        filter_fanout_values: bool = False,
         final_time_steps: t.Optional[list[t.Any]] = None,
         generate_new_cases: GenerateNewCases = "no",
         goal_features_map: t.Optional[Mapping] = None,
@@ -1908,6 +1920,7 @@ class Trainee(BaseTrainee):
         input_is_substituted: bool = False,
         leave_series_out: bool = False,
         max_series_lengths: t.Optional[list[int]] = None,
+        mutate_schema_features: t.Optional[Collection[str]] = None,
         new_case_min_distance_ratio: t.Optional[float] = None,
         new_case_threshold: NewCaseThreshold = "min",
         num_series_to_generate: int = 1,
@@ -2010,6 +2023,10 @@ class Trainee(BaseTrainee):
             feature values and previously generated action feature values of
             the time-step being generated, as well as the feature values of all
             previously generated time-steps.
+        filter_fanout_values : bool, default False
+            When true, predictions of features with fanned out values will be
+            made while holding out other cases that had the same values
+            duplicated.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
             Time-series only. Must provide either one for all series, or
@@ -2042,6 +2059,10 @@ class Trainee(BaseTrainee):
             with ``continue_series``, this defines the maximum length of the
             forecast. Must provide either one for all series, or exactly
             one per series.
+        mutate_schema_features : list of str, optional
+            List of semi-structured features whose values will be mutated,
+            possibly changing their schema in generative reacts. Ignored in
+            discriminative reacts.
         new_case_min_distance_ratio : float, optional
             Parameter that adjusts the required distance ratio for a newly
             generated case to be considered private. When unspecified, defaults
@@ -2146,6 +2167,7 @@ class Trainee(BaseTrainee):
                 exclude_novel_nominals_from_uniqueness_check=exclude_novel_nominals_from_uniqueness_check,
                 feature_bounds_map=feature_bounds_map,
                 feature_post_process_code_map=feature_post_process_code_map,
+                filter_fanout_values=filter_fanout_values,
                 final_time_steps=final_time_steps,
                 generate_new_cases=generate_new_cases,
                 goal_features_map=goal_features_map,
@@ -2154,6 +2176,7 @@ class Trainee(BaseTrainee):
                 initial_batch_size=initial_batch_size,
                 input_is_substituted=input_is_substituted,
                 max_series_lengths=max_series_lengths,
+                mutate_schema_features=mutate_schema_features,
                 new_case_min_distance_ratio=new_case_min_distance_ratio,
                 new_case_threshold=new_case_threshold,
                 num_series_to_generate=num_series_to_generate,
@@ -3570,6 +3593,7 @@ class Trainee(BaseTrainee):
         convergence_threshold: t.Optional[float] = None,
         features_to_derive: t.Optional[Collection[str]] = None,
         feature_influences_action_feature: t.Optional[str] = None,
+        filter_fanout_values: bool = False,
         forecast_window_length: t.Optional[float] = None,
         goal_dependent_features: t.Optional[Collection[str]] = None,
         goal_features_map: t.Optional[Mapping] = None,
@@ -3592,6 +3616,7 @@ class Trainee(BaseTrainee):
         value_robust_contributions_features: t.Optional[Collection[str]] = None,
         value_robust_contributions_num_buckets: int = 30,
         value_robust_contributions_min_samples: int = 15,
+        value_robust_contributions_min_cases: int | dict[str, int] = 15,
         weight_feature: t.Optional[str] = None,
     ) -> AggregateReaction:
         """
@@ -3691,6 +3716,8 @@ class Trainee(BaseTrainee):
                 the context features in the model. Returns the mean absolute delta
                 under the key 'feature_full_prediction_contributions' and returns the mean
                 delta under the key 'feature_full_directional_prediction_contributions'.
+                Note: not recommended for semi-structured data action features due to weak signal
+                caused by its high dimensionality, accuracy contributions should be computed instead.
             - feature_full_residuals : bool, optional
                 For each feature in ``action_features``, use the context features to predict
                 the feature and return the mean absolute error. When ``prediction_stats`` in
@@ -3711,6 +3738,8 @@ class Trainee(BaseTrainee):
                 and without the context features in the model. Returns the mean absolute delta
                 under the key 'feature_robust_prediction_contributions' and returns the mean
                 delta under the key 'feature_robust_directional_prediction_contributions'.
+                Note: not recommended for semi-structured data action features due to weak signal
+                caused by its high dimensionality, accuracy contributions should be computed instead.
             - feature_robust_residuals : bool, optional
                 For each feature in ``action_features``, use the robust
                 (power set/permutations) set of all other context features to predict
@@ -3794,6 +3823,10 @@ class Trainee(BaseTrainee):
             not providing this feature will return a matrix where each feature is used as an action feature. However,
             providing this feature if 'feature_robust_accuracy_contributions' is selected is still accepted, and will
             return just the feature influences for the selected feature.
+        filter_fanout_values : bool, default False
+            When true, predictions of features with fanned out values will be
+            made while holding out other cases that had the same values
+            duplicated.
         forecast_window_length : float, optional
             A value specifying a length of time over which to measure the accuracy of forecasts. When
             specified, returned prediction statistics and full residuals will be measuring the accuracy
@@ -3920,10 +3953,16 @@ class Trainee(BaseTrainee):
             The maximum number of buckets to bin continuous values into when computing the
             "value_robust_accuracy_contributions", "value_robust_prediction_contributions" or
             "value_robust_surprisal_asymmetry" details.
-        value_robust_contributions_num_samples: int, default 15
+        value_robust_contributions_min_samples: int, default 15
             The minumum number of samples required for a combination of feature values for its
             aggregated measure to be returned when computing the "value_robust_accuracy_contributions",
             "value_robust_prediction_contributions" or "value_robust_surprisal_asymmetry" details.
+        value_robust_contributions_min_cases: int or map of str to int, default 15
+            The minimum number of unique cases for a given nominal class or continuous bucket to be
+            used as a possible feature value when collecting all combinations of feature values in
+            the data to report metrics over. May be specified as a single value or a mapping of feature names to
+            values defining individual thresholds for each feature. If defined as a mapping, then any features without
+            defined thresholds will use a default value of 15.
         weight_feature : str, optional
             The name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3945,6 +3984,7 @@ class Trainee(BaseTrainee):
                 convergence_threshold=convergence_threshold,
                 features_to_derive=features_to_derive,
                 feature_influences_action_feature=feature_influences_action_feature,
+                filter_fanout_values=filter_fanout_values,
                 forecast_window_length=forecast_window_length,
                 goal_dependent_features=goal_dependent_features,
                 goal_features_map=goal_features_map,
@@ -3967,6 +4007,7 @@ class Trainee(BaseTrainee):
                 value_robust_contributions_buckets=value_robust_contributions_buckets,
                 value_robust_contributions_num_buckets=value_robust_contributions_num_buckets,
                 value_robust_contributions_min_samples=value_robust_contributions_min_samples,
+                value_robust_contributions_min_cases=value_robust_contributions_min_cases,
                 weight_feature=weight_feature,
             )
         else:

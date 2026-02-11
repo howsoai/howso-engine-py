@@ -13,16 +13,20 @@ from pathlib import Path
 import platform
 import typing as t
 import warnings
+from zoneinfo import ZoneInfo
 
 from dateutil.parser import isoparse
 from dateutil.parser import parse as dt_parse
 import numpy as np
 import pandas as pd
-import pytz
 import yaml
 
 from howso.utilities.features import FeatureType
 from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
+from ..utilities import determine_iso_format
+
+if t.TYPE_CHECKING:
+    from howso.client.typing import FeatureAttributes
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +45,7 @@ WIN_DT_MAX = '6053-01-24'
 FeatureAttributesBaseType = t.TypeVar('FeatureAttributesBaseType', bound='FeatureAttributesBase')
 
 
-class FeatureAttributesBase(dict):
+class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
     def __init__(self, feature_attributes: Mapping, params: dict = {}, unsupported: list[str] = []):
@@ -236,7 +240,7 @@ class FeatureAttributesBase(dict):
         ]
 
     def _validate_bounds(self, data: pd.DataFrame, feature: str,  # noqa: C901
-                         attributes: dict) -> list[str]:
+                         attributes: FeatureAttributes) -> list[str]:
         """Validate the feature bounds of the provided DataFrame."""
         # Import here to avoid circular import
         from howso.utilities import date_to_epoch
@@ -384,7 +388,7 @@ class FeatureAttributesBase(dict):
         return errors
 
     @staticmethod
-    def _allows_null(attributes: dict) -> bool:
+    def _allows_null(attributes: FeatureAttributes) -> bool:
         """Return whether the given attributes indicates the allowance of null values."""
         return 'bounds' in attributes and attributes['bounds'].get('allow_null', False)
 
@@ -393,7 +397,7 @@ class FeatureAttributesBase(dict):
                      allow_missing_features: bool = False, localize_datetimes=True, nullable_int_dtype='Int64'):
         errors = []
         coerced_df = data.copy(deep=True)
-        features = self[table_name] if table_name else self
+        features = t.cast(dict[str, "FeatureAttributes"], self[table_name] if table_name else self)
 
         for feature, attributes in features.items():
             if feature not in data.columns:
@@ -468,6 +472,11 @@ class FeatureAttributesBase(dict):
                     errors.extend(self._validate_dtype(data, feature, 'datetime64',
                                                        coerced_df, coerce=coerce,
                                                        localize_datetimes=localize_datetimes))
+
+                # Check semi-structured type (object)
+                elif attributes.get("data_type") in {"json", "yaml", "amalgam", "string", "string_mixable"}:
+                    errors.extend(self._validate_dtype(data, feature, "object", coerced_df, coerce=coerce))
+
                 # Check type (float)
                 elif attributes.get('decimal_places', -1) > 0:
                     errors.extend(self._validate_dtype(data, feature, 'float64',
@@ -754,6 +763,7 @@ class InferFeatureAttributesBase(ABC):
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
+                 fanout_feature_map: t.Optional[dict[tuple[str] | str, list[str]]] = None,
                  id_feature_name: t.Optional[str | Iterable[str]] = None,
                  include_extended_nominal_probabilities: t.Optional[bool] = False,
                  include_sample: bool = False,
@@ -1099,6 +1109,15 @@ class InferFeatureAttributesBase(ABC):
         # Validate datetimes after any user-defined features have been re-implemented
         self._validate_date_times()
 
+        # Configure the fanout feature attributes according to the input if given.
+        if fanout_feature_map:
+            for key_features, fanout_features in fanout_feature_map.items():
+                if isinstance(key_features, str):
+                    key_features = [key_features]
+                for f in fanout_features:
+                    if f in self.attributes:
+                        self.attributes[f]['fanout_on'] = list(key_features)
+
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
         for fname in self.data.columns:
@@ -1106,7 +1125,7 @@ class InferFeatureAttributesBase(ABC):
             if hasattr(fname, 'name'):
                 fname = fname.name
             if fname not in self.attributes.keys():
-                warnings.warn(f'Feature {fname} exists in provided data but was not computed in feature attributes')
+                warnings.warn(f'Feature {fname} exists in provided data but was not computed in feature attributes.')
                 continue
             ordered_attributes[fname] = self.attributes[fname]
 
@@ -1144,13 +1163,73 @@ class InferFeatureAttributesBase(ABC):
     def _infer_integer_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given integer column."""
 
-    @abstractmethod
     def _infer_string_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given string column."""
+        # Column has arbitrary string values, first check if they
+        # are ISO8601 datetimes.
+        if self._is_iso8601_datetime_column(feature_name):
+            # if datetime, determine the iso8601 format it's using
+            if first_non_null := self._get_first_non_null(feature_name):
+                fmt = determine_iso_format(first_non_null, feature_name)
+                return {
+                    'type': 'continuous',
+                    'data_type': 'formatted_date_time',
+                    'date_time_format': fmt
+                }
+            else:
+                # It isn't clear how this method would be called on a feature
+                # if it has no data, but just in case...
+                return {
+                    'type': 'continuous',
+                    'data_type': 'number',
+                }
+        elif self._is_json_feature(feature_name):
+            first_non_null = self._get_first_non_null(feature_name)
+            if isinstance(first_non_null, Mapping) or isinstance(first_non_null, MutableSequence):
+                return {
+                    "type": "continuous",
+                    "data_type": "json",
+                    "original_type": {"data_type": FeatureType.CONTAINER.value},
+                }
+            return {
+                "type": "continuous",
+                "data_type": "json",
+            }
+        elif self._is_yaml_feature(feature_name):
+            return {
+                'type': 'continuous',
+                'data_type': 'yaml'
+            }
+        else:
+            # The user may have pre-set the type as "continuous" to force it to be considered a tokenizable string;
+            # but that may also be the case for string ints or floats. Check that first.
+            is_tokenizable_string = False
+            if self.attributes.get(feature_name, {}).get("type") == "continuous":
+                try:
+                    # If the column can be converted to float, and was set to be "continuous",
+                    # it is probably not a tokenizable string.
+                    col = self.data[feature_name]
+                    col.astype('float')
+                except Exception:  # noqa: Intentionally broad
+                    # If it cannot be converted to float, but it was set to be "continuous",
+                    # it is probably a tokenizable string.
+                    is_tokenizable_string = True
+            if is_tokenizable_string:
+                return {
+                    "type": "continuous",
+                    "data_type": "json",
+                    # Also set the original_type here so that we do not need to re-check _is_tokenizable_string
+                    "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
+                }
+            else:
+                return self._infer_unknown_attributes(feature_name)
 
-    @abstractmethod
     def _infer_unknown_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given unknown-type column."""
+        return {
+            'type': 'nominal',
+            'data_type': 'string',
+        }
 
     @abstractmethod
     def _infer_feature_bounds(
@@ -1389,8 +1468,7 @@ class InferFeatureAttributesBase(ABC):
                     rand_val = self._get_random_value(feature_name)
                     if isinstance(rand_val, datetime.datetime):
                         # Some datetime objects might have a time zone attribute not visible as a string
-                        if getattr(rand_val, 'tzinfo', None) is not None and not isinstance(rand_val.tzinfo,
-                                                                                            pytz._FixedOffset):
+                        if getattr(rand_val, 'tzinfo', None) is not None and isinstance(rand_val.tzinfo, ZoneInfo):
                             continue
                     # Warn in case of UTC offset -- could lead to unexpected results due to time zone
                     # differences
@@ -1549,7 +1627,6 @@ class InferFeatureAttributesBase(ABC):
             # with 'data_type':number attribute to prevent string conversion.
             if feature_attributes[id_feature_name]['type'] == 'continuous':
                 feature_attributes[id_feature_name]['type'] = 'nominal'
-                feature_attributes[id_feature_name]['data_type'] = 'number'
                 if 'decimal_places' in feature_attributes[id_feature_name]:
                     del feature_attributes[id_feature_name]['decimal_places']
 
@@ -1639,6 +1716,10 @@ class InferFeatureAttributesBase(ABC):
             Additional typing information about the feature or None if the
             column could not be found.
         """
+
+    @abstractmethod
+    def _get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
+        """Get random samples from the given data as a DataFrame."""
 
     @abstractmethod
     def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any:

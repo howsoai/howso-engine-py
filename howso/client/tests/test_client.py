@@ -1480,7 +1480,7 @@ class TestBaseClient:
         t = Trainee()
         client.set_feature_attributes(t.id, feature_attributes)
         client.train(t.id, df)
-        reaction = self.client.react(
+        reaction = client.react(
             t.id,
             contexts=[[5, 'turbo-encabulator']],
             context_features=['rating', 'product'],

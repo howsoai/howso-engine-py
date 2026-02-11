@@ -394,7 +394,9 @@ def test_preset_feature_types(adc, data, types, expected_types, is_valid):
                 # Make sure it is the correct type
                 assert features[feature_name]['type'] == expected_type
                 # All features in this test, including nominals, should have bounds (at the very least: `allow_null`)
-                assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
+                # EXCEPT for tokenizable strings
+                if features[feature_name].get("original_type", {}).get("data_type") != "tokenizable_string":
+                    assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
         else:
             with pytest.raises(ValueError):
                 infer_feature_attributes(adc, types=types)
@@ -560,3 +562,43 @@ def test_dataframe_datetime64_dtype_column():
     df['a'] = df['a'].astype('datetime64[ns]')
     adc = make_data_source(df)
     infer_feature_attributes(adc)
+
+
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_infer_tokenizable_string(adc):
+    """Test that IFA correctly detects and sets feature attributes for short tokenizable text."""
+    data = {
+        "product": [
+            "turbo-encabulator",
+            "banana-phone",
+            "boneless-pizza",
+        ],
+        "rating": [
+            5,
+            3,
+            1,
+        ],
+        "review": [
+            "Not only provides inverse reactive current for use in unilateral phase detractors, but is also capable "
+            "of automatically synchronizing cardinal gram-meters.",
+            "it's ok. works well enough. the connection isn't very clear but what else can you expect from a banana.",
+            "they forgot to take the bones out!!!!11"
+        ],
+    }
+    df = pd.DataFrame(data)
+    convert_data(DataFrameData(df), adc)
+    feature_attributes = infer_feature_attributes(df, types={"continuous": ["review"]})
+    assert feature_attributes["review"]["data_type"] == "json"
+    assert feature_attributes["review"]["type"] == "continuous"
+    assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
+    # Product should still be a nominal string
+    assert feature_attributes["product"]["data_type"] == "string"
+    assert feature_attributes["product"]["type"] == "nominal"
