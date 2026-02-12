@@ -1,4 +1,5 @@
 """This module contains various utilities for the Howso clients."""
+from .decorators import ConsoleFeedback
 from .feature_attributes import infer_feature_attributes  # noqa: F401
 from .feature_attributes.base import (
     FeatureAttributesBase,
@@ -63,6 +64,7 @@ __all__ = [
     "align_data",
     "build_react_series_df",
     "check_feature_names",
+    "ConsoleFeedback",
     "format_confusion_matrix",
     "date_format_is_iso",
     "date_to_epoch",
