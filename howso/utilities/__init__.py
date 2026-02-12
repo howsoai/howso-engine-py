@@ -12,6 +12,7 @@ from .features import (  # noqa: F401
     format_dataframe,
     serialize_cases,
 )
+from .decorators import ConsoleFeedback
 from .monitors import (
     FrozenTimer,
     ProgressTimer,
@@ -73,6 +74,7 @@ __all__ = [
     "FeatureType",
     "format_dataframe",
     "format_column",
+    "ConsoleFeedback",
     "FrozenTimer",
     "get_kwargs",
     "HowsoTokenizer",
