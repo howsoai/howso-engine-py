@@ -31,7 +31,6 @@ def test_console_feedback_as_decorator(capsys):
     assert "Decorating" in capsys.readouterr().out
 
 
-
 def test_console_feedback_does_not_swallow_exception(capsys):
     """Ensure errors propagate when used as a context manager."""
     with pytest.raises(RuntimeError, match="test"):
