@@ -1,4 +1,3 @@
-from collections.abc import Mapping
 from copy import deepcopy
 import importlib.metadata
 import json
@@ -43,6 +42,10 @@ iris_file_path = (
     Path(howso.client.__file__).parent.parent
 ).joinpath("utilities/tests/data/iris.csv")
 np.random.default_rng(2018)
+
+saved_trainee_filepath = (
+    Path(howso.client.__file__).parent.parent
+).joinpath("utilities/tests/data/ts_trainee.caml")
 
 module_client = get_configurationless_test_client(client_class=HowsoClient, verbose=True)
 
@@ -547,6 +550,17 @@ class TestClient:
         trainee
         """
         self.client.persist_trainee(trainee.id)
+
+    def test_upgrade_trainee(self):
+        """Test that Trainees saved with an older version of Howso can be upgraded."""
+        client = HowsoClient()
+        # Test a legitimate upgrade
+        t = client.upgrade_trainee(saved_trainee_filepath)
+        client.acquire_trainee_resources(t.id)
+        assert client.get_num_training_cases(t.id) == 4756
+        # Test a junk filepath
+        with pytest.raises(ValueError, match="Extension of provided filepath must be 'json' or 'caml'"):
+            client.upgrade_trainee("./pyproject.toml")
 
     def test_a_la_cart_data(self, trainee):
         """
