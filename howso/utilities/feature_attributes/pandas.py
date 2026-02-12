@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from concurrent.futures import as_completed, Future, ProcessPoolExecutor
 import datetime
 import decimal
@@ -336,6 +336,27 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if index is None:
             return None
         return self.data[feature_name][index]
+
+    def _get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
+        """
+        Get random samples from the data.
+
+        Parameters
+        ----------
+        samples : int, default 5000
+            The number of samples to randomly get from the data.
+        seed : int, default None
+            (Optional) The random number seed to use.
+
+        Returns
+        -------
+        pd.DataFrame
+            A Pandas DataFrame containing the random sample.
+        """
+        # If samples requested exceeds available rows, return all data
+        if samples >= len(self.data):
+            return self.data.copy()
+        return self.data.sample(n=samples, random_state=seed)
 
     def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
         """

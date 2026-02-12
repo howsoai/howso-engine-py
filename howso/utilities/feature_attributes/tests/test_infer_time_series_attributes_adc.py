@@ -394,11 +394,12 @@ def test_nominal_vs_continuous_detection(adc):
 
 
 def test_time_series_features_TabularData():
+    """Test that TabularData works with time series data."""
     valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
     adc = TabularFile(data_path.joinpath("example_timeseries.csv"))
     features = infer_feature_attributes(
         adc,
-        id_feature_name = "ID",
+        id_feature_name="ID",
         time_feature_name="date",
         datetime_feature_formats={"date": "%Y%m%d"},
     )
@@ -420,6 +421,7 @@ def test_time_series_features_TabularData():
 
 
 def test_time_series_features_SparkDataFrameData(spark):
+    """Test that SparkDataFrameData works with time series data."""
     pdf = pd.read_csv(data_path.joinpath("example_timeseries.csv"))
     adc = SparkDataFrameData(spark.createDataFrame(pdf))
     valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
@@ -666,3 +668,4 @@ def test_nominals_are_ignored_in_ifa_for_ts(spark):
     ]
     print(", ".join(bad_nominals))
     assert bool(bad_nominals) is False
+

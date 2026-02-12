@@ -312,6 +312,24 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 self.data.c[feature_name].is_not(None)).first()
         return first_non_null
 
+    def _get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
+        """
+        Get random samples from the data.
+
+        Parameters
+        ----------
+        samples : int, default 5000
+            The number of samples to randomly get from the data.
+        seed : int, default None
+            (Optional) The random number seed to use.
+
+        Returns
+        -------
+        pd.DataFrame
+            A Pandas DataFrame containing the random sample.
+        """
+        raise ValueError("Not yet implemented")
+
     def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
         """
         Return a random sample from the given table column.
