@@ -372,6 +372,10 @@ class InstallationCheckRegistry:
                         # This does not include warnings.
                         critical_issues += 1
 
+                    # Force UTF-8 encoding for stdout on Windows
+                    if sys.platform == 'win32':
+                        sys.stdout.reconfigure(encoding='utf-8')
+
                     if msg:
                         progress.console.print(
                             f"[bold]{check.name:{self._name_length}s} - "
