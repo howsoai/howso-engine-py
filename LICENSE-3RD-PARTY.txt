@@ -1,10 +1,10 @@
 Faker
-40.1.2
+40.4.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/faker-40.1.2.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/faker-40.4.0.dist-info/licenses/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,7 +32,7 @@ MIT
 Jose Padilla <hello@jpadilla.com>
 https://github.com/jpadilla/pyjwt
 JSON Web Token implementation in Python
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pyjwt-2.11.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pyjwt-2.11.0.dist-info/licenses/LICENSE
 The MIT License (MIT)
 
 Copyright (c) 2015-2022 José Padilla
@@ -62,7 +62,7 @@ MIT License
 Kirill Simonov
 https://pyyaml.org/
 YAML parser and emitter for Python
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pyyaml-6.0.3.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pyyaml-6.0.3.dist-info/licenses/LICENSE
 Copyright (c) 2017-2021 Ingy döt Net
 Copyright (c) 2006-2016 Kirill Simonov
 
@@ -91,7 +91,7 @@ BSD License
 Georg Brandl <georg@python.org>
 https://pygments.org
 Pygments is a syntax highlighting package written in Python.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pygments-2.19.2.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pygments-2.19.2.dist-info/licenses/LICENSE
 Copyright (c) 2006-2022 by the respective authors (see AUTHORS file).
 All rights reserved.
 
@@ -125,7 +125,7 @@ MIT
 Filipe Laíns <lains@riseup.net>, Bernát Gábor <gaborjbernat@gmail.com>, layday <layday@protonmail.com>, Henry Schreiner <henryschreineriii@gmail.com>
 https://build.pypa.io
 A simple, correct Python build frontend
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/build-1.4.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/build-1.4.0.dist-info/licenses/LICENSE
 Copyright © 2019 Filipe Laíns <filipe.lains@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -154,7 +154,7 @@ Mozilla Public License 2.0 (MPL 2.0)
 Kenneth Reitz
 https://github.com/certifi/python-certifi
 Python package for providing Mozilla's CA Bundle.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/certifi-2026.1.4.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/certifi-2026.1.4.dist-info/licenses/LICENSE
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
@@ -183,7 +183,7 @@ MIT
 Armin Rigo, Maciej Fijalkowski
 https://cffi.readthedocs.io/en/latest/whatsnew.html
 Foreign Function Interface for Python calling C code.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/cffi-2.0.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/cffi-2.0.0.dist-info/licenses/LICENSE
 
 Except when otherwise stated (look for LICENSE files in directories or
 information at the beginning of each file) all software and
@@ -215,7 +215,7 @@ MIT
 "Ahmed R. TAHRI" <tahri.ahmed@proton.me>
 https://github.com/jawah/charset_normalizer/blob/master/CHANGELOG.md
 The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/charset_normalizer-3.4.4.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/charset_normalizer-3.4.4.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2025 TAHRI Ahmed R.
@@ -245,7 +245,7 @@ BSD-3-Clause
 UNKNOWN
 https://github.com/pallets/click/
 Composable command line interface toolkit
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/click-8.3.1.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/click-8.3.1.dist-info/licenses/LICENSE.txt
 Copyright 2014 Pallets
 
 Redistribution and use in source and binary forms, with or without
@@ -277,12 +277,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 cryptography
-46.0.4
+46.0.5
 Apache-2.0 OR BSD-3-Clause
 The Python Cryptographic Authority and individual contributors <cryptography-dev@python.org>
 https://github.com/pyca/cryptography
 cryptography is a package which provides cryptographic recipes and primitives to Python developers.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/cryptography-46.0.4.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/cryptography-46.0.5.dist-info/licenses/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to cryptography are made
 under the terms of *both* these licenses.
@@ -294,7 +294,7 @@ Apache Software License
 Brian Curtin
 http://deprecation.readthedocs.io/
 A library to handle automated deprecations
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/deprecation-2.1.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/deprecation-2.1.0.dist-info/LICENSE
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -504,7 +504,7 @@ MIT
 Jason Moiron <jmoiron@jmoiron.net>
 https://github.com/python-humanize/humanize
 Python humanize utilities
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/humanize-4.15.0.dist-info/licenses/LICENCE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/humanize-4.15.0.dist-info/licenses/LICENCE
 Copyright (c) 2010-2020 Jason Moiron and Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -533,7 +533,7 @@ BSD-3-Clause
 Kim Davies <kim+pypi@gumleaf.org>
 https://github.com/kjd/idna
 Internationalized Domain Names in Applications (IDNA)
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/idna-3.11.dist-info/licenses/LICENSE.md
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/idna-3.11.dist-info/licenses/LICENSE.md
 BSD 3-Clause License
 
 Copyright (c) 2013-2025, Kim Davies and contributors.
@@ -573,7 +573,7 @@ BSD-3-Clause
 Gael Varoquaux <gael.varoquaux@normalesup.org>
 https://joblib.readthedocs.io
 Lightweight pipelining with Python functions
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/joblib-1.5.3.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/joblib-1.5.3.dist-info/licenses/LICENSE.txt
 BSD 3-Clause License
 
 Copyright (c) 2008-2021, The joblib developers.
@@ -611,7 +611,7 @@ MIT License
 Chris Sewell <chrisj_sewell@hotmail.com>
 https://github.com/executablebooks/markdown-it-py
 Python port of markdown-it. Markdown parsing, done right!
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/markdown_it_py-4.0.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/markdown_it_py-4.0.0.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2020 ExecutableBookProject
@@ -641,7 +641,7 @@ MIT License
 Taneli Hukkinen <hukkin@users.noreply.github.com>
 https://github.com/executablebooks/mdurl
 Markdown URL utilities
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/mdurl-0.1.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/mdurl-0.1.2.dist-info/LICENSE
 Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin.
 Copyright (c) 2021 Taneli Hukkinen
 
@@ -696,7 +696,7 @@ MIT License
 Hajime Senuma <hajime.senuma@gmail.com>
 https://pypi.org/project/mmh3/
 Python extension for MurmurHash (MurmurHash3), a set of fast and robust hash functions.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/mmh3-5.2.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/mmh3-5.2.0.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2011-2025 Hajime Senuma
@@ -725,7 +725,7 @@ BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/numpy-2.4.2.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/numpy-2.4.2.dist-info/licenses/LICENSE.txt
 Copyright (c) 2005-2025, NumPy Developers.
 All rights reserved.
 
@@ -1669,7 +1669,7 @@ Apache-2.0 OR BSD-2-Clause
 Donald Stufft <donald@stufft.io>
 https://github.com/pypa/packaging
 Core utilities for Python packages
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/packaging-26.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/packaging-26.0.dist-info/licenses/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to this software is made
 under the terms of *both* these licenses.
@@ -1681,7 +1681,7 @@ BSD License
 The Pandas Development Team <pandas-dev@python.org>
 https://pandas.pydata.org
 Powerful data structures for data analysis, time series, and statistics
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pandas-2.3.3.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pandas-2.3.3.dist-info/LICENSE
 BSD 3-Clause License
 
 Copyright (c) 2008-2011, AQR Capital Management, LLC, Lambda Foundry, Inc. and PyData Development Team
@@ -2939,7 +2939,7 @@ BSD License
 Vincent Driessen <me@nvie.com>
 https://github.com/jazzband/pip-tools/
 pip-tools keeps your pinned dependencies fresh.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pip_tools-7.5.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pip_tools-7.5.0.dist-info/licenses/LICENSE
 BSD 3-Clause License
 
 Copyright (c). All rights reserved.
@@ -2976,7 +2976,7 @@ BSD-3-Clause
 Giampaolo Rodola
 https://github.com/giampaolo/psutil
 Cross-platform lib for process and system monitoring.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/psutil-7.2.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/psutil-7.2.2.dist-info/LICENSE
 BSD 3-Clause License
 
 Copyright (c) 2009, Jay Loden, Dave Daeschler, Giampaolo Rodola
@@ -3014,7 +3014,7 @@ BSD-3-Clause
 Eli Bendersky <eliben@gmail.com>
 https://github.com/eliben/pycparser
 C parser in Python
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pycparser-3.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pycparser-3.0.dist-info/licenses/LICENSE
 pycparser -- A C parser in Python
 
 Copyright (c) 2008-2022, Eli Bendersky
@@ -3050,7 +3050,7 @@ MIT License
 Thomas Kluyver <thomas@kluyver.me.uk>
 https://github.com/pypa/pyproject-hooks
 Wrappers to call pyproject.toml-based build backend hooks.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pyproject_hooks-1.2.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pyproject_hooks-1.2.0.dist-info/LICENSE
 The MIT License (MIT)
 
 Copyright (c) 2017 Thomas Kluyver
@@ -3080,7 +3080,7 @@ Apache Software License; BSD License
 Gustavo Niemeyer
 https://github.com/dateutil/dateutil
 Extensions to the standard Python datetime module
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/python_dateutil-2.9.0.post0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/python_dateutil-2.9.0.post0.dist-info/LICENSE
 Copyright 2017- Paul Ganssle <paul@ganssle.io>
 Copyright 2017- dateutil contributors (see AUTHORS file)
 
@@ -3142,7 +3142,7 @@ MIT License
 Stuart Bishop
 http://pythonhosted.org/pytz
 World timezone definitions, modern and historical
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/pytz-2025.2.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pytz-2025.2.dist-info/LICENSE.txt
 Copyright (c) 2003-2019 Stuart Bishop <stuart@stuartbishop.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -3170,7 +3170,7 @@ Apache-2.0 AND CNRI-Python
 Matthew Barnett <regex@mrabarnett.plus.com>
 https://github.com/mrabarnett/mrab-regex
 Alternative regular expression module, to replace re.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/regex-2026.1.15.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/regex-2026.1.15.dist-info/licenses/LICENSE.txt
 This work was derived from the 're' module of CPython 2.6 and CPython 3.1,
 copyright (c) 1998-2001 by Secret Labs AB and licensed under CNRI's Python 1.6
 license.
@@ -3387,7 +3387,7 @@ Apache Software License
 Kenneth Reitz
 https://requests.readthedocs.io
 Python HTTP for Humans.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/requests-2.32.5.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/requests-2.32.5.dist-info/licenses/LICENSE
 
                                  Apache License
                            Version 2.0, January 2004
@@ -3571,7 +3571,7 @@ MIT License
 Will McGugan
 https://github.com/Textualize/rich
 Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/rich-14.3.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/rich-14.3.2.dist-info/LICENSE
 Copyright (c) 2020 Will McGugan
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -3599,7 +3599,7 @@ MIT License
 UNKNOWN
 https://github.com/hplt-project/sacremoses
 SacreMoses
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/sacremoses-0.1.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/sacremoses-0.1.1.dist-info/LICENSE
 MIT License
 
 Copyright (c) 2020 alvations
@@ -3629,7 +3629,7 @@ BSD License
 Raphaël Barrois
 https://github.com/rbarrois/python-semanticversion
 A library implementing the 'SemVer' scheme.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/semantic_version-2.10.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/semantic_version-2.10.0.dist-info/LICENSE
 Copyright (c) The python-semanticversion project
 All rights reserved.
 
@@ -3660,7 +3660,7 @@ MIT License
 Benjamin Peterson
 https://github.com/benjaminp/six
 Python 2 and 3 compatibility utilities
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/six-1.17.0.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/six-1.17.0.dist-info/LICENSE
 Copyright (c) 2010-2024 Benjamin Peterson
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -3687,7 +3687,7 @@ MPL-2.0 AND MIT
 UNKNOWN
 https://tqdm.github.io
 Fast, Extensible Progress Meter
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/tqdm-4.67.3.dist-info/licenses/LICENCE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/tqdm-4.67.3.dist-info/licenses/LICENCE
 `tqdm` is a product of collaborative work.
 Unless otherwise stated, all authors (see commit logs) retain copyright
 for their respective work, and release the work under the MIT licence
@@ -3745,7 +3745,7 @@ PSF-2.0
 "Guido van Rossum, Jukka Lehtosalo, Łukasz Langa, Michael Lee" <levkivskyi@gmail.com>
 https://github.com/python/typing_extensions
 Backported and Experimental Type Hints for Python 3.9+
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/typing_extensions-4.15.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/typing_extensions-4.15.0.dist-info/licenses/LICENSE
 A. HISTORY OF THE SOFTWARE
 ==========================
 
@@ -4033,7 +4033,7 @@ Apache-2.0
 Python Software Foundation
 https://github.com/python/tzdata
 Provider of IANA time zone data
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/tzdata-2025.3.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/tzdata-2025.3.dist-info/licenses/LICENSE
 Apache Software License 2.0
 
 Copyright (c) 2020, Paul Ganssle (Google)
@@ -4057,7 +4057,7 @@ MIT
 Andrey Petrov <andrey.petrov@shazow.net>
 https://github.com/urllib3/urllib3/blob/main/CHANGES.rst
 HTTP library with thread-safe connection pooling, file post, and more.
-/home/runner/.pyenv/versions/3.13.11/lib/python3.13/site-packages/urllib3-2.6.3.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/urllib3-2.6.3.dist-info/licenses/LICENSE.txt
 MIT License
 
 Copyright (c) 2008-2020 Andrey Petrov and contributors.

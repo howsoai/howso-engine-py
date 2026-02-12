@@ -4,9 +4,9 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.11-dev.txt --pip-args=None
 #
-amalgam-lang==26.0.0
+amalgam-lang==27.0.0
     # via howso-engine (pyproject.toml)
-astroid==4.0.3
+astroid==4.0.4
     # via pylint
 build==1.4.0
     # via pip-tools
@@ -22,9 +22,9 @@ click==8.3.1
     # via
     #   pip-tools
     #   sacremoses
-coverage[toml]==7.13.3
+coverage[toml]==7.13.4
     # via pytest-cov
-cryptography==46.0.4
+cryptography==46.0.5
     # via howso-engine (pyproject.toml)
 deprecation==2.1.0
     # via howso-engine (pyproject.toml)
@@ -34,7 +34,7 @@ dill==0.4.1
     #   pylint
 execnet==2.1.2
     # via pytest-xdist
-faker==40.1.2
+faker==40.4.0
     # via howso-engine (pyproject.toml)
 flake8==3.9.2
     # via
@@ -84,11 +84,11 @@ packaging==26.0
     #   wheel
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
-pip-tools==7.5.2
+pip-tools==7.5.3
     # via howso-engine (pyproject.toml)
 pipdeptree==2.30.0
     # via howso-engine (pyproject.toml)
-platformdirs==4.5.1
+platformdirs==4.6.0
     # via pylint
 pluggy==1.6.0
     # via
@@ -175,11 +175,11 @@ wheel==0.46.3
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:
-pip==26.0
+pip==26.0.1
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==80.10.2
+setuptools==82.0.0
     # via
     #   flake8-import-order
     #   pip-tools
