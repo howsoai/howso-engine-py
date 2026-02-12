@@ -522,6 +522,7 @@ jobs:
 
         Write-Host "Running Howso verification..."
         $env:PYTHONUTF8=1
+        $env:PYTHONIOENCODING="utf-8"
         verify_howso_install
 
     - name: Display stacktrace files
