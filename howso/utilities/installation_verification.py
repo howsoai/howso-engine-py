@@ -736,7 +736,7 @@ def check_locales_available(*, registry: InstallationCheckRegistry):
 def check_save(*, registry: InstallationCheckRegistry,
                source_df: t.Optional[pd.DataFrame] = None):
     """
-    Ensure that a model can can be saved.
+    Ensure that a Trainee can can be saved.
 
     Parameters
     ----------
@@ -771,7 +771,7 @@ def check_save(*, registry: InstallationCheckRegistry,
     except Exception:  # noqa: Deliberately broad
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
-                "Could not save model. Please check file permissions.")
+                "Could not save Trainee. Please check file permissions.")
     else:
         return (Status.OK, "")
     finally:
@@ -785,7 +785,7 @@ def check_save(*, registry: InstallationCheckRegistry,
 def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
                                     source_df: t.Optional[pd.DataFrame] = None):
     """
-    Ensure that a model can can be created and deleted.
+    Ensure that a Trainee can can be created and deleted.
 
     Parameters
     ----------
@@ -1157,7 +1157,7 @@ def check_tzdata_installed(*, registry: InstallationCheckRegistry):
     The installation_verification module has already checked normal operations
     without dates. This check is to ensure that the host OS can support time-
     zone aware date-time handling. This is accomplished by merely training a
-    model with a date feature.
+    Trainee with a date feature.
 
     In some configurations, this may result in a SegFault, so, we need to
     isolate the critical part of this test into another process.
@@ -1247,7 +1247,7 @@ def configure(registry: InstallationCheckRegistry):
     )
 
     registry.add_check(
-        name="Howso Local: Save model",
+        name="Howso Local: Save Trainee",
         fn=check_save,
         client_required="HowsoDirectClient",
     )
