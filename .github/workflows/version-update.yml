@@ -1,0 +1,128 @@
+name: Update Howso Dependencies
+run-name: "Update Howso Dependencies"
+
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gen-branch-name:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      branch: ${{ steps.gen-branch-name.outputs.branch }}
+    steps:
+      - name: Generate branch name
+        id: gen-branch-name
+        run: |
+          if [[ "${{ github.ref_name }}" != "${{ github.event.repository.default_branch }}" ]]; then
+            echo "Workflow appears to have been triggered from a non-default branch. Committing to ${{ github.ref_name }}."
+            echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          NOW=$(date +'%Y-%m-%dT%Hh%Mm%Ss')
+          BRANCH="update-dependency-$NOW"
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+  create-branch:
+    needs: ['gen-branch-name']
+    uses: "howsoai/.github/.github/workflows/create-branch.yml@main"
+    secrets: inherit
+    with:
+      branch: ${{ needs.gen-branch-name.outputs.branch }}
+
+  update-dependency:
+    needs: ['gen-branch-name', 'create-branch']
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+          ref: ${{ needs.gen-branch-name.outputs.branch }}
+
+      - name: Update amalgam-lang and howso-engine versions
+        run: |
+          # --- amalgam-lang: latest from PyPI ---
+          AMALGAM_VERSION=$(curl -sf "https://pypi.org/pypi/amalgam-lang/json" \
+            | jq -r '.info.version')
+          if [[ -z "${AMALGAM_VERSION}" ]]; then
+            echo "Error: Could not resolve latest amalgam-lang version from PyPI"
+            exit 1
+          fi
+          echo "Latest amalgam-lang: ${AMALGAM_VERSION}"
+
+          sed -i -E "s/\"amalgam-lang[^\"]*\"/\"amalgam-lang==${AMALGAM_VERSION}\"/" pyproject.toml
+
+          # --- howso-engine: latest GitHub release ---
+          HOWSO_VERSION=$(curl -sf "https://api.github.com/repos/howsoai/howso-engine/releases/latest" \
+            | jq -r '.tag_name')
+          if [[ -z "${HOWSO_VERSION}" ]]; then
+            echo "Error: Could not resolve latest howso-engine release from GitHub"
+            exit 1
+          fi
+          echo "Latest howso-engine: ${HOWSO_VERSION}"
+
+          # Update dependencies.howso-engine in version.json
+          jq --arg v "${HOWSO_VERSION}" '.dependencies["howso-engine"] = $v' version.json \
+            > version.json.tmp && mv version.json.tmp version.json
+
+          # Verify changes
+          echo "amalgam-lang in pyproject.toml:"; grep "amalgam-lang" pyproject.toml
+          echo "howso-engine in version.json:"; jq '.dependencies["howso-engine"]' version.json
+
+          # Commit and push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml version.json
+          git commit -m "00000: Updates `amalgam-lang` to `${AMALGAM_VERSION}`, `howso-engine` to `${HOWSO_VERSION}`"
+          git push
+
+  gen-pr-title:
+    needs: ['gen-branch-name', 'update-dependency']
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      title: ${{ steps.gen-pr-title.outputs.title }}
+    env:
+        GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+          ref: ${{ needs.gen-branch-name.outputs.branch }}
+          fetch-depth: 1
+
+      - name: Generate PR title
+        id: gen-pr-title
+        run: |
+          TITLE=$(git log -1 --format="%s")
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+  create-pr:
+    needs: [
+      'gen-branch-name', 
+      'update-dependency',
+      'create-branch', 
+      'gen-pr-title'
+    ]
+    uses: "howsoai/.github/.github/workflows/create-pr.yml@main"
+    secrets: inherit
+    with:
+      branch: ${{ needs.gen-branch-name.outputs.branch }}
+      title: ${{ needs.gen-pr-title.outputs.title }}
+      body: "This PR was authored by a bot, please review carefully."
