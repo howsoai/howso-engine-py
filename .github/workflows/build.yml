@@ -60,6 +60,9 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download howso-engine
       env:
@@ -359,6 +362,9 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download Artifact
       uses: actions/download-artifact@v4
@@ -414,6 +420,9 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download Artifact
       uses: actions/download-artifact@v4
@@ -476,6 +485,9 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download Artifact
       uses: actions/download-artifact@v4
