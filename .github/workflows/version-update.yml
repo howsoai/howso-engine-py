@@ -87,7 +87,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pyproject.toml version.json
-          git commit -m "00000: Updates `amalgam-lang` to `${AMALGAM_VERSION}`, `howso-engine` to `${HOWSO_VERSION}`"
+          git commit -m "00000: Updates amalgam-lang to ${AMALGAM_VERSION}, howso-engine to ${HOWSO_VERSION}"
           git push
 
   gen-pr-title:
