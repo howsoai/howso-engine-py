@@ -25,7 +25,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
 
     - name: Check if PR is approved
       uses: actions/github-script@v7
