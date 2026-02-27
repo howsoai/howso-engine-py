@@ -259,13 +259,19 @@ class FeatureSerializer:
         pandas.DataFrame
             The formatted data.
         """
+        formatted_cols = {}
         for col in df.columns.tolist():
             try:
                 attributes = features[col]
             except (TypeError, KeyError):
                 # Column not in feature attributes, skip column
                 continue
-            df[col] = cls.format_column(df[col], attributes, tokenizer=tokenizer)
+            formatted_cols[col] = cls.format_column(df[col], attributes, tokenizer=tokenizer)
+
+        if formatted_cols:
+            df[list(formatted_cols.keys())] = pd.DataFrame(
+                formatted_cols, index=df.index
+            )
 
         return df
 
