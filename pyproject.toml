@@ -33,6 +33,7 @@ classifiers = [
 ]
 dependencies = [
    "certifi",
+   "chardet<7.0",  # Temp restriction
    "cryptography>=2.9.2",
    "deprecation~=2.0",
    "Faker>=4.1.1",
