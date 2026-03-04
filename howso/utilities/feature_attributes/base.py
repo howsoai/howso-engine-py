@@ -190,7 +190,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
     def get_names(self, *, types: t.Optional[str | Container] = None,
                   data_types: t.Optional[str | Container] = None,
-                  without: t.Optional[Iterable[str]] = None,
+                  without: t.Optional[str | Iterable[str]] = None,
                   ) -> list[str]:
         """
         Get feature names associated with this FeatureAttributes object.
@@ -203,14 +203,16 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         data_types : String, Container (of String), default None
             (Optional) A ``data_type`` as a string (E.g., 'datetime') or a list
             of ``data_type`` to limit the output of feature names.
-        without : Iterable of String
-            (Optional) An Iterable of feature names to exclude from the return object.
+        without : String or Iterable of String
+            (Optional) A feature name or an Iterable of feature names to exclude from the return object.
 
         Returns
         -------
         list of str
             A list of feature names.
         """
+        if isinstance(without, str):
+            without = [without]
         if without:
             for feature in without:
                 if feature not in self.keys():
