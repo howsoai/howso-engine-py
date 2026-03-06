@@ -1,10 +1,10 @@
 Faker
-40.4.0
+40.8.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/faker-40.4.0.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/faker-40.8.0.dist-info/licenses/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -149,12 +149,12 @@ DEALINGS IN THE SOFTWARE.
 
 
 certifi
-2026.1.4
+2026.2.25
 Mozilla Public License 2.0 (MPL 2.0)
 Kenneth Reitz
 https://github.com/certifi/python-certifi
 Python package for providing Mozilla's CA Bundle.
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/certifi-2026.1.4.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/certifi-2026.2.25.dist-info/licenses/LICENSE
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
@@ -210,12 +210,12 @@ documentation is licensed as follows:
 
 
 charset-normalizer
-3.4.4
+3.4.5
 MIT
 "Ahmed R. TAHRI" <tahri.ahmed@proton.me>
 https://github.com/jawah/charset_normalizer/blob/master/CHANGELOG.md
 The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet.
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/charset_normalizer-3.4.4.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/charset_normalizer-3.4.5.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2025 TAHRI Ahmed R.
@@ -691,15 +691,15 @@ IN THE SOFTWARE.
 
 
 mmh3
-5.2.0
+5.2.1
 MIT License
 Hajime Senuma <hajime.senuma@gmail.com>
 https://pypi.org/project/mmh3/
 Python extension for MurmurHash (MurmurHash3), a set of fast and robust hash functions.
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/mmh3-5.2.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/mmh3-5.2.1.dist-info/licenses/LICENSE
 MIT License
 
-Copyright (c) 2011-2025 Hajime Senuma
+Copyright (c) 2011-2026 Hajime Senuma
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -3137,12 +3137,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 The above BSD License Applies to all code, even that also covered by Apache 2.0.
 
 pytz
-2025.2
+2026.1.post1
 MIT License
 Stuart Bishop
 http://pythonhosted.org/pytz
 World timezone definitions, modern and historical
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pytz-2025.2.dist-info/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pytz-2026.1.post1.dist-info/LICENSE.txt
 Copyright (c) 2003-2019 Stuart Bishop <stuart@stuartbishop.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -3165,12 +3165,12 @@ DEALINGS IN THE SOFTWARE.
 
 
 regex
-2026.1.15
+2026.2.28
 Apache-2.0 AND CNRI-Python
 Matthew Barnett <regex@mrabarnett.plus.com>
 https://github.com/mrabarnett/mrab-regex
 Alternative regular expression module, to replace re.
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/regex-2026.1.15.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/regex-2026.2.28.dist-info/licenses/LICENSE.txt
 This work was derived from the 're' module of CPython 2.6 and CPython 3.1,
 copyright (c) 1998-2001 by Secret Labs AB and licensed under CNRI's Python 1.6
 license.
@@ -3566,12 +3566,12 @@ Python HTTP for Humans.
 
 
 rich
-14.3.2
+14.3.3
 MIT License
 Will McGugan
 https://github.com/Textualize/rich
 Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/rich-14.3.2.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/rich-14.3.3.dist-info/licenses/LICENSE
 Copyright (c) 2020 Will McGugan
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
