@@ -91,7 +91,7 @@ def date_to_epoch(date_obj: dt.date | dt.datetime | dt.time | str, time_format: 
     str | float | None
         The epoch date as a floating point value or 'np.nan', et al.
     """
-    # pd.isnull covers the cases - None, `np.nan` and `pd.na`
+    # pd.isnull/pd.isna covers the cases - None, `np.nan` and `pd.na`
     if pd.isna(date_obj):  # pyright: ignore[reportArgumentType, reportCallIssue]
         return None
 
@@ -140,7 +140,7 @@ def epoch_to_date(epoch: str | float, time_format: str, tzinfo: dt.tzinfo | None
     str
         A date string in the format similar to "Wed May 21 00:00:00 2008"
     """
-    # pd.isnull covers the cases - None, `np.nan` and `pd.na`
+    # pd.isnull/pd.isna covers the cases - None, `np.nan` and `pd.na`
     if pd.isna(epoch):
         return epoch  # pyright: ignore[reportReturnType]
 
