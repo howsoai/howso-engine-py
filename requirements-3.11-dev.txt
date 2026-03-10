@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.11-dev.txt --pip-args=None
 #
-amalgam-lang==27.1.0
+amalgam-lang==27.2.0
     # via howso-engine (pyproject.toml)
 astroid==4.0.4
     # via pylint
@@ -71,6 +71,7 @@ numpy==2.4.3
 packaging==26.0
     # via
     #   build
+    #   howso-engine (pyproject.toml)
     #   mongomock
     #   pipdeptree
     #   pytest
@@ -119,7 +120,9 @@ pytest-mock==1.13.0
 pytest-xdist==3.8.0
     # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
-    # via pandas
+    # via
+    #   howso-engine (pyproject.toml)
+    #   pandas
 pytz==2026.1.post1
     # via
     #   mongomock
