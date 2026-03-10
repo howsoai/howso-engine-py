@@ -10,16 +10,10 @@ certifi==2026.2.25
     # via
     #   howso-engine (pyproject.toml)
     #   requests
-cffi==2.0.0
-    # via cryptography
 charset-normalizer==3.4.5
     # via requests
 click==8.3.1
     # via sacremoses
-cryptography==46.0.5
-    # via howso-engine (pyproject.toml)
-deprecation==2.1.0
-    # via howso-engine (pyproject.toml)
 faker==40.8.0
     # via howso-engine (pyproject.toml)
 humanize==4.15.0
@@ -38,18 +32,12 @@ numpy==2.4.3
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
-packaging==26.0
-    # via deprecation
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
 psutil==7.2.2
     # via howso-engine (pyproject.toml)
-pycparser==3.0
-    # via cffi
 pygments==2.19.2
     # via rich
-pyjwt==2.11.0
-    # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via pandas
 pytz==2026.1.post1

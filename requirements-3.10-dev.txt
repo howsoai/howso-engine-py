@@ -14,8 +14,6 @@ certifi==2026.2.25
     # via
     #   howso-engine (pyproject.toml)
     #   requests
-cffi==2.0.0
-    # via cryptography
 charset-normalizer==3.4.5
     # via requests
 click==8.3.1
@@ -24,10 +22,6 @@ click==8.3.1
     #   sacremoses
 coverage[toml]==7.13.4
     # via pytest-cov
-cryptography==46.0.5
-    # via howso-engine (pyproject.toml)
-deprecation==2.1.0
-    # via howso-engine (pyproject.toml)
 dill==0.4.1
     # via
     #   howso-engine (pyproject.toml)
@@ -79,7 +73,6 @@ numpy==2.2.6
 packaging==26.0
     # via
     #   build
-    #   deprecation
     #   mongomock
     #   pipdeptree
     #   pytest
@@ -103,16 +96,12 @@ pycodestyle==2.7.0
     #   flake8
     #   flake8-import-order
     #   howso-engine (pyproject.toml)
-pycparser==3.0
-    # via cffi
 pydocstyle==6.3.0
     # via flake8-docstrings
 pyflakes==2.3.1
     # via flake8
 pygments==2.19.2
     # via rich
-pyjwt==2.11.0
-    # via howso-engine (pyproject.toml)
 pylint==4.0.5
     # via howso-engine (pyproject.toml)
 pyproject-hooks==1.2.0
@@ -175,7 +164,6 @@ tqdm==4.67.3
 typing-extensions==4.15.0
     # via
     #   astroid
-    #   cryptography
     #   exceptiongroup
     #   howso-engine (pyproject.toml)
 tzdata==2025.3
