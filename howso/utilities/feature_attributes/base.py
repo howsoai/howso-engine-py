@@ -114,7 +114,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         if archive:
             json_str = json.dumps({
                 "feature_attributes": self,
-                "params": self.params,
+                "params": {k: v for k, v in self.params.items() if k != "fanout_feature_map"},
                 "unsupported": self.unsupported,
             })
         else:
