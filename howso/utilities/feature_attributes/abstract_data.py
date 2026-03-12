@@ -220,6 +220,11 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         if random_value is None:
             return FeatureType.STRING, {}
 
+        # Check for a Python bool object or a string representation thereof
+        if isinstance(random_value, bool) or (isinstance(random_value, str) and
+                                              random_value.strip().lower() in ("true", "false")):
+            return FeatureType.BOOLEAN, {}
+
         # Remove any whitespace characters from either end.
         if isinstance(random_value, str):
             random_value = random_value.strip()

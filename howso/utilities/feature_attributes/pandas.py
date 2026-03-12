@@ -242,6 +242,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             else:
                 first_non_null = next((x for x in self.data[feature_name].dropna() if str(x).strip()), None)
+                # Check for a Python bool object or a string representation thereof
+                if isinstance(first_non_null, bool) or (isinstance(first_non_null, str) and
+                                                        first_non_null.strip().lower() in ("true", "false")):
+                    return FeatureType.BOOLEAN, {}
                 # DataFrames may use 'object' dtype for strings, detect
                 # string columns by checking the type of the data
                 if isinstance(first_non_null, str):
