@@ -199,7 +199,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 # All time deltas will be converted to seconds
                 return FeatureType.TIMEDELTA, {'unit': 'seconds'}
 
-            elif is_bool_dtype(dtype):
+            elif is_bool_dtype(dtype) or self._is_boolean_feature(feature_name):
                 return FeatureType.BOOLEAN, {}
 
             elif np.issubdtype(dtype, np.character):
@@ -219,11 +219,6 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # There's nothing to determine, let it be STRING
         if random_value is None:
             return FeatureType.STRING, {}
-
-        # Check for a Python bool object or a string representation thereof
-        if isinstance(random_value, bool) or (isinstance(random_value, str) and
-                                              random_value.strip().lower() in ("true", "false")):
-            return FeatureType.BOOLEAN, {}
 
         # Remove any whitespace characters from either end.
         if isinstance(random_value, str):
