@@ -1145,6 +1145,6 @@ def test_boolean_detection():
     assert feature_attributes["boolean"]["data_type"] == "string"
 
     # Mix of booleans and non-booleans
-    df["boolean"] = ["true", "false", "idk"] * 100
+    df["boolean"] = ["true", "false", "maybe", "another_thing"] * 50
     feature_attributes = infer_feature_attributes(df)
     assert feature_attributes["boolean"]["data_type"] == "string"

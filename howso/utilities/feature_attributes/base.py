@@ -1558,18 +1558,14 @@ class InferFeatureAttributesBase(ABC):
         -------
         True if the column values can be parsed into a boolean.
         """
-        first_non_none = self._get_first_non_null(feature)
-        if first_non_none is None:
-            return False
-
         # Sample 30 random values
         for _ in range(30):
             random_value = self._get_random_value(feature, no_nulls=True)
             if random_value is None:
                 return False
             # Check for a Python bool object or a string representation thereof
-            if not isinstance(random_value, bool) or not (isinstance(random_value, str) and
-                                                          random_value.strip().lower() in ("true", "false")):
+            if not isinstance(random_value, bool) and not (isinstance(random_value, str) and
+                                                           random_value.strip().lower() in ("true", "false")):
                 return False
         return True
 
