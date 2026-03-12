@@ -229,7 +229,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 # All time deltas will be converted to seconds
                 return FeatureType.TIMEDELTA, {'unit': 'seconds'}
 
-            elif is_bool_dtype(dtype):
+            elif is_bool_dtype(dtype) or self._is_boolean_feature(feature_name):
                 return FeatureType.BOOLEAN, {}
 
             elif self._is_character_dtype(dtype):

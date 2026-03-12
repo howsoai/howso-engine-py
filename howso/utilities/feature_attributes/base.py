@@ -1545,6 +1545,30 @@ class InferFeatureAttributesBase(ABC):
         # No issues; it's valid
         return True
 
+    def _is_boolean_feature(self, feature: str) -> bool:
+        """
+        Return whether the given feature is a bool object or "true"/"false" string.
+
+        Parameters
+        ----------
+        feature: string
+            The feature to check the values of.
+
+        Returns
+        -------
+        True if the column values can be parsed into a boolean.
+        """
+        # Sample 30 random values
+        for _ in range(30):
+            random_value = self._get_random_value(feature, no_nulls=True)
+            if random_value is None:
+                return False
+            # Check for a Python bool object or a string representation thereof
+            if not isinstance(random_value, bool) and not (isinstance(random_value, str) and
+                                                           random_value.strip().lower() in ("true", "false")):
+                return False
+        return True
+
     def _is_json_feature(self, feature: str) -> bool:
         """
         Return whether the given feature contains valid JSON.

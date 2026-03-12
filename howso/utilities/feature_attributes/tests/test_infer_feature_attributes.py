@@ -1124,3 +1124,27 @@ def test_infer_tokenizable_string():
     # Product should still be a nominal string
     assert feature_attributes["product"]["data_type"] == "string"
     assert feature_attributes["product"]["type"] == "nominal"
+
+
+def test_boolean_detection():
+    """Test that IFA correctly detects Python bool objects and string booleans."""
+    df = pd.DataFrame()
+    # Python bool
+    df["boolean"] = [True, False] * 100
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "boolean"
+
+    # True/False string
+    df["boolean"] = ["True", "False"] * 100
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "boolean"
+
+    # Possible boolean but should be inferred as string
+    df["boolean"] = ["t", "f"] * 100
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "string"
+
+    # Mix of booleans and non-booleans
+    df["boolean"] = ["true", "false", "maybe", "another_thing"] * 50
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "string"
