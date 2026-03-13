@@ -656,6 +656,46 @@ def test_validate_df_multiple_dtypes(ftype, data_type, decimal_places, bounds, d
     assert pd.api.types.is_datetime64_any_dtype(coerced_df['DATE'].dtype)
 
 
+@pytest.mark.parametrize(
+    ("data", "expected_data_type", "expected_orig_type"),
+    (
+        ({"a": 1}, "json", "container"),
+        ([1, 2, 3], "json", "container"),
+        ('{"a": 1}', "json", "string"),
+        ('["a", "b", "c"]', "json", "string"),
+        ("doc:\n  abc: 1", "yaml", "string"),
+        ("(list 1 2 3)", "amalgam", "string"),
+        ('(assoc "a" 1 "b" 2)', "amalgam", "string"),
+    ),
+)
+def test_validate_df_semi_structured(data, expected_data_type: str, expected_orig_type: str):
+    """Test validate_df handles semi-structured features correctly."""
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "doc": [data, None, data],
+    })
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        feature_attributes = infer_feature_attributes(df)
+
+    attrs = feature_attributes["doc"]
+
+    assert "original_type" in attrs
+    assert attrs["original_type"]["data_type"] == expected_orig_type
+
+    if expected_data_type == "amalgam":
+        # Amalgam is not automatically inferred set it manually
+        attrs["type"] = "continuous"
+        attrs["data_type"] = "amalgam"
+    else:
+        assert attrs["type"] == "continuous"
+        assert attrs.get("data_type") == expected_data_type
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        feature_attributes.validate(df, raise_errors=True)
+
+
 @pytest.mark.parametrize("extra_attrs, success", (
     ({}, False),
     ({'auto_derive_on_train': False}, False),
@@ -1086,42 +1126,25 @@ def test_infer_tokenizable_string():
     assert feature_attributes["product"]["type"] == "nominal"
 
 
-def test_json_features_types():
-    """Test that IFA includes type information for JSON features that are Python dicts/lists."""
-    tests = [
-        ({"a": "str", "b": 1, "c": 2.7, "d": True, "e": {"a1": "str", "b1": {"c1": [1, 2, 3]}}},
-         {"a": "string", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "integer"}}}),
-        ({"a": "str", "b": 9, "c": 3.3, "d": False, "e": {"a1": "str2", "b1": {"c1": [1, 2, 3, 4, 5, 6, 7]}}},
-         {"a": "string", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "integer"}}}),
-        ({"a": 3, "b": 1.5, "c": 2.7, "d": True, "e": {"a1": 5, "b1": {"c1": [1, 2, 3]}}},
-         {"a": "integer", "b": "numeric", "c": "numeric", "d": "boolean", "e": {"a1": "integer", "b1": {"c1": "integer"}}}),
-        ({"a": 3, "b": 1, "c": 2.7, "d": True, "e": {"a1": "str", "b1": {"c1": [1, True, "foo"]}}},
-         {"a": "integer", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "object"}}}),
-        ([1.1, 2.2, 3.3, 4.4], "numeric"),
-    ]
-    # First test that the type maps are correct
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        for test in tests:
-            df = pd.DataFrame({"foo": [test[0]]})
-            attributes = infer_feature_attributes(df)
-            assert attributes["foo"]["data_type"] == "json"
-            assert attributes["foo"]["original_type"]["data_type"] == FeatureType.CONTAINER.value
-            assert attributes["foo"]["original_type"]["type_map"] == test[1]
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        # Ensure no warnings also with multiple cases of the same schema
-        df = pd.DataFrame({"foo": [tests[0][0], tests[1][0]]})
-        attributes = infer_feature_attributes(df)
-        assert attributes["foo"]["data_type"] == "json"
-        assert attributes["foo"]["original_type"]["data_type"] == FeatureType.CONTAINER.value
-        assert attributes["foo"]["original_type"]["type_map"] == tests[0][1]
+def test_boolean_detection():
+    """Test that IFA correctly detects Python bool objects and string booleans."""
+    df = pd.DataFrame()
+    # Python bool
+    df["boolean"] = [True, False] * 100
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "boolean"
 
-    # Test applicable warnings
-    with pytest.warns(match="contains a key 'c1' whose value is a list of mixed types"):
-        df = pd.DataFrame({"foo": [tests[3][0]]})
-        infer_feature_attributes(df)
-    with pytest.warns(match="inconsistent types and/or keys across cases."):
-        df = pd.DataFrame({"foo": [tests[0][0], tests[2][0], tests[1][0]]})
-        attributes = infer_feature_attributes(df)
-        assert not attributes["foo"]["original_type"]["type_map"]
+    # True/False string
+    df["boolean"] = ["True", "False"] * 100
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "boolean"
+
+    # Possible boolean but should be inferred as string
+    df["boolean"] = ["t", "f"] * 100
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "string"
+
+    # Mix of booleans and non-booleans
+    df["boolean"] = ["true", "false", "maybe", "another_thing"] * 50
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "string"

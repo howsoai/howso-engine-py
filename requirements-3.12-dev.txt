@@ -4,37 +4,31 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.12-dev.txt --pip-args=None
 #
-amalgam-lang==25.3.0
+amalgam-lang==27.2.0
     # via howso-engine (pyproject.toml)
-astroid==4.0.3
+astroid==4.0.4
     # via pylint
 build==1.4.0
     # via pip-tools
-certifi==2026.1.4
+certifi==2026.2.25
     # via
     #   howso-engine (pyproject.toml)
     #   requests
-cffi==2.0.0
-    # via cryptography
-charset-normalizer==3.4.4
+charset-normalizer==3.4.5
     # via requests
 click==8.3.1
     # via
     #   pip-tools
     #   sacremoses
-coverage[toml]==7.13.1
+coverage[toml]==7.13.4
     # via pytest-cov
-cryptography==46.0.3
-    # via howso-engine (pyproject.toml)
-deprecation==2.1.0
-    # via howso-engine (pyproject.toml)
 dill==0.4.1
     # via
     #   howso-engine (pyproject.toml)
     #   pylint
 execnet==2.1.2
     # via pytest-xdist
-faker==40.1.2
+faker==40.8.0
     # via howso-engine (pyproject.toml)
 flake8==3.9.2
     # via
@@ -50,7 +44,7 @@ idna==3.11
     # via requests
 iniconfig==2.3.0
     # via pytest
-isort==7.0.0
+isort==8.0.1
     # via pylint
 joblib==1.5.3
     # via
@@ -64,11 +58,11 @@ mccabe==0.6.1
     #   pylint
 mdurl==0.1.2
     # via markdown-it-py
-mmh3==5.2.0
+mmh3==5.2.1
     # via howso-engine (pyproject.toml)
 mongomock==4.3.0
     # via howso-engine (pyproject.toml)
-numpy==2.2.6
+numpy==2.4.3
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
@@ -77,41 +71,37 @@ numpy==2.2.6
 packaging==26.0
     # via
     #   build
-    #   deprecation
+    #   howso-engine (pyproject.toml)
     #   mongomock
     #   pipdeptree
     #   pytest
     #   wheel
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
-pip-tools==7.5.2
+pip-tools==7.5.3
     # via howso-engine (pyproject.toml)
-pipdeptree==2.30.0
+pipdeptree==2.31.0
     # via howso-engine (pyproject.toml)
-platformdirs==4.5.1
+platformdirs==4.9.4
     # via pylint
 pluggy==1.6.0
     # via
     #   pytest
     #   pytest-cov
-psutil==7.2.1
+psutil==7.2.2
     # via howso-engine (pyproject.toml)
 pycodestyle==2.7.0
     # via
     #   flake8
     #   flake8-import-order
     #   howso-engine (pyproject.toml)
-pycparser==3.0
-    # via cffi
 pydocstyle==6.3.0
     # via flake8-docstrings
 pyflakes==2.3.1
     # via flake8
 pygments==2.19.2
     # via rich
-pyjwt==2.10.1
-    # via howso-engine (pyproject.toml)
-pylint==4.0.4
+pylint==4.0.5
     # via howso-engine (pyproject.toml)
 pyproject-hooks==1.2.0
     # via
@@ -130,24 +120,26 @@ pytest-mock==1.13.0
 pytest-xdist==3.8.0
     # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
-    # via pandas
-pytz==2025.2
+    # via
+    #   howso-engine (pyproject.toml)
+    #   pandas
+pytz==2026.1.post1
     # via
     #   mongomock
     #   pandas
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
-regex==2026.1.15
+regex==2026.2.28
     # via sacremoses
 requests==2.32.5
     # via howso-engine (pyproject.toml)
-rich==14.2.0
+rich==14.3.3
     # via howso-engine (pyproject.toml)
 sacremoses==0.1.1
     # via howso-engine (pyproject.toml)
 scikit-learn==1.8.0
     # via howso-engine (pyproject.toml)
-scipy==1.17.0
+scipy==1.17.1
     # via scikit-learn
 semantic-version==2.10.0
     # via howso-engine (pyproject.toml)
@@ -161,7 +153,7 @@ threadpoolctl==3.6.0
     # via scikit-learn
 tomlkit==0.14.0
     # via pylint
-tqdm==4.67.1
+tqdm==4.67.3
     # via sacremoses
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)
@@ -171,15 +163,15 @@ urllib3==2.6.3
     # via
     #   howso-engine (pyproject.toml)
     #   requests
-wheel==0.46.2
+wheel==0.46.3
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:
-pip==25.3
+pip==26.0.1
     # via
     #   pip-tools
     #   pipdeptree
-setuptools==80.10.1
+setuptools==82.0.1
     # via
     #   flake8-import-order
     #   pip-tools

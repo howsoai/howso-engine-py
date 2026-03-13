@@ -604,21 +604,36 @@ def test_infer_tokenizable_string(adc):
     assert feature_attributes["product"]["type"] == "nominal"
 
 
-@pytest.mark.parametrize('adc', [
-    # Only MongoDBData and DataFrameData support Python objects as data
+@pytest.mark.parametrize("adc", [
     ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
-def test_json_features_types(adc):
-    """Test that IFA includes type information for JSON features that are Python dicts/lists for applicable ADCs."""
-    test = (
-        {"a": "str", "b": 1, "c": 2.7, "d": True, "e": {"a1": "str", "b1": {"c1": [1, 2, 3]}}},
-        {"a": "string", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "integer"}}}
-    )
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        df = pd.DataFrame({"foo": [test[0]]})
-        convert_data(DataFrameData(df), adc)
-        attributes = infer_feature_attributes(adc)
-        assert attributes["foo"]["data_type"] == "json"
-        assert attributes["foo"]["original_type"]["type_map"] == test[1]
+def test_boolean_detection(adc):
+    """Test that IFA correctly detects Python bool objects and string booleans."""
+    df = pd.DataFrame()
+    # Python bool
+    df["boolean"] = [True, False] * 100
+    convert_data(DataFrameData(df), adc)
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "boolean"
+
+    # True/False string
+    df["boolean"] = ["True", "False"] * 100
+    convert_data(DataFrameData(df), adc)
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "boolean"
+
+    # Possible boolean but should be inferred as string
+    df["boolean"] = ["t", "f"] * 100
+    convert_data(DataFrameData(df), adc)
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "string"
+
+    # Mix of booleans and non-booleans
+    df["boolean"] = ["true", "false", "maybe", "another_thing"] * 50
+    convert_data(DataFrameData(df), adc)
+    feature_attributes = infer_feature_attributes(df)
+    assert feature_attributes["boolean"]["data_type"] == "string"

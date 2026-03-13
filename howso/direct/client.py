@@ -1182,44 +1182,27 @@ class HowsoDirectClient(AbstractHowsoClient):
             "decode_cases": decode_cases,
         })
 
-    def upgrade_trainee(
-        self,
-        trainee_id: str,
-        *,
-        filename: t.Optional[str] = None,
-        filepath: t.Optional[Path | str] = None,
-        path_to_trainee: t.Optional[Path | str] = None,
-    ) -> Trainee:
+    def upgrade_trainee(self, filepath: str) -> Trainee:
         """
         Upgrade a saved Trainee to current version.
 
         Parameters
         ----------
-        trainee_id : str
-            The ID of the Trainee.
-        filename : str, optional
-            The base name of the exported Trainee json files. If not specified,
-            uses the value of `trainee_id`. (e.g., [filename].meta.json)
-        filepath : Path or str, optional
-            The directory where the exported Trainee `.exp.json` and `.meta.json` files exist.
-        path_to_trainee : Path or str, optional
-            Deprecated, use `filepath` instead.
+        filepath : str
+            The filepath of the saved Trainee to upgrade.
 
         Returns
         -------
         Trainee
             The Trainee that was upgraded.
         """
-        if path_to_trainee is not None:
-            warnings.warn(
-                'The upgrade trainee parameter `path_to_trainee` is deprecated and will be removed in '
-                'a future release. Please use `filepath` instead.', DeprecationWarning)
-            if filepath is None:
-                filepath = path_to_trainee
-
         if filepath is None:
             filepath = self.default_persist_path
         filepath = Path(filepath).expanduser()
+
+        extension = filepath.suffix
+        trainee_id = filepath.stem
+        directory = filepath.parent
 
         if not filepath.exists():
             raise ValueError(f'The upgrade filepath "{filepath}" does not exist.')
@@ -1228,11 +1211,18 @@ class HowsoDirectClient(AbstractHowsoClient):
             print(f'Upgrading Trainee with id: {trainee_id}')
 
         self._initialize_trainee(trainee_id)
-        self.execute(trainee_id, "upgrade_trainee", {
-            "trainee": filename or trainee_id,
-            "trainee_json_filepath": f"{filepath}/",
+
+        upgrade_params = {
+            "trainee": trainee_id,
             "root_filepath": f"{self._howso_dir}/",
-        })
+        }
+        if extension == ".json":
+            upgrade_params["trainee_json_filepath"] = f"{directory}/"
+        elif extension == ".caml":
+            upgrade_params["trainee_amlg_filepath"] = f"{directory}/"
+        else:
+            raise ValueError(f"Extension of provided filepath must be 'json' or 'caml' (received: {extension})")
+        self.execute(trainee_id, "upgrade_trainee", upgrade_params)
         trainee = self._get_trainee_from_engine(trainee_id)
         self.trainee_cache.set(trainee)
         self.resolve_feature_attributes(trainee_id)

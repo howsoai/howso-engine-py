@@ -21,9 +21,12 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from howso.utilities.features import convert_primitive_to_feature_type, FeatureType
+from howso.utilities.features import FeatureType
 from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 from ..utilities import determine_iso_format
+
+if t.TYPE_CHECKING:
+    from howso.client.typing import FeatureAttributes
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +45,7 @@ WIN_DT_MAX = '6053-01-24'
 FeatureAttributesBaseType = t.TypeVar('FeatureAttributesBaseType', bound='FeatureAttributesBase')
 
 
-class FeatureAttributesBase(dict):
+class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
     def __init__(self, feature_attributes: Mapping, params: dict = {}, unsupported: list[str] = []):
@@ -111,7 +114,7 @@ class FeatureAttributesBase(dict):
         if archive:
             json_str = json.dumps({
                 "feature_attributes": self,
-                "params": self.params,
+                "params": {k: v for k, v in self.params.items() if k != "fanout_feature_map"},
                 "unsupported": self.unsupported,
             })
         else:
@@ -187,7 +190,7 @@ class FeatureAttributesBase(dict):
 
     def get_names(self, *, types: t.Optional[str | Container] = None,
                   data_types: t.Optional[str | Container] = None,
-                  without: t.Optional[Iterable[str]] = None,
+                  without: t.Optional[str | Iterable[str]] = None,
                   ) -> list[str]:
         """
         Get feature names associated with this FeatureAttributes object.
@@ -200,14 +203,16 @@ class FeatureAttributesBase(dict):
         data_types : String, Container (of String), default None
             (Optional) A ``data_type`` as a string (E.g., 'datetime') or a list
             of ``data_type`` to limit the output of feature names.
-        without : Iterable of String
-            (Optional) An Iterable of feature names to exclude from the return object.
+        without : String or Iterable of String
+            (Optional) A feature name or an Iterable of feature names to exclude from the return object.
 
         Returns
         -------
         list of str
             A list of feature names.
         """
+        if isinstance(without, str):
+            without = [without]
         if without:
             for feature in without:
                 if feature not in self.keys():
@@ -237,7 +242,7 @@ class FeatureAttributesBase(dict):
         ]
 
     def _validate_bounds(self, data: pd.DataFrame, feature: str,  # noqa: C901
-                         attributes: dict) -> list[str]:
+                         attributes: FeatureAttributes) -> list[str]:
         """Validate the feature bounds of the provided DataFrame."""
         # Import here to avoid circular import
         from howso.utilities import date_to_epoch
@@ -385,7 +390,7 @@ class FeatureAttributesBase(dict):
         return errors
 
     @staticmethod
-    def _allows_null(attributes: dict) -> bool:
+    def _allows_null(attributes: FeatureAttributes) -> bool:
         """Return whether the given attributes indicates the allowance of null values."""
         return 'bounds' in attributes and attributes['bounds'].get('allow_null', False)
 
@@ -394,7 +399,7 @@ class FeatureAttributesBase(dict):
                      allow_missing_features: bool = False, localize_datetimes=True, nullable_int_dtype='Int64'):
         errors = []
         coerced_df = data.copy(deep=True)
-        features = self[table_name] if table_name else self
+        features = t.cast(dict[str, "FeatureAttributes"], self[table_name] if table_name else self)
 
         for feature, attributes in features.items():
             if feature not in data.columns:
@@ -469,6 +474,11 @@ class FeatureAttributesBase(dict):
                     errors.extend(self._validate_dtype(data, feature, 'datetime64',
                                                        coerced_df, coerce=coerce,
                                                        localize_datetimes=localize_datetimes))
+
+                # Check semi-structured type (object)
+                elif attributes.get("data_type") in {"json", "yaml", "amalgam", "string", "string_mixable"}:
+                    errors.extend(self._validate_dtype(data, feature, "object", coerced_df, coerce=coerce))
+
                 # Check type (float)
                 elif attributes.get('decimal_places', -1) > 0:
                     errors.extend(self._validate_dtype(data, feature, 'float64',
@@ -755,6 +765,7 @@ class InferFeatureAttributesBase(ABC):
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
+                 fanout_feature_map: t.Optional[dict[tuple[str] | str, list[str]]] = None,
                  id_feature_name: t.Optional[str | Iterable[str]] = None,
                  include_extended_nominal_probabilities: t.Optional[bool] = False,
                  include_sample: bool = False,
@@ -1100,6 +1111,15 @@ class InferFeatureAttributesBase(ABC):
         # Validate datetimes after any user-defined features have been re-implemented
         self._validate_date_times()
 
+        # Configure the fanout feature attributes according to the input if given.
+        if fanout_feature_map:
+            for key_features, fanout_features in fanout_feature_map.items():
+                if isinstance(key_features, str):
+                    key_features = [key_features]
+                for f in fanout_features:
+                    if f in self.attributes:
+                        self.attributes[f]['fanout_on'] = list(key_features)
+
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
         for fname in self.data.columns:
@@ -1107,7 +1127,7 @@ class InferFeatureAttributesBase(ABC):
             if hasattr(fname, 'name'):
                 fname = fname.name
             if fname not in self.attributes.keys():
-                warnings.warn(f'Feature {fname} exists in provided data but was not computed in feature attributes')
+                warnings.warn(f'Feature {fname} exists in provided data but was not computed in feature attributes.')
                 continue
             ordered_attributes[fname] = self.attributes[fname]
 
@@ -1145,74 +1165,6 @@ class InferFeatureAttributesBase(ABC):
     def _infer_integer_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given integer column."""
 
-    def _get_primitive_type_schema(self, feature_name: str) -> dict:  # noqa: C901
-        """Get a map of keys to types for a JSON feature stored as a Python dict or list."""
-        # If there is no data, return False
-        first_non_none = self._get_first_non_null(feature_name)
-        if first_non_none is None:
-            return False
-
-        # Keep track of whether there are any non-primitive types in the data
-        has_complex_type = False
-
-        def _recursive_get_types(data: t.Any, key: str = None) -> dict:
-            """Recursively determine primitive types for an arbitrary Python data structure."""
-            nonlocal has_complex_type
-            # Value is a list
-            if isinstance(data, MutableSequence):
-                list_type = FeatureType.UNKNOWN.value
-                # Iterate through 10 random values of a list of len>10, or through the entire list if len<=10.
-                iterations = min(len(data), 10)
-                if len(data) > 10:
-                    # Shuffle data so that the first 10 indices are randomized
-                    data = list(pd.Series(data).sample(frac=1))
-                for idx in range(iterations):
-                    rand_val = data[idx]
-                    if rand_val is None:
-                        # We can still retain primitive types with NoneTypes present in the data structure
-                        continue
-                    elif list_type == FeatureType.UNKNOWN.value:
-                        list_type = convert_primitive_to_feature_type(rand_val)
-                    elif list_type != convert_primitive_to_feature_type(rand_val):
-                        warnings.warn(f"JSON feature '{feature_name}' contains a key '{key}' whose value is a list of "
-                                      "mixed types. Original types under this key will not be preserved.")
-                        return FeatureType.UNKNOWN.value
-                    elif list_type == FeatureType.UNKNOWN.value:
-                        # A non-primitive type was found in the data
-                        has_complex_type = True
-                return list_type
-            # Base case: not a list or dict
-            elif not isinstance(data, Mapping):
-                return convert_primitive_to_feature_type(data)
-            # Value is a dict
-            return {key: _recursive_get_types(data[key], key=key) for key in data.keys()}
-
-        # Sample up to 10 random values
-        # OR every value if < 10
-        type_maps = []
-        if (count := self._get_unique_count(feature_name)) < 10:
-            for sample in self._get_unique_values(feature_name):
-                type_maps.append(_recursive_get_types(sample))
-        else:
-            count = 10
-            for idx in range(10):
-                sample = self._get_random_value(feature_name, no_nulls=True)
-                type_maps.append(_recursive_get_types(sample))
-
-        # Issue a warning if keys or types are not consistent across cases
-        for idx in range(1, count):
-            if type_maps[0] != type_maps[idx]:
-                warnings.warn(f"JSON feature '{feature_name} has inconsistent types and/or keys across cases. "
-                              "Original types will not be preserved.")
-                return
-
-        # Issue a warning if any non-primitive types were found
-        if has_complex_type:
-            warnings.warn(f"JSON feature '{feature_name}' contains at least one instance of a non-primitive type. "
-                          "Only uniform, primitive types will be preserved in semistructured features.")
-
-        return type_maps[0]
-
     def _infer_string_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given string column."""
         # Column has arbitrary string values, first check if they
@@ -1236,11 +1188,10 @@ class InferFeatureAttributesBase(ABC):
         elif self._is_json_feature(feature_name):
             first_non_null = self._get_first_non_null(feature_name)
             if isinstance(first_non_null, Mapping) or isinstance(first_non_null, MutableSequence):
-                type_map = self._get_primitive_type_schema(feature_name) or {}
                 return {
                     "type": "continuous",
                     "data_type": "json",
-                    "original_type": {"type_map": type_map, "data_type": FeatureType.CONTAINER.value},
+                    "original_type": {"data_type": FeatureType.CONTAINER.value},
                 }
             return {
                 "type": "continuous",
@@ -1592,6 +1543,30 @@ class InferFeatureAttributesBase(ABC):
             return False
 
         # No issues; it's valid
+        return True
+
+    def _is_boolean_feature(self, feature: str) -> bool:
+        """
+        Return whether the given feature is a bool object or "true"/"false" string.
+
+        Parameters
+        ----------
+        feature: string
+            The feature to check the values of.
+
+        Returns
+        -------
+        True if the column values can be parsed into a boolean.
+        """
+        # Sample 30 random values
+        for _ in range(30):
+            random_value = self._get_random_value(feature, no_nulls=True)
+            if random_value is None:
+                return False
+            # Check for a Python bool object or a string representation thereof
+            if not isinstance(random_value, bool) and not (isinstance(random_value, str) and
+                                                           random_value.strip().lower() in ("true", "false")):
+                return False
         return True
 
     def _is_json_feature(self, feature: str) -> bool:

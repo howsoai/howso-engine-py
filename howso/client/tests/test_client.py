@@ -1,4 +1,3 @@
-from collections.abc import Mapping
 from copy import deepcopy
 import importlib.metadata
 import json
@@ -43,6 +42,10 @@ iris_file_path = (
     Path(howso.client.__file__).parent.parent
 ).joinpath("utilities/tests/data/iris.csv")
 np.random.default_rng(2018)
+
+saved_trainee_filepath = (
+    Path(howso.client.__file__).parent.parent
+).joinpath("utilities/tests/data/ts_trainee.caml")
 
 module_client = get_configurationless_test_client(client_class=HowsoClient, verbose=True)
 
@@ -547,6 +550,17 @@ class TestClient:
         trainee
         """
         self.client.persist_trainee(trainee.id)
+
+    def test_upgrade_trainee(self):
+        """Test that Trainees saved with an older version of Howso can be upgraded."""
+        client = HowsoClient()
+        # Test a legitimate upgrade
+        t = client.upgrade_trainee(saved_trainee_filepath)
+        client.acquire_trainee_resources(t.id)
+        assert client.get_num_training_cases(t.id) == 4756
+        # Test a junk filepath
+        with pytest.raises(ValueError, match="Extension of provided filepath must be 'json' or 'caml'"):
+            client.upgrade_trainee("./pyproject.toml")
 
     def test_a_la_cart_data(self, trainee):
         """
@@ -1440,89 +1454,3 @@ class TestBaseClient:
         )
         assert reaction["action"].iloc[0]["review"] == df.iloc[0]["review"]
         assert reaction["details"]["influential_cases"][0].iloc[0]["review"] == df.iloc[0]["review"]
-
-    def test_json_feature_types(self):
-        """Test that JSON features stored as Python data structures have their primitive types maintained."""
-        tests = [
-            ({"a": "str", "b": "1", "c": "2.7", "d": True, "e": {"a1": "str", "b1": {"c1": [1, 2, 3]}}},
-            {"a": "string", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "integer"}}}),
-            ({"a": "str", "b": "1", "c": "3.3", "d": False, "e": {"a1": "str2", "b1": {"c1": [1, 2, 3, 4, 5, 6, 7]}}},
-            {"a": "string", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "integer"}}}),
-            ({"a": 3, "b": 1.5, "c": 2.7, "d": True, "e": {"a1": 5, "b1": {"c1": [1, 2, 3]}}},
-            {"a": "integer", "b": "numeric", "c": "numeric", "d": "boolean", "e": {"a1": "integer", "b1": {"c1": "integer"}}}),
-            ({"a": 3, "b": 1, "c": 2.7, "d": True, "e": {"a1": "str", "b1": {"c1": [1, True, "foo"]}}},
-            {"a": "integer", "b": "integer", "c": "numeric", "d": "boolean", "e": {"a1": "string", "b1": {"c1": "object"}}}),
-        ]
-        data_uniform_types = pd.DataFrame({"foo": [tests[0][0], tests[1][0]], "bar": ["a", "b"]})
-        data_uniform_except_list = pd.DataFrame({"foo": [tests[2][0], tests[3][0]], "bar": ["a", "b"]})
-        data_non_uniform = pd.DataFrame({"foo": [tests[0][0], tests[1][0], tests[2][0]], "bar": ["a", "b", "c"]})
-
-        # Types should be preserved with no warnings (dict)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            feature_attributes = infer_feature_attributes(data_uniform_types)
-            assert feature_attributes["foo"]["data_type"] == "json"
-            assert feature_attributes["foo"]["type"] == "continuous"
-            assert feature_attributes["foo"]["original_type"]["data_type"] == "container"
-            client = HowsoClient()
-            t = Trainee()
-            client.set_feature_attributes(t.id, feature_attributes)
-            client.train(t.id, data_uniform_types)
-            reaction = client.react(
-                t.id,
-                contexts=[["a"]],
-                context_features=['bar'],
-                action_features=['foo'],
-                details={"influential_cases": True},
-                desired_conviction=5,
-            )
-            # Cannot compare
-            assert reaction["action"].iloc[0]["foo"] == data_uniform_types.iloc[0]["foo"]
-            assert reaction["details"]["influential_cases"][0].iloc[0]["foo"] == tests[0][0]
-
-        # All types except for the nested list should be preserved and a warning issued
-        with pytest.warns(match="contains a key 'c1' whose value is a list of mixed types"):
-            feature_attributes = infer_feature_attributes(data_uniform_except_list)
-            assert feature_attributes["foo"]["data_type"] == "json"
-            assert feature_attributes["foo"]["type"] == "continuous"
-            assert feature_attributes["foo"]["original_type"]["data_type"] == "container"
-            client = HowsoClient()
-            t = Trainee()
-            client.set_feature_attributes(t.id, feature_attributes)
-            client.train(t.id, data_uniform_except_list)
-            reaction = client.react(
-                t.id,
-                contexts=[["b"]],
-                context_features=['bar'],
-                action_features=['foo'],
-                details={"influential_cases": True},
-                desired_conviction=5,
-            )
-            expected_case = deepcopy(tests[3][0])
-            # The list under this key has mixed types so it will come back as-is when deserialized
-            expected_case["e"]["b1"]["c1"] = json.loads(json.dumps(expected_case["e"]["b1"]["c1"]))
-            assert reaction["action"].iloc[0]["foo"] == expected_case
-            assert reaction["details"]["influential_cases"][0].iloc[0]["foo"] == expected_case
-
-        # Types cannot be preserved, warning issued
-        with pytest.warns(match="inconsistent types and/or keys across cases."):
-            feature_attributes = infer_feature_attributes(data_non_uniform)
-            assert feature_attributes["foo"]["data_type"] == "json"
-            assert feature_attributes["foo"]["type"] == "continuous"
-            assert feature_attributes["foo"]["original_type"]["data_type"] == "container"
-            client = HowsoClient()
-            t = Trainee()
-            client.set_feature_attributes(t.id, feature_attributes)
-            client.train(t.id, data_non_uniform)
-            reaction = client.react(
-                t.id,
-                contexts=[["a"]],
-                context_features=['bar'],
-                action_features=['foo'],
-                details={"influential_cases": True},
-                desired_conviction=5,
-            )
-            # Cases of "foo" have mixed types so they will come back as-is when deserialized
-            expected_case = json.loads(json.dumps(tests[0][0]))
-            assert reaction["action"].iloc[0]["foo"] == expected_case
-            assert reaction["details"]["influential_cases"][0].iloc[0]["foo"] == expected_case

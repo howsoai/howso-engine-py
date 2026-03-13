@@ -60,6 +60,9 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download howso-engine
       env:
@@ -197,20 +200,6 @@ jobs:
       amalgam-plat-arch: 'darwin-arm64'
       python-version: '3.13'
       config-fp: './config/latest-mt-traces-howso.yml'
-      config-pretty: 'MT'
-      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
-      debug: ${{ inputs.debug-mode }}
-
-  pytest-macos-3-10-mt-amd64:
-    needs: ['metadata', 'build']
-    uses: howsoai/.github/.github/workflows/pytest.yml@main
-    secrets: inherit
-    with:
-      platform: 'macos-latest-large'
-      platform-pretty: 'MacOS'
-      amalgam-plat-arch: 'darwin-amd64'
-      python-version: '3.10'
-      config-fp: './config/latest-mt-noavx-traces-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
@@ -373,6 +362,9 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download Artifact
       uses: actions/download-artifact@v4
@@ -428,6 +420,9 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download Artifact
       uses: actions/download-artifact@v4
@@ -490,6 +485,9 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download Artifact
       uses: actions/download-artifact@v4
@@ -536,22 +534,13 @@ jobs:
 
         Write-Host "Running Howso verification..."
         $env:PYTHONUTF8=1
+        $env:PYTHONIOENCODING="utf-8"
         verify_howso_install
 
     - name: Display stacktrace files
       if: always()
       run: |
         cat howso_stacktrace.txt || true
-
-  install-verification-macos-amd64:
-    needs: ['metadata', 'build']
-    runs-on: macos-latest-large
-    steps:
-
-    - name: Download Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
     - name: Download amalgam-lang-py
       if: inputs.amalgam-lang-py-build != ''
@@ -653,14 +642,12 @@ jobs:
       - pytest-linux-3-12-mt
       - pytest-windows-3-11-mt
       - pytest-macos-3-13-mt-arm64
-      - pytest-macos-3-10-mt-amd64
       - install-verification-linux-amd64
       - install-verification-linux-arm64
       - install-verification-linux-arm64_8a
       - install-verification-windows-bash-amd64
       - install-verification-windows-cmd-amd64
       - install-verification-windows-pwsh-amd64
-      - install-verification-macos-amd64
       - install-verification-macos-arm64
     runs-on: ubuntu-latest
     steps:

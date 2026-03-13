@@ -28,7 +28,7 @@ import pickle
 import re
 import sys
 import threading
-import typing as t
+from typing import Any, cast, TYPE_CHECKING, TypeVar
 import uuid
 import warnings
 
@@ -41,7 +41,7 @@ import pandas as pd
 from .internals import serialize_models
 from .tokenizing import TokenizerProtocol
 
-if t.TYPE_CHECKING:
+if TYPE_CHECKING:
     from howso.client.typing import NormalizeMethod
 
 _BASE_FEATURE_TYPES = ["nominal", "continuous", "ordinal"]
@@ -61,18 +61,17 @@ ONE_MINUTE = 60
 SMALLEST_TIME_DELTA = 0.001
 # Regex that matches common time strings
 # <hour> AM/PM
-SIMPLE_TIME_PATTERN = r'^\s*([1-9]|1[0-2])\s?[aApP][mM]\s*$'
+SIMPLE_TIME_PATTERN = r"^\s*([1-9]|1[0-2])\s?[aApP][mM]\s*$"
 # Other time formats (H:M:S, H:M, etc.)
-TIME_PATTERN = (r'^\s*(T)?(?P<hour>[01]?\d|2[0-3]|\d):(?P<minute>[0-5]?\d)(?::(?P<second>[0-5]?\d)('
-                r'?:\.(?P<fraction>\d{1,2}))?)?\s?(?P<ampm>[APap][Mm])?\s*$')
+TIME_PATTERN = (
+    r"^\s*(T)?(?P<hour>[01]?\d|2[0-3]|\d):(?P<minute>[0-5]?\d)(?::(?P<second>[0-5]?\d)("
+    r"?:\.(?P<fraction>\d{1,2}))?)?\s?(?P<ampm>[APap][Mm])?\s*$"
+)
 # 24 hours in seconds
 TWENTY_FOUR_HOURS = 86400
 
 
-def date_to_epoch(
-    date_obj: dt.date | dt.datetime | dt.time | str,
-    time_format: str
-) -> str | float | None:
+def date_to_epoch(date_obj: dt.date | dt.datetime | dt.time | str, time_format: str) -> str | float | None:
     """
     Convert date into epoch (i.e seconds counted from Jan 1st 1970).
 
@@ -92,8 +91,8 @@ def date_to_epoch(
     str | float | None
         The epoch date as a floating point value or 'np.nan', et al.
     """
-    # pd.isnull covers the cases - None, `np.nan` and `pd.na`
-    if pd.isnull(date_obj):
+    # pd.isnull/pd.isna covers the cases - None, `np.nan` and `pd.na`
+    if pd.isna(date_obj):  # pyright: ignore[reportArgumentType, reportCallIssue]
         return None
 
     # if timestamp is passed in, convert it to string in the correct
@@ -122,8 +121,7 @@ def date_to_epoch(
     return (datetime_object - time_zero).total_seconds()
 
 
-def epoch_to_date(epoch: str | float, time_format: str,
-                  tzinfo: t.Optional[dt.tzinfo] = None) -> str:
+def epoch_to_date(epoch: str | float, time_format: str, tzinfo: dt.tzinfo | None = None) -> str:
     """
     Convert epoch to date if epoch is not `None` or `nan` else, return as it is.
 
@@ -142,17 +140,17 @@ def epoch_to_date(epoch: str | float, time_format: str,
     str
         A date string in the format similar to "Wed May 21 00:00:00 2008"
     """
-    # pd.isnull covers the cases - None, `np.nan` and `pd.na`
-    if pd.isnull(epoch):
-        return epoch
+    # pd.isnull/pd.isna covers the cases - None, `np.nan` and `pd.na`
+    if pd.isna(epoch):
+        return epoch  # pyright: ignore[reportReturnType]
 
-    dt_value = (EPOCH + dt.timedelta(seconds=epoch))
+    dt_value = EPOCH + dt.timedelta(seconds=float(epoch))
     if tzinfo is not None:
         dt_value = dt_value.replace(tzinfo=tzinfo)
     return dt_value.strftime(time_format)
 
 
-def time_to_seconds(time: t.Optional[dt.time]) -> float | None:
+def time_to_seconds(time: dt.time | None) -> float | None:
     """
     Convert a time object to seconds since midnight.
 
@@ -173,8 +171,7 @@ def time_to_seconds(time: t.Optional[dt.time]) -> float | None:
     return delta.total_seconds()
 
 
-def seconds_to_time(seconds: int | float | None, *,
-                    tzinfo: t.Optional[dt.tzinfo] = None) -> dt.time | None:
+def seconds_to_time(seconds: int | float | None, *, tzinfo: dt.tzinfo | None = None) -> dt.time | None:
     """
     Convert seconds to a time object.
 
@@ -198,7 +195,7 @@ def seconds_to_time(seconds: int | float | None, *,
     return time_value
 
 
-def is_valid_datetime_format(value: t.Any, time_format: str | None) -> bool:
+def is_valid_datetime_format(value: Any, time_format: str | None) -> bool:
     """
     Check if a date time format is valid against one or more string formatted date time values.
 
@@ -228,7 +225,7 @@ def is_valid_datetime_format(value: t.Any, time_format: str | None) -> bool:
         return False
 
 
-def replace_none_with_nan(dat: list[t.Mapping[str, t.Any]] | pd.DataFrame) -> list[dict] | pd.DataFrame:
+def replace_none_with_nan(dat: list[Mapping[str, Any]] | pd.DataFrame) -> list[dict] | pd.DataFrame:
     """
     Replace None values with NaN values.
 
@@ -246,16 +243,10 @@ def replace_none_with_nan(dat: list[t.Mapping[str, t.Any]] | pd.DataFrame) -> li
     if isinstance(dat, pd.DataFrame):
         return dat.where(pd.notnull(dat), np.nan)
 
-    return [
-        {
-            key: np.nan if value is None else value
-            for key, value in action.items()
-        }
-        for action in dat
-    ]
+    return [{key: np.nan if value is None else value for key, value in action.items()} for action in dat]
 
 
-def replace_nan_with_none(dat: list[list]):
+def replace_nan_with_none(dat: list[list]) -> list[list[object]]:
     """
     Replace None values with NaN values.
 
@@ -271,8 +262,7 @@ def replace_nan_with_none(dat: list[list]):
     -------
     list[list[object]]
     """
-    return [[None if isinstance(value, (int, float)) and isnan(value) else
-             value for value in case] for case in dat]
+    return [[None if isinstance(value, (int, float)) and isnan(value) else value for value in case] for case in dat]
 
 
 def reshape_data(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -300,7 +290,7 @@ def reshape_data(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return x, y
 
 
-def align_data(x: np.ndarray, y: t.Optional[np.ndarray] = None) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+def align_data(x: np.ndarray, y: np.ndarray | None = None) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """
     Check and fix type problems with the data and reshape it.
 
@@ -329,7 +319,7 @@ def align_data(x: np.ndarray, y: t.Optional[np.ndarray] = None) -> np.ndarray | 
     return x
 
 
-def replace_doublemax_with_infinity(dat: t.Any) -> t.Any:
+def replace_doublemax_with_infinity(dat: Any) -> Any:
     """
     Replace values of Double.MAX_VALUE (1.79769313486232E+308) with Infinity.
 
@@ -350,12 +340,12 @@ def replace_doublemax_with_infinity(dat: t.Any) -> t.Any:
     elif isinstance(dat, list):
         dat = [replace_doublemax_with_infinity(item) for item in dat]
     elif dat == sys.float_info.max:
-        dat = float('inf')
+        dat = float("inf")
 
     return dat
 
 
-def dprint(debug: bool | int, *argc, **kwargs):
+def dprint(debug: bool | int, *args: Any, **kwargs: Any) -> None:
     """
     Print based on debug levels.
 
@@ -380,7 +370,7 @@ def dprint(debug: bool | int, *argc, **kwargs):
 
         priority = kwargs.get("default_priority", 1)
         if user_priority >= priority:
-            for item in argc:
+            for item in args:
                 print(item, end=" ")
             if "end" in kwargs:
                 print("", end=kwargs["end"])
@@ -409,14 +399,14 @@ def determine_iso_format(str_date: str, fname: str) -> str:  # noqa: C901
     """
     # prevent circular import
     from howso.client.exceptions import DatetimeFormatWarning
+
     # parse with the standard parser first to support single digit month/day
     dt_object = dt_parse(str_date)
     format_checks = [ISO_8601_FORMAT, ISO_8601_FORMAT_FRACTIONAL]
     # support variants without T separator
     format_checks.extend([f.replace("T", " ") for f in format_checks])
     warning_text: str = (
-        f'Feature "{fname}" is a datetime but may not work '
-        'properly if user does not specify the correct format.'
+        f'Feature "{fname}" is a datetime but may not work properly if user does not specify the correct format.'
     )
 
     if dt_object.tzinfo is None:
@@ -434,10 +424,7 @@ def determine_iso_format(str_date: str, fname: str) -> str:  # noqa: C901
         return ISO_8601_FORMAT
 
     # detect iso formats ending in Z, signifying UTC
-    if (
-        dt_object.utcoffset() == dt.timedelta(0) and
-        DATETIME_UTC_Z_PATTERN.findall(str_date)
-    ):
+    if dt_object.utcoffset() == dt.timedelta(0) and DATETIME_UTC_Z_PATTERN.findall(str_date):
         for fmt in format_checks:
             if is_valid_datetime_format(str_date, fmt + "Z"):
                 return fmt + "Z"
@@ -447,7 +434,7 @@ def determine_iso_format(str_date: str, fname: str) -> str:  # noqa: C901
     # if date has time zone info, determine whether it's an offset.
     # offsets of +0000 or -0000 won't parse as a TZ offset, but
     # the format still matches using %z, thus check if last char is '0'
-    if isinstance(dt_object.tzinfo, tzoffset) or str_date[-1] == '0':
+    if isinstance(dt_object.tzinfo, tzoffset) or str_date[-1] == "0":
         for fmt in format_checks:
             if is_valid_datetime_format(str_date, fmt + "%z"):
                 return fmt + "%z"
@@ -462,10 +449,9 @@ def determine_iso_format(str_date: str, fname: str) -> str:  # noqa: C901
         return ISO_8601_FORMAT + "%Z"
 
 
-def validate_list_shape(values: Collection | None, dimensions: int,
-                        variable_name: str, var_types: str,
-                        allow_none: bool = True
-                        ) -> None:
+def validate_list_shape(
+    values: Collection | None, dimensions: int, variable_name: str, var_types: str, allow_none: bool = True
+) -> None:
     """
     Validate the shape of a list.
 
@@ -488,16 +474,16 @@ def validate_list_shape(values: Collection | None, dimensions: int,
     """
     if values is None:
         if not allow_none:
-            raise ValueError(
-                f"Invalid value for `{variable_name}`, must not be `None`")
+            raise ValueError(f"Invalid value for `{variable_name}`, must not be `None`")
         return
     if len(np.array(values).shape) != dimensions:
         raise ValueError(
             f"Improper shape of `{variable_name}` values passed. "
-            f"`{variable_name}` must be a {dimensions}d list of {var_types}.")
+            f"`{variable_name}` must be a {dimensions}d list of {var_types}."
+        )
 
 
-def validate_case_indices(case_indices: Sequence[Sequence[str | int]], thorough=False) -> None:
+def validate_case_indices(case_indices: Sequence[Sequence[str | int]], thorough: bool = False) -> None:
     """
     Validate the case_indices parameter to the react() method of a Howso client.
 
@@ -521,18 +507,19 @@ def validate_case_indices(case_indices: Sequence[Sequence[str | int]], thorough=
         if case_indices : sequences that do not contain the expect data types of str | int
     """
     try:
-        amount_to_verify = case_indices[:len(case_indices) if thorough else NON_THOROUGH_NUM]
-        if (
-            not all((
-                len(sequence) == 2 and
-                not isinstance(sequence, str) and
-                isinstance(sequence[0], str) and
-                isinstance(sequence[1], (np.integer, int))
-            ) for sequence in amount_to_verify)
+        amount_to_verify = case_indices[: len(case_indices) if thorough else NON_THOROUGH_NUM]
+        if not all(
+            (
+                len(sequence) == 2
+                and not isinstance(sequence, str)
+                and isinstance(sequence[0], str)
+                and isinstance(sequence[1], (np.integer, int))
+            )
+            for sequence in amount_to_verify
         ):
             raise ValueError()
     except (TypeError, ValueError):
-        raise ValueError('Argument case_indices must be type Iterable of (non-string) Sequence[str, int].')
+        raise ValueError("Argument case_indices must be type Iterable of (non-string) Sequence[str, int].")
 
 
 def num_list_dimensions(obj: list) -> int:
@@ -567,9 +554,7 @@ def num_list_dimensions(obj: list) -> int:
     return d
 
 
-def validate_features(features: Mapping[str, Mapping],
-                      extended_feature_types: t.Optional[Iterable[str]] = None
-                      ) -> None:
+def validate_features(features: Mapping[str, Mapping], extended_feature_types: Iterable[str] | None = None) -> None:
     """
     Validate the feature types in `features`.
 
@@ -602,11 +587,10 @@ def validate_features(features: Mapping[str, Mapping],
     for f_name, f_desc in features.items():
         f_type = f_desc.get("type")
         if f_type not in valid_feature_types:
-            raise ValueError(f"The feature name '{f_name}' has invalid "
-                             f"feature type - '{f_type}'")
+            raise ValueError(f"The feature name '{f_name}' has invalid feature type - '{f_type}'")
 
 
-def validate_datetime_iso8061(datetime_value: str, feature: str):
+def validate_datetime_iso8061(datetime_value: str, feature: str) -> None:
     """
     Check that the passed in datetime value adheres to the ISO 8601 format.
 
@@ -626,11 +610,17 @@ def validate_datetime_iso8061(datetime_value: str, feature: str):
         warnings.warn(
             f"Feature {feature} detected as having datetime values, but are "
             f"not in an ISO 8601 format, such as '{ISO_8601_FORMAT}', for "
-            f"example: '2020-10-02T12:43:39'")
+            f"example: '2020-10-02T12:43:39'"
+        )
 
 
-def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
-                        features: Mapping, *, warn: bool = False) -> None:
+def serialize_datetimes(  # noqa: C901
+    cases: list[list],
+    columns: Iterable[str],
+    features: Mapping,
+    *,
+    warn: bool = False,
+) -> None:
     """
     Serialize datetimes in the given list of cases, in-place.
 
@@ -656,6 +646,7 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
     """
     # Import here to avoid circular import dependencies
     from .features import FeatureType
+
     features = serialize_models(features)
     if isinstance(columns, Iterable):
         columns = list(columns)
@@ -670,14 +661,11 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
         feature = features[feature_name]
         date_time_format = feature.get("date_time_format")
         try:
-            original_data_type = feature['original_type']['data_type']
+            original_data_type = feature["original_type"]["data_type"]
         except (TypeError, KeyError):
             original_data_type = None
 
-        if (
-            date_time_format is not None or
-            original_data_type == FeatureType.TIME.value
-        ):
+        if date_time_format is not None or original_data_type == FeatureType.TIME.value:
             # If datetime format defined or time only without format we need to
             # serialize the value
             dt_indices.append(i)
@@ -688,7 +676,7 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
 
     warned_features = set()
     for case in cases:
-        if case is None:
+        if case is None:  # pyright: ignore[reportUnnecessaryComparison]
             continue
 
         for i in dt_indices:
@@ -699,22 +687,21 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
             locale = feature.get("locale")
 
             # NaN may be passed from a dataframe if a value is null.
-            if repr(dt_value).lower() in ['nan', 'inf', 'nat']:
+            if repr(dt_value).lower() in ["nan", "inf", "nat"]:
                 dt_value = None
             # if the value is a datetime object, just serialize it
             elif isinstance(dt_value, (dt.date, dt.datetime)):
-                if pd.isnull(dt_value):
+                if pd.isna(dt_value):
                     dt_value = None
                 else:
                     dt_value = dt_value.strftime(dt_format)
             elif isinstance(dt_value, dt.time):
-                if pd.isnull(dt_value):
+                if pd.isna(dt_value):  # pyright: ignore[reportCallIssue, reportArgumentType]
                     dt_value = None
                 elif not dt_format:
                     dt_value = time_to_seconds(dt_value)
                 else:
-                    dt_value = dt.datetime.combine(dt.date(1970, 1, 1),
-                                                   dt_value)
+                    dt_value = dt.datetime.combine(dt.date(1970, 1, 1), dt_value)
                     dt_value = dt_value.strftime(dt_format)
             # deal with string dates using default locale
             elif isinstance(dt_value, str):
@@ -722,16 +709,14 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
                     bad_format = False
                     try:
                         # convert to datetime object, then serialize
-                        dt_value = dt.datetime.strptime(
-                            dt_value, dt_format
-                        ).strftime(dt_format)
+                        dt_value = dt.datetime.strptime(dt_value, dt_format).strftime(dt_format)
                     except ValueError:
                         bad_format = True
                         if warn and feature_name not in warned_features:
                             warnings.warn(
                                 f'"{feature_name}" has values with an incorrect '
                                 f'datetime format, should be "{dt_format}". '
-                                f'This feature may not work properly.'
+                                f"This feature may not work properly."
                             )
                             warned_features.add(feature_name)
 
@@ -740,8 +725,7 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
                     if bad_format and dt_format in ISO_8601_FORMAT:
                         try:
                             dt_object = dt_parse(dt_value)
-                            dt_value = dt.datetime.strftime(dt_object,
-                                                            dt_format)
+                            dt_value = dt.datetime.strftime(dt_object, dt_format)
                         except Exception:  # noqa: Intentionally broad
                             # do nothing because we already know that this is
                             # a bad format value and already warned the user
@@ -752,23 +736,22 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
                     # NOTE: The provided locale must be installed on the
                     # system.
                     try:
-                        with LocaleOverride(language_code=locale,
-                                            category=python_locale.LC_TIME):
-                            dt_value = (
-                                dt.datetime.strptime(dt_value, dt_format)
-                                           .strftime(dt_format))
+                        with LocaleOverride(language_code=locale, category=python_locale.LC_TIME):
+                            dt_value = dt.datetime.strptime(dt_value, dt_format).strftime(dt_format)
                     except python_locale.Error:
                         warnings.warn(
                             f"The locale provided: '{locale}' does not appear "
                             f"to be available on this system. The provided "
                             f"value is left unchanged. This feature may not "
-                            f"work properly until it is installed.")
+                            f"work properly until it is installed."
+                        )
                     except (TypeError, ValueError):
                         warnings.warn(
                             f"{feature_name} has values with incorrect "
                             f"datetime format for the given locale, should be "
                             f"{dt_format}. The provided value is left "
-                            f"unchanged. This feature may not work properly.")
+                            f"unchanged. This feature may not work properly."
+                        )
             else:
                 # At this point, no valid date type has been processed. This
                 # could mean the value is None which is an acceptable input.
@@ -779,16 +762,17 @@ def serialize_datetimes(cases: list[list], columns: Iterable[str],  # noqa: C901
                     warnings.warn(
                         f"{feature_name} has a malformed value {dt_value} "
                         f"that cannot be parsed. Expected datetime formatted "
-                        f"string or object. Replacing with None.")
+                        f"string or object. Replacing with None."
+                    )
                 dt_value = None
 
             # store the serialized datetime value
             case[i] = dt_value
 
 
-def stringify_json(cases: list[list[t.Any]], features: Iterable[str], feature_attributes: Mapping) -> None:
+def stringify_json(cases: list[list[Any]], features: Iterable[str], feature_attributes: Mapping) -> None:
     """
-    Ensures that any JSON features have their cases stringified.
+    Ensure that any JSON features have their cases stringified.
 
     Parameters
     ----------
@@ -801,27 +785,16 @@ def stringify_json(cases: list[list[t.Any]], features: Iterable[str], feature_at
     """
     for idx, feature_name in enumerate(features):
         # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
-        if (feature_attributes.get(feature_name, {}).get("data_type") == "json"
-            and feature_attributes[feature_name].get(
-                "original_type", {}).get("data_type") in ["container", "tokenizable_string"]):
+        if feature_attributes.get(feature_name, {}).get("data_type") == "json" and feature_attributes[
+            feature_name
+        ].get("original_type", {}).get("data_type") in ["container", "tokenizable_string"]:
             for case_group in cases:
                 case_group[idx] = json.dumps(case_group[idx])
 
 
-def _convert_json_subtypes(data: t.Any, type_map: dict[str, t.Any] | t.Any):
-    """Recursively convert primitive types according to the type map for an arbitrary Python data structure."""
-    # Avoid circular import
-    from .features import cast_primitive_from_feature_type
-    if isinstance(data, list):
-        return [cast_primitive_from_feature_type(d, type_map) for d in data]
-    elif not isinstance(data, Mapping):
-        return cast_primitive_from_feature_type(data, type_map)
-    return {key: _convert_json_subtypes(data[key], type_map.get(key, "object")) for key in data.keys()}
-
-
-def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> None:
+def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series:  # noqa: ARG001
     """
-    Ensures that any JSON features have their cases destringified.
+    Ensure that any JSON features have their cases destringified.
 
     Parameters
     ----------
@@ -833,17 +806,15 @@ def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> None:
     destringified_cases = []
     for case_to_destringify in cases:
         formatted_case = json.loads(case_to_destringify)
-        type_map = feature_attributes.get("original_type", {}).get("type_map")
-        if type_map:
-            formatted_case = _convert_json_subtypes(formatted_case, type_map)
         destringified_cases.append(formatted_case)
     return pd.Series(destringified_cases)
 
 
-def tokenize_strings(cases: list[list[t.Any]], features: Iterable[str], feature_attributes: Mapping,
-                     tokenizer: TokenizerProtocol) -> None:
+def tokenize_strings(
+    cases: list[list[Any]], features: Iterable[str], feature_attributes: Mapping, tokenizer: TokenizerProtocol
+) -> None:
     """
-    Processes tokenizable strings in the provided cases by tokenizing or detokenizing them in place.
+    Process tokenizable strings in the provided cases by tokenizing or detokenizing them in place.
 
     Parameters
     ----------
@@ -942,13 +913,14 @@ class LocaleOverride:
         `locale.LC_ALL` is used if nothing provided.
     """
 
-    def __init__(self, language_code, encoding=None,
-                 category=python_locale.LC_ALL):
+    def __init__(  # pyright: ignore[reportMissingSuperCall]
+        self, language_code: str, encoding: str | None = None, category: int = python_locale.LC_ALL
+    ) -> None:
         """Construct the context manager."""
-        if '.' in language_code:
-            language_code, embedded_encoding = language_code.split('.', 1)
+        if "." in language_code:
+            language_code, embedded_encoding = language_code.split(".", 1)
         else:
-            embedded_encoding = 'UTF-8'
+            embedded_encoding = "UTF-8"
 
         if encoding is None:
             encoding = embedded_encoding
@@ -956,8 +928,9 @@ class LocaleOverride:
         self.new_locale = (language_code, encoding)
         self.category = category
         self.lock = threading.Lock()
+        self._old_locale = None
 
-    def setup(self):
+    def setup(self) -> None:
         """
         Set a thread lock and the locale as desired.
 
@@ -965,25 +938,26 @@ class LocaleOverride:
         class as a context manager.
         """
         self.lock.acquire()
-        self.old_locale = python_locale.getlocale(self.category)
+        self._old_locale = python_locale.getlocale(self.category)
         python_locale.setlocale(self.category, self.new_locale)
 
-    def restore(self):
+    def restore(self) -> None:
         """
         Restore the original locale and release the thread lock.
 
         Use this method directly to restore the current context when not using
         this class as a context manager.
         """
-        python_locale.setlocale(self.category, self.old_locale)
+        python_locale.setlocale(self.category, self._old_locale)
         if self.lock and self.lock.locked():
             self.lock.release()
 
-    def __enter__(self):
+    def __enter__(self) -> LocaleOverride:
         """Set a thread lock and the locale as desired."""
         self.setup()
+        return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
         """Restore the original locale and release the thread lock."""
         self.restore()
 
@@ -991,7 +965,7 @@ class LocaleOverride:
 class StopExecution(Exception):
     """Raise a StopExecution as this is a cleaner `exit()` for Notebooks."""
 
-    def _render_traceback_(self):
+    def _render_traceback_(self) -> None:
         pass
 
 
@@ -1005,11 +979,11 @@ class UserFriendlyExit:
         If True, emit more information
     """
 
-    def __init__(self, verbose: bool = False):
+    def __init__(self, verbose: bool = False) -> None:  # pyright: ignore[reportMissingSuperCall]
         """Construct a UserFriendlyExit instance."""
         self.verbose = verbose
 
-    def __call__(self, msg: str = "An unexpected exit occurred.", exception: t.Optional[Exception] = None):
+    def __call__(self, msg: str = "An unexpected exit occurred.", exception: Exception | None = None) -> None:
         """
         Exit, but print the exception first.
 
@@ -1033,10 +1007,8 @@ class UserFriendlyExit:
 
 
 def get_kwargs(  # noqa: C901
-    kwargs: dict,
-    descriptors: Iterable[Mapping | Collection | str],
-    warn_on_extra: bool = False
-):
+    kwargs: dict, descriptors: Iterable[Mapping | Collection | str], warn_on_extra: bool = False
+) -> tuple[Any, ...]:
     """
     Decompose kwargs into a tuple of return values.
 
@@ -1114,9 +1086,9 @@ def get_kwargs(  # noqa: C901
     returns = []
     for descriptor in descriptors:
         if isinstance(descriptor, Mapping):
-            key = descriptor['key']  # 'key' is required
-            default = descriptor.get('default', None)
-            test = descriptor.get('test', None)
+            key = descriptor["key"]  # 'key' is required
+            default = descriptor.get("default", None)
+            test = descriptor.get("test", None)
         elif isinstance(descriptor, str):
             # A naked key name was provided.
             key, default, test = descriptor, None, None
@@ -1125,8 +1097,7 @@ def get_kwargs(  # noqa: C901
             descriptor.extend([None, None])
             key, default, test = descriptor[0:3]
         else:
-            raise ValueError('Each item of `descriptors` should be either a '
-                             'dict, an ordered Iterable or a string.')
+            raise ValueError("Each item of `descriptors` should be either a dict, an ordered Iterable or a string.")
 
         try:
             value = kwargs.pop(key)
@@ -1155,25 +1126,25 @@ def get_kwargs(  # noqa: C901
         try:
             caller = inspect.stack()[1][3]
         except Exception:  # noqa: Intentionally broad
-            caller = '[unknown]'
+            caller = "[unknown]"
         num_extra_kwargs = len(kwargs)
         if num_extra_kwargs == 1:
             unexpected_param = list(kwargs.keys())[0]
-            warnings.warn(f'The function/method "{caller}" received an '
-                          f'unexpected parameter "{unexpected_param}". '
-                          f'This will be ignored.')
+            warnings.warn(
+                f'The function/method "{caller}" received an '
+                f'unexpected parameter "{unexpected_param}". '
+                f"This will be ignored."
+            )
         elif num_extra_kwargs > 1:
-            params = ', '.join(list(kwargs.keys()))
-            warnings.warn(f'The function/method "{caller}" received '
-                          f'unexpected parameters: [{params}]. '
-                          f'These will be ignored.')
+            params = ", ".join(list(kwargs.keys()))
+            warnings.warn(
+                f'The function/method "{caller}" received unexpected parameters: [{params}]. These will be ignored.'
+            )
 
     return tuple(returns)
 
 
-def check_feature_names(features: Mapping,
-                        expected_feature_names: Collection,
-                        raise_error: bool = False) -> bool:
+def check_feature_names(features: Mapping, expected_feature_names: Collection, raise_error: bool = False) -> bool:
     """
     Check if features in `features` dict matches `expected_feature_names`.
 
@@ -1222,7 +1193,7 @@ def check_feature_names(features: Mapping,
     return ret_value
 
 
-def build_react_series_df(react_series_response: Mapping, series_index: t.Optional[str] = None):
+def build_react_series_df(react_series_response: Mapping, series_index: str | None = None) -> pd.DataFrame:
     """
     Build a DataFrame from the response from react_series.
 
@@ -1246,9 +1217,9 @@ def build_react_series_df(react_series_response: Mapping, series_index: t.Option
         the react_series response. Optionally includes a series index feature.
     """
     # Columns are defined by action_features
-    columns = react_series_response['details']['action_features']
+    columns = react_series_response["details"]["action_features"]
     # Series data from the response
-    series = react_series_response['action']
+    series = react_series_response["action"]
 
     if series_index:
         # If series_index is specified, include it as a feature
@@ -1261,9 +1232,7 @@ def build_react_series_df(react_series_response: Mapping, series_index: t.Option
         # >> 'row for idx, sublist in enumerate(series) for row in sublist':
         # Each item (aka 'sublist') in series is a list of data rows; evaluate every row in
         # sublist for every sublist in series.
-        data = [row.insert(0, f'series_{idx + 1}') or row
-                for idx, sublist in enumerate(series)
-                for row in sublist]
+        data = [row.insert(0, f"series_{idx + 1}") or row for idx, sublist in enumerate(series) for row in sublist]
     else:
         # Else use just the data returned by react_series
         data = [row for sublist in series for row in sublist]
@@ -1282,21 +1251,25 @@ def date_format_is_iso(f: str) -> bool:
     Sourced from Pandas:
     https://github.com/pandas-dev/pandas/blob/v1.5.3/pandas/_libs/tslibs/parsing.pyx
     """
-    iso_template = '%Y{date_sep}%m{date_sep}%d{time_sep}%H:%M:%S{micro_or_tz}'.format
-    excluded_formats = ['%Y%m%d', '%Y%m', '%Y']
+    iso_template = "%Y{date_sep}%m{date_sep}%d{time_sep}%H:%M:%S{micro_or_tz}".format
+    excluded_formats = ["%Y%m%d", "%Y%m", "%Y"]
 
-    for date_sep in [' ', '/', '\\', '-', '.', '']:
-        for time_sep in [' ', 'T']:
-            for micro_or_tz in ['', 'Z', '%z', '%Z', '.%f', '.%f%z', '.%f%Z', '.%fZ']:
-                if (iso_template(date_sep=date_sep,
-                                 time_sep=time_sep,
-                                 micro_or_tz=micro_or_tz,
-                                 ).startswith(f) and f not in excluded_formats):
+    for date_sep in [" ", "/", "\\", "-", ".", ""]:
+        for time_sep in [" ", "T"]:
+            for micro_or_tz in ["", "Z", "%z", "%Z", ".%f", ".%f%z", ".%f%Z", ".%fZ"]:
+                if (
+                    iso_template(
+                        date_sep=date_sep,
+                        time_sep=time_sep,
+                        micro_or_tz=micro_or_tz,
+                    ).startswith(f)
+                    and f not in excluded_formats
+                ):
                     return True
     return False
 
 
-def deep_update(base: dict | None, updates: dict):
+def deep_update(base: dict | None, updates: dict) -> dict:
     """
     Update dict `base` with updates from dict `updates` in a "deep" fashion.
 
@@ -1315,14 +1288,19 @@ def deep_update(base: dict | None, updates: dict):
     dict
         The updated dictionary.
     """
-    if isinstance(base, dict) and isinstance(updates, dict):
-        for k, v in updates.items():
-            base[k] = deep_update(base.get(k), v)
-        return base
-    return updates
+    _V = TypeVar("_V")
+
+    def _recurse(b: dict | None, u: _V) -> dict | _V:
+        if isinstance(b, dict) and isinstance(u, dict):
+            for k, v in u.items():
+                b[k] = _recurse(b.get(k), v)
+            return b
+        return u
+
+    return _recurse(base, updates)
 
 
-def matrix_processing( # noqa
+def matrix_processing(  # noqa
     matrix: pd.DataFrame,
     normalize: bool = False,
     normalize_method: Iterable[NormalizeMethod | Callable] | NormalizeMethod | Callable = "fractional",
@@ -1378,32 +1356,30 @@ def matrix_processing( # noqa
         Dataframe of the result.
     """
     if matrix.shape[0] != matrix.shape[1]:
-        raise ValueError(
-            f"Invalid matrix shape: ({matrix.shape[0]}, {matrix.shape[1]}), "
-            "matrix must be square."
-        )
+        raise ValueError(f"Invalid matrix shape: ({matrix.shape[0]}, {matrix.shape[1]}), matrix must be square.")
 
     # Ensures sorting
     matrix = matrix.sort_index(axis=0)
     matrix = matrix.sort_index(axis=1)
 
-    if isinstance(normalize_method, str) or isinstance(normalize_method, Callable):
-        normalize_method = [normalize_method]
+    if isinstance(normalize_method, (str, Callable)):
+        methods = cast("list[NormalizeMethod | Callable]", [normalize_method])
+    else:
+        methods = normalize_method
 
     # Default normalization methods
-    def sum_if_not_zero(row):
-        """Standard sum."""
+    def sum_if_not_zero(row: pd.Series) -> pd.Series:
+        """Return standard sum."""
         row_sum = row.sum()
         if row_sum != 0:
             return row / row_sum
         else:
             warnings.warn(
-                f"Sum of row {row.name} is 0. Division cannot be performed. "
-                "Row values will remain unnormalized."
+                f"Sum of row {row.name} is 0. Division cannot be performed. Row values will remain unnormalized."
             )
             return row
 
-    def abs_sum_if_not_zero(row):
+    def abs_sum_if_not_zero(row: pd.Series) -> pd.Series:
         """Sum of the absolute values."""
         row_sum = row.abs().sum()
         if row_sum != 0:
@@ -1415,7 +1391,7 @@ def matrix_processing( # noqa
             )
             return row
 
-    def divide_by_max_abs(row):
+    def divide_by_max_abs(row: pd.Series) -> pd.Series:
         """Division by the maximum absolute value."""
         max_abs_value = row.abs().max()
         if max_abs_value != 0:
@@ -1428,12 +1404,13 @@ def matrix_processing( # noqa
             return row
 
     if normalize:
-        # Replace all diagonal values with Nan, then put them back after normalization.
-        if ignore_diagonals_normalize:
-            diagonal_values = np.diag(matrix).copy()
+        # Replace all diagonal values with NaN, then put them back after normalization.
+        diagonal_values = np.diag(matrix).copy() if ignore_diagonals_normalize else None
+        if diagonal_values is not None:
             for i in range(len(matrix)):
                 matrix.iat[i, i] = np.nan
-        for method in normalize_method:
+
+        for method in methods:
             if method == "relative":
                 matrix = matrix.apply(divide_by_max_abs, axis=1)  # type: ignore
             elif method == "fractional":
@@ -1441,13 +1418,14 @@ def matrix_processing( # noqa
             elif method == "fractional_absolute":
                 matrix = matrix.apply(abs_sum_if_not_zero, axis=1)  # type: ignore
             elif callable(method):
-                matrix = matrix.apply(method, axis=1)   # type: ignore
+                matrix = matrix.apply(method, axis=1)  # type: ignore
             else:
                 raise ValueError(
                     f"Invalid normalization method: {normalize_method}. "
                     "Must be 'relative', 'fractional', 'fractional_absolute', or a Callable."
                 )
-        if ignore_diagonals_normalize:
+
+        if diagonal_values is not None:
             for i, value in enumerate(diagonal_values):
                 matrix.iat[i, i] = value
 
@@ -1463,13 +1441,13 @@ def matrix_processing( # noqa
 
 def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tuple[np.ndarray, list[str]]:
     """
-    Converts a Howso dict confusion matrix into the same format as `sklearn.metrics.confusion_matrix`.
+    Convert a Howso dict confusion matrix into the same format as `sklearn.metrics.confusion_matrix`.
 
     Parameters
     ----------
     confusion_matrix : dict of str -> dict of str -> int
-        Confusion matrix in dictionary form. Standard form of confusion marices returned when retrieving
-        Howso's prediction stats through :meth:`howso.engine.Trainee.react_aggregate`.
+        Confusion matrix in dictionary form. Standard form of confusion matrices returned when
+        retrieving Howso's prediction stats through :meth:`howso.engine.Trainee.react_aggregate`.
 
     Returns
     -------
@@ -1486,7 +1464,7 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
     true_labels_unique = set(confusion_matrix.keys())
 
     # Row labels is the combination of all unique actual and predicted values
-    row_labels = sorted(list(true_labels_unique.union(predicted_labels_keys)))
+    row_labels = sorted(true_labels_unique.union(predicted_labels_keys))
 
     # Warn if a predicted value doesn't actually exist
     predicted_labels_diff = predicted_labels_keys.difference(true_labels_unique)
@@ -1504,9 +1482,9 @@ def format_confusion_matrix(confusion_matrix: dict[str, dict[str, int]]) -> tupl
     return confusion_matrix_array, row_labels
 
 
-def yield_dataframe_as_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generator[pd.DataFrame, None, None]:
+def yield_dataframe_as_chunks(df: pd.DataFrame, num_chunks: int) -> Generator[pd.DataFrame, None, None]:
     """
-    Yields a DataFrame in chunks using iloc. Np.array_split is deprecated.
+    Yield a DataFrame in chunks using iloc. Np.array_split is deprecated.
 
     Parameters
     ----------
@@ -1540,7 +1518,7 @@ def yield_dataframe_as_chunks(df: pd.DataFrame, num_chunks: int) -> t.Generator[
 
 def infer_time_format(time_str: str) -> str:
     """
-    Attempts to infer a time format given an arbitrary time string.
+    Attempt to infer a time format given an arbitrary time string.
 
     Parameters
     ----------
@@ -1556,14 +1534,14 @@ def infer_time_format(time_str: str) -> str:
     Raises
     ------
     ValueError
-        If the format of the time string cannot be deteremined.
+        If the format of the time string cannot be determined.
     """
     match = re.match(TIME_PATTERN, time_str)
     if not match:
         # First try the simple time pattern (<hour AM/PM)
         simple_match = re.match(SIMPLE_TIME_PATTERN, time_str)
         if simple_match:
-            return '%I %p' if ' ' in time_str else '%I%p'
+            return "%I %p" if " " in time_str else "%I%p"
         else:
             raise ValueError(f"The time '{time_str}' does not match a known time format")
 
@@ -1592,16 +1570,16 @@ def infer_time_format(time_str: str) -> str:
     # AM/PM designation
     ampm = match.group("ampm")
     if ampm:
-        # Ensure whitespace or lackthereof is preserved
-        split = time_str.lower().split(' ')
-        format_string += ' %p' if "am" in split or "pm" in split else '%p'
+        # Ensure whitespace or lack thereof is preserved
+        split = time_str.lower().split(" ")
+        format_string += " %p" if "am" in split or "pm" in split else "%p"
 
     return format_string
 
 
 def infer_time_feature_cycle_length(time_format_str: str) -> int:
     """
-    Determines the cycle length of a time-only feature given its format string.
+    Determine the cycle length of a time-only feature given its format string.
 
     Parameters
     ----------
@@ -1729,8 +1707,8 @@ def lazy_map(
             yield future
 
 
-def get_hash(value: t.Any) -> int:
-    """Gets a hashed pickle of the provided value."""
+def get_hash(value: Any) -> int:
+    """Get a hashed pickle of the provided value."""
     # Use pickle to serialize
     pickled = pickle.dumps(value, protocol=pickle.HIGHEST_PROTOCOL)
     # Return a hash of the pickled bytes for efficient comparison

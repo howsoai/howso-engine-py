@@ -4,23 +4,17 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --output-file=requirements-3.11.txt --pip-args=None
 #
-amalgam-lang==25.3.0
+amalgam-lang==27.2.0
     # via howso-engine (pyproject.toml)
-certifi==2026.1.4
+certifi==2026.2.25
     # via
     #   howso-engine (pyproject.toml)
     #   requests
-cffi==2.0.0
-    # via cryptography
-charset-normalizer==3.4.4
+charset-normalizer==3.4.5
     # via requests
 click==8.3.1
     # via sacremoses
-cryptography==46.0.3
-    # via howso-engine (pyproject.toml)
-deprecation==2.1.0
-    # via howso-engine (pyproject.toml)
-faker==40.1.2
+faker==40.8.0
     # via howso-engine (pyproject.toml)
 humanize==4.15.0
     # via howso-engine (pyproject.toml)
@@ -32,35 +26,33 @@ markdown-it-py==4.0.0
     # via rich
 mdurl==0.1.2
     # via markdown-it-py
-mmh3==5.2.0
+mmh3==5.2.1
     # via howso-engine (pyproject.toml)
-numpy==2.2.6
+numpy==2.4.3
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
 packaging==26.0
-    # via deprecation
+    # via howso-engine (pyproject.toml)
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
-psutil==7.2.1
+psutil==7.2.2
     # via howso-engine (pyproject.toml)
-pycparser==3.0
-    # via cffi
 pygments==2.19.2
     # via rich
-pyjwt==2.10.1
-    # via howso-engine (pyproject.toml)
 python-dateutil==2.9.0.post0
-    # via pandas
-pytz==2025.2
+    # via
+    #   howso-engine (pyproject.toml)
+    #   pandas
+pytz==2026.1.post1
     # via pandas
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
-regex==2026.1.15
+regex==2026.2.28
     # via sacremoses
 requests==2.32.5
     # via howso-engine (pyproject.toml)
-rich==14.2.0
+rich==14.3.3
     # via howso-engine (pyproject.toml)
 sacremoses==0.1.1
     # via howso-engine (pyproject.toml)
@@ -68,7 +60,7 @@ semantic-version==2.10.0
     # via howso-engine (pyproject.toml)
 six==1.17.0
     # via python-dateutil
-tqdm==4.67.1
+tqdm==4.67.3
     # via sacremoses
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)

@@ -119,6 +119,11 @@ def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol
         to 2 will synthesize the 3rd order derivative value, and then use
         that synthed value to derive the 2nd and 1st order.
 
+    fanout_feature_map : dict of str or tuple of str to list of str, optional
+        (Optional) Dict mapping "key" feature names or tuples of "key" feature names to list of "fanout" feature names.
+        Fanout features are features with values fanned out across multiple cases. Key features are features
+        whose values can be used to select groups of cases that have the same duplicated fanout values.
+
     id_feature_name : str or list of str, default None
         (Optional) The name(s) of the ID feature(s).
 

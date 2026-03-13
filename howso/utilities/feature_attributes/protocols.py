@@ -96,6 +96,8 @@ class AbstractDataProtocol(t.Protocol):
     def yield_chunk(self, chunk_size: int = 5000, *,
                     max_chunks: t.Optional[int] = None,
                     skip_chunks: t.Optional[int] = None,
+                    maintain_natural_order: bool = False,
+                    seed: int | None = None,
                     ) -> Generator[pd.DataFrame, None, None]:
         """Provide a chunk generator."""
         raise NotImplementedError
