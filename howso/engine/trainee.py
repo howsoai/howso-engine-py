@@ -4603,32 +4603,45 @@ def delete_trainee(
     else:
         client.delete_trainee(trainee_id=str(name_or_id))
 
-
+@t.overload
 def load_trainee(
     file_path: PathLike,
+    client: AbstractHowsoclient | None = ...,
+    *,
+    persistence: Persistence = ...,
+) -> Trainee: ...
+    
+@t.overload
+def load_trainee(
+    file_path: bytes,
+    client: AbtstractHowsoClient | None = ...,
+    *,
+    persistence: Persistence = ...,
+) -> Trainee: ...
+
+
+def load_trainee(
+    path_or_bytes: PathLike | bytes,
     client: t.Optional[AbstractHowsoClient] = None,
     *,
-    persistence: Persistence = 'allow',
+    persistence: Persistence = "allow",
 ) -> Trainee:
     """
     Load an existing trainee from disk.
 
     Parameters
     ----------
-    file_path : str or bytes or os.PathLike
-        The path of the file to load the Trainee from. This path can contain
-        an absolute path, a relative path or simply a file name. A ``.caml`` file name
-        must be always be provided if file paths are provided.
-
-        If ``file_path`` is a relative path the absolute path will be computed
-        appending the ``file_path`` to the CWD.
-
-        If ``file_path`` is an absolute path, this is the absolute path that
-        will be used.
-
-        If ``file_path`` is just a filename, then the absolute path will be computed
-        appending the filename to the CWD.
-
+    path_or_bytes : str | bytes | os.PathLike
+        The path or binary data to load the Trainee from.
+        
+        If a path, it can be an absolute path, a relative path, or simply a file name.
+        The file must be a ``.caml`` file. If the path is relative the absolute path will
+        be computed appending the ``file_path`` to the CWD. If the path is an absolute path,
+        this is the absolute path that will be used. If the path is just a filename, then
+        the absolute path will be computed appending the filename to the CWD.
+        
+        If binary data, that data will be loaded as a :class:`Trainee` directly using
+        :meth:`Howso.direct.HowsoDirectClient.create_trainee_from_memory`.
     client : AbstractHowsoClient, optional
         The Howso client instance to use. Must have local disk access.
     persistence : {"allow", "always", "never"}, default "allow"
@@ -4639,25 +4652,30 @@ def load_trainee(
     Returns
     -------
     Trainee
-        The trainee instance.
+        The :class:`Trainee` instance.
     """
     client = client or get_client()
 
     if not isinstance(client, LocalSaveableProtocol):
-        raise HowsoError("The current client does not support loading a Trainee from file.")
-
-    if not isinstance(file_path, Path):
-        file_path = Path(file_path)
+        raise HowsoError("The current client does not support loading a Trainee from file or memory.")
 
     trainee_id = str(uuid.uuid4())
 
-    file_path = file_path.expanduser().resolve()
+    path = Path(path_or_bytes).expanduser().resolve()
+    if isinstance(path_or_bytes, bytes) and not path.exists():
+        # The bytes are not a string representing a path, try to load
+        # the trainee.
+        base_trainee = create_trainee_from_memory(trainee_id, path_or_bytes)
+        client.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
+        client.trainee_cache.set(base_trainee)
+        trainee = Trainee.from_schema(base_trainee, client=client)
+        return trainee
 
     # It is decided that if the file contains a suffix then it contains a
     # file name.
-    if file_path.suffix:
+    if path.suffix:
         # Check to make sure sure `.caml` file is provided
-        if file_path.suffix.lower() != '.caml':
+        if path.suffix.lower() != '.caml':
             raise HowsoError(
                 'Filepath with a non `.caml` extension was provided.'
             )
@@ -4666,18 +4684,18 @@ def load_trainee(
         raise HowsoError('A `.caml` file must be provided.')
 
     # If path is not absolute, append it to the default directory.
-    if not file_path.is_absolute():
-        file_path = client.default_persist_path.joinpath(file_path)
+    if not path.is_absolute():
+        path_or_bytes = client.default_persist_path.joinpath(path)
 
     # Ensure the path exists
-    if not file_path.exists():
+    if not path.exists():
         raise HowsoError(
-            f'The specified Trainee file "{file_path.as_posix()}" does not exist.')
+            f'The specified Trainee file "{path.as_posix()}" does not exist.')
 
     if persistence == 'always':
         status = client.amlg.load_entity(
             handle=trainee_id,
-            file_path=str(file_path),
+            file_path=str(path_or_bytes),
             persist=True,
             json_file_params=('{"transactional":true,"flatten":true,"execute_on_load":true,'
                               '"require_version_compatibility":true}')
@@ -4685,18 +4703,18 @@ def load_trainee(
     else:
         status = client.amlg.load_entity(
             handle=trainee_id,
-            file_path=str(file_path)
+            file_path=str(path_or_bytes)
         )
     if not status.loaded:
         status_msg = status.message or "An unknown error occurred"
-        raise HowsoError(f'Failed to load Trainee file "{file_path.as_posix()}": {status_msg}')
+        raise HowsoError(f'Failed to load Trainee file "{path.as_posix()}": {status_msg}')
 
     client.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
 
     base_trainee = client._get_trainee_from_engine(trainee_id)  # type: ignore reportPrivateUsage
     client.trainee_cache.set(base_trainee)
     trainee = Trainee.from_schema(base_trainee, client=client)
-    setattr(trainee, '_custom_save_path', file_path)
+    setattr(trainee, '_custom_save_path', path_or_bytes)
 
     return trainee
 

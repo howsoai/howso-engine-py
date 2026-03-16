@@ -163,7 +163,7 @@ class TestEngine:
         # Load
         if file_path_type == 'directory_only':
             file_path = file_path + 'save_load_trainee.caml'
-        load_example_trainee = load_trainee(file_path=file_path)
+        load_example_trainee = load_trainee(path_or_bytes=file_path)
 
         load_training_cases = load_example_trainee.get_num_training_cases()
 
@@ -200,7 +200,7 @@ class TestEngine:
         # Set to correct path
         file_path = f"{cwd}/save_load_trainee.caml"
 
-        load_example_trainee = load_trainee(file_path=file_path)
+        load_example_trainee = load_trainee(path_or_bytes=file_path)
         load_training_cases = load_example_trainee.get_num_training_cases()
 
         # Delete
@@ -235,7 +235,7 @@ class TestEngine:
             HowsoError,
             match='A `.caml` file must be provided.'
         ):
-            load_trainee(file_path=file_path)
+            load_trainee(path_or_bytes=file_path)
 
     @pytest.mark.parametrize("status_msg, expected_msg", [
         ("This is a test", "This is a test"),
@@ -255,7 +255,7 @@ class TestEngine:
             HowsoError,
             match=f'Failed to load Trainee file "{file_path.as_posix()}": {expected_msg}'
         ):
-            load_trainee(file_path=file_path)
+            load_trainee(path_or_bytes=file_path)
 
     def test_always_persist_load(self, tmp_path: Path, data, features):
         """Test that an auto-persist trainee can be reloaded."""
@@ -268,7 +268,7 @@ class TestEngine:
         finally:
             trainee.delete()
 
-        load_example_trainee = load_trainee(file_path=save_path, persistence="always")
+        load_example_trainee = load_trainee(path_or_bytes=save_path, persistence="always")
         try:
             assert load_example_trainee.get_num_training_cases() == 150
         finally:
