@@ -4494,8 +4494,9 @@ class Trainee(BaseTrainee):
             The Trainee file data as bytes. Or None if the `trainee_id` and/or `trainee_path` does not refer to
             a valid Trainee.
         """
-        if not isinstance(self.client, HowsoDirectClient):
-            raise NotImplementedError("The `to_memory` method is only supported when using `HowsoDirectClient`.")
+        if not isinstance(self.client, LocalSaveableProtocol):
+            raise HowsoError("The current client does not support loading a Trainee from file or memory.")
+
         return self.client.trainee_to_memory(self.id, file_type=file_type, trainee_path=trainee_path)
         
 
@@ -4605,7 +4606,7 @@ def delete_trainee(
 
 @t.overload
 def load_trainee(
-    file_path: PathLike,
+    path_or_bytes: PathLike,
     client: AbstractHowsoClient | None = ...,
     *,
     persistence: Persistence = ...,
@@ -4613,7 +4614,7 @@ def load_trainee(
     
 @t.overload
 def load_trainee(
-    file_path: bytes,
+    path_or_bytes: bytes,
     client: AbstractHowsoClient | None = ...,
     *,
     persistence: Persistence = ...,
