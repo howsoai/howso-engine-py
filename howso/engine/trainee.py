@@ -4606,7 +4606,7 @@ def delete_trainee(
 @t.overload
 def load_trainee(
     file_path: PathLike,
-    client: AbstractHowsoclient | None = ...,
+    client: AbstractHowsoClient | None = ...,
     *,
     persistence: Persistence = ...,
 ) -> Trainee: ...
@@ -4614,7 +4614,7 @@ def load_trainee(
 @t.overload
 def load_trainee(
     file_path: bytes,
-    client: AbtstractHowsoClient | None = ...,
+    client: AbstractHowsoClient | None = ...,
     *,
     persistence: Persistence = ...,
 ) -> Trainee: ...
