@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from abc import ABC, abstractmethod
 from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence
 from copy import deepcopy
@@ -23,7 +24,9 @@ import yaml
 
 from howso.utilities.features import FeatureType
 from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
+
 from ..utilities import determine_iso_format
+from .serializers import TupleAwareEncoder, tuple_aware_object_pairs_hook
 
 if t.TYPE_CHECKING:
     from howso.client.typing import FeatureAttributes
@@ -114,11 +117,11 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         if archive:
             json_str = json.dumps({
                 "feature_attributes": self,
-                "params": {k: v for k, v in self.params.items() if k != "fanout_feature_map"},
+                "params": self.params,
                 "unsupported": self.unsupported,
-            })
+            }, cls=TupleAwareEncoder)
         else:
-            json_str = json.dumps(self)
+            json_str = json.dumps(self, cls=TupleAwareEncoder)
 
         if json_path:
             with open(json_path, mode="w") as fp:
@@ -162,9 +165,9 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
         if json_path:
             with open(json_path, mode="r") as fp:
-                obj_dict = json.load(fp)
+                obj_dict = json.load(fp, object_pairs_hook=tuple_aware_object_pairs_hook)
         else:
-            obj_dict = json.loads(json_str or "")
+            obj_dict = json.loads(json_str or "", object_pairs_hook=tuple_aware_object_pairs_hook)
 
         # If there are no top-level keys other than the archival_keys, it's an archive.
         archival_keys = {"feature_attributes", "params", "unsupported"}
