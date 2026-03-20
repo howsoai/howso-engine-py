@@ -875,12 +875,27 @@ def test_feature_order():
 
 
 def test_archival():
-    """Test that archival of the FeatureAttributes instance works as expected."""
+    """
+    Test that archival of the FeatureAttributes instance works as expected.
+
+    This also tests that tuples as keys or values of IFA parameters are
+    preserved through the archival process (to_json / from_json).
+    """
     data = pd.DataFrame({
         'a': [0, 1, 2, 3, 4, 5, 6, 7],
-        'b': ['apple', 'banana', 'banana', 'cherry', 'apple', 'apple', 'cherry', 'banana']
+        'b': ['apple', 'banana', 'banana', 'cherry', 'apple', 'apple', 'cherry', 'banana'],
+        'c': [2, 3, 4, 2, 3, 4, 2, 3],
+        'd': [1, 1, 1, 1, 2, 2, 2, 2],
+        # NOTE: That the second red is not a typo.
+        'e': ["red", "orange", "yellow", "red", "green", "blue", "indigo", "violet"],
     })
-    features = infer_feature_attributes(data, tight_bounds=['a'])
+    features = infer_feature_attributes(
+        data,
+        tight_bounds=['a'],
+        fanout_feature_map={
+            ("c", "d"): ("e", ),
+        }
+    )
     assert features['a']['type'] == 'continuous'
     assert features['b']['type'] == 'nominal'
 
@@ -890,6 +905,9 @@ def test_archival():
     assert new_features['a']['type'] == 'continuous'
     assert new_features['b']['type'] == 'nominal'
     assert new_features.params['tight_bounds'] == ['a']
+    fanout_feature_key = list(new_features.params['fanout_feature_map'].keys())[0]
+    assert isinstance(fanout_feature_key, tuple)
+    assert isinstance(new_features.params["fanout_feature_map"][fanout_feature_key], tuple)
 
 
 def test_disk_archival():
