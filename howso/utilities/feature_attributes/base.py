@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 from abc import ABC, abstractmethod
 from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence
 from copy import deepcopy
@@ -27,6 +26,7 @@ from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 
 from ..utilities import determine_iso_format
 from .serializers import TupleAwareEncoder, tuple_aware_object_pairs_hook
+from .warnings import IFAWarningEmitterType
 
 if t.TYPE_CHECKING:
     from howso.client.typing import FeatureAttributes
@@ -1276,58 +1276,6 @@ class InferFeatureAttributesBase(ABC):
         """
 
     @staticmethod
-    def emit_time_zone_warnings(missing_tz_features: Iterable[str], utc_offset_features: Iterable[str]) -> None:
-        """
-        Raise warnings about features with missing time zone information, or features using UTC offsets.
-
-        Parameters
-        ----------
-        missing_tz_features : Iterable of str
-            An Iterable of feature names indicating which features should be included
-            in the warning about missing time zone information.
-        utc_offset_features : Iterable of str
-            An Iterable of feature names indicating which features should be included
-            in the warning about using UTC offsets.
-        """
-        if missing_tz_features:
-            msg = (
-                'The provided or inferred `date_time_formats` for the following '
-                'features do not include a time zone and will default to UTC:')
-            for feature_name in missing_tz_features:
-                msg += f'\n\t- {feature_name}'
-            msg += (
-                '\nTo change the default time zone, please specify the `default_time_zone` '
-                'argument to `infer_feature_attributes`.')
-            warnings.warn(msg)
-        if utc_offset_features:
-            msg = 'The following features are using UTC offsets (%z) for their time zones:'
-            for feature_name in utc_offset_features:
-                msg += f'\n\t- {feature_name}'
-            msg += (
-                '\nThis could lead to unexpected results due to daylight savings time. We recommend '
-                'using explicit time zone strings, e.g., "GMT", which are represented by the "%Z" '
-                'identifier.')
-            warnings.warn(msg)
-
-    @staticmethod
-    def emit_unknown_datetime_warnings(unknown_datetime_features: Iterable[str]) -> None:
-        """
-        Raise warnings about features that we detected as datetimes but cannot determine the format of.
-
-        Parameters
-        ----------
-        uknown_datetime_features : Iterable of str
-            An Iterable of feature names to include in the warning.
-        """
-        if unknown_datetime_features:
-            msg = ("The following features were detected as possible datetimes, but we cannot assume "
-                   "their formats. Please provide them using `datetime_feature_formats` if desired. "
-                   "Otherwise, these features will be treated as nominal strings:")
-            for feature_name in unknown_datetime_features:
-                msg += f'\n\t- {feature_name}'
-            warnings.warn(msg)
-
-    @staticmethod
     def infer_loose_feature_bounds(min_bound: int | float,
                                    max_bound: int | float
                                    ) -> tuple[float, float]:
@@ -1397,6 +1345,16 @@ class InferFeatureAttributesBase(ABC):
         If any features in a dependent relationship in either direction have sufficient (~N/2) uniqueness,
         warn the user about potential performance implications.
         """
+        dependent_features = set()
+        for feature in feature_attributes:
+            if features_to_add := feature_attributes.get("dependent_features"):
+                dependent_features |= features_to_add + feature
+
+        for feature in dependent_features:
+            unique_count = self._get_unique_count(feature)
+            case_count = self._get_num_cases(feature)
+            if unique_count >= math.floor(case_count / 2):
+                self.warnings_collector.triage(IFAWarningEmitterType.NEAR_UNIQUE_DEPENDENT_FEATURES, feature)
 
     def _check_unsupported_data(self, feature_attributes: dict) -> None:
         """
@@ -1480,7 +1438,7 @@ class InferFeatureAttributesBase(ABC):
                             '%Z' in dt_format,
                             dt_format[-1] == 'Z',  # Last char of 'Z' is ISO8601 identifier for UTC
                             self.default_time_zone is not None]):
-                    self.missing_tz_features.append(feature_name)
+                    self.warnings_collector.triage(IFAWarningEmitterType.MISSING_TZ_FEATURES, feature_name)
                 elif '%z' in dt_format:
                     rand_val = self._get_random_value(feature_name)
                     if isinstance(rand_val, datetime.datetime):
@@ -1489,7 +1447,7 @@ class InferFeatureAttributesBase(ABC):
                             continue
                     # Warn in case of UTC offset -- could lead to unexpected results due to time zone
                     # differences
-                    self.utc_offset_features.append(feature_name)
+                    self.warnings_collector.triage(IFAWarningEmitterType.UTC_OFFSET, feature_name)
 
     @staticmethod
     def _is_datetime(string: str):

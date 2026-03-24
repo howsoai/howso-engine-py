@@ -186,7 +186,9 @@ def test_integer_nominality(feature, nominality):
 def test_get_feature_type(data, expected_type):
     """Test get_feature_type returns expected data types."""
     infer = InferFeatureAttributesDataFrame(data)
-    feature_type, original_type = infer._get_feature_type('a')
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        feature_type, original_type = infer._get_feature_type('a')
     expected_feature_type = expected_type.pop('data_type')
     assert str(feature_type) == expected_feature_type
     assert original_type == expected_type
@@ -444,7 +446,9 @@ def test_dependent_features(should_include, dependent_features):
 def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
     """Test the infer_feature_bounds() method."""
     df = pd.DataFrame(pd.Series(data), columns=['a'])
-    features = infer_feature_attributes(df, tight_bounds=tight_bounds)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        features = infer_feature_attributes(df, tight_bounds=tight_bounds)
     assert features['a']['type'] == 'continuous'
     assert 'bounds' in features['a']
     assert features['a']['bounds'] == expected_bounds
@@ -978,7 +982,9 @@ def test_disk_archival():
 def test_observed_ordinal_values(series, ordinals, min_value, max_value):
     """Test that observed_min/max in ordinal features works as expected."""
     data = pd.DataFrame({'a': series})
-    features = infer_feature_attributes(data, ordinal_feature_values={'a': ordinals})
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        features = infer_feature_attributes(data, ordinal_feature_values={'a': ordinals})
     assert features['a']['bounds']['observed_min'] == min_value
     assert features['a']['bounds']['observed_max'] == max_value
 

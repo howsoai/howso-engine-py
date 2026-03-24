@@ -219,8 +219,10 @@ def test_infer_time_feature_bounds(adc, data, tight_bounds, provided_format, exp
     # First, transfer data to empty ADC
     convert_data(DataFrameData(data), adc)
     # Test
-    features = infer_feature_attributes(adc, tight_bounds=tight_bounds,
-                                        datetime_feature_formats={'a': provided_format})
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        features = infer_feature_attributes(adc, tight_bounds=tight_bounds,
+                                            datetime_feature_formats={'a': provided_format})
     assert features['a']['type'] == 'continuous'
     assert 'cycle_length' in features['a']
     assert features['a']['cycle_length'] == cycle_length
@@ -318,7 +320,9 @@ def test_infer_feature_bounds(adc, data, tight_bounds, expected_bounds):
     """Test the infer_feature_bounds() method."""
     df = pd.DataFrame(pd.Series(data), columns=['a'])
     convert_data(DataFrameData(df), adc)
-    features = infer_feature_attributes(adc, tight_bounds=tight_bounds)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        features = infer_feature_attributes(adc, tight_bounds=tight_bounds)
     assert features['a']['type'] == 'continuous'
     assert 'bounds' in features['a']
     assert features['a']['bounds'] == expected_bounds
@@ -459,7 +463,9 @@ def test_observed_ordinal_values(adc, series, ordinals, min_value, max_value):
     """Test that observed_min/max in ordinal features works as expected."""
     data = pd.DataFrame({'a': series})
     convert_data(DataFrameData(data), adc)
-    features = infer_feature_attributes(adc, ordinal_feature_values={'a': ordinals})
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        features = infer_feature_attributes(adc, ordinal_feature_values={'a': ordinals})
     assert features['a']['bounds']['observed_min'] == min_value
     assert features['a']['bounds']['observed_max'] == max_value
 
