@@ -33,7 +33,7 @@ class IFAWarningEmitter(ABC):
         msg = ""
         for feature_name in self.features:
             msg += f"\n\t- {feature_name}"
-        return msg
+        return msg + "\n"
 
     def emit(self):
         """Emit the warning."""
@@ -46,7 +46,8 @@ class NearUniqueDependentFeaturesWarningEmitter(IFAWarningEmitter):
         """Emit the warning."""
         warnings.warn("The following provided `dependent_features` have a large share of values that are unique: "
                       f"{self.features_list}"
-                      "Dependent features with many unique values can severely impact performance.", UserWarning)
+                      "Dependent features with many unique values can severely impact the quality of results.",
+                      UserWarning)
 
 
 class MissingTZFeaturesWarningEmitter(IFAWarningEmitter):

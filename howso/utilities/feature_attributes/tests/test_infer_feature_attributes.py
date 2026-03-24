@@ -1172,3 +1172,22 @@ def test_boolean_detection():
     df["boolean"] = ["true", "false", "maybe", "another_thing"] * 50
     feature_attributes = infer_feature_attributes(df)
     assert feature_attributes["boolean"]["data_type"] == "string"
+
+
+def test_dependent_features_uniques_warning():
+    """Test that IFA correctly warns if a feature in a depnedent relationship has too many unique values."""
+    df = pd.DataFrame(
+        {
+            "a": [1, 2, 4, 4, 4, 4, 4],  # Too many
+            "b": [1, 3, 3, 3, 3, 3, 3],  # Fine
+            "c": [7, 7, 7, 7, 7, 7, 7],  # Fine
+            "d": [8, 8, 8, 8, 8, 8, 9],  # Fine
+        }
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        infer_feature_attributes(df, dependent_features={"d": ["b", "c"]})
+    with pytest.warns(UserWarning, match="- a\n"):
+        infer_feature_attributes(df, dependent_features={"d": ["b", "c", "a"]})
+    with pytest.warns(UserWarning, match="- a\n"):
+        infer_feature_attributes(df, dependent_features={"a": ["b", "c", "d"]})

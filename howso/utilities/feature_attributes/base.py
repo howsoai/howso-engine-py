@@ -1059,9 +1059,9 @@ class InferFeatureAttributesBase(ABC):
         # Do any features contain data unsupported by the core?
         self._check_unsupported_data(self.attributes)
 
-        # Are any features with dependent feature relationships unique or near-unique?
-        # If so, warn the user about perofrmance implications.
-        self._check_dependent_features_uniqueness(self.attributes)
+        # Do any features in dependent relationships have many (> ~N/2) uniques?
+        # If so, warn the user about result quality implications.
+        self._check_dependent_features_uniqueness()
 
         # Check if there are any features that consume an unusually large amount of memory
         if isinstance(self.data, pd.DataFrame):
@@ -1338,17 +1338,17 @@ class InferFeatureAttributesBase(ABC):
                 return WIN_DT_MAX
         return LINUX_DT_MAX
 
-    def _check_dependent_features_uniqueness(self, feature_attributes: dict) -> None:
+    def _check_dependent_features_uniqueness(self) -> None:
         """
         Validate that all features that are part of a dependent relationship are not unique or near-unique.
 
         If any features in a dependent relationship in either direction have sufficient (~N/2) uniqueness,
-        warn the user about potential performance implications.
+        warn the user about potential result quality implications.
         """
         dependent_features = set()
-        for feature in feature_attributes:
-            if features_to_add := feature_attributes.get("dependent_features"):
-                dependent_features |= features_to_add + feature
+        for feature in self.attributes:
+            if features_to_add := self.attributes[feature].get("dependent_features"):
+                dependent_features |= set(features_to_add + [feature])
 
         for feature in dependent_features:
             unique_count = self._get_unique_count(feature)
