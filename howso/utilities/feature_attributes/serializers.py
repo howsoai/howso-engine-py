@@ -12,12 +12,12 @@ _TUPLE_KEY_PREFIX = "__tuple_key__:"
 
 
 __all__ = [
-    "TupleAwareEncoder",
-    "tuple_aware_object_pairs_hook",
+    "FeatureAttributesEncoder",
+    "feature_attributes_pairs_hook",
 ]
 
 
-class TupleAwareEncoder(json.JSONEncoder):
+class FeatureAttributesEncoder(json.JSONEncoder):
     """
     JSON encoder that preserves tuples and handles numpy types.
 
@@ -82,7 +82,7 @@ class TupleAwareEncoder(json.JSONEncoder):
         return obj
 
 
-def tuple_aware_object_pairs_hook(pairs: list[tuple[str, t.Any]]) -> dict[t.Any, t.Any] | tuple:
+def feature_attributes_pairs_hook(pairs: list[tuple[str, t.Any]]) -> dict[t.Any, t.Any] | tuple:
     """
     Decode hook that restores tuples from their JSON representation.
 
