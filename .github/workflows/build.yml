@@ -126,14 +126,14 @@ jobs:
         SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.metadata.outputs.version }}
 
     - name: Upload Tarball Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: howso_engine-${{ needs.metadata.outputs.version }}
         path: dist/howso_engine-${{ needs.metadata.outputs.version }}.tar.gz
         if-no-files-found: error
 
     - name: Upload Wheel Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
         path: dist/howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any.whl
@@ -210,7 +210,7 @@ jobs:
     steps:
 
     - name: Download Artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
@@ -255,7 +255,7 @@ jobs:
     steps:
 
     - name: Download Artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
@@ -303,7 +303,7 @@ jobs:
     steps:
 
     - name: Download Artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
@@ -367,7 +367,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download Artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
@@ -425,7 +425,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download Artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
@@ -490,7 +490,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download Artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
@@ -582,7 +582,7 @@ jobs:
     steps:
 
     - name: Download Artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: howso_engine-${{ needs.metadata.outputs.version }}-py3-none-any
 
@@ -659,7 +659,7 @@ jobs:
         sleep 15
 
     - name: Download Artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: ./tmp
 
