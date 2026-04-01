@@ -1,7 +1,7 @@
 from collections.abc import Mapping, Iterator
 from copy import deepcopy
 from pprint import pformat
-from typing import Any, Literal, overload, TypeAlias, TypeVar, get_args
+from typing import Any, Literal, overload, TypeAlias, TypeVar
 
 import pandas as pd
 
@@ -84,7 +84,7 @@ class AggregateReaction(Mapping[Metric, MetricValue]):
     @overload
     def __getitem__(self, key: TableMetric) -> pd.DataFrame: ...
 
-    def __getitem__(self, key: Metric) -> Any | None:
+    def __getitem__(self, key: Metric) -> Any:
         value = self._data[key]
         if isinstance(value, Mapping):
             if key == "confusion_matrix":
@@ -124,7 +124,7 @@ class AggregateReaction(Mapping[Metric, MetricValue]):
     def get(self, key: TableMetric, /, default: _VT) -> pd.DataFrame | _VT: ...
 
     def get(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self, key: Metric, /, default: _VT | None = None,
+        self, key: Metric, /, default: _VT | None = None
     ) -> MetricValue | _VT | None:
         return super().get(key, default=default)
 
