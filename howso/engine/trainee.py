@@ -3699,12 +3699,15 @@ class Trainee(BaseTrainee):
             - feature_deviations : bool, optional
                 For each feature in ``action_features``, use the context features
                 and the feature being predicted as context to predict the feature
-                and return the mean absolute error.
+                and return the mean absolute error. Deviations returned are a list where the first entry
+                is the value residual and second is the residual of predicting nullness for continuous features.
             - feature_full_accuracy_contributions : bool, optional
                 When True will compute accuracy contributions for each context
                 feature at predicting the ``feature_influences_action_feature``.
                 Drop each feature and use the full set of remaining context features for
-                each prediction.
+                each prediction. Contributions returned are a list where the first entry is the value accuracy
+                contribution, the second entry is the accuracy contribution for the null probability for continuous
+                features, and the third entry is the percent of sampled cases that had a null value.
             - feature_full_accuracy_contributions_permutation : bool, optional
                 Compute accuracy contributions by scrambling each feature and
                 using the full set of remaining context features for each
@@ -3718,15 +3721,21 @@ class Trainee(BaseTrainee):
                 delta under the key 'feature_full_directional_prediction_contributions'.
                 Note: not recommended for semi-structured data action features due to weak signal
                 caused by its high dimensionality, accuracy contributions should be computed instead.
+                Contributions returned are a list where the first entry is the value prediction contribution
+                and the second is the prediction contribution for the null probability for continuous features.
             - feature_full_residuals : bool, optional
                 For each feature in ``action_features``, use the context features to predict
                 the feature and return the mean absolute error. When ``prediction_stats`` in
                 the ``details`` parameter is true, the Trainee will also calculate
-                the full feature residuals.
+                the full feature residuals. Residuals returned are a list with the first entry
+                being the value residual and the residual of predicting nullness for continuous features.
             - feature_robust_accuracy_contributions : bool, optional
                 Compute accuracy contributions by dropping each feature and
                 using the robust (power set/permutations) set of remaining
-                context features for each prediction.
+                context features for each prediction. Contributions returned are a list where the first entry
+                is the value accuracy contribution, the second entry is the accuracy contribution for the null
+                probability for continuous features, and the third entry is the percent of sampled cases that
+                had a null value.
             - feature_robust_accuracy_contributions_permutation : bool, optional
                 Compute accuracy contributions by scrambling each feature and
                 using the robust (power set/permutations) set of remaining
@@ -3740,10 +3749,13 @@ class Trainee(BaseTrainee):
                 delta under the key 'feature_robust_directional_prediction_contributions'.
                 Note: not recommended for semi-structured data action features due to weak signal
                 caused by its high dimensionality, accuracy contributions should be computed instead.
+                Contributions returned are a list where the first entry is the value prediction contribution
+                and the second is the prediction contribution for the null probability for continuous features.
             - feature_robust_residuals : bool, optional
                 For each feature in ``action_features``, use the robust
                 (power set/permutations) set of all other context features to predict
-                the feature and return the mean absolute error.
+                the feature and return the mean absolute error. Residuals returned are a list where the first entry
+                is the value residual and second is the residual of predicting nullness for continuous features.
             - missing_information : bool, optional
                 For each feature in ``action_features``, return the average estimated missing information. This is
                 computed by measuring the surprisal between the full prediction and the prediction including the true
@@ -3799,7 +3811,7 @@ class Trainee(BaseTrainee):
             - value_robust_surprisal_asymmetry : bool. optional
                 Perform a focused computation to determine how all the individual values of specified
                 'value_robust_contributions_features' relationships with `value_robust_contributions_action_feature"
-			    vary in terms of AC-surprisal asymmetry.
+                vary in terms of AC-surprisal asymmetry.
         convergence_min_size: int, optional
             The minimum size of the first batch of cases used when dynamically sampling robust
             residuals used to determine feature accuracy contributions. Defaults to 5000 when unspecified.
@@ -3939,7 +3951,7 @@ class Trainee(BaseTrainee):
             ``weight_feature`` weight. If unspecified, case weights will
             be used if the Trainee has them.
         value_robust_contributions_action_feature : str, optional
-			The name of the feature being predicted when computing the "value_robust_accuracy_contributions",
+            The name of the feature being predicted when computing the "value_robust_accuracy_contributions",
             "value_robust_prediction_contributions" or "value_robust_surprisal_asymmetry" details.
         value_robust_contributions_buckets : dict of str to list of tuples of float and float, optional
             A mapping of continuous feature names to lists of ranges defined as two float tuples that describe the
