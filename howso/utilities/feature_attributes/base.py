@@ -25,7 +25,7 @@ from howso.utilities.features import FeatureType
 from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 
 from ..utilities import determine_iso_format
-from .serializers import TupleAwareEncoder, tuple_aware_object_pairs_hook
+from .serializers import FeatureAttributesEncoder, feature_attributes_pairs_hook
 from .warnings import IFAWarningEmitterType
 
 if t.TYPE_CHECKING:
@@ -119,9 +119,9 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                 "feature_attributes": self,
                 "params": self.params,
                 "unsupported": self.unsupported,
-            }, cls=TupleAwareEncoder)
+            }, cls=FeatureAttributesEncoder)
         else:
-            json_str = json.dumps(self, cls=TupleAwareEncoder)
+            json_str = json.dumps(self, cls=FeatureAttributesEncoder)
 
         if json_path:
             with open(json_path, mode="w") as fp:
@@ -165,9 +165,9 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
         if json_path:
             with open(json_path, mode="r") as fp:
-                obj_dict = json.load(fp, object_pairs_hook=tuple_aware_object_pairs_hook)
+                obj_dict = json.load(fp, object_pairs_hook=feature_attributes_pairs_hook)
         else:
-            obj_dict = json.loads(json_str or "", object_pairs_hook=tuple_aware_object_pairs_hook)
+            obj_dict = json.loads(json_str or "", object_pairs_hook=feature_attributes_pairs_hook)
 
         # If there are no top-level keys other than the archival_keys, it's an archive.
         archival_keys = {"feature_attributes", "params", "unsupported"}
