@@ -3765,11 +3765,14 @@ class AbstractHowsoClient(ABC):
                 For each feature in ``action_features``, use the context_features to predict
                 the feature and return the mean absolute error. When ``prediction_stats`` in
                 the ``details`` parameter is true, the Trainee will also calculate
-                the full feature residuals.
+                the full feature residuals. Residuals returned are a list where the first entry
+                is the value residual and the second entry is the residual of predicting nullness for
+                continuous features.
             - feature_robust_residuals : bool, optional
                 For each feature in ``action_features``, use the robust
                 (power set/permutations) set of all other context_features to predict
-                the feature and return the mean absolute error.
+                the feature and return the mean absolute error. Residuals returned are a list where the first entry
+                is the value residual and second is the residual of predicting nullness for continuous features.
             - feature_full_prediction_contributions : bool, optional
                 For each context_feature, use the full set of all other
                 context_features to compute the mean absolute delta between
@@ -3779,6 +3782,8 @@ class AbstractHowsoClient(ABC):
                 delta under the key 'feature_full_directional_prediction_contributions'.
                 Note: not recommended for semi-structured data action features due to weak signal
                 caused by its high dimensionality, accuracy contributions should be computed instead.
+                Contributions returned are a list where the first entry is the value prediction contribution
+                and the second is the prediction contribution for the null probability for continuous features.
             - feature_robust_prediction_contributions : bool, optional
                 For each context_feature, use the robust (power set/permutation)
                 set of all other context_features to compute the mean absolute
@@ -3786,21 +3791,29 @@ class AbstractHowsoClient(ABC):
                 and without the context features in the model. Returns the mean absolute delta
                 under the key 'feature_robust_prediction_contributions' and returns the mean
                 delta under the key 'feature_robust_directional_prediction_contributions'.
+                Contributions returned are a list where the first entry is the value prediction contribution
+                and the second is the prediction contribution for the null probability for continuous features.
                 Note: not recommended for semi-structured data action features due to weak signal
                 caused by its high dimensionality, accuracy contributions should be computed instead.
             - feature_deviations : bool, optional
                 For each feature in ``action_features``, use the context features
                 and the feature being predicted as context to predict the feature
-                and return the mean absolute error.
+                and return the mean absolute error. Deviations returned are a list where the first entry
+                is the value residual and second is the residual of predicting nullness for continuous features.
             - feature_full_accuracy_contributions : bool, optional
                 When True will compute accuracy contributions for each context
                 feature at predicting the ``feature_influences_action_feature``.
                 Drop each feature and use the full set of remaining context features for
-                each prediction.
+                each prediction. Contributions returned are a list where the first entry is the value accuracy
+                contribution, the second entry is the accuracy contribution for the null probability for continuous
+                features, and the third entry is the percent of sampled cases that had a null value.
             - feature_robust_accuracy_contributions : bool, optional
                 Compute accuracy contributions by dropping each feature and
                 using the robust (power set/permutations) set of remaining
-                context features for each prediction.
+                context features for each prediction. Contributions returned are a list where the first entry
+                is the value accuracy contribution, the second entry is the accuracy contribution for the null
+                probability for continuous features, and the third entry is the percent of sampled cases that
+                had a null value.
             - feature_full_accuracy_contributions_permutation : bool, optional
                 Compute accuracy contributions by scrambling each feature and
                 using the full set of remaining context features for each
