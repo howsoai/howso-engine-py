@@ -3765,8 +3765,9 @@ class AbstractHowsoClient(ABC):
                 For each feature in ``action_features``, use the context_features to predict
                 the feature and return the mean absolute error. When ``prediction_stats`` in
                 the ``details`` parameter is true, the Trainee will also calculate
-                the full feature residuals. Residuals returned are a list with the first entry
-                being the value residual and the residual of predicting nullness for continuous features.
+                the full feature residuals. Residuals returned are a list where the first entry
+                is the value residual and the second entry is the residual of predicting nullness for
+                continuous features.
             - feature_robust_residuals : bool, optional
                 For each feature in ``action_features``, use the robust
                 (power set/permutations) set of all other context_features to predict
