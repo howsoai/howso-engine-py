@@ -186,7 +186,9 @@ def test_integer_nominality(feature, nominality):
 def test_get_feature_type(data, expected_type):
     """Test get_feature_type returns expected data types."""
     infer = InferFeatureAttributesDataFrame(data)
-    feature_type, original_type = infer._get_feature_type('a')
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        feature_type, original_type = infer._get_feature_type('a')
     expected_feature_type = expected_type.pop('data_type')
     assert str(feature_type) == expected_feature_type
     assert original_type == expected_type
@@ -444,7 +446,9 @@ def test_dependent_features(should_include, dependent_features):
 def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
     """Test the infer_feature_bounds() method."""
     df = pd.DataFrame(pd.Series(data), columns=['a'])
-    features = infer_feature_attributes(df, tight_bounds=tight_bounds)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        features = infer_feature_attributes(df, tight_bounds=tight_bounds)
     assert features['a']['type'] == 'continuous'
     assert 'bounds' in features['a']
     assert features['a']['bounds'] == expected_bounds
@@ -875,12 +879,27 @@ def test_feature_order():
 
 
 def test_archival():
-    """Test that archival of the FeatureAttributes instance works as expected."""
+    """
+    Test that archival of the FeatureAttributes instance works as expected.
+
+    This also tests that tuples as keys or values of IFA parameters are
+    preserved through the archival process (to_json / from_json).
+    """
     data = pd.DataFrame({
         'a': [0, 1, 2, 3, 4, 5, 6, 7],
-        'b': ['apple', 'banana', 'banana', 'cherry', 'apple', 'apple', 'cherry', 'banana']
+        'b': ['apple', 'banana', 'banana', 'cherry', 'apple', 'apple', 'cherry', 'banana'],
+        'c': [2, 3, 4, 2, 3, 4, 2, 3],
+        'd': [1, 1, 1, 1, 2, 2, 2, 2],
+        # NOTE: That the second red is not a typo.
+        'e': ["red", "orange", "yellow", "red", "green", "blue", "indigo", "violet"],
     })
-    features = infer_feature_attributes(data, tight_bounds=['a'])
+    features = infer_feature_attributes(
+        data,
+        tight_bounds=['a'],
+        fanout_feature_map={
+            ("c", "d"): ("e", ),
+        }
+    )
     assert features['a']['type'] == 'continuous'
     assert features['b']['type'] == 'nominal'
 
@@ -890,6 +909,9 @@ def test_archival():
     assert new_features['a']['type'] == 'continuous'
     assert new_features['b']['type'] == 'nominal'
     assert new_features.params['tight_bounds'] == ['a']
+    fanout_feature_key = list(new_features.params['fanout_feature_map'].keys())[0]
+    assert isinstance(fanout_feature_key, tuple)
+    assert isinstance(new_features.params["fanout_feature_map"][fanout_feature_key], tuple)
 
 
 def test_disk_archival():
@@ -960,7 +982,9 @@ def test_disk_archival():
 def test_observed_ordinal_values(series, ordinals, min_value, max_value):
     """Test that observed_min/max in ordinal features works as expected."""
     data = pd.DataFrame({'a': series})
-    features = infer_feature_attributes(data, ordinal_feature_values={'a': ordinals})
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        features = infer_feature_attributes(data, ordinal_feature_values={'a': ordinals})
     assert features['a']['bounds']['observed_min'] == min_value
     assert features['a']['bounds']['observed_max'] == max_value
 
@@ -1148,3 +1172,22 @@ def test_boolean_detection():
     df["boolean"] = ["true", "false", "maybe", "another_thing"] * 50
     feature_attributes = infer_feature_attributes(df)
     assert feature_attributes["boolean"]["data_type"] == "string"
+
+
+def test_dependent_features_uniques_warning():
+    """Test that IFA correctly warns if a feature in a depnedent relationship has too many unique values."""
+    df = pd.DataFrame(
+        {
+            "a": [1, 2, 4, 4, 4, 4, 4],  # Too many
+            "b": [1, 3, 3, 3, 3, 3, 3],  # Fine
+            "c": [7, 7, 7, 7, 7, 7, 7],  # Fine
+            "d": [8, 8, 8, 8, 8, 8, 9],  # Fine
+        }
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        infer_feature_attributes(df, dependent_features={"d": ["b", "c"]})
+    with pytest.warns(UserWarning, match="- a\n"):
+        infer_feature_attributes(df, dependent_features={"d": ["b", "c", "a"]})
+    with pytest.warns(UserWarning, match="- a\n"):
+        infer_feature_attributes(df, dependent_features={"a": ["b", "c", "d"]})

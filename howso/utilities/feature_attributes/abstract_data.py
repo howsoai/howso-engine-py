@@ -10,7 +10,6 @@ from math import isnan
 import re
 import typing as t
 import warnings
-from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -25,6 +24,7 @@ from pandas.core.dtypes.common import (
 
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
 from .protocols import IFACompatibleADCProtocol
+from .warnings import IFAWarningCollector, IFAWarningEmitterType
 from ..features import FeatureType
 from ..utilities import (
     date_to_epoch,
@@ -69,15 +69,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         self.data.columns = self.data.headers
         # Keep track of features that contain unsupported data
         self.unsupported = []
-        # Keep track of any features that are missing time zone information
-        # If a `default_time_zone` is provided, this list should stay empty
-        self.missing_tz_features = []
-        # Keep track of any features that use UTC offsets, as these could lead
-        # to unexpected results due to daylight savings time in some time zones
-        self.utc_offset_features = []
-        # Keep track of any features that we detected to be datetimes but were
-        # not in ISO8601 format
-        self.unknown_datetime_features = []
+        # IFAWarningEmitter collector
+        self.warnings_collector = IFAWarningCollector()
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -93,8 +86,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             kwargs["max_workers"] = 1
         feature_attributes = self._process(**kwargs)
 
-        self.emit_time_zone_warnings(self.missing_tz_features, self.utc_offset_features)
-        self.emit_unknown_datetime_warnings(self.unknown_datetime_features)
+        self.warnings_collector.emit_all()
+
         return SingleTableFeatureAttributes(
             feature_attributes, params=kwargs,
             unsupported=self.unsupported
@@ -250,9 +243,9 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                         # a Numpy datetime64[D] dtype.
                         #
                         # However, we need to be careful with this -- if the user has a datetime feature of the format
-                        # '%y-%m-%d', for example, the `to_datetime()` conversion above will add an empty time component
+                        # '%y-%m-%d', for example, the to_datetime() conversion above will add an empty time component
                         # as previously described. But, if the user has a datetime feature that *actually* has an empty
-                        # time component in the string -- for example, '%y-%m-%dT00:00:00', we must respect the original
+                        # time component in the string; for example, '%y-%m-%dT00:00:00', we must respect the original
                         # format even if it is intended to be a date-only feature.
                         if all([converted_val.time() == pd.Timestamp(0).time(),
                                 converted_val.tz is None,
@@ -266,7 +259,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                         elif isinstance(converted_dtype, pd.DatetimeTZDtype):
                             # If using a named time zone capture it, otherwise
                             # rely on the offset in the iso8601 format
-                            tz_name = getattr(converted_dtype.tz, 'key', None) or getattr(converted_dtype.tz, 'zone', None)
+                            tz_name = getattr(converted_dtype.tz, 'key', None) or getattr(converted_dtype.tz, 'zone',
+                                                                                          None)
                             if tz_name:
                                 typing_info['timezone'] = tz_name
                         return FeatureType.DATETIME, typing_info
@@ -274,7 +268,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                         # Only add this to the warning list if we've tried `max_samples` times to
                         # find another reason to set it as something else.
                         if num_samples >= max_samples:
-                            self.unknown_datetime_features.append(feature_name)
+                            self.warnings_collector.triage(
+                                IFAWarningEmitterType.UNKNOWN_DATETIME_FORMAT, feature_name)
                             return FeatureType.STRING, {}
                 except Exception:
                     return FeatureType.STRING, {}
@@ -663,7 +658,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                     dt_format += '%z'
             elif self._is_iso8601_datetime_column(feature_name):
                 # if datetime, determine the iso8601 format it's using
-                fmt = determine_iso_format(first_non_null, feature_name) # Handles timezone checking
+                fmt = determine_iso_format(first_non_null, feature_name)  # Handles timezone checking
                 return {
                     'type': 'continuous',
                     'data_type': 'formatted_date_time',
