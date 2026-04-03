@@ -1,10 +1,10 @@
 Faker
-40.8.0
+40.12.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/faker-40.8.0.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/faker-40.12.0.dist-info/licenses/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -56,12 +56,12 @@ SOFTWARE.
 
 
 Pygments
-2.19.2
-BSD License
+2.20.0
+BSD-2-Clause
 Georg Brandl <georg@python.org>
 https://pygments.org
 Pygments is a syntax highlighting package written in Python.
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pygments-2.19.2.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/pygments-2.20.0.dist-info/licenses/LICENSE
 Copyright (c) 2006-2022 by the respective authors (see AUTHORS file).
 All rights reserved.
 
@@ -90,12 +90,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 build
-1.4.0
+1.4.2
 MIT
 Filipe Laíns <lains@riseup.net>, Bernát Gábor <gaborjbernat@gmail.com>, layday <layday@protonmail.com>, Henry Schreiner <henryschreineriii@gmail.com>
 https://build.pypa.io
 A simple, correct Python build frontend
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/build-1.4.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/build-1.4.2.dist-info/licenses/LICENSE
 Copyright © 2019 Filipe Laíns <filipe.lains@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -148,12 +148,12 @@ one at http://mozilla.org/MPL/2.0/.
 
 
 charset-normalizer
-3.4.5
+3.4.7
 MIT
 "Ahmed R. TAHRI" <tahri.ahmed@proton.me>
 https://github.com/jawah/charset_normalizer/blob/master/CHANGELOG.md
 The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet.
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/charset_normalizer-3.4.5.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/charset_normalizer-3.4.7.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2025 TAHRI Ahmed R.
@@ -436,12 +436,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 numpy
-2.4.3
+2.4.4
 BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
 Travis E. Oliphant et al.
 https://numpy.org
 Fundamental package for array computing in Python
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/numpy-2.4.3.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/numpy-2.4.4.dist-info/licenses/LICENSE.txt
 Copyright (c) 2005-2025, NumPy Developers.
 All rights reserved.
 
@@ -2845,12 +2845,12 @@ DEALINGS IN THE SOFTWARE.
 
 
 regex
-2026.2.28
+2026.3.32
 Apache-2.0 AND CNRI-Python
 Matthew Barnett <regex@mrabarnett.plus.com>
 https://github.com/mrabarnett/mrab-regex
 Alternative regular expression module, to replace re.
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/regex-2026.2.28.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/regex-2026.3.32.dist-info/licenses/LICENSE.txt
 This work was derived from the 're' module of CPython 2.6 and CPython 3.1,
 copyright (c) 1998-2001 by Secret Labs AB and licensed under CNRI's Python 1.6
 license.
@@ -3062,12 +3062,12 @@ All additions and alterations are licensed under the Apache 2.0 License.
 
 
 requests
-2.32.5
+2.33.1
 Apache Software License
-Kenneth Reitz
-https://requests.readthedocs.io
+Kenneth Reitz <me@kennethreitz.org>
+https://github.com/psf/requests
 Python HTTP for Humans.
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/requests-2.32.5.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/requests-2.33.1.dist-info/licenses/LICENSE
 
                                  Apache License
                            Version 2.0, January 2004
@@ -3708,12 +3708,12 @@ PERFORMANCE OF THIS SOFTWARE.
 
 
 tzdata
-2025.3
+2026.1
 Apache-2.0
 Python Software Foundation
 https://github.com/python/tzdata
 Provider of IANA time zone data
-/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/tzdata-2025.3.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.12/lib/python3.13/site-packages/tzdata-2026.1.dist-info/licenses/LICENSE
 Apache Software License 2.0
 
 Copyright (c) 2020, Paul Ganssle (Google)
