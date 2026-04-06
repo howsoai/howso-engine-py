@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping
 import datetime
 from datetime import time, timedelta
 import decimal
@@ -582,7 +582,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 # For string ordinals, we can only rank them if they are given
                 # a rank via the `allowed` key in `bounds`.
                 if allowed := feature_attributes[feature_name].get('bounds', {}).get('allowed'):
-                    unique_values: set = self._get_unique_values(feature_name)
+                    unique_values = self._get_unique_values(feature_name)
                     # Find the first value in allowed_values present in unique_values
                     observed_min = next((value for value in allowed if value in unique_values), None)
                     # Find the last value in allowed_values present in unique_values
@@ -766,6 +766,6 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
         return attributes
 
-    def _get_unique_values(self, feature_name: str) -> set[t.Any]:
+    def _get_unique_values(self, feature_name: str) -> Collection[t.Any]:
         """Return the set of unique values for the given feature."""
         return self.data.get_unique_values(feature_name)

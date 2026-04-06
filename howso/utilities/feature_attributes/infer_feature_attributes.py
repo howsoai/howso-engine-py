@@ -13,7 +13,7 @@ from .relational import InferFeatureAttributesSQLDatastore
 from .time_series import IFATimeSeriesADC, IFATimeSeriesPandas
 
 
-def infer_feature_attributes(data: pd.DataFrame | SQLRelationalDatastoreProtocol, *,
+def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQLRelationalDatastoreProtocol, *,
                              tables: t.Optional[Iterable[TableNameProtocol]] = None,
                              time_feature_name: t.Optional[str] = None,
                              **kwargs
