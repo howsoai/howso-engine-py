@@ -1754,5 +1754,5 @@ class InferFeatureAttributesBase(ABC):
         """Get the number of unique values in the provided feature(s)."""
 
     @abstractmethod
-    def _get_unique_values(self, feature_name: str) -> set[t.Any]:
+    def _get_unique_values(self, feature_name: str) -> Collection[t.Any]:
         """Get a set of the unique values for the given feature_name."""

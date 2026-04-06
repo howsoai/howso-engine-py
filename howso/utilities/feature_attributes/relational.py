@@ -1044,7 +1044,7 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                 # For string ordinals, we can only rank them if they are given
                 # a rank via the `allowed` key in `bounds`.
                 if allowed := feature_attributes[feature_name].get('bounds', {}).get('allowed'):
-                    unique_values: set = self._get_unique_values(feature_name)
+                    unique_values = self._get_unique_values(feature_name)
                     # Find the first value in allowed_values present in unique_values
                     observed_min = next((value for value in allowed if value in unique_values), None)
                     # Find the last value in allowed_values present in unique_values
