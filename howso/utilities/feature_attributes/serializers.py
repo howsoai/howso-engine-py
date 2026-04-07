@@ -31,6 +31,58 @@ class FeatureAttributesEncoder(json.JSONEncoder):
     converted to lists.
     """
 
+    @staticmethod
+    def _convert_numpy(obj: t.Any) -> tuple[bool, t.Any]:
+        """
+        Convert a numpy type to its native Python equivalent.
+
+        Parameters
+        ----------
+        obj : Any
+            The object to convert.
+
+        Returns
+        -------
+        tuple of (bool, Any)
+            A 2-tuple of (was_converted, result).
+        """
+        if isinstance(obj, np.bool_):
+            return True, bool(obj)
+        if isinstance(obj, np.integer):
+            return True, int(obj)
+        if isinstance(obj, np.floating):
+            return True, float(obj)
+        if isinstance(obj, np.ndarray):
+            return True, obj.tolist()
+        return False, obj
+
+    def default(self, o: t.Any) -> t.Any:
+        """
+        Handle objects that the base encoder cannot serialize.
+
+        This acts as a fallback for any numpy types not already
+        converted by ``_pre_process``.
+
+        Parameters
+        ----------
+        o : Any
+            The object that the base encoder could not serialize.
+
+        Returns
+        -------
+        Any
+            A JSON-compatible equivalent of *o*.
+
+        Raises
+        ------
+        TypeError
+            If *o* is not a recognized type.
+        """
+        converted, result = self._convert_numpy(o)
+        if converted:
+            return result
+        return super().default(o)
+
     def encode(self, o: t.Any) -> str:
         """
         Encode the given object to a JSON-formatted string.
@@ -71,15 +123,8 @@ class FeatureAttributesEncoder(json.JSONEncoder):
             return {"__tuple__": [self._pre_process(i) for i in obj]}
         if isinstance(obj, list):
             return [self._pre_process(i) for i in obj]
-        if isinstance(obj, np.bool_):
-            return bool(obj)
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return obj
+        _, result = self._convert_numpy(obj)
+        return result
 
 
 def feature_attributes_pairs_hook(pairs: list[tuple[str, t.Any]]) -> dict[t.Any, t.Any] | tuple:
