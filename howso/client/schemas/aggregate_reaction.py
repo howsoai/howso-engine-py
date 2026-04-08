@@ -105,6 +105,12 @@ class AggregateReaction(Mapping[Metric, MetricValue]):
                     df['pc_values'] = value['pc_values']
                 if "pc_directional_values" in value:
                     df['pc_directional_values'] = value['pc_directional_values']
+                if "null_ac_values" in value:
+                    df['null_ac_values'] = value['null_ac_values']
+                if "null_pc_values" in value:
+                    df['null_pc_values'] = value['null_pc_values']
+                if "null_pc_directional_values" in value:
+                    df['null_pc_directional_values'] = value['null_pc_directional_values']
                 return df
             elif key == "value_robust_surprisal_asymmetry":
                 df = pd.DataFrame(data=value['feature_values'], columns=value['features'])
