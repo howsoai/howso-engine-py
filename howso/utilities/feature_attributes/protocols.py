@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Generator, Iterable
+from collections.abc import Collection, Generator, Hashable, Iterable
 import typing as t
 
 import pandas as pd
@@ -76,7 +76,7 @@ class AbstractDataProtocol(t.Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def get_group_map(self, column_name: t.Hashable) -> dict[t.Any, int]:
+    def get_group_map(self, column_name: Hashable) -> dict[t.Any, int]:
         """Get the group map."""
         raise NotImplementedError
 
@@ -103,7 +103,7 @@ class AbstractDataProtocol(t.Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def yield_grouped_chunk(self, column_name: t.Hashable,
+    def yield_grouped_chunk(self, column_name: Hashable,
                             groups: Iterable[Iterable[t.Any]]
                             ) -> Generator[pd.DataFrame, None, None]:
         """Provide a grouped chunk generator."""
@@ -115,15 +115,15 @@ class AbstractDataProtocol(t.Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def get_unique_count(self, column_name: t.Hashable) -> int:
+    def get_unique_count(self, column_name: Hashable) -> int:
         """Get the number of unique values in the provided column."""
 
     @abstractmethod
-    def is_unique(self, column_name: t.Hashable) -> bool:
+    def is_unique(self, column_name: Hashable) -> bool:
         """Return whether the given column contains only unique values."""
 
     @abstractmethod
-    def contains_nulls(self, column_name: t.Hashable) -> bool:
+    def contains_nulls(self, column_name: Hashable) -> bool:
         """Return whether the given column contains any null values."""
 
 
@@ -144,11 +144,11 @@ class IFACompatibleADCProtocol(t.Protocol):
         """Get random samples from the given data frame as a data frame."""
 
     @abstractmethod
-    def get_decimal_places(self, column_name: t.Hashable) -> int:
+    def get_decimal_places(self, column_name: Hashable) -> int:
         """Get the number of decimal places for values in the given column, if applicable."""
 
     @abstractmethod
-    def get_random_value(self, column_name: t.Hashable, no_nulls: bool = False):
+    def get_random_value(self, column_name: Hashable, no_nulls: bool = False) -> t.Any:
         """
         Return a random sample from the given DataFrame column.
 
@@ -159,15 +159,15 @@ class IFACompatibleADCProtocol(t.Protocol):
         """
 
     @abstractmethod
-    def get_min_max_values(self, column_name: t.Hashable) -> tuple[t.Any, t.Any]:
+    def get_min_max_values(self, column_name: Hashable, *, datetime_format: str | None = None) -> tuple[t.Any, t.Any]:
         """Get the smallest and largest values in the given column."""
 
     @abstractmethod
-    def get_num_cases(self, column_name: t.Hashable) -> int:
+    def get_num_cases(self, column_name: Hashable) -> int:
         """Return the number of non-null cases in the given column."""
 
     @abstractmethod
-    def get_mode(self, column_name: t.Hashable) -> list[tuple[t.Any, int]]:
+    def get_mode(self, column_name: Hashable) -> list[tuple[t.Any, int]]:
         """
         Get the most common value in the given feature/column.
 
@@ -176,16 +176,20 @@ class IFACompatibleADCProtocol(t.Protocol):
         """
 
     @abstractmethod
-    def get_column_dtype(self, column_name: str) -> str:
+    def get_column_dtype(self, column_name: Hashable) -> str:
         """Get the dtype of the given column."""
 
     @abstractmethod
-    def get_first_non_null(self, column_name: str) -> str:
+    def get_first_non_null(self, column_name: Hashable) -> t.Any | None:
         """Get the first non-null value in the given column."""
 
     @abstractmethod
-    def get_null_count(self, column_name) -> int:
+    def get_null_count(self, column_name: Hashable) -> int:
         """Get the number of nulls in the given column."""
+
+    @abstractmethod
+    def get_unique_values(self, column_name: Hashable) -> Collection[t.Any]:
+        """Return the unique values in `column_name`."""
 
 
 class RelationshipProtocol(t.Protocol):
@@ -251,12 +255,12 @@ class DatastoreProtocol(t.Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def get_data(self, table_name) -> AbstractDataProtocol:
+    def get_data(self, table_name: TableNameProtocol) -> AbstractDataProtocol:
         """Get the data in a specified table."""
         raise NotImplementedError
 
     @abstractmethod
-    def set_data(self, table_name, data: AbstractDataProtocol):
+    def set_data(self, table_name: TableNameProtocol, data: AbstractDataProtocol):
         """Set the data in a specified table."""
         raise NotImplementedError
 
@@ -265,19 +269,20 @@ class DatastoreProtocol(t.Protocol):
                    table_name: TableNameProtocol,
                    primary_key_columns: list[str] | str,
                    primary_key_values: list[list[t.Any]] | list[t.Any],
-                   column_name: str) -> list[t.Any]:
+                   column_name: Hashable) -> list[t.Any]:
         """Get the column values in a specified table."""
         raise NotImplementedError
 
     @abstractmethod
-    def replace_values(self,
-                       table_name: TableNameProtocol,
-                       primary_key_columns: list[str] | str,
-                       primary_key_values: list[t.Any] | t.Any,
-                       column_name: str,
-                       replace_values: list[t.Any],
-                       return_old: bool = False
-                       ) -> list[t.Any] | None:
+    def replace_values(
+        self,
+        table_name: TableNameProtocol,
+        primary_key_columns: list[str] | str,
+        primary_key_values: list[t.Any] | t.Any,
+        column_name: Hashable,
+        replace_values: list[t.Any],
+        return_old: bool = False,
+    ) -> list[t.Any] | None:
         """Replace the column values in a specified table."""
         raise NotImplementedError
 
