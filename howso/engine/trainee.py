@@ -1000,9 +1000,6 @@ class Trainee(BaseTrainee):
         context_features: t.Optional[Collection[str]] = None,
         action_features: t.Optional[Collection[str]] = None,
         *,
-        bypass_calculate_feature_residuals: t.Optional[bool] = None,
-        bypass_calculate_feature_weights: t.Optional[bool] = None,
-        bypass_hyperparameter_analysis: t.Optional[bool] = None,
         convergence_min_size: t.Optional[int] = None,
         convergence_samples_growth_rate: t.Optional[float] = None,
         convergence_threshold: t.Optional[float] = None,
@@ -1033,12 +1030,6 @@ class Trainee(BaseTrainee):
             The context features to analyze for.
         action_features : Collection of str, optional
             The action features to analyze for.
-        bypass_calculate_feature_residuals : bool, default False
-            When True, bypasses calculation of feature residuals.
-        bypass_calculate_feature_weights : bool, default False
-            When True, bypasses calculation of feature weights.
-        bypass_hyperparameter_analysis : bool, default False
-            When True, bypasses hyperparameter analysis.
         convergence_min_size: int, optional
             The minimum size of the first batch of cases used when dynamically
             sampling robust residuals used to determine feature probabilities.
@@ -1127,9 +1118,6 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 action_features=action_features,
                 context_features=context_features,
-                bypass_calculate_feature_residuals=bypass_calculate_feature_residuals,  # noqa: E501
-                bypass_calculate_feature_weights=bypass_calculate_feature_weights,
-                bypass_hyperparameter_analysis=bypass_hyperparameter_analysis,  # noqa: E501
                 convergence_min_size=convergence_min_size,
                 convergence_samples_growth_rate=convergence_samples_growth_rate,
                 convergence_threshold=convergence_threshold,

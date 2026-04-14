@@ -4389,9 +4389,6 @@ class AbstractHowsoClient(ABC):
         action_features: t.Optional[Collection[str]] = None,
         *,
         analysis_sub_model_size: t.Optional[int] = None,
-        bypass_calculate_feature_residuals: t.Optional[bool] = None,
-        bypass_calculate_feature_weights: t.Optional[bool] = None,
-        bypass_hyperparameter_analysis: t.Optional[bool] = None,
         convergence_min_size: t.Optional[int] = None,
         convergence_samples_growth_rate: t.Optional[float] = None,
         convergence_threshold: t.Optional[float] = None,
@@ -4426,12 +4423,6 @@ class AbstractHowsoClient(ABC):
         analysis_sub_model_size : int or Node, optional
             Number of samples to use for analysis. The rest will be randomly
             held-out and not included in calculations.
-        bypass_calculate_feature_residuals : bool, optional
-            When True, bypasses calculation of feature residuals.
-        bypass_calculate_feature_weights : bool, optional
-            When True, bypasses calculation of feature weights.
-        bypass_hyperparameter_analysis : bool, optional
-            When True, bypasses hyperparameter analysis.
         convergence_min_size: int, optional
             The minimum size of the first batch of cases used when dynamically
             sampling robust residuals used to determine feature probabilities.
@@ -4526,7 +4517,6 @@ class AbstractHowsoClient(ABC):
                 'and targetless.')
 
         deprecated_params = {
-            'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
             'num_optimization_samples': 'num_analysis_samples',
             'optimization_sub_model_size': 'analysis_sub_model_size',
             'dwe_values': 'dt_values'
@@ -4535,9 +4525,7 @@ class AbstractHowsoClient(ABC):
         if kwargs:
             for old_param, new_param in deprecated_params.items():
                 if old_param in kwargs:
-                    if old_param == 'bypass_hyperparameter_optimization':
-                        bypass_hyperparameter_analysis = kwargs[old_param]
-                    elif old_param == 'num_optimization_samples':
+                    if old_param == 'num_optimization_samples':
                         num_analysis_samples = kwargs[old_param]
                     elif old_param == 'optimization_sub_model_size':
                         analysis_sub_model_size = kwargs[old_param]
@@ -4553,9 +4541,6 @@ class AbstractHowsoClient(ABC):
         analyze_params = dict(
             action_features=action_features,
             context_features=context_features,
-            bypass_calculate_feature_residuals=bypass_calculate_feature_residuals,  # noqa: #E501
-            bypass_calculate_feature_weights=bypass_calculate_feature_weights,
-            bypass_hyperparameter_analysis=bypass_hyperparameter_analysis,  # noqa: #E501
             convergence_min_size=convergence_min_size,
             convergence_samples_growth_rate=convergence_samples_growth_rate,
             convergence_threshold=convergence_threshold,
@@ -4629,9 +4614,6 @@ class AbstractHowsoClient(ABC):
         analysis_sub_model_size: t.Optional[int] = None,
         analyze_growth_factor: t.Optional[float] = None,
         action_features: t.Optional[Collection[str]] = None,
-        bypass_calculate_feature_residuals: t.Optional[bool] = None,
-        bypass_calculate_feature_weights: t.Optional[bool] = None,
-        bypass_hyperparameter_analysis: t.Optional[bool] = None,
         context_features: t.Optional[Collection[str]] = None,
         convergence_min_size: t.Optional[int] = None,
         convergence_samples_growth_rate: t.Optional[float] = None,
@@ -4703,12 +4685,6 @@ class AbstractHowsoClient(ABC):
             minimum K, maximum K and extra K.
         p_values : Collection of float, optional
             The p value hyperparameters to analyze with.
-        bypass_calculate_feature_residuals : bool, optional
-            When True, bypasses calculation of feature residuals.
-        bypass_calculate_feature_weights : bool, optional
-            When True, bypasses calculation of feature weights.
-        bypass_hyperparameter_analysis : bool, optional
-            When True, bypasses hyperparameter analysis.
         rebalance_features : Collection[str], optional
             The list of features whose values to use to rebalance case
             weighting of the data and to store into weight_feature.
@@ -4770,7 +4746,6 @@ class AbstractHowsoClient(ABC):
             'optimize_growth_factor': 'analyze_growth_factor',
         }
         analyze_deprecated_params = {
-            'bypass_hyperparameter_optimization': 'bypass_hyperparameter_analysis',
             'num_optimization_samples': 'num_analysis_samples',
             'optimization_sub_model_size': 'analysis_sub_model_size',
             'dwe_values': 'dt_values'
@@ -4837,9 +4812,6 @@ class AbstractHowsoClient(ABC):
             "dt_values": dt_values,
             "k_values": k_values,
             "p_values": p_values,
-            "bypass_hyperparameter_analysis": bypass_hyperparameter_analysis,
-            "bypass_calculate_feature_residuals": bypass_calculate_feature_residuals,
-            "bypass_calculate_feature_weights": bypass_calculate_feature_weights,
             "rebalance_features": rebalance_features,
             "targeted_model": targeted_model,
             "num_analysis_samples": num_analysis_samples,
