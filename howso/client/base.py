@@ -4517,7 +4517,6 @@ class AbstractHowsoClient(ABC):
                 'and targetless.')
 
         deprecated_params = {
-            'num_optimization_samples': 'num_analysis_samples',
             'optimization_sub_model_size': 'analysis_sub_model_size',
             'dwe_values': 'dt_values'
         }
@@ -4525,9 +4524,7 @@ class AbstractHowsoClient(ABC):
         if kwargs:
             for old_param, new_param in deprecated_params.items():
                 if old_param in kwargs:
-                    if old_param == 'num_optimization_samples':
-                        num_analysis_samples = kwargs[old_param]
-                    elif old_param == 'optimization_sub_model_size':
+                    if old_param == 'optimization_sub_model_size':
                         analysis_sub_model_size = kwargs[old_param]
                     elif old_param == 'dwe_values':
                         dt_values = kwargs[old_param]
@@ -4746,7 +4743,6 @@ class AbstractHowsoClient(ABC):
             'optimize_growth_factor': 'analyze_growth_factor',
         }
         analyze_deprecated_params = {
-            'num_optimization_samples': 'num_analysis_samples',
             'optimization_sub_model_size': 'analysis_sub_model_size',
             'dwe_values': 'dt_values'
         }
