@@ -4516,25 +4516,6 @@ class AbstractHowsoClient(ABC):
                 'Valid values include single_targeted, omni_targeted, '
                 'and targetless.')
 
-        deprecated_params = {
-            'optimization_sub_model_size': 'analysis_sub_model_size',
-            'dwe_values': 'dt_values'
-        }
-        # explicitly update parameters if old names are provided
-        if kwargs:
-            for old_param, new_param in deprecated_params.items():
-                if old_param in kwargs:
-                    if old_param == 'optimization_sub_model_size':
-                        analysis_sub_model_size = kwargs[old_param]
-                    elif old_param == 'dwe_values':
-                        dt_values = kwargs[old_param]
-
-                    del kwargs[old_param]
-                    warnings.warn(
-                        f'The `{old_param}` parameter has been renamed to '
-                        f'`{new_param}`, please use the new parameter '
-                        'instead.', UserWarning)
-
         analyze_params = dict(
             action_features=action_features,
             context_features=context_features,
@@ -4736,43 +4717,6 @@ class AbstractHowsoClient(ABC):
             will be cached and used during future auto-analysis.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
-
-        deprecated_params = {
-            'auto_optimize_enabled': 'auto_analyze_enabled',
-            'optimize_threshold': 'analyze_threshold',
-            'optimize_growth_factor': 'analyze_growth_factor',
-        }
-        analyze_deprecated_params = {
-            'optimization_sub_model_size': 'analysis_sub_model_size',
-            'dwe_values': 'dt_values'
-        }
-
-        # explicitly update parameters if old names are provided
-        if kwargs:
-            for old_param, new_param in deprecated_params.items():
-                if old_param in kwargs:
-                    if old_param == 'auto_optimize_enabled':
-                        auto_analyze_enabled = kwargs[old_param]
-                    elif old_param == 'optimize_threshold':
-                        analyze_threshold = kwargs[old_param]
-                    elif old_param == 'optimize_growth_factor':
-                        analyze_growth_factor = kwargs[old_param]
-
-                    del kwargs[old_param]
-                    warnings.warn(
-                        f'The `{old_param}` parameter has been renamed to '
-                        f'`{new_param}`, please use the new parameter '
-                        'instead.', UserWarning)
-
-            # replace any old kwarg param with new param and remove old param
-            for old_param, new_param in analyze_deprecated_params.items():
-                if old_param in kwargs:
-                    kwargs[new_param] = kwargs[old_param]
-                    del kwargs[old_param]
-                    warnings.warn(
-                        f'The `{old_param}` parameter has been renamed to '
-                        f'`{new_param}`, please use the new parameter '
-                        'instead.', UserWarning)
 
         if 'targeted_model' in kwargs:
             targeted_model = kwargs['targeted_model']
@@ -5911,21 +5855,6 @@ class AbstractHowsoClient(ABC):
             print(f'Setting model attributes for Trainee with id: {trainee_id}')
 
         parameters = dict(params)
-        deprecated_params = {
-            'auto_optimize_enabled': 'auto_analyze_enabled',
-            'optimize_threshold': 'analyze_threshold',
-            'optimize_growth_factor': 'analyze_growth_factor'
-        }
-
-        # replace any old params with new params and remove old param
-        for old_param, new_param in deprecated_params.items():
-            if old_param in parameters:
-                parameters[new_param] = parameters[old_param]
-                del parameters[old_param]
-                warnings.warn(
-                    f'The `{old_param}` parameter has been renamed to '
-                    f'`{new_param}`, please use the new parameter '
-                    'instead.', UserWarning)
 
         self.execute(trainee_id, "set_params", parameters)
         self._auto_persist_trainee(trainee_id)
