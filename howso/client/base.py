@@ -1957,7 +1957,7 @@ class AbstractHowsoClient(ABC):
                 contributions are returned under the
                 'feature_full_directional_prediction_contributions_for_case' key.
             - feature_full_residuals : bool, optional
-                If True, outputs feature residuals for all (context and action)
+                If True, outputs feature residuals (MAE) for all (context and action)
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses
                 full calculations, which uses leave-one-out for cases for computations.
@@ -1970,7 +1970,7 @@ class AbstractHowsoClient(ABC):
                 for cases for computations. Also outputs the predicted values
                 for each feature under the key, "predicted_values_for_case".
             - feature_full_residuals_for_case : bool, optional
-                If True, outputs feature residuals for all (context and action)
+                If True, outputs feature residuals (MAE) for all (context and action)
                 features for just the specified case. Uses leave-one-out for
                 each feature, while using the others to predict the left out
                 feature with their corresponding values from this case. Uses
@@ -3917,7 +3917,7 @@ class AbstractHowsoClient(ABC):
             - value_robust_surprisal_asymmetry : bool. optional
                 Perform a focused computation to determine how all the individual values of specified
                 'value_robust_contributions_features' relationships with `value_robust_contributions_action_feature"
-                vary in terms of AC-surprisal asymmetry.
+                vary in terms of AC surprisal asymmetry magnitude.
             - missing_information : bool, optional
                 For each feature in ``action_features``, return the average estimated missing information. This is
                 computed by measuring the surprisal between the full prediction and the prediction including the true

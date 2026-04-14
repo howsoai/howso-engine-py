@@ -760,12 +760,12 @@ class HowsoEstimator(BaseEstimator):
                 for cases for computations. Also outputs the predicted values
                 for each feature under the key, "predicted_values_for_case".
             - feature_full_residuals : bool, optional
-                If True, outputs feature residuals for all (context and action)
+                If True, outputs feature residuals (MAE) for all (context and action)
                 features locally around the prediction. Uses only the context
                 features of the reacted case to determine that area. Uses
                 full calculations, which uses leave-one-out for cases for computations.
             - feature_full_residuals_for_case : bool, optional
-                If True, outputs feature residuals for all (context and action)
+                If True, outputs feature residuals (MAE) for all (context and action)
                 features for just the specified case. Uses leave-one-out for
                 each feature, while using the others to predict the left out
                 feature with their corresponding values from this case. Uses
