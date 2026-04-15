@@ -1205,4 +1205,4 @@ def test_set_data():
         assert features["a"]["data_type"] == "json"
         assert features["a"]["original_type"]["data_type"] == "container"
         assert features["b"]["data_type"] == "json"
-        assert features["b"]["original_type"]["data_type"] == "set"
+        assert features["b"]["original_type"]["data_type"] == "unordered_container"

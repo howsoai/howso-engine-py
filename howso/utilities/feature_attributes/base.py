@@ -1204,7 +1204,7 @@ class InferFeatureAttributesBase(ABC):
                 return {
                     "type": "continuous",
                     "data_type": "json",
-                    "original_type": {"data_type": FeatureType.SET.value},
+                    "original_type": {"data_type": FeatureType.UNORDERED_CONTAINER.value},
                 }
             return {
                 "type": "continuous",

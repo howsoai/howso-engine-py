@@ -1470,9 +1470,9 @@ class TestBaseClient:
         }
         df = pd.DataFrame(data)
         feature_attributes = infer_feature_attributes(df)
-        assert feature_attributes["set_with_ints"]["original_type"]["data_type"] == "set"
+        assert feature_attributes["set_with_ints"]["original_type"]["data_type"] == "unordered_container"
         assert feature_attributes["set_with_ints"]["data_type"] == "json"
-        assert feature_attributes["set_with_strings"]["original_type"]["data_type"] == "set"
+        assert feature_attributes["set_with_strings"]["original_type"]["data_type"] == "unordered_container"
         assert feature_attributes["set_with_strings"]["data_type"] == "json"
         client = HowsoClient()
         t = Trainee()
