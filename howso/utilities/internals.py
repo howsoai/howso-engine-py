@@ -1289,7 +1289,7 @@ def fix_feature_value_keys(
     """
     output_dict = {}
     for k, v in input_dict.items():
-        if k == "(null)":
+        if k == ".null":
             output_dict["null"] = v
         else:
             if feature_attributes[feature_name].get('data_type') == 'number':
