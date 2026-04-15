@@ -790,6 +790,12 @@ def stringify_json(cases: list[list[Any]], features: Iterable[str], feature_attr
         ].get("original_type", {}).get("data_type") in ["container", "tokenizable_string"]:
             for case_group in cases:
                 case_group[idx] = json.dumps(case_group[idx])
+        # If an original type indicates a set, convert to list for serialization
+        if feature_attributes.get(feature_name, {}).get("data_type") == "json" and feature_attributes[
+            feature_name
+        ].get("original_type", {}).get("data_type") == "set":
+            for case_group in cases:
+                case_group[idx] = json.dumps(list(case_group[idx]))
 
 
 def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series:  # noqa: ARG001

@@ -1191,3 +1191,18 @@ def test_dependent_features_uniques_warning():
         infer_feature_attributes(df, dependent_features={"d": ["b", "c", "a"]})
     with pytest.warns(UserWarning, match="- a\n"):
         infer_feature_attributes(df, dependent_features={"a": ["b", "c", "d"]})
+
+
+def test_set_data():
+    """Test that IFA recognized Python sets and correctly updates the original_type."""
+    df = pd.DataFrame({
+        "a": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+        "b": [{1, 2, 3}, {4, 5, 6}, {7, 8, 9}],
+    })
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        features = infer_feature_attributes(df)
+        assert features["a"]["data_type"] == "json"
+        assert features["a"]["original_type"]["data_type"] == "container"
+        assert features["b"]["data_type"] == "json"
+        assert features["b"]["original_type"]["data_type"] == "set"

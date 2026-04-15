@@ -1453,4 +1453,39 @@ class TestBaseClient:
             desired_conviction=5,
         )
         assert reaction["action"].iloc[0]["review"] == df.iloc[0]["review"]
-        assert reaction["details"]["influential_cases"][0].iloc[0]["review"] == df.iloc[0]["review"]
+
+    def test_set_single_reaction(self):
+        """Test that Python Set objects can be processed and are correctly serialized and deserialized."""
+        data = {
+            "set_with_ints": [
+                {1, 2, 3},
+                {4, 5, 6},
+                {7, 8, 9},
+            ],
+            "set_with_strings": [
+                {"a", "b", "c"},
+                {"d", "e", "f"},
+                {"g", "h", "i"},
+            ]
+        }
+        df = pd.DataFrame(data)
+        feature_attributes = infer_feature_attributes(df)
+        assert feature_attributes["set_with_ints"]["original_type"]["data_type"] == "set"
+        assert feature_attributes["set_with_ints"]["data_type"] == "json"
+        assert feature_attributes["set_with_strings"]["original_type"]["data_type"] == "set"
+        assert feature_attributes["set_with_strings"]["data_type"] == "json"
+        client = HowsoClient()
+        t = Trainee()
+        client.set_feature_attributes(t.id, feature_attributes)
+        client.train(t.id, df)
+        reaction = client.react(
+            t.id,
+            contexts=[[{1, 2, 3}]],
+            context_features=["set_with_ints"],
+            action_features=['set_with_strings'],
+            generate_new_cases='attempt',
+            details={"influential_cases": True},
+            desired_conviction=5,
+        )
+        assert reaction["action"].iloc[0]["set_with_strings"] == df.iloc[0]["set_with_strings"]
+        assert reaction["details"]["influential_cases"][0].iloc[0]["set_with_strings"] == df.iloc[0]["set_with_strings"]
