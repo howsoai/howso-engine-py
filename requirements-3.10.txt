@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --output-file=requirements-3.10.txt --pip-args=None
 #
-amalgam-lang==27.4.0
+amalgam-lang==28.0.0
     # via howso-engine (pyproject.toml)
 certifi==2026.2.25
     # via
@@ -32,7 +32,7 @@ numpy==2.2.6
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
-packaging==26.0
+packaging==26.1
     # via howso-engine (pyproject.toml)
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
@@ -52,7 +52,7 @@ regex==2026.4.4
     # via sacremoses
 requests==2.33.1
     # via howso-engine (pyproject.toml)
-rich==14.3.3
+rich==15.0.0
     # via howso-engine (pyproject.toml)
 sacremoses==0.1.1
     # via howso-engine (pyproject.toml)
