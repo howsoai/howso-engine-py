@@ -784,18 +784,18 @@ def stringify_json(cases: list[list[Any]], features: Iterable[str], feature_attr
         The feature attributes of the provided features.
     """
     for idx, feature_name in enumerate(features):
-        # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
-        if feature_attributes.get(feature_name, {}).get("data_type") == "json" and feature_attributes[
-            feature_name
-        ].get("original_type", {}).get("data_type") in ["container", "tokenizable_string"]:
-            for case_group in cases:
-                case_group[idx] = json.dumps(case_group[idx])
-        # If an original type indicates a set, convert to list for serialization
-        if feature_attributes.get(feature_name, {}).get("data_type") == "json" and feature_attributes[
-            feature_name
-        ].get("original_type", {}).get("coercion") == "set":
-            for case_group in cases:
-                case_group[idx] = json.dumps(list(case_group[idx]))
+        if feature_attributes.get(feature_name, {}).get("data_type") == "json":
+            orig_type_info = feature_attributes[feature_name].get("original_type", {})
+            # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
+            if orig_type_info.get("data_type", {}) in ["container", "tokenizable_string"]:
+                if orig_type_info.get("coercion") == "set":
+                    # If an original type indicates a set, convert to list for serialization
+                    for case_group in cases:
+                        case_group[idx] = json.dumps(list(case_group[idx]))
+                    # Deserialize only
+                else:
+                    for case_group in cases:
+                        case_group[idx] = json.dumps(case_group[idx])
 
 
 def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series:  # noqa: ARG001

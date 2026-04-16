@@ -1490,4 +1490,5 @@ class TestBaseClient:
             desired_conviction=5,
         )
         assert reaction["action"].iloc[0]["set_with_strings"] == df.iloc[0]["set_with_strings"]
-        assert reaction["details"]["influential_cases"][0].iloc[0]["set_with_strings"] == df.iloc[0]["set_with_strings"]
+        inf_cases = reaction["details"]["influential_cases"]
+        assert inf_cases[0].iloc[0]["set_with_strings"] == df.iloc[0]["set_with_strings"]
