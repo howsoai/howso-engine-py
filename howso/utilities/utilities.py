@@ -793,7 +793,7 @@ def stringify_json(cases: list[list[Any]], features: Iterable[str], feature_attr
         # If an original type indicates a set, convert to list for serialization
         if feature_attributes.get(feature_name, {}).get("data_type") == "json" and feature_attributes[
             feature_name
-        ].get("original_type", {}).get("data_type") == "unordered_container":
+        ].get("original_type", {}).get("coercion") == "set":
             for case_group in cases:
                 case_group[idx] = json.dumps(list(case_group[idx]))
 

@@ -1204,5 +1204,7 @@ def test_set_data():
         features = infer_feature_attributes(df)
         assert features["a"]["data_type"] == "json"
         assert features["a"]["original_type"]["data_type"] == "container"
+        assert "coercion" not in features["a"]["original_type"]
         assert features["b"]["data_type"] == "json"
-        assert features["b"]["original_type"]["data_type"] == "unordered_container"
+        assert features["b"]["original_type"]["data_type"] == "container"
+        assert features["b"]["original_type"]["coercion"] == "set"
