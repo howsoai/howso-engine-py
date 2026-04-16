@@ -1194,22 +1194,15 @@ class InferFeatureAttributesBase(ABC):
                 }
         elif self._is_json_feature(feature_name):
             first_non_null = self._get_first_non_null(feature_name)
-            if isinstance(first_non_null, Mapping) or isinstance(first_non_null, MutableSequence):
-                return {
+            if isinstance(first_non_null, Collection):
+                typing_attrs = {
                     "type": "continuous",
                     "data_type": "json",
                     "original_type": {"data_type": FeatureType.CONTAINER.value},
                 }
-            elif isinstance(first_non_null, Set):
-                return {
-                    "type": "continuous",
-                    "data_type": "json",
-                    "original_type": {"coercion": FeatureType.SET.value},
-                }
-            return {
-                "type": "continuous",
-                "data_type": "json",
-            }
+                if isinstance(first_non_null, Set):
+                    typing_attrs["original_type"]["coercion"] = FeatureType.SET.value
+                return typing_attrs
         elif self._is_yaml_feature(feature_name):
             return {
                 'type': 'continuous',
