@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence, Set
+from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence, Sequence, Set
 from copy import deepcopy
 import datetime
 from functools import singledispatchmethod
@@ -1198,7 +1198,7 @@ class InferFeatureAttributesBase(ABC):
                 "data_type": "json",
             }
             first_non_null = self._get_first_non_null(feature_name)
-            if isinstance(first_non_null, Collection):
+            if isinstance(first_non_null, (Set, Sequence, Mapping)) and not isinstance(first_non_null, (str, bytes)):
                 typing_attrs["original_type"] = {"data_type": FeatureType.CONTAINER.value}
                 if isinstance(first_non_null, Set):
                     typing_attrs["original_type"]["coercion"] = "set"
