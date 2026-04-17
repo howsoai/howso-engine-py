@@ -65,6 +65,7 @@ class FeatureType(Enum):
         """Return a string representation."""
         return str(self.value)
 
+
 class FeatureSerializer:
     """Adapter for serialization and deserialization of feature data."""
 
@@ -293,7 +294,7 @@ class FeatureSerializer:
         """
         feature = {} if feature is None else feature
         typing_info = cls._get_typing_info(feature)
-        data_type = typing_info.get('data_type')
+        data_type = typing_info.get("data_type")
 
         if data_type == FeatureType.NUMERIC.value:
             return cls.format_numeric_column(column, feature)

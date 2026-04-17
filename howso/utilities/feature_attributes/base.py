@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence
+from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence, Sequence, Set
 from copy import deepcopy
 import datetime
 from functools import singledispatchmethod
@@ -1193,17 +1193,16 @@ class InferFeatureAttributesBase(ABC):
                     'data_type': 'number',
                 }
         elif self._is_json_feature(feature_name):
-            first_non_null = self._get_first_non_null(feature_name)
-            if isinstance(first_non_null, Mapping) or isinstance(first_non_null, MutableSequence):
-                return {
-                    "type": "continuous",
-                    "data_type": "json",
-                    "original_type": {"data_type": FeatureType.CONTAINER.value},
-                }
-            return {
+            typing_attrs = {
                 "type": "continuous",
                 "data_type": "json",
             }
+            first_non_null = self._get_first_non_null(feature_name)
+            if isinstance(first_non_null, (Set, Sequence, Mapping)) and not isinstance(first_non_null, (str, bytes)):
+                typing_attrs["original_type"] = {"data_type": FeatureType.CONTAINER.value}
+                if isinstance(first_non_null, Set):
+                    typing_attrs["original_type"]["coercion"] = "set"
+            return typing_attrs
         elif self._is_yaml_feature(feature_name):
             return {
                 'type': 'continuous',
@@ -1567,8 +1566,11 @@ class InferFeatureAttributesBase(ABC):
 
             # Try to parse rand_val as JSON
             try:
+                # We can handle sets by converting them to lists and letting the Engine know
+                if isinstance(rand_val, Set):
+                    json.dumps(list(rand_val))
                 # Python objects and lists are valid JSON
-                if not isinstance(rand_val, str):
+                elif not isinstance(rand_val, str):
                     json.dumps(rand_val)
                 else:
                     if not any(c in rand_val for c in "{}[]"):
