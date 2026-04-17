@@ -1476,19 +1476,21 @@ class TestBaseClient:
         assert feature_attributes["set_with_strings"]["original_type"]["coercion"] == "set"
         assert feature_attributes["set_with_strings"]["original_type"]["data_type"] == "container"
         assert feature_attributes["set_with_strings"]["data_type"] == "json"
-        client = HowsoClient()
-        t = Trainee()
-        client.set_feature_attributes(t.id, feature_attributes)
-        client.train(t.id, df)
-        reaction = client.react(
-            t.id,
-            contexts=[[{1, 2, 3}]],
-            context_features=["set_with_ints"],
-            action_features=['set_with_strings'],
-            generate_new_cases='attempt',
-            details={"influential_cases": True},
-            desired_conviction=5,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            client = HowsoClient()
+            t = Trainee()
+            client.set_feature_attributes(t.id, feature_attributes)
+            client.train(t.id, df)
+            reaction = client.react(
+                t.id,
+                contexts=[[{1, 2, 3}]],
+                context_features=["set_with_ints"],
+                action_features=['set_with_strings'],
+                generate_new_cases='attempt',
+                details={"influential_cases": True},
+                desired_conviction=5,
+            )
         assert reaction["action"].iloc[0]["set_with_strings"] == df.iloc[0]["set_with_strings"]
         inf_cases = reaction["details"]["influential_cases"]
         assert inf_cases[0].iloc[0]["set_with_strings"] == df.iloc[0]["set_with_strings"]

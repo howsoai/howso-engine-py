@@ -810,8 +810,11 @@ def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series
         The feature attributes of the feature to which the provided cases belong.
     """
     destringified_cases = []
+    typing_info = feature_attributes.get("original_type", {})
     for case_to_destringify in cases:
         formatted_case = json.loads(case_to_destringify)
+        if typing_info.get("coercion") == "set":
+            formatted_case = set(formatted_case)
         destringified_cases.append(formatted_case)
     return pd.Series(destringified_cases)
 
