@@ -60,7 +60,6 @@ class FeatureType(Enum):
     TIME = "time"
     TIMEDELTA = "timedelta"
     CONTAINER = "container"
-    SET = "set"
 
     def __str__(self):
         """Return a string representation."""
@@ -296,7 +295,6 @@ class FeatureSerializer:
         feature = {} if feature is None else feature
         typing_info = cls._get_typing_info(feature)
         data_type = typing_info.get("data_type")
-        coercion = typing_info.get("coercion")
 
         if data_type == FeatureType.NUMERIC.value:
             return cls.format_numeric_column(column, feature)
@@ -316,7 +314,7 @@ class FeatureSerializer:
             return cls.format_timedelta_column(column, feature)
         elif data_type == FeatureType.BOOLEAN.value:
             return cls.format_boolean_column(column, feature)
-        elif data_type == FeatureType.CONTAINER.value or coercion == FeatureType.SET.value:
+        elif data_type == FeatureType.CONTAINER.value:
             return cls.format_container_column(column, feature)
         else:
             return cls.format_unknown_column(column, feature)
