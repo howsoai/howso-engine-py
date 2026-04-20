@@ -763,6 +763,37 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'auto_analyze' method.")
 
+    def get_rebuild_recommendation(
+        self,
+        new_feature_attributes: t.Optional[Mapping[str, Mapping] | SingleTableFeatureAttributes] = None,
+        new_auto_analyze_params: t.Optional[dict] = None,
+    ) -> dict[str, t.Any]:
+        """
+        Get a recommendation for rebuilding the Trainee with new parameters.
+
+        Parameters
+        ----------
+        new_feature_attributes : Mapping of {str: Mapping} or SingleTableFeatureAttributes, optional
+            The feature attributes to consider for the rebuild. Where feature
+            ``name`` is the key and a sub dictionary of feature attributes is
+            the value.
+        new_auto_analyze_params : dict, optional
+            Auto-analyze parameters to consider for the rebuild.
+
+        Returns
+        -------
+        dict
+            The rebuild recommendation.
+        """
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_rebuild_recommendation(
+                trainee_id=self.id,
+                new_feature_attributes=new_feature_attributes,
+                new_auto_analyze_params=new_auto_analyze_params,
+            )
+        else:
+            raise AssertionError("Client must have the 'get_rebuild_recommendation' method.")
+
     def get_auto_ablation_params(self) -> dict[str, t.Any]:
         """
         Get trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`.

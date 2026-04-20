@@ -4766,6 +4766,51 @@ class AbstractHowsoClient(ABC):
         })
         self._auto_persist_trainee(trainee_id)
 
+    def get_rebuild_recommendation(
+        self,
+        trainee_id: str,
+        new_feature_attributes: t.Optional[Mapping[str, Mapping]] = None,
+        new_auto_analyze_params: t.Optional[dict] = None,
+    ) -> dict[str, t.Any]:
+        """
+        Get a recommendation for rebuilding a Trainee with new parameters.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+        new_feature_attributes : Mapping of str to Mapping, optional
+            A dict of dicts of feature attributes to consider for the rebuild.
+            Each key is the feature name and each value is a dict of
+            feature-specific parameters.
+
+            Example::
+
+                {
+                    "length": { "type" : "continuous", "decimal_places": 1 },
+                    "width": { "type" : "continuous", "significant_digits": 4 },
+                    "degrees": { "type" : "continuous", "cycle_length": 360 },
+                    "class": { "type" : "nominal" }
+                }
+
+        new_auto_analyze_params : dict, optional
+            Auto-analyze parameters to consider for the rebuild.
+
+        Returns
+        -------
+        dict
+            The rebuild recommendation.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        if self.configuration.verbose:
+            print(f'Getting rebuild recommendation for Trainee with id: {trainee_id}')
+        params: dict[str, t.Any] = {}
+        if new_feature_attributes is not None:
+            params["new_feature_attributes"] = internals.preprocess_feature_attributes(new_feature_attributes)
+        if new_auto_analyze_params is not None:
+            params["new_auto_analyze_params"] = new_auto_analyze_params
+        return self.execute(trainee_id, "get_rebuild_recommendation", params)
+
     def get_auto_ablation_params(self, trainee_id: str) -> dict[str, t.Any]:
         """
         Get Trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`.
