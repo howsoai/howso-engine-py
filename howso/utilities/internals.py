@@ -1585,6 +1585,11 @@ def check_conditions(
         except (TypeError, KeyError):
             feature_type = None
 
+        try:
+            data_type = feature_attributes[feature]["data_type"]
+        except (TypeError, KeyError):
+            data_type = None
+
         if (
             isinstance(values, Sequence) and
             not isinstance(values, str) and
@@ -1610,7 +1615,7 @@ def check_conditions(
                     )
 
 
-        if feature_type == "boolean":
+        if feature_type == "nominal" and data_type == "boolean":
             if isinstance(values, Sequence) and not isinstance(values, str):
                 is_valid = all(is_valid_boolean_condition_value(v) for v in values)
             else:

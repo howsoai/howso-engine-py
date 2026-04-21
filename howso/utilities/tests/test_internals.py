@@ -464,3 +464,27 @@ def test_coerce_date_time_formats_missing_date_time_format():
     _, _, invalid, _ = internals.coerce_date_time_formats(["2024-01-15"], feature_attributes)
     assert len(invalid) == 1
     assert invalid[0] == "2024-01-15"
+
+
+@pytest.mark.parametrize(
+    "condition, feature_attributes, raises, warns",
+    (
+        ({"age": [1, 2]}, {"age": {"type": "continuous"}}, False, False),
+        ({"age": [1, 2, 3]}, {"age": {"type": "continuous"}}, True, False),
+        ({"age": [1.1, 2.1]}, {"age": {"type": "continuous"}}, False, False),
+        ({"age": [1.1, 2.1, 3.1]}, {"age": {"type": "continuous"}}, True, False),
+        ({"truth": ["True", None]}, {"truth": {"type": "nominal", "data_type": "boolean"}}, False, True),
+        ({"truth": ["true", None]}, {"truth": {"type": "nominal", "data_type": "boolean"}}, False, True),
+        ({"truth": [True, None]}, {"truth": {"type": "nominal", "data_type": "boolean"}}, False, False),
+    ),
+)
+def test_check_conditions(condition, feature_attributes, raises, warns):
+    if raises:
+        with pytest.raises(ValueError):
+            internals.check_conditions(condition, feature_attributes)
+    elif warns:
+        with pytest.warns(internals.BooleanConditionFormatWarning):
+            internals.check_conditions(condition, feature_attributes)
+    else:
+        internals.check_conditions(condition, feature_attributes)
+
