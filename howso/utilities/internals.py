@@ -7,7 +7,15 @@ Notice: These are internal utilities and are not intended to be
 from __future__ import annotations
 
 from collections import OrderedDict, deque
-from collections.abc import Callable, Collection, Generator, Iterable, Mapping
+from collections.abc import (
+    Callable,
+    Collection,
+    Generator,
+    Hashable,
+    Iterable,
+    Mapping,
+    Sequence,
+)
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from copy import deepcopy
 import datetime
@@ -28,11 +36,16 @@ import numpy as np
 import pandas as pd
 from semantic_version import Version
 
+from ..client.exceptions import HowsoWarning
 from .monitors import ProgressTimer
 
 logger = logging.getLogger(__name__)
 
 T = t.TypeVar("T")
+
+
+class BooleanConditionFormatWarning(HowsoWarning):
+    """Warning for when a boolean feature condition is not specified as True/False/None."""
 
 
 def deserialize_to_dataframe(
@@ -1517,6 +1530,98 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
 
     return valid_time_values, coerced_time_values, invalid_time_values, time_feature_format
 
+
+def check_conditions(
+    conditions: Mapping[Hashable, Sequence[t.Any] | t.Any],
+    feature_attributes: Mapping[Hashable, Mapping[Hashable, t.Any]],
+) -> None:
+    """
+    Verify that conditions are valid, else raise Warnings or Exceptions.
+
+    Specifically, raise a ValueError if the feature type is continuous and the
+    condition specifies something other than a single value or a pair of values
+    in size order.
+
+    Also, raise a Warning if the feature type is Boolean, but the provided
+    value(s) is/are not `bool`, `np.bool_`, `None`, `np.nan`, or `pd.NA`.
+
+    Parameters
+    ----------
+    conditions: dict[str, Any]
+        The dictionary of conditions.
+
+    feature_attributes: Mapping[Hashable, Mapping[Hashable, t.Any]]
+        The feature attributes.
+
+    Raises
+    ------
+    ValueError
+        If any condition on a continuous feature attempts to use 3 or more
+        values in the list.
+
+    Warns
+    -----
+    BooleanConditionFormatWarning
+        If a Boolean feature condition does not use boolean values `True`,
+        `False`, or `None`.
+    """
+    # Fast return on empty inputs so that this check can be applied liberally
+    # without concern of performance hit.
+    if not conditions or not feature_attributes:
+        return
+
+    def is_valid_boolean_condition_value(value: t.Any) -> bool:
+        """Check whether a boolean condition value is a bool or a missing value."""
+        if isinstance(value, (bool, np.bool_)):
+            return True
+        try:
+            return bool(pd.isna(value))
+        except Exception:  # noqa: Deliberately broad
+            return False
+
+    for feature, values in conditions.items():
+        try:
+            feature_type = feature_attributes[feature]["type"]
+        except (TypeError, KeyError):
+            feature_type = None
+
+        if (
+            isinstance(values, Sequence) and
+            not isinstance(values, str) and
+            feature_type == "continuous"
+        ):
+            if len(values) > 2:
+                raise ValueError(
+                    f"A condition on the continuous feature «{feature}» "
+                    f"specifies more than 2 values and is therefore invalid. "
+                    f"No cases will be selected. For continuous features a "
+                    f"single value will be matched exactly. A pair of values "
+                    f"[A, B] defines a range from A to B (inclusive)."
+                )
+            if len(values) == 2:
+                # NOTE: `{"age": [18, None]}` is valid and will find all the values >= 18.
+                #       `{"age": [None, 18]}` is valid and would find all the values <= 18.
+                if values[0] is not None and values[1] is not None and values[0] >= values[1]:
+                    raise ValueError(
+                        f"A condition on the continuous feature «{feature}» uses a "
+                        f"pair of values [A, B] which defines a range from A to B "
+                        f"(inclusive). B must therefore be strictly greater than "
+                        f"A or no cases will be selected."
+                    )
+
+
+        if feature_type == "boolean":
+            if isinstance(values, Sequence) and not isinstance(values, str):
+                is_valid = all(is_valid_boolean_condition_value(v) for v in values)
+            else:
+                is_valid = is_valid_boolean_condition_value(values)
+
+            if not is_valid:
+                warnings.warn(
+                    f"Feature «{feature}» is Boolean; please specify values as True/False/None in `condition`.",
+                    category=BooleanConditionFormatWarning,
+                    stacklevel=2,
+                )
 
 class IgnoreWarnings:
     """
