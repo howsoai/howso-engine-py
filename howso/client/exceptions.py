@@ -241,3 +241,6 @@ class UnsupportedArgumentWarning(HowsoWarning):
 
 class DatetimeFormatWarning(HowsoWarning):
     """A warning for potential problems with datetime formats."""
+
+class BooleanConditionFormatWarning(HowsoWarning):
+    """Warning for when a boolean feature condition is not specified as True/False/None."""

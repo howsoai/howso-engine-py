@@ -36,16 +36,11 @@ import numpy as np
 import pandas as pd
 from semantic_version import Version
 
-from ..client.exceptions import HowsoWarning
 from .monitors import ProgressTimer
 
 logger = logging.getLogger(__name__)
 
 T = t.TypeVar("T")
-
-
-class BooleanConditionFormatWarning(HowsoWarning):
-    """Warning for when a boolean feature condition is not specified as True/False/None."""
 
 
 def deserialize_to_dataframe(
@@ -1565,6 +1560,9 @@ def check_conditions(
         If a Boolean feature condition does not use boolean values `True`,
         `False`, or `None`.
     """
+    # Prevent circular imports
+    from ..client.exceptions import BooleanConditionFormatWarning
+
     # Fast return on empty inputs so that this check can be applied liberally
     # without concern of performance hit.
     if not conditions or not feature_attributes:
