@@ -4845,7 +4845,6 @@ class AbstractHowsoClient(ABC):
         influence_weight_entropy_sample_size: int = 2_000,
         min_num_cases: int = 10_000,
         max_num_cases: int = 200_000,
-        reduce_data_influence_weight_entropy_threshold: float = 0.6,
         reduce_max_cases: int = 50_000,
         rel_threshold_map: t.Optional[AblationThresholdMap] = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
@@ -4861,8 +4860,8 @@ class AbstractHowsoClient(ABC):
             have their API changed without deprecation.
 
         .. seealso::
-            The params ``reduce_data_influence_weight_entropy_threshold`` and ``auto_ablation_weight_feature`` that are
-            set using this endpoint are used as defaults by :meth:`reduce_data`.
+            The param ``auto_ablation_weight_feature`` that is
+            set using this endpoint is used as default by :meth:`reduce_data`.
 
         Parameters
         ----------
@@ -4895,8 +4894,6 @@ class AbstractHowsoClient(ABC):
         tolerance_prediction_threshold_map : Optional[dict[str, tuple[float, float]]], optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
-        reduce_data_influence_weight_entropy_threshold: float, default 0.6
-            The influence weight entropy quantile that a case must be above in order to not be removed.
         reduce_max_cases: int, default 50,000
             The maximum number of cases that may remain after a call to reduce_data.
         relative_prediction_threshold_map : Optional[dict[str, float]], optional
@@ -4940,7 +4937,6 @@ class AbstractHowsoClient(ABC):
             influence_weight_entropy_sample_size=influence_weight_entropy_sample_size,
             min_num_cases=min_num_cases,
             max_num_cases=max_num_cases,
-            reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
             reduce_max_cases=reduce_max_cases,
             rel_threshold_map=rel_threshold_map,
             relative_prediction_threshold_map=relative_prediction_threshold_map,
