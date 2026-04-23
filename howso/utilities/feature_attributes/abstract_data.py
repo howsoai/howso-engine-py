@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Collection, Hashable, Iterable, Mapping
 import datetime
 from datetime import time, timedelta
 import decimal
@@ -769,3 +769,25 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     def _get_unique_values(self, feature_name: str) -> Collection[t.Any]:
         """Return the set of unique values for the given feature."""
         return self.data.get_unique_values(feature_name)
+
+    def _infer_time_invariant_features(data: AbstractData, id_features: list[Hashable]) -> list[Hashable]:
+        # TODO replace the inner function below with the utility function, investigate keeping/leaving the PPE
+        # TODO accont for multiple ID features
+        def _infer_time_invariant_features(df, id_feature) -> set[Hashable]:
+            time_invariant_features = df.groupby(id_feature).nunique().isin([0, 1]).all()
+            time_invariant_features = set(time_invariant_features[time_invariant_features].index)
+            return time_invariant_features
+
+        # NOTE: For a 1.2M row dataset, use of this process pool is about 25%
+        # quicker on my machine. For scenarios where the data is remote, this
+        # won't even be noticed though. Also, I doubt we'd see any gains with
+        # a ProcessPoolExecutor with all the overhead of spinning up processes
+        # and marshalling shared data.
+        func = partial(_infer_time_invariant_features, id_feature=id_feature)
+        with ThreadPoolExecutor() as pool:
+            invariant_column_sets = pool.map(func, data.yield_chunk())
+
+        if not invariant_column_sets:
+            return []
+        else:
+            return list(set.intersection(*invariant_column_sets))
