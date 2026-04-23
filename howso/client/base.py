@@ -4771,6 +4771,7 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         new_feature_attributes: t.Optional[Mapping[str, Mapping]] = None,
         new_auto_analyze_params: t.Optional[dict] = None,
+        new_auto_ablation_params: t.Optional[dict] = None,
     ) -> dict[str, t.Any]:
         """
         Get a recommendation for rebuilding a Trainee with new parameters.
@@ -4795,11 +4796,18 @@ class AbstractHowsoClient(ABC):
 
         new_auto_analyze_params : dict, optional
             Auto-analyze parameters to consider for the rebuild.
+        new_auto_ablation_params : dict, optional
+            Auto-ablation parameters to consider for the rebuild.
 
         Returns
         -------
         dict
-            The rebuild recommendation.
+            A dictionary with the following keys:
+
+            - ``rebuild`` : bool - Whether the Trainee should be rebuilt.
+            - ``analyze`` : bool - Whether the Trainee should be re-analyzed.
+            - ``feature_attributes_changes`` : dict - Changes to feature attributes.
+            - ``auto_analyze_param_changes`` : dict - Changes to auto-analyze parameters.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
@@ -4809,6 +4817,8 @@ class AbstractHowsoClient(ABC):
             params["new_feature_attributes"] = internals.preprocess_feature_attributes(new_feature_attributes)
         if new_auto_analyze_params is not None:
             params["new_auto_analyze_params"] = new_auto_analyze_params
+        if new_auto_ablation_params is not None:
+            params["new_auto_ablation_params"] = new_auto_ablation_params
         return self.execute(trainee_id, "get_rebuild_recommendation", params)
 
     def get_auto_ablation_params(self, trainee_id: str) -> dict[str, t.Any]:
