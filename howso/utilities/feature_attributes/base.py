@@ -1164,6 +1164,9 @@ class InferFeatureAttributesBase(ABC):
                 for f in fanout_features:
                     if f in self.attributes:
                         self.attributes[f]["fanout_on"] = list(key_features)
+        # If not provided, infer them
+        else:
+            self._infer_fanout_features(primary_keys)
 
         self._process_rare_values(preserve_rare_values_map, preserve_rare_values_config, max_distilled_cases,
                                   significance_threshold)

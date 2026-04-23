@@ -4,6 +4,7 @@ from collections.abc import (
     Callable,
     Collection,
     Generator,
+    Hashable,
     Iterable,
     Mapping,
     Sequence,
@@ -1781,3 +1782,22 @@ def get_optimized_max_chunk_size(
     ideal_chunk_size = -(-row_count // num_chunks)
 
     return ideal_chunk_size, num_chunks
+
+
+def infer_fanout_features(
+    df: pd.DataFrame, key_features: Iterable[Hashable | tuple[Hashable, ...]]
+) -> dict[Hashable | tuple[Hashable, ...], list[Hashable]]:
+    """Infer the fanout features.
+
+    Given a Pandas DataFrame (presumably joined from a number of tables),
+    and known pre-join keys, figure out the fan-out features.
+    """
+    fff_dict = dict()
+    for key_feature in key_features:
+        # Convert single keys to a list to be safe
+        groupby_cols = list(key_feature) if not isinstance(key_feature, list) else key_feature
+        fan_out_features = df.groupby(groupby_cols).nunique().isin([0, 1]).all()
+        fan_out_features = list(fan_out_features[fan_out_features].index)
+        fff_dict.update({key_feature: fan_out_features})
+
+    return fff_dict
