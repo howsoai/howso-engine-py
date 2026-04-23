@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Hashable, Iterable, Mapping
 from concurrent.futures import as_completed, Future, ProcessPoolExecutor
 import datetime
 import decimal
@@ -917,3 +917,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     seen_hashable.add(hashable)
                     unique_vals.append(val)  # Keep original value
             return unique_vals
+
+    def _infer_time_invariant_features(data: pd.DataFrame, id_features: list[Hashable]) -> list[Hashable]:
+        # TODO simply call the utility function
+        # TODO account for multiple ID features
+        pass
