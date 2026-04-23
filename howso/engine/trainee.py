@@ -763,6 +763,46 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'auto_analyze' method.")
 
+    def get_rebuild_recommendation(
+        self,
+        new_feature_attributes: t.Optional[Mapping[str, Mapping] | SingleTableFeatureAttributes] = None,
+        new_auto_analyze_params: t.Optional[dict] = None,
+        new_auto_ablation_params: t.Optional[dict] = None,
+    ) -> dict[str, t.Any]:
+        """
+        Get a recommendation for rebuilding the Trainee with new parameters.
+
+        Parameters
+        ----------
+        new_feature_attributes : Mapping of {str: Mapping} or SingleTableFeatureAttributes, optional
+            The feature attributes to consider for the rebuild. Where feature
+            ``name`` is the key and a sub dictionary of feature attributes is
+            the value.
+        new_auto_analyze_params : dict, optional
+            Auto-analyze parameters to consider for the rebuild.
+        new_auto_ablation_params : dict, optional
+            Auto-ablation parameters to consider for the rebuild.
+
+        Returns
+        -------
+        dict
+            A dictionary with the following keys:
+
+            - ``rebuild`` : bool - Whether the Trainee should be rebuilt.
+            - ``analyze`` : bool - Whether the Trainee should be re-analyzed.
+            - ``feature_attributes_changes`` : dict - Changes to feature attributes.
+            - ``auto_analyze_param_changes`` : dict - Changes to auto-analyze parameters.
+        """
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_rebuild_recommendation(
+                trainee_id=self.id,
+                new_feature_attributes=new_feature_attributes,
+                new_auto_analyze_params=new_auto_analyze_params,
+                new_auto_ablation_params=new_auto_ablation_params,
+            )
+        else:
+            raise AssertionError("Client must have the 'get_rebuild_recommendation' method.")
+
     def get_auto_ablation_params(self) -> dict[str, t.Any]:
         """
         Get trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`.
@@ -793,7 +833,6 @@ class Trainee(BaseTrainee):
         influence_weight_entropy_sample_size: int = 2_000,
         min_num_cases: int = 10_000,
         max_num_cases: int = 200_000,
-        reduce_data_influence_weight_entropy_threshold: float = 0.6,
         reduce_max_cases: int = 50_000,
         rel_threshold_map: t.Optional[AblationThresholdMap] = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
@@ -809,8 +848,8 @@ class Trainee(BaseTrainee):
             have their API changed without deprecation.
 
         .. seealso::
-            The params ``reduce_data_influence_weight_entropy_threshold`` and ``auto_ablation_weight_feature`` that are
-            set using this endpoint are used as defaults by :meth:`reduce_data`.
+            The param ``auto_ablation_weight_feature`` that is
+            set using this endpoint is used as default by :meth:`reduce_data`.
 
         Parameters
         ----------
@@ -841,8 +880,6 @@ class Trainee(BaseTrainee):
         tolerance_prediction_threshold_map : map of str to tuple of float, optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
-        reduce_data_influence_weight_entropy_threshold: float, default 0.6
-            The influence weight entropy quantile that a case must be above in order to not be removed.
         reduce_max_cases: int, default 50,000
             The maximum number of cases that may remain after a call to reduce_data.
         relative_prediction_threshold_map : map of str -> (float, float), optional
@@ -887,7 +924,6 @@ class Trainee(BaseTrainee):
                 influence_weight_entropy_sample_size=influence_weight_entropy_sample_size,
                 min_num_cases=min_num_cases,
                 max_num_cases=max_num_cases,
-                reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
                 reduce_max_cases=reduce_max_cases,
                 rel_threshold_map=rel_threshold_map,
                 relative_prediction_threshold_map=relative_prediction_threshold_map,
