@@ -1126,6 +1126,9 @@ class InferFeatureAttributesBase(ABC):
                 for f in fanout_features:
                     if f in self.attributes:
                         self.attributes[f]['fanout_on'] = list(key_features)
+        # If not provided, infer them
+        else:
+            self._infer_fanout_features(primary_keys)
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
