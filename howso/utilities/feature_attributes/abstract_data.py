@@ -774,8 +774,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     def _infer_time_invariant_features(cls, data: AbstractData, id_features: list[Hashable]) -> set[Hashable]:
         """Infer the time invariant features of the data (not including the provided `id_features`)."""
         group_map = data.get_group_map(id_features)
-        # group_map keys are unique group values (or tuples for compound keys)
-        # wrap each in a list as yield_grouped_chunk expects iterables of iterables
+        # group_map keys are unique group values (compound keys are tuples)
         unique_groups = [
             g if isinstance(g, tuple) else [g]
             for g in group_map.keys()
@@ -784,6 +783,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         candidate_features = [f for f in data.headers if f not in id_features]
         time_invariant = set(candidate_features)
 
+        # For each grouped chunk, remove candidates as needed
         for chunk in data.yield_grouped_chunk(
             column_name=id_features,
             groups=unique_groups,
