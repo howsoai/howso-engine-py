@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Collection, Hashable, Iterable, Mapping
+from collections.abc import Collection, Hashable, Iterable, Mapping, Sequence
 import datetime
 from datetime import time, timedelta
 import decimal
@@ -771,7 +771,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         return self.data.get_unique_values(feature_name)
 
     @classmethod
-    def _infer_time_invariant_features(cls, data: AbstractData, id_features: list[Hashable]) -> set[Hashable]:
+    def _infer_time_invariant_features(cls, data: AbstractData, id_features: Sequence[Hashable]) -> set[Hashable]:
         """Infer the time invariant features of the data (not including the provided `id_features`)."""
         group_map = data.get_group_map(id_features)
         # group_map keys are unique group values (compound keys are tuples)
