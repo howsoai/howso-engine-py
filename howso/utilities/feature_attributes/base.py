@@ -826,6 +826,10 @@ class InferFeatureAttributesBase(ABC):
         else:
             self.id_feature_names = []
 
+        # Infer time invariant features if none were provided
+        if not time_invariant_features and self.id_feature_names:
+            self.time_invariant_features = self._infer_time_invariant_features(self.data, self.id_feature_names)
+
         # ID features are time-invariant
         for id_feature in self.id_feature_names:
             if id_feature not in self.time_invariant_features:
