@@ -4766,6 +4766,61 @@ class AbstractHowsoClient(ABC):
         })
         self._auto_persist_trainee(trainee_id)
 
+    def get_rebuild_recommendation(
+        self,
+        trainee_id: str,
+        new_feature_attributes: t.Optional[Mapping[str, Mapping]] = None,
+        new_auto_analyze_params: t.Optional[dict] = None,
+        new_auto_ablation_params: t.Optional[dict] = None,
+    ) -> dict[str, t.Any]:
+        """
+        Get a recommendation for rebuilding a Trainee with new parameters.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee.
+        new_feature_attributes : Mapping of str to Mapping, optional
+            A dict of dicts of feature attributes to consider for the rebuild.
+            Each key is the feature name and each value is a dict of
+            feature-specific parameters.
+
+            Example::
+
+                {
+                    "length": { "type" : "continuous", "decimal_places": 1 },
+                    "width": { "type" : "continuous", "significant_digits": 4 },
+                    "degrees": { "type" : "continuous", "cycle_length": 360 },
+                    "class": { "type" : "nominal" }
+                }
+
+        new_auto_analyze_params : dict, optional
+            Auto-analyze parameters to consider for the rebuild.
+        new_auto_ablation_params : dict, optional
+            Auto-ablation parameters to consider for the rebuild.
+
+        Returns
+        -------
+        dict
+            A dictionary with the following keys:
+
+            - ``rebuild`` : bool - Whether the Trainee should be rebuilt.
+            - ``analyze`` : bool - Whether the Trainee should be re-analyzed.
+            - ``feature_attributes_changes`` : dict - Changes to feature attributes.
+            - ``auto_analyze_param_changes`` : dict - Changes to auto-analyze parameters.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        if self.configuration.verbose:
+            print(f'Getting rebuild recommendation for Trainee with id: {trainee_id}')
+        params: dict[str, t.Any] = {}
+        if new_feature_attributes is not None:
+            params["new_feature_attributes"] = internals.preprocess_feature_attributes(new_feature_attributes)
+        if new_auto_analyze_params is not None:
+            params["new_auto_analyze_params"] = new_auto_analyze_params
+        if new_auto_ablation_params is not None:
+            params["new_auto_ablation_params"] = new_auto_ablation_params
+        return self.execute(trainee_id, "get_rebuild_recommendation", params)
+
     def get_auto_ablation_params(self, trainee_id: str) -> dict[str, t.Any]:
         """
         Get Trainee parameters for auto-ablation set by :meth:`set_auto_ablation_params`.
@@ -4800,7 +4855,6 @@ class AbstractHowsoClient(ABC):
         influence_weight_entropy_sample_size: int = 2_000,
         min_num_cases: int = 10_000,
         max_num_cases: int = 200_000,
-        reduce_data_influence_weight_entropy_threshold: float = 0.6,
         reduce_max_cases: int = 50_000,
         rel_threshold_map: t.Optional[AblationThresholdMap] = None,
         relative_prediction_threshold_map: t.Optional[Mapping[str, float]] = None,
@@ -4816,8 +4870,8 @@ class AbstractHowsoClient(ABC):
             have their API changed without deprecation.
 
         .. seealso::
-            The params ``reduce_data_influence_weight_entropy_threshold`` and ``auto_ablation_weight_feature`` that are
-            set using this endpoint are used as defaults by :meth:`reduce_data`.
+            The param ``auto_ablation_weight_feature`` that is
+            set using this endpoint is used as default by :meth:`reduce_data`.
 
         Parameters
         ----------
@@ -4850,8 +4904,6 @@ class AbstractHowsoClient(ABC):
         tolerance_prediction_threshold_map : Optional[dict[str, tuple[float, float]]], optional
             For each of the features specified, will ablate a case if the prediction >= (case value - MIN)
             and the prediction <= (case value + MAX).
-        reduce_data_influence_weight_entropy_threshold: float, default 0.6
-            The influence weight entropy quantile that a case must be above in order to not be removed.
         reduce_max_cases: int, default 50,000
             The maximum number of cases that may remain after a call to reduce_data.
         relative_prediction_threshold_map : Optional[dict[str, float]], optional
@@ -4895,7 +4947,6 @@ class AbstractHowsoClient(ABC):
             influence_weight_entropy_sample_size=influence_weight_entropy_sample_size,
             min_num_cases=min_num_cases,
             max_num_cases=max_num_cases,
-            reduce_data_influence_weight_entropy_threshold=reduce_data_influence_weight_entropy_threshold,
             reduce_max_cases=reduce_max_cases,
             rel_threshold_map=rel_threshold_map,
             relative_prediction_threshold_map=relative_prediction_threshold_map,
