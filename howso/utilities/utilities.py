@@ -4,7 +4,6 @@ from collections.abc import (
     Callable,
     Collection,
     Generator,
-    Hashable,
     Iterable,
     Mapping,
     Sequence,
@@ -1723,11 +1722,3 @@ def get_hash(value: Any) -> int:
     pickled = pickle.dumps(value, protocol=pickle.HIGHEST_PROTOCOL)
     # Return a hash of the pickled bytes for efficient comparison
     return mmh3.hash128(pickled)
-
-
-def infer_time_invariant_features(df: pd.DataFrame, id_features: list[Hashable]) -> set[Hashable]:
-    # TODO account for multiple ID features
-    # TODO this really shouldn't be here; this will be the Pandas implementation (in pandas.py) but the ADC implementation should work natively w/ ADC functions.
-    time_invariant_features = df.groupby(id_feature).nunique().isin([0, 1]).all()
-    time_invariant_features = set(time_invariant_features[time_invariant_features].index)
-    return time_invariant_features
