@@ -257,7 +257,8 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         (Optional, required for time series) The name of the time feature.
 
     time_invariant_features : list of str, default None
-        (Optional) Names of time-invariant features.
+        (Optional) Names of time-invariant features. If none are provided, they will be
+        inferred automatically.
 
     time_series_type_default : str, default 'rate'
         (Optional) Type specifying how time series is generated.

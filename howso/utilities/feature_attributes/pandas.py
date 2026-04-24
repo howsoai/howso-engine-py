@@ -918,7 +918,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     unique_vals.append(val)  # Keep original value
             return unique_vals
 
-    def _infer_time_invariant_features(data: pd.DataFrame, id_features: list[Hashable]) -> list[Hashable]:
-        # TODO simply call the utility function
-        # TODO account for multiple ID features
-        pass
+    @classmethod
+    def _infer_time_invariant_features(cls, data: pd.DataFrame, id_features: list[Hashable]) -> list[Hashable]:
+        """Infer the time invariant features of the data (not including the provided `id_features`)."""
+        time_invariant_features = data.groupby(id_features).nunique().isin([0, 1]).all()
+        time_invariant_features = list(time_invariant_features[time_invariant_features].index)
+        return (time_invariant_features)
