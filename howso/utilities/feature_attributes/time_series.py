@@ -663,7 +663,11 @@ class InferFeatureAttributesTimeSeries:
         elif isinstance(time_invariant_features, Iterable):
             time_invariant_features = list(time_invariant_features)
         else:
-            time_invariant_features = []
+            # If not provided, time invariant features will be inferred
+            time_invariant_features = infer.time_invariant_features
+            # Remove the time feature in case it was added automatically
+            if self.time_feature_name in time_invariant_features:
+                time_invariant_features.remove(self.time_feature_name)
 
         # ID features are time-invariant.
         for id_feature in id_feature_names:

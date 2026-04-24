@@ -703,3 +703,39 @@ def test_offset_indices(adc):
         default_time_zone="utc",
     )
     assert features
+
+
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_infer_time_invariant_features(adc):
+    """Test that `infer_feature_attributes` correctly infers time invariant features when none are provided."""
+    data = {
+        "ID1": ["a", "a", "a", "b", "b", "b"],
+        "ID2": ["x", "x", "x", "y", "y", "y"],
+        "time": [1, 2, 3, 1, 2, 3],
+        "gender": ["male", "male", "male", "female", "female", "female"],
+        "country": ["UK", "UK", "UK", "US", "US", "US"],
+        "value": [11, 12, 15, 18, 23, 31],
+        "balance": [1.0, 2.0, 3.0, 4.0, 4.9, 5.8],
+    }
+    df = pd.DataFrame(data)
+    convert_data(DataFrameData(df), adc)
+
+    ifa_kwargs: dict[Any, Any] = dict(
+        time_feature_name="time",
+        id_feature_name=["ID1", "ID2"],
+        default_time_zone="UTC",
+    )
+
+    features = infer_feature_attributes(adc, **ifa_kwargs)  # pyright: ignore[reportArgumentType]
+
+    # 4. Verify time invariant features are correct, others use defaults
+    assert "time_series" not in features["gender"]
+    assert "time_series" not in features["country"]

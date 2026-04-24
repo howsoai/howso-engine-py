@@ -770,24 +770,30 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         """Return the set of unique values for the given feature."""
         return self.data.get_unique_values(feature_name)
 
-    def _infer_time_invariant_features(data: AbstractData, id_features: list[Hashable]) -> list[Hashable]:
-        # TODO replace the inner function below with the utility function, investigate keeping/leaving the PPE
-        # TODO accont for multiple ID features
-        def _infer_time_invariant_features(df, id_feature) -> set[Hashable]:
-            time_invariant_features = df.groupby(id_feature).nunique().isin([0, 1]).all()
-            time_invariant_features = set(time_invariant_features[time_invariant_features].index)
-            return time_invariant_features
+    @classmethod
+    def _infer_time_invariant_features(cls, data: AbstractData, id_features: list[Hashable]) -> set[Hashable]:
+        """Infer the time invariant features of the data (not including the provided `id_features`)."""
+        group_map = data.get_group_map(id_features)
+        # group_map keys are unique group values (or tuples for compound keys)
+        # wrap each in a list as yield_grouped_chunk expects iterables of iterables
+        unique_groups = [
+            g if isinstance(g, tuple) else [g]
+            for g in group_map.keys()
+        ]
 
-        # NOTE: For a 1.2M row dataset, use of this process pool is about 25%
-        # quicker on my machine. For scenarios where the data is remote, this
-        # won't even be noticed though. Also, I doubt we'd see any gains with
-        # a ProcessPoolExecutor with all the overhead of spinning up processes
-        # and marshalling shared data.
-        func = partial(_infer_time_invariant_features, id_feature=id_feature)
-        with ThreadPoolExecutor() as pool:
-            invariant_column_sets = pool.map(func, data.yield_chunk())
+        candidate_features = [f for f in data.headers if f not in id_features]
+        time_invariant = set(candidate_features)
 
-        if not invariant_column_sets:
-            return []
-        else:
-            return list(set.intersection(*invariant_column_sets))
+        for chunk in data.yield_grouped_chunk(
+            column_name=id_features,
+            groups=unique_groups,
+            feature_attributes=None,
+        ):
+            if not time_invariant:
+                break
+
+            for feature in list(time_invariant):
+                if chunk[feature].nunique() > 1:
+                    time_invariant.discard(feature)
+
+        return list(time_invariant)
