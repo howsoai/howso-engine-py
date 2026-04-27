@@ -325,6 +325,7 @@ class InferFeatureAttributesTimeSeries:
     def _process(  # noqa: C901
         self,
         attempt_infer_extended_nominals: bool = False,
+        consider_num_rows: int = 1e7,
         datetime_feature_formats: t.Optional[dict] = None,
         default_time_zone: t.Optional[str] = None,
         delta_boundaries: t.Optional[dict] = None,
@@ -368,6 +369,11 @@ class InferFeatureAttributesTimeSeries:
             .. note ::
                 Please refer to `kwargs` for other parameters related to
                 extended nominals.
+
+        consider_num_rows : int, default None
+            (Optional) If using a data source with streaming capabilities, sets the maximum number of
+            rows to consider when inferring feature attributes where applicable. Useful for preventing
+            excessive runtimes with very large data. If not provided, defaults to 10 million rows.
 
         datetime_feature_formats : dict, default None
             (Optional) Dict defining a custom (non-ISO8601) datetime format and
@@ -636,6 +642,7 @@ class InferFeatureAttributesTimeSeries:
 
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
+            consider_num_rows=consider_num_rows,
             datetime_feature_formats=datetime_feature_formats,
             default_time_zone=default_time_zone,
             dependent_features=dependent_features,

@@ -6,7 +6,7 @@ from datetime import time, timedelta
 import decimal
 import inspect
 import logging
-from math import isnan
+from math import ceil, isnan
 import re
 import typing as t
 import warnings
@@ -38,6 +38,10 @@ from ..utilities import (
     TIME_PATTERN,
     time_to_seconds,
 )
+
+
+# Default chunk size to use for howso-engine-connectors yield_chunk()
+DEFAULT_CHUNK_SIZE = 25000
 
 logger = logging.getLogger(__name__)
 
@@ -771,29 +775,20 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         return self.data.get_unique_values(feature_name)
 
     @classmethod
-    def _infer_time_invariant_features(cls, data: AbstractData, id_features: Sequence[Hashable]) -> set[Hashable]:
+    def _infer_time_invariant_features(cls, data: AbstractData, id_features: Sequence[Hashable],
+                                       max_rows: int = 1e7) -> set[Hashable]:
         """Infer the time invariant features of the data (not including the provided `id_features`)."""
-        group_map = data.get_group_map(id_features)
-        # group_map keys are unique group values (compound keys are tuples)
-        unique_groups = [
-            g if isinstance(g, tuple) else [g]
-            for g in group_map.keys()
-        ]
-
         candidate_features = [f for f in data.headers if f not in id_features]
         time_invariant = set(candidate_features)
 
-        # For each grouped chunk, remove candidates as needed
-        for chunk in data.yield_grouped_chunk(
-            column_name=id_features,
-            groups=unique_groups,
-            feature_attributes=None,
-        ):
+        max_chunks = ceil(max_rows / DEFAULT_CHUNK_SIZE)
+
+        for chunk in data.yield_chunk(chunk_size=DEFAULT_CHUNK_SIZE, max_chunks=max_chunks):
             if not time_invariant:
                 break
 
             for feature in list(time_invariant):
-                if chunk[feature].nunique() > 1:
+                if chunk.groupby(id_features).nunique(dropna=False)[feature].gt(1).any():
                     time_invariant.discard(feature)
 
         return list(time_invariant)

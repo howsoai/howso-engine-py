@@ -38,6 +38,11 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
             Please refer to ``kwargs`` for other parameters related to
             extended nominals.
 
+    consider_num_rows : int, default 10M
+        (Optional) If using a data source with streaming capabilities, sets the maximum number of
+        rows to consider when inferring feature attributes where applicable. Useful for preventing
+        excessive runtimes with very large data.
+
     datetime_feature_formats : dict, default None
         (Optional) Dict defining custom (non-ISO8601) datetime or time-only formats.
         By default, datetime features are assumed to be in ISO8601 format.  Non-English datetimes

@@ -765,6 +765,7 @@ class InferFeatureAttributesBase(ABC):
 
     def _process(self,  # noqa: C901
                  attempt_infer_extended_nominals: bool = False,
+                 consider_num_rows: int = 1e7,
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
@@ -828,7 +829,11 @@ class InferFeatureAttributesBase(ABC):
 
         # Infer time invariant features if none were provided
         if not time_invariant_features and self.id_feature_names:
-            self.time_invariant_features = self._infer_time_invariant_features(self.data, self.id_feature_names)
+            if hasattr(self.data, "yield_chunk"):
+                self.time_invariant_features = self._infer_time_invariant_features(self.data, self.id_feature_names,
+                                                                                   consider_num_rows)
+            else:
+                self.time_invariant_features = self._infer_time_invariant_features(self.data, self.id_feature_names)
 
         # ID features are time-invariant
         for id_feature in self.id_feature_names:
