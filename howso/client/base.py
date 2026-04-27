@@ -5307,34 +5307,42 @@ class AbstractHowsoClient(ABC):
     def add_feature(
         self,
         trainee_id: str,
-        feature: str,
-        feature_value: t.Optional[int | float | str] = None,
+        feature_name: str,
         *,
-        condition: t.Optional[Mapping] = None,
+        values: t.Optional[t.Collection[t.Any]] = None,
+        default_value: t.Optional[t.Any] = None,
+        case_indices: t.Optional[CaseIndices] = None,
+        condition: t.Optional[Mapping[str, t.Any]] = None,
         condition_session: t.Optional[str] = None,
-        feature_attributes: t.Optional[Mapping] = None,
-        overwrite: bool = False
+        feature_attributes: t.Optional[Mapping[str, t.Any]] = None,
+        overwrite: bool = False,
     ):
         """
-        Adds a feature to a trainee.
+        Add a feature to the Trainee.
 
-        Updates the accumulated data mass for the model proportional to the
+        Updates the accumulated data mass for the Trainee proportional to the
         number of cases modified.
 
         Parameters
         ----------
-        trainee_id : str
-            The ID of the Trainee add the feature to.
-        feature : str
-            The name of the feature.
-        feature_attributes : Mapping, optional
+        feature_name : str
+            The name of the new feature.
+        default_value : Any, optional
+            A single value to assign to each case for the new feature. Either ``default_value``
+            or ``values`` must be specified, but not both.
+        values : Sequence of Any, optional
+            A sequence of values whose elements are assigned to each case specified with ``case_indices``.
+            ``values`` cannot be specified without also specifying ``case_indices`` as a sequence of the same
+            length. Either ``default_value`` or ``values`` must be specified, but not both.
+        feature_attributes : map, optional
             The dict of feature specific attributes for this feature. If
             unspecified and conditions are not specified, will assume feature
             type as 'continuous'.
-        feature_value : int or float or str, optional
-            The value to populate the feature with.
-            By default, populates the new feature with None.
-        condition : Mapping, optional
+        case_indices : Sequence of (str, int), optional
+            List of tuples, of session id and index, where index is the
+            original 0-based index of the case as it was trained into the
+            session.
+        condition : map of str -> object, optional
             A condition map where feature values will only be added when
             certain criteria is met.
 
@@ -5359,14 +5367,14 @@ class AbstractHowsoClient(ABC):
                       features.
 
             .. TIP::
-                For instance to add the `feature_value` only when the
-                `length` and `width` features are equal to 10::
+                For instance to add the ``feature_value`` only when the
+                ``length`` and ``width`` features are equal to 10::
 
                     condition = {"length": 10, "width": 10}
 
-        condition_session : str, optional
+        condition_session : str or Session, optional
             If specified, ignores the condition and operates on cases for the
-            specified session id.
+            specified session id or Session instance.
         overwrite : bool, default False
             If True, the feature will be over-written if it exists.
         """
@@ -5376,10 +5384,10 @@ class AbstractHowsoClient(ABC):
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
 
         if feature_attributes is not None:
-            updated_attributes = internals.preprocess_feature_attributes({feature: feature_attributes})
+            updated_attributes = internals.preprocess_feature_attributes({feature_name: feature_attributes})
             if updated_attributes is None:
                 raise AssertionError("Failed to preprocess feature attributes for new feature.")
-            feature_attributes = updated_attributes[feature]
+            feature_attributes = updated_attributes[feature_name]
 
         # Convert session instance to id
         if (
@@ -5389,15 +5397,17 @@ class AbstractHowsoClient(ABC):
             condition['.session'] = condition['.session'].id
 
         if self.configuration.verbose:
-            print(f'Adding feature "{feature}" to Trainee with id {trainee_id}.')
+            print(f'Adding feature "{feature_name}" to Trainee with id {trainee_id}.')
         self.execute(trainee_id, "add_feature", {
-            "feature": feature,
-            "feature_value": feature_value,
-            "overwrite": overwrite,
-            "condition": condition,
-            "feature_attributes": feature_attributes,
+            "feature_name": feature_name,
+            "values": values,
+            "default_value": default_value,
             "session": self.active_session.id,
+            "case_indices": case_indices,
+            "condition": condition,
             "condition_session": condition_session,
+            "feature_attributes": feature_attributes,
+            "overwrite": overwrite,
         })
         self._auto_persist_trainee(trainee_id)
 

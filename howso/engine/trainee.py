@@ -2877,31 +2877,41 @@ class Trainee(BaseTrainee):
 
     def add_feature(
         self,
-        feature: str,
-        feature_value: t.Optional[int | float | str] = None,
+        feature_name: str,
         *,
-        overwrite: bool = False,
+        values: t.Optional[t.Collection[t.Any]] = None,
+        default_value: t.Optional[t.Any] = None,
+        case_indices: t.Optional[CaseIndices] = None,
         condition: t.Optional[Mapping[str, t.Any]] = None,
         condition_session: t.Optional[str | BaseSession] = None,
         feature_attributes: t.Optional[Mapping[str, t.Any]] = None,
+        overwrite: bool = False,
     ):
         """
-        Add a feature to the model.
+        Add a feature to the Trainee.
 
-        Updates the accumulated data mass for the model proportional to the
+        Updates the accumulated data mass for the Trainee proportional to the
         number of cases modified.
 
         Parameters
         ----------
-        feature : str
-            The name of the feature.
+        feature_name : str
+            The name of the new feature.
+        default_value : Any, optional
+            A single value to assign to each case for the new feature. Either ``default_value``
+            or ``values`` must be specified, but not both.
+        values : Sequence of Any, optional
+            A sequence of values whose elements are assigned to each case specified with ``case_indices``.
+            ``values`` cannot be specified without also specifying ``case_indices`` as a sequence of the same
+            length. Either ``default_value`` or ``values`` must be specified, but not both.
         feature_attributes : map, optional
             The dict of feature specific attributes for this feature. If
             unspecified and conditions are not specified, will assume feature
             type as 'continuous'.
-        feature_value : int or float or str, optional
-            The value to populate the feature with.
-            By default, populates the new feature with None.
+        case_indices : Sequence of (str, int), optional
+            List of tuples, of session id and index, where index is the
+            original 0-based index of the case as it was trained into the
+            session.
         condition : map of str -> object, optional
             A condition map where feature values will only be added when
             certain criteria is met.
@@ -2946,10 +2956,12 @@ class Trainee(BaseTrainee):
             if self.id:
                 self.client.add_feature(
                     trainee_id=self.id,
+                    feature_name=feature_name,
+                    values=values,
+                    default_value=default_value,
+                    case_indices=case_indices,
                     condition=condition,
                     condition_session=condition_session_id,
-                    feature=feature,
-                    feature_value=feature_value,
                     feature_attributes=feature_attributes,
                     overwrite=overwrite,
                 )
