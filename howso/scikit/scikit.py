@@ -1262,7 +1262,7 @@ class HowsoEstimator(BaseEstimator):
             raise HowsoError(f"Feature name '{feature}' already exists in "
                              f"this trainee.")
 
-        self.trainee.add_feature(feature, feature_value=value)
+        self.trainee.add_feature(feature, default_value=value)
 
     def feature_remove(self, feature: t.Optional[str] = None):
         """
