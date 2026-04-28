@@ -772,7 +772,7 @@ def test_infer_time_invariant_features_max_rows(adc):
         time_feature_name="time",
         id_feature_name=["ID1", "ID2"],
         default_time_zone="UTC",
-        consider_num_rows=100
+        max_rows_to_eval=100
     )
 
     chunk_size = 25000
