@@ -325,7 +325,7 @@ class InferFeatureAttributesTimeSeries:
     def _process(  # noqa: C901
         self,
         attempt_infer_extended_nominals: bool = False,
-        max_rows_to_eval: int = 1e7,
+        max_rows_to_eval: int = 10_000_000,
         datetime_feature_formats: t.Optional[dict] = None,
         default_time_zone: t.Optional[str] = None,
         delta_boundaries: t.Optional[dict] = None,

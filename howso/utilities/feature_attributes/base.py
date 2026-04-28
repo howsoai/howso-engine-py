@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence, Sequence, Set
+from collections.abc import Collection, Container, Hashable, Iterable, Mapping, MutableSequence, Sequence, Set
 from copy import deepcopy
 import datetime
 from functools import singledispatchmethod
@@ -24,9 +24,10 @@ import yaml
 from howso.utilities.features import FeatureType
 from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
 
-from ..utilities import determine_iso_format
-from .serializers import FeatureAttributesEncoder, feature_attributes_pairs_hook
+from .protocols import IFACompatibleADCProtocol
+from .serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
 from .warnings import IFAWarningEmitterType
+from ..utilities import determine_iso_format
 
 if t.TYPE_CHECKING:
     from howso.client.typing import FeatureAttributes
@@ -765,7 +766,7 @@ class InferFeatureAttributesBase(ABC):
 
     def _process(self,  # noqa: C901
                  attempt_infer_extended_nominals: bool = False,
-                 max_rows_to_eval: int = 1e7,
+                 max_rows_to_eval: int = 10_000_000,
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
@@ -1767,3 +1768,9 @@ class InferFeatureAttributesBase(ABC):
     @abstractmethod
     def _get_unique_values(self, feature_name: str) -> Collection[t.Any]:
         """Get a set of the unique values for the given feature_name."""
+
+    @classmethod
+    @abstractmethod
+    def _infer_time_invariant_features(cls, data: IFACompatibleADCProtocol, id_features: Sequence[Hashable],
+                                       max_rows: int = 10_000_000) -> list[Hashable]:
+        """Infer the time invariant features of the data (not including the provided `id_features`)."""

@@ -776,7 +776,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
     @classmethod
     def _infer_time_invariant_features(cls, data: AbstractData, id_features: Sequence[Hashable],
-                                       max_rows: int = 1e7) -> set[Hashable]:
+                                       max_rows: int = 10_000_000) -> list[Hashable]:
         """Infer the time invariant features of the data (not including the provided `id_features`)."""
         candidate_features = [f for f in data.headers if f not in id_features]
         time_invariant = set(candidate_features)
