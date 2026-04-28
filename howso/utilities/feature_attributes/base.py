@@ -807,16 +807,8 @@ class InferFeatureAttributesBase(ABC):
 
         self.num_series = num_series
 
-        # Store ID and other time-invariant features, if provided, for processing
-        if isinstance(time_invariant_features, str):
-            self.time_invariant_features = [time_invariant_features]
-        elif isinstance(time_invariant_features, Iterable):
-            self.time_invariant_features = list(time_invariant_features)
-        elif time_invariant_features is not None:
-            raise ValueError('Time-invariant features must be of type `str` or `list[str], '
-                             f'not {type(time_invariant_features)}.')
-        else:
-            self.time_invariant_features = []
+        # Pre-processed in InferFeatureAttributesTimeSeries
+        self.time_invariant_features = time_invariant_features
 
         if isinstance(id_feature_name, str):
             self.id_feature_names = [id_feature_name]
@@ -827,19 +819,6 @@ class InferFeatureAttributesBase(ABC):
                              f'not {type(id_feature_name)}.')
         else:
             self.id_feature_names = []
-
-        # Infer time invariant features if none were provided
-        if not time_invariant_features and self.id_feature_names:
-            if hasattr(self.data, "yield_chunk"):
-                self.time_invariant_features = self._infer_time_invariant_features(self.data, self.id_feature_names,
-                                                                                   max_rows_to_eval)
-            else:
-                self.time_invariant_features = self._infer_time_invariant_features(self.data, self.id_feature_names)
-
-        # ID features are time-invariant
-        for id_feature in self.id_feature_names:
-            if id_feature not in self.time_invariant_features:
-                self.time_invariant_features.append(id_feature)
 
         # Preprocess user-defined feature types
         preset_types = {}
@@ -1768,9 +1747,3 @@ class InferFeatureAttributesBase(ABC):
     @abstractmethod
     def _get_unique_values(self, feature_name: str) -> Collection[t.Any]:
         """Get a set of the unique values for the given feature_name."""
-
-    @classmethod
-    @abstractmethod
-    def _infer_time_invariant_features(cls, data: IFACompatibleADCProtocol, id_features: Sequence[Hashable],
-                                       max_rows: int = 10_000_000) -> list[Hashable]:
-        """Infer the time invariant features of the data (not including the provided `id_features`)."""

@@ -322,8 +322,8 @@ def test_semi_structured_features(data_type: str, value: list[str]):
     """Test that IFA detects semi structured features."""
     df = pd.DataFrame([
         {"class": "Fighter", "turn": 1, "hp": 100, "magic": 0, "inventory": value[0]},
-        {"class": "Fighter", "turn": 2, "hp": 70, "magic": 0, "inventory": value[0]},
-        {"class": "Mage", "turn": 1, "hp": 100, "magic": 100, "inventory": value[1]},
+        {"class": "Fighter", "turn": 2, "hp": 70, "magic": 0, "inventory": value[1]},
+        {"class": "Mage", "turn": 1, "hp": 100, "magic": 100, "inventory": value[0]},
         {"class": "Mage", "turn": 2, "hp": 100, "magic": 85, "inventory": value[1]},
     ])
 
@@ -346,7 +346,7 @@ def test_time_series_features_pandas():
     df = pd.read_csv(data_path.joinpath("example_timeseries.csv"))
     features = infer_feature_attributes(
         df,
-        id_feature_name = "ID",
+        id_feature_name="ID",
         time_feature_name="date",
         datetime_feature_formats={"date": "%Y%m%d"},
     )

@@ -40,9 +40,6 @@ from ..utilities import (
 )
 
 
-# Default chunk size to use for howso-engine-connectors yield_chunk()
-DEFAULT_CHUNK_SIZE = 25000
-
 logger = logging.getLogger(__name__)
 
 # Attempt to import howso.connectors, but don't require it unless an IFA-ADC class is instantiated
@@ -773,22 +770,3 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     def _get_unique_values(self, feature_name: str) -> Collection[t.Any]:
         """Return the set of unique values for the given feature."""
         return self.data.get_unique_values(feature_name)
-
-    @classmethod
-    def _infer_time_invariant_features(cls, data: AbstractData, id_features: Sequence[Hashable],
-                                       max_rows: int = 10_000_000) -> list[Hashable]:
-        """Infer the time invariant features of the data (not including the provided `id_features`)."""
-        candidate_features = [f for f in data.headers if f not in id_features]
-        time_invariant = set(candidate_features)
-
-        max_chunks = ceil(max_rows / DEFAULT_CHUNK_SIZE)
-
-        for chunk in data.yield_chunk(chunk_size=DEFAULT_CHUNK_SIZE, max_chunks=max_chunks):
-            if not time_invariant:
-                break
-
-            for feature in list(time_invariant):
-                if chunk.groupby(id_features).nunique(dropna=False)[feature].gt(1).any():
-                    time_invariant.discard(feature)
-
-        return list(time_invariant)
