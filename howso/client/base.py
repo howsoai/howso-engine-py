@@ -1258,7 +1258,7 @@ class AbstractHowsoClient(ABC):
 
         util.validate_list_shape(contexts, 2, "contexts", "list of object", allow_none=False)
 
-        if context_features is None:
+        if not context_features:
             context_features = internals.get_features_from_data(
                 contexts,
                 data_parameter='contexts',
@@ -2630,7 +2630,7 @@ class AbstractHowsoClient(ABC):
                     )
 
         # Preprocess context values
-        if context_values is not None and context_features is None:
+        if context_values is not None and not context_features:
             context_features = internals.get_features_from_data(
                 context_values,
                 data_parameter='contexts',
