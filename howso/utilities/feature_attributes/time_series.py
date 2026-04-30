@@ -667,6 +667,8 @@ class InferFeatureAttributesTimeSeries(ABC):
             if id_feature not in time_invariant_features:
                 time_invariant_features.append(id_feature)
 
+        infer._time_invariant_features = time_invariant_features
+
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             max_rows_to_eval=max_rows_to_eval,
@@ -685,7 +687,6 @@ class InferFeatureAttributesTimeSeries(ABC):
             num_series=num_series,
             ordinal_feature_values=ordinal_feature_values,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
-            time_invariant_features=time_invariant_features,
             types=types,
         )
 

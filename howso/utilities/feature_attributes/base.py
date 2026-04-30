@@ -779,7 +779,6 @@ class InferFeatureAttributesBase(ABC):
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
                  tight_bounds: t.Optional[Iterable[str]] = None,
-                 time_invariant_features: t.Optional[str | Iterable[str]] = None,
                  types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
                  ) -> dict:
         """
@@ -803,9 +802,6 @@ class InferFeatureAttributesBase(ABC):
         self.default_time_zone = default_time_zone
 
         self.num_series = num_series
-
-        # Pre-processed in InferFeatureAttributesTimeSeries
-        self.time_invariant_features = time_invariant_features
 
         if isinstance(id_feature_name, str):
             self.id_feature_names = [id_feature_name]
