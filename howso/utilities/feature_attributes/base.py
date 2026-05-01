@@ -793,6 +793,10 @@ class InferFeatureAttributesBase(ABC):
 
         self.datetime_feature_formats = datetime_feature_formats
 
+        # If not set by an external caller (e.g., InferFeatureAttributesTimeSeries), set a default
+        if not hasattr(self, "_time_invariant_features"):
+            self._time_invariant_features = []
+
         if ordinal_feature_values is None:
             ordinal_feature_values = dict()
 

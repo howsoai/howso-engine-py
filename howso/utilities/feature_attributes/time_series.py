@@ -639,7 +639,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         if isinstance(id_feature_name, str):
             id_feature_names = [id_feature_name]
         elif isinstance(id_feature_name, Iterable):
-            id_feature_names = id_feature_name
+            id_feature_names = list(id_feature_name)
         else:
             id_feature_names = []
 
@@ -853,7 +853,7 @@ class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
         """Get the dtype of the provided ``feature_name``."""
         return self.data[self.time_feature_name].dtype
 
-    def _infer_time_invariant_features(self, id_features: t.Sequence[str], **kwargs) -> list[str]:
+    def _infer_time_invariant_features(self, id_features: Sequence[str], max_rows: int = 10_000_000) -> list[str]:
         """Infer the time invariant features of the data (not including the provided `id_features`)."""
         time_invariant_features = self.data.groupby(id_features).nunique(dropna=False).isin([0, 1]).all()
         time_invariant_features = list(time_invariant_features[time_invariant_features].index)
