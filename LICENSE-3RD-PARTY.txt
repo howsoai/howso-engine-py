@@ -90,12 +90,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 build
-1.4.4
+1.5.0
 MIT
 Filipe Laíns <lains@riseup.net>, Bernát Gábor <gaborjbernat@gmail.com>, layday <layday@protonmail.com>, Henry Schreiner <henryschreineriii@gmail.com>
 https://build.pypa.io
 A simple, correct Python build frontend
-/home/runner/.pyenv/versions/3.13.13/lib/python3.13/site-packages/build-1.4.4.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.13.13/lib/python3.13/site-packages/build-1.5.0.dist-info/licenses/LICENSE
 Copyright © 2019 Filipe Laíns <filipe.lains@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a
