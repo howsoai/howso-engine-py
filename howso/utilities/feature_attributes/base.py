@@ -1301,7 +1301,7 @@ class InferFeatureAttributesBase(ABC):
         """Get the minimum number of unique values a feature must have to be considered continuous."""
         n_cases = self._get_num_cases(feature_name)
         # If the provided feature is stationary, we should simply evaluate the number of series
-        if getattr(self, 'id_feature_names', None) and feature_name in self.time_invariant_features:
+        if getattr(self, 'id_feature_names', None) and feature_name in self._time_invariant_features:
             return math.ceil(pow(self.num_series, 0.5))
         # Return the sqrt of max(avg. cases per series, num. series)
         return math.ceil(pow(max(self.num_series, (n_cases / self.num_series)), 0.5))
