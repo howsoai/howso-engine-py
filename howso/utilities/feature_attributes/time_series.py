@@ -655,9 +655,11 @@ class InferFeatureAttributesTimeSeries(ABC):
             # If not provided, time invariant features will be inferred
             if id_feature_names:
                 time_invariant_features = self._infer_time_invariant_features(id_feature_names, max_rows_to_eval)
-            # Remove the time feature in case it was added automatically
-            if self.time_feature_name in time_invariant_features:
-                time_invariant_features.remove(self.time_feature_name)
+                # Remove the time feature in case it was added automatically
+                if self.time_feature_name in time_invariant_features:
+                    time_invariant_features.remove(self.time_feature_name)
+            else:
+                time_invariant_features = []
 
         # Ensure time feature isn't in time_invariant_features
         if self.time_feature_name in time_invariant_features:
