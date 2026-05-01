@@ -39,6 +39,7 @@ from ..utilities import (
     time_to_seconds,
 )
 
+
 logger = logging.getLogger(__name__)
 
 # Attempt to import howso.connectors, but don't require it unless an IFA-ADC class is instantiated

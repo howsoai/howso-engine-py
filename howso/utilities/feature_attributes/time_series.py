@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from abc import abstractmethod
-from collections.abc import Collection, Iterable, MutableMapping
+from abc import ABC, abstractmethod
+from collections.abc import Collection, Iterable, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 import logging
-from math import e
+from math import ceil
 import os
 import typing as t
 import warnings
@@ -27,6 +27,10 @@ from ..utilities import (
 
 logger = logging.getLogger(__name__)
 
+
+# Default chunk size to use for howso-engine-connectors yield_chunk()
+DEFAULT_CHUNK_SIZE = 25000
+
 SMALLEST_TIME_DELTA = 0.001
 
 
@@ -43,6 +47,7 @@ def _get_theoretical_min_max(
         observed_min_rate or 0,
         observed_max_rate or 0,
     )
+
 
 def _infer_delta_min_max_from_chunk(  # noqa: C901
     chunk: pd.DataFrame,
@@ -286,7 +291,7 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
     return features
 
 
-class InferFeatureAttributesTimeSeries:
+class InferFeatureAttributesTimeSeries(ABC):
     """Infer feature attributes for time series data."""
 
     def __init__(self, data: pd.DataFrame | IFACompatibleADCProtocol, time_feature_name: str):
@@ -325,6 +330,7 @@ class InferFeatureAttributesTimeSeries:
     def _process(  # noqa: C901
         self,
         attempt_infer_extended_nominals: bool = False,
+        max_rows_to_eval: int = 10_000_000,
         datetime_feature_formats: t.Optional[dict] = None,
         default_time_zone: t.Optional[str] = None,
         delta_boundaries: t.Optional[dict] = None,
@@ -368,6 +374,11 @@ class InferFeatureAttributesTimeSeries:
             .. note ::
                 Please refer to `kwargs` for other parameters related to
                 extended nominals.
+
+        max_rows_to_eval : int, default None
+            (Optional) If using a data source with streaming capabilities, sets the maximum number of
+            rows to consider when inferring feature attributes where applicable. Useful for preventing
+            excessive runtimes with very large data. If not provided, defaults to 10 million rows.
 
         datetime_feature_formats : dict, default None
             (Optional) Dict defining a custom (non-ISO8601) datetime format and
@@ -450,8 +461,8 @@ class InferFeatureAttributesTimeSeries:
             that synthed value to derive the 2nd and 1st order.
 
         fanout_feature_map : dict of str or tuple of str to list of str, optional
-            (Optional) Dict mapping "key" feature names or tuples of "key" feature names to list of "fanout" feature names.
-            Fanout features are features with values fanned out across multiple cases. Key features are features
+            (Optional) Dict mapping "key" feature names or tuples of "key" feature names to list of "fanout" feature
+            names. Fanout features are features with values fanned out across multiple cases. Key features are features
             whose values can be used to select groups of cases that have the same duplicated fanout values.
 
         id_feature_name : str or list of str default None
@@ -628,14 +639,42 @@ class InferFeatureAttributesTimeSeries:
         if isinstance(id_feature_name, str):
             id_feature_names = [id_feature_name]
         elif isinstance(id_feature_name, Iterable):
-            id_feature_names = id_feature_name
+            id_feature_names = list(id_feature_name)
         else:
             id_feature_names = []
 
-        num_series = infer._get_unique_count(id_feature_names) if id_feature_names else 1 # pyright: ignore[reportPrivateUsage]
+        num_series = infer._get_unique_count(
+            id_feature_names) if id_feature_names else 1  # pyright: ignore[reportPrivateUsage]
+
+        # Process time-invariant features first
+        if isinstance(time_invariant_features, str):
+            time_invariant_features = [time_invariant_features]
+        elif isinstance(time_invariant_features, Iterable):
+            time_invariant_features = list(time_invariant_features)
+        else:
+            # If not provided, time invariant features will be inferred
+            if id_feature_names:
+                time_invariant_features = self._infer_time_invariant_features(id_feature_names, max_rows_to_eval)
+                # Remove the time feature in case it was added automatically
+                if self.time_feature_name in time_invariant_features:
+                    time_invariant_features.remove(self.time_feature_name)
+            else:
+                time_invariant_features = []
+
+        # Ensure time feature isn't in time_invariant_features
+        if self.time_feature_name in time_invariant_features:
+            raise ValueError("time_feature_name cannot be in the time_invariant_features list.")
+
+        # ID features are time-invariant.
+        for id_feature in id_feature_names:
+            if id_feature not in time_invariant_features:
+                time_invariant_features.append(id_feature)
+
+        infer._time_invariant_features = time_invariant_features
 
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
+            max_rows_to_eval=max_rows_to_eval,
             datetime_feature_formats=datetime_feature_formats,
             default_time_zone=default_time_zone,
             dependent_features=dependent_features,
@@ -651,27 +690,11 @@ class InferFeatureAttributesTimeSeries:
             num_series=num_series,
             ordinal_feature_values=ordinal_feature_values,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
-            time_invariant_features=time_invariant_features,
             types=types,
         )
 
         # Add any features with unsupported data to this object's list
         self.unsupported.extend(features.unsupported)
-
-        if isinstance(time_invariant_features, str):
-            time_invariant_features = [time_invariant_features]
-        elif isinstance(time_invariant_features, Iterable):
-            time_invariant_features = list(time_invariant_features)
-        else:
-            time_invariant_features = []
-
-        # ID features are time-invariant.
-        for id_feature in id_feature_names:
-            if id_feature not in time_invariant_features:
-                time_invariant_features.append(id_feature)
-
-        if self.time_feature_name in time_invariant_features:
-            raise ValueError("time_feature_name cannot be in the time_invariant_features list.")
 
         # Set all non time invariant features to be `time_series` features
         for f_name in features:
@@ -784,17 +807,18 @@ class InferFeatureAttributesTimeSeries:
     @abstractmethod
     def _is_null_column(self, feature_name: str) -> bool:
         """Determine whether the provided column is all null values."""
-        raise NotImplementedError()
 
     @abstractmethod
     def _cast_column(self, feature_name: str, new_type: t.Any):
         """Convert the column of the provided ``feature_name`` to a different dtype."""
-        raise NotImplementedError()
 
     @abstractmethod
     def _get_column_dtype(self, feature_name: str) -> np.dtype:
         """Get the dtype of the provided ``feature_name``."""
-        raise NotImplementedError()
+
+    @abstractmethod
+    def _infer_time_invariant_features(self, id_features: Sequence[str], max_rows: int) -> list[str]:
+        """Infer the time invariant features of the data (not including the provided `id_features`)."""
 
 
 class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
@@ -831,6 +855,12 @@ class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
     def _get_column_dtype(self, feature_name: str) -> np.dtype:
         """Get the dtype of the provided ``feature_name``."""
         return self.data[self.time_feature_name].dtype
+
+    def _infer_time_invariant_features(self, id_features: Sequence[str], max_rows: int = 10_000_000) -> list[str]:
+        """Infer the time invariant features of the data (not including the provided `id_features`)."""
+        time_invariant_features = self.data.groupby(id_features).nunique(dropna=False).isin([0, 1]).all()
+        time_invariant_features = list(time_invariant_features[time_invariant_features].index)
+        return list(map(str, time_invariant_features))  # Ensure all feature names are strings
 
 
 class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
@@ -1195,7 +1225,6 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
 
         return features
 
-
     def _aggregate_chunk_results(self, features: dict, feature_chunks: list[dict]) -> dict:
         """
         Aggregate time series min/max values across all chunks.
@@ -1273,6 +1302,23 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                 # Leave as-is
                 pass
         return dtype
+
+    def _infer_time_invariant_features(self, id_features: Sequence[str], max_rows: int = 10_000_000) -> list[str]:
+        """Infer the time invariant features of the data (not including the provided `id_features`)."""
+        candidate_features = [str(f) for f in self.data.headers if f not in id_features]
+        time_invariant = set(candidate_features)
+
+        max_chunks = ceil(max_rows / DEFAULT_CHUNK_SIZE)
+
+        for chunk in self.data.yield_chunk(chunk_size=DEFAULT_CHUNK_SIZE, max_chunks=max_chunks):
+            if not time_invariant:
+                break
+
+            for feature in list(time_invariant):
+                if chunk.groupby(id_features).nunique(dropna=False)[feature].gt(1).any():
+                    time_invariant.discard(feature)
+
+        return list(time_invariant)
 
 
 def _infer_optimal_chunk_size(

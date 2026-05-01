@@ -21,12 +21,10 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
+from howso.utilities.feature_attributes.warnings import IFAWarningEmitterType
 from howso.utilities.features import FeatureType
-from howso.utilities.utilities import is_valid_datetime_format, time_to_seconds
-
-from ..utilities import determine_iso_format
-from .serializers import FeatureAttributesEncoder, feature_attributes_pairs_hook
-from .warnings import IFAWarningEmitterType
+from howso.utilities.utilities import determine_iso_format, is_valid_datetime_format, time_to_seconds
 
 if t.TYPE_CHECKING:
     from howso.client.typing import FeatureAttributes
@@ -765,6 +763,7 @@ class InferFeatureAttributesBase(ABC):
 
     def _process(self,  # noqa: C901
                  attempt_infer_extended_nominals: bool = False,
+                 max_rows_to_eval: int = 10_000_000,
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
@@ -780,7 +779,6 @@ class InferFeatureAttributesBase(ABC):
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
                  tight_bounds: t.Optional[Iterable[str]] = None,
-                 time_invariant_features: t.Optional[str | Iterable[str]] = None,
                  types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
                  ) -> dict:
         """
@@ -795,6 +793,10 @@ class InferFeatureAttributesBase(ABC):
 
         self.datetime_feature_formats = datetime_feature_formats
 
+        # If not set by an external caller (e.g., InferFeatureAttributesTimeSeries), set a default
+        if not hasattr(self, "_time_invariant_features"):
+            self._time_invariant_features = []
+
         if ordinal_feature_values is None:
             ordinal_feature_values = dict()
 
@@ -805,17 +807,6 @@ class InferFeatureAttributesBase(ABC):
 
         self.num_series = num_series
 
-        # Store ID and other time-invariant features, if provided, for processing
-        if isinstance(time_invariant_features, str):
-            self.time_invariant_features = [time_invariant_features]
-        elif isinstance(time_invariant_features, Iterable):
-            self.time_invariant_features = list(time_invariant_features)
-        elif time_invariant_features is not None:
-            raise ValueError('Time-invariant features must be of type `str` or `list[str], '
-                             f'not {type(time_invariant_features)}.')
-        else:
-            self.time_invariant_features = []
-
         if isinstance(id_feature_name, str):
             self.id_feature_names = [id_feature_name]
         elif isinstance(id_feature_name, Iterable):
@@ -825,11 +816,6 @@ class InferFeatureAttributesBase(ABC):
                              f'not {type(id_feature_name)}.')
         else:
             self.id_feature_names = []
-
-        # ID features are time-invariant
-        for id_feature in self.id_feature_names:
-            if id_feature not in self.time_invariant_features:
-                self.time_invariant_features.append(id_feature)
 
         # Preprocess user-defined feature types
         preset_types = {}
@@ -1319,7 +1305,7 @@ class InferFeatureAttributesBase(ABC):
         """Get the minimum number of unique values a feature must have to be considered continuous."""
         n_cases = self._get_num_cases(feature_name)
         # If the provided feature is stationary, we should simply evaluate the number of series
-        if getattr(self, 'id_feature_names', None) and feature_name in self.time_invariant_features:
+        if getattr(self, 'id_feature_names', None) and feature_name in self._time_invariant_features:
             return math.ceil(pow(self.num_series, 0.5))
         # Return the sqrt of max(avg. cases per series, num. series)
         return math.ceil(pow(max(self.num_series, (n_cases / self.num_series)), 0.5))

@@ -1,11 +1,13 @@
 # pyright: reportTypedDictNotRequiredAccess=false
 """Tests infer_feature_attributes with time series data and AbstractData classes."""
 from collections import OrderedDict
+import math
 from pathlib import Path
 from pprint import pprint
 import random
 import sys
 from typing import Any
+from unittest.mock import patch
 import warnings
 
 import numpy as np
@@ -14,9 +16,9 @@ import pytest
 
 try:
     from howso.connectors.abstract_data import (
-            convert_data,
-            DataFrameData,
-            TabularFile,
+        convert_data,
+        DataFrameData,
+        TabularFile,
     )
 except (ModuleNotFoundError, ImportError):
     pytest.skip("Skipping because howso-engine-connectors is not installed", allow_module_level=True)
@@ -325,7 +327,8 @@ def test_invalid_time_feature_format(adc):
      dict(b='continuous'), True),
     (pd.DataFrame({'id': [1, 1, 1, 1, 1, 1], 'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'),
      dict(a='continuous'), True),
-    (pd.DataFrame({'id': [1, 1, 1, 1, 1, 1, 1, 1], 'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'),
+    (pd.DataFrame({'id': [1, 1, 1, 1, 1, 1, 1, 1], 'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}),
+     dict(b='nominal'),
      dict(b='nominal'), True),
 ])
 def test_preset_feature_types(data, types, expected_types, is_valid, adc):
@@ -597,8 +600,8 @@ def test_semi_structured_features_spark_native(spark, data_type: str, value: lis
     """Test that IFA detects semi structured features."""
     df = pd.DataFrame([
         {"class": "Fighter", "turn": 1, "hp": 100, "magic": 0, "inventory": value[0]},
-        {"class": "Fighter", "turn": 2, "hp": 70, "magic": 0, "inventory": value[0]},
-        {"class": "Mage", "turn": 1, "hp": 100, "magic": 100, "inventory": value[1]},
+        {"class": "Fighter", "turn": 2, "hp": 70, "magic": 0, "inventory": value[1]},
+        {"class": "Mage", "turn": 1, "hp": 100, "magic": 100, "inventory": value[0]},
         {"class": "Mage", "turn": 2, "hp": 100, "magic": 85, "inventory": value[1]},
     ])
     connector = SparkDataFrameData(
@@ -703,3 +706,83 @@ def test_offset_indices(adc):
         default_time_zone="utc",
     )
     assert features
+
+
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_infer_time_invariant_features(adc):
+    """Test that `infer_feature_attributes` correctly infers time invariant features when none are provided."""
+    data = {
+        "ID1": ["a", "a", "a", "b", "b", "b"],
+        "ID2": ["x", "x", "x", "y", "y", "y"],
+        "time": [1, 2, 3, 1, 2, 3],
+        "gender": ["male", "male", "male", "female", "female", "female"],
+        "country": ["UK", "UK", "UK", "US", "US", "US"],
+        "value": [11, 12, 15, 18, 23, 31],
+        "balance": [1.0, 2.0, 3.0, 4.0, 4.9, 5.8],
+    }
+    df = pd.DataFrame(data)
+    convert_data(DataFrameData(df), adc)
+
+    ifa_kwargs: dict[Any, Any] = dict(
+        time_feature_name="time",
+        id_feature_name=["ID1", "ID2"],
+        default_time_zone="UTC",
+    )
+
+    features = infer_feature_attributes(adc, **ifa_kwargs)  # pyright: ignore[reportArgumentType]
+
+    # 4. Verify time invariant features are correct, others use defaults
+    assert "time_series" not in features["gender"]
+    assert "time_series" not in features["country"]
+
+
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_infer_time_invariant_features_max_rows(adc):
+    """Test that `_infer_time_invariant_features` respects `max_rows` by limiting chunks yielded."""
+    data = {
+        "ID1": ["a", "a", "a", "b", "b", "b"],
+        "ID2": ["x", "x", "x", "y", "y", "y"],
+        "time": [1, 2, 3, 1, 2, 3],
+        "gender": ["male", "male", "male", "female", "female", "female"],
+        "country": ["UK", "UK", "UK", "US", "US", "US"],
+        "value": [11, 12, 15, 18, 23, 31],
+        "balance": [1.0, 2.0, 3.0, 4.0, 4.9, 5.8],
+    }
+    df = pd.DataFrame(data)
+    convert_data(DataFrameData(df), adc)
+    max_rows = 100
+
+    ifa_kwargs: dict[Any, Any] = dict(
+        time_feature_name="time",
+        id_feature_name=["ID1", "ID2"],
+        default_time_zone="UTC",
+        max_rows_to_eval=100
+    )
+
+    chunk_size = 25000
+
+    with patch.object(adc, "yield_chunk", wraps=adc.yield_chunk) as mock_yield_chunk:
+        infer_feature_attributes(adc, **ifa_kwargs)  # pyright: ignore[reportArgumentType]
+        calls_with_max_chunks = [
+            call for call in mock_yield_chunk.call_args_list
+            if call.kwargs.get("max_chunks") == math.ceil(max_rows / chunk_size)
+            and call.kwargs.get("chunk_size") == chunk_size
+        ]
+        # Should be exactly one call (to _infer_time_invariant_features) with these parameters
+        assert len(calls_with_max_chunks) == 1

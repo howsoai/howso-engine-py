@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from pprint import pprint
 import random
+from typing import Any
 import warnings
 
 from howso import client
@@ -321,8 +322,8 @@ def test_semi_structured_features(data_type: str, value: list[str]):
     """Test that IFA detects semi structured features."""
     df = pd.DataFrame([
         {"class": "Fighter", "turn": 1, "hp": 100, "magic": 0, "inventory": value[0]},
-        {"class": "Fighter", "turn": 2, "hp": 70, "magic": 0, "inventory": value[0]},
-        {"class": "Mage", "turn": 1, "hp": 100, "magic": 100, "inventory": value[1]},
+        {"class": "Fighter", "turn": 2, "hp": 70, "magic": 0, "inventory": value[1]},
+        {"class": "Mage", "turn": 1, "hp": 100, "magic": 100, "inventory": value[0]},
         {"class": "Mage", "turn": 2, "hp": 100, "magic": 85, "inventory": value[1]},
     ])
 
@@ -345,7 +346,7 @@ def test_time_series_features_pandas():
     df = pd.read_csv(data_path.joinpath("example_timeseries.csv"))
     features = infer_feature_attributes(
         df,
-        id_feature_name = "ID",
+        id_feature_name="ID",
         time_feature_name="date",
         datetime_feature_formats={"date": "%Y%m%d"},
     )
@@ -475,3 +476,29 @@ def test_nominal_id_feature():
     )
     assert "id_feature" in features[id_feature_name]
     features.validate(df, raise_errors=True)
+
+
+def test_infer_time_invariant_features():
+    """Test that `infer_feature_attributes` correctly infers time invariant features when none are provided."""
+    data = {
+        "ID1": ["a", "a", "a", "b", "b", "b"],
+        "ID2": ["x", "x", "x", "y", "y", "y"],
+        "time": [1, 2, 3, 1, 2, 3],
+        "gender": ["male", "male", "male", "female", "female", "female"],
+        "country": ["UK", "UK", "UK", "US", "US", "US"],
+        "value": [11, 12, 15, 18, 23, 31],
+        "balance": [1.0, 2.0, 3.0, 4.0, 4.9, 5.8],
+    }
+    df = pd.DataFrame(data)
+
+    ifa_kwargs: dict[Any, Any] = dict(
+        time_feature_name="time",
+        id_feature_name=["ID1", "ID2"],
+        default_time_zone="UTC",
+    )
+
+    features = infer_feature_attributes(df, **ifa_kwargs)  # pyright: ignore[reportArgumentType]
+
+    # 4. Verify time invariant features are correct, others use defaults
+    assert "time_series" not in features["gender"]
+    assert "time_series" not in features["country"]
