@@ -63,7 +63,7 @@ def _shard(data: pd.DataFrame, *, kwargs: dict[str, t.Any]):
         }
 
     feature_attributes = ifr_inst._process(**_kwargs)  # type: ignore reportPrivateUsage
-    return feature_attributes, ifr_inst.unsupported,
+    return feature_attributes, ifr_inst.unsupported, ifr_inst.warnings_collector, ifr_inst.suggestions
 
 
 class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
@@ -84,7 +84,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # IFAWarningEmitter collector
         self.warnings_collector = IFAWarningCollector()
         # Suggestions collector
-        self.suggestions = IFASuggestionCollector(self)
+        self.suggestions_collector = IFASuggestionCollector()
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -97,10 +97,12 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         suggestion_warning = ("You have one or more suggestions to consider for your feature attributes "
                               "configuration. Please view them by printing the `suggestions` property of your "
                               "returned feature attributes object (`your_attributes_object.suggestions`).")
-
         if max_workers is None or max_workers >= 1:
             mp_context = mp.get_context("spawn")
             futures: dict[Future, str] = dict()
+
+            processed_warnings: list[IFAWarningCollector] = []
+            processed_suggestions: list[IFASuggestionCollector] = []
 
             with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
                 for f in self.data.columns:
@@ -113,31 +115,41 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     response = future.result()
                     feature_attributes.update(response[0])
                     unsupported.extend(response[1])
+                    processed_warnings.extend(response[2])
+                    processed_suggestions.extend(response[3])
 
             # Re-order the keys like the original dataframe
             feature_attributes = {
                 k: feature_attributes[k] for k in self.data.columns
             }
 
+            # Merge warnings that originated from subprocesses
+            for collector in processed_warnings:
+                self.warnings_collector.merge(collector)
+
             self.warnings_collector.emit_all()
 
-            if self.suggestions._suggestions:
+            # Merge suggestions that originated from subprocesses
+            for collector in processed_suggestions:
+                self.suggestions_collector.merge(collector)
+
+            if self.suggestions_collector.suggestions:
                 warnings.warn(suggestion_warning, UserWarning)
 
             return SingleTableFeatureAttributes(
                 feature_attributes=feature_attributes, params=kwargs,
-                unsupported=unsupported, suggestions=self.suggestions
+                unsupported=unsupported, suggestions=self.suggestions_collector
             )
 
         else:
             feature_attributes = self._process(**kwargs)
             self.warnings_collector.emit_all()
-            if self.suggestions._suggestions:
+            if self.suggestions_collector.suggestions:
                 warnings.warn(suggestion_warning, UserWarning)
             return SingleTableFeatureAttributes(
                 feature_attributes, params=kwargs,
                 unsupported=self.unsupported,
-                suggestions=self.suggestions
+                suggestions=self.suggestions_collector
             )
 
     def _check_feature_memory_use(self, max_size: int = 512):

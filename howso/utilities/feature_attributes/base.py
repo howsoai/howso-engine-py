@@ -13,6 +13,7 @@ from pathlib import Path
 import platform
 import typing as t
 import warnings
+import weakref
 from zoneinfo import ZoneInfo
 
 from dateutil.parser import isoparse
@@ -60,7 +61,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
     def __init__(self, feature_attributes: Mapping, params: dict = {}, unsupported: list[str] = [],
-                 suggestions: IFASuggestionCollector = None):
+                 suggestions_collector: IFASuggestionCollector = None):
         """
         Instantiate this FeatureAttributesBase object.
 
@@ -72,14 +73,19 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
             (Optional) The parameters used in the call to infer_feature_attributes.
         unsupported : list of str
             (Optional) A list of features that contain data that is unsupported by the engine.
-
+        suggestions_collector : IFASuggestionCollector
+            (Optional) Collector of suggestions for this FeatureAttributesBase object.
         """
         if not isinstance(feature_attributes, Mapping):
             raise TypeError('Provided feature attributes must be a Mapping.')
         self.params = params
         self.update(feature_attributes)
         self.unsupported = unsupported
-        self._suggestions = suggestions or "You have no suggestions."
+        self._suggestions_collector = suggestions_collector or "You have no suggestions."
+        # Update all suggestions with a reference to this object so that they can apply updates
+        if hasattr(self._suggestions_collector, "suggestions"):
+            for s in self._suggestions_collector.suggestions.values():
+                s._attributes = self
 
     def __copy__(self) -> "FeatureAttributesBase":
         """Return a (deep)copy of this instance of FeatureAttributesBase."""
@@ -1162,7 +1168,7 @@ class InferFeatureAttributesBase(ABC):
                                                                                         preserve_rare_values_map,
                                                                                         significance_threshold)
                 prvc_suggestion = PRVSuggestion(preserve_rare_values_config)
-                self.suggestions.append(prvc_suggestion)
+                self.suggestions_collector.append(prvc_suggestion)
         elif preserve_rare_values_map is not None:
             # Cannot compute without chunk_size
             raise ValueError("")

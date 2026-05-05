@@ -39,7 +39,7 @@ class IFASuggestion(ABC):
 class PRVSuggestion(IFASuggestion):
     """A suggestion to configure preservation for rare values."""
 
-    # The FeatureAttributesBase object, set by the collector
+    # The FeatureAttributesBase object, set by that object once multiprocessing has completed
     _attributes: dict = None
 
     def __init__(self, prvc: PreserveRareValuesConfig):
@@ -47,14 +47,14 @@ class PRVSuggestion(IFASuggestion):
 
     def __repr__(self):
         """Print a helpful description of this suggestion and its capabilities."""
-        num_candidates = sum(len(cfg["preserve_rare_values_map"]) for cfg in self._prvc.values())
+        num_candidates = sum(len(cfg["protected_values"]) for cfg in self._prvc.values())
         header = f"We found {num_candidates} candidate value(s) in your data for rare value preservation."""
         body = ("During data distillation workflows, nominal values with weak but detectable signals may "
                 "be filtered out. To account for this, you may provide to `infer_feature_attributes` a "
                 "`preserve_rare_values_map` detailing rare values to protect automatically, or a full "
                 "`preserve_rare_values_config` with fine-grained case weight adjustments. Additionally, you may apply "
                 "our suggested configuration for all detected rare values to this feature attributes object.")
-        table = Table(title="Summary of Available Options")
+        table = Table(title="Summary of Available Options", show_lines=True)
         table.add_column("Action")
         table.add_column("Details")
         table.add_column("Code Example")
@@ -69,7 +69,7 @@ class PRVSuggestion(IFASuggestion):
         # Option 2: get reusable config
         table.add_row(
             "Get a reusable `preserve_rare_values_config`",
-            "You may provide a pre-computed `preserve_rare_values_config` as a parameter to `infer_feature_attributes`" 
+            "You may provide a pre-computed `preserve_rare_values_config` as a parameter to `infer_feature_attributes`"
             "if you wish to make adjustments to the case weight multipliers.",
             "```\nfeature_attributes = infer_feature_attributes(data, chunk_size=100_000)\n"
             "config = feature_attributes.suggestions.preserve_rare_values.get_config()\n"
@@ -92,7 +92,7 @@ class PRVSuggestion(IFASuggestion):
         console = Console()
         with console.capture() as capture:
             console.print(table)
-            table_str = capture.get().rstrip()
+        table_str = capture.get().rstrip()
 
         return f"{header}\n\n{body}\n\n{table_str}"
 
@@ -108,7 +108,7 @@ class PRVSuggestion(IFASuggestion):
 
     def apply(self):
         """Apply the computed signal preservation config to the FeatureAttributesBase object."""
-        for feature, config in self._prvc:
+        for feature, config in self._prvc.items():
             self._attributes[feature]["preserve_rare_values"] = config
 
     def get_config(self) -> PreserveRareValuesConfig:
@@ -136,8 +136,7 @@ class PRVSuggestion(IFASuggestion):
 class IFASuggestionCollector:
     """Collector of IFASuggestion objects."""
 
-    def __init__(self, feature_attributes: dict, suggestions: Sequence[IFASuggestion] = None):
-        self._attributes = feature_attributes
+    def __init__(self, suggestions: Sequence[IFASuggestion] = None):
         self._suggestions: dict[str, IFASuggestion] = {}
         suggestions = suggestions or []
         for suggestion in suggestions:
@@ -165,15 +164,25 @@ class IFASuggestionCollector:
             console.print(table)
         return capture.get().rstrip()
 
+    @property
+    def suggestions(self) -> dict[str, IFASuggestion]:
+        """Get all suggestions that belong to this collector."""
+        return self._suggestions
+
     def append(self, suggestion: IFASuggestion):
         """Append a new IFASuggestion to this collector."""
         if suggestion.name in self._suggestions:
             self._suggestions[suggestion.name].merge(suggestion)
         # Ensure the suggestion has access to the feature attributes
-        suggestion._attributes = self._attributes
         self._suggestions[suggestion.name] = suggestion
 
     def apply_all(self):
         """Apply all suggestions to the FeatureAttributesBase object."""
-        for suggestion in self.suggestions.values():
-            suggestion.apply(self._attributes)
+        for suggestion in self.suggestions_collector.values():
+            suggestion.apply()
+
+    def merge(self, other: object):
+        """Merge all IFASuggestions in another collector object with the IFASuggestions in this object."""
+        for name, suggestion in other.suggestions.items():
+            if name in self._suggestions.keys():
+                self._suggestions[name].merge(suggestion)

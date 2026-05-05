@@ -74,7 +74,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # IFAWarningEmitter collector
         self.warnings_collector = IFAWarningCollector()
         # Suggestions collector
-        self.suggestions = IFASuggestionCollector(self)
+        self.suggestions_collector = IFASuggestionCollector()
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -92,7 +92,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
         self.warnings_collector.emit_all()
 
-        if self.suggestions._suggestions:
+        if self.suggestions_collector.suggestions:
             warnings.warn("You have one or more suggestions to consider for your feature attributes "
                           "configuration. Please view them by printing the `suggestions` property of your "
                           "returned feature attributes object (`your_attributes_object.suggestions`).")
@@ -100,7 +100,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         return SingleTableFeatureAttributes(
             feature_attributes, params=kwargs,
             unsupported=self.unsupported,
-            suggestions=self.suggestions
+            suggestions=self.suggestions_collector
         )
 
     def _is_primary_key(self, feature_name: str) -> bool:

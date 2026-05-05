@@ -255,7 +255,7 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                 }
             }
 
-    rare_values_map : dict, default None
+    preserve_rare_values_config : dict, default None
         (Optional) A map of feature name to a list of dict specifying a protected value and
         a case weight multiplier. Enables case weight rebalancing for data distillation workflows
         such that protected values do not lose signal. Compute automatically by providing

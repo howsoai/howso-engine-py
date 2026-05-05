@@ -137,3 +137,12 @@ class IFAWarningCollector:
         """Emit all warnings collected."""
         for emitter in self._emitters.values():
             emitter.emit()
+
+    def merge(self, other: object):
+        """Merge another IFAWarningCollector object with this one."""
+        for key, emitter in other._emitters.items():
+            if key not in self._emitters.keys():
+                self._emitters[key] = emitter
+            else:
+                for f in emitter.features:
+                    self._emitters[key].features.add(f)
