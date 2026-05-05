@@ -1209,7 +1209,27 @@ def test_set_data():
         assert features["b"]["original_type"]["data_type"] == "container"
         assert features["b"]["original_type"]["coercion"] == "set"
 
-#def test_protected_values():
-#    df = pd.read_csv("test.csv")
-#    features = infer_feature_attributes(df, chunk_size=500, protected_values="all")
-#    raise Exception(features)
+
+def test_protected_values():
+    # Manufacture some data
+    n = 10_000
+    features = ['a', 'b', 'i', 'mass']
+    data = []
+    for i in range(n):
+        mass = 1
+        percentile = i % 100
+        if percentile < 99:
+            a_val = '1'
+        else:
+            a_val = '2'
+        if percentile < 95:
+            b_val = 'x'
+        elif percentile < 99:
+            b_val = 'y'
+        else:
+            b_val = 'z'
+        case = [a_val, b_val, i + 1, mass]
+        data.append(case)
+
+    df = pd.DataFrame(data, columns=features)
+    features = infer_feature_attributes(df, chunk_size=500, protected_values={"a": ['2']}, significance_threshold=30)

@@ -1836,7 +1836,10 @@ class InferFeatureAttributesBase(ABC):
                     orig_unprotected_mass += count
                     new_protected_mass += count * value_cfg["multiplier"]
                 orig_unprotected_mass = total_cases - orig_unprotected_mass
-                config["unprotected_multiplier"] = float((total_cases - new_protected_mass) / orig_unprotected_mass)
+                config["unprotected_multiplier"] = max(
+                    float((total_cases - new_protected_mass) / orig_unprotected_mass),
+                    1
+                )
         return spc
 
     def _compute_signal_preservation_config(self, target_size: int, protected_values: ProtectedValuesMap | t.Literal["all"],
@@ -1851,9 +1854,12 @@ class InferFeatureAttributesBase(ABC):
             data_type = self.attributes[feature]["data_type"]
             for value in values:
                 count = self._get_value_count(feature, value)
+                if count == 0:
+                    raise ValueError(f"Specified protected value `{value}` not found in column `{feature}`. "
+                                     "Please verify the value and type.")
                 expected_freq_at_target_size = (target_size / total_cases) * count
                 multiplier = significance_threshold / expected_freq_at_target_size
                 if data_type == "number":
                     value = float(value)
-                spc[feature]["protected_values"].append({"value": value, "multiplier": float(multiplier)})
+                spc[feature]["protected_values"].append({"value": value, "multiplier": min(float(multiplier), 1)})
         return self._compute_unprotected_multipliers(spc)
