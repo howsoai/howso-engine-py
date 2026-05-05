@@ -26,6 +26,7 @@ try:
 except ImportError:
     fl_optimized_chunk_size = None
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
+from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector, SPCSuggestion
 from howso.utilities.feature_attributes.warnings import IFAWarningEmitterType
 from howso.utilities.features import FeatureType
 from howso.utilities.utilities import determine_iso_format, is_valid_datetime_format, time_to_seconds
@@ -85,6 +86,11 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         obj_copy.update(deepcopy(self))
         obj_copy.params = self.params
         return obj_copy
+
+    @property
+    def suggestions(self) -> IFASuggestionCollector:
+        """Get the suggestions for this IFA object."""
+        return self._suggestions
 
     def get_parameters(self) -> dict:
         """
@@ -1140,23 +1146,24 @@ class InferFeatureAttributesBase(ABC):
                                                  max_chunk_size=chunk_size) if fl_optimized_chunk_size else chunk_size
             if protected_values is not None:
                 # User intends to apply signal preservation
-                signal_preservation_config = self._compute_signal_preservation_config(protected_values, chunk_size,
+                signal_preservation_config = self._compute_signal_preservation_config(chunk_size, protected_values,
                                                                                       significance_threshold)
                 self._spc = signal_preservation_config
             else:
                 # Compute but don't automatically apply
                 # TODO this must be more of an "append" as it must work across shards!
                 protected_values = self._find_protected_value_candidates(chunk_size, significance_threshold)
-                signal_preservation_config = self._compute_signal_preservation_config(protected_values, chunk_size,
+                signal_preservation_config = self._compute_signal_preservation_config(chunk_size, protected_values,
                                                                                       significance_threshold)
-                self.suggestions.triage(IFASuggestionType.SPC, signal_preservation_config)
+                spc_suggestion = SPCSuggestion(signal_preservation_config)
+                self.suggestions.append(spc_suggestion)
         elif protected_values is not None:
             # Cannot compute without chunk_size
             raise ValueError("")
 
         # Apply signal preservation info to feature attributes if applicable
         if self._spc:
-            for feature, config in self._spc:
+            for feature, config in self._spc.items():
                 self.attributes[feature]["signal_preservation"] = config
 
         # Re-order the keys like the original dataframe
@@ -1829,19 +1836,24 @@ class InferFeatureAttributesBase(ABC):
                     orig_unprotected_mass += count
                     new_protected_mass += count * value_cfg["multiplier"]
                 orig_unprotected_mass = total_cases - orig_unprotected_mass
-                config["unprotected_multiplier"] = (total_cases - new_protected_mass) / orig_unprotected_mass
+                config["unprotected_multiplier"] = float((total_cases - new_protected_mass) / orig_unprotected_mass)
         return spc
 
-    def _compute_signal_preservation_config(self, target_size: int, protected_values: ProtectedValuesMap,
+    def _compute_signal_preservation_config(self, target_size: int, protected_values: ProtectedValuesMap | t.Literal["all"],
                                             significance_threshold: int) -> SignalPreservationConfig:
         """Determine the case weight multipliers for the provided protected values."""
         spc: SignalPreservationConfig = {}
+        if protected_values == "all":
+            protected_values = self._find_protected_value_candidates(target_size, significance_threshold)
         for feature, values in protected_values.items():
             spc[feature] = {"protected_values": []}
             total_cases = self._get_num_cases(feature)
+            data_type = self.attributes[feature]["data_type"]
             for value in values:
                 count = self._get_value_count(feature, value)
                 expected_freq_at_target_size = (target_size / total_cases) * count
-                multiplier = int(significance_threshold / expected_freq_at_target_size)
-                spc[feature]["protected_values"].append({"value": value, "multiplier": multiplier})
+                multiplier = significance_threshold / expected_freq_at_target_size
+                if data_type == "number":
+                    value = float(value)
+                spc[feature]["protected_values"].append({"value": value, "multiplier": float(multiplier)})
         return self._compute_unprotected_multipliers(spc)

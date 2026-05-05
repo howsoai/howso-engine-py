@@ -1208,3 +1208,8 @@ def test_set_data():
         assert features["b"]["data_type"] == "json"
         assert features["b"]["original_type"]["data_type"] == "container"
         assert features["b"]["original_type"]["coercion"] == "set"
+
+#def test_protected_values():
+#    df = pd.read_csv("test.csv")
+#    features = infer_feature_attributes(df, chunk_size=500, protected_values="all")
+#    raise Exception(features)

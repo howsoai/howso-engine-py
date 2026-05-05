@@ -23,6 +23,7 @@ from pandas.core.dtypes.common import (
     is_unsigned_integer_dtype,
 )
 
+from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
 from .base import (
     InferFeatureAttributesBase,
     ProtectedValuesMap,
@@ -83,7 +84,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # IFAWarningEmitter collector
         self.warnings_collector = IFAWarningCollector()
         # Suggestions collector
-        self.suggestions = IFASuggestionCollector()
+        self.suggestions = IFASuggestionCollector(self)
         # Signal preservation config
         self._spc = {}
 
