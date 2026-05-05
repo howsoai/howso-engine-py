@@ -23,11 +23,11 @@ from pandas.core.dtypes.common import (
     is_unsigned_integer_dtype,
 )
 
-from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
+from howso.utilities.feature_attributes.suggestions import (
+    IFASuggestionCollector,
+)
 from .base import (
     InferFeatureAttributesBase,
-    ProtectedValuesMap,
-    SignalPreservationConfig,
     SingleTableFeatureAttributes
 )
 from .warnings import IFAWarningCollector, IFAWarningEmitterType
@@ -85,8 +85,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self.warnings_collector = IFAWarningCollector()
         # Suggestions collector
         self.suggestions = IFASuggestionCollector(self)
-        # Signal preservation config
-        self._spc = {}
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -95,6 +93,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         # and columns is less than 25M.
         if prod(self.data.shape) < 25_000_000 and max_workers is None:
             max_workers = 0
+
+        suggestion_warning = ("You have one or more suggestions to consider for your feature attributes "
+                              "configuration. Please view them by printing the `suggestions` property of your "
+                              "returned feature attributes object (`your_attributes_object.suggestions`).")
 
         if max_workers is None or max_workers >= 1:
             mp_context = mp.get_context("spawn")
@@ -119,17 +121,23 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             self.warnings_collector.emit_all()
 
+            if self.suggestions._suggestions:
+                warnings.warn(suggestion_warning, UserWarning)
+
             return SingleTableFeatureAttributes(
                 feature_attributes=feature_attributes, params=kwargs,
-                unsupported=unsupported
+                unsupported=unsupported, suggestions=self.suggestions
             )
 
         else:
             feature_attributes = self._process(**kwargs)
             self.warnings_collector.emit_all()
+            if self.suggestions._suggestions:
+                warnings.warn(suggestion_warning, UserWarning)
             return SingleTableFeatureAttributes(
                 feature_attributes, params=kwargs,
-                unsupported=self.unsupported
+                unsupported=self.unsupported,
+                suggestions=self.suggestions
             )
 
     def _check_feature_memory_use(self, max_size: int = 512):

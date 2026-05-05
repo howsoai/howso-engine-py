@@ -1210,7 +1210,8 @@ def test_set_data():
         assert features["b"]["original_type"]["coercion"] == "set"
 
 
-def test_protected_values():
+def test_preserve_rare_values_map():
+    """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
     # Manufacture some data
     n = 10_000
     features = ['a', 'b', 'i', 'mass']
@@ -1232,4 +1233,26 @@ def test_protected_values():
         data.append(case)
 
     df = pd.DataFrame(data, columns=features)
-    features = infer_feature_attributes(df, chunk_size=500, protected_values={"a": ['2']}, significance_threshold=30)
+
+    # Test auto-apply with all values
+    features = infer_feature_attributes(df, chunk_size=500, preserve_rare_values_map="all")
+    assert "preserve_rare_values" in features["a"]
+    assert "preserve_rare_values" in features["b"]
+    assert features["a"]["preserve_rare_values"]["protected_values"][0]["value"] == "2"
+    assert features["a"]["preserve_rare_values"]["protected_values"][0]["multiplier"] == 6.0
+    assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.95
+
+    # Test auto-apply with selected values
+    features = infer_feature_attributes(df, chunk_size=500, preserve_rare_values_map={"b": ['y', 'z']})
+    assert "preserve_rare_values" not in features["a"]
+    assert "preserve_rare_values" in features["b"]
+    assert len(features["b"]["preserve_rare_values"]["protected_values"]) == 2
+    assert features["b"]["preserve_rare_values"]["protected_values"][0]["multiplier"] == 1.5
+    assert features["b"]["preserve_rare_values"]["protected_values"][1]["multiplier"] == 6.0
+    assert round(features["b"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.93
+
+    # Test that a suggestion is issued
+    with pytest.warns(UserWarning, match="You have one or more suggestions"):
+        features = infer_feature_attributes(df, chunk_size=500)
+        for feat in features:
+            assert "preserve_rare_values" not in feat

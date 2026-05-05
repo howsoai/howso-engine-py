@@ -24,6 +24,7 @@ from pandas.core.dtypes.common import (
 
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
 from .protocols import IFACompatibleADCProtocol
+from .suggestions import IFASuggestionCollector
 from .warnings import IFAWarningCollector, IFAWarningEmitterType
 from ..features import FeatureType
 from ..utilities import (
@@ -73,9 +74,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # IFAWarningEmitter collector
         self.warnings_collector = IFAWarningCollector()
         # Suggestions collector
-        self.suggestions = IFASuggestionCollector()
-        # Signal preservation config
-        self._spc = {}
+        self.suggestions = IFASuggestionCollector(self)
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -93,9 +92,15 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
         self.warnings_collector.emit_all()
 
+        if self.suggestions._suggestions:
+            warnings.warn("You have one or more suggestions to consider for your feature attributes "
+                          "configuration. Please view them by printing the `suggestions` property of your "
+                          "returned feature attributes object (`your_attributes_object.suggestions`).")
+
         return SingleTableFeatureAttributes(
             feature_attributes, params=kwargs,
-            unsupported=self.unsupported
+            unsupported=self.unsupported,
+            suggestions=self.suggestions
         )
 
     def _is_primary_key(self, feature_name: str) -> bool:
@@ -782,7 +787,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     def _get_value_count(self, feature_name: str, value: t.Any) -> int:
         """Get the number of occurances of the provided value of the provided feature."""
         count = 0
-        # TODO: consider `max_rows_to_eval`?
+        # TODO: consider `max_rows_to_eval` as new connectors function?
         for chunk in self.yield_chunk(feature_name):
             count += (chunk[feature_name] == value).sum()
         return count

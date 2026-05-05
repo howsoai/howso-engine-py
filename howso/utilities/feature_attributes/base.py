@@ -26,7 +26,12 @@ try:
 except ImportError:
     fl_optimized_chunk_size = None
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
-from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector, SPCSuggestion
+from howso.utilities.feature_attributes.suggestions import (
+    IFASuggestionCollector,
+    PreserveRareValuesConfig,
+    PreserveRareValuesMap,
+    PRVSuggestion,
+)
 from howso.utilities.feature_attributes.warnings import IFAWarningEmitterType
 from howso.utilities.features import FeatureType
 from howso.utilities.utilities import determine_iso_format, is_valid_datetime_format, time_to_seconds
@@ -47,11 +52,6 @@ LINUX_DT_MAX = '2262-04-11'
 WIN_DT_MAX = '6053-01-24'
 
 
-# Signal preservation parameters
-ProtectedValuesMap = dict[str, list[t.Any]]
-SignalPreservationConfig = dict[str, dict[str, list[dict[str, t.Any]] | float]]
-
-
 # Define a TypeVar which is FeatureAttributesBase or any subclass.
 FeatureAttributesBaseType = t.TypeVar('FeatureAttributesBaseType', bound='FeatureAttributesBase')
 
@@ -59,7 +59,8 @@ FeatureAttributesBaseType = t.TypeVar('FeatureAttributesBaseType', bound='Featur
 class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
-    def __init__(self, feature_attributes: Mapping, params: dict = {}, unsupported: list[str] = []):
+    def __init__(self, feature_attributes: Mapping, params: dict = {}, unsupported: list[str] = [],
+                 suggestions: IFASuggestionCollector = None):
         """
         Instantiate this FeatureAttributesBase object.
 
@@ -78,6 +79,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         self.params = params
         self.update(feature_attributes)
         self.unsupported = unsupported
+        self._suggestions = suggestions or "You have no suggestions."
 
     def __copy__(self) -> "FeatureAttributesBase":
         """Return a (deep)copy of this instance of FeatureAttributesBase."""
@@ -795,8 +797,8 @@ class InferFeatureAttributesBase(ABC):
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
                  protected_value_significance_threshold: int = None,
-                 protected_values: ProtectedValuesMap | t.Literal["all"] = None,
-                 signal_preservation_config: SignalPreservationConfig = None,
+                 preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"] = None,
+                 preserve_rare_values_config: PreserveRareValuesConfig = None,
                  significance_threshold: int = 30,
                  tight_bounds: t.Optional[Iterable[str]] = None,
                  types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
@@ -1134,37 +1136,41 @@ class InferFeatureAttributesBase(ABC):
                         self.attributes[f]['fanout_on'] = list(key_features)
 
         # Process/investigate protected values
-        if signal_preservation_config is not None:
-            if protected_values is not None:
-                # TODO warning (new custom SingletonWarning for one-offs like this that shouldn't be duplicated across chunks?)
-                pass
-            # SPC provided, but may need to compute unprotected value multipliers
-            self._spc = self._compute_unprotected_multipliers(signal_preservation_config)
+        _prvc = None
+        if preserve_rare_values_config is not None:
+            if preserve_rare_values_map is not None:
+                self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE, "A `preserve_rare_values_map` was "
+                                               "provided with a full `preserve_rare_values_config`; the former "
+                                               "will be ignored.")
+            # prvc provided, but may need to compute unprotected value multipliers
+            _prvc = self._compute_unprotected_multipliers(preserve_rare_values_config)
         elif chunk_size is not None:
             # Compute the optimized chunk_size if available
             chunk_size = fl_optimized_chunk_size(row_count=self._get_row_count(),
                                                  max_chunk_size=chunk_size) if fl_optimized_chunk_size else chunk_size
-            if protected_values is not None:
+            if preserve_rare_values_map is not None:
                 # User intends to apply signal preservation
-                signal_preservation_config = self._compute_signal_preservation_config(chunk_size, protected_values,
-                                                                                      significance_threshold)
-                self._spc = signal_preservation_config
+                preserve_rare_values_config = self._compute_preserve_rare_values_config(chunk_size,
+                                                                                        preserve_rare_values_map,
+                                                                                        significance_threshold)
+                _prvc = preserve_rare_values_config
             else:
                 # Compute but don't automatically apply
                 # TODO this must be more of an "append" as it must work across shards!
-                protected_values = self._find_protected_value_candidates(chunk_size, significance_threshold)
-                signal_preservation_config = self._compute_signal_preservation_config(chunk_size, protected_values,
-                                                                                      significance_threshold)
-                spc_suggestion = SPCSuggestion(signal_preservation_config)
-                self.suggestions.append(spc_suggestion)
-        elif protected_values is not None:
+                preserve_rare_values_map = self._find_protected_value_candidates(chunk_size, significance_threshold)
+                preserve_rare_values_config = self._compute_preserve_rare_values_config(chunk_size,
+                                                                                        preserve_rare_values_map,
+                                                                                        significance_threshold)
+                prvc_suggestion = PRVSuggestion(preserve_rare_values_config)
+                self.suggestions.append(prvc_suggestion)
+        elif preserve_rare_values_map is not None:
             # Cannot compute without chunk_size
             raise ValueError("")
 
         # Apply signal preservation info to feature attributes if applicable
-        if self._spc:
-            for feature, config in self._spc.items():
-                self.attributes[feature]["signal_preservation"] = config
+        if _prvc:
+            for feature, config in _prvc.items():
+                self.attributes[feature]["preserve_rare_values"] = config
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
@@ -1806,9 +1812,9 @@ class InferFeatureAttributesBase(ABC):
     def _get_value_count(self, feature_name: str, value: t.Any) -> int:
         """Get the number of occurances of the provided value of the provided feature."""
 
-    def _find_protected_value_candidates(self, target_size: int, significance_threshold: int) -> ProtectedValuesMap:
+    def _find_protected_value_candidates(self, target_size: int, significance_threshold: int) -> PreserveRareValuesMap:
         """Analyze the data to determine if any values might be good candidates for signal preservation techniques."""
-        pvm: ProtectedValuesMap = {}
+        pvm: PreserveRareValuesMap = {}
         for feature, attributes in self.attributes.items():
             if attributes["type"] != "nominal":
                 continue
@@ -1816,6 +1822,9 @@ class InferFeatureAttributesBase(ABC):
             total_cases = self._get_num_cases(feature)
             for unique_value in uniques:
                 count = self._get_value_count(feature, unique_value)
+                # Don't include values that aren't significant to begin with
+                if count < significance_threshold:
+                    continue
                 expected_freq_at_target_size = (target_size / total_cases) * count
                 if expected_freq_at_target_size < significance_threshold:
                     if feature not in pvm.keys():
@@ -1824,9 +1833,9 @@ class InferFeatureAttributesBase(ABC):
                         pvm[feature].append(unique_value)
         return pvm
 
-    def _compute_unprotected_multipliers(self, spc: SignalPreservationConfig) -> SignalPreservationConfig:
-        """Update the provided `signal_preservation_config` with unprotected multiplier values if not provided."""
-        for feature, config in spc.items():
+    def _compute_unprotected_multipliers(self, prvc: PreserveRareValuesConfig) -> PreserveRareValuesConfig:
+        """Update the provided `preserve_rare_values_config` with unprotected multiplier values if not provided."""
+        for feature, config in prvc.items():
             if "unprotected_multiplier" not in config:
                 total_cases = self._get_num_cases(feature)
                 orig_unprotected_mass = 0
@@ -1836,20 +1845,21 @@ class InferFeatureAttributesBase(ABC):
                     orig_unprotected_mass += count
                     new_protected_mass += count * value_cfg["multiplier"]
                 orig_unprotected_mass = total_cases - orig_unprotected_mass
-                config["unprotected_multiplier"] = max(
+                config["unprotected_multiplier"] = min(
                     float((total_cases - new_protected_mass) / orig_unprotected_mass),
                     1
                 )
-        return spc
+        return prvc
 
-    def _compute_signal_preservation_config(self, target_size: int, protected_values: ProtectedValuesMap | t.Literal["all"],
-                                            significance_threshold: int) -> SignalPreservationConfig:
+    def _compute_preserve_rare_values_config(self, target_size: int,
+                                             preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"],
+                                             significance_threshold: int) -> PreserveRareValuesConfig:
         """Determine the case weight multipliers for the provided protected values."""
-        spc: SignalPreservationConfig = {}
-        if protected_values == "all":
-            protected_values = self._find_protected_value_candidates(target_size, significance_threshold)
-        for feature, values in protected_values.items():
-            spc[feature] = {"protected_values": []}
+        prvc: PreserveRareValuesConfig = {}
+        if preserve_rare_values_map == "all":
+            preserve_rare_values_map = self._find_protected_value_candidates(target_size, significance_threshold)
+        for feature, values in preserve_rare_values_map.items():
+            prvc[feature] = {"protected_values": []}
             total_cases = self._get_num_cases(feature)
             data_type = self.attributes[feature]["data_type"]
             for value in values:
@@ -1861,5 +1871,6 @@ class InferFeatureAttributesBase(ABC):
                 multiplier = significance_threshold / expected_freq_at_target_size
                 if data_type == "number":
                     value = float(value)
-                spc[feature]["protected_values"].append({"value": value, "multiplier": min(float(multiplier), 1)})
-        return self._compute_unprotected_multipliers(spc)
+                prvc[feature]["protected_values"].append({"value": value,
+                                                         "multiplier": max(float(multiplier), 1)})
+        return self._compute_unprotected_multipliers(prvc)

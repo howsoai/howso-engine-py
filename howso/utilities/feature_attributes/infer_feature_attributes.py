@@ -226,7 +226,7 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                 "size" : [ "small", "medium", "large", "huge" ]
             }
 
-    protected_values : dict or "all", default None
+    preserve_rare_values_map : dict or "all", default None
         (Optional) If `chunk_size` has been provided, a map of feature name to values that should
         be protected during data distillation. If set to "all", will infer and attempt to preserve
         all detected minority classes.
@@ -253,11 +253,11 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                 }
             }
 
-    signal_preservation_map : dict, default None
+    rare_values_map : dict, default None
         (Optional) A map of feature name to a list of dict specifying a protected value and
         a case weight multiplier. Enables case weight rebalancing for data distillation workflows
         such that protected values do not lose signal. Compute automatically by providing
-        `chunk_size`, and optionally `protected_values` for a fine-grained selection of
+        `chunk_size`, and optionally `preserve_rare_values_map` for a fine-grained selection of
         protected values to preserve.
 
         Example::
