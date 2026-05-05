@@ -23,7 +23,12 @@ from pandas.core.dtypes.common import (
     is_unsigned_integer_dtype,
 )
 
-from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
+from .base import (
+    InferFeatureAttributesBase,
+    ProtectedValuesMap,
+    SignalPreservationConfig,
+    SingleTableFeatureAttributes
+)
 from .warnings import IFAWarningCollector, IFAWarningEmitterType
 from ..features import FeatureType
 from ..utilities import (
@@ -77,6 +82,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self.unsupported = []
         # IFAWarningEmitter collector
         self.warnings_collector = IFAWarningCollector()
+        # Suggestions collector
+        self.suggestions = IFASuggestionCollector()
+        # Signal preservation config
+        self._spc = {}
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -917,3 +926,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     seen_hashable.add(hashable)
                     unique_vals.append(val)  # Keep original value
             return unique_vals
+
+    def _get_row_count(self) -> int:
+        """Get the total number of rows in the data."""
+        return self.data.shape[0]
+
+    def _get_value_count(self, feature_name: str, value: t.Any) -> int:
+        """Get the number of occurances of the provided value of the provided feature."""
+        return (self.data[feature_name] == value).sum()

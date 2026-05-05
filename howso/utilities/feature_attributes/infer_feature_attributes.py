@@ -43,6 +43,11 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         rows to consider when inferring feature attributes where applicable. Useful for preventing
         excessive runtimes with very large data.
 
+    chunk_size : int, default None
+        (Optional) The chunk size to be used in data distillation workflows. If provided, will
+        compute parameters for case weight rebalancing that aim to preserve signal for protected
+        values.
+
     datetime_feature_formats : dict, default None
         (Optional) Dict defining custom (non-ISO8601) datetime or time-only formats.
         By default, datetime features are assumed to be in ISO8601 format.  Non-English datetimes
@@ -221,6 +226,15 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                 "size" : [ "small", "medium", "large", "huge" ]
             }
 
+    protected_values : dict or "all", default None
+        (Optional) If `chunk_size` has been provided, a map of feature name to values that should
+        be protected during data distillation. If set to "all", will infer and attempt to preserve
+        all detected minority classes.
+
+    protected_value_significance_threshold : int, default 30
+        (Optional) If `chunk_size` has been provided, the threshold of cases per chunk that is
+        expected to result in a preserved signal for protected values during data distillation.
+
     rate_boundaries : dict, default None
         (Optional) For time series, specify the rate boundaries in the form
         {"feature" : {"min|max" : {order : value}}}. Works with partial values
@@ -237,6 +251,22 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                         '2': None
                     }
                 }
+            }
+
+    signal_preservation_map : dict, default None
+        (Optional) A map of feature name to a list of dict specifying a protected value and
+        a case weight multiplier. Enables case weight rebalancing for data distillation workflows
+        such that protected values do not lose signal. Compute automatically by providing
+        `chunk_size`, and optionally `protected_values` for a fine-grained selection of
+        protected values to preserve.
+
+        Example::
+
+            {
+                "feature_a": [
+                    {"value": "x", "multiplier": 3},
+                    {"value": "y", "multiplier": 150}
+                ]
             }
 
     tables : Iterable of TableNameProtocol

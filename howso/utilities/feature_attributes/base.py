@@ -21,6 +21,10 @@ import numpy as np
 import pandas as pd
 import yaml
 
+try:
+    from howso.enterprise.insights.internal import fl_optimized_chunk_size
+except ImportError:
+    fl_optimized_chunk_size = None
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
 from howso.utilities.feature_attributes.warnings import IFAWarningEmitterType
 from howso.utilities.features import FeatureType
@@ -40,6 +44,11 @@ FLOAT_MIN = 2.2250738585072014 * math.pow(10, -308)
 INTEGER_MAX = int(math.pow(2, 53))
 LINUX_DT_MAX = '2262-04-11'
 WIN_DT_MAX = '6053-01-24'
+
+
+# Signal preservation parameters
+ProtectedValuesMap = dict[str, list[t.Any]]
+SignalPreservationConfig = dict[str, dict[str, list[dict[str, t.Any]] | float]]
 
 
 # Define a TypeVar which is FeatureAttributesBase or any subclass.
@@ -763,7 +772,7 @@ class InferFeatureAttributesBase(ABC):
 
     def _process(self,  # noqa: C901
                  attempt_infer_extended_nominals: bool = False,
-                 max_rows_to_eval: int = 10_000_000,
+                 chunk_size: int = None,
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
@@ -772,12 +781,17 @@ class InferFeatureAttributesBase(ABC):
                  include_extended_nominal_probabilities: t.Optional[bool] = False,
                  include_sample: bool = False,
                  infer_bounds: bool = True,
+                 max_rows_to_eval: int = 10_000_000,
                  max_workers: t.Optional[int] = None,
                  memory_warning_threshold: t.Optional[int] = 512,
                  mode_bound_features: t.Optional[Iterable[str]] = None,
                  num_series: t.Optional[int] = 1,
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
+                 protected_value_significance_threshold: int = None,
+                 protected_values: ProtectedValuesMap | t.Literal["all"] = None,
+                 signal_preservation_config: SignalPreservationConfig = None,
+                 significance_threshold: int = 30,
                  tight_bounds: t.Optional[Iterable[str]] = None,
                  types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
                  ) -> dict:
@@ -1112,6 +1126,38 @@ class InferFeatureAttributesBase(ABC):
                 for f in fanout_features:
                     if f in self.attributes:
                         self.attributes[f]['fanout_on'] = list(key_features)
+
+        # Process/investigate protected values
+        if signal_preservation_config is not None:
+            if protected_values is not None:
+                # TODO warning (new custom SingletonWarning for one-offs like this that shouldn't be duplicated across chunks?)
+                pass
+            # SPC provided, but may need to compute unprotected value multipliers
+            self._spc = self._compute_unprotected_multipliers(signal_preservation_config)
+        elif chunk_size is not None:
+            # Compute the optimized chunk_size if available
+            chunk_size = fl_optimized_chunk_size(row_count=self._get_row_count(),
+                                                 max_chunk_size=chunk_size) if fl_optimized_chunk_size else chunk_size
+            if protected_values is not None:
+                # User intends to apply signal preservation
+                signal_preservation_config = self._compute_signal_preservation_config(protected_values, chunk_size,
+                                                                                      significance_threshold)
+                self._spc = signal_preservation_config
+            else:
+                # Compute but don't automatically apply
+                # TODO this must be more of an "append" as it must work across shards!
+                protected_values = self._find_protected_value_candidates(chunk_size, significance_threshold)
+                signal_preservation_config = self._compute_signal_preservation_config(protected_values, chunk_size,
+                                                                                      significance_threshold)
+                self.suggestions.triage(IFASuggestionType.SPC, signal_preservation_config)
+        elif protected_values is not None:
+            # Cannot compute without chunk_size
+            raise ValueError("")
+
+        # Apply signal preservation info to feature attributes if applicable
+        if self._spc:
+            for feature, config in self._spc:
+                self.attributes[feature]["signal_preservation"] = config
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
@@ -1744,3 +1790,58 @@ class InferFeatureAttributesBase(ABC):
     @abstractmethod
     def _get_unique_values(self, feature_name: str) -> Collection[t.Any]:
         """Get a set of the unique values for the given feature_name."""
+
+    @abstractmethod
+    def _get_row_count(self) -> int:
+        """Get the total number of rows in the data."""
+
+    @abstractmethod
+    def _get_value_count(self, feature_name: str, value: t.Any) -> int:
+        """Get the number of occurances of the provided value of the provided feature."""
+
+    def _find_protected_value_candidates(self, target_size: int, significance_threshold: int) -> ProtectedValuesMap:
+        """Analyze the data to determine if any values might be good candidates for signal preservation techniques."""
+        pvm: ProtectedValuesMap = {}
+        for feature, attributes in self.attributes.items():
+            if attributes["type"] != "nominal":
+                continue
+            uniques = self._get_unique_values(feature)
+            total_cases = self._get_num_cases(feature)
+            for unique_value in uniques:
+                count = self._get_value_count(feature, unique_value)
+                expected_freq_at_target_size = (target_size / total_cases) * count
+                if expected_freq_at_target_size < significance_threshold:
+                    if feature not in pvm.keys():
+                        pvm[feature] = [unique_value]
+                    else:
+                        pvm[feature].append(unique_value)
+        return pvm
+
+    def _compute_unprotected_multipliers(self, spc: SignalPreservationConfig) -> SignalPreservationConfig:
+        """Update the provided `signal_preservation_config` with unprotected multiplier values if not provided."""
+        for feature, config in spc.items():
+            if "unprotected_multiplier" not in config:
+                total_cases = self._get_num_cases(feature)
+                orig_unprotected_mass = 0
+                new_protected_mass = 0
+                for value_cfg in config["protected_values"]:
+                    count = self._get_value_count(feature, value_cfg["value"])
+                    orig_unprotected_mass += count
+                    new_protected_mass += count * value_cfg["multiplier"]
+                orig_unprotected_mass = total_cases - orig_unprotected_mass
+                config["unprotected_multiplier"] = (total_cases - new_protected_mass) / orig_unprotected_mass
+        return spc
+
+    def _compute_signal_preservation_config(self, target_size: int, protected_values: ProtectedValuesMap,
+                                            significance_threshold: int) -> SignalPreservationConfig:
+        """Determine the case weight multipliers for the provided protected values."""
+        spc: SignalPreservationConfig = {}
+        for feature, values in protected_values.items():
+            spc[feature] = {"protected_values": []}
+            total_cases = self._get_num_cases(feature)
+            for value in values:
+                count = self._get_value_count(feature, value)
+                expected_freq_at_target_size = (target_size / total_cases) * count
+                multiplier = int(significance_threshold / expected_freq_at_target_size)
+                spc[feature]["protected_values"].append({"value": value, "multiplier": multiplier})
+        return self._compute_unprotected_multipliers(spc)

@@ -72,6 +72,10 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         self.unsupported = []
         # IFAWarningEmitter collector
         self.warnings_collector = IFAWarningCollector()
+        # Suggestions collector
+        self.suggestions = IFASuggestionCollector()
+        # Signal preservation config
+        self._spc = {}
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -770,3 +774,15 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     def _get_unique_values(self, feature_name: str) -> Collection[t.Any]:
         """Return the set of unique values for the given feature."""
         return self.data.get_unique_values(feature_name)
+
+    def _get_row_count(self) -> int:
+        """Get the total number of rows in the data."""
+        return self.data.get_row_count()
+
+    def _get_value_count(self, feature_name: str, value: t.Any) -> int:
+        """Get the number of occurances of the provided value of the provided feature."""
+        count = 0
+        # TODO: consider `max_rows_to_eval`?
+        for chunk in self.yield_chunk(feature_name):
+            count += (chunk[feature_name] == value).sum()
+        return count
