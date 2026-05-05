@@ -91,7 +91,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
     @property
     def suggestions(self) -> IFASuggestionCollector:
-        """Get the suggestions for this IFA object."""
+        """Get the suggestions for this FeatureAttributesBase object."""
         return self._suggestions
 
     def get_parameters(self) -> dict:
