@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Sequence
+import textwrap
 from typing import Any
 
 from rich.console import Console
@@ -8,6 +9,32 @@ from rich.table import Table
 # Signal preservation parameters
 PreserveRareValuesMap = dict[str, list[Any]]
 PreserveRareValuesConfig = dict[str, dict[str, list[dict[str, Any]] | float]]
+
+
+def wrap_text(text, width):
+    """Wrap regular prose on word boundaries, never breaking words."""
+    return "\n".join(textwrap.wrap(
+        text, width=width,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )) or text
+
+
+def wrap_code(code, width):
+    """Wrap code so long lines break, but preserve line structure."""
+    out_lines = []
+    for line in code.splitlines():
+        if len(line) <= width:
+            out_lines.append(line)
+        else:
+            # Allow breaking inside long code lines (no good word boundaries)
+            out_lines.extend(textwrap.wrap(
+                line, width=width,
+                break_long_words=True,
+                break_on_hyphens=False,
+                drop_whitespace=False,
+            ) or [line])
+    return "\n".join(out_lines)
 
 
 class IFASuggestion(ABC):
@@ -46,55 +73,76 @@ class PRVSuggestion(IFASuggestion):
         self._prvc = prvc
 
     def __repr__(self):
-        """Print a helpful description of this suggestion and its capabilities."""
+        """Print a helpful description of this IFASuggestion."""
         num_candidates = sum(len(cfg["protected_values"]) for cfg in self._prvc.values())
-        header = f"We found {num_candidates} candidate value(s) in your data for rare value preservation."""
-        body = ("During data distillation workflows, nominal values with weak but detectable signals may "
-                "be filtered out. To account for this, you may provide to `infer_feature_attributes` a "
-                "`preserve_rare_values_map` detailing rare values to protect automatically, or a full "
-                "`preserve_rare_values_config` with fine-grained case weight adjustments. Additionally, you may apply "
-                "our suggested configuration for all detected rare values to this feature attributes object.")
-        table = Table(title="Summary of Available Options", show_lines=True)
-        table.add_column("Action")
-        table.add_column("Details")
-        table.add_column("Code Example")
-
-        # Option 1: apply all
-        table.add_row(
-            "Apply suggestion to this feature attributes object",
-            "Save the suggested `preserve_rare_values_config` to this feature attributes object via `apply()`.",
-            "```\nfeature_attributes = infer_feature_attributes(data, chunk_size=100_000)\n"
-            "feature_attributes.suggestions.preserve_rare_values.apply()\n```"
-        )
-        # Option 2: get reusable config
-        table.add_row(
-            "Get a reusable `preserve_rare_values_config`",
-            "You may provide a pre-computed `preserve_rare_values_config` as a parameter to `infer_feature_attributes`"
-            "if you wish to make adjustments to the case weight multipliers.",
-            "```\nfeature_attributes = infer_feature_attributes(data, chunk_size=100_000)\n"
-            "config = feature_attributes.suggestions.preserve_rare_values.get_config()\n"
-            "# TODO: make desired changes to the config\n"
-            "feature_attributes = infer_feature_attributes(data, preserve_rare_values_config=config)\n```"
-        )
-        # Option 3: get rare values map
-        table.add_row(
-            "Edit the preserved rare values with a `preserve_rare_values_map`.",
-            "The rare values to be preserved can be detailed via the `preserve_rare_values_map` parameter to "
-            "`infer_feature_attributes. A good starting point may be the \"full\" map of all candidate values. "
-            "All case weight multipliers will be automatically configured for the provided values.",
-            "```\nfeature_attributes = infer_feature_attributes(data, chunk_size=100_000)\n"
-            "values_map = feature_attributes.suggestions.preserve_rare_values.get_values_map()\n"
-            "# TODO: make desired changes to the values map\n"
-            "feature_attributes = infer_feature_attributes(data, chunk_size=100_000, "
-            "preserve_rare_values_map=values_map)\n```"
+        header = f"We found {num_candidates} candidate value(s) in your data for rare value preservation."
+        body = (
+            "During data distillation workflows, nominal values with weak but detectable signals may "
+            "be filtered out. To account for this, you may provide to `infer_feature_attributes` a "
+            "`preserve_rare_values_map` detailing rare values to protect automatically, or a full "
+            "`preserve_rare_values_config` with fine-grained case weight adjustments. Additionally, "
+            "you may apply our suggested configuration for all detected rare values to this feature "
+            "attributes object."
         )
 
-        console = Console()
+        # Pick a target total width and divvy it up
+        total_width = 120
+        action_w, details_w, code_w = 24, 40, 50
+
+        table = Table(title="Summary of Available Options", show_lines=True, width=total_width)
+        table.add_column("Action", min_width=action_w, overflow="fold")
+        table.add_column("Details", min_width=details_w, overflow="fold")
+        table.add_column("Code Example", min_width=code_w, overflow="fold")
+
+        rows = [
+            (
+                "Apply suggestion to this feature attributes object",
+                "Save the suggested `preserve_rare_values_config` to this feature attributes "
+                "object via `apply()`.",
+                "```\n"
+                "feature_attributes = infer_feature_attributes(data, chunk_size=100_000)\n"
+                "feature_attributes.suggestions.preserve_rare_values.apply()\n"
+                "```",
+            ),
+            (
+                "Get a reusable `preserve_rare_values_config`",
+                "You may provide a pre-computed `preserve_rare_values_config` as a parameter to "
+                "`infer_feature_attributes` if you wish to make adjustments to the case weight "
+                "multipliers.",
+                "```\n"
+                "feature_attributes = infer_feature_attributes(data, chunk_size=100_000)\n"
+                "config = feature_attributes.suggestions.preserve_rare_values.get_config()\n"
+                "# TODO: make desired changes to the config\n"
+                "feature_attributes = infer_feature_attributes(data, preserve_rare_values_config=config)\n"
+                "```",
+            ),
+            (
+                "Edit the preserved rare values with a `preserve_rare_values_map`",
+                "The rare values to be preserved can be detailed via the `preserve_rare_values_map` "
+                "parameter to `infer_feature_attributes`. A good starting point may be the \"full\" "
+                "map of all candidate values. All case weight multipliers will be automatically "
+                "configured for the provided values.",
+                "```\n"
+                "feature_attributes = infer_feature_attributes(data, chunk_size=100_000)\n"
+                "values_map = feature_attributes.suggestions.preserve_rare_values.get_values_map()\n"
+                "# TODO: make desired changes to the values map\n"
+                "feature_attributes = infer_feature_attributes(data, chunk_size=100_000, "
+                "preserve_rare_values_map=values_map)\n"
+                "```",
+            ),
+        ]
+
+        for action, details, code in rows:
+            table.add_row(
+                wrap_text(action, action_w),
+                wrap_text(details, details_w),
+                wrap_code(code, code_w),
+            )
+
+        console = Console(width=total_width)
         with console.capture() as capture:
             console.print(table)
-        table_str = capture.get().rstrip()
-
-        return f"{header}\n\n{body}\n\n{table_str}"
+        return f"{header}\n\n{wrap_text(body, total_width)}\n\n{capture.get().rstrip()}"
 
     @property
     def name(self) -> str:
@@ -152,7 +200,8 @@ class IFASuggestionCollector:
         """Print a helpful description of the available suggestions."""
         table = Table(title="Suggestions for Potential Data Quality Improvements",
                       caption="To view a more detailed description of a suggestion, access its `name` as a property "
-                      "(e.g., `your_attributes_object.suggestions.preserve_rare_values`)")
+                      "(e.g., `your_attributes_object.suggestions.preserve_rare_values`).\nTo apply all suggestions, "
+                      "call `your_attributes_object.suggestions.apply_all()`.")
         table.add_column("Name")
         table.add_column("Description")
 

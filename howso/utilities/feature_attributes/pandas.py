@@ -138,7 +138,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
             return SingleTableFeatureAttributes(
                 feature_attributes=feature_attributes, params=kwargs,
-                unsupported=unsupported, suggestions=self.suggestions_collector
+                unsupported=unsupported, suggestions_collector=self.suggestions_collector
             )
 
         else:
@@ -149,7 +149,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             return SingleTableFeatureAttributes(
                 feature_attributes, params=kwargs,
                 unsupported=self.unsupported,
-                suggestions=self.suggestions_collector
+                suggestions_collector=self.suggestions_collector
             )
 
     def _check_feature_memory_use(self, max_size: int = 512):

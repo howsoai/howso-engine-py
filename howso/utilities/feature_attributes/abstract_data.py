@@ -100,7 +100,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         return SingleTableFeatureAttributes(
             feature_attributes, params=kwargs,
             unsupported=self.unsupported,
-            suggestions=self.suggestions_collector
+            suggestions_collector=self.suggestions_collector
         )
 
     def _is_primary_key(self, feature_name: str) -> bool:

@@ -13,7 +13,6 @@ from pathlib import Path
 import platform
 import typing as t
 import warnings
-import weakref
 from zoneinfo import ZoneInfo
 
 from dateutil.parser import isoparse
@@ -81,10 +80,10 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         self.params = params
         self.update(feature_attributes)
         self.unsupported = unsupported
-        self._suggestions_collector = suggestions_collector or "You have no suggestions."
+        self.suggestions_collector = suggestions_collector or "You have no suggestions."
         # Update all suggestions with a reference to this object so that they can apply updates
-        if hasattr(self._suggestions_collector, "suggestions"):
-            for s in self._suggestions_collector.suggestions.values():
+        if hasattr(self.suggestions_collector, "suggestions"):
+            for s in self.suggestions_collector.suggestions.values():
                 s._attributes = self
 
     def __copy__(self) -> "FeatureAttributesBase":
@@ -98,7 +97,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
     @property
     def suggestions(self) -> IFASuggestionCollector:
         """Get the suggestions for this FeatureAttributesBase object."""
-        return self._suggestions
+        return self.suggestions_collector
 
     def get_parameters(self) -> dict:
         """
@@ -1162,7 +1161,6 @@ class InferFeatureAttributesBase(ABC):
                 _prvc = preserve_rare_values_config
             else:
                 # Compute but don't automatically apply
-                # TODO this must be more of an "append" as it must work across shards!
                 preserve_rare_values_map = self._find_protected_value_candidates(chunk_size, significance_threshold)
                 preserve_rare_values_config = self._compute_preserve_rare_values_config(chunk_size,
                                                                                         preserve_rare_values_map,
@@ -1170,8 +1168,7 @@ class InferFeatureAttributesBase(ABC):
                 prvc_suggestion = PRVSuggestion(preserve_rare_values_config)
                 self.suggestions_collector.append(prvc_suggestion)
         elif preserve_rare_values_map is not None:
-            # Cannot compute without chunk_size
-            raise ValueError("")
+            raise ValueError("Cannot compute rare values configuration without `chunk_size`.")
 
         # Apply signal preservation info to feature attributes if applicable
         if _prvc:
