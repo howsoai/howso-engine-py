@@ -63,7 +63,7 @@ def _shard(data: pd.DataFrame, *, kwargs: dict[str, t.Any]):
         }
 
     feature_attributes = ifr_inst._process(**_kwargs)  # type: ignore reportPrivateUsage
-    return feature_attributes, ifr_inst.unsupported, ifr_inst.warnings_collector, ifr_inst.suggestions
+    return feature_attributes, ifr_inst.unsupported, ifr_inst.warnings_collector, ifr_inst.suggestions_collector
 
 
 class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
@@ -115,8 +115,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     response = future.result()
                     feature_attributes.update(response[0])
                     unsupported.extend(response[1])
-                    processed_warnings.extend(response[2])
-                    processed_suggestions.extend(response[3])
+                    processed_warnings.append(response[2])
+                    processed_suggestions.append(response[3])
 
             # Re-order the keys like the original dataframe
             feature_attributes = {

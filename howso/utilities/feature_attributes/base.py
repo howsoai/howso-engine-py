@@ -13,6 +13,7 @@ from pathlib import Path
 import platform
 import typing as t
 import warnings
+import weakref
 from zoneinfo import ZoneInfo
 
 from dateutil.parser import isoparse
@@ -84,7 +85,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         # Update all suggestions with a reference to this object so that they can apply updates
         if hasattr(self.suggestions_collector, "suggestions"):
             for s in self.suggestions_collector.suggestions.values():
-                s._attributes = self
+                s._attributes = weakref.ref(self)
 
     def __copy__(self) -> "FeatureAttributesBase":
         """Return a (deep)copy of this instance of FeatureAttributesBase."""

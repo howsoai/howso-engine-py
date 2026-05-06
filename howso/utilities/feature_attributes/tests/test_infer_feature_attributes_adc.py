@@ -710,7 +710,7 @@ def test_preserve_rare_values(adc):
     features = infer_feature_attributes(adc, chunk_size=500, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
-    assert features["a"]["preserve_rare_values"]["protected_values"][0]["value"] is None
+    assert pd.isna(features["a"]["preserve_rare_values"]["protected_values"][0]["value"])
     assert features["a"]["preserve_rare_values"]["protected_values"][0]["multiplier"] == 6.0
     assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.95
 

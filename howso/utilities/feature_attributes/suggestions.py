@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Sequence
 import textwrap
-from typing import Any
+from typing import Any, Self
 
 from rich.console import Console
 from rich.table import Table
@@ -144,8 +144,14 @@ class PRVSuggestion(IFASuggestion):
 
     def apply(self):
         """Apply the computed signal preservation config to the FeatureAttributesBase object."""
+        attributes = self._attributes()
+        if attributes is None:
+            raise RuntimeError(
+                "The FeatureAttributesBase object this suggestion was attached to "
+                "no longer exists."
+            )
         for feature, config in self._prvc.items():
-            self._attributes[feature]["preserve_rare_values"] = config
+            attributes[feature]["preserve_rare_values"] = config
 
     def get_config(self) -> PreserveRareValuesConfig:
         """Get the `preserve_rare_values_config` for use in future calls to `infer_feature_attributes`."""
@@ -158,7 +164,7 @@ class PRVSuggestion(IFASuggestion):
             values_map[feature] = [value_config["value"] for value_config in config["protected_values"]]
         return values_map
 
-    def merge(self, other: object):
+    def merge(self, other: Self) -> Self:
         """Merge another PreserveRareValuesConfig into this one if there are no conflicts."""
         for feature, config in other.get_config():
             if feature not in self._prvc:
@@ -218,7 +224,7 @@ class IFASuggestionCollector:
 
     def apply_all(self):
         """Apply all suggestions to the FeatureAttributesBase object."""
-        for suggestion in self.suggestions_collector.values():
+        for suggestion in self._suggestions.values():
             suggestion.apply()
 
     def merge(self, other: object):

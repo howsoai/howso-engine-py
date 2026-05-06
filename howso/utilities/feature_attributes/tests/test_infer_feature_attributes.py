@@ -1235,7 +1235,7 @@ def test_preserve_rare_values():
     df = pd.DataFrame(data, columns=features)
 
     # Test auto-apply with all values
-    features = infer_feature_attributes(df, chunk_size=500, preserve_rare_values_map="all")
+    features = infer_feature_attributes(df, chunk_size=500, preserve_rare_values_map="all", max_workers=2)
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
     assert features["a"]["preserve_rare_values"]["protected_values"][0]["value"] is None

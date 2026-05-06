@@ -1,5 +1,6 @@
 from abc import ABC
 from enum import Enum
+from typing import Self
 import warnings
 
 
@@ -138,7 +139,7 @@ class IFAWarningCollector:
         for emitter in self._emitters.values():
             emitter.emit()
 
-    def merge(self, other: object):
+    def merge(self, other: Self) -> Self:
         """Merge another IFAWarningCollector object with this one."""
         for key, emitter in other._emitters.items():
             if key not in self._emitters.keys():
