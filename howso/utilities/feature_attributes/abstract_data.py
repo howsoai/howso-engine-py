@@ -24,6 +24,7 @@ from pandas.core.dtypes.common import (
 
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
 from .protocols import IFACompatibleADCProtocol
+from .suggestions import IFASuggestionCollector
 from .warnings import IFAWarningCollector, IFAWarningEmitterType
 from ..features import FeatureType
 from ..utilities import (
@@ -72,6 +73,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         self.unsupported = []
         # IFAWarningEmitter collector
         self.warnings_collector = IFAWarningCollector()
+        # Suggestions collector
+        self.suggestions_collector = IFASuggestionCollector()
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -89,9 +92,15 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
         self.warnings_collector.emit_all()
 
+        if self.suggestions_collector.suggestions:
+            warnings.warn("You have one or more suggestions to consider for your feature attributes "
+                          "configuration. Please view them by printing the `suggestions` property of your "
+                          "returned feature attributes object (`your_attributes_object.suggestions`).")
+
         return SingleTableFeatureAttributes(
             feature_attributes, params=kwargs,
-            unsupported=self.unsupported
+            unsupported=self.unsupported,
+            suggestions_collector=self.suggestions_collector
         )
 
     def _is_primary_key(self, feature_name: str) -> bool:
@@ -770,3 +779,16 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     def _get_unique_values(self, feature_name: str) -> Collection[t.Any]:
         """Return the set of unique values for the given feature."""
         return self.data.get_unique_values(feature_name)
+
+    def _get_row_count(self) -> int:
+        """Get the total number of rows in the data."""
+        return self.data.get_row_count()
+
+    def _get_value_count(self, feature_name: str, value: t.Any) -> int:
+        """Get the number of occurances of the provided value of the provided feature."""
+        count = 0
+        for chunk in self.data.yield_chunk(chunk_size=100_000):
+            if value is None or pd.isna(value):
+                count += (chunk[feature_name].isna()).sum()
+            count += (chunk[feature_name] == value).sum()
+        return count

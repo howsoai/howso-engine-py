@@ -10,6 +10,7 @@ class IFAWarningEmitterType(Enum):
     MISSING_TZ_FEATURES = "missing_tz_features"
     UNKNOWN_DATETIME_FORMAT = "unknown_datetime_format"
     UTC_OFFSET = "utc_offset"
+    SIMPLE = "simple"
 
 
 class IFAWarningEmitter(ABC):
@@ -83,6 +84,15 @@ class UTCOffsetFeaturesWarningEmitter(IFAWarningEmitter):
                       "identifier.", UserWarning)
 
 
+class SimpleWarningEmitter(IFAWarningEmitter):
+    """Emitter for simple warnings that are saved via the `features_list`."""
+
+    def emit(self):
+        """Emit the warning."""
+        for msg in self.features_list:
+            warnings.warn(msg, UserWarning)
+
+
 class IFAWarningCollector:
     """A collector for IFAWarningEmitters that can triage new feature entries."""
 
@@ -112,6 +122,9 @@ class IFAWarningCollector:
         elif emitter_type == IFAWarningEmitterType.UTC_OFFSET:
             key = IFAWarningEmitterType.UTC_OFFSET.value
             emitter = UTCOffsetFeaturesWarningEmitter
+        elif emitter_type == IFAWarningEmitterType.SIMPLE:
+            key = IFAWarningEmitterType.SIMPLE.value
+            emitter = SimpleWarningEmitter
         else:
             raise ValueError("Unknown `emitter_type` provided.")
 
@@ -124,3 +137,12 @@ class IFAWarningCollector:
         """Emit all warnings collected."""
         for emitter in self._emitters.values():
             emitter.emit()
+
+    def merge(self, other: object):
+        """Merge another IFAWarningCollector object with this one."""
+        for key, emitter in other._emitters.items():
+            if key not in self._emitters.keys():
+                self._emitters[key] = emitter
+            else:
+                for f in emitter.features:
+                    self._emitters[key].features.add(f)

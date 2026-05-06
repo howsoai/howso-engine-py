@@ -43,6 +43,13 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         rows to consider when inferring feature attributes where applicable. Useful for preventing
         excessive runtimes with very large data.
 
+    chunk_size : int, default None
+        (Optional) The chunk size to be used in data distillation workflows. If provided, will
+        compute a candidate configuration for preserved rare values and issue a suggestion.
+
+        .. note ::
+            See also: `preserve_rare_values_map`.
+
     datetime_feature_formats : dict, default None
         (Optional) Dict defining custom (non-ISO8601) datetime or time-only formats.
         By default, datetime features are assumed to be in ISO8601 format.  Non-English datetimes
@@ -221,6 +228,11 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                 "size" : [ "small", "medium", "large", "huge" ]
             }
 
+    preserve_rare_values_map : dict or "all", default None
+        (Optional) If `chunk_size` has been provided, a map of feature name to values that should
+        be protected during data distillation. If set to "all", will infer and attempt to preserve
+        all detected rare values.
+
     rate_boundaries : dict, default None
         (Optional) For time series, specify the rate boundaries in the form
         {"feature" : {"min|max" : {order : value}}}. Works with partial values
@@ -238,6 +250,26 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                     }
                 }
             }
+
+    preserve_rare_values_config : dict, default None
+        (Optional) A map of feature name to a list of dict specifying a protected value and
+        a case weight multiplier. Enables case weight rebalancing for data distillation workflows
+        such that protected values do not lose signal. Compute automatically by providing
+        `chunk_size`, and optionally `preserve_rare_values_map` for a fine-grained selection of
+        protected values to preserve.
+
+        Example::
+
+            {
+                "feature_a": [
+                    {"value": "x", "multiplier": 3},
+                    {"value": "y", "multiplier": 150}
+                ]
+            }
+
+    significance_threshold : int, default 30
+        (Optional) If `chunk_size` has been provided, the threshold of cases per chunk that is
+        expected to result in a signal for preserved rare values during data distillation.
 
     tables : Iterable of TableNameProtocol
         (Optional, required for datastores) An Iterable of table names to

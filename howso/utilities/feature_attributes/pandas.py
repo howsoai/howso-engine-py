@@ -23,7 +23,13 @@ from pandas.core.dtypes.common import (
     is_unsigned_integer_dtype,
 )
 
-from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
+from howso.utilities.feature_attributes.suggestions import (
+    IFASuggestionCollector,
+)
+from .base import (
+    InferFeatureAttributesBase,
+    SingleTableFeatureAttributes
+)
 from .warnings import IFAWarningCollector, IFAWarningEmitterType
 from ..features import FeatureType
 from ..utilities import (
@@ -57,7 +63,7 @@ def _shard(data: pd.DataFrame, *, kwargs: dict[str, t.Any]):
         }
 
     feature_attributes = ifr_inst._process(**_kwargs)  # type: ignore reportPrivateUsage
-    return feature_attributes, ifr_inst.unsupported,
+    return feature_attributes, ifr_inst.unsupported, ifr_inst.warnings_collector, ifr_inst.suggestions_collector
 
 
 class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
@@ -77,6 +83,8 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         self.unsupported = []
         # IFAWarningEmitter collector
         self.warnings_collector = IFAWarningCollector()
+        # Suggestions collector
+        self.suggestions_collector = IFASuggestionCollector()
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
@@ -86,9 +94,15 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if prod(self.data.shape) < 25_000_000 and max_workers is None:
             max_workers = 0
 
+        suggestion_warning = ("You have one or more suggestions to consider for your feature attributes "
+                              "configuration. Please view them by printing the `suggestions` property of your "
+                              "returned feature attributes object (`your_attributes_object.suggestions`).")
         if max_workers is None or max_workers >= 1:
             mp_context = mp.get_context("spawn")
             futures: dict[Future, str] = dict()
+
+            processed_warnings: list[IFAWarningCollector] = []
+            processed_suggestions: list[IFASuggestionCollector] = []
 
             with ProcessPoolExecutor(max_workers=max_workers, mp_context=mp_context) as pool:
                 for f in self.data.columns:
@@ -101,25 +115,41 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     response = future.result()
                     feature_attributes.update(response[0])
                     unsupported.extend(response[1])
+                    processed_warnings.append(response[2])
+                    processed_suggestions.append(response[3])
 
             # Re-order the keys like the original dataframe
             feature_attributes = {
                 k: feature_attributes[k] for k in self.data.columns
             }
 
+            # Merge warnings that originated from subprocesses
+            for collector in processed_warnings:
+                self.warnings_collector.merge(collector)
+
             self.warnings_collector.emit_all()
+
+            # Merge suggestions that originated from subprocesses
+            for collector in processed_suggestions:
+                self.suggestions_collector.merge(collector)
+
+            if self.suggestions_collector.suggestions:
+                warnings.warn(suggestion_warning, UserWarning)
 
             return SingleTableFeatureAttributes(
                 feature_attributes=feature_attributes, params=kwargs,
-                unsupported=unsupported
+                unsupported=unsupported, suggestions_collector=self.suggestions_collector
             )
 
         else:
             feature_attributes = self._process(**kwargs)
             self.warnings_collector.emit_all()
+            if self.suggestions_collector.suggestions:
+                warnings.warn(suggestion_warning, UserWarning)
             return SingleTableFeatureAttributes(
                 feature_attributes, params=kwargs,
-                unsupported=self.unsupported
+                unsupported=self.unsupported,
+                suggestions_collector=self.suggestions_collector
             )
 
     def _check_feature_memory_use(self, max_size: int = 512):
@@ -917,3 +947,13 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     seen_hashable.add(hashable)
                     unique_vals.append(val)  # Keep original value
             return unique_vals
+
+    def _get_row_count(self) -> int:
+        """Get the total number of rows in the data."""
+        return self.data.shape[0]
+
+    def _get_value_count(self, feature_name: str, value: t.Any) -> int:
+        """Get the number of occurances of the provided value of the provided feature."""
+        if value is None:
+            return (self.data[feature_name].isna()).sum()
+        return (self.data[feature_name] == value).sum()
