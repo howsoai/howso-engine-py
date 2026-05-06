@@ -954,4 +954,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
     def _get_value_count(self, feature_name: str, value: t.Any) -> int:
         """Get the number of occurances of the provided value of the provided feature."""
+        if value is None:
+            return (self.data[feature_name].isna()).sum()
         return (self.data[feature_name] == value).sum()

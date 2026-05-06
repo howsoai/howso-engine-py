@@ -1210,7 +1210,7 @@ def test_set_data():
         assert features["b"]["original_type"]["coercion"] == "set"
 
 
-def test_preserve_rare_values_map():
+def test_preserve_rare_values():
     """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
     # Manufacture some data
     n = 10_000
@@ -1222,7 +1222,7 @@ def test_preserve_rare_values_map():
         if percentile < 99:
             a_val = '1'
         else:
-            a_val = '2'
+            a_val = None
         if percentile < 95:
             b_val = 'x'
         elif percentile < 99:
@@ -1238,7 +1238,7 @@ def test_preserve_rare_values_map():
     features = infer_feature_attributes(df, chunk_size=500, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
-    assert features["a"]["preserve_rare_values"]["protected_values"][0]["value"] == "2"
+    assert features["a"]["preserve_rare_values"]["protected_values"][0]["value"] is None
     assert features["a"]["preserve_rare_values"]["protected_values"][0]["multiplier"] == 6.0
     assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.95
 
@@ -1256,3 +1256,7 @@ def test_preserve_rare_values_map():
         features = infer_feature_attributes(df, chunk_size=500)
         for feat in features:
             assert "preserve_rare_values" not in feat
+        # Test a suggestion application
+        features.suggestions.apply_all()
+        assert "preserve_rare_values" in features["a"]
+        assert "preserve_rare_values" in features["b"]

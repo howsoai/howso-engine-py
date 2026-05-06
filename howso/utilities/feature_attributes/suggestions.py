@@ -89,32 +89,26 @@ class PRVSuggestion(IFASuggestion):
         total_width = 120
         action_w, details_w, code_w = 24, 40, 50
 
-        table = Table(title="Summary of Available Options", show_lines=True, width=total_width)
+        table = Table(title="Summary of Available Options", show_lines=True, width=total_width,
+                      caption="All listed method calls are accessed through this suggestion, e.g., "
+                      "`my_attributes_object.suggestions.preserve_rare_values.apply()`")
         table.add_column("Action", min_width=action_w, overflow="fold")
         table.add_column("Details", min_width=details_w, overflow="fold")
-        table.add_column("Code Example", min_width=code_w, overflow="fold")
+        table.add_column("Applicalbe Method Call")
 
         rows = [
             (
                 "Apply suggestion to this feature attributes object",
                 "Save the suggested `preserve_rare_values_config` to this feature attributes "
                 "object via `apply()`.",
-                "```\n"
-                "feature_attributes = infer_feature_attributes(data, chunk_size=100_000)\n"
-                "feature_attributes.suggestions.preserve_rare_values.apply()\n"
-                "```",
+                "apply()"
             ),
             (
                 "Get a reusable `preserve_rare_values_config`",
                 "You may provide a pre-computed `preserve_rare_values_config` as a parameter to "
                 "`infer_feature_attributes` if you wish to make adjustments to the case weight "
                 "multipliers.",
-                "```\n"
-                "feature_attributes = infer_feature_attributes(data, chunk_size=100_000)\n"
-                "config = feature_attributes.suggestions.preserve_rare_values.get_config()\n"
-                "# TODO: make desired changes to the config\n"
-                "feature_attributes = infer_feature_attributes(data, preserve_rare_values_config=config)\n"
-                "```",
+                "get_config()"
             ),
             (
                 "Edit the preserved rare values with a `preserve_rare_values_map`",
@@ -122,13 +116,7 @@ class PRVSuggestion(IFASuggestion):
                 "parameter to `infer_feature_attributes`. A good starting point may be the \"full\" "
                 "map of all candidate values. All case weight multipliers will be automatically "
                 "configured for the provided values.",
-                "```\n"
-                "feature_attributes = infer_feature_attributes(data, chunk_size=100_000)\n"
-                "values_map = feature_attributes.suggestions.preserve_rare_values.get_values_map()\n"
-                "# TODO: make desired changes to the values map\n"
-                "feature_attributes = infer_feature_attributes(data, chunk_size=100_000, "
-                "preserve_rare_values_map=values_map)\n"
-                "```",
+                "get_values_map()"
             ),
         ]
 
@@ -190,18 +178,21 @@ class IFASuggestionCollector:
         for suggestion in suggestions:
             self.append(suggestion)
 
-    def __getattr__(self, name: str) -> IFASuggestion:
-        """Get the suggestion with the provided name."""
-        if name not in self._suggestions:
+    def __getattr__(self, key: str) -> IFASuggestion:
+        """Get the suggestion with the provided key."""
+        # Avoid an infinite loop with partially constructed objects
+        if key.startswith('__') and key.endswith('__'):
+            raise AttributeError(key)
+        if key not in self._suggestions:
             raise AttributeError("No suggestion found under the provided key.")
-        return self._suggestions[name]
+        return self._suggestions[key]
 
     def __repr__(self):
         """Print a helpful description of the available suggestions."""
         table = Table(title="Suggestions for Potential Data Quality Improvements",
                       caption="To view a more detailed description of a suggestion, access its `name` as a property "
-                      "(e.g., `your_attributes_object.suggestions.preserve_rare_values`).\nTo apply all suggestions, "
-                      "call `your_attributes_object.suggestions.apply_all()`.")
+                      "(e.g., `your_attributes_object.suggestions.preserve_rare_values`).\n\nTo apply all suggestions,"
+                      " call `your_attributes_object.suggestions.apply_all()`.")
         table.add_column("Name")
         table.add_column("Description")
 

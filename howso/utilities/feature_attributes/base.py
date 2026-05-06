@@ -801,7 +801,6 @@ class InferFeatureAttributesBase(ABC):
                  num_series: t.Optional[int] = 1,
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
-                 protected_value_significance_threshold: int = None,
                  preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"] = None,
                  preserve_rare_values_config: PreserveRareValuesConfig = None,
                  significance_threshold: int = 30,
@@ -1822,7 +1821,7 @@ class InferFeatureAttributesBase(ABC):
             if attributes["type"] != "nominal":
                 continue
             uniques = self._get_unique_values(feature)
-            total_cases = self._get_num_cases(feature)
+            total_cases = self._get_row_count()
             for unique_value in uniques:
                 count = self._get_value_count(feature, unique_value)
                 # Don't include values that aren't significant to begin with
@@ -1840,7 +1839,7 @@ class InferFeatureAttributesBase(ABC):
         """Update the provided `preserve_rare_values_config` with unprotected multiplier values if not provided."""
         for feature, config in prvc.items():
             if "unprotected_multiplier" not in config:
-                total_cases = self._get_num_cases(feature)
+                total_cases = self._get_row_count()
                 orig_unprotected_mass = 0
                 new_protected_mass = 0
                 for value_cfg in config["protected_values"]:
@@ -1863,7 +1862,7 @@ class InferFeatureAttributesBase(ABC):
             preserve_rare_values_map = self._find_protected_value_candidates(target_size, significance_threshold)
         for feature, values in preserve_rare_values_map.items():
             prvc[feature] = {"protected_values": []}
-            total_cases = self._get_num_cases(feature)
+            total_cases = self._get_row_count()
             data_type = self.attributes[feature]["data_type"]
             for value in values:
                 count = self._get_value_count(feature, value)

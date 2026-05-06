@@ -233,10 +233,6 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         be protected during data distillation. If set to "all", will infer and attempt to preserve
         all detected rare values.
 
-    protected_value_significance_threshold : int, default 30
-        (Optional) If `chunk_size` has been provided, the threshold of cases per chunk that is
-        expected to result in a preserved signal for preserved rare values during data distillation.
-
     rate_boundaries : dict, default None
         (Optional) For time series, specify the rate boundaries in the form
         {"feature" : {"min|max" : {order : value}}}. Works with partial values
@@ -270,6 +266,10 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                     {"value": "y", "multiplier": 150}
                 ]
             }
+
+    significance_threshold : int, default 30
+        (Optional) If `chunk_size` has been provided, the threshold of cases per chunk that is
+        expected to result in a signal for preserved rare values during data distillation.
 
     tables : Iterable of TableNameProtocol
         (Optional, required for datastores) An Iterable of table names to

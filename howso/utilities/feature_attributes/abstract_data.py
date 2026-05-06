@@ -787,6 +787,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     def _get_value_count(self, feature_name: str, value: t.Any) -> int:
         """Get the number of occurances of the provided value of the provided feature."""
         count = 0
-        for chunk in self.yield_chunk(feature_name):
+        for chunk in self.data.yield_chunk(chunk_size=100_000):
+            if value is None or pd.isna(value):
+                count += (chunk[feature_name].isna()).sum()
             count += (chunk[feature_name] == value).sum()
         return count
