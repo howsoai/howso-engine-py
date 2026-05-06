@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Sequence
 import textwrap
-from typing import Any, Self
+from typing import Any
 
 from rich.console import Console
 from rich.table import Table
@@ -164,7 +164,7 @@ class PRVSuggestion(IFASuggestion):
             values_map[feature] = [value_config["value"] for value_config in config["protected_values"]]
         return values_map
 
-    def merge(self, other: Self) -> Self:
+    def merge(self, other: object):
         """Merge another PreserveRareValuesConfig into this one if there are no conflicts."""
         for feature, config in other.get_config():
             if feature not in self._prvc:
