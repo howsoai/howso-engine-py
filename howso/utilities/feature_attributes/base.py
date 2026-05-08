@@ -21,10 +21,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-try:
-    from howso.enterprise.insights.internal import fl_optimized_chunk_size
-except ImportError:
-    fl_optimized_chunk_size = None
+from howso.utilities import determine_iso_format, get_optimized_max_chunk_size, is_valid_datetime_format, time_to_seconds
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
 from howso.utilities.feature_attributes.suggestions import (
     FullPreserveRareValuesConfig,
@@ -36,7 +33,7 @@ from howso.utilities.feature_attributes.suggestions import (
 )
 from howso.utilities.feature_attributes.warnings import IFAWarningEmitterType
 from howso.utilities.features import FeatureType
-from howso.utilities.utilities import determine_iso_format, is_valid_datetime_format, time_to_seconds
+
 
 if t.TYPE_CHECKING:
     from howso.client.typing import FeatureAttributes
@@ -1167,9 +1164,8 @@ class InferFeatureAttributesBase(ABC):
         if max_distilled_cases is not None:
             user_set_mdc = True
             # Compute the optimized max_distilled_cases value if available
-            if fl_optimized_chunk_size:
-                max_distilled_cases = fl_optimized_chunk_size(row_count=self._get_row_count(),
-                                                              max_chunk_size=max_distilled_cases)
+            max_distilled_cases, _ = get_optimized_max_chunk_size(row_count=self._get_row_count(),
+                                                                  max_chunk_size=max_distilled_cases)
         else:
             # Set a small default
             max_distilled_cases = 25_000
