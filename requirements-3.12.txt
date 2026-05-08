@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --output-file=requirements-3.12.txt --pip-args=None
 #
-amalgam-lang==30.0.0
+amalgam-lang==30.1.0
     # via howso-engine (pyproject.toml)
 certifi==2026.4.22
     # via
@@ -22,7 +22,7 @@ idna==3.13
     # via requests
 joblib==1.5.3
     # via sacremoses
-markdown-it-py==4.0.0
+markdown-it-py==4.2.0
     # via rich
 mdurl==0.1.2
     # via markdown-it-py
@@ -44,7 +44,7 @@ python-dateutil==2.9.0.post0
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
-pytz==2026.1.post1
+pytz==2026.2
     # via pandas
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
@@ -66,7 +66,7 @@ typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)
 tzdata==2026.2
     # via pandas
-urllib3==2.6.3
+urllib3==2.7.0
     # via
     #   howso-engine (pyproject.toml)
     #   requests
