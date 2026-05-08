@@ -1,14 +1,21 @@
 from abc import ABC, abstractmethod, abstractproperty
 from collections.abc import Sequence
 import textwrap
-from typing import Any
+from typing import Any, Mapping
+import warnings
 
 from rich.console import Console
 from rich.table import Table
+from typing_extensions import Self
 
 # Signal preservation parameters
+# ------------------------------
+# Provided by the user to specify values to protect, multipliers must be computed automatically
 PreserveRareValuesMap = dict[str, list[Any]]
-PreserveRareValuesConfig = dict[str, dict[str, list[dict[str, Any]] | float]]
+# Provided by the user to specify values to protect *with* multipliers, must only compute unprotected multipliers
+PreserveRareValuesConfig = dict[str, list[dict[str, Any]]]
+# Used internally to represent a "complete" configuration with protected *and* unprotected multipliers
+FullPreserveRareValuesConfig = dict[str, dict[str, list[dict[str, Any]] | float]]
 
 
 def wrap_text(text, width):
@@ -53,12 +60,12 @@ class IFASuggestion(ABC):
         ...
 
     @abstractmethod
-    def apply(self):
+    def apply(self, attributes: dict):
         """Apply this suggestion to the FeatureAttributesBase object."""
         ...
 
     @abstractmethod
-    def merge(self):
+    def merge(self, other: Self) -> Self:
         """Merge this suggestion with another if more than one were computed across separate processes."""
         ...
 
@@ -66,49 +73,76 @@ class IFASuggestion(ABC):
 class PRVSuggestion(IFASuggestion):
     """A suggestion to configure preservation for rare values."""
 
-    # The FeatureAttributesBase object, set by that object once multiprocessing has completed
-    _attributes: dict = None
+    def __init__(self, prvc: PreserveRareValuesConfig, values_ranking: Sequence[Mapping[str, Any]],
+                 user_set_max_distilled_cases: bool):
+        """
+        Instantiate this Preserve Rare Values Suggestion.
 
-    def __init__(self, prvc: PreserveRareValuesConfig):
+        Parameters
+        ----------
+        prvc : FullPreserveRareValuesConfig
+            A full rare values preservation config with protected and unprotected multipliers.
+        values_ranking : Sequence of Mapping
+            An ordered list of the top five most significant rare values found in the data.
+        user_set_max_distilled_cases : bool
+            Whether the user specified the max_distilled_cases value, or `prvc` was approximated with a default.
+        """
         self._prvc = prvc
+        self._ranking = values_ranking
+        self._user_set_mdc = user_set_max_distilled_cases
 
     def __repr__(self):
         """Print a helpful description of this IFASuggestion."""
         num_candidates = sum(len(cfg["protected_values"]) for cfg in self._prvc.values())
-        header = f"We found {num_candidates} candidate value(s) in your data for rare value preservation."
+        candidates_explanation = ""
+        for candidate in self._ranking:
+            candidates_explanation += f"\n    - Column name: {candidate["feature"]}, value: {candidate["value"]}"
+        if self._user_set_mdc:
+            candidates_explanation += (f"\n\nIn total, we identified {num_candidates} values that may be lost "
+                                       "during data distillation.")
+        header = "Rare Value Preservation"
         body = (
+            "Here are some values in your data that may be good candidates for Rare Value Preservation:\n"
+            f"{candidates_explanation}\n\n"
             "During data distillation workflows, nominal values with weak but detectable signals may "
             "be filtered out. To account for this, you may provide to `infer_feature_attributes` a "
             "`preserve_rare_values_map` detailing rare values to protect automatically, or a full "
             "`preserve_rare_values_config` with fine-grained case weight adjustments. Additionally, "
-            "you may apply our suggested configuration for all detected rare values to this feature "
-            "attributes object."
+            "you may apply our suggested configuration for all detected possible rare values to this "
+            "feature attributes object."
         )
 
         # Pick a target total width and divvy it up
         total_width = 120
         action_w, details_w, code_w = 24, 40, 50
 
-        table = Table(title="Summary of Available Options", show_lines=True, width=total_width,
-                      caption="All listed method calls are accessed through this suggestion, e.g., "
-                      "`my_attributes_object.suggestions.preserve_rare_values.apply()`")
-        table.add_column("Action", min_width=action_w, overflow="fold")
-        table.add_column("Details", min_width=details_w, overflow="fold")
-        table.add_column("Applicalbe Method Call")
+        options_table = Table(title="Summary of Available Options", show_lines=True, width=total_width,
+                              caption="In the code examples, `attributes` refers to the feature attributes object "
+                              "that was returned by `infer_feature_attributes`.")
+        options_table.add_column("Action", min_width=action_w, overflow="fold")
+        options_table.add_column("Details", min_width=details_w, overflow="fold")
+        options_table.add_column("Code Example")
+
+        rows = []
+
+        # Only suggest this option if the user actually set the `max_distilled_cases` value,
+        # otherwise the computed multipliers may be very incorrect and should only be used
+        # as examples.
+        if self._user_set_mdc:
+            rows.append((
+                "Apply suggestion to this feature attributes object",
+                "Save the suggested candidate `preserve_rare_values_config` "
+                "to this feature attributes object.",
+                "attributes.apply(\"preserve_rare_values\")"
+            )),
 
         rows = [
-            (
-                "Apply suggestion to this feature attributes object",
-                "Save the suggested `preserve_rare_values_config` to this feature attributes "
-                "object via `apply()`.",
-                "apply()"
-            ),
             (
                 "Get a reusable `preserve_rare_values_config`",
                 "You may provide a pre-computed `preserve_rare_values_config` as a parameter to "
                 "`infer_feature_attributes` if you wish to make adjustments to the case weight "
                 "multipliers.",
-                "get_config()"
+                "attributes.suggestions.preserve_rare_values.get_config()"
             ),
             (
                 "Edit the preserved rare values with a `preserve_rare_values_map`",
@@ -116,12 +150,12 @@ class PRVSuggestion(IFASuggestion):
                 "parameter to `infer_feature_attributes`. A good starting point may be the \"full\" "
                 "map of all candidate values. All case weight multipliers will be automatically "
                 "configured for the provided values.",
-                "get_values_map()"
+                "attributes.suggestions.preserve_rare_values.get_values_map()"
             ),
         ]
 
         for action, details, code in rows:
-            table.add_row(
+            options_table.add_row(
                 wrap_text(action, action_w),
                 wrap_text(details, details_w),
                 wrap_code(code, code_w),
@@ -129,7 +163,7 @@ class PRVSuggestion(IFASuggestion):
 
         console = Console(width=total_width)
         with console.capture() as capture:
-            console.print(table)
+            console.print(options_table)
         return f"{header}\n\n{wrap_text(body, total_width)}\n\n{capture.get().rstrip()}"
 
     @property
@@ -142,14 +176,14 @@ class PRVSuggestion(IFASuggestion):
         """A brief description of this suggestion."""
         return "Configure rare values to avoid losing their signal during data distillation."
 
-    def apply(self):
-        """Apply the computed signal preservation config to the FeatureAttributesBase object."""
-        attributes = self._attributes()
-        if attributes is None:
-            raise RuntimeError(
-                "The FeatureAttributesBase object this suggestion was attached to "
-                "no longer exists."
-            )
+    def apply(self, attributes: dict):
+        """Apply the computed rare values preservation config to the FeatureAttributesBase object."""
+        if not self._user_set_mdc:
+            warnings.warn("Suggested rare values configuration will be applied, but the computed case weight "
+                          "multipliers are likely inaccurate as `max_distilled_cases` was not provided to "
+                          "`infer_feature_attributes`. Please provide this parameter or be aware that the case "
+                          "weight multipliers were computed based on a default `max_distilled_cases` value of 25,000.",
+                          UserWarning)
         for feature, config in self._prvc.items():
             attributes[feature]["preserve_rare_values"] = config
 
@@ -164,7 +198,7 @@ class PRVSuggestion(IFASuggestion):
             values_map[feature] = [value_config["value"] for value_config in config["protected_values"]]
         return values_map
 
-    def merge(self, other: object):
+    def merge(self, other: Self) -> Self:
         """Merge another PreserveRareValuesConfig into this one if there are no conflicts."""
         for feature, config in other.get_config():
             if feature not in self._prvc:
@@ -222,12 +256,7 @@ class IFASuggestionCollector:
         # Ensure the suggestion has access to the feature attributes
         self._suggestions[suggestion.name] = suggestion
 
-    def apply_all(self):
-        """Apply all suggestions to the FeatureAttributesBase object."""
-        for suggestion in self._suggestions.values():
-            suggestion.apply()
-
-    def merge(self, other: object):
+    def merge(self, other: Self) -> Self:
         """Merge all IFASuggestions in another collector object with the IFASuggestions in this object."""
         for name, suggestion in other.suggestions.items():
             if name in self._suggestions.keys():

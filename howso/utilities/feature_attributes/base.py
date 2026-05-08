@@ -13,7 +13,6 @@ from pathlib import Path
 import platform
 import typing as t
 import warnings
-import weakref
 from zoneinfo import ZoneInfo
 
 from dateutil.parser import isoparse
@@ -28,6 +27,8 @@ except ImportError:
     fl_optimized_chunk_size = None
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
 from howso.utilities.feature_attributes.suggestions import (
+    FullPreserveRareValuesConfig,
+    IFASuggestion,
     IFASuggestionCollector,
     PreserveRareValuesConfig,
     PreserveRareValuesMap,
@@ -82,10 +83,6 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         self.update(feature_attributes)
         self.unsupported = unsupported
         self.suggestions_collector = suggestions_collector or "You have no suggestions."
-        # Update all suggestions with a reference to this object so that they can apply updates
-        if hasattr(self.suggestions_collector, "suggestions"):
-            for s in self.suggestions_collector.suggestions.values():
-                s._attributes = weakref.ref(self)
 
     def __copy__(self) -> "FeatureAttributesBase":
         """Return a (deep)copy of this instance of FeatureAttributesBase."""
@@ -94,6 +91,27 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         obj_copy.update(deepcopy(self))
         obj_copy.params = self.params
         return obj_copy
+
+    def apply_suggestion(self, key: str | t.Literal["all"]):
+        """
+        Apply the suggestion under the provided key.
+
+        Parameters
+        ----------
+        key : str
+            The key of the suggestion to apply. Use "all" to apply all suggestions.
+        """
+        if not isinstance(self.suggestions_collector, str):
+            if key == "all":
+                for suggestion in self.suggestions_collector.suggestions.values():
+                    suggestion.apply(self)
+            else:
+                suggestion: IFASuggestion = getattr(self.suggestions_collector, key)
+                if not suggestion:
+                    raise KeyError(f"No suggestion found under key `{key}`")
+                suggestion.apply(self)
+        else:
+            raise ValueError(self.suggestions_collector)
 
     @property
     def suggestions(self) -> IFASuggestionCollector:
@@ -786,7 +804,7 @@ class InferFeatureAttributesBase(ABC):
 
     def _process(self,  # noqa: C901
                  attempt_infer_extended_nominals: bool = False,
-                 chunk_size: int = None,
+                 max_distilled_cases: int = None,
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
@@ -814,6 +832,8 @@ class InferFeatureAttributesBase(ABC):
         See ``infer_feature_attributes`` for full docstring.
         """
         self.attributes = FeatureAttributesBase({})
+
+        self.max_rows_to_eval = max_rows_to_eval
 
         if datetime_feature_formats is None:
             datetime_feature_formats = dict()
@@ -1141,38 +1161,68 @@ class InferFeatureAttributesBase(ABC):
                         self.attributes[f]['fanout_on'] = list(key_features)
 
         # Process/investigate protected values
-        _prvc = None
+        _prvc: FullPreserveRareValuesConfig = {}
+        # Did the user specify max_distilled_cases? Save this information for later.
+        user_set_mdc = False
+        if max_distilled_cases is not None:
+            user_set_mdc = True
+            # Compute the optimized max_distilled_cases value if available
+            if fl_optimized_chunk_size:
+                max_distilled_cases = fl_optimized_chunk_size(row_count=self._get_row_count(),
+                                                              max_chunk_size=max_distilled_cases)
+        else:
+            # Set a small default
+            max_distilled_cases = 25_000
+
+        # Workflow 1: User provided a config with protected multipliers; need to compute unprotected multipliers
         if preserve_rare_values_config is not None:
             if preserve_rare_values_map is not None:
                 self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE, "A `preserve_rare_values_map` was "
                                                "provided with a full `preserve_rare_values_config`; the former "
                                                "will be ignored.")
-            # prvc provided, but may need to compute unprotected value multipliers
-            _prvc = self._compute_unprotected_multipliers(preserve_rare_values_config)
-        elif chunk_size is not None:
-            # Compute the optimized chunk_size if available
-            chunk_size = fl_optimized_chunk_size(row_count=self._get_row_count(),
-                                                 max_chunk_size=chunk_size) if fl_optimized_chunk_size else chunk_size
-            if preserve_rare_values_map is not None:
-                # User intends to apply signal preservation
-                preserve_rare_values_config = self._compute_preserve_rare_values_config(chunk_size,
-                                                                                        preserve_rare_values_map,
-                                                                                        significance_threshold)
-                _prvc = preserve_rare_values_config
-            else:
-                # Compute but don't automatically apply
-                preserve_rare_values_map = self._find_protected_value_candidates(chunk_size, significance_threshold)
-                preserve_rare_values_config = self._compute_preserve_rare_values_config(chunk_size,
-                                                                                        preserve_rare_values_map,
-                                                                                        significance_threshold)
-                prvc_suggestion = PRVSuggestion(preserve_rare_values_config)
-                self.suggestions_collector.append(prvc_suggestion)
+            # Config provided, but need to compute unprotected value multipliers
+            for feature, value_configs in preserve_rare_values_config.items():
+                _prvc[feature]["unprotected_multiplier"] = self._compute_unprotected_multiplier(feature, value_configs)
+                # Also set the protected value configs under the expected key
+                _prvc[feature]["protected_values_multipliers"] = value_configs
+        # Workflow 2: User provided a map of rare values to protect, but no multipliers
         elif preserve_rare_values_map is not None:
-            raise ValueError("Cannot compute rare values configuration without `chunk_size`.")
+            # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here
+            if user_set_mdc:
+                if preserve_rare_values_map == "all":
+                    preserve_rare_values_map, _ = self._find_protected_value_candidates(max_distilled_cases,
+                                                                                        significance_threshold)
+                _prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
+                                                                  preserve_rare_values_map,
+                                                                  significance_threshold)
+            # Workflow 2B: User did not set max_distilled_cases, so we cannot guarantee accurate multipliers.
+            # Let another part of the stack figure it out; set only the protected values in the attributes.
+            else:
+                if preserve_rare_values_map == "all":
+                    raise ValueError("If `preserve_rare_values_map` is set to \"all,\" you must also provide "
+                                     "`max_distilled_cases` to accurately determine rare value candidates.")
+                for feature, values in preserve_rare_values_map.items():
+                    if feature not in self.attributes:
+                        # Multiprocessing is enabled, and this feature will be handled in another process
+                        continue
+                    self.attributes[feature]["preserve_rare_values"] = {"protected_values": values}
+        # Workflow 3: User provided no value specifications; determine candidates and make a suggestion
+        else:
+            # Compute but don't automatically apply
+            preserve_rare_values_map, values_ranking = self._find_protected_value_candidates(max_distilled_cases,
+                                                                                             significance_threshold)
+            candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
+                                                                       preserve_rare_values_map,
+                                                                       significance_threshold)
+            prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)
+            self.suggestions_collector.append(prvc_suggestion)
 
-        # Apply signal preservation info to feature attributes if applicable
+        # Apply rare values multipliers to feature attributes if applicable (workflows 1, 2A)
         if _prvc:
             for feature, config in _prvc.items():
+                if feature not in self.attributes:
+                    # Multiprocessing is enabled, and this feature will be handled in another process
+                    continue
                 self.attributes[feature]["preserve_rare_values"] = config
 
         # Re-order the keys like the original dataframe
@@ -1816,9 +1866,28 @@ class InferFeatureAttributesBase(ABC):
     def _get_value_count(self, feature_name: str, value: t.Any) -> int:
         """Get the number of occurances of the provided value of the provided feature."""
 
-    def _find_protected_value_candidates(self, target_size: int, significance_threshold: int) -> PreserveRareValuesMap:
-        """Analyze the data to determine if any values might be good candidates for signal preservation techniques."""
+    def _find_protected_value_candidates(self, max_distilled_cases: int,
+                                         significance_threshold: int) -> t.Tuple[PreserveRareValuesMap, list[dict]]:
+        """
+        Analyze the data to determine if any values might be good candidates for signal preservation techniques.
+
+        Parameters
+        ----------
+        max_distilled_cases : int
+            The maximum number of cases in the resultant data following distillation.
+        significance_threshold : int
+            The number of cases that are expected to result in a maintained signal for a particular
+            value post-distillation.
+
+        Returns
+        -------
+        PreserveRareValuesMap
+            A Mapping of feature name to list of rare value candidates.
+        List of dict
+            An ordered list of dict of the top 5 most significant rare values in the orignal data.
+        """
         pvm: PreserveRareValuesMap = {}
+        value_counts = []
         for feature, attributes in self.attributes.items():
             if attributes["type"] != "nominal":
                 continue
@@ -1826,44 +1895,42 @@ class InferFeatureAttributesBase(ABC):
             total_cases = self._get_row_count()
             for unique_value in uniques:
                 count = self._get_value_count(feature, unique_value)
+                value_counts.append({"feature": feature, "value": unique_value, "count": count})
                 # Don't include values that aren't significant to begin with
                 if count < significance_threshold:
                     continue
-                expected_freq_at_target_size = (target_size / total_cases) * count
+                expected_freq_at_target_size = (max_distilled_cases / total_cases) * count
                 if expected_freq_at_target_size < significance_threshold:
                     if feature not in pvm.keys():
                         pvm[feature] = [unique_value]
                     else:
                         pvm[feature].append(unique_value)
-        return pvm
+        top_five = sorted(value_counts, key=lambda d: d["count"], reverse=True)[:5]
+        return pvm, top_five
 
-    def _compute_unprotected_multipliers(self, prvc: PreserveRareValuesConfig) -> PreserveRareValuesConfig:
-        """Update the provided `preserve_rare_values_config` with unprotected multiplier values if not provided."""
-        for feature, config in prvc.items():
-            if "unprotected_multiplier" not in config:
-                total_cases = self._get_row_count()
-                orig_unprotected_mass = 0
-                new_protected_mass = 0
-                for value_cfg in config["protected_values"]:
-                    count = self._get_value_count(feature, value_cfg["value"])
-                    orig_unprotected_mass += count
-                    new_protected_mass += count * value_cfg["multiplier"]
-                orig_unprotected_mass = total_cases - orig_unprotected_mass
-                config["unprotected_multiplier"] = min(
-                    float((total_cases - new_protected_mass) / orig_unprotected_mass),
-                    1
-                )
-        return prvc
+    def _compute_unprotected_multiplier(self, feature, protected_values: Sequence[dict[str, t.Any]], *,
+                                        row_count: int = None) -> float:
+        """Compute the unprotected multiplier for the provided feature given a list of rare values with multipliers."""
+        total_cases = row_count or self._get_row_count()
+        orig_unprotected_mass = 0
+        new_protected_mass = 0
+        for value_cfg in protected_values:
+            count = self._get_value_count(feature, value_cfg["value"])
+            orig_unprotected_mass += count
+            new_protected_mass += count * value_cfg["multiplier"]
+        orig_unprotected_mass = total_cases - orig_unprotected_mass
+        return min(float((total_cases - new_protected_mass) / orig_unprotected_mass), 1)
 
-    def _compute_preserve_rare_values_config(self, target_size: int,
+    def _compute_preserve_rare_values_config(self, max_distilled_cases: int,
                                              preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"],
-                                             significance_threshold: int) -> PreserveRareValuesConfig:
+                                             significance_threshold: int) -> FullPreserveRareValuesConfig:
         """Determine the case weight multipliers for the provided protected values."""
-        prvc: PreserveRareValuesConfig = {}
+        prvc: FullPreserveRareValuesConfig = {}
         if preserve_rare_values_map == "all":
-            preserve_rare_values_map = self._find_protected_value_candidates(target_size, significance_threshold)
+            preserve_rare_values_map, _ = self._find_protected_value_candidates(max_distilled_cases,
+                                                                                significance_threshold)
         for feature, values in preserve_rare_values_map.items():
-            prvc[feature] = {"protected_values": []}
+            prvc[feature] = {"protected_values_multipliers": []}
             total_cases = self._get_row_count()
             data_type = self.attributes[feature]["data_type"]
             for value in values:
@@ -1871,10 +1938,14 @@ class InferFeatureAttributesBase(ABC):
                 if count == 0:
                     raise ValueError(f"Specified protected value `{value}` not found in column `{feature}`. "
                                      "Please verify the value and type.")
-                expected_freq_at_target_size = (target_size / total_cases) * count
+                expected_freq_at_target_size = (max_distilled_cases / total_cases) * count
                 multiplier = significance_threshold / expected_freq_at_target_size
                 if data_type == "number":
                     value = float(value)
-                prvc[feature]["protected_values"].append({"value": value,
-                                                         "multiplier": max(float(multiplier), 1)})
-        return self._compute_unprotected_multipliers(prvc)
+                prvc[feature]["protected_values_multipliers"].append({"value": value,
+                                                                      "multiplier": max(float(multiplier), 1)})
+            # Now that all protected value multipliers have been computed, determine the unprotected value multiplier
+            prvc[feature]["unprotected_multiplier"] = self._compute_unprotected_multiplier(
+                feature, prvc[feature]["protected_values_multipliers"], row_count=total_cases
+            )
+        return prvc
