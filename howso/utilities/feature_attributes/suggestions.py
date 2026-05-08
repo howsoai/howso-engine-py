@@ -96,7 +96,7 @@ class PRVSuggestion(IFASuggestion):
         num_candidates = sum(len(cfg["protected_values"]) for cfg in self._prvc.values())
         candidates_explanation = ""
         for candidate in self._ranking:
-            candidates_explanation += f"\n    - Column name: {candidate["feature"]}, value: {candidate["value"]}"
+            candidates_explanation += f"\n    - Column name: {candidate['feature']}, value: {candidate['value']}"
         if self._user_set_mdc:
             candidates_explanation += (f"\n\nIn total, we identified {num_candidates} values that may be lost "
                                        "during data distillation.")
