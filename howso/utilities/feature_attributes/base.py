@@ -1908,13 +1908,38 @@ class InferFeatureAttributesBase(ABC):
         top_five = sorted(value_counts, key=lambda d: d["count"], reverse=True)[:5]
         return pvm, top_five
 
-    def _compute_unprotected_multiplier(self, feature, protected_values: Sequence[dict[str, t.Any]], *,
-                                        row_count: int = None) -> float:
-        """Compute the unprotected multiplier for the provided feature given a list of rare values with multipliers."""
+    def _compute_unprotected_multiplier(self, feature: str, protected_values_multipliers: Sequence[dict[str, t.Any]],
+                                        *, row_count: int = None) -> float:
+        """
+        Compute the unprotected multiplier for the provided feature given a list of rare values with multipliers.
+
+        Parameters
+        ----------
+        feature : str
+            The name of the feature to compute the unprotected multiplier for.
+        protected_values : Sequence of dict of str to Any
+            A list of dicts with information about the protected values and their multipliers.
+            This is of the same type as the list under the `protected_values_multipliers` key
+            in the final feature attributes object.
+
+            Example::
+
+                [
+                    {"value": "X", "multiplier": 2},
+                    {"value": "Y", "multiplier": 3}
+                ]
+        row_count : int, default none
+            (Optional) The row count of the feature. If not provided, will compute.
+
+        Returns
+        -------
+        float
+            The unprotected multiplier.
+        """
         total_cases = row_count or self._get_row_count()
         orig_unprotected_mass = 0
         new_protected_mass = 0
-        for value_cfg in protected_values:
+        for value_cfg in protected_values_multipliers:
             count = self._get_value_count(feature, value_cfg["value"])
             orig_unprotected_mass += count
             new_protected_mass += count * value_cfg["multiplier"]
@@ -1924,7 +1949,26 @@ class InferFeatureAttributesBase(ABC):
     def _compute_preserve_rare_values_config(self, max_distilled_cases: int,
                                              preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"],
                                              significance_threshold: int) -> FullPreserveRareValuesConfig:
-        """Determine the case weight multipliers for the provided protected values."""
+        """
+        Determine the case weight multipliers for the provided protected values and the unprotected values.
+
+        Parameters
+        ----------
+        max_distilled_cases : int
+            The maximum number of cases in the resultant data following distillation.
+        preserve_rare_values_map : PreserveRareValuesmap or "all"
+            A mapping of feature name to list of rare values to compute multipliers for.
+            Use "all" to find rare value candidates and compute multipliers for them all.
+        significance_threshold : int
+            The number of cases that are expected to result in a maintained signal for a
+            particular value post-distillation.
+
+        Returns
+        -------
+        FullPreserveRareValuesConfig
+            A full `preserve_rare_values` configuration with all multipliers ready for
+            application to the feature attributes.
+        """
         prvc: FullPreserveRareValuesConfig = {}
         if preserve_rare_values_map == "all":
             preserve_rare_values_map, _ = self._find_protected_value_candidates(max_distilled_cases,
