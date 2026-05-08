@@ -21,7 +21,12 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from howso.utilities import determine_iso_format, get_optimized_max_chunk_size, is_valid_datetime_format, time_to_seconds
+from howso.utilities.utilities import (
+    determine_iso_format,
+    get_optimized_max_chunk_size,
+    is_valid_datetime_format,
+    time_to_seconds,
+)
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
 from howso.utilities.feature_attributes.suggestions import (
     FullPreserveRareValuesConfig,
@@ -31,7 +36,7 @@ from howso.utilities.feature_attributes.suggestions import (
     PreserveRareValuesMap,
     PRVSuggestion,
 )
-from howso.utilities.feature_attributes.warnings import IFAWarningEmitterType
+from howso.utilities.feature_attributes.warnings import IFAWarningCollector, IFAWarningEmitterType
 from howso.utilities.features import FeatureType
 
 
@@ -59,7 +64,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
     def __init__(self, feature_attributes: Mapping, params: dict = {}, unsupported: list[str] = [],
-                 suggestions_collector: IFASuggestionCollector = None):
+                 suggestions_collector: IFASuggestionCollector | None = None):
         """
         Instantiate this FeatureAttributesBase object.
 
@@ -79,6 +84,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         self.params = params
         self.update(feature_attributes)
         self.unsupported = unsupported
+        self.warnings_collector = IFAWarningCollector()
         self.suggestions_collector = suggestions_collector or "You have no suggestions."
 
     def __copy__(self) -> "FeatureAttributesBase":
@@ -294,7 +300,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
         # Gather some data to use for validation
         series = data[feature]
-        bounds = attributes['bounds']
+        bounds = attributes['bounds']  # pyright: ignore[reportTypedDictNotRequiredAccess]
         min_bound = bounds.get('min')
         max_bound = bounds.get('max')
         # Get unique values but exclude NoneTypes
@@ -303,7 +309,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
         if bounds.get('allowed'):
             # Check nominal bounds
-            allowed_values = attributes['bounds']['allowed']
+            allowed_values = attributes['bounds']['allowed']  # pyright: ignore[reportTypedDictNotRequiredAccess]
             out_of_band_values = set(unique_values) - set(allowed_values)
             if pd.isna(list(out_of_band_values)).all():
                 # Placeholder for behavior when columns contain nans
@@ -315,7 +321,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
             if attributes.get('original_type', {}).get('data_type') == 'time':
                 unique_time_values = pd.to_datetime(
                     series,
-                    format=attributes['date_time_format'],
+                    format=attributes['date_time_format'],  # pyright: ignore[reportTypedDictNotRequiredAccess]
                     errors='coerce'
                 ).dropna().unique()
                 for value in unique_time_values:
@@ -383,7 +389,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                 pass
         elif expected_dtype == 'datetime64':
             try:
-                format = self[feature]['date_time_format']
+                format = self[feature]['date_time_format']  # pyright: ignore[reportTypedDictNotRequiredAccess]
                 if ".%f" in format:
                     format = "ISO8601"
                 series = pd.to_datetime(coerced_df[feature], format=format)
@@ -474,9 +480,9 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                     # Check type (boolean)
                     errors.extend(self._validate_dtype(data, feature, 'bool',
                                                        coerced_df, coerce=coerce))
-                elif attributes.get('bounds') and attributes['bounds'].get('allowed'):
+                elif attributes.get('bounds') and attributes['bounds'].get('allowed'):  # pyright: ignore[reportTypedDictNotRequiredAccess]
                     # Check type (categorical)
-                    schema_dtype = pd.CategoricalDtype(attributes['bounds']['allowed'],
+                    schema_dtype = pd.CategoricalDtype(attributes['bounds']['allowed'],  # pyright: ignore[reportTypedDictNotRequiredAccess]
                                                        ordered=True)
                     errors.extend(self._validate_dtype(data, feature, schema_dtype,
                                                        coerced_df, coerce=coerce))
@@ -487,9 +493,9 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
             # Check ordinal types
             elif attributes['type'] == 'ordinal':
-                if attributes.get('bounds') and attributes['bounds'].get('allowed'):
+                if attributes.get('bounds') and attributes['bounds'].get('allowed'):  # pyright: ignore[reportTypedDictNotRequiredAccess]
                     # Check type (categorical)
-                    schema_dtype = pd.CategoricalDtype(attributes['bounds']['allowed'],
+                    schema_dtype = pd.CategoricalDtype(attributes['bounds']['allowed'],  # pyright: ignore[reportTypedDictNotRequiredAccess]
                                                        ordered=True)
                     errors.extend(self._validate_dtype(data, feature, schema_dtype,
                                                        coerced_df, coerce=coerce))
@@ -556,7 +562,6 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         if coerce:
             return coerced_df
 
-    @abstractmethod
     def validate(self, data: t.Any, coerce: bool = False, raise_errors: bool = False, validate_bounds: bool = True,
                  allow_missing_features: bool = False, localize_datetimes: bool = True):
         """
@@ -799,9 +804,12 @@ class InferFeatureAttributesBase(ABC):
     It is agnostic to the type of data being inspected.
     """
 
+    warnings_collector: IFAWarningCollector = IFAWarningCollector()
+    suggestions_collector: IFASuggestionCollector = IFASuggestionCollector()
+
     def _process(self,  # noqa: C901
                  attempt_infer_extended_nominals: bool = False,
-                 max_distilled_cases: int = None,
+                 max_distilled_cases: int | None = None,
                  datetime_feature_formats: t.Optional[dict] = None,
                  default_time_zone: t.Optional[str] = None,
                  dependent_features: t.Optional[dict[str, list[str]]] = None,
@@ -817,8 +825,8 @@ class InferFeatureAttributesBase(ABC):
                  num_series: t.Optional[int] = 1,
                  nominal_substitution_config: t.Optional[dict[str, dict]] = None,
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
-                 preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"] = None,
-                 preserve_rare_values_config: PreserveRareValuesConfig = None,
+                 preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"] | None = None,
+                 preserve_rare_values_config: PreserveRareValuesConfig | None = None,
                  significance_threshold: int = 30,
                  tight_bounds: t.Optional[Iterable[str]] = None,
                  types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
@@ -828,7 +836,7 @@ class InferFeatureAttributesBase(ABC):
 
         See ``infer_feature_attributes`` for full docstring.
         """
-        self.attributes = FeatureAttributesBase({})
+        self.attributes: FeatureAttributesBase = FeatureAttributesBase({})
 
         self.max_rows_to_eval = max_rows_to_eval
 
@@ -1203,7 +1211,8 @@ class InferFeatureAttributesBase(ABC):
                     if feature not in self.attributes:
                         # Multiprocessing is enabled, and this feature will be handled in another process
                         continue
-                    self.attributes[feature]["preserve_rare_values"] = {"protected_values": values}
+                    self.attributes[feature]["preserve_rare_values"] = {"protected_values": values}  # pyright: ignore[reportGeneralTypeIssues]
+
         # Workflow 3: User provided no value specifications; determine candidates and make a suggestion
         else:
             # Compute but don't automatically apply
@@ -1212,7 +1221,7 @@ class InferFeatureAttributesBase(ABC):
             candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
                                                                        preserve_rare_values_map,
                                                                        significance_threshold)
-            prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)
+            prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)  # TODO: What to do about this serious type issue?
             self.suggestions_collector.append(prvc_suggestion)
 
         # Apply rare values multipliers to feature attributes if applicable (workflows 1, 2A)
@@ -1221,7 +1230,7 @@ class InferFeatureAttributesBase(ABC):
                 if feature not in self.attributes:
                     # Multiprocessing is enabled, and this feature will be handled in another process
                     continue
-                self.attributes[feature]["preserve_rare_values"] = config
+                self.attributes[feature]["preserve_rare_values"] = config  # pyright: ignore[reportGeneralTypeIssues]
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
