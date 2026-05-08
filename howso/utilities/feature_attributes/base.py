@@ -1178,9 +1178,11 @@ class InferFeatureAttributesBase(ABC):
                                                "will be ignored.")
             # Config provided, but need to compute unprotected value multipliers
             for feature, value_configs in preserve_rare_values_config.items():
-                _prvc[feature]["unprotected_multiplier"] = self._compute_unprotected_multiplier(feature, value_configs)
+                feature_prvc = {}
+                feature_prvc["unprotected_multiplier"] = self._compute_unprotected_multiplier(feature, value_configs)
                 # Also set the protected value configs under the expected key
-                _prvc[feature]["protected_values_multipliers"] = value_configs
+                feature_prvc["protected_values_multipliers"] = value_configs
+                _prvc[feature] = feature_prvc
         # Workflow 2: User provided a map of rare values to protect, but no multipliers
         elif preserve_rare_values_map is not None:
             # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here
