@@ -1579,14 +1579,15 @@ class InferFeatureAttributesBase(ABC):
         True if the column values can be parsed into a boolean.
         """
         # Sample 30 random values
-        for _ in range(30):
-            random_value = self._get_random_value(feature, no_nulls=True)
-            if random_value is None:
-                return False
+        random_values = self._get_random_value(feature, no_nulls=True, count=30)
+        for random_value in random_values:
             # Check for a Python bool object or a string representation thereof
             if not isinstance(random_value, bool) and not (isinstance(random_value, str) and
                                                            random_value.strip().lower() in ("true", "false")):
                 return False
+        else:
+            # Only nulls
+            return False
         return True
 
     def _is_json_feature(self, feature: str) -> bool:

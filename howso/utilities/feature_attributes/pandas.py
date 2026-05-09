@@ -382,24 +382,37 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             return self.data.copy()
         return self.data.sample(n=samples, random_state=seed)
 
-    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
+    def _get_random_value(self, feature_name: str, no_nulls: bool = False, count: int = 1) -> t.Any | None:
         """
-        Return a random sample from the given DataFrame column.
+        Return `count` random sample(s) from the given DataFrame column.
 
         The return type is determined by the column type.
 
         if `no_nulls` is set, select a random value from the set of non-null
         values, if any. If there are no such non-nulls, this will return None.
         """
+        if count < 1:
+            raise ValueError("count must be >= 1")
+
         cases = self.data[feature_name]
         if no_nulls:
-            cases = cases.loc[~self.data[feature_name].isnull()]
-        if len(cases) < 1:
-            return None
-        elif len(cases) == 1:
-            return cases.iloc[0]
-        else:
-            return cases.iloc[np.random.randint(len(cases))]
+            cases = cases.loc[~cases.isnull()]
+
+        n = len(cases)
+        if n == 0:
+            return None if count == 1 else []
+
+        if count == 1:
+            # Fast path: single value
+            if n == 1:
+                return cases.iloc[0]
+            return cases.iloc[np.random.randint(n)]
+
+        # Sample without replacement
+        actual_count = min(count, n)
+        rng = np.random.default_rng()
+        positions = rng.choice(n, size=actual_count, replace=False)
+        return cases.iloc[positions].tolist()
 
     def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
         """Get the number of unique values in the provided feature(s)."""

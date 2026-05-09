@@ -1,0 +1,1732 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.1, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/abassett/github/howso-engine-py
+configfile: pyproject.toml
+plugins: mock-1.13.0, xdist-3.8.0, cov-7.1.0, Faker-40.13.0
+collected 1 item
+
+howso/utilities/feature_attributes/tests/test_infer_feature_attributes_adc.py 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+config = <_pytest.config.Config object at 0x7f787442b0b0>
+doit = <function _main at 0x7f7873c6e7a0>
+
+    def wrap_session(
+        config: Config, doit: Callable[[Config, Session], int | ExitCode | None]
+    ) -> int | ExitCode:
+        """Skeleton command line program."""
+        session = Session.from_config(config)
+        session.exitstatus = ExitCode.OK
+        initstate = 0
+        try:
+            try:
+                config._do_configure()
+                initstate = 1
+                config.hook.pytest_sessionstart(session=session)
+                initstate = 2
+>               session.exitstatus = doit(config, session) or 0
+                                     ^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/main.py:289: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+config = <_pytest.config.Config object at 0x7f787442b0b0>
+session = <Session  exitstatus=<ExitCode.OK: 0> testsfailed=0 testscollected=1>
+
+    def _main(config: Config, session: Session) -> int | ExitCode | None:
+        """Default command line protocol for initialization, session,
+        running tests and reporting."""
+        config.hook.pytest_collection(session=session)
+>       config.hook.pytest_runtestloop(session=session)
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/main.py:343: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <HookCaller 'pytest_runtestloop'>
+kwargs = {'session': <Session  exitstatus=<ExitCode.OK: 0> testsfailed=0 testscollected=1>}
+firstresult = True
+
+    def __call__(self, **kwargs: object) -> Any:
+        """Call the hook.
+    
+        Only accepts keyword arguments, which should match the hook
+        specification.
+    
+        Returns the result(s) of calling all registered plugins, see
+        :ref:`calling`.
+        """
+        assert not self.is_historic(), (
+            "Cannot directly call a historic hook - use call_historic instead."
+        )
+        self._verify_all_args_are_provided(kwargs)
+        firstresult = self.spec.opts.get("firstresult", False) if self.spec else False
+        # Copy because plugins may register other plugins during iteration (#438).
+>       return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pluggy/_hooks.py:512: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_pytest.config.PytestPluginManager object at 0x7f7873f35a90>
+hook_name = 'pytest_runtestloop'
+methods = [<HookImpl plugin_name='main', plugin=<module '_pytest.main' from '/home/abassett/.pyenv/versions/3.12.1/envs/engine-p...77f643bcb0>>, <HookImpl plugin_name='logging-plugin', plugin=<_pytest.logging.LoggingPlugin object at 0x7f77f65d0620>>]
+kwargs = {'session': <Session  exitstatus=<ExitCode.OK: 0> testsfailed=0 testscollected=1>}
+firstresult = True
+
+    def _hookexec(
+        self,
+        hook_name: str,
+        methods: Sequence[HookImpl],
+        kwargs: Mapping[str, object],
+        firstresult: bool,
+    ) -> object | list[object]:
+        # called from all hookcaller instances.
+        # enable_tracing will set its own wrapping function at self._inner_hookexec
+>       return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pluggy/_manager.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_pytest.logging.LoggingPlugin object at 0x7f77f65d0620>
+session = <Session  exitstatus=<ExitCode.OK: 0> testsfailed=0 testscollected=1>
+
+    @hookimpl(wrapper=True)
+    def pytest_runtestloop(self, session: Session) -> Generator[None, object, object]:
+        if session.config.option.collectonly:
+            return (yield)
+    
+        if self._log_cli_enabled() and self._config.get_verbosity() < 1:
+            # The verbose flag is needed to avoid messy test progress output.
+            self._config.option.verbose = 1
+    
+        with catching_logs(self.log_cli_handler, level=self.log_cli_level):
+            with catching_logs(self.log_file_handler, level=self.log_file_level):
+>               return (yield)  # Run all the tests.
+                        ^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/logging.py:801: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_pytest.terminal.TerminalReporter object at 0x7f77f643bcb0>
+
+    @hookimpl(wrapper=True)
+    def pytest_runtestloop(self) -> Generator[None, object, object]:
+>       result = yield
+                 ^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/terminal.py:688: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+session = <Session  exitstatus=<ExitCode.OK: 0> testsfailed=0 testscollected=1>
+
+    def pytest_runtestloop(session: Session) -> bool:
+        if session.testsfailed and not session.config.option.continue_on_collection_errors:
+            raise session.Interrupted(
+                f"{session.testsfailed} error{'s' if session.testsfailed != 1 else ''} during collection"
+            )
+    
+        if session.config.option.collectonly:
+            return True
+    
+        for i, item in enumerate(session.items):
+            nextitem = session.items[i + 1] if i + 1 < len(session.items) else None
+>           item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/main.py:367: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <HookCaller 'pytest_runtest_protocol'>
+kwargs = {'item': <Function test_ambiguous_datetime_format>, 'nextitem': None}
+firstresult = True
+
+    def __call__(self, **kwargs: object) -> Any:
+        """Call the hook.
+    
+        Only accepts keyword arguments, which should match the hook
+        specification.
+    
+        Returns the result(s) of calling all registered plugins, see
+        :ref:`calling`.
+        """
+        assert not self.is_historic(), (
+            "Cannot directly call a historic hook - use call_historic instead."
+        )
+        self._verify_all_args_are_provided(kwargs)
+        firstresult = self.spec.opts.get("firstresult", False) if self.spec else False
+        # Copy because plugins may register other plugins during iteration (#438).
+>       return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pluggy/_hooks.py:512: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_pytest.config.PytestPluginManager object at 0x7f7873f35a90>
+hook_name = 'pytest_runtest_protocol'
+methods = [<HookImpl plugin_name='runner', plugin=<module '_pytest.runner' from '/home/abassett/.pyenv/versions/3.12.1/envs/engi...s' from '/home/abassett/.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/warnings.py'>>]
+kwargs = {'item': <Function test_ambiguous_datetime_format>, 'nextitem': None}
+firstresult = True
+
+    def _hookexec(
+        self,
+        hook_name: str,
+        methods: Sequence[HookImpl],
+        kwargs: Mapping[str, object],
+        firstresult: bool,
+    ) -> object | list[object]:
+        # called from all hookcaller instances.
+        # enable_tracing will set its own wrapping function at self._inner_hookexec
+>       return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pluggy/_manager.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+item = <Function test_ambiguous_datetime_format>
+
+    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    def pytest_runtest_protocol(item: Item) -> Generator[None, object, object]:
+        with catch_warnings_for_item(
+            config=item.config, ihook=item.ihook, when="runtest", item=item
+        ):
+>           return (yield)
+                    ^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/warnings.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+item = <Function test_ambiguous_datetime_format>
+
+    @hookimpl(wrapper=True, tryfirst=True)
+    def pytest_runtest_protocol(item: Item) -> Generator[None, object, object]:
+        """Setup the pytest_assertrepr_compare and pytest_assertion_pass hooks.
+    
+        The rewrite module will use util._reprcompare if it exists to use custom
+        reporting via the pytest_assertrepr_compare hook.  This sets up this custom
+        comparison for the test.
+        """
+        ihook = item.ihook
+    
+        def callbinrepr(op, left: object, right: object) -> str | None:
+            """Call the pytest_assertrepr_compare hook and prepare the result.
+    
+            This uses the first result from the hook and then ensures the
+            following:
+            * Overly verbose explanations are truncated unless configured otherwise
+              (eg. if running in verbose mode).
+            * Embedded newlines are escaped to help util.format_explanation()
+              later.
+            * If the rewrite mode is used embedded %-characters are replaced
+              to protect later % formatting.
+    
+            The result can be formatted by util.format_explanation() for
+            pretty printing.
+            """
+            hook_result = ihook.pytest_assertrepr_compare(
+                config=item.config, op=op, left=left, right=right
+            )
+            for new_expl in hook_result:
+                if new_expl:
+                    new_expl = truncate.truncate_if_required(new_expl, item)
+                    new_expl = [line.replace("\n", "\\n") for line in new_expl]
+                    res = "\n~".join(new_expl)
+                    if item.config.getvalue("assertmode") == "rewrite":
+                        res = res.replace("%", "%%")
+                    return res
+            return None
+    
+        saved_assert_hooks = util._reprcompare, util._assertion_pass
+        util._reprcompare = callbinrepr
+        util._config = item.config
+    
+        if ihook.pytest_assertion_pass.get_hookimpls():
+    
+            def call_assertion_pass_hook(lineno: int, orig: str, expl: str) -> None:
+                ihook.pytest_assertion_pass(item=item, lineno=lineno, orig=orig, expl=expl)
+    
+            util._assertion_pass = call_assertion_pass_hook
+    
+        try:
+>           return (yield)
+                    ^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/assertion/__init__.py:192: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+item = <Function test_ambiguous_datetime_format>
+
+    @hookimpl(wrapper=True)
+    def pytest_runtest_protocol(item: Item) -> Iterator[None]:
+        if _get_twisted_version() is TwistedVersion.Version24:
+            import twisted.python.failure as ut
+    
+            # Monkeypatch `Failure.__init__` to store the raw exception info.
+            original__init__ = ut.Failure.__init__
+    
+            def store_raw_exception_info(
+                self, exc_value=None, exc_type=None, exc_tb=None, captureVars=None
+            ):  # pragma: no cover
+                if exc_value is None:
+                    raw_exc_info = sys.exc_info()
+                else:
+                    if exc_type is None:
+                        exc_type = type(exc_value)
+                    if exc_tb is None:
+                        exc_tb = sys.exc_info()[2]
+                    raw_exc_info = (exc_type, exc_value, exc_tb)
+                setattr(self, TWISTED_RAW_EXCINFO_ATTR, tuple(raw_exc_info))
+                try:
+                    original__init__(
+                        self, exc_value, exc_type, exc_tb, captureVars=captureVars
+                    )
+                except TypeError:  # pragma: no cover
+                    original__init__(self, exc_value, exc_type, exc_tb)
+    
+            with MonkeyPatch.context() as patcher:
+                patcher.setattr(ut.Failure, "__init__", store_raw_exception_info)
+                return (yield)
+        else:
+>           return (yield)
+                    ^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/unittest.py:475: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+item = <Function test_ambiguous_datetime_format>
+
+    @pytest.hookimpl(wrapper=True, trylast=True)
+    def pytest_runtest_protocol(item: Item) -> Generator[None, object, object]:
+        timeout = get_timeout_config_value(item.config)
+        if timeout > 0:
+            import faulthandler
+    
+            stderr = item.config.stash[fault_handler_stderr_fd_key]
+            faulthandler.dump_traceback_later(timeout, file=stderr)
+            try:
+                return (yield)
+            finally:
+                faulthandler.cancel_dump_traceback_later()
+        else:
+>           return (yield)
+                    ^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/faulthandler.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+item = <Function test_ambiguous_datetime_format>, nextitem = None
+
+    def pytest_runtest_protocol(item: Item, nextitem: Item | None) -> bool:
+        ihook = item.ihook
+        ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
+>       runtestprotocol(item, nextitem=nextitem)
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/runner.py:117: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+item = <Function test_ambiguous_datetime_format>, log = True, nextitem = None
+
+    def runtestprotocol(
+        item: Item, log: bool = True, nextitem: Item | None = None
+    ) -> list[TestReport]:
+        hasrequest = hasattr(item, "_request")
+        if hasrequest and not item._request:  # type: ignore[attr-defined]
+            # This only happens if the item is re-run, as is done by
+            # pytest-rerunfailures.
+            item._initrequest()  # type: ignore[attr-defined]
+        rep = call_and_report(item, "setup", log)
+        reports = [rep]
+        if rep.passed:
+            if item.config.getoption("setupshow", False):
+                show_test_item(item)
+            if not item.config.getoption("setuponly", False):
+>               reports.append(call_and_report(item, "call", log))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/runner.py:136: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+item = <Function test_ambiguous_datetime_format>, when = 'call', log = True
+kwds = {}
+ihook = <_pytest.config.compat.PathAwareHookProxy object at 0x7f787411b380>
+reraise = (<class '_pytest.outcomes.Exit'>, <class 'KeyboardInterrupt'>)
+
+    def call_and_report(
+        item: Item, when: Literal["setup", "call", "teardown"], log: bool = True, **kwds
+    ) -> TestReport:
+        ihook = item.ihook
+        if when == "setup":
+            runtest_hook: Callable[..., None] = ihook.pytest_runtest_setup
+        elif when == "call":
+            runtest_hook = ihook.pytest_runtest_call
+        elif when == "teardown":
+            runtest_hook = ihook.pytest_runtest_teardown
+        else:
+            assert False, f"Unhandled runtest hook case: {when}"
+        reraise: tuple[type[BaseException], ...] = (Exit,)
+        if not item.config.getoption("usepdb", False):
+            reraise += (KeyboardInterrupt,)
+>       call = CallInfo.from_call(
+            lambda: runtest_hook(item=item, **kwds), when=when, reraise=reraise
+        )
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/runner.py:245: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cls = <class '_pytest.runner.CallInfo'>
+func = <function call_and_report.<locals>.<lambda> at 0x7f77f6514c20>
+when = 'call'
+reraise = (<class '_pytest.outcomes.Exit'>, <class 'KeyboardInterrupt'>)
+
+    @classmethod
+    def from_call(
+        cls,
+        func: Callable[[], TResult],
+        when: Literal["collect", "setup", "call", "teardown"],
+        reraise: type[BaseException] | tuple[type[BaseException], ...] | None = None,
+    ) -> CallInfo[TResult]:
+        """Call func, wrapping the result in a CallInfo.
+    
+        :param func:
+            The function to call. Called without arguments.
+        :type func: Callable[[], _pytest.runner.TResult]
+        :param when:
+            The phase in which the function is called.
+        :param reraise:
+            Exception or exceptions that shall propagate if raised by the
+            function, instead of being wrapped in the CallInfo.
+        """
+        excinfo = None
+        instant = timing.Instant()
+        try:
+>           result: TResult | None = func()
+                                     ^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/runner.py:344: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>       lambda: runtest_hook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/runner.py:246: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <HookCaller 'pytest_runtest_call'>
+kwargs = {'item': <Function test_ambiguous_datetime_format>}
+firstresult = False
+
+    def __call__(self, **kwargs: object) -> Any:
+        """Call the hook.
+    
+        Only accepts keyword arguments, which should match the hook
+        specification.
+    
+        Returns the result(s) of calling all registered plugins, see
+        :ref:`calling`.
+        """
+        assert not self.is_historic(), (
+            "Cannot directly call a historic hook - use call_historic instead."
+        )
+        self._verify_all_args_are_provided(kwargs)
+        firstresult = self.spec.opts.get("firstresult", False) if self.spec else False
+        # Copy because plugins may register other plugins during iteration (#438).
+>       return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pluggy/_hooks.py:512: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_pytest.config.PytestPluginManager object at 0x7f7873f35a90>
+hook_name = 'pytest_runtest_call'
+methods = [<HookImpl plugin_name='threadexception', plugin=<module '_pytest.threadexception' from '/home/abassett/.pyenv/version...xture=None>>, <HookImpl plugin_name='logging-plugin', plugin=<_pytest.logging.LoggingPlugin object at 0x7f77f65d0620>>]
+kwargs = {'item': <Function test_ambiguous_datetime_format>}
+firstresult = False
+
+    def _hookexec(
+        self,
+        hook_name: str,
+        methods: Sequence[HookImpl],
+        kwargs: Mapping[str, object],
+        firstresult: bool,
+    ) -> object | list[object]:
+        # called from all hookcaller instances.
+        # enable_tracing will set its own wrapping function at self._inner_hookexec
+>       return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pluggy/_manager.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_pytest.logging.LoggingPlugin object at 0x7f77f65d0620>
+item = <Function test_ambiguous_datetime_format>
+
+    @hookimpl(wrapper=True)
+    def pytest_runtest_call(self, item: nodes.Item) -> Generator[None]:
+        self.log_cli_handler.set_when("call")
+    
+        with self._runtest_for(item, "call"):
+>           yield
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/logging.py:850: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <CaptureManager _method='fd' _global_capturing=None _capture_fixture=None>
+item = <Function test_ambiguous_datetime_format>
+
+    @hookimpl(wrapper=True)
+    def pytest_runtest_call(self, item: Item) -> Generator[None]:
+        with self.item_capture("call", item):
+>           return (yield)
+                    ^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/capture.py:900: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+item = <Function test_ambiguous_datetime_format>
+
+    @hookimpl(wrapper=True)
+    def pytest_runtest_call(item: Item) -> Generator[None]:
+        xfailed = item.stash.get(xfailed_key, None)
+        if xfailed is None:
+            item.stash[xfailed_key] = xfailed = evaluate_xfail_marks(item)
+    
+        if xfailed and not item.config.option.runxfail and not xfailed.run:
+            xfail("[NOTRUN] " + xfailed.reason)
+    
+        try:
+>           return (yield)
+                    ^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/skipping.py:263: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+item = <Function test_ambiguous_datetime_format>
+
+    def pytest_runtest_call(item: Item) -> None:
+        _update_current_test_var(item, "call")
+        try:
+            del sys.last_type
+            del sys.last_value
+            del sys.last_traceback
+            if sys.version_info >= (3, 12, 0):
+                del sys.last_exc  # type:ignore[attr-defined]
+        except AttributeError:
+            pass
+        try:
+>           item.runtest()
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/runner.py:178: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Function test_ambiguous_datetime_format>
+
+    def runtest(self) -> None:
+        """Execute the underlying test function."""
+>       self.ihook.pytest_pyfunc_call(pyfuncitem=self)
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/python.py:1671: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <HookCaller 'pytest_pyfunc_call'>
+kwargs = {'pyfuncitem': <Function test_ambiguous_datetime_format>}
+firstresult = True
+
+    def __call__(self, **kwargs: object) -> Any:
+        """Call the hook.
+    
+        Only accepts keyword arguments, which should match the hook
+        specification.
+    
+        Returns the result(s) of calling all registered plugins, see
+        :ref:`calling`.
+        """
+        assert not self.is_historic(), (
+            "Cannot directly call a historic hook - use call_historic instead."
+        )
+        self._verify_all_args_are_provided(kwargs)
+        firstresult = self.spec.opts.get("firstresult", False) if self.spec else False
+        # Copy because plugins may register other plugins during iteration (#438).
+>       return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pluggy/_hooks.py:512: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_pytest.config.PytestPluginManager object at 0x7f7873f35a90>
+hook_name = 'pytest_pyfunc_call'
+methods = [<HookImpl plugin_name='python', plugin=<module '_pytest.python' from '/home/abassett/.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/python.py'>>]
+kwargs = {'pyfuncitem': <Function test_ambiguous_datetime_format>}
+firstresult = True
+
+    def _hookexec(
+        self,
+        hook_name: str,
+        methods: Sequence[HookImpl],
+        kwargs: Mapping[str, object],
+        firstresult: bool,
+    ) -> object | list[object]:
+        # called from all hookcaller instances.
+        # enable_tracing will set its own wrapping function at self._inner_hookexec
+>       return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pluggy/_manager.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pyfuncitem = <Function test_ambiguous_datetime_format>
+
+    @hookimpl(trylast=True)
+    def pytest_pyfunc_call(pyfuncitem: Function) -> object | None:
+        testfunction = pyfuncitem.obj
+        if is_async_function(testfunction):
+            async_fail(pyfuncitem.nodeid)
+        funcargs = pyfuncitem.funcargs
+        testargs = {arg: funcargs[arg] for arg in pyfuncitem._fixtureinfo.argnames}
+>       result = testfunction(**testargs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/_pytest/python.py:157: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def test_ambiguous_datetime_format():
+        """Test the NYPD arrest dataset."""
+        adc = make_data_source(nypd_arrest_pq_path)  # Contains a non-ISO8601 date column
+        with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
+>           infer_feature_attributes(adc)
+
+howso/utilities/feature_attributes/tests/test_infer_feature_attributes_adc.py:539: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = <howso.connectors.abstract_data.file_data.parquet_datafile.ParquetDataFile object at 0x7f77e5399bb0>
+tables = None, time_feature_name = None, kwargs = {}
+infer = <howso.utilities.feature_attributes.abstract_data.InferFeatureAttributesAbstractData object at 0x7f77e5192750>
+
+    def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQLRelationalDatastoreProtocol, *,
+                                 tables: t.Optional[Iterable[TableNameProtocol]] = None,
+                                 time_feature_name: t.Optional[str] = None,
+                                 **kwargs
+                                 ) -> FeatureAttributesBase:
+        """
+        Return a dict-like feature attributes object with useful accessor methods.
+    
+        The returned object is a subclass of FeatureAttributesBase that is appropriate for the
+        provided data type.
+    
+        Parameters
+        ----------
+        data : Any
+            The data source to infer feature attributes from. Must be a supported data type.
+    
+        attempt_infer_extended_nominals : bool, default False
+            (Optional) If set to True, detections of extended nominals will be
+            attempted. If the detection fails, the categorical variables will
+            be set to ``int-id`` subtype.
+    
+            .. note ::
+                Please refer to ``kwargs`` for other parameters related to
+                extended nominals.
+    
+        max_rows_to_eval : int, default 10M
+            (Optional) If using a data source with streaming capabilities, sets the maximum number of
+            rows to consider when inferring feature attributes where applicable. Useful for preventing
+            excessive runtimes with very large data.
+    
+        chunk_size : int, default None
+            (Optional) The chunk size to be used in data distillation workflows. If provided, will
+            compute a candidate configuration for preserved rare values and issue a suggestion.
+    
+            .. note ::
+                See also: `preserve_rare_values_map`.
+    
+        datetime_feature_formats : dict, default None
+            (Optional) Dict defining custom (non-ISO8601) datetime or time-only formats.
+            By default, datetime features are assumed to be in ISO8601 format.  Non-English datetimes
+            must have locales specified.  If locale is omitted, the default system locale is used.
+            The keys are the feature name, and the values are a tuple of date/time format and locale
+            string. Time-only feature formats are expected to adhere to the format codes used in
+            strftime().
+    
+            Examples::
+    
+                {
+                    "start_date": ("%Y-%m-%d %A %H.%M.%S", "es_ES"),
+                    "end_date": "%Y-%m-%d",
+                    "start_time": "%H:%M:%S %p",
+                }
+    
+        default_time_zone : str, default None
+            (Optional) The fallback time zone for any datetime feature if one is not provided in
+            ``datetime_feature_formats`` and it is not inferred from the data. If not specified
+            anywhere, the Howso Engine will default to UTC.
+    
+        delta_boundaries : dict, default None
+            (Optional) For time series, specify the delta boundaries in the form
+            {"feature" : {"min|max" : {order : value}}}. Works with partial values
+            by specifying only particular order of derivatives you would like to
+            overwrite. Invalid orders will be ignored.
+    
+            Examples::
+    
+                {
+                    "stock_value": {
+                        "min": {
+                            '0' : 0.178,
+                            '1': 3.4582e-3,
+                            '2': None
+                        }
+                    }
+                }
+    
+        dependent_features : dict, optional
+            Dict mapping a feature to a list of other feature(s) that it depends on or
+            that are dependent on it. This restricts the cases that can be selected as
+            neighbors (such as in :meth:`~howso.engine.Trainee.react`) to ones that
+            satisfy the dependency, if possible. If this is not possible, either due to
+            insufficient data which satisfy the dependency or because dependencies are
+            probabilistic, the dependency may not be maintained. Be aware that dependencies
+            introduce further constraints to data and so several dependencies or dependencies
+            on already constrained datasets may restrict which operations are possible while
+            maintaining the dependency. As a rule of thumb, sets of features that have
+            dependency relationships should generally not include more than 1 continuous feature,
+            unless the continuous features have a small number of values that are commonly used.
+    
+            Examples:
+                If there's a feature name 'measurement' that contains
+                measurements such as BMI, heart rate and weight, while the
+                feature 'measurement_amount' contains the numerical values
+                corresponding to the measurement, dependent features could be
+                passed in as follows:
+    
+                .. code-block:: json
+    
+                    {
+                        "measurement": [ "measurement_amount" ]
+                    }
+    
+                Since dependence directionality is not important, this will
+                also work:
+    
+                .. code-block:: json
+    
+                    {
+                        "measurement_amount": [ "measurement" ]
+                    }
+    
+        derived_orders : dict, default None
+            (Optional) Dict of features to the number of orders of derivatives
+            that should be derived instead of synthesized. For example, for a
+            feature with a 3rd order of derivative, setting its derived_orders
+            to 2 will synthesize the 3rd order derivative value, and then use
+            that synthed value to derive the 2nd and 1st order.
+    
+        fanout_feature_map : dict of str or tuple of str to list of str, optional
+            (Optional) Dict mapping "key" feature names or tuples of "key" feature names to list of "fanout" feature names.
+            Fanout features are features with values fanned out across multiple cases. Key features are features
+            whose values can be used to select groups of cases that have the same duplicated fanout values.
+    
+        id_feature_name : str or list of str, default None
+            (Optional) The name(s) of the ID feature(s).
+    
+        include_extended_nominal_probabilities : bool, default False
+            (Optional) If true, extended nominal probabilities will be appended
+            as metadata into the feature object.
+    
+        include_sample: bool, default False
+            If True, include a ``sample`` field containing a sample of the data
+            from each feature in the output feature attributes dictionary.
+    
+        infer_bounds : bool, default True
+            (Optional) If True, bounds will be inferred for the features if the
+            feature column has at least one non NaN value
+    
+        lags : list or dict, default None
+            (Optional) A list containing the specific indices of the desired lag
+            features to derive for each feature (not including the series time
+            feature). Specifying derived lag features for the feature specified by
+            time_feature_name must be done using a dictionary. A dictionary can be
+            used to specify a list of specific lag  indices for specific features.
+            For example: {"feature1": [1, 3, 5]} would derive three different
+            lag features for feature1. The resulting lag features hold values
+            1, 3, and 5 timesteps behind the current timestep respectively.
+    
+            .. note ::
+                Using the lags parameter will override the num_lags parameter per
+                feature
+    
+            .. note ::
+                A lag feature is a feature that provides a "lagging value" to a
+                case by holding the value of a feature from a previous timestep.
+                These lag features allow for cases to hold more temporal information.
+    
+        max_workers: int, default None
+            If unset or set to None (recommended), let the ProcessPoolExecutor
+            choose the best maximum number of process pool workers to process
+            columns in a multi-process fashion. In this case, if the product of the
+            data's rows and columns > 25,000,000 or if the data is time series and the
+            number of rows > 500,000 multiprocessing will be used.
+    
+            If defined with an integer > 0, manually set the number of max workers.
+            Otherwise, the feature attributes will be calculated serially. Setting
+            this parameter to zero (0) will disable multiprocessing.
+    
+        memory_warning_threshold : int, default 512
+            (Optional) Maximum number of bytes that a feature's per-case average can compute to
+            without raising a warning about memory usage (Pandas DataFrame only).
+    
+        mode_bound_features : list of str, default None
+            (Optional) Explicit list of feature names to use mode bounds for
+            when inferring loose bounds. If None, assumes all features. A mode
+            bound is used instead of a loose bound when the mode for the
+            feature is the same as an original bound, as it may represent an
+            application-specific min/max.
+    
+        nominal_substitution_config : dict of dicts, default None
+            (Optional) Configuration of the nominal substitution engine
+            and the nominal generators and detectors.
+    
+        num_lags : int or dict, default None
+            (Optional) An integer specifying the number of lag features to
+            derive for each feature (not including the series time feature).
+            Specifying derived lag features for the feature specified by
+            time_feature_name must be done using a dictionary. A dictionary can be
+            used to specify numbers of lags for specific features. Features that
+            are not specified will default to 1 lag feature.
+    
+            .. note ::
+                The num_lags parameter will be overridden by the lags parameter per
+                feature.
+    
+        orders_of_derivatives : dict, default None
+            (Optional) Dict of features and their corresponding order of
+            derivatives for the specified type (delta/rate). If provided will
+            generate the specified number of derivatives and boundary values. If
+            set to 0, will not generate any delta/rate features. By default all
+            continuous features have an order value of 1.
+    
+        ordinal_feature_values : dict, default None
+            (optional) Dict for ordinal string features defining an ordered
+            list of string values for each feature, ordered low to high. If
+            specified will set 'type' to be 'ordinal' for all features in
+            this map.
+    
+            Example::
+    
+                {
+                    "grade" : [ "F", "D", "C", "B", "A" ],
+                    "size" : [ "small", "medium", "large", "huge" ]
+                }
+    
+        preserve_rare_values_map : dict or "all", default None
+            (Optional) If `chunk_size` has been provided, a map of feature name to values that should
+            be protected during data distillation. If set to "all", will infer and attempt to preserve
+            all detected rare values.
+    
+        rate_boundaries : dict, default None
+            (Optional) For time series, specify the rate boundaries in the form
+            {"feature" : {"min|max" : {order : value}}}. Works with partial values
+            by specifying only particular order of derivatives you would like to
+            overwrite. Invalid orders will be ignored.
+    
+            Examples::
+    
+                {
+                    "stock_value": {
+                        "min": {
+                            '0' : 0.178,
+                            '1': 3.4582e-3,
+                            '2': None
+                        }
+                    }
+                }
+    
+        preserve_rare_values_config : dict, default None
+            (Optional) A map of feature name to a list of dict specifying a protected value and
+            a case weight multiplier. Enables case weight rebalancing for data distillation workflows
+            such that protected values do not lose signal. Compute automatically by providing
+            `chunk_size`, and optionally `preserve_rare_values_map` for a fine-grained selection of
+            protected values to preserve.
+    
+            Example::
+    
+                {
+                    "feature_a": [
+                        {"value": "x", "multiplier": 3},
+                        {"value": "y", "multiplier": 150}
+                    ]
+                }
+    
+        significance_threshold : int, default 30
+            (Optional) If `chunk_size` has been provided, the threshold of cases per chunk that is
+            expected to result in a signal for preserved rare values during data distillation.
+    
+        tables : Iterable of TableNameProtocol
+            (Optional, required for datastores) An Iterable of table names to
+            infer feature attributes for.
+    
+            If included, feature attributes will be generated in the form
+            ``{table_name: {feature_attribute: value}}``.
+    
+        tight_bounds: Iterable of str, default None
+            (Optional) Set tight min and max bounds for the features
+            specified in the Iterable.
+    
+        time_feature_is_universal : bool, optional
+            If True, the time feature will be treated as universal and future data
+            is excluded while making predictions. If False, the time feature will
+            not be treated as universal and only future data within the same series
+            is excluded while making predictions. It is recommended to set this
+            value to True if there is any possibility of global relevancy of time,
+            which is the default behavior.
+    
+        time_feature_name : str, default None
+            (Optional, required for time series) The name of the time feature.
+    
+        time_invariant_features : list of str, default None
+            (Optional) Names of time-invariant features. If none are provided, they will be
+            inferred automatically.
+    
+        time_series_type_default : str, default 'rate'
+            (Optional) Type specifying how time series is generated.
+            One of 'rate', 'delta', or 'covariate'. Default is 'rate'. If 'rate',
+            it uses the difference of the current value from its
+            previous value divided by the change in time since the
+            previous value. When 'delta' is specified, just uses
+            the difference of the current value from its previous value
+            regardless of the elapsed time. When 'covariate' is specified,
+            feature values are predicted via interpolation at each timestep
+            rather than being derived using a delta or rate.
+    
+        time_series_types_override : dict, default None
+            (Optional) Dict of features and their corresponding time series type,
+            one of 'rate', 'delta', or 'covariate'. Used to override ``time_series_type_default``
+            for the specified features.
+    
+        types: dict, default None
+            (Optional) Dict of features and their intended type (i.e., "nominal,"
+            "ordinal," or "continuous"), or types mapped to MutableSequences of
+            feature names. Any types provided here will override the types that would
+            otherwise be inferred, and will direct ``infer_feature_attributes`` to
+            compute the attributes accordingly.
+    
+            Example::
+    
+                {
+                    "feature_1": "nominal",
+                    "feature_2": "ordinal",
+                    "continuous": ["feature_3", "feature_4", "feature_5"]
+                }
+    
+        Returns
+        -------
+        FeatureAttributesBase
+            A subclass of ``FeatureAttributesBase`` (Single/MultiTableFeatureAttributes)
+            that extends ``dict``, thus providing dict-like access to feature
+            attributes and useful accessor methods.
+    
+        Examples
+        --------
+        .. code-block:: python
+    
+            # 'data' is a DataFrame
+            >> attrs = infer_feature_attributes(data)
+            # Can access feature attributes like a dict
+            >> attrs
+                {
+                    "feature_one": {
+                        "type": "continuous",
+                        "bounds": {"allow_null": True},
+                    },
+                    "feature_two": {
+                        "type": "nominal",
+                    }
+                }
+            >> attrs["feature_one"]
+                {
+                    "type": "continuous",
+                    "bounds": {"allow_null": True}
+                }
+            # Or can call methods to do other stuff
+            >> attrs.get_parameters()
+                {'type': "continuous"}
+    
+            # Now 'data' is an object that implements SQLRelationalDatastoreProtocol
+            >> attrs = infer_feature_attributes(data, tables)
+            >> attrs
+                {
+                    "table_1": {
+                        "feature_one": {
+                            "type": "continuous",
+                            "bounds": {"allow_null": True},
+                        },
+                        "feature_two": {
+                            "type": "nominal",
+                        }
+                    },
+                    "table_2" : {...},
+                }
+            >> attrs.to_json()
+                '{"table_1" : {...}}'
+    
+        """
+        # Check if time series attributes should be calculated
+        if time_feature_name:
+            if isinstance(data, pd.DataFrame):
+                infer = IFATimeSeriesPandas(data, time_feature_name)
+            elif isinstance(data, IFACompatibleADCProtocol):
+                infer = IFATimeSeriesADC(data, time_feature_name)
+            else:
+                raise NotImplementedError('`infer_feature_attributes` for time series only supported for DataFrames and '
+                                          'AbstractData classes.')
+        elif time_feature_name:
+            raise ValueError("'time_feature_name' was included, but 'data' must be of type DataFrame "
+                             "for time series feature attributes to be calculated.")
+        # Else, check data type
+        elif isinstance(data, pd.DataFrame):
+            infer = InferFeatureAttributesDataFrame(data)
+        elif isinstance(data, SQLRelationalDatastoreProtocol):
+            if tables is None:
+                raise TypeError("'tables' is a required parameter if 'data' implements "
+                                "SQLRelationalDatastoreProtocol.")
+            infer = InferFeatureAttributesSQLDatastore(data, tables)
+        elif isinstance(data, IFACompatibleADCProtocol):
+            infer = InferFeatureAttributesAbstractData(data)
+        else:
+            raise NotImplementedError('Data not recognized as a DataFrame, AbstractData class, or compatible datastore.')
+    
+>       return infer(**kwargs)
+               ^^^^^^^^^^^^^^^
+
+howso/utilities/feature_attributes/infer_feature_attributes.py:408: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <howso.utilities.feature_attributes.abstract_data.InferFeatureAttributesAbstractData object at 0x7f77e5192750>
+kwargs = {}
+
+    def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
+        """Process and return feature attributes."""
+        # For Spark compute types, multiprocessing is less-performant.
+        # If we're working with the SparkDataFrameData ADC, unless the user
+        # specifically sets `max_workers`, we want "sharding" disabled.
+        if (
+            isinstance(AbstractData, type) and
+            isinstance(self.data, AbstractData) and
+            getattr(self.data, "_NATIVE_COMPUTE_TYPE", None) == "spark" and
+            ("max_workers" not in kwargs or kwargs["max_workers"] is None)
+        ):
+            kwargs["max_workers"] = 1
+>       feature_attributes = self._process(**kwargs)
+                             ^^^^^^^^^^^^^^^^^^^^^^^
+
+howso/utilities/feature_attributes/abstract_data.py:91: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <howso.utilities.feature_attributes.abstract_data.InferFeatureAttributesAbstractData object at 0x7f77e5192750>
+attempt_infer_extended_nominals = False, chunk_size = None
+datetime_feature_formats = {}, default_time_zone = None, dependent_features = {}
+fanout_feature_map = None, id_feature_name = None
+include_extended_nominal_probabilities = False, include_sample = False
+infer_bounds = True, max_rows_to_eval = 10000000, max_workers = None
+memory_warning_threshold = 512, mode_bound_features = None, num_series = 1
+nominal_substitution_config = None, ordinal_feature_values = {}
+preserve_rare_values_map = None, preserve_rare_values_config = None
+significance_threshold = 30, tight_bounds = None, types = None
+
+    def _process(self,  # noqa: C901
+                 attempt_infer_extended_nominals: bool = False,
+                 chunk_size: int = None,
+                 datetime_feature_formats: t.Optional[dict] = None,
+                 default_time_zone: t.Optional[str] = None,
+                 dependent_features: t.Optional[dict[str, list[str]]] = None,
+                 fanout_feature_map: t.Optional[dict[tuple[str] | str, list[str]]] = None,
+                 id_feature_name: t.Optional[str | Iterable[str]] = None,
+                 include_extended_nominal_probabilities: t.Optional[bool] = False,
+                 include_sample: bool = False,
+                 infer_bounds: bool = True,
+                 max_rows_to_eval: int = 10_000_000,
+                 max_workers: t.Optional[int] = None,
+                 memory_warning_threshold: t.Optional[int] = 512,
+                 mode_bound_features: t.Optional[Iterable[str]] = None,
+                 num_series: t.Optional[int] = 1,
+                 nominal_substitution_config: t.Optional[dict[str, dict]] = None,
+                 ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
+                 preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"] = None,
+                 preserve_rare_values_config: PreserveRareValuesConfig = None,
+                 significance_threshold: int = 30,
+                 tight_bounds: t.Optional[Iterable[str]] = None,
+                 types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
+                 ) -> dict:
+        """
+        Get inferred feature attributes for the parameters.
+    
+        See ``infer_feature_attributes`` for full docstring.
+        """
+        self.attributes = FeatureAttributesBase({})
+    
+        if datetime_feature_formats is None:
+            datetime_feature_formats = dict()
+    
+        self.datetime_feature_formats = datetime_feature_formats
+    
+        # If not set by an external caller (e.g., InferFeatureAttributesTimeSeries), set a default
+        if not hasattr(self, "_time_invariant_features"):
+            self._time_invariant_features = []
+    
+        if ordinal_feature_values is None:
+            ordinal_feature_values = dict()
+    
+        if dependent_features is None:
+            dependent_features = dict()
+    
+        self.default_time_zone = default_time_zone
+    
+        self.num_series = num_series
+    
+        if isinstance(id_feature_name, str):
+            self.id_feature_names = [id_feature_name]
+        elif isinstance(id_feature_name, Iterable):
+            self.id_feature_names = id_feature_name
+        elif id_feature_name is not None:
+            raise ValueError('ID feature must be of type `str` or `list[str], '
+                             f'not {type(id_feature_name)}.')
+        else:
+            self.id_feature_names = []
+    
+        # Preprocess user-defined feature types
+        preset_types = {}
+        # Check the `types` argument
+        if types:
+            # Can be either str -> str or str -> Iterable[str]
+            for k, v in types.items():
+                if isinstance(v, MutableSequence):
+                    for feat_name in v:
+                        # The feature might not be present if this is executed under multiprocessing
+                        if feat_name in self.data.columns:
+                            preset_types[feat_name] = {'type': k}
+                else:
+                    # The feature might not be present if this is executed under multiprocessing
+                    if k in self.data.columns:
+                        preset_types[k] = {'type': v}
+    
+        # Make updates with the `merge` function
+        merge = FeatureAttributesBase.merge
+    
+        # If any ordinals were specified in *both* `types` and `ordinal_feature_values`,
+        # set the bounds from `ordinal_feature_values` first else `merge` will raise an
+        # error about missing bounds.
+        pre_processed_ordinals = []
+        for feat_name in preset_types:
+            if feat_name in ordinal_feature_values:
+                self.attributes = merge(self.attributes, {feat_name: {
+                    'type': 'ordinal',
+                    'bounds': {'allowed': ordinal_feature_values[feat_name]}
+                }})
+                pre_processed_ordinals.append(feat_name)
+    
+        # Update the feature attributes dictionary with the user-defined base types
+        self.attributes = merge(self.attributes, preset_types)
+    
+        feature_names_list = self._get_feature_names()
+        for feature_name in feature_names_list:
+            # What type is this feature?
+>           feature_type, typing_info = self._get_feature_type(feature_name)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+howso/utilities/feature_attributes/base.py:884: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <howso.utilities.feature_attributes.abstract_data.InferFeatureAttributesAbstractData object at 0x7f77e5192750>
+feature_name = 'ARREST_DATE'
+
+    def _get_feature_type(self, feature_name: str  # noqa: C901
+                          ) -> tuple[FeatureType | None, dict | None]:
+        # Import this here to avoid circular import
+        from howso.client.exceptions import HowsoError
+    
+        dtype = self.data.get_column_dtype(feature_name)
+    
+        # Some ADCs will return the string representation of the dtype.
+        # Convert to NumPy DType so that we can access attributes like 'itemsize.'
+        if isinstance(dtype, str):
+            try:
+                dtype = np.dtype(dtype)
+            except Exception:
+                # If there is a problem, leave as-is
+                pass
+        try:
+            if is_float_dtype(dtype):
+                typing_info = {}
+                if itemsize := getattr(dtype, 'itemsize', None):
+                    if itemsize > 8:
+                        raise HowsoError(
+                            f'Unsupported data type "{dtype}" found for '
+                            f'feature "{feature_name}", Howso does not '
+                            'currently support numbers larger than 64-bit.')
+                    typing_info['size'] = itemsize
+    
+                return FeatureType.NUMERIC, typing_info
+    
+            elif is_integer_dtype(dtype):
+                typing_info = {}
+                if itemsize := getattr(dtype, 'itemsize', None):
+                    typing_info['size'] = itemsize
+                if is_unsigned_integer_dtype(dtype):
+                    typing_info['unsigned'] = True
+    
+                return FeatureType.INTEGER, typing_info
+    
+            elif is_datetime64_any_dtype(dtype):
+                typing_info = {}
+                if dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
+                    return FeatureType.DATE, {}
+                elif isinstance(dtype, pd.DatetimeTZDtype):
+                    # If using a named time zone capture it, otherwise
+                    # rely on the offset in the iso8601 format
+                    tz_name = getattr(dtype.tz, 'key', None) or getattr(dtype.tz, 'zone', None)
+                    if tz_name:
+                        typing_info['timezone'] = tz_name
+                return FeatureType.DATETIME, typing_info
+    
+            elif is_timedelta64_dtype(dtype):
+                # All time deltas will be converted to seconds
+                return FeatureType.TIMEDELTA, {'unit': 'seconds'}
+    
+            elif is_bool_dtype(dtype) or self._is_boolean_feature(feature_name):
+                return FeatureType.BOOLEAN, {}
+    
+            elif np.issubdtype(dtype, np.character):
+                if getattr(dtype, 'kind', None) != 'U':
+                    warnings.warn(
+                        f'The column "{feature_name}" contained bytes, original '
+                        'encoding of this column cannot be guaranteed.'
+                    )
+                return FeatureType.STRING, {}
+        except ValueError:  # Some of the above checks may not play nice with all dtypes
+            pass
+    
+        # Try to determine feature type by inspecting the data
+        # DataFrames may use 'object' dtype for strings, detect
+        # string columns by checking the type of the data
+        random_value = self._get_random_value(feature_name, no_nulls=True)
+        # There's nothing to determine, let it be STRING
+        if random_value is None:
+            return FeatureType.STRING, {}
+    
+        # Remove any whitespace characters from either end.
+        if isinstance(random_value, str):
+            random_value = random_value.strip()
+    
+            max_samples = max(5, self._get_num_cases(feature_name))
+            num_samples = 1
+            while num_samples <= max_samples:
+                # First, determine if the string resembles common time-only formats
+                if re.match(TIME_PATTERN, random_value) or re.match(SIMPLE_TIME_PATTERN, random_value):
+                    return FeatureType.TIME, {}
+                # If this doesn't contain numbers, then report it as a string.
+                if random_value and not any(c.isnumeric() for c in random_value):
+                    return FeatureType.STRING, {}
+                # explicitly declared formatted_date_time/time; don't try to guess
+                if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is not None:
+                    return FeatureType.STRING, {}  # Could be datetime or time-only; let base.py figure it out
+                # Depending on the data source, datetimes/timedeltas could easily be strings.
+                # See if the string can be converted to a Pandas datetime/timedelta.
+                try:
+                    # If the feature looks like a date or datetime, but it's not in ISO8601 format,
+                    # handle it as a string to avoid ambiguity.
+                    converted_dtype = pd.to_datetime(pd.Series([random_value])).dtype
+                    converted_val = pd.to_datetime(random_value)
+                    if self._is_iso8601_datetime_column(feature_name):
+                        # Unfortunately, Pandas does not differentiate between datetimes and "pure" dates.
+                        # If the below code executes, that means Pandas recognizes the value as a datetime,
+                        # but we now need to check if the 'time' component is zero. If so, we can cast to
+                        # a Numpy datetime64[D] dtype.
+                        #
+                        # However, we need to be careful with this -- if the user has a datetime feature of the format
+                        # '%y-%m-%d', for example, the to_datetime() conversion above will add an empty time component
+                        # as previously described. But, if the user has a datetime feature that *actually* has an empty
+                        # time component in the string; for example, '%y-%m-%dT00:00:00', we must respect the original
+                        # format even if it is intended to be a date-only feature.
+                        if all([converted_val.time() == pd.Timestamp(0).time(),
+                                converted_val.tz is None,
+                                # Ensure there is no time component in the unconverted string
+                                'T' not in random_value,
+                                '00:00:00' not in random_value]):
+                            converted_dtype = np.datetime64(converted_val, 'D').dtype
+                        typing_info = {}
+                        if converted_dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
+                            return FeatureType.DATE, {}
+                        elif isinstance(converted_dtype, pd.DatetimeTZDtype):
+                            # If using a named time zone capture it, otherwise
+                            # rely on the offset in the iso8601 format
+                            tz_name = getattr(converted_dtype.tz, 'key', None) or getattr(converted_dtype.tz, 'zone',
+                                                                                          None)
+                            if tz_name:
+                                typing_info['timezone'] = tz_name
+                        return FeatureType.DATETIME, typing_info
+                    else:
+                        # Only add this to the warning list if we've tried `max_samples` times to
+                        # find another reason to set it as something else.
+                        if num_samples >= max_samples:
+                            self.warnings_collector.triage(
+                                IFAWarningEmitterType.UNKNOWN_DATETIME_FORMAT, feature_name)
+                            return FeatureType.STRING, {}
+                except Exception:
+                    return FeatureType.STRING, {}
+    
+                # Get a new non-null, stripped random value.
+>               random_value = str(self._get_random_value(feature_name, no_nulls=True)).strip()
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+howso/utilities/feature_attributes/abstract_data.py:288: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <howso.utilities.feature_attributes.abstract_data.InferFeatureAttributesAbstractData object at 0x7f77e5192750>
+feature_name = 'ARREST_DATE', no_nulls = True
+
+    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
+        """
+        Return a random sample from the given column.
+    
+        The return type is determined by the column type.
+    
+        if `no_nulls` is set, select a random value from the set of non-null
+        values, if any. If there are no such non-nulls, this will return None.
+        """
+>       return self.data.get_random_value(feature_name, no_nulls=no_nulls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+howso/utilities/feature_attributes/abstract_data.py:362: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <howso.connectors.abstract_data.file_data.parquet_datafile.ParquetDataFile object at 0x7f77e5399bb0>
+column_name = 'ARREST_DATE', no_nulls = True, count = 1
+
+    def get_random_value(self, column_name: Hashable, no_nulls: bool = False, count: int = 1) -> Any | list[Any]:
+        """
+        Return one or more random samples from the given column.
+    
+        Parameters
+        ----------
+        column_name : Hashable
+            The name of the column of the data to operate on.
+        no_nulls : bool, default False
+            If `no_nulls` is set, select random values from the set of
+            non-null values, if any. If there are no such non-nulls, returns
+            None when count=1, or an empty list when count>1.
+        count : int, default 1
+            The number of random values to sample. When 1 (default), returns
+            a single value. When greater than 1, returns a list of up to
+            `count` values.
+    
+        Returns
+        -------
+        Any
+            When count=1, a single random value from the given column. The
+            return type is determined by the column type.
+        list[Any]
+            When count>1, a list of up to `count` random values from the
+            given column.
+        """
+        # First pass: count eligible rows by streaming chunks
+        total = 0
+>       for chunk in self.yield_chunk():
+
+../howso-engine-connectors-py/howso/connectors/abstract_data/file_data/base.py:216: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <howso.connectors.abstract_data.file_data.parquet_datafile.ParquetDataFile object at 0x7f77e5399bb0>
+chunk_size = 5000
+
+    def yield_chunk(
+        self,
+        chunk_size: int = 5000,
+        *,
+        maintain_natural_order: bool = False,
+        max_chunks: int | None = None,
+        skip_chunks: int | None = None,
+        seed: int | None = None,
+    ) -> Iterator[pd.DataFrame]:
+        """
+        Yield ``chunk_size`` data frames from the data file.
+    
+        Parameters
+        ----------
+        chunk_size : int, default 5,000
+            The size of the chunks to yield.
+        maintain_natural_order : bool, default False
+            If True, chunks are yielded in their natural order without any
+            shuffling. When this is True, the seed parameter is ignored.
+        max_chunks : int, optional
+            If provided, the maximum number of chunks to yield.
+        skip_chunks : int, default 0
+            The number of chunks to skip before yielding.
+        seed : int, optional
+            A non-negative integer from 0 to 2**32 - 1 to serve as a random
+            state. By providing the same seed, chunks yielded with the same
+            chunk_size will be identical to previous runs. Ignored if
+            maintain_natural_order is True.
+    
+        Yields
+        ------
+        df
+            The chunk as a Pandas DataFrame.
+        """
+        # This default implementation uses yield_variable_length_chunks(), but
+        # implementations are free to provide an alternate path if fixed-size
+        # chunking can be done more efficiently.
+        max_rows = max_chunks * chunk_size if max_chunks is not None else None
+        skip_chunks = skip_chunks or 0
+        skip_rows = skip_chunks * chunk_size
+        gen = self.yield_variable_length_chunks(
+            chunk_size,
+            maintain_natural_order=maintain_natural_order,
+            max_rows=max_rows,
+            skip_rows=skip_rows,
+            seed=seed,
+        )
+        try:
+            yield next(gen)
+            while True:
+>               yield gen.send(chunk_size)
+                      ^^^^^^^^^^^^^^^^^^^^
+
+../howso-engine-connectors-py/howso/connectors/abstract_data/abstract_data.py:371: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <howso.connectors.abstract_data.file_data.parquet_datafile.ParquetDataFile object at 0x7f77e5399bb0>
+initial_chunk_size = 5000
+
+    @override  # AbstractDataFile
+    def yield_variable_length_chunks(  # noqa: PLR0912
+        self,
+        initial_chunk_size: int = 100,
+        *,
+        maintain_natural_order: bool = False,
+        max_rows: int | None = None,
+        skip_rows: int = 0,
+        seed: int | None = None
+    ) -> Generator[pd.DataFrame, int]:
+        """
+        Yield variable-length data frames from the data file.
+    
+        Supports streaming from any fsspec-supported filesystem.
+    
+        This returns a bidirectional generator.  It produces DataFrames on
+        demand without re-scanning the entire file for offsets.  Call
+        ``next(gen)`` or ``gen.send(None)`` to get the first chunk of data.
+        For each subsequent chunk, ``gen.send(n)`` will return a chunk of
+        the specified length, or raise `StopIteration` at the end of the data
+        stream.
+    
+        Parameters
+        ----------
+        initial_chunk_size : int, default 100
+            The size of the first chunk.
+        maintain_natural_order : bool, default False
+            If True, chunks are yielded in their natural order without any
+            shuffling. When this is True, the seed parameter is ignored.
+        max_rows : int, optional
+            If provided, the maximum number of rows to yield across all chunks.
+        skip_rows : int, default 0
+            The number of rows to skip before the first chunk.
+        seed : int, optional
+            A non-negative integer from 0 to 2**32 - 1 to serve as a random
+            state. By providing the same seed, chunks yielded with the same
+            chunk_size will be identical to previous runs. Ignored if
+            maintain_natural_order is True.
+    
+        Yields
+        ------
+        pd.DataFrame
+            The chunk as a Pandas DataFrame.
+    
+        Receives
+        --------
+        int
+            The length of the next chunk.
+    
+        Notes
+        -----
+        When shuffling is enabled, this method first builds a lightweight map
+        of all row groups and their sizes, creates a shuffled global index
+        array, then fetches rows on-demand by row group. This enables true
+        global shuffling while being memory-efficient.
+        """
+        # Build a map of all row groups: list of (fragment, rg_idx, num_rows)
+        # and compute cumulative row starts for global index mapping
+        row_group_info: list[tuple[Any, int, int]] = []  # (fragment, rg_idx, num_rows)
+        row_group_starts: list[int] = []  # cumulative start index for each row group
+        total_rows = 0
+    
+        for fragment in self._dataset_metadata.get_fragments():
+            frag_meta = fragment.metadata
+            for rg_idx in range(frag_meta.num_row_groups):
+                rg_num_rows = frag_meta.row_group(rg_idx).num_rows
+                row_group_info.append((fragment, rg_idx, rg_num_rows))
+                row_group_starts.append(total_rows)
+                total_rows += rg_num_rows
+    
+        if total_rows == 0:
+            return
+    
+        # Convert to numpy array for efficient searchsorted
+        row_group_starts_arr = np.array(row_group_starts, dtype=np.int64)
+    
+        limit = min(total_rows, skip_rows + max_rows) if max_rows else total_rows
+        chunk_size = initial_chunk_size
+    
+        # Create shuffled indices for true global shuffle
+        if maintain_natural_order:
+            indices = np.arange(total_rows, dtype=np.int64)
+        else:
+            rng = np.random.default_rng(seed=seed)
+            indices = rng.permutation(total_rows).astype(np.int64)
+    
+        # Cache loaded row groups to avoid re-reading
+        rg_cache: dict[int, pd.DataFrame] = {}
+    
+        offset = skip_rows
+        while offset < limit:
+            end = min(offset + chunk_size, limit)
+            chunk_indices = indices[offset:end]
+    
+            # Map global indices to (row_group_idx, local_offset)
+            rg_indices = np.searchsorted(row_group_starts_arr, chunk_indices, side="right") - 1
+    
+            # Group by row group for efficient fetching
+            rows_by_rg: dict[int, list[tuple[int, int]]] = {}  # rg_idx -> [(chunk_pos, local_offset), ...]
+            for chunk_pos, (global_idx, rg_idx) in enumerate(zip(chunk_indices, rg_indices, strict=True)):
+                local_offset = int(global_idx - row_group_starts_arr[rg_idx])
+                rows_by_rg.setdefault(int(rg_idx), []).append((chunk_pos, local_offset))
+    
+            # Load needed row groups and extract rows
+            chunk_rows: list[tuple[int, pd.Series]] = []  # (chunk_pos, row)
+            for rg_idx, positions in rows_by_rg.items():
+                # Load row group if not cached
+                if rg_idx not in rg_cache:
+                    fragment, frag_rg_idx, _ = row_group_info[rg_idx]
+                    path = fragment.path
+                    with self._fs.open(path, "rb") as f:
+                        pf = pq.ParquetFile(f)
+                        rg_table = pf.read_row_group(frag_rg_idx)
+                        rg_cache[rg_idx] = rg_table.to_pandas()
+    
+                rg_df = rg_cache[rg_idx]
+                for chunk_pos, local_offset in positions:
+>                   chunk_rows.append((chunk_pos, rg_df.iloc[local_offset]))
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+../howso-engine-connectors-py/howso/connectors/abstract_data/file_data/parquet_dataset.py:986: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pandas.core.indexing._iLocIndexer object at 0x7f77ca260410>, key = 13742
+
+    @final
+    def __getitem__(self, key):
+        check_dict_or_set_indexers(key)
+        if type(key) is tuple:
+            key = tuple(list(x) if is_iterator(x) else x for x in key)
+            key = tuple(com.apply_if_callable(x, self.obj) for x in key)
+            if self._is_scalar_access(key):
+                return self.obj._get_value(*key, takeable=self._takeable)
+            return self._getitem_tuple(key)
+        else:
+            # we by definition only have the 0th axis
+            axis = self.axis or 0
+    
+            maybe_callable = com.apply_if_callable(key, self.obj)
+            maybe_callable = self._check_deprecated_callable_usage(key, maybe_callable)
+>           return self._getitem_axis(maybe_callable, axis=axis)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pandas/core/indexing.py:1192: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pandas.core.indexing._iLocIndexer object at 0x7f77ca260410>, key = 13742
+axis = 0
+
+    def _getitem_axis(self, key, axis: AxisInt):
+        if key is Ellipsis:
+            key = slice(None)
+        elif isinstance(key, ABCDataFrame):
+            raise IndexError(
+                "DataFrame indexer is not allowed for .iloc\n"
+                "Consider using .loc for automatic alignment."
+            )
+    
+        if isinstance(key, slice):
+            return self._get_slice_axis(key, axis=axis)
+    
+        if is_iterator(key):
+            key = list(key)
+    
+        if isinstance(key, list):
+            key = np.asarray(key)
+    
+        if com.is_bool_indexer(key):
+            self._validate_key(key, axis)
+            return self._getbool_axis(key, axis=axis)
+    
+        # a list of integers
+        elif is_list_like_indexer(key):
+            return self._get_list_axis(key, axis=axis)
+    
+        # a single integer
+        else:
+            key = item_from_zerodim(key)
+            if not is_integer(key):
+                raise TypeError("Cannot index by location index with a non-integer key")
+    
+            # validate the location
+            self._validate_integer(key, axis)
+    
+>           return self.obj._ixs(key, axis=axis)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pandas/core/indexing.py:1755: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self =        ARREST_KEY ARREST_DATE  PD_CD  ... Y_COORD_CD   Latitude  Longitude
+0       157300724  10/04/2016  922.0  ...  ...610931 -73.920761
+24999   183164664  05/27/2018  905.0  ...   248480.0  40.848674 -73.917797
+
+[25000 rows x 18 columns]
+i = 13742, axis = 0
+
+    def _ixs(self, i: int, axis: AxisInt = 0) -> Series:
+        """
+        Parameters
+        ----------
+        i : int
+        axis : int
+    
+        Returns
+        -------
+        Series
+        """
+        # irow
+        if axis == 0:
+>           new_mgr = self._mgr.fast_xs(i)
+                      ^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pandas/core/frame.py:4007: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = BlockManager
+Items: Index(['ARREST_KEY', 'ARREST_DATE', 'PD_CD', 'PD_DESC', 'KY_CD', 'OFNS_DESC',
+       'LAW_CODE', '...k: [ 1  3  5  6  7  8 11 12 13], 9 x 25000, dtype: object
+NumpyBlock: [ 2  4 10 14 15 16 17], 7 x 25000, dtype: float64
+loc = 13742
+
+    def fast_xs(self, loc: int) -> SingleBlockManager:
+        """
+        Return the array corresponding to `frame.iloc[loc]`.
+    
+        Parameters
+        ----------
+        loc : int
+    
+        Returns
+        -------
+        np.ndarray or ExtensionArray
+        """
+        if len(self.blocks) == 1:
+            # TODO: this could be wrong if blk.mgr_locs is not slice(None)-like;
+            #  is this ruled out in the general case?
+            result = self.blocks[0].iget((slice(None), loc))
+            # in the case of a single block, the new block is a view
+            bp = BlockPlacement(slice(0, len(result)))
+            block = new_block(
+                result,
+                placement=bp,
+                ndim=1,
+                refs=self.blocks[0].refs,
+            )
+            return SingleBlockManager(block, self.axes[0])
+    
+>       dtype = interleaved_dtype([blk.dtype for blk in self.blocks])
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pandas/core/internals/managers.py:1003: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+dtypes = [dtype('int64'), dtype('O'), dtype('float64')]
+
+    def interleaved_dtype(dtypes: list[DtypeObj]) -> DtypeObj | None:
+        """
+        Find the common dtype for `blocks`.
+    
+        Parameters
+        ----------
+        blocks : List[DtypeObj]
+    
+        Returns
+        -------
+        dtype : np.dtype, ExtensionDtype, or None
+            None is returned when `blocks` is empty.
+        """
+        if not len(dtypes):
+            return None
+    
+>       return find_common_type(dtypes)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pandas/core/internals/base.py:394: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+types = [dtype('int64'), dtype('O'), dtype('float64')]
+
+    def find_common_type(types):
+        """
+        Find a common data type among the given dtypes.
+    
+        Parameters
+        ----------
+        types : list of dtypes
+    
+        Returns
+        -------
+        pandas extension or numpy dtype
+    
+        See Also
+        --------
+        numpy.find_common_type
+    
+        """
+        if not types:
+            raise ValueError("no types given")
+    
+        first = types[0]
+    
+        # workaround for find_common_type([np.dtype('datetime64[ns]')] * 2)
+        # => object
+        if lib.dtypes_all_equal(list(types)):
+            return first
+    
+        # get unique types (dict.fromkeys is used as order-preserving set())
+        types = list(dict.fromkeys(types).keys())
+    
+        if any(isinstance(t, ExtensionDtype) for t in types):
+            for t in types:
+                if isinstance(t, ExtensionDtype):
+                    res = t._get_common_dtype(types)
+                    if res is not None:
+                        return res
+            return np.dtype("object")
+    
+        # take lowest unit
+        if all(lib.is_np_dtype(t, "M") for t in types):
+            return np.dtype(max(types))
+>       if all(lib.is_np_dtype(t, "m") for t in types):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pandas/core/dtypes/cast.py:1485: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x7f77ca779480>
+
+>   if all(lib.is_np_dtype(t, "m") for t in types):
+E   KeyboardInterrupt
+
+../../.pyenv/versions/3.12.1/envs/engine-py-3.12/lib/python3.12/site-packages/pandas/core/dtypes/cast.py:1485: KeyboardInterrupt
+====================== no tests ran in 140.24s (0:02:20) =======================
