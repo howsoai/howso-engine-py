@@ -350,16 +350,16 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             df.drop(index=0, inplace=True)
         return df
 
-    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
+    def _get_random_value(self, feature_name: str, no_nulls: bool = False, count: int = 1) -> t.Any | None:
         """
-        Return a random sample from the given column.
+        Return `count` random sample(s) from the given column.
 
         The return type is determined by the column type.
 
         if `no_nulls` is set, select a random value from the set of non-null
         values, if any. If there are no such non-nulls, this will return None.
         """
-        return self.data.get_random_value(feature_name, no_nulls=no_nulls)
+        return self.data.get_random_value(feature_name, no_nulls=no_nulls, count=count)
 
     def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
         """Get the number of unique values in the provided column(s)."""
