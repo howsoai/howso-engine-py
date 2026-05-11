@@ -1165,72 +1165,8 @@ class InferFeatureAttributesBase(ABC):
                     if f in self.attributes:
                         self.attributes[f]['fanout_on'] = list(key_features)
 
-        # Process/investigate protected values
-        _prvc: FullPreserveRareValuesConfig = {}
-        # Did the user specify max_distilled_cases? Save this information for later.
-        user_set_mdc = False
-        if max_distilled_cases is not None:
-            user_set_mdc = True
-            # Compute the optimized max_distilled_cases value if available
-            max_distilled_cases, _ = get_optimized_max_chunk_size(row_count=self._get_row_count(),
-                                                                  max_chunk_size=max_distilled_cases)
-        else:
-            # Set a small default
-            max_distilled_cases = 25_000
-
-        # Workflow 1: User provided a config with protected multipliers; need to compute unprotected multipliers
-        if preserve_rare_values_config is not None:
-            if preserve_rare_values_map is not None:
-                self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE, "A `preserve_rare_values_map` was "
-                                               "provided with a full `preserve_rare_values_config`; the former "
-                                               "will be ignored.")
-            # Config provided, but need to compute unprotected value multipliers
-            for feature, value_configs in preserve_rare_values_config.items():
-                feature_prvc = {}
-                feature_prvc["unprotected_multiplier"] = self._compute_unprotected_multiplier(feature, value_configs)
-                # Also set the protected value configs under the expected key
-                feature_prvc["protected_values_multipliers"] = value_configs
-                _prvc[feature] = feature_prvc
-        # Workflow 2: User provided a map of rare values to protect, but no multipliers
-        elif preserve_rare_values_map is not None:
-            # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here
-            if user_set_mdc:
-                if preserve_rare_values_map == "all":
-                    preserve_rare_values_map, _ = self._find_protected_value_candidates(max_distilled_cases,
-                                                                                        significance_threshold)
-                _prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
-                                                                  preserve_rare_values_map,
-                                                                  significance_threshold)
-            # Workflow 2B: User did not set max_distilled_cases, so we cannot guarantee accurate multipliers.
-            # Let another part of the stack figure it out; set only the protected values in the attributes.
-            else:
-                if preserve_rare_values_map == "all":
-                    raise ValueError("If `preserve_rare_values_map` is set to \"all,\" you must also provide "
-                                     "`max_distilled_cases` to accurately determine rare value candidates.")
-                for feature, values in preserve_rare_values_map.items():
-                    if feature not in self.attributes:
-                        # Multiprocessing is enabled, and this feature will be handled in another process
-                        continue
-                    self.attributes[feature]["preserve_rare_values"] = {"protected_values": values}  # pyright: ignore[reportGeneralTypeIssues]
-
-        # Workflow 3: User provided no value specifications; determine candidates and make a suggestion
-        else:
-            # Compute but don't automatically apply
-            preserve_rare_values_map, values_ranking = self._find_protected_value_candidates(max_distilled_cases,
-                                                                                             significance_threshold)
-            candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
-                                                                       preserve_rare_values_map,
-                                                                       significance_threshold)
-            prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)  # TODO: What to do about this serious type issue?
-            self.suggestions_collector.append(prvc_suggestion)
-
-        # Apply rare values multipliers to feature attributes if applicable (workflows 1, 2A)
-        if _prvc:
-            for feature, config in _prvc.items():
-                if feature not in self.attributes:
-                    # Multiprocessing is enabled, and this feature will be handled in another process
-                    continue
-                self.attributes[feature]["preserve_rare_values"] = config  # pyright: ignore[reportGeneralTypeIssues]
+        self._process_rare_values(preserve_rare_values_map, preserve_rare_values_config, max_distilled_cases,
+                                  significance_threshold)
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
@@ -1902,12 +1838,12 @@ class InferFeatureAttributesBase(ABC):
             total_cases = self._get_row_count()
             for unique_value in uniques:
                 count = self._get_value_count(feature, unique_value)
-                value_counts.append({"feature": feature, "value": unique_value, "count": count})
                 # Don't include values that aren't significant to begin with
                 if count < significance_threshold:
                     continue
                 expected_freq_at_target_size = (max_distilled_cases / total_cases) * count
                 if expected_freq_at_target_size < significance_threshold:
+                    value_counts.append({"feature": feature, "value": unique_value, "count": count})
                     if feature not in pvm.keys():
                         pvm[feature] = [unique_value]
                     else:
@@ -1991,6 +1927,10 @@ class InferFeatureAttributesBase(ABC):
                                      "Please verify the value and type.")
                 expected_freq_at_target_size = (max_distilled_cases / total_cases) * count
                 multiplier = significance_threshold / expected_freq_at_target_size
+                # If a value has a computed multiplier of < 1, it does not need signal preservation, and could have been a mistake
+                if multiplier < 1:
+                    # TODO issue warning?
+                    continue
                 if data_type == "number":
                     value = float(value)
                 prvc[feature]["protected_values_multipliers"].append({"value": value,
@@ -2000,3 +1940,78 @@ class InferFeatureAttributesBase(ABC):
                 feature, prvc[feature]["protected_values_multipliers"], row_count=total_cases
             )
         return prvc
+
+    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap,  # noqa: C901
+                             preserve_rare_values_config: PreserveRareValuesConfig, max_distilled_cases: int,
+                             significance_threshold: int):
+        """Procesess `preserve_rare_values` configuration or make recommendation."""
+        _prvc: FullPreserveRareValuesConfig = {}
+        # Did the user specify max_distilled_cases? Save this information for later.
+        user_set_mdc = False
+        if max_distilled_cases is not None:
+            user_set_mdc = True
+            # Compute the optimized max_distilled_cases value if available
+            max_distilled_cases, _ = get_optimized_max_chunk_size(row_count=self._get_row_count(),
+                                                                  max_chunk_size=max_distilled_cases)
+        else:
+            # Set a small default
+            max_distilled_cases = 25_000
+            # Skip this if data is smaller than the default (true for many test cases);
+            # probably indicates that data distillation happening is unlikely  # TODO should we actually do this?
+            if self._get_row_count() < max_distilled_cases:
+                return
+
+        # Workflow 1: User provided a config with protected multipliers; need to compute unprotected multipliers
+        if preserve_rare_values_config is not None:
+            if preserve_rare_values_map is not None:
+                self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE, "A `preserve_rare_values_map` was "
+                                               "provided with a full `preserve_rare_values_config`; the former "
+                                               "will be ignored.")
+            # Config provided, but need to compute unprotected value multipliers
+            for feature, value_configs in preserve_rare_values_config.items():
+                feature_prvc = {}
+                feature_prvc["unprotected_multiplier"] = self._compute_unprotected_multiplier(feature, value_configs)
+                # Also set the protected value configs under the expected key
+                feature_prvc["protected_values_multipliers"] = value_configs
+                _prvc[feature] = feature_prvc
+        # Workflow 2: User provided a map of rare values to protect, but no multipliers
+        elif preserve_rare_values_map is not None:
+            # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here
+            if user_set_mdc:
+                if preserve_rare_values_map == "all":
+                    preserve_rare_values_map, _ = self._find_protected_value_candidates(max_distilled_cases,
+                                                                                        significance_threshold)
+                _prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
+                                                                  preserve_rare_values_map,
+                                                                  significance_threshold)
+            # Workflow 2B: User did not set max_distilled_cases, so we cannot guarantee accurate multipliers.
+            # Let another part of the stack figure it out; set only the protected values in the attributes.
+            else:
+                if preserve_rare_values_map == "all":
+                    raise ValueError("If `preserve_rare_values_map` is set to \"all,\" you must also provide "
+                                     "`max_distilled_cases` to accurately determine rare value candidates.")
+                for feature, values in preserve_rare_values_map.items():
+                    if feature not in self.attributes:
+                        # Multiprocessing is enabled, and this feature will be handled in another process
+                        continue
+                    self.attributes[feature]["preserve_rare_values"] = {"protected_values": values}  # pyright: ignore[reportGeneralTypeIssues]
+
+        # Workflow 3: User provided no value specifications; determine candidates and make a suggestion
+        else:
+            # Compute but don't automatically apply
+            preserve_rare_values_map, values_ranking = self._find_protected_value_candidates(max_distilled_cases,
+                                                                                             significance_threshold)
+            if preserve_rare_values_map:
+                candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
+                                                                           preserve_rare_values_map,
+                                                                           significance_threshold)
+                prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)  # TODO: What to do about this serious type issue?
+                self.suggestions_collector.append(prvc_suggestion)
+
+        # Apply rare values multipliers to feature attributes if applicable (workflows 1, 2A)
+        if _prvc:
+            for feature, config in _prvc.items():
+                if feature not in self.attributes:
+                    # Multiprocessing is enabled, and this feature will be handled in another process
+                    continue
+                self.attributes[feature]["preserve_rare_values"] = config  # pyright: ignore[reportGeneralTypeIssues]

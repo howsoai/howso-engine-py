@@ -27,21 +27,30 @@ def wrap_text(text, width):
     )) or text
 
 
-def wrap_code(code, width):
-    """Wrap code so long lines break, but preserve line structure."""
-    out_lines = []
-    for line in code.splitlines():
-        if len(line) <= width:
-            out_lines.append(line)
+def wrap_paragraphs(text, width):
+    """Wrap text on newlines."""
+    out = []
+    for line in text.splitlines():
+        if not line.strip():
+            out.append("")
+            continue
+        # Detect leading whitespace to use as continuation indent
+        stripped = line.lstrip()
+        indent = line[: len(line) - len(stripped)]
+        # For bullet-style lines, indent continuations past the bullet
+        if stripped.startswith("- "):
+            cont_indent = indent + "  "
         else:
-            # Allow breaking inside long code lines (no good word boundaries)
-            out_lines.extend(textwrap.wrap(
-                line, width=width,
-                break_long_words=True,
-                break_on_hyphens=False,
-                drop_whitespace=False,
-            ) or [line])
-    return "\n".join(out_lines)
+            cont_indent = indent
+        out.append(textwrap.fill(
+            line,
+            width=width,
+            initial_indent="",
+            subsequent_indent=cont_indent,
+            break_long_words=False,
+            break_on_hyphens=False,
+        ))
+    return "\n".join(out)
 
 
 class IFASuggestion(ABC):
@@ -93,7 +102,7 @@ class PRVSuggestion(IFASuggestion):
 
     def __repr__(self):
         """Print a helpful description of this IFASuggestion."""
-        num_candidates = sum(len(cfg["protected_values"]) for cfg in self._prvc.values())
+        num_candidates = sum(len(cfg["protected_values_multipliers"]) for cfg in self._prvc.values())
         candidates_explanation = ""
         for candidate in self._ranking:
             candidates_explanation += f"\n    - Column name: {candidate['feature']}, value: {candidate['value']}"
@@ -121,7 +130,7 @@ class PRVSuggestion(IFASuggestion):
                               "that was returned by `infer_feature_attributes`.")
         options_table.add_column("Action", min_width=action_w, overflow="fold")
         options_table.add_column("Details", min_width=details_w, overflow="fold")
-        options_table.add_column("Code Example")
+        options_table.add_column("Relevant Code")
 
         rows = []
 
@@ -133,16 +142,18 @@ class PRVSuggestion(IFASuggestion):
                 "Apply suggestion to this feature attributes object",
                 "Save the suggested candidate `preserve_rare_values_config` "
                 "to this feature attributes object.",
-                "attributes.apply(\"preserve_rare_values\")"
+                "Call `apply_suggestion()` on the feature attributes object: "
+                "`apply_suggestion(\"preserve_rare_values\")`"
             )),
 
-        rows = [
+        rows.extend([
             (
                 "Get a reusable `preserve_rare_values_config`",
                 "You may provide a pre-computed `preserve_rare_values_config` as a parameter to "
                 "`infer_feature_attributes` if you wish to make adjustments to the case weight "
                 "multipliers.",
-                "attributes.suggestions.preserve_rare_values.get_config()"
+                "From this suggestion object call: "
+                "`get_config()`"
             ),
             (
                 "Edit the preserved rare values with a `preserve_rare_values_map`",
@@ -150,21 +161,22 @@ class PRVSuggestion(IFASuggestion):
                 "parameter to `infer_feature_attributes`. A good starting point may be the \"full\" "
                 "map of all candidate values. All case weight multipliers will be automatically "
                 "configured for the provided values.",
-                "attributes.suggestions.preserve_rare_values.get_values_map()"
+                "From this suggestion object call: "
+                "`get_values_map()`"
             ),
-        ]
+        ])
 
         for action, details, code in rows:
             options_table.add_row(
                 wrap_text(action, action_w),
                 wrap_text(details, details_w),
-                wrap_code(code, code_w),
+                wrap_text(code, code_w),
             )
 
         console = Console(width=total_width)
         with console.capture() as capture:
             console.print(options_table)
-        return f"{header}\n\n{wrap_text(body, total_width)}\n\n{capture.get().rstrip()}"
+        return f"{header}\n\n{wrap_paragraphs(body, total_width)}\n\n{capture.get().rstrip()}"
 
     @property
     def name(self) -> str:
@@ -195,7 +207,8 @@ class PRVSuggestion(IFASuggestion):
         """Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes."""
         values_map = {}
         for feature, config in self._prvc:
-            values_map[feature] = [value_config["value"] for value_config in config["protected_values"]]
+            values_map[feature] = ([value_config["value"] for value_config
+                                    in config["protected_values_multipliers"]])
         return values_map
 
     def merge(self, other: Self) -> Self:

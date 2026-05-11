@@ -706,30 +706,30 @@ def test_preserve_rare_values(adc):
     df = pd.DataFrame(data, columns=features)
 
     # Test auto-apply with all values
-    features = infer_feature_attributes(df, max_distilled_cases=500, preserve_rare_values_map="all")
+    features = infer_feature_attributes(df, max_distilled_cases=1250, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
     assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["value"] == '2'
-    assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == 6.0
-    assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.95
+    assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == 2.4
+    assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
-    # All values, but multipliers should be deferred if `max_distilled_cases` not provided
-    features = infer_feature_attributes(df, preserve_rare_values_map={"a": [None]})
+    # Multipliers should be deferred if `max_distilled_cases` not provided
+    df_large = pd.concat([df] * 3)
+    features = infer_feature_attributes(df_large, preserve_rare_values_map={"a": ['2']})
     assert "preserve_rare_values" in features["a"]
-    assert features["a"]["preserve_rare_values"]["protected_values"][0] is None
+    assert features["a"]["preserve_rare_values"]["protected_values"][0] == '2'
 
     # Test auto-apply with selected values
-    features = infer_feature_attributes(df, max_distilled_cases=500, preserve_rare_values_map={"b": ['y', 'z']})
+    features = infer_feature_attributes(df, max_distilled_cases=1250, preserve_rare_values_map={"b": ['y', 'z']})
     assert "preserve_rare_values" not in features["a"]
     assert "preserve_rare_values" in features["b"]
-    assert len(features["b"]["preserve_rare_values"]["protected_values_multipliers"]) == 2
-    assert features["b"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == 1.5
-    assert features["b"]["preserve_rare_values"]["protected_values_multipliers"][1]["multiplier"] == 6.0
-    assert round(features["b"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.93
+    assert len(features["b"]["preserve_rare_values"]["protected_values_multipliers"]) == 1
+    assert features["b"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == 2.4
+    assert round(features["b"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
     # Test that a suggestion is issued
     with pytest.warns(UserWarning, match="You have one or more suggestions"):
-        features = infer_feature_attributes(df, max_distilled_cases=500)
+        features = infer_feature_attributes(df, max_distilled_cases=1250)
         for feat in features:
             assert "preserve_rare_values" not in feat
         # Test a suggestion application
