@@ -55,9 +55,10 @@ INTEGER_MAX = int(math.pow(2, 53))
 LINUX_DT_MAX = '2262-04-11'
 WIN_DT_MAX = '6053-01-24'
 
-
 # Define a TypeVar which is FeatureAttributesBase or any subclass.
 FeatureAttributesBaseType = t.TypeVar('FeatureAttributesBaseType', bound='FeatureAttributesBase')
+
+SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
 
 
 class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
@@ -827,7 +828,7 @@ class InferFeatureAttributesBase(ABC):
                  ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
                  preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"] | None = None,
                  preserve_rare_values_config: PreserveRareValuesConfig | None = None,
-                 significance_threshold: int = 30,
+                 significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
                  tight_bounds: t.Optional[Iterable[str]] = None,
                  types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
                  ) -> dict:
@@ -1741,7 +1742,7 @@ class InferFeatureAttributesBase(ABC):
     def _get_min_max_number_size_bounds(
         cls, feature_attributes: Mapping,
         feature_name: str
-    ) -> tuple[numbers.Number | None, numbers.Number | None]:
+    ) -> tuple[float | int | None, float | int | None]:
         """
         Get the minimum and maximum size bounds for a numeric feature.
 
@@ -1791,8 +1792,8 @@ class InferFeatureAttributesBase(ABC):
                     # Not a numeric feature or is 64bit float
                     return None, None
 
-                min_value = dtype_info.min
-                max_value = dtype_info.max
+                min_value = float(dtype_info.min)
+                max_value = float(dtype_info.max)
             elif size == 3 and data_type == FeatureType.INTEGER.value:
                 # Some database dialects support 24bit integers
                 if original_type.get('unsigned'):
@@ -1871,7 +1872,7 @@ class InferFeatureAttributesBase(ABC):
 
     @abstractmethod
     def _get_value_count(self, feature_name: str, value: t.Any) -> int:
-        """Get the number of occurances of the provided value of the provided feature."""
+        """Get the number of occurrences of the provided value of the provided feature."""
 
     def _find_protected_value_candidates(self, max_distilled_cases: int,
                                          significance_threshold: int) -> t.Tuple[PreserveRareValuesMap, list[dict]]:
@@ -1916,7 +1917,7 @@ class InferFeatureAttributesBase(ABC):
         return pvm, top_five
 
     def _compute_unprotected_multiplier(self, feature: str, protected_values_multipliers: Sequence[dict[str, t.Any]],
-                                        *, row_count: int = None) -> float:
+                                        *, row_count: int | None = None) -> float:
         """
         Compute the unprotected multiplier for the provided feature given a list of rare values with multipliers.
 
@@ -1953,9 +1954,12 @@ class InferFeatureAttributesBase(ABC):
         orig_unprotected_mass = total_cases - orig_unprotected_mass
         return min(float((total_cases - new_protected_mass) / orig_unprotected_mass), 1)
 
-    def _compute_preserve_rare_values_config(self, max_distilled_cases: int,
-                                             preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"],
-                                             significance_threshold: int) -> FullPreserveRareValuesConfig:
+    def _compute_preserve_rare_values_config(
+        self,
+        max_distilled_cases: int,
+        preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"],
+        significance_threshold: int
+    ) -> FullPreserveRareValuesConfig:
         """
         Determine the case weight multipliers for the provided protected values and the unprotected values.
 
@@ -1983,7 +1987,7 @@ class InferFeatureAttributesBase(ABC):
         for feature, values in preserve_rare_values_map.items():
             prvc[feature] = {"protected_values_multipliers": []}
             total_cases = self._get_row_count()
-            data_type = self.attributes[feature]["data_type"]
+            data_type = self.attributes[feature]["data_type"] # pyright: ignore[reportTypedDictNotRequiredAccess]
             for value in values:
                 count = self._get_value_count(feature, value)
                 if count == 0:
