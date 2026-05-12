@@ -1958,11 +1958,6 @@ class InferFeatureAttributesBase(ABC):
             # Set a small default
             max_distilled_cases = 25_000
 
-        # Skip this if data is smaller than the default (true for many test cases);
-        # probably indicates that data distillation happening is unlikely
-        if self._get_row_count() < max_distilled_cases:
-            return
-
         # Workflow 1: User provided a config with protected multipliers; need to compute unprotected multipliers
         if preserve_rare_values_config is not None:
             if preserve_rare_values_map is not None:
@@ -2000,6 +1995,10 @@ class InferFeatureAttributesBase(ABC):
 
         # Workflow 3: User provided no value specifications; determine candidates and make a suggestion
         else:
+            # Skip this if data is smaller than the default (true for many test cases);
+            # probably indicates that data distillation happening is unlikely
+            if self._get_row_count() < max_distilled_cases:
+                return
             # Compute but don't automatically apply
             preserve_rare_values_map, values_ranking = self._find_protected_value_candidates(max_distilled_cases,
                                                                                              significance_threshold)
