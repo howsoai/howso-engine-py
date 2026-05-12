@@ -1744,7 +1744,7 @@ def get_optimized_max_chunk_size(
     max_chunk_size : int
         The maximum desired chunk size. The result will be ``<=`` this value
         unless capped by ``min_chunk_size``.
-    min_chunk_size : int, default 1_000
+    min_chunk_size : int, default 1
         The minimum size to return.
 
     Returns
@@ -1757,7 +1757,7 @@ def get_optimized_max_chunk_size(
         The number of chunks (a power of 2)
     """
     # This is necessary because `None` may be explicitly passed in.
-    min_chunk_size = min_chunk_size or 1_000
+    min_chunk_size = min_chunk_size or 1
 
     # Clamp max up to the floor so the rest of the algorithm preserves the
     # power-of-2 invariant. Also avoids a ZeroDivisionError on max_chunk_size = 0.
