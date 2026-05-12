@@ -1574,14 +1574,13 @@ class InferFeatureAttributesBase(ABC):
         """
         # Sample 30 random values
         random_values = self._get_random_value(feature, no_nulls=True, count=30)
+        if not random_values:
+            return False
         for random_value in random_values:
             # Check for a Python bool object or a string representation thereof
             if not isinstance(random_value, bool) and not (isinstance(random_value, str) and
                                                            random_value.strip().lower() in ("true", "false")):
                 return False
-        else:
-            # Only nulls
-            return False
         return True
 
     def _is_json_feature(self, feature: str) -> bool:
