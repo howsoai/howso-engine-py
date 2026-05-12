@@ -1728,7 +1728,7 @@ def get_optimized_max_chunk_size(
     *,
     row_count: int,
     max_chunk_size: int,
-    min_chunk_size: int = 1_000
+    min_chunk_size: int | None = None,
 ) -> tuple[int, int]:
     """Optimize chunk_size such that the number of chunks is a power of 2.
 
@@ -1756,6 +1756,9 @@ def get_optimized_max_chunk_size(
     num_chunks : int
         The number of chunks (a power of 2)
     """
+    # This is necessary because `None` may be explicitly passed in.
+    min_chunk_size = min_chunk_size or 1_000
+
     # Clamp max up to the floor so the rest of the algorithm preserves the
     # power-of-2 invariant. Also avoids a ZeroDivisionError on max_chunk_size = 0.
     max_chunk_size = max(max_chunk_size, min_chunk_size)
