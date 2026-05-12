@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod, abstractproperty
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 import textwrap
-from typing import Any, Mapping
+from typing import Any
 import warnings
 
 from rich.console import Console
@@ -18,7 +18,7 @@ PreserveRareValuesConfig = dict[str, list[dict[str, Any]]]
 FullPreserveRareValuesConfig = dict[str, dict[str, list[dict[str, Any]] | float]]
 
 
-def wrap_text(text, width):
+def wrap_text(text: str, width: int) -> str:
     """Wrap regular prose on word boundaries, never breaking words."""
     return "\n".join(textwrap.wrap(
         text, width=width,
@@ -27,7 +27,7 @@ def wrap_text(text, width):
     )) or text
 
 
-def wrap_paragraphs(text, width):
+def wrap_paragraphs(text: str, width: int) -> str:
     """Wrap text on newlines."""
     out = []
     for line in text.splitlines():
@@ -69,7 +69,7 @@ class IFASuggestion(ABC):
         ...
 
     @abstractmethod
-    def apply(self, attributes: dict):
+    def apply(self, attributes: dict) -> None:
         """Apply this suggestion to the FeatureAttributesBase object."""
         ...
 
@@ -83,7 +83,7 @@ class PRVSuggestion(IFASuggestion):
     """A suggestion to configure preservation for rare values."""
 
     def __init__(self, prvc: PreserveRareValuesConfig, values_ranking: Sequence[Mapping[str, Any]],
-                 user_set_max_distilled_cases: bool):
+                 user_set_max_distilled_cases: bool) -> None:
         """
         Instantiate this Preserve Rare Values Suggestion.
 
@@ -100,7 +100,7 @@ class PRVSuggestion(IFASuggestion):
         self._ranking = values_ranking
         self._user_set_mdc = user_set_max_distilled_cases
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Print a helpful description of this IFASuggestion."""
         num_candidates = sum(len(cfg["protected_values_multipliers"]) for cfg in self._prvc.values())
         candidates_explanation = ""
@@ -143,8 +143,8 @@ class PRVSuggestion(IFASuggestion):
                 "Save the suggested candidate `preserve_rare_values_config` "
                 "to this feature attributes object.",
                 "Call `apply_suggestion()` on the feature attributes object: "
-                "`apply_suggestion(\"preserve_rare_values\")`"
-            )),
+                '`apply_suggestion("preserve_rare_values")`'
+            ))
 
         rows.extend([
             (
@@ -158,7 +158,7 @@ class PRVSuggestion(IFASuggestion):
             (
                 "Edit the preserved rare values with a `preserve_rare_values_map`",
                 "The rare values to be preserved can be detailed via the `preserve_rare_values_map` "
-                "parameter to `infer_feature_attributes`. A good starting point may be the \"full\" "
+                'parameter to `infer_feature_attributes`. A good starting point may be the "full" '
                 "map of all candidate values. All case weight multipliers will be automatically "
                 "configured for the provided values.",
                 "From this suggestion object call: "
@@ -188,14 +188,14 @@ class PRVSuggestion(IFASuggestion):
         """A brief description of this suggestion."""
         return "Configure rare values to avoid losing their signal during data distillation."
 
-    def apply(self, attributes: dict):
+    def apply(self, attributes: dict) -> None:
         """Apply the computed rare values preservation config to the FeatureAttributesBase object."""
         if not self._user_set_mdc:
             warnings.warn("Suggested rare values configuration will be applied, but the computed case weight "
                           "multipliers are likely inaccurate as `max_distilled_cases` was not provided to "
                           "`infer_feature_attributes`. Please provide this parameter or be aware that the case "
                           "weight multipliers were computed based on a default `max_distilled_cases` value of 25,000.",
-                          UserWarning)
+                          UserWarning, stacklevel=3)
         for feature, config in self._prvc.items():
             attributes[feature]["preserve_rare_values"] = config
 
@@ -216,16 +216,15 @@ class PRVSuggestion(IFASuggestion):
         for feature, config in other.get_config():
             if feature not in self._prvc:
                 self._prvc[feature] = config
-            else:
-                if self._prvc[feature] != config:
-                    raise ValueError("Cannot merge `preserve_rare_value_config` objects as they share features with "
-                                     "differing configurations.")
+            elif self._prvc[feature] != config:
+                raise ValueError("Cannot merge `preserve_rare_value_config` objects as they share features with "
+                                    "differing configurations.")
 
 
 class IFASuggestionCollector:
     """Collector of IFASuggestion objects."""
 
-    def __init__(self, suggestions: Sequence[IFASuggestion] = None):
+    def __init__(self, suggestions: Sequence[IFASuggestion] | None = None) -> None:
         self._suggestions: dict[str, IFASuggestion] = {}
         suggestions = suggestions or []
         for suggestion in suggestions:
@@ -234,13 +233,13 @@ class IFASuggestionCollector:
     def __getattr__(self, key: str) -> IFASuggestion:
         """Get the suggestion with the provided key."""
         # Avoid an infinite loop with partially constructed objects
-        if key.startswith('__') and key.endswith('__'):
+        if key.startswith("__") and key.endswith("__"):
             raise AttributeError(key)
         if key not in self._suggestions:
             raise AttributeError("No suggestion found under the provided key.")
         return self._suggestions[key]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Print a helpful description of the available suggestions."""
         table = Table(title="Suggestions for Potential Data Quality Improvements",
                       caption="To view a more detailed description of a suggestion, access its `name` as a property "
@@ -262,7 +261,7 @@ class IFASuggestionCollector:
         """Get all suggestions that belong to this collector."""
         return self._suggestions
 
-    def append(self, suggestion: IFASuggestion):
+    def append(self, suggestion: IFASuggestion) -> None:
         """Append a new IFASuggestion to this collector."""
         if suggestion.name in self._suggestions:
             self._suggestions[suggestion.name].merge(suggestion)
@@ -272,5 +271,5 @@ class IFASuggestionCollector:
     def merge(self, other: Self) -> Self:
         """Merge all IFASuggestions in another collector object with the IFASuggestions in this object."""
         for name, suggestion in other.suggestions.items():
-            if name in self._suggestions.keys():
+            if name in self._suggestions:
                 self._suggestions[name].merge(suggestion)

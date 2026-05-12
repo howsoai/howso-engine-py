@@ -8,25 +8,18 @@ from functools import singledispatchmethod
 import json
 import logging
 import math
-import numbers
 from pathlib import Path
 import platform
 import typing as t
 import warnings
 from zoneinfo import ZoneInfo
 
-from dateutil.parser import isoparse
-from dateutil.parser import parse as dt_parse
+from dateutil.parser import isoparse, parse as dt_parse
 import numpy as np
 import pandas as pd
+from typing_extensions import Self
 import yaml
 
-from howso.utilities.utilities import (
-    determine_iso_format,
-    get_optimized_max_chunk_size,
-    is_valid_datetime_format,
-    time_to_seconds,
-)
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
 from howso.utilities.feature_attributes.suggestions import (
     FullPreserveRareValuesConfig,
@@ -38,7 +31,12 @@ from howso.utilities.feature_attributes.suggestions import (
 )
 from howso.utilities.feature_attributes.warnings import IFAWarningCollector, IFAWarningEmitterType
 from howso.utilities.features import FeatureType
-
+from howso.utilities.utilities import (
+    determine_iso_format,
+    get_optimized_max_chunk_size,
+    is_valid_datetime_format,
+    time_to_seconds,
+)
 
 if t.TYPE_CHECKING:
     from howso.client.typing import FeatureAttributes
@@ -46,17 +44,17 @@ if t.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Format string tokens for datetime and time-only features
-DATE_TOKENS = {'%m', '%d', '%y', '%z', '%D', '%F', '%Y', '%G', '%C'}
-TIME_TOKENS = {'%R', '%T', '%I', '%X', '%r', '%H', '%M', '%S', '%f', '%p'}
+DATE_TOKENS = {"%m", "%d", "%y", "%z", "%D", "%F", "%Y", "%G", "%C"}
+TIME_TOKENS = {"%R", "%T", "%I", "%X", "%r", "%H", "%M", "%S", "%f", "%p"}
 # Maximum/minimum data sizes for integers, floats, datetimes supported by the core
 FLOAT_MAX = 1.7976931348623157 * math.pow(10, 308)
 FLOAT_MIN = 2.2250738585072014 * math.pow(10, -308)
 INTEGER_MAX = int(math.pow(2, 53))
-LINUX_DT_MAX = '2262-04-11'
-WIN_DT_MAX = '6053-01-24'
+LINUX_DT_MAX = "2262-04-11"
+WIN_DT_MAX = "6053-01-24"
 
 # Define a TypeVar which is FeatureAttributesBase or any subclass.
-FeatureAttributesBaseType = t.TypeVar('FeatureAttributesBaseType', bound='FeatureAttributesBase')
+FeatureAttributesBaseType = t.TypeVar("FeatureAttributesBaseType", bound="FeatureAttributesBase")
 
 SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
 
@@ -64,8 +62,8 @@ SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
 class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
-    def __init__(self, feature_attributes: Mapping, params: dict = {}, unsupported: list[str] = [],
-                 suggestions_collector: IFASuggestionCollector | None = None):
+    def __init__(self, feature_attributes: Mapping, params: dict | None = None, unsupported: list[str] | None = None,
+                 suggestions_collector: IFASuggestionCollector | None = None) -> None:
         """
         Instantiate this FeatureAttributesBase object.
 
@@ -81,14 +79,14 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
             (Optional) Collector of suggestions for this FeatureAttributesBase object.
         """
         if not isinstance(feature_attributes, Mapping):
-            raise TypeError('Provided feature attributes must be a Mapping.')
-        self.params = params
+            raise TypeError("Provided feature attributes must be a Mapping.")
+        self.params = params or {}
         self.update(feature_attributes)
-        self.unsupported = unsupported
+        self.unsupported = unsupported or []
         self.warnings_collector = IFAWarningCollector()
         self.suggestions_collector = suggestions_collector or "You have no suggestions."
 
-    def __copy__(self) -> "FeatureAttributesBase":
+    def __copy__(self) -> FeatureAttributesBase:
         """Return a (deep)copy of this instance of FeatureAttributesBase."""
         cls = self.__class__
         obj_copy = cls.__new__(cls)
@@ -96,7 +94,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         obj_copy.params = self.params
         return obj_copy
 
-    def apply_suggestion(self, key: str | t.Literal["all"]):
+    def apply_suggestion(self, key: str) -> None:
         """
         Apply the suggestion under the provided key.
 
@@ -115,7 +113,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                     raise KeyError(f"No suggestion found under key `{key}`")
                 suggestion.apply(self)
         else:
-            raise ValueError(self.suggestions_collector)
+            raise ValueError(self.suggestions_collector)  # noqa: TRY004
 
     @property
     def suggestions(self) -> IFASuggestionCollector:
@@ -134,7 +132,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         """
         return self.params
 
-    def to_json(self, archive: bool = False, json_path: t.Optional[Path] = None) -> str:
+    def to_json(self, archive: bool = False, json_path: Path | None = None) -> str:
         """
         Get a JSON string representation of this FeatureAttributes object.
 
@@ -167,18 +165,18 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
             json_str = json.dumps(self, cls=FeatureAttributesEncoder)
 
         if json_path:
-            with open(json_path, mode="w") as fp:
+            with Path.open(json_path, mode="w") as fp:
                 fp.write(json_str)
 
         return json_str
 
     @classmethod
     def from_json(
-        cls: type[FeatureAttributesBaseType],
-        json_str: t.Optional[str] = None,
+        cls: Self,
+        json_str: str | None = None,
         *,
-        json_path: t.Optional[Path] = None
-    ) -> FeatureAttributesBaseType:
+        json_path: str | None = None
+    ) -> Self:
         """
         Reconstruct a FeatureAttributesBase from JSON.
 
@@ -563,8 +561,10 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         if coerce:
             return coerced_df
 
+        return None
+
     def validate(self, data: t.Any, coerce: bool = False, raise_errors: bool = False, validate_bounds: bool = True,
-                 allow_missing_features: bool = False, localize_datetimes: bool = True):
+                 allow_missing_features: bool = False, localize_datetimes: bool = True) -> None | pd.DataFrame:
         """
         Validate the given data against this FeatureAttributes object.
 
@@ -713,7 +713,7 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
 
     def has_unsupported_data(self, feature_name: str) -> bool:
         """
-        Returns whether the given feature has data that is unsupported by Howso Engine.
+        Return whether the given feature has data that is unsupported by Howso Engine.
 
         Parameters
         ----------
@@ -808,29 +808,29 @@ class InferFeatureAttributesBase(ABC):
     warnings_collector: IFAWarningCollector = IFAWarningCollector()
     suggestions_collector: IFASuggestionCollector = IFASuggestionCollector()
 
-    def _process(self,  # noqa: C901
+    def _process(self,
                  attempt_infer_extended_nominals: bool = False,
                  max_distilled_cases: int | None = None,
-                 datetime_feature_formats: t.Optional[dict] = None,
-                 default_time_zone: t.Optional[str] = None,
-                 dependent_features: t.Optional[dict[str, list[str]]] = None,
-                 fanout_feature_map: t.Optional[dict[tuple[str] | str, list[str]]] = None,
-                 id_feature_name: t.Optional[str | Iterable[str]] = None,
-                 include_extended_nominal_probabilities: t.Optional[bool] = False,
+                 datetime_feature_formats: dict | None = None,
+                 default_time_zone: str | None = None,
+                 dependent_features: dict[str, list[str]] | None = None,
+                 fanout_feature_map: dict[tuple[str] | str, list[str]] | None = None,
+                 id_feature_name: str | Iterable[str] | None = None,
+                 include_extended_nominal_probabilities: bool = False,
                  include_sample: bool = False,
                  infer_bounds: bool = True,
                  max_rows_to_eval: int = 10_000_000,
-                 max_workers: t.Optional[int] = None,
-                 memory_warning_threshold: t.Optional[int] = 512,
-                 mode_bound_features: t.Optional[Iterable[str]] = None,
-                 num_series: t.Optional[int] = 1,
-                 nominal_substitution_config: t.Optional[dict[str, dict]] = None,
-                 ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
+                 max_workers: int | None = None,
+                 memory_warning_threshold: int | None = 512,
+                 mode_bound_features: Iterable[str] | None = None,
+                 num_series: int = 1,
+                 nominal_substitution_config: dict[str, dict] | None = None,
+                 ordinal_feature_values: dict[str, list[str]] | None = None,
                  preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"] | None = None,
                  preserve_rare_values_config: PreserveRareValuesConfig | None = None,
                  significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
-                 tight_bounds: t.Optional[Iterable[str]] = None,
-                 types: t.Optional[dict[str, str] | dict[str, MutableSequence[str]]] = None,
+                 tight_bounds: Iterable[str] | None = None,
+                 types: dict[str, str] | dict[str, MutableSequence[str]] | None = None,
                  ) -> dict:
         """
         Get inferred feature attributes for the parameters.
@@ -865,8 +865,8 @@ class InferFeatureAttributesBase(ABC):
         elif isinstance(id_feature_name, Iterable):
             self.id_feature_names = id_feature_name
         elif id_feature_name is not None:
-            raise ValueError('ID feature must be of type `str` or `list[str], '
-                             f'not {type(id_feature_name)}.')
+            raise ValueError("ID feature must be of type `str` or `list[str], "
+                             f"not {type(id_feature_name)}.")
         else:
             self.id_feature_names = []
 
@@ -880,11 +880,10 @@ class InferFeatureAttributesBase(ABC):
                     for feat_name in v:
                         # The feature might not be present if this is executed under multiprocessing
                         if feat_name in self.data.columns:
-                            preset_types[feat_name] = {'type': k}
-                else:
-                    # The feature might not be present if this is executed under multiprocessing
-                    if k in self.data.columns:
-                        preset_types[k] = {'type': v}
+                            preset_types[feat_name] = {"type": k}
+                # The feature might not be present if this is executed under multiprocessing
+                elif k in self.data.columns:
+                    preset_types[k] = {"type": v}
 
         # Make updates with the `merge` function
         merge = FeatureAttributesBase.merge
@@ -896,8 +895,8 @@ class InferFeatureAttributesBase(ABC):
         for feat_name in preset_types:
             if feat_name in ordinal_feature_values:
                 self.attributes = merge(self.attributes, {feat_name: {
-                    'type': 'ordinal',
-                    'bounds': {'allowed': ordinal_feature_values[feat_name]}
+                    "type": "ordinal",
+                    "bounds": {"allowed": ordinal_feature_values[feat_name]}
                 }})
                 pre_processed_ordinals.append(feat_name)
 
@@ -915,8 +914,8 @@ class InferFeatureAttributesBase(ABC):
             if feature_name in ordinal_feature_values:
                 if feature_name not in pre_processed_ordinals:
                     self.attributes = merge(self.attributes, {feature_name: {
-                        'type': 'ordinal',
-                        'bounds': {'allowed': ordinal_feature_values[feature_name]}
+                        "type": "ordinal",
+                        "bounds": {"allowed": ordinal_feature_values[feature_name]}
                     }})
 
             # EXPLICITLY DECLARED DATETIME & TIME FEATURES
@@ -967,9 +966,9 @@ class InferFeatureAttributesBase(ABC):
                             feature_name: self._infer_time_attributes(feature_name, user_dt_format)})
                     else:
                         self.attributes = merge(self.attributes, {feature_name: {
-                            'type': 'continuous',
-                            'data_type': 'formatted_date_time',
-                            'date_time_format': user_dt_format,
+                            "type": "continuous",
+                            "data_type": "formatted_date_time",
+                            "date_time_format": user_dt_format,
                         }})
                 elif (
                     isinstance(user_dt_format, Collection) and
@@ -978,10 +977,10 @@ class InferFeatureAttributesBase(ABC):
                     # User passed format string and a locale string
                     dt_format, dt_locale = user_dt_format
                     self.attributes = merge(self.attributes, {feature_name: {
-                        'type': 'continuous',
-                        'data_type': 'formatted_date_time',
-                        'date_time_format': dt_format,
-                        'locale': dt_locale,
+                        "type": "continuous",
+                        "data_type": "formatted_date_time",
+                        "date_time_format": dt_format,
+                        "locale": dt_locale,
                     }})
                 else:
                     # Not really sure what they passed.
@@ -1033,18 +1032,18 @@ class InferFeatureAttributesBase(ABC):
 
             # Is column constrained to be unique?
             if self._has_unique_constraint(feature_name):
-                self.attributes[feature_name]['unique'] = True
+                self.attributes[feature_name]["unique"] = True
 
             # Add original type to feature if not already set
             if not self.attributes[feature_name].get("original_type"):
-                if original_type := typing_info.pop('original_type', None):
-                    self.attributes[feature_name]['original_type'] = {
-                        'data_type': str(original_type),
+                if original_type := typing_info.pop("original_type", None):
+                    self.attributes[feature_name]["original_type"] = {
+                        "data_type": str(original_type),
                         **typing_info
                     }
                 elif feature_type is not None:
-                    self.attributes[feature_name]['original_type'] = {
-                        'data_type': str(feature_type),
+                    self.attributes[feature_name]["original_type"] = {
+                        "data_type": str(feature_type),
                         **typing_info
                     }
 
@@ -1052,11 +1051,11 @@ class InferFeatureAttributesBase(ABC):
             # First determine if there are any dependent features in the partial features dict
             # Set dependent features: `dependent_features` + partial features dict, if provided
             if feature_name in dependent_features:
-                self.attributes[feature_name]['dependent_features'] = dependent_features[feature_name]
+                self.attributes[feature_name]["dependent_features"] = dependent_features[feature_name]
 
             # Set default time if provided
             if self.default_time_zone is not None:
-                self.attributes[feature_name]['default_time_zone'] = self.default_time_zone
+                self.attributes[feature_name]["default_time_zone"] = self.default_time_zone
 
         # Edit ID feature attributes in-place
         for id_feature in self.id_feature_names:
@@ -1081,13 +1080,13 @@ class InferFeatureAttributesBase(ABC):
                 except ValueError as err:
                     if "could not convert" in str(err):
                         # Try to catch any errors on data conversion and suggest something relevant.
-                        if feature_name in preset_types.keys():
+                        if feature_name in preset_types:
                             suggestion = (f"Please verify that the provided type for '{feature_name}' "
                                           f"({preset_types[feature_name]['type']}) is reflected by the data.")
                         else:
                             suggestion = f"Please verify that cases in '{feature_name}' are of a consistent data type."
                         raise ValueError(f"The following error was raised while trying to compute bounds for feature "
-                                         f"'{feature_name}':\n\n {err}\n\n{suggestion}")
+                                         f"'{feature_name}':\n\n {err}\n\n{suggestion}") from err
                     else:
                         raise
                 if bounds:
@@ -1122,37 +1121,37 @@ class InferFeatureAttributesBase(ABC):
                 nde = NominalDetectionEngine(nominal_substitution_config)
                 aenp, all_probs = nde.detect(self.data)
 
-                nominal_default_subtype = 'int-id'
+                nominal_default_subtype = "int-id"
                 # Apply them if they are above the threshold value.
                 for feature_name in feature_names_list:
                     if feature_name in aenp:
                         if len(aenp[feature_name]) > 0:
-                            self.attributes[feature_name]['subtype'] = (max(
+                            self.attributes[feature_name]["subtype"] = (max(
                                 aenp[feature_name], key=aenp[feature_name].get))
 
                         if include_meta:
                             self.attributes[feature_name].update({
-                                'extended_nominal_probabilities':
+                                "extended_nominal_probabilities":
                                     all_probs[feature_name]
                             })
 
                     # If `subtype` is a nominal feature, assign it to 'int-id'
                     if (
-                        self.attributes[feature_name]['type'] == 'nominal' and
-                        not self.attributes[feature_name].get('subtype', None)
+                        self.attributes[feature_name]["type"] == "nominal" and
+                        not self.attributes[feature_name].get("subtype", None)
                     ):
-                        self.attributes[feature_name]['subtype'] = (
+                        self.attributes[feature_name]["subtype"] = (
                             nominal_default_subtype)
             except ImportError:
-                warnings.warn('Cannot infer extended nominals: not supported')
+                warnings.warn("Cannot infer extended nominals: not supported")
 
         # Insert a ``sample`` value (as string) for each feature, if possible.
         if include_sample:
-            for feature_name in self.attributes.keys():
+            for feature_name in self.attributes:
                 sample = self._get_random_value(feature_name, no_nulls=True)
                 if sample is not None:
                     sample = str(sample)
-                self.attributes[feature_name]['sample'] = sample
+                self.attributes[feature_name]["sample"] = sample
 
         # Validate datetimes after any user-defined features have been re-implemented
         self._validate_date_times()
@@ -1164,7 +1163,7 @@ class InferFeatureAttributesBase(ABC):
                     key_features = [key_features]
                 for f in fanout_features:
                     if f in self.attributes:
-                        self.attributes[f]['fanout_on'] = list(key_features)
+                        self.attributes[f]["fanout_on"] = list(key_features)
 
         self._process_rare_values(preserve_rare_values_map, preserve_rare_values_config, max_distilled_cases,
                                   significance_threshold)
@@ -1173,10 +1172,10 @@ class InferFeatureAttributesBase(ABC):
         ordered_attributes = {}
         for fname in self.data.columns:
             # Check to see if the key is a sqlalchemy Column
-            if hasattr(fname, 'name'):
+            if hasattr(fname, "name"):
                 fname = fname.name
-            if fname not in self.attributes.keys():
-                warnings.warn(f'Feature {fname} exists in provided data but was not computed in feature attributes.')
+            if fname not in self.attributes:
+                warnings.warn(f"Feature {fname} exists in provided data but was not computed in feature attributes.")
                 continue
             ordered_attributes[fname] = self.attributes[fname]
 
@@ -1199,7 +1198,7 @@ class InferFeatureAttributesBase(ABC):
         """Get inferred attributes for the given date only column."""
 
     @abstractmethod
-    def _infer_time_attributes(self, feature_name: str, user_time_format: str = None) -> dict:
+    def _infer_time_attributes(self, feature_name: str, user_time_format: str | None = None) -> dict:
         """Get inferred attributes for the given time column."""
 
     @abstractmethod
@@ -1223,16 +1222,16 @@ class InferFeatureAttributesBase(ABC):
             if first_non_null := self._get_first_non_null(feature_name):
                 fmt = determine_iso_format(first_non_null, feature_name)
                 return {
-                    'type': 'continuous',
-                    'data_type': 'formatted_date_time',
-                    'date_time_format': fmt
+                    "type": "continuous",
+                    "data_type": "formatted_date_time",
+                    "date_time_format": fmt
                 }
             else:
                 # It isn't clear how this method would be called on a feature
                 # if it has no data, but just in case...
                 return {
-                    'type': 'continuous',
-                    'data_type': 'number',
+                    "type": "continuous",
+                    "data_type": "number",
                 }
         elif self._is_json_feature(feature_name):
             typing_attrs = {
@@ -1247,8 +1246,8 @@ class InferFeatureAttributesBase(ABC):
             return typing_attrs
         elif self._is_yaml_feature(feature_name):
             return {
-                'type': 'continuous',
-                'data_type': 'yaml'
+                "type": "continuous",
+                "data_type": "yaml"
             }
         else:
             # The user may have pre-set the type as "continuous" to force it to be considered a tokenizable string;
@@ -1259,7 +1258,7 @@ class InferFeatureAttributesBase(ABC):
                     # If the column can be converted to float, and was set to be "continuous",
                     # it is probably not a tokenizable string.
                     col = self.data[feature_name]
-                    col.astype('float')
+                    col.astype("float")
                 except Exception:  # noqa: Intentionally broad
                     # If it cannot be converted to float, but it was set to be "continuous",
                     # it is probably a tokenizable string.
@@ -1274,11 +1273,11 @@ class InferFeatureAttributesBase(ABC):
             else:
                 return self._infer_unknown_attributes(feature_name)
 
-    def _infer_unknown_attributes(self, feature_name: str) -> dict:
+    def _infer_unknown_attributes(self, *args: t.Any) -> dict:
         """Get inferred attributes for the given unknown-type column."""
         return {
-            'type': 'nominal',
-            'data_type': 'string',
+            "type": "nominal",
+            "data_type": "string",
         }
 
     @abstractmethod
@@ -1286,8 +1285,8 @@ class InferFeatureAttributesBase(ABC):
         self,
         feature_attributes: Mapping[str, Mapping],
         feature_name: str,
-        tight_bounds: t.Optional[Iterable[str]] = None,
-        mode_bound_features: t.Optional[Iterable[str]] = None,
+        tight_bounds: Iterable[str] | None = None,
+        mode_bound_features: Iterable[str] | None = None,
     ) -> dict | None:
         """
         Return inferred bounds for the given column.
@@ -1317,8 +1316,8 @@ class InferFeatureAttributesBase(ABC):
         """
 
     @staticmethod
-    def infer_loose_feature_bounds(min_bound: int | float,
-                                   max_bound: int | float
+    def infer_loose_feature_bounds(min_bound: float,
+                                   max_bound: float
                                    ) -> tuple[float, float]:
         """
         Infer the loose bound values given a tight min and max bound value.
@@ -1361,13 +1360,13 @@ class InferFeatureAttributesBase(ABC):
         """Get the minimum number of unique values a feature must have to be considered continuous."""
         n_cases = self._get_num_cases(feature_name)
         # If the provided feature is stationary, we should simply evaluate the number of series
-        if getattr(self, 'id_feature_names', None) and feature_name in self._time_invariant_features:
+        if getattr(self, "id_feature_names", None) and feature_name in self._time_invariant_features:
             return math.ceil(pow(self.num_series, 0.5))
         # Return the sqrt of max(avg. cases per series, num. series)
         return math.ceil(pow(max(self.num_series, (n_cases / self.num_series)), 0.5))
 
     @staticmethod
-    def _get_datetime_max():
+    def _get_datetime_max() -> str:
         # Avoid circular import
         from howso.client.client import get_howso_client_class
         from howso.direct import HowsoDirectClient
@@ -1375,7 +1374,7 @@ class InferFeatureAttributesBase(ABC):
         klass, _ = get_howso_client_class()
         if issubclass(klass, HowsoDirectClient):
             plat = platform.system().lower()
-            if plat == 'windows':
+            if plat == "windows":
                 return WIN_DT_MAX
         return LINUX_DT_MAX
 
@@ -1415,11 +1414,11 @@ class InferFeatureAttributesBase(ABC):
         feature_names = list(feature_attributes.keys())
         for feature_name in feature_names:
             # Cyclic time features won't have unsupported data as they cannot exceed 24hour bounds
-            if feature_attributes[feature_name].get('data_type') == 'formatted_time':
+            if feature_attributes[feature_name].get("data_type") == "formatted_time":
                 continue
             # Check original data type for ints, floats, datetimes
-            orig_type = feature_attributes[feature_name].get('original_type', {}).get('data_type')
-            if (orig_type in ['integer', 'numeric'] or 'date_time_format' in
+            orig_type = feature_attributes[feature_name].get("original_type", {}).get("data_type")
+            if (orig_type in ["integer", "numeric"] or "date_time_format" in
                     feature_attributes[feature_name]):
                 # Get feature bounds
                 with warnings.catch_warnings():
@@ -1431,36 +1430,36 @@ class InferFeatureAttributesBase(ABC):
                         feature_name=feature_name,
                         tight_bounds=feature_names
                     )
-                if not bounds or bounds.get('min') is None or bounds.get('max') is None:
+                if not bounds or bounds.get("min") is None or bounds.get("max") is None:
                     continue
                 omit = False
                 # Datetimes
-                dt_fmt = feature_attributes[feature_name].get('date_time_format')
+                dt_fmt = feature_attributes[feature_name].get("date_time_format")
                 if dt_fmt is not None:
                     # Get maximum compatible datetime (depends on platform)
-                    allowed_max = date_to_epoch(self._get_datetime_max(), time_format='%Y-%m-%d')
-                    actual_max = date_to_epoch(bounds['max'], time_format=dt_fmt)
+                    allowed_max = date_to_epoch(self._get_datetime_max(), time_format="%Y-%m-%d")
+                    actual_max = date_to_epoch(bounds["max"], time_format=dt_fmt)
                     # Verify
                     if actual_max >= allowed_max:
                         omit = True
                 else:
                     # Determine the largest absolute value from the feature bounds
-                    largest_value = max(abs(bounds['min']), bounds['max'])
+                    largest_value = max(abs(bounds["min"]), bounds["max"])
                     # Verify integer min/max
-                    if orig_type == 'integer':
+                    if orig_type == "integer":
                         if largest_value >= INTEGER_MAX:
                             omit = True
                     # Verify float min/max
-                    elif orig_type == 'numeric':
+                    elif orig_type == "numeric":
                         # Determine the smallest absolute value from the feature bounds
-                        smallest_value = min(abs(bounds['min']), abs(bounds['max']))
+                        smallest_value = min(abs(bounds["min"]), abs(bounds["max"]))
                         if largest_value >= FLOAT_MAX or smallest_value <= FLOAT_MIN:
                             omit = True
                 # Keep track of unsupported data internally
                 if omit:
                     self.unsupported.append(feature_name)
 
-    def _validate_date_times(self):
+    def _validate_date_times(self) -> None:
         """Validate date time features are configured correctly."""
         for feature_name, attributes in self.attributes.items():
             dt_format = attributes.get("date_time_format")
@@ -1475,12 +1474,12 @@ class InferFeatureAttributesBase(ABC):
                 # the default of UTC will be used. However, due to potential multiprocessing,
                 # and to avoid an excess of warnings if done per-feature, stash the offending
                 # features and do a single warning later on.
-                if not any(['%z' in dt_format,
-                            '%Z' in dt_format,
-                            dt_format[-1] == 'Z',  # Last char of 'Z' is ISO8601 identifier for UTC
+                if not any(["%z" in dt_format,
+                            "%Z" in dt_format,
+                            dt_format[-1] == "Z",  # Last char of 'Z' is ISO8601 identifier for UTC
                             self.default_time_zone is not None]):
                     self.warnings_collector.triage(IFAWarningEmitterType.MISSING_TZ_FEATURES, feature_name)
-                elif '%z' in dt_format:
+                elif "%z" in dt_format:
                     rand_val = self._get_random_value(feature_name)
                     if isinstance(rand_val, datetime.datetime):
                         # Some datetime objects might have a time zone attribute not visible as a string
@@ -1491,7 +1490,7 @@ class InferFeatureAttributesBase(ABC):
                     self.warnings_collector.triage(IFAWarningEmitterType.UTC_OFFSET, feature_name)
 
     @staticmethod
-    def _is_datetime(string: str):
+    def _is_datetime(string: str) -> bool:
         """
         Return True if string can be interpreted as a date.
 
@@ -1654,7 +1653,7 @@ class InferFeatureAttributesBase(ABC):
             # Try to parse rand_val as YAML
             try:
                 yaml.safe_load(sample)
-                if len(sample.split(':')) <= 1 or '\n' not in sample:
+                if len(sample.split(":")) <= 1 or "\n" not in sample:
                     return False
             except yaml.YAMLError:
                 return False
@@ -1665,13 +1664,13 @@ class InferFeatureAttributesBase(ABC):
     def _add_id_attribute(feature_attributes: Mapping, id_feature_name: str) -> None:
         """Update the given feature_attributes in-place for id_features."""
         if id_feature_name in feature_attributes:
-            feature_attributes[id_feature_name]['id_feature'] = True
+            feature_attributes[id_feature_name]["id_feature"] = True
             # If id feature was inferred to be continuous, change it to nominal
             # with 'data_type':number attribute to prevent string conversion.
-            if feature_attributes[id_feature_name]['type'] == 'continuous':
-                feature_attributes[id_feature_name]['type'] = 'nominal'
-                if 'decimal_places' in feature_attributes[id_feature_name]:
-                    del feature_attributes[id_feature_name]['decimal_places']
+            if feature_attributes[id_feature_name]["type"] == "continuous":
+                feature_attributes[id_feature_name]["type"] = "nominal"
+                if "decimal_places" in feature_attributes[id_feature_name]:
+                    del feature_attributes[id_feature_name]["decimal_places"]
 
     @classmethod
     def _get_min_max_number_size_bounds(
@@ -1704,25 +1703,25 @@ class InferFeatureAttributesBase(ABC):
             The maximum size.
         """
         try:
-            original_type = feature_attributes[feature_name]['original_type']
+            original_type = feature_attributes[feature_name]["original_type"]
         except (TypeError, KeyError):
             # Feature not found or original typing info not defined
             return None, None
 
         min_value = None
         max_value = None
-        if original_type and original_type.get('size'):
-            size = original_type.get('size')
-            data_type = original_type.get('data_type')
+        if original_type and original_type.get("size"):
+            size = original_type.get("size")
+            data_type = original_type.get("data_type")
 
             if size in [1, 2, 4, 8]:
                 if data_type == FeatureType.INTEGER.value:
-                    if original_type.get('unsigned'):
-                        dtype_info = np.iinfo(f'uint{size * 8}')
+                    if original_type.get("unsigned"):
+                        dtype_info = np.iinfo(f"uint{size * 8}")
                     else:
-                        dtype_info = np.iinfo(f'int{size * 8}')
+                        dtype_info = np.iinfo(f"int{size * 8}")
                 elif data_type == FeatureType.NUMERIC.value and size < 8:
-                    dtype_info = np.finfo(f'float{size * 8}')
+                    dtype_info = np.finfo(f"float{size * 8}")
                 else:
                     # Not a numeric feature or is 64bit float
                     return None, None
@@ -1731,7 +1730,7 @@ class InferFeatureAttributesBase(ABC):
                 max_value = float(dtype_info.max)
             elif size == 3 and data_type == FeatureType.INTEGER.value:
                 # Some database dialects support 24bit integers
-                if original_type.get('unsigned'):
+                if original_type.get("unsigned"):
                     min_value = 0
                     max_value = 16777215
                 else:
@@ -1810,7 +1809,7 @@ class InferFeatureAttributesBase(ABC):
         """Get the number of occurrences of the provided value of the provided feature."""
 
     def _find_protected_value_candidates(self, max_distilled_cases: int,
-                                         significance_threshold: int) -> t.Tuple[PreserveRareValuesMap, list[dict]]:
+                                         significance_threshold: int) -> tuple[PreserveRareValuesMap, list[dict]]:
         """
         Analyze the data to determine if any values might be good candidates for signal preservation techniques.
 
@@ -1844,7 +1843,7 @@ class InferFeatureAttributesBase(ABC):
                 expected_freq_at_target_size = (max_distilled_cases / total_cases) * count
                 if expected_freq_at_target_size < significance_threshold:
                     value_counts.append({"feature": feature, "value": unique_value, "count": count})
-                    if feature not in pvm.keys():
+                    if feature not in pvm:
                         pvm[feature] = [unique_value]
                     else:
                         pvm[feature].append(unique_value)
@@ -1930,23 +1929,22 @@ class InferFeatureAttributesBase(ABC):
                                      "Please verify the value and type.")
                 expected_freq_at_target_size = (max_distilled_cases / total_cases) * count
                 multiplier = significance_threshold / expected_freq_at_target_size
-                # If a value has a computed multiplier of < 1, it does not need signal preservation, and could have been a mistake
+                # If a value has a computed multiplier of < 1, it does not need signal preservation
                 if multiplier < 1:
-                    # TODO issue warning?
                     continue
-                if data_type == "number":
-                    value = float(value)
-                prvc[feature]["protected_values_multipliers"].append({"value": value,
-                                                                      "multiplier": max(float(multiplier), 1)})
+                prvc[feature]["protected_values_multipliers"].append(
+                    {"value": float(value) if data_type == "number" else value,
+                    "multiplier": max(float(multiplier), 1)}
+                )
             # Now that all protected value multipliers have been computed, determine the unprotected value multiplier
             prvc[feature]["unprotected_multiplier"] = self._compute_unprotected_multiplier(
                 feature, prvc[feature]["protected_values_multipliers"], row_count=total_cases
             )
         return prvc
 
-    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap,  # noqa: C901
+    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap,  # noqa: PLR0912
                              preserve_rare_values_config: PreserveRareValuesConfig, max_distilled_cases: int,
-                             significance_threshold: int):
+                             significance_threshold: int) -> None:
         """Procesess `preserve_rare_values` configuration or make recommendation."""
         _prvc: FullPreserveRareValuesConfig = {}
         # Did the user specify max_distilled_cases? Save this information for later.
@@ -1959,10 +1957,11 @@ class InferFeatureAttributesBase(ABC):
         else:
             # Set a small default
             max_distilled_cases = 25_000
-            # Skip this if data is smaller than the default (true for many test cases);
-            # probably indicates that data distillation happening is unlikely  # TODO should we actually do this?
-            if self._get_row_count() < max_distilled_cases:
-                return
+
+        # Skip this if data is smaller than the default (true for many test cases);
+        # probably indicates that data distillation happening is unlikely
+        if self._get_row_count() < max_distilled_cases:
+            return
 
         # Workflow 1: User provided a config with protected multipliers; need to compute unprotected multipliers
         if preserve_rare_values_config is not None:
@@ -1991,8 +1990,8 @@ class InferFeatureAttributesBase(ABC):
             # Let another part of the stack figure it out; set only the protected values in the attributes.
             else:
                 if preserve_rare_values_map == "all":
-                    raise ValueError("If `preserve_rare_values_map` is set to \"all,\" you must also provide "
-                                     "`max_distilled_cases` to accurately determine rare value candidates.")
+                    raise ValueError('If `preserve_rare_values_map` is set to "all," you must also provide '
+                                     '`max_distilled_cases` to accurately determine rare value candidates.')
                 for feature, values in preserve_rare_values_map.items():
                     if feature not in self.attributes:
                         # Multiprocessing is enabled, and this feature will be handled in another process
@@ -2008,7 +2007,7 @@ class InferFeatureAttributesBase(ABC):
                 candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
                                                                            preserve_rare_values_map,
                                                                            significance_threshold)
-                prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)  # TODO: What to do about this serious type issue?
+                prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)
                 self.suggestions_collector.append(prvc_suggestion)
 
         # Apply rare values multipliers to feature attributes if applicable (workflows 1, 2A)
