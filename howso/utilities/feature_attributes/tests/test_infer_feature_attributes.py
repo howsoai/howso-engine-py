@@ -10,14 +10,14 @@ from tempfile import TemporaryDirectory
 import warnings
 from zoneinfo import ZoneInfo
 
+import numpy as np
+import pandas as pd
+import pytest
 
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.base import FeatureAttributesBase, FLOAT_MAX, FLOAT_MIN, INTEGER_MAX
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
 from howso.utilities.features import FeatureType
-import numpy as np
-import pandas as pd
-import pytest
 
 if platform.system().lower() == 'windows':
     DT_MAX = '6053-01-24'
@@ -1213,7 +1213,7 @@ def test_set_data():
 def test_preserve_rare_values():
     """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
     # Manufacture some data
-    n = 10_000
+    n = 100_000
     features = ['a', 'b', 'i', 'mass']
     data = []
     for i in range(n):
@@ -1235,28 +1235,25 @@ def test_preserve_rare_values():
     df = pd.DataFrame(data, columns=features)
 
     # Test auto-apply with all values
-    features = infer_feature_attributes(df, chunk_size=500, preserve_rare_values_map="all", max_workers=2)
+    features = infer_feature_attributes(df, max_distilled_cases=1563, preserve_rare_values_map="all", max_workers=2)
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
-    assert features["a"]["preserve_rare_values"]["protected_values"][0]["value"] is None
-    assert features["a"]["preserve_rare_values"]["protected_values"][0]["multiplier"] == 6.0
-    assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.95
+    # The protected value we're looking here is actually "none"
+    assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["value"] is None
+    assert round(features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"], 2) == 1.92
+    assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
-    # Test auto-apply with selected values
-    features = infer_feature_attributes(df, chunk_size=500, preserve_rare_values_map={"b": ['y', 'z']})
-    assert "preserve_rare_values" not in features["a"]
-    assert "preserve_rare_values" in features["b"]
-    assert len(features["b"]["preserve_rare_values"]["protected_values"]) == 2
-    assert features["b"]["preserve_rare_values"]["protected_values"][0]["multiplier"] == 1.5
-    assert features["b"]["preserve_rare_values"]["protected_values"][1]["multiplier"] == 6.0
-    assert round(features["b"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.93
+    # All values, but multipliers should be deferred if `max_distilled_cases` not provided
+    features = infer_feature_attributes(df, preserve_rare_values_map={"a": [None]}, max_workers=2)
+    assert "preserve_rare_values" in features["a"]
+    assert features["a"]["preserve_rare_values"]["protected_values"][0] is None
 
     # Test that a suggestion is issued
     with pytest.warns(UserWarning, match="You have one or more suggestions"):
-        features = infer_feature_attributes(df, chunk_size=500)
+        features = infer_feature_attributes(df, max_distilled_cases=1563)
         for feat in features:
             assert "preserve_rare_values" not in feat
         # Test a suggestion application
-        features.suggestions.apply_all()
-        assert "preserve_rare_values" in features["a"]
-        assert "preserve_rare_values" in features["b"]
+        features.apply_suggestion("all")
+        assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
+        assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})

@@ -350,16 +350,16 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             df.drop(index=0, inplace=True)
         return df
 
-    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any | None:
+    def _get_random_value(self, feature_name: str, no_nulls: bool = False, count: int = 1) -> t.Any | None:
         """
-        Return a random sample from the given column.
+        Return `count` random sample(s) from the given column.
 
         The return type is determined by the column type.
 
         if `no_nulls` is set, select a random value from the set of non-null
         values, if any. If there are no such non-nulls, this will return None.
         """
-        return self.data.get_random_value(feature_name, no_nulls=no_nulls)
+        return self.data.get_random_value(feature_name, no_nulls=no_nulls, count=count)
 
     def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
         """Get the number of unique values in the provided column(s)."""
@@ -786,9 +786,4 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
     def _get_value_count(self, feature_name: str, value: t.Any) -> int:
         """Get the number of occurances of the provided value of the provided feature."""
-        count = 0
-        for chunk in self.data.yield_chunk(chunk_size=100_000):
-            if value is None or pd.isna(value):
-                count += (chunk[feature_name].isna()).sum()
-            count += (chunk[feature_name] == value).sum()
-        return count
+        return self.data.get_value_count(feature_name, value, max_rows_to_eval=self.max_rows_to_eval)

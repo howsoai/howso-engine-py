@@ -786,4 +786,3 @@ def test_infer_time_invariant_features_max_rows(adc):
         ]
         # Should be exactly one call (to _infer_time_invariant_features) with these parameters
         assert len(calls_with_max_chunks) == 1
-

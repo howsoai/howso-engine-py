@@ -14,6 +14,7 @@ from howso.utilities import (
     format_confusion_matrix,
     get_hash,
     get_kwargs,
+    get_optimized_max_chunk_size,
     LocaleOverride,
     matrix_processing,
 )
@@ -620,3 +621,52 @@ def test_get_hash_with_mixed_types():
     # Same list should hash consistently
     mixed_list2 = [1, 2.5, "three", b"four", (5, 6), {"seven": 7}]
     assert get_hash(mixed_list) == get_hash(mixed_list2)
+
+
+@pytest.mark.parametrize(
+    ("row_count", "max_chunk_size", "min_chunk_size", "expected", "respects_max"),
+    [
+        # max_chunk_size < min_chunk_size: max is clamped up to the floor;
+        # bound vs. the original hint does not apply.
+        pytest.param(100_000, 10_000, 50_000, (50_000, 2), False, id="hint_below_min_clamped"),
+        # Hint clamped to the floor; chunk size lands above the floor.
+        pytest.param(120_000, 10_000, 50_000, (60_000, 2), False, id="hint_below_min_clamped_ceil"),
+        # Typical case: ideal_num_chunks equals max_num_chunks; chunk size matches the hint.
+        pytest.param(200_000, 50_000, 50_000, (50_000, 4), True, id="ideal_equals_max"),
+        # ideal_num_chunks exceeds max_num_chunks: clamped by min_chunk_size floor; bound may be exceeded.
+        pytest.param(320_000, 50_000, 50_000, (80_000, 4), False, id="ideal_clamped_by_max"),
+        # ideal_num_chunks equals max_num_chunks (both 8) with non-trivial bit math on each side.
+        pytest.param(600_000, 100_000, 50_000, (75_000, 8), True, id="ideal_equals_max_larger"),
+        # ideal_num_chunks < max_num_chunks: ideal wins in min().
+        pytest.param(400_000, 200_000, 50_000, (200_000, 2), True, id="ideal_below_max"),
+        # Row count needs more than 2 chunks to fit under the hint; new algo bumps to 4.
+        pytest.param(130_000, 50_000, 10_000, (32_500, 4), True, id="hint_forces_extra_doubling"),
+        # row_count < min_chunk_size: max_num_chunks = 1; bound does not apply (degenerate).
+        pytest.param(30_000, 50_000, 50_000, (30_000, 1), False, id="row_below_min"),
+        # row_count fits in a single chunk (row <= hint); num_chunks = 1.
+        pytest.param(20_000, 100_000, 10_000, (20_000, 1), False, id="single_chunk_row_above_min"),
+        # row_count >= min_chunk_size but row_count // min_chunk_size == 1: max_num_chunks = 1.
+        pytest.param(70_000, 50_000, 50_000, (70_000, 1), False, id="max_one_row_above_min"),
+    ],
+)
+def test_get_optimized_max_chunk_size(
+    row_count: int,
+    max_chunk_size: int,
+    min_chunk_size: int,
+    expected: tuple[int, int],
+    respects_max: bool,
+) -> None:
+    """Verify ``fl_optimized_chunk_size`` for each branch of the function."""
+    result = get_optimized_max_chunk_size(
+        row_count=row_count,
+        max_chunk_size=max_chunk_size,
+        min_chunk_size=min_chunk_size,
+    )
+    assert result == expected
+
+    # When neither the min_chunk_size floor nor the single-chunk degenerate case
+    # is in play, the returned chunk_size is the largest power-of-2-chunks size
+    # that does not exceed the hint, i.e. (hint/2, hint].
+    if respects_max:
+        chunk_size = result[0]
+        assert max_chunk_size < 2 * chunk_size <= 2 * max_chunk_size
