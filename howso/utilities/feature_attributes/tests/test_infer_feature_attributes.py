@@ -1257,3 +1257,16 @@ def test_preserve_rare_values():
         features.apply_suggestion("all")
         assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
         assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
+
+        values_map = features.suggestions.preserve_rare_values.get_values_map()
+        config = features.suggestions.preserve_rare_values.get_config()
+
+    # Supplying the suggested values_map and config to IFA should result in no warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        features = infer_feature_attributes(df, preserve_rare_values_config=config)
+        assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
+        assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
+        features = infer_feature_attributes(df, preserve_rare_values_map=values_map)
+        assert "protected_values" in features["a"].get("preserve_rare_values", {})
+        assert "protected_values" in features["b"].get("preserve_rare_values", {})

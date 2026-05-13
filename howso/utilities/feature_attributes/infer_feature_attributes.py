@@ -243,6 +243,11 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                 ]
             }
 
+        Alternatively, you may provide a "full" `preserve_rare_values_config` that specifies both
+        the "unprotected_multiplier" and "protected_values_multipliers" for each feature. This is
+        the format that can be expected if your `preserve_rare_values_config` comes from a
+        suggestion after calling `infer_feature_attributes`.
+
     preserve_rare_values_map : dict or "all", default None
         (Optional) A map of feature name to list of values that should be protected during data
         distillation. If set to "all", will infer and attempt to preserve all detected rare
