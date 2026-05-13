@@ -420,8 +420,13 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                         deserialized_case[k] = format_column(pd.Series(v), feature=feature_attributes[k])
                     deserialized_cases.append(deserialized_case)
                 formatted_details.update({detail_name: deserialized_cases})
-            # Specail case: outlying_feature_values and boundary_values (leave as-is)
-            elif detail_name in ["outlying_feature_values", "boundary_values"]:
+            # Special case: leave as-is
+            elif detail_name in {
+                "outlying_feature_values",
+                "boundary_values",
+                "context_features",
+                "action_features",
+            }:
                 formatted_details.update({detail_name: detail})
             # Other valid details
             elif detail_name in ReactDetails.__annotations__.keys():
@@ -460,7 +465,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                         self._details[key] = detail
                     elif key in ["action_features", "context_features"]:
                         # Special case: avoid duplicate entries in feature name lists
-                        self._details[key] = list(set(self._details[key] + detail))
+                        self._details[key] = list(dict.fromkeys(self._details[key] + detail))
                     elif hasattr(detail, "extend") and callable(detail.extend):
                         self._details[key].extend(detail)
                     elif isinstance(detail, pd.DataFrame):
