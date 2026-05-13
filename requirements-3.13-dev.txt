@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.13-dev.txt --pip-args=None
 #
-amalgam-lang==30.1.0
+amalgam-lang==30.1.1
     # via howso-engine (pyproject.toml)
 astroid==4.0.4
     # via pylint
@@ -20,7 +20,7 @@ click==8.3.3
     # via
     #   pip-tools
     #   sacremoses
-coverage[toml]==7.13.5
+coverage[toml]==7.14.0
     # via pytest-cov
 dill==0.4.1
     # via
@@ -40,7 +40,7 @@ flake8-import-order==0.19.2
     # via howso-engine (pyproject.toml)
 humanize==4.15.0
     # via howso-engine (pyproject.toml)
-idna==3.13
+idna==3.15
     # via requests
 iniconfig==2.3.0
     # via pytest
@@ -129,9 +129,9 @@ pytz==2026.2
     #   pandas
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
-regex==2026.4.4
+regex==2026.5.9
     # via sacremoses
-requests==2.33.1
+requests==2.34.0
     # via howso-engine (pyproject.toml)
 rich==15.0.0
     # via howso-engine (pyproject.toml)
@@ -151,7 +151,7 @@ snowballstemmer==3.0.1
     # via pydocstyle
 threadpoolctl==3.6.0
     # via scikit-learn
-tomlkit==0.14.0
+tomlkit==0.15.0
     # via pylint
 tqdm==4.67.3
     # via sacremoses
