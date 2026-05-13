@@ -159,7 +159,7 @@ class FeatureSerializer:
                     data_columns.append(col_data.dt.to_pytimedelta())
                 else:
                     data_columns.append(col_data.to_numpy())
-            result = np.array(data_columns).T.tolist()
+            result = np.array(data_columns, dtype=object).T.tolist()
 
         elif isinstance(data, Iterable) and not isinstance(data, str):
             if columns is None:
