@@ -827,7 +827,7 @@ class InferFeatureAttributesBase(ABC):
                  nominal_substitution_config: dict[str, dict] | None = None,
                  ordinal_feature_values: dict[str, list[str]] | None = None,
                  preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"] | None = None,
-                 preserve_rare_values_config: PreserveRareValuesConfig | None = None,
+                 preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None = None,
                  significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
                  tight_bounds: Iterable[str] | None = None,
                  types: dict[str, str] | dict[str, MutableSequence[str]] | None = None,
@@ -1958,19 +1958,26 @@ class InferFeatureAttributesBase(ABC):
             # Set a small default
             max_distilled_cases = 25_000
 
-        # Workflow 1: User provided a config with protected multipliers; need to compute unprotected multipliers
+        # Workflow 1: User provided a config with protected multipliers; may need to compute unprotected multipliers
         if preserve_rare_values_config is not None:
             if preserve_rare_values_map is not None:
                 self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE, "A `preserve_rare_values_map` was "
                                                "provided with a full `preserve_rare_values_config`; the former "
                                                "will be ignored.")
-            # Config provided, but need to compute unprotected value multipliers
-            for feature, value_configs in preserve_rare_values_config.items():
-                feature_prvc = {}
-                feature_prvc["unprotected_multiplier"] = self._compute_unprotected_multiplier(feature, value_configs)
-                # Also set the protected value configs under the expected key
-                feature_prvc["protected_values_multipliers"] = value_configs
-                _prvc[feature] = feature_prvc
+            # Config provided; check if unprotected multipliers need computation
+            for feature, cfg in preserve_rare_values_config.items():
+                feature_full_config = {}
+                if not isinstance(cfg, Mapping):
+                    # Workflow 1A: User provided a "simple" config (Mapping of feature names to list of rare values)
+                    feature_full_config["protected_values_multipliers"] = deepcopy(cfg)
+                else:
+                    # Workflow 1B: User provided a "full" config with sub-keys (likely through the suggestion loop)
+                    feature_full_config = deepcopy(cfg)
+                # In any case, ensure the unprotected multipliers are present
+                if "unprotected_multiplier" not in feature_full_config:
+                    feature_full_config["unprotected_multiplier"] = self._compute_unprotected_multiplier(feature,
+                                                                                                         feature_full_config["protected_values_multipliers"])
+                _prvc[feature] = feature_full_config
         # Workflow 2: User provided a map of rare values to protect, but no multipliers
         elif preserve_rare_values_map is not None:
             # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here

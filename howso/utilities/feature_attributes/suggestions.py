@@ -125,9 +125,7 @@ class PRVSuggestion(IFASuggestion):
         total_width = 120
         action_w, details_w, code_w = 24, 40, 50
 
-        options_table = Table(title="Summary of Available Options", show_lines=True, width=total_width,
-                              caption="In the code examples, `attributes` refers to the feature attributes object "
-                              "that was returned by `infer_feature_attributes`.")
+        options_table = Table(title="Summary of Available Options", show_lines=True, width=total_width)
         options_table.add_column("Action", min_width=action_w, overflow="fold")
         options_table.add_column("Details", min_width=details_w, overflow="fold")
         options_table.add_column("Relevant Code")
@@ -206,7 +204,7 @@ class PRVSuggestion(IFASuggestion):
     def get_values_map(self) -> PreserveRareValuesMap:
         """Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes."""
         values_map = {}
-        for feature, config in self._prvc:
+        for feature, config in self._prvc.items():
             values_map[feature] = ([value_config["value"] for value_config
                                     in config["protected_values_multipliers"]])
         return values_map
@@ -244,7 +242,7 @@ class IFASuggestionCollector:
         table = Table(title="Suggestions for Potential Data Quality Improvements",
                       caption="To view a more detailed description of a suggestion, access its `name` as a property "
                       "(e.g., `your_attributes_object.suggestions.preserve_rare_values`).\n\nTo apply all suggestions,"
-                      " call `your_attributes_object.suggestions.apply_all()`.")
+                      ' call `your_attributes_object.apply_suggestion("all"))`.')
         table.add_column("Name")
         table.add_column("Description")
 
