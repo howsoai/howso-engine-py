@@ -1992,6 +1992,9 @@ class InferFeatureAttributesBase(ABC):
                 _prvc[feature] = feature_full_config
         # Workflow 2: User provided a map of rare values to protect, but no multipliers
         elif preserve_rare_values_map is not None:
+            # User wants to do nothing; exit silently
+            if preserve_rare_values_map == "off":
+                return
             # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here
             if user_set_mdc:
                 if preserve_rare_values_map == "all":
@@ -2022,14 +2025,11 @@ class InferFeatureAttributesBase(ABC):
             preserve_rare_values_map, values_ranking = self._find_protected_value_candidates(max_distilled_cases,
                                                                                              significance_threshold)
             if preserve_rare_values_map:
-                try:
-                    candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
-                                                                            preserve_rare_values_map,
-                                                                            significance_threshold)
-                    prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)
-                    self.suggestions_collector.append(prvc_suggestion)
-                except TypeError, ValueError as err:
-                    self.warnings_collector.triage() # TODO
+                candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
+                                                                        preserve_rare_values_map,
+                                                                        significance_threshold)
+                prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)
+                self.suggestions_collector.append(prvc_suggestion)
 
         # Apply rare values multipliers to feature attributes if applicable (workflows 1, 2A)
         if _prvc:
