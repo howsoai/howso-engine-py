@@ -1833,8 +1833,11 @@ class InferFeatureAttributesBase(ABC):
         for feature, attributes in self.attributes.items():
             if attributes["type"] != "nominal":
                 continue
-            uniques = self._get_unique_values(feature)
             total_cases = self._get_row_count()
+            if self._get_unique_count(feature) == total_cases:
+                # Don't make a suggestion for a completely unique feature
+                continue
+            uniques = self._get_unique_values(feature)
             for unique_value in uniques:
                 count = self._get_value_count(feature, unique_value)
                 # Don't include values that aren't significant to begin with
@@ -1949,6 +1952,15 @@ class InferFeatureAttributesBase(ABC):
         _prvc: FullPreserveRareValuesConfig = {}
         # Did the user specify max_distilled_cases? Save this information for later.
         user_set_mdc = False
+        # If available, pre-cache value counts to enhance performance
+        if hasattr(self.data, "_cache_value_counts") and callable(getattr(self.data, "_cache_value_counts")):
+            feature_names = []
+            total_cases = self._get_row_count()
+            for feature, attributes in self.attributes.items():
+                # Only cache features that are eligible for rare values
+                if attributes["type"] == "nominal" and self._get_unique_count < total_cases:
+                    feature_names.append(feature)
+            self.data._cache_value_counts(feature_names, max_rows_to_eval=self.max_rows_to_eval, chunk_size=50_000)
         if max_distilled_cases is not None:
             user_set_mdc = True
             # Compute the optimized max_distilled_cases value if available
@@ -2010,11 +2022,14 @@ class InferFeatureAttributesBase(ABC):
             preserve_rare_values_map, values_ranking = self._find_protected_value_candidates(max_distilled_cases,
                                                                                              significance_threshold)
             if preserve_rare_values_map:
-                candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
-                                                                           preserve_rare_values_map,
-                                                                           significance_threshold)
-                prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)
-                self.suggestions_collector.append(prvc_suggestion)
+                try:
+                    candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
+                                                                            preserve_rare_values_map,
+                                                                            significance_threshold)
+                    prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)
+                    self.suggestions_collector.append(prvc_suggestion)
+                except TypeError, ValueError as err:
+                    self.warnings_collector.triage() # TODO
 
         # Apply rare values multipliers to feature attributes if applicable (workflows 1, 2A)
         if _prvc:

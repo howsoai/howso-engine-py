@@ -967,6 +967,18 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
     def _get_value_count(self, feature_name: str, value: t.Any) -> int:
         """Get the number of occurances of the provided value of the provided feature."""
-        if value is None:
-            return (self.data[feature_name].isna()).sum()
-        return (self.data[feature_name] == value).sum()
+        if not hasattr(self, "_value_counts"):
+            self._value_counts = {}
+        if feature_name not in self._value_counts:
+            self._value_counts[feature_name] = self.data[feature_name].value_counts(dropna=False)
+        counts = self._value_counts[feature_name]
+        # NA lookups need special handling: NaN != NaN, and pd.NA/None/np.nan don't
+        # reliably hash-match each other in Series indexing. Sum all NA-keyed entries.
+        try:
+            is_na_lookup = pd.isna(value)
+        except (TypeError, ValueError):
+            is_na_lookup = False
+        if is_na_lookup:
+            na_mask = counts.index.isna()
+            return int(counts[na_mask].sum())
+        return int(counts.get(value, 0))
