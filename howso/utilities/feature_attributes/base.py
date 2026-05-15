@@ -1949,7 +1949,7 @@ class InferFeatureAttributesBase(ABC):
             )
         return prvc
 
-    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap,  # noqa: PLR0912, PLR0915
+    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all", "off"],  # noqa: PLR0912, PLR0915
                              preserve_rare_values_config: PreserveRareValuesConfig, max_distilled_cases: int,
                              significance_threshold: int) -> None:
         """Procesess `preserve_rare_values` configuration or make recommendation."""
