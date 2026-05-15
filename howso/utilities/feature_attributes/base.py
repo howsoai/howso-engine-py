@@ -1952,15 +1952,24 @@ class InferFeatureAttributesBase(ABC):
         _prvc: FullPreserveRareValuesConfig = {}
         # Did the user specify max_distilled_cases? Save this information for later.
         user_set_mdc = False
+        # User wants to do nothing; exit silently
+        if preserve_rare_values_map and preserve_rare_values_map == "off":
+            return
         # If available, pre-cache value counts to enhance performance
-        if hasattr(self.data, "_cache_value_counts") and callable(getattr(self.data, "_cache_value_counts")):
+        if hasattr(self.data, "_cache_value_counts") and callable(self.data._cache_value_counts):
             feature_names = []
             total_cases = self._get_row_count()
             for feature, attributes in self.attributes.items():
                 # Only cache features that are eligible for rare values
                 if attributes["type"] == "nominal" and self._get_unique_count < total_cases:
                     feature_names.append(feature)
-            self.data._cache_value_counts(feature_names, max_rows_to_eval=self.max_rows_to_eval, chunk_size=50_000)
+            exceptions = self.data._cache_value_counts(feature_names, max_rows_to_eval=self.max_rows_to_eval,
+                                                       chunk_size=50_000)
+            if exceptions:
+                unprocessed_msg = "Could not evaluate rare values candidates for some columns due to the following:\n"
+                for feat, err in exceptions.items():
+                    unprocessed_msg += f"\n\t- Column name: {feat}, Error: {err}"
+                self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE, unprocessed_msg)
         if max_distilled_cases is not None:
             user_set_mdc = True
             # Compute the optimized max_distilled_cases value if available
@@ -1992,9 +2001,6 @@ class InferFeatureAttributesBase(ABC):
                 _prvc[feature] = feature_full_config
         # Workflow 2: User provided a map of rare values to protect, but no multipliers
         elif preserve_rare_values_map is not None:
-            # User wants to do nothing; exit silently
-            if preserve_rare_values_map == "off":
-                return
             # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here
             if user_set_mdc:
                 if preserve_rare_values_map == "all":
