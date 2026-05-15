@@ -100,14 +100,16 @@ pydocstyle==6.3.0
 pyflakes==2.3.1
     # via flake8
 pygments==2.20.0
-    # via rich
+    # via
+    #   pytest
+    #   rich
 pylint==4.0.5
     # via howso-engine (pyproject.toml)
 pyproject-hooks==1.2.0
     # via
     #   build
     #   pip-tools
-pytest==7.4.4
+pytest==9.0.3
     # via
     #   howso-engine (pyproject.toml)
     #   pytest-cov
