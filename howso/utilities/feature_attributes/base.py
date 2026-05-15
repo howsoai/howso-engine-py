@@ -2032,8 +2032,8 @@ class InferFeatureAttributesBase(ABC):
                                                                                              significance_threshold)
             if preserve_rare_values_map:
                 candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
-                                                                        preserve_rare_values_map,
-                                                                        significance_threshold)
+                                                                           preserve_rare_values_map,
+                                                                           significance_threshold)
                 prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)
                 self.suggestions_collector.append(prvc_suggestion)
 
