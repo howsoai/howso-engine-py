@@ -974,11 +974,10 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         counts = self._value_counts[feature_name]
         # NA lookups need special handling: NaN != NaN, and pd.NA/None/np.nan don't
         # reliably hash-match each other in Series indexing. Sum all NA-keyed entries.
-        try:
-            is_na_lookup = pd.isna(value)
-        except (TypeError, ValueError):
-            is_na_lookup = False
+        na_result = pd.isna(value)
+        is_na_lookup = not hasattr(na_result, "__len__") and bool(na_result)
         if is_na_lookup:
-            na_mask = counts.index.isna()
-            return int(counts[na_mask].sum())
-        return int(counts.get(value, 0))
+            return int(counts[counts.index.isna()].sum())
+        if value in counts.index:
+            return int(counts.loc[value])
+        return 0

@@ -10,6 +10,7 @@ class IFAWarningEmitterType(Enum):
     MISSING_TZ_FEATURES = "missing_tz_features"
     UNKNOWN_DATETIME_FORMAT = "unknown_datetime_format"
     UTC_OFFSET = "utc_offset"
+    VALUE_COUNTS_PROCESSING = "value_counts_processing"
     SIMPLE = "simple"
 
 
@@ -84,6 +85,16 @@ class UTCOffsetFeaturesWarningEmitter(IFAWarningEmitter):
                       "identifier.", UserWarning)
 
 
+class ValueCountsProcessing(IFAWarningEmitter):
+    """Emitter for a warning about the inclusion of UTC offsets."""
+
+    def emit(self):
+        """Emit the warning."""
+        warnings.warn("Could not process some value counts for the following features, likely due to the presence of "
+                      f"unhashable values: {self.features_list}\nThis may affect the accuracy and completeness of "
+                      "suggested or computed `preserve_rare_values` configurations`.", UserWarning)
+
+
 class SimpleWarningEmitter(IFAWarningEmitter):
     """Emitter for simple warnings that are saved via the `features_list`."""
 
@@ -96,10 +107,10 @@ class SimpleWarningEmitter(IFAWarningEmitter):
 class IFAWarningCollector:
     """A collector for IFAWarningEmitters that can triage new feature entries."""
 
-    def __init__(self, emitters: dict[str, IFAWarningEmitter] = None):
+    def __init__(self, emitters: dict[str, IFAWarningEmitter] | None = None) -> None:
         self._emitters = emitters or {}
 
-    def triage(self, emitter_type: IFAWarningEmitterType, feature_name: str):
+    def triage(self, emitter_type: IFAWarningEmitterType, feature_name: str) -> None:
         """
         Sort the provided feature into the correct emitter bucket.
 
@@ -125,23 +136,26 @@ class IFAWarningCollector:
         elif emitter_type == IFAWarningEmitterType.SIMPLE:
             key = IFAWarningEmitterType.SIMPLE.value
             emitter = SimpleWarningEmitter
+        elif emitter_type == IFAWarningEmitterType.VALUE_COUNTS_PROCESSING:
+            key = IFAWarningEmitterType.VALUE_COUNTS_PROCESSING.value
+            emitter = ValueCountsProcessing
         else:
             raise ValueError("Unknown `emitter_type` provided.")
 
-        if key not in self._emitters.keys():
+        if key not in self._emitters:
             self._emitters[key] = emitter(features={feature_name})
         else:
             self._emitters[key].features.add(feature_name)
 
-    def emit_all(self):
+    def emit_all(self) -> None:
         """Emit all warnings collected."""
         for emitter in self._emitters.values():
             emitter.emit()
 
-    def merge(self, other: object):
+    def merge(self, other: object) -> None:
         """Merge another IFAWarningCollector object with this one."""
         for key, emitter in other._emitters.items():
-            if key not in self._emitters.keys():
+            if key not in self._emitters:
                 self._emitters[key] = emitter
             else:
                 for f in emitter.features:

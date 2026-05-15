@@ -1235,7 +1235,7 @@ def test_preserve_rare_values():
     df = pd.DataFrame(data, columns=features)
 
     # Test auto-apply with all values
-    features = infer_feature_attributes(df, max_distilled_cases=1563, preserve_rare_values_map="all", max_workers=2)
+    features = infer_feature_attributes(df, max_distilled_cases=1563, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
     # The protected value we're looking here is actually "none"
@@ -1244,7 +1244,7 @@ def test_preserve_rare_values():
     assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
     # All values, but multipliers should be deferred if `max_distilled_cases` not provided
-    features = infer_feature_attributes(df, preserve_rare_values_map={"a": [None]}, max_workers=2)
+    features = infer_feature_attributes(df, preserve_rare_values_map={"a": [None]})
     assert "preserve_rare_values" in features["a"]
     assert features["a"]["preserve_rare_values"]["protected_values"][0] is None
 
@@ -1270,3 +1270,9 @@ def test_preserve_rare_values():
         features = infer_feature_attributes(df, preserve_rare_values_map=values_map)
         assert "protected_values" in features["a"].get("preserve_rare_values", {})
         assert "protected_values" in features["b"].get("preserve_rare_values", {})
+
+    # Test data with unhashable values
+    df["unhashable"] = [[1, 2]] * len(df)  # lists are unhashable; value_counts will raise TypeError
+
+    with pytest.warns(UserWarning, match="Could not process some value counts"):
+        infer_feature_attributes(df, types={"unhashable": "nominal"})

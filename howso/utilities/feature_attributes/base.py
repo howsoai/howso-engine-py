@@ -826,7 +826,7 @@ class InferFeatureAttributesBase(ABC):
                  num_series: int = 1,
                  nominal_substitution_config: dict[str, dict] | None = None,
                  ordinal_feature_values: dict[str, list[str]] | None = None,
-                 preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"] | None = None,
+                 preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all", "off"] | None = None,
                  preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None = None,
                  significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
                  tight_bounds: Iterable[str] | None = None,
@@ -1839,7 +1839,11 @@ class InferFeatureAttributesBase(ABC):
                 continue
             uniques = self._get_unique_values(feature)
             for unique_value in uniques:
-                count = self._get_value_count(feature, unique_value)
+                try:
+                    count = self._get_value_count(feature, unique_value)
+                except TypeError:
+                    self.warnings_collector.triage(IFAWarningEmitterType.VALUE_COUNTS_PROCESSING, feature)
+                    continue
                 # Don't include values that aren't significant to begin with
                 if count < significance_threshold:
                     continue
