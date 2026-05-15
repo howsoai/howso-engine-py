@@ -1961,7 +1961,7 @@ class InferFeatureAttributesBase(ABC):
             total_cases = self._get_row_count()
             for feature, attributes in self.attributes.items():
                 # Only cache features that are eligible for rare values
-                if attributes["type"] == "nominal" and self._get_unique_count < total_cases:
+                if attributes["type"] == "nominal" and self._get_unique_count(feature) < total_cases:
                     feature_names.append(feature)
             exceptions = self.data._cache_value_counts(feature_names, max_rows_to_eval=self.max_rows_to_eval,
                                                        chunk_size=50_000)

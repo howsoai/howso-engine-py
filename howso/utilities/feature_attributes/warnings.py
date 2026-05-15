@@ -89,7 +89,7 @@ class SimpleWarningEmitter(IFAWarningEmitter):
 
     def emit(self):
         """Emit the warning."""
-        for msg in self.features_list:
+        for msg in self.features:
             warnings.warn(msg, UserWarning)
 
 
