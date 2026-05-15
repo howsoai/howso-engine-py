@@ -1270,3 +1270,9 @@ def test_preserve_rare_values():
         features = infer_feature_attributes(df, preserve_rare_values_map=values_map)
         assert "protected_values" in features["a"].get("preserve_rare_values", {})
         assert "protected_values" in features["b"].get("preserve_rare_values", {})
+
+    # Test data with unhashable values
+    df["unhashable"] = [[1, 2]] * len(df)  # lists are unhashable; value_counts will raise TypeError
+
+    with pytest.warns(UserWarning, match="Could not process some value counts"):
+        infer_feature_attributes(df, types={"unhashable": "nominal"})

@@ -826,7 +826,7 @@ class InferFeatureAttributesBase(ABC):
                  num_series: int = 1,
                  nominal_substitution_config: dict[str, dict] | None = None,
                  ordinal_feature_values: dict[str, list[str]] | None = None,
-                 preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"] | None = None,
+                 preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all", "off"] | None = None,
                  preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None = None,
                  significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
                  tight_bounds: Iterable[str] | None = None,
@@ -1833,10 +1833,17 @@ class InferFeatureAttributesBase(ABC):
         for feature, attributes in self.attributes.items():
             if attributes["type"] != "nominal":
                 continue
-            uniques = self._get_unique_values(feature)
             total_cases = self._get_row_count()
+            if self._get_unique_count(feature) == total_cases:
+                # Don't make a suggestion for a completely unique feature
+                continue
+            uniques = self._get_unique_values(feature)
             for unique_value in uniques:
-                count = self._get_value_count(feature, unique_value)
+                try:
+                    count = self._get_value_count(feature, unique_value)
+                except TypeError:
+                    self.warnings_collector.triage(IFAWarningEmitterType.VALUE_COUNTS_PROCESSING, feature)
+                    continue
                 # Don't include values that aren't significant to begin with
                 if count < significance_threshold:
                     continue
@@ -1942,13 +1949,31 @@ class InferFeatureAttributesBase(ABC):
             )
         return prvc
 
-    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap,  # noqa: PLR0912
+    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all", "off"],  # noqa: PLR0912, PLR0915
                              preserve_rare_values_config: PreserveRareValuesConfig, max_distilled_cases: int,
                              significance_threshold: int) -> None:
         """Procesess `preserve_rare_values` configuration or make recommendation."""
         _prvc: FullPreserveRareValuesConfig = {}
         # Did the user specify max_distilled_cases? Save this information for later.
         user_set_mdc = False
+        # User wants to do nothing; exit silently
+        if preserve_rare_values_map and preserve_rare_values_map == "off":
+            return
+        # If available, pre-cache value counts to enhance performance
+        if hasattr(self.data, "_cache_value_counts") and callable(self.data._cache_value_counts):
+            feature_names = []
+            total_cases = self._get_row_count()
+            for feature, attributes in self.attributes.items():
+                # Only cache features that are eligible for rare values
+                if attributes["type"] == "nominal" and self._get_unique_count(feature) < total_cases:
+                    feature_names.append(feature)
+            exceptions = self.data._cache_value_counts(feature_names, max_rows_to_eval=self.max_rows_to_eval,
+                                                       chunk_size=50_000)
+            if exceptions:
+                unprocessed_msg = "Could not evaluate rare values candidates for some columns due to the following:\n"
+                for feat, err in exceptions.items():
+                    unprocessed_msg += f"\n\t- Column name: {feat}, Error: {err}"
+                self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE, unprocessed_msg)
         if max_distilled_cases is not None:
             user_set_mdc = True
             # Compute the optimized max_distilled_cases value if available

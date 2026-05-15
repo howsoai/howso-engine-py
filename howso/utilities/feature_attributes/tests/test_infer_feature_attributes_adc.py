@@ -736,3 +736,10 @@ def test_preserve_rare_values(adc):
         features.apply_suggestion("preserve_rare_values")
         assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
         assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
+
+    # Test data with unhashable values
+    df["unhashable"] = [[1, 2]] * len(df)  # lists are unhashable; value_counts will raise TypeError
+    data = DataFrameData(df)
+
+    with pytest.warns(UserWarning, match="Could not evaluate rare values candidates for some columns"):
+        infer_feature_attributes(data, types={"unhashable": "nominal"})
