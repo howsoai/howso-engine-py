@@ -695,6 +695,7 @@ class TestBaseClient:
 
     def test_impute_verbose(self, trainee, capsys):
         """Test the verbose output expected during the execution of impute."""
+        self.client.train(trainee.id, [[None, 3.5], [1, None]], ['class', 'sepal_length'])
         self.client.impute(trainee.id)
         out, _ = capsys.readouterr()
         assert f'Imputing Trainee with id: {trainee.id}' in out
