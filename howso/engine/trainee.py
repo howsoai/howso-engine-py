@@ -1300,6 +1300,7 @@ class Trainee(BaseTrainee):
         use_case_weights: t.Optional[bool] = None,
         use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
+        feature_weight_scale_map: t.Optional[Mapping[str, float]] = None,
     ) -> Reaction:
         r"""
         React to the provided contexts.
@@ -1869,6 +1870,10 @@ class Trainee(BaseTrainee):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
+        feature_weight_scale_map : dict of str -> float, optional
+            A mapping of feature name to a scaling factor for that feature's
+            weight. The scaling factor is applied multiplicatively to the
+            feature's weight during distance computations.
 
         Returns
         -------
@@ -1921,6 +1926,7 @@ class Trainee(BaseTrainee):
             use_case_weights=use_case_weights,
             use_differential_privacy=use_differential_privacy,
             weight_feature=weight_feature,
+            feature_weight_scale_map=feature_weight_scale_map,
         )
 
     def react_series(

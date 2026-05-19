@@ -1704,6 +1704,7 @@ class AbstractHowsoClient(ABC):
         use_case_weights: t.Optional[bool] = None,
         use_differential_privacy: bool = False,
         weight_feature: t.Optional[str] = None,
+        feature_weight_scale_map: t.Optional[Mapping[str, float]] = None,
     ) -> Reaction:
         r"""
         React to supplied values and cases contained within the Trainee.
@@ -2137,6 +2138,10 @@ class AbstractHowsoClient(ABC):
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
+        feature_weight_scale_map : dict of str -> float, optional
+            A mapping of feature name to a scaling factor for that feature's
+            weight. The scaling factor is applied multiplicatively to the
+            feature's weight during distance computations.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
@@ -2426,6 +2431,7 @@ class AbstractHowsoClient(ABC):
                 "input_is_substituted": input_is_substituted,
                 "substitute_output": substitute_output,
                 "weight_feature": weight_feature,
+                "feature_weight_scale_map": feature_weight_scale_map,
                 "use_case_weights": use_case_weights,
                 "leave_case_out": leave_case_out,
                 "preserve_feature_values": preserve_feature_values,
@@ -2482,6 +2488,7 @@ class AbstractHowsoClient(ABC):
                 "input_is_substituted": input_is_substituted,
                 "substitute_output": substitute_output,
                 "weight_feature": weight_feature,
+                "feature_weight_scale_map": feature_weight_scale_map,
                 "use_case_weights": use_case_weights,
                 "case_indices": case_indices,
                 "leave_case_out": leave_case_out,
