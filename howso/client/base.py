@@ -2088,6 +2088,8 @@ class AbstractHowsoClient(ABC):
                 When true outputs a map of each context feature name to a list of relevant values for that
                 feature given the context. If a list of feature names, will only output relevant values for
                 each feature specified.
+                If action features are specified, then relevant values returned are centered around computed boundary
+                values. The computation of boundary values increases the required runtime for relevant values.
             - selected_prediction_stats : list, optional.
                 List of stats to output. When unspecified, returns all except the confusion matrix. Allowed values:
 
