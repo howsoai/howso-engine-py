@@ -372,6 +372,19 @@ class FeatureAttributes(TypedDict):
           Feature 'y' value from current row minus feature 'x' from previous row.
     """
 
+    feature_evaluation_code: NotRequired[str]
+    """
+    Amalgam code that is executed with queries to assign a feature value for the case within distance computations.
+
+    This code should be a singular `(call_entity)` or `(call_on_entity)` with the entity value specified as `.null`.
+
+    Examples:
+        - "(call_entity .null computeValue)"
+            Calls the computeValue label of the entity to compute the value for this feature.
+        - "(call_on_entity .null (* (retrieve_from_entity "A") 6) )
+            Multiplies the value of feature "A" by 6 to return the value for this feature.
+    """
+
     id_feature: NotRequired[bool]
     """
     Whether this is an ID feature.
