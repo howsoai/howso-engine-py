@@ -374,7 +374,7 @@ class FeatureAttributes(TypedDict):
 
     value_evaluation_code: NotRequired[str]
     """
-    Amalgam code that is executed with queries to assign a feature value for the case within distance computations.
+    Amalgam code that is executed to assign a feature value for cases within distance computations.
 
     This code should be a singular `(call_entity)` or `(call_on_entity)` with the entity value specified as `.null`.
 
