@@ -372,7 +372,7 @@ class FeatureAttributes(TypedDict):
           Feature 'y' value from current row minus feature 'x' from previous row.
     """
 
-    feature_evaluation_code: NotRequired[str]
+    value_evaluation_code: NotRequired[str]
     """
     Amalgam code that is executed with queries to assign a feature value for the case within distance computations.
 
