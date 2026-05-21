@@ -2055,3 +2055,13 @@ class InferFeatureAttributesBase(ABC):
                     # Multiprocessing is enabled, and this feature will be handled in another process
                     continue
                 self.attributes[feature]["preserve_rare_values"] = config  # pyright: ignore[reportGeneralTypeIssues]
+
+    def _get_fanout_features(self):
+        fanout_feature_set = set()
+        for chunk in self.data.yield_chunk():
+            for id_feature in self.id_features:
+                _fanout_feature_set = _get_features_with_single_value_for_id_feature(chunk, id_feature)  # Pandas magic
+                fanout_feature_set = fanout_feature_set.intersect(_fanout_feature_set)
+                if not fanout_feature_set:
+                    # Exit early if "the set" is null *after the first pass*
+                    return
