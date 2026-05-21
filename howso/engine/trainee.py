@@ -144,7 +144,7 @@ class Trainee(BaseTrainee):
         self._created: bool = False
         self._updating: bool = False
         self._was_saved: bool = False
-        self._client = client or get_client()
+        self.client = client or get_client()
 
         self._features = features
         self._custom_save_path = None
