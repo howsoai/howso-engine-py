@@ -158,7 +158,7 @@ jobs:
       python-version: '3.10'
       config-fp: './config/latest-st-traces-howso.yml'
       config-pretty: 'ST'
-      workers: 'auto'
+      workers: 'off'  # Amalgam ST > 78.0 is not thread safe at all
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
 
