@@ -483,6 +483,7 @@ def validate_list_shape(
         f"`{variable_name}` must be a {dimensions}d list of {var_types}."
     )
     if array.dtype == object and array.shape < dimensions:
+        pass
     elif array.shape != dimensions:
         raise exception
 
