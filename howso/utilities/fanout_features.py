@@ -17,18 +17,17 @@ to feed into Howso's ``FeatureAttributes``.
 
 from __future__ import annotations
 
-import time
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from pprint import pprint
+import time
 from typing import Any, TypeAlias
+import warnings
 
 import numpy as np
 import pandas as pd
 
-from howso.connectors import AbstractData, DataFrameData
-from howso.utilities import infer_feature_attributes
+from howso.utilities.feature_attributes.protocols import AbstractDataProtocol
 
 __all__ = ["infer_fanout_feature_config"]
 
@@ -146,7 +145,7 @@ class _StreamingFanoutInferrer:
             f: set() for f, a in features.items() if a["type"] == "nominal"
         }
         # Value is the rows_seen count at which the column's distinct count last grew.
-        self._distinct_last_grew: dict[str, int] = {c: 0 for c in self._distinct}
+        self._distinct_last_grew: dict[str, int] = dict.fromkeys(self._distinct, 0)
 
         self.chunks_seen: int = 0
         self.rows_seen: int = 0
@@ -221,6 +220,27 @@ class _StreamingFanoutInferrer:
                 bucket.update(arr.tolist())
                 if len(bucket) > before:
                     distinct_last_grew[c] = rows_seen
+
+    @classmethod
+    def yield_chunk_from_pandas(cls, chunk_size: int = 5000, *, **kwargs) -> Iterator[pd.DataFrame]:
+        chunk_size = kwargs.get("chunk_size")
+        num_rows = self.get_row_count()
+        limit = min(num_rows, skip_rows + max_rows) if max_rows else num_rows
+        chunk_size = initial_chunk_size
+
+        # Create indices array - shuffled unless maintain_natural_order is True
+        if maintain_natural_order:
+            indices = np.arange(num_rows)
+        else:
+            rng = np.random.default_rng(seed=seed)
+            indices = rng.permutation(num_rows)
+
+        offset = skip_rows
+        while offset < limit:
+            end = min(offset + chunk_size, limit)
+            chunk = self._df.iloc[indices[offset:end]]
+            chunk_size = yield chunk
+            offset += len(chunk)
 
     def rebatch(self) -> dict[str, list[str]]:
         """Re-run batch inference on the accumulated data and update convergence state.
@@ -373,7 +393,7 @@ class _StreamingFanoutInferrer:
         return out if out is not None else arr
 
     @staticmethod
-    def discover_fanout_hierarchy(
+    def discover_fanout_hierarchy(  # noqa: PLR0912
         df: pd.DataFrame,
         features: Mapping[str, Mapping[str, Any]],
         *,
@@ -470,7 +490,7 @@ class _StreamingFanoutInferrer:
         }
 
         def determines(key: str, col: str) -> bool:
-            """``True`` iff ``key`` functionally determines ``col`` across all rows."""
+            """Return ``True`` iff ``key`` functionally determines ``col`` across all rows."""
             if card[col] > card[key]:
                 return False
             # Cheap sample reject; uses sample-local cardinalities (precomputed).
@@ -532,11 +552,10 @@ class _StreamingFanoutInferrer:
             if not set(levels[i].fanned_out_columns).issubset(
                 levels[i + 1].fanned_out_columns
             ):
-                import warnings
-
                 warnings.warn(
                     f"Levels {i} and {i+1} not in a strict subset chain -- "
-                    f"strict-tree assumption may be violated"
+                    f"strict-tree assumption may be violated",
+                    stacklevel=2,
                 )
 
         return levels
@@ -638,7 +657,7 @@ class _StreamingFanoutInferrer:
 
 def infer_fanout_feature_config(
     features: Mapping[str, Any],
-    data: AbstractData,
+    data: AbstractDataProtocol | pd.DataFrame,
     *,
     chunk_size: int | None = None,
     fanout_key_card_floor: float | None = None,
@@ -647,7 +666,7 @@ def infer_fanout_feature_config(
     saturation_idle_rows: int = 250_000,
     stable_runs_required: int = 2,
     verbose: bool = False,
-) -> NestedMapChain:
+) -> dict[str, list[str]] | None:
     """Stream chunks from ``data`` and infer the fanout-feature configuration.
 
     Drives a :class:`_StreamingFanoutInferrer` over the connector's chunk
@@ -691,13 +710,7 @@ def infer_fanout_feature_config(
 
     Returns
     -------
-    NestedMapChain
-        Nested join-tree rooted at the innermost (row-grain) fanout key.
-        Each value is itself a ``NestedChain``; empty ``{}`` denotes a leaf
-        (an owned column with no further fanout). Outer-level chosen keys
-        appear as nested branches inside their child level. Empty dict if
-        no chunks were consumed. See
-        :meth:`_StreamingFanoutInferrer.to_nested_chain` for the exact shape.
+        Dict mapping "key" feature names to list of "fanout" feature names, if any are found.
     """
     n_nom: int = sum(1 for f in features.values() if f["type"] == "nominal")
     n_con: int = sum(1 for f in features.values() if f["type"] == "continuous")
@@ -721,7 +734,16 @@ def infer_fanout_feature_config(
     yield_kwargs: dict[str, Any] = {}
     if chunk_size is not None:
         yield_kwargs["chunk_size"] = chunk_size
-    for chunk in data.yield_chunk(**yield_kwargs):
+
+    if isinstance(data, pd.DataFrame):
+        chunk_iterator = inferrer.yield_chunk_from_pandas
+    elif hasattr(data, "yield_chunk"):
+        chunk_iterator = data.yield_chunk
+    else:
+        raise TypeError("Provided `data` must be a Pandas DataFrame or IFA-compatible AbstractData class.")
+
+
+    for chunk in chunk_iterator(**yield_kwargs):
         inferrer.process_chunk(chunk)
         if inferrer.should_rebatch:
             chain: dict[str, list[str]] = inferrer.rebatch()
@@ -745,16 +767,4 @@ def infer_fanout_feature_config(
             f"\nDone -- {inferrer.chunks_seen} chunks, {inferrer.rows_seen:,} rows, "
             f"{elapsed_ms:.0f} ms  ({status}).\n"
         )
-    return _StreamingFanoutInferrer.to_nested_chain(inferrer.last_chain or {})
-
-
-if __name__ == "__main__":
-    df = pd.read_csv("joined_olist.csv")
-    features = infer_feature_attributes(df, default_time_zone="UTC")
-    data: AbstractData = DataFrameData(df)
-
-    config = infer_fanout_feature_config(data, features=features, verbose=True)
-    # NOTE: I would expect IFA's `fanout_feature_map` to also be defined as
-    #       nested dicts `dict[str, dict[str, ...]]` rather than a
-    #       weird `dict[str, list[str]]`.
-    pprint(config)
+    return inferrer.last_chain

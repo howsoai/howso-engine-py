@@ -1,5 +1,6 @@
 """This module contains various utilities for the Howso clients."""
 from .decorators import ConsoleFeedback
+from .fanout_features import infer_fanout_feature_config
 from .feature_attributes import infer_feature_attributes  # noqa: F401
 from .feature_attributes.base import (
     FeatureAttributesBase,
@@ -37,7 +38,6 @@ from .utilities import (  # noqa: F401
     get_hash,
     get_kwargs,
     get_optimized_max_chunk_size,
-    infer_fanout_features,
     is_valid_datetime_format,
     is_valid_uuid,
     ISO_8601_DATE_FORMAT,
@@ -96,7 +96,7 @@ __all__ = [
     "get_hash",
     "get_kwargs",
     "get_optimized_max_chunk_size",
-    "infer_fanout_features",
+    "infer_fanout_feature_config",
     "infer_feature_attributes",
     "is_valid_datetime_format",
     "is_valid_uuid",

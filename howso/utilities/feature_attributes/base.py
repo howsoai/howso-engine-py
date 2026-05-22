@@ -20,6 +20,7 @@ import pandas as pd
 from typing_extensions import Self
 import yaml
 
+from howso.utilities.fanout_features import infer_fanout_feature_config
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
 from howso.utilities.feature_attributes.suggestions import (
     FullPreserveRareValuesConfig,
@@ -1158,16 +1159,19 @@ class InferFeatureAttributesBase(ABC):
 
         # Configure the fanout feature attributes according to the input if given.
         if fanout_feature_map:
+            # TODO update with new format
             for key_features, fanout_features in fanout_feature_map.items():
                 if isinstance(key_features, str):
                     key_features = [key_features]
                 for f in fanout_features:
                     if f in self.attributes:
                         self.attributes[f]["fanout_on"] = list(key_features)
-        # If not provided, infer them
+        # If not provided, infer them and issue a suggestion
         else:
-            self._infer_fanout_features(primary_keys)
+            candidate_fanout = infer_fanout_feature_config(self.attributes, self.data, max_rows=self.max_rows_to_eval)
+            # TODO issue suggestion
 
+        # Compute or suggest `preserve_rare_values` configuration
         self._process_rare_values(preserve_rare_values_map, preserve_rare_values_config, max_distilled_cases,
                                   significance_threshold)
 
@@ -2054,14 +2058,4 @@ class InferFeatureAttributesBase(ABC):
                 if feature not in self.attributes:
                     # Multiprocessing is enabled, and this feature will be handled in another process
                     continue
-                self.attributes[feature]["preserve_rare_values"] = config  # pyright: ignore[reportGeneralTypeIssues]
-
-    def _get_fanout_features(self):
-        fanout_feature_set = set()
-        for chunk in self.data.yield_chunk():
-            for id_feature in self.id_features:
-                _fanout_feature_set = _get_features_with_single_value_for_id_feature(chunk, id_feature)  # Pandas magic
-                fanout_feature_set = fanout_feature_set.intersect(_fanout_feature_set)
-                if not fanout_feature_set:
-                    # Exit early if "the set" is null *after the first pass*
-                    return
+                self.attributes[feature]["preserve_rare_values"] = config  # pyright: ignore[reportGeneralTypeIssues]#
