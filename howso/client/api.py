@@ -131,7 +131,6 @@ def get_api(engine_path: Path | str | None = None, amalgam_postfix: str | None =
             initialized = amlg.execute_entity_json(entity_id, "initialize", json.dumps({"trainee_id": entity_id}))
             if not initialized:
                 raise ValueError("Not initialized")
-            print("Getting docs...")
             data = amlg.execute_entity_json(entity_id, "get_api", "")
             result = json.loads(data)
             if isinstance(result, list):
