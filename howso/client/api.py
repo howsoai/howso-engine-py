@@ -126,10 +126,8 @@ def get_api(engine_path: Path | str | None = None, amalgam_postfix: str | None =
 
     amlg = Amalgam(library_postfix=amalgam_postfix)
     try:
-        print("loading...")
         status = amlg.load_entity(entity_id, str(engine_path))
         if status.loaded:
-            print("Initializing...")
             initialized = amlg.execute_entity_json(entity_id, "initialize", json.dumps({"trainee_id": entity_id}))
             if not initialized:
                 raise ValueError("Not initialized")
@@ -143,6 +141,5 @@ def get_api(engine_path: Path | str | None = None, amalgam_postfix: str | None =
     except Exception as e:
         raise HowsoError('Failed to retrieve the Howso Engine API schema.') from e
     finally:
-        print("Destroying...")
         amlg.destroy_entity(entity_id)
         del amlg
