@@ -6,6 +6,7 @@ import os
 from unittest.mock import patch
 
 from howso.client.base import AbstractHowsoClient
+from howso.client.client import get_howso_client_class
 from howso.direct import HowsoDirectClient
 
 
@@ -57,7 +58,9 @@ def get_configurationless_test_client(
         An instance of a subclass of AbstractHowsoClient.
     """
     if "USE_HOWSO_CONFIG" in get_test_options():
-        return client_class(**kwargs)
+        _, client_params = get_howso_client_class(**kwargs)
+        client_params.update(kwargs)
+        return client_class(**client_params)
     else:
         # Ignore any locally defined config (howso.yml) files.
         names_to_remove = ('XDG_CONFIG_HOME', 'HOWSO_CONFIG')
