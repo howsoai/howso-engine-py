@@ -14,10 +14,8 @@ from howso.utilities.testing import get_configurationless_test_client
 def client(tmp_path: Path):
     """Direct client instance using latest binaries."""
     # Get the Amalgam library type set by the user config if it exists
-    amalgam_postfix = "-" + Trainee().get_runtime()["library_type"]
     return get_configurationless_test_client(client_class=HowsoDirectClient,
-                                             verbose=True, trace=True, default_persist_path=tmp_path,
-                                            amalgam={"library_postfix": amalgam_postfix})
+                                             verbose=True, trace=True, default_persist_path=tmp_path)
 
 
 def test_direct_client(client: HowsoDirectClient):
