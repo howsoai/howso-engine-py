@@ -97,7 +97,7 @@ class EngineApi(TypedDict):
 
 
 @lru_cache(16)
-def get_api(engine_path: t.Optional[Path | str] = None) -> EngineApi:
+def get_api(engine_path: Path | str | None = None, amalgam_postfix: str | None = None) -> EngineApi:
     """
     Get api documentation from the Howso Engine.
 
@@ -105,6 +105,8 @@ def get_api(engine_path: t.Optional[Path | str] = None) -> EngineApi:
     ----------
     engine_path : Path, optional
         The path to the Howso Engine caml. Defaults to the built-in engine.
+    amalgam_postfix: str, optional
+        The postfix for the Amalgam library to use. Defaults to multithreaded ("-mt")
 
     Returns
     -------
@@ -122,7 +124,7 @@ def get_api(engine_path: t.Optional[Path | str] = None) -> EngineApi:
     if not Path(engine_path).exists():
         raise HowsoError(f"The Howso Engine file path does not exist: {engine_path}.")
 
-    amlg = Amalgam()
+    amlg = Amalgam(library_postfix=amalgam_postfix)
     try:
         status = amlg.load_entity(entity_id, str(engine_path))
         if status.loaded:

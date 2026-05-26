@@ -4,6 +4,7 @@ import pytest
 from pytest_mock import MockFixture
 
 from amalgam.api import Amalgam
+from howso.engine import Trainee
 from howso.client.exceptions import HowsoError
 from howso.direct import HowsoDirectClient
 from howso.utilities.testing import get_configurationless_test_client
@@ -12,8 +13,11 @@ from howso.utilities.testing import get_configurationless_test_client
 @pytest.fixture
 def client(tmp_path: Path):
     """Direct client instance using latest binaries."""
+    # Get the Amalgam library type set by the user config if it exists
+    amalgam_postfix = "-" + Trainee().get_runtime()["library_type"]
     return get_configurationless_test_client(client_class=HowsoDirectClient,
-                                             verbose=True, trace=True, default_persist_path=tmp_path)
+                                             verbose=True, trace=True, default_persist_path=tmp_path,
+                                            amalgam={"library_postfix": amalgam_postfix})
 
 
 def test_direct_client(client: HowsoDirectClient):

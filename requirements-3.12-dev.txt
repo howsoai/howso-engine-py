@@ -4,19 +4,19 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.12-dev.txt --pip-args=None
 #
-amalgam-lang==30.1.1
+amalgam-lang==31.0.1
     # via howso-engine (pyproject.toml)
 astroid==4.0.4
     # via pylint
 build==1.5.0
     # via pip-tools
-certifi==2026.4.22
+certifi==2026.5.20
     # via
     #   howso-engine (pyproject.toml)
     #   requests
 charset-normalizer==3.4.7
     # via requests
-click==8.3.3
+click==8.4.1
     # via
     #   pip-tools
     #   sacremoses
@@ -28,7 +28,7 @@ dill==0.4.1
     #   pylint
 execnet==2.1.2
     # via pytest-xdist
-faker==40.15.0
+faker==40.19.1
     # via howso-engine (pyproject.toml)
 flake8==3.9.2
     # via
@@ -40,7 +40,7 @@ flake8-import-order==0.19.2
     # via howso-engine (pyproject.toml)
 humanize==4.15.0
     # via howso-engine (pyproject.toml)
-idna==3.15
+idna==3.16
     # via requests
 iniconfig==2.3.0
     # via pytest
@@ -62,7 +62,7 @@ mmh3==5.2.1
     # via howso-engine (pyproject.toml)
 mongomock==4.3.0
     # via howso-engine (pyproject.toml)
-numpy==2.4.4
+numpy==2.4.6
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
@@ -80,7 +80,7 @@ pandas==2.3.3
     # via howso-engine (pyproject.toml)
 pip-tools==7.5.3
     # via howso-engine (pyproject.toml)
-pipdeptree==2.35.2
+pipdeptree==2.35.3
     # via howso-engine (pyproject.toml)
 platformdirs==4.9.6
     # via pylint
@@ -131,7 +131,7 @@ pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
 regex==2026.5.9
     # via sacremoses
-requests==2.34.0
+requests==2.34.2
     # via howso-engine (pyproject.toml)
 rich==15.0.0
     # via howso-engine (pyproject.toml)
