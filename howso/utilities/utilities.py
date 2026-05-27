@@ -476,13 +476,11 @@ def validate_list_shape(
         if not allow_none:
             raise ValueError(f"Invalid value for `{variable_name}`, must not be `None`")
         return
-    array = np.array(values)
-    exception = ValueError(
-        f"Improper shape of `{variable_name}` values passed. "
-        f"`{variable_name}` must be a {dimensions}d list of {var_types}."
-    )
-    if array.shape != dimensions:
-        raise exception
+    if len(np.array(values).shape) != dimensions:
+        raise ValueError(
+            f"Improper shape of `{variable_name}` values passed. "
+            f"`{variable_name}` must be a {dimensions}d list of {var_types}."
+        )
 
 
 def validate_case_indices(case_indices: Sequence[Sequence[str | int]], thorough: bool = False) -> None:
