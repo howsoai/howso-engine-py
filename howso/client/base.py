@@ -781,8 +781,6 @@ class AbstractHowsoClient(ABC):
             with suppress(NotImplementedError):
                 feature_attributes.validate(cases)
 
-        util.validate_list_shape(cases, 2, "cases", "list", allow_none=False)
-
     def impute(
         self,
         trainee_id: str,
@@ -1255,8 +1253,6 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
-
-        util.validate_list_shape(contexts, 2, "contexts", "list of object", allow_none=False)
 
         if context_features is None:
             context_features = internals.get_features_from_data(
@@ -2616,7 +2612,6 @@ class AbstractHowsoClient(ABC):
 
         # validate discriminative-react only parameters
         if desired_conviction is None:
-            util.validate_list_shape(context_values, 2, "contexts", "list of object")
             util.validate_list_shape(action_features, 1, "action_features", "str")
             util.validate_list_shape(context_features, 1, "context_features", "str")
 
@@ -5569,9 +5564,6 @@ class AbstractHowsoClient(ABC):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         feature_attributes = self.resolve_feature_attributes(trainee_id)
-
-        util.validate_list_shape(from_values, 2, 'from_values', 'list of list of object')
-        util.validate_list_shape(to_values, 2, 'to_values', 'list of list of object')
 
         if from_case_indices is None and from_values is None:
             raise ValueError("One of `from_case_indices` or `from_values` "
