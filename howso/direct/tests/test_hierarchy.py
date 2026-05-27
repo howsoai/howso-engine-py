@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from howso.client.schemas import Trainee
+import howso.engine as hse
 from howso.direct import HowsoDirectClient
 from howso.utilities import is_valid_uuid
 from howso.utilities.testing import get_configurationless_test_client
@@ -18,6 +19,7 @@ def simple_trainee(
     values: Iterable[int],
     *,
     id: str | None = None,
+    library_type: str | None = None,
 ) -> Generator[Trainee, None, None]:
     """Create a simple Trainee."""
     t = client.create_trainee(
@@ -25,6 +27,7 @@ def simple_trainee(
         name="simple-trainee",
         metadata={"simple": True},
         features={"x": {"type": "continuous"}},
+        library_type=library_type,
     )
     try:
         client.train(t.id, [[v] for v in values], features=["x"])
@@ -51,7 +54,10 @@ def test_create_trainee_from_memory(client: HowsoDirectClient, file_type: Litera
     dne_content = client.trainee_to_memory("dne", file_type=file_type)
     assert dne_content is None
 
-    with simple_trainee(client, range(1, 5)) as trainee:
+    # Get the Amalgam library type set by the user config if it exists
+    amalgam_postfix = "-" + hse.Trainee().get_runtime()["library_type"]
+
+    with simple_trainee(client, range(1, 5), library_type=amalgam_postfix) as trainee:
         # Convert trainee to bytes
         content = client.trainee_to_memory(trainee.id, file_type=file_type)
         assert content is not None
