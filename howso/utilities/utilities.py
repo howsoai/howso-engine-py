@@ -472,7 +472,6 @@ def validate_list_shape(
     ------
     ValueError if variable_name is None
     """
-    return
     if values is None:
         if not allow_none:
             raise ValueError(f"Invalid value for `{variable_name}`, must not be `None`")
@@ -482,9 +481,7 @@ def validate_list_shape(
         f"Improper shape of `{variable_name}` values passed. "
         f"`{variable_name}` must be a {dimensions}d list of {var_types}."
     )
-    if array.dtype == object and array.shape < dimensions:
-        pass
-    elif array.shape != dimensions:
+    if array.shape != dimensions:
         raise exception
 
 
