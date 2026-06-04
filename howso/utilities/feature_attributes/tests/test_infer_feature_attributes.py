@@ -29,6 +29,7 @@ else:
 cwd = Path(__file__).parent.parent.parent.parent
 iris_path = Path(cwd, 'utilities', 'tests', 'data', 'iris.csv')
 int_path = Path(cwd, 'utilities', 'tests', 'data', 'integers.csv')
+joined_olist_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'joined_olist.parquet'))[:10000]
 try:
     nypd_arrest_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet'))
 except ImportError:
@@ -1276,3 +1277,22 @@ def test_preserve_rare_values():
 
     with pytest.warns(UserWarning, match="Could not process some value counts"):
         infer_feature_attributes(df, types={"unhashable": "nominal"})
+
+def test_infer_fanout_features():
+    """Test that `infer_feature_attributes` correctly infers and issues suggestions about fan-out features."""
+    # Test that a suggestion is issued
+    with pytest.warns(UserWarning, match="You have one or more suggestions"):
+        features = infer_feature_attributes(joined_olist_df, default_time_zone="UTC")
+        for feat in features:
+            assert "fanout_on" not in feat
+        # Test a suggestion application
+        features.apply_suggestion("fanout_features")
+        assert "customer_id" in features["customer_city"].get("fanout_on", [])
+        assert "product_id" in features["product_height_cm"].get("fanout_on", [])
+
+        fof_map = features.suggestions.fanout_features.get_fanout_feature_map()
+
+    # Supplying the suggested fanout_feature_map to IFA
+    features = infer_feature_attributes(joined_olist_df, fanout_feature_map=fof_map, max_workers=2, default_time_zone="UTC")
+    assert "customer_id" in features["customer_state"].get("fanout_on", [])
+    assert "product_id" in features["product_length_cm"].get("fanout_on", [])

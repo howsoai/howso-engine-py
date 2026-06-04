@@ -25,6 +25,7 @@ from howso.utilities.feature_attributes.tests.utils import TemporaryDirectoryIgn
 cwd = Path(__file__).parent.parent.parent.parent
 iris_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'iris.csv'))
 int_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'integers.csv'))
+joined_olist_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'joined_olist.parquet'))[:10000]
 nypd_arrest_pq_path = Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet')
 stock_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv'))
 ts_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv'))
@@ -777,3 +778,30 @@ def test_sql_date_column(tmp_path):
         features = infer_feature_attributes(connector, default_time_zone="UTC")
         assert features["event_date"]["data_type"] == "formatted_date_time"
         assert features["event_date"]["date_time_format"] == "%Y-%m-%d"
+
+@pytest.mark.parametrize("adc", [
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_infer_fanout_features(adc):
+    """Test that `infer_feature_attributes` correctly infers and issues suggestions about fan-out features."""
+    convert_data(DataFrameData(joined_olist_df), adc)
+    # Test that a suggestion is issued
+    with pytest.warns(UserWarning, match="You have one or more suggestions"):
+        features = infer_feature_attributes(adc, default_time_zone="UTC")
+        for feat in features:
+            assert "fanout_on" not in feat
+        # Test a suggestion application
+        features.apply_suggestion("fanout_features")
+        assert "customer_id" in features["customer_city"].get("fanout_on", [])
+        assert "product_id" in features["product_height_cm"].get("fanout_on", [])
+
+        fof_map = features.suggestions.fanout_features.get_fanout_feature_map()
+
+    # Supplying the suggested fanout_feature_map to IFA
+    features = infer_feature_attributes(adc, fanout_feature_map=fof_map, max_workers=2, default_time_zone="UTC")
+    assert "customer_id" in features["customer_state"].get("fanout_on", [])
+    assert "product_id" in features["product_length_cm"].get("fanout_on", [])

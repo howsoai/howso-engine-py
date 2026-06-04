@@ -27,8 +27,6 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from howso.utilities.feature_attributes.protocols import AbstractDataProtocol
-
 __all__ = ["infer_fanout_feature_config"]
 
 
@@ -222,11 +220,49 @@ class _StreamingFanoutInferrer:
                     distinct_last_grew[c] = rows_seen
 
     @classmethod
-    def yield_chunk_from_pandas(cls, chunk_size: int = 5000, *, **kwargs) -> Iterator[pd.DataFrame]:
-        chunk_size = kwargs.get("chunk_size")
-        num_rows = self.get_row_count()
+    def yield_chunk_from_pandas(
+        cls,
+        data: pd.DataFrame,
+        chunk_size: int = 5000,
+        *,
+        maintain_natural_order: bool = False,
+        max_chunks: int | None = None,
+        skip_chunks: int | None = None,
+        seed: int | None = None,
+    ) -> Iterator[pd.DataFrame]:
+        """
+        Yield ``chunk_size`` sub-DataFrames from the DataFrame.
+
+        Parameters
+        ----------
+        data: DataFrame
+            The data to get chunks from.
+        chunk_size : int, default 5,000
+            The size of the chunks to yield.
+        maintain_natural_order : bool, default False
+            If True, chunks are yielded in their natural order without any
+            shuffling. When this is True, the seed parameter is ignored.
+        max_chunks : int, optional
+            If provided, the maximum number of chunks to yield.
+        skip_chunks : int, default 0
+            The number of chunks to skip before yielding.
+        seed : int, optional
+            A non-negative integer from 0 to 2**32 - 1 to serve as a random
+            state. By providing the same seed, chunks yielded with the same
+            chunk_size will be identical to previous runs. Ignored if
+            maintain_natural_order is True.
+
+        Yields
+        ------
+        df
+            The chunk as a Pandas DataFrame.
+        """
+        max_rows = max_chunks * chunk_size if max_chunks is not None else None
+        skip_chunks = skip_chunks or 0
+        skip_rows = skip_chunks * chunk_size
+
+        num_rows = len(data)
         limit = min(num_rows, skip_rows + max_rows) if max_rows else num_rows
-        chunk_size = initial_chunk_size
 
         # Create indices array - shuffled unless maintain_natural_order is True
         if maintain_natural_order:
@@ -238,8 +274,8 @@ class _StreamingFanoutInferrer:
         offset = skip_rows
         while offset < limit:
             end = min(offset + chunk_size, limit)
-            chunk = self._df.iloc[indices[offset:end]]
-            chunk_size = yield chunk
+            chunk = data.iloc[indices[offset:end]]
+            yield chunk
             offset += len(chunk)
 
     def rebatch(self) -> dict[str, list[str]]:
@@ -657,7 +693,7 @@ class _StreamingFanoutInferrer:
 
 def infer_fanout_feature_config(
     features: Mapping[str, Any],
-    data: AbstractDataProtocol | pd.DataFrame,
+    data: pd.DataFrame | Any,
     *,
     chunk_size: int | None = None,
     fanout_key_card_floor: float | None = None,
@@ -678,7 +714,7 @@ def infer_fanout_feature_config(
 
     Parameters
     ----------
-    data : AbstractData
+    data : DataFrame or AbstractDataProtocol
         Howso data connector exposing ``yield_chunk()`` -- iterates DataFrames.
     features : Mapping[str, Any]
         Feature mapping in Howso's ``infer_feature_attributes`` format.
@@ -732,18 +768,20 @@ def infer_fanout_feature_config(
 
     t0: float = time.perf_counter()
     yield_kwargs: dict[str, Any] = {}
+    yield_args = ()
     if chunk_size is not None:
         yield_kwargs["chunk_size"] = chunk_size
-
+        yield_args = (data)
     if isinstance(data, pd.DataFrame):
         chunk_iterator = inferrer.yield_chunk_from_pandas
+        yield_kwargs["data"] = data
     elif hasattr(data, "yield_chunk"):
         chunk_iterator = data.yield_chunk
     else:
         raise TypeError("Provided `data` must be a Pandas DataFrame or IFA-compatible AbstractData class.")
 
 
-    for chunk in chunk_iterator(**yield_kwargs):
+    for chunk in chunk_iterator(*yield_args, **yield_kwargs):
         inferrer.process_chunk(chunk)
         if inferrer.should_rebatch:
             chain: dict[str, list[str]] = inferrer.rebatch()

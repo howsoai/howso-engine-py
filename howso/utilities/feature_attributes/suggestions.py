@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 import textwrap
 from typing import Any
@@ -7,6 +7,10 @@ import warnings
 from rich.console import Console
 from rich.table import Table
 from typing_extensions import Self
+
+# Fanout features parameters
+# --------------------------
+FanoutFeaturesMap = dict[tuple[str] | str, list[str]]
 
 # Signal preservation parameters
 # ------------------------------
@@ -57,13 +61,13 @@ class IFASuggestion(ABC):
     """Base class for a warning emitter common to IFA that must list applicable features discovered across shards."""
 
     @property
-    @abstractproperty
+    @abstractmethod
     def name(self) -> str:
         """The name of the suggestion, to be used as a key when accessing via the collector."""
         ...
 
     @property
-    @abstractproperty
+    @abstractmethod
     def description(self) -> str:
         """A brief description of the suggestion."""
         ...
@@ -78,6 +82,120 @@ class IFASuggestion(ABC):
         """Merge this suggestion with another if more than one were computed across separate processes."""
         ...
 
+
+class FanoutFeaturesSuggestion(IFASuggestion):
+    """A suggestion to configure fanout features."""
+
+    def __init__(self, fanout_features: FanoutFeaturesMap) -> None:
+        """
+        Instantiate this Preserve Rare Values Suggestion.
+
+        Parameters
+        ----------
+        fanout_features : FanoutFeaturesMap
+            A candidate configuration for fanout features.
+        """
+        self._fanout_features = fanout_features
+
+    def __repr__(self) -> str:
+        """Print a helpful description of this IFASuggestion."""
+        # TODO
+        header = "Fan-out Features"
+
+        num =  len(self._fanout_features.keys())
+
+        body = (
+            f"We have detected {num} key(s) that should be considered as fan-out features. Fan-out "
+            "features are columns that have repeated values across multiple rows based on a single "
+            "observation. Informing the Howso Engine of fan-out features via your feature attributes "
+            "will help it measure uncertainty more accurately. \n\n\tTo read more about fan-out "
+            "features, please see: "
+            "https://docs.howso.com/en/latest/user_guide/advanced_capabilities/fanout_features.html\n\n"
+            "Examples In Your Data:\n"
+            "----------------------\n"
+        )
+
+        count = 0
+        for key, values in self._fanout_features.items():
+            if count > 3:
+                break
+            fofs = values[:3]
+            num_not_shown = len(values) - len(fofs)
+            _start = f"Columns `{'`, `'.join(fofs)}"
+            if num_not_shown > 0:
+                _start += f"`, and {num_not_shown} more"
+            body += f"  - {_start} have repeated values derived from observations in `{key}`\n"
+        body += "\n"
+
+        # Pick a target total width and divvy it up
+        total_width = 120
+        action_w, details_w, code_w = 24, 40, 50
+
+        options_table = Table(title="Summary of Available Options", show_lines=True, width=total_width)
+        options_table.add_column("Action", min_width=action_w, overflow="fold")
+        options_table.add_column("Details", min_width=details_w, overflow="fold")
+        options_table.add_column("Relevant Code")
+
+        rows = []
+
+        rows.extend([
+            (
+                "Get a reusable `fanout_features_map`",
+                "You may provide `fanout_features_map` as a parameter to "
+                "`infer_feature_attributes` if you wish to adjust the fan-out feature "
+                "configuration. Our detected fan-out feature configuration may be a "
+                "good starting point.",
+                "From this suggestion object call: "
+                "`get_fanout_feature_map()`"
+            ),
+            (
+                "Apply suggestion to this feature attributes object",
+                "Save the suggested candidate `fanout_features_map` "
+                "to this feature attributes object.",
+                "Call `apply_suggestion()` on the feature attributes object: "
+                '`apply_suggestion("fanout_features")`'
+            ),
+        ])
+
+        for action, details, code in rows:
+            options_table.add_row(
+                wrap_text(action, action_w),
+                wrap_text(details, details_w),
+                wrap_text(code, code_w),
+            )
+
+        console = Console(width=total_width)
+        with console.capture() as capture:
+            console.print(options_table)
+        return f"{header}\n\n{wrap_paragraphs(body, total_width)}\n\n{capture.get().rstrip()}"
+
+    @property
+    def name(self) -> str:
+        """The name of this suggestion."""
+        return "fanout_features"
+
+    @property
+    def description(self) -> str:
+        """A brief description of this suggestion."""
+        return "Configure fan-out features so that the Howso Engine can more accurately measure uncertainty."
+
+    def apply(self, attributes: dict) -> None:
+        """Apply the computed fanout features config to the FeatureAttributesBase object."""
+        for key_features, fanout_features in self._fanout_features.items():
+            _key_features = key_features
+            if isinstance(_key_features, str):
+                _key_features = [key_features]
+            for f in fanout_features:
+                if f in attributes:
+                    attributes[f]["fanout_on"] = list(_key_features)
+
+    def get_fanout_feature_map(self) -> FanoutFeaturesMap:
+        """Get the `fanout_features_map` for use in future calls to `infer_feature_attributes`."""
+        return self._fanout_features
+
+    def merge(self, other: Self) -> Self:
+        """Merge another FanoutFeaturesSuggestion into this one."""
+        self._fanout_features.update(other.get_fanout_feature_map())  # TODO is this right?
 
 class PRVSuggestion(IFASuggestion):
     """A suggestion to configure preservation for rare values."""
@@ -210,7 +328,7 @@ class PRVSuggestion(IFASuggestion):
         return values_map
 
     def merge(self, other: Self) -> Self:
-        """Merge another PreserveRareValuesConfig into this one if there are no conflicts."""
+        """Merge another PRVSuggestion into this one if there are no conflicts."""
         for feature, config in other.get_config():
             if feature not in self._prvc:
                 self._prvc[feature] = config
@@ -242,7 +360,8 @@ class IFASuggestionCollector:
         table = Table(title="Suggestions for Potential Data Quality Improvements",
                       caption="To view a more detailed description of a suggestion, access its `name` as a property "
                       "(e.g., `your_attributes_object.suggestions.preserve_rare_values`).\n\nTo apply all suggestions,"
-                      ' call `your_attributes_object.apply_suggestion("all"))`.')
+                      ' call `your_attributes_object.apply_suggestion("all"))`.',
+                      show_lines=True)
         table.add_column("Name")
         table.add_column("Description")
 
