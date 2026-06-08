@@ -229,7 +229,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 if dtype in ["datetime64[Y]", "datetime64[M]", "datetime64[D]"]:
                     return FeatureType.DATE, {}
                 first_non_null = self._get_first_non_null(feature_name)
-                if isinstance(first_non_null, datetime.date):
+                if isinstance(first_non_null, datetime.date) and not isinstance(first_non_null, pd.Timestamp):
+                    # Timestamp objects are instances of datetime.date/time, but only return 'DATE' here if
+                    # it's *not* a Timestamp as there may be tzinfo we should inspect.
                     return FeatureType.DATE, {}
                 # Date-only Timestamp objects in Pandas will have a default time of midnight
                 if (isinstance(first_non_null, pd.Timestamp)
