@@ -1,4 +1,5 @@
 """Tests the `infer_feature_attributes` package with AbstractData classes."""
+from datetime import date
 from pathlib import Path
 import warnings
 
@@ -10,13 +11,16 @@ try:
         convert_data,
         DataFrameData,
         make_data_source,
+        SQLTableData,
     )
+    import sqlalchemy as sa
 except (ModuleNotFoundError, ImportError):
     pytest.skip('howso-engine-connectors not installed', allow_module_level=True)
 
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
 from howso.utilities.features import FeatureType
+from howso.utilities.feature_attributes.tests.utils import TemporaryDirectoryIgnoreErrors
 
 cwd = Path(__file__).parent.parent.parent.parent
 iris_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'iris.csv'))
@@ -59,6 +63,7 @@ features_3 = {
         "type": "continuous"
     }
 }
+
 
 
 @pytest.mark.parametrize('adc', [
@@ -743,3 +748,32 @@ def test_preserve_rare_values(adc):
 
     with pytest.warns(UserWarning, match="Could not evaluate rare values candidates for some columns"):
         infer_feature_attributes(data, types={"unhashable": "nominal"})
+
+def test_sql_date_column(tmp_path):
+    """Test that IFA correctly recognizes SQLAlchemy DATE columns."""
+    with TemporaryDirectoryIgnoreErrors() as tmp_dir:
+        db_path = Path(tmp_dir) / "dates.sqlite"
+        uri = f"sqlite:///{db_path}#events"
+
+        engine = sa.create_engine(f"sqlite:///{db_path}")
+        meta = sa.MetaData()
+        events = sa.Table(
+            "events",
+            meta,
+            sa.Column("id", sa.Integer, primary_key=True),
+            sa.Column("event_date", sa.DATE),
+            sa.Column("label", sa.String),
+        )
+        meta.create_all(engine)
+
+        with engine.begin() as conn:
+            conn.execute(events.insert(), [
+                {"id": 1, "event_date": date(2024, 1, 15), "label": "alpha"},
+                {"id": 2, "event_date": date(2024, 6, 30), "label": "beta"},
+            ])
+
+        connector = SQLTableData(uri)
+
+        features = infer_feature_attributes(connector, default_time_zone="UTC")
+        assert features["event_date"]["data_type"] == "formatted_date_time"
+        assert features["event_date"]["date_time_format"] == "%Y-%m-%d"
