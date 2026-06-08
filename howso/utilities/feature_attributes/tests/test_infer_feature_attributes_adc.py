@@ -1,5 +1,8 @@
 """Tests the `infer_feature_attributes` package with AbstractData classes."""
+from contextlib import suppress
+from datetime import date
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import warnings
 
 import pandas as pd
@@ -10,7 +13,9 @@ try:
         convert_data,
         DataFrameData,
         make_data_source,
+        SQLTableData,
     )
+    import sqlalchemy as sa
 except (ModuleNotFoundError, ImportError):
     pytest.skip('howso-engine-connectors not installed', allow_module_level=True)
 
@@ -59,6 +64,26 @@ features_3 = {
         "type": "continuous"
     }
 }
+
+
+class TemporaryDirectoryIgnoreErrors(TemporaryDirectory):
+    """
+    Override to fix a known issue with TemporaryDirectory that can cause cleanup errors.
+
+    There are fixes in Python's >= 3.12, but until then, just use this.
+
+    Once 3.12 is the minimum version, this can be removed if the parameter `ignore_cleanup_errors`
+    is set to `True` in the TemporaryDirectory constructor.
+    """
+
+    def cleanup(self):
+        """
+        Override cleanup to suppress any exceptions that may occur during cleanup.
+
+        This is a workaround for known issues with TemporaryDirectory cleanup.
+        """
+        with suppress(Exception):
+            super().cleanup()
 
 
 @pytest.mark.parametrize('adc', [
@@ -743,3 +768,32 @@ def test_preserve_rare_values(adc):
 
     with pytest.warns(UserWarning, match="Could not evaluate rare values candidates for some columns"):
         infer_feature_attributes(data, types={"unhashable": "nominal"})
+
+def test_sql_date_column(tmp_path):
+    """Test that IFA correctly recognizes SQLAlchemy DATE columns."""
+    with TemporaryDirectoryIgnoreErrors() as tmp_dir:
+        db_path = Path(tmp_dir) / "dates.sqlite"
+        uri = f"sqlite:///{db_path}#events"
+
+        engine = sa.create_engine(f"sqlite:///{db_path}")
+        meta = sa.MetaData()
+        events = sa.Table(
+            "events",
+            meta,
+            sa.Column("id", sa.Integer, primary_key=True),
+            sa.Column("event_date", sa.DATE),
+            sa.Column("label", sa.String),
+        )
+        meta.create_all(engine)
+
+        with engine.begin() as conn:
+            conn.execute(events.insert(), [
+                {"id": 1, "event_date": date(2024, 1, 15), "label": "alpha"},
+                {"id": 2, "event_date": date(2024, 6, 30), "label": "beta"},
+            ])
+
+        connector = SQLTableData(uri)
+
+        features = infer_feature_attributes(connector, default_time_zone="UTC")
+        assert features["event_date"]["data_type"] == "formatted_date_time"
+        assert features["event_date"]["date_time_format"] == "%Y-%m-%d"

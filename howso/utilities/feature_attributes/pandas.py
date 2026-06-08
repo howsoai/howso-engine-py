@@ -226,12 +226,17 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             elif is_datetime64_any_dtype(dtype):
                 typing_info = {}
                 # Check for date-only features
-                if dtype in ['datetime64[Y]', 'datetime64[M]', 'datetime64[D]']:
+                if dtype in ["datetime64[Y]", "datetime64[M]", "datetime64[D]"]:
                     return FeatureType.DATE, {}
                 first_non_null = self._get_first_non_null(feature_name)
-                if isinstance(first_non_null, pd.Timestamp):
-                    # Date-only Timestamp objects in Pandas will have a default time of midnight
-                    if first_non_null.time() == datetime.time(0, 0, 0) and (not hasattr(dtype, 'tz') or not dtype.tz):
+                if isinstance(first_non_null, datetime.date):
+                    return FeatureType.DATE, {}
+                # Date-only Timestamp objects in Pandas will have a default time of midnight
+                if all(
+                    [isinstance(first_non_null, pd.Timestamp),
+                     first_non_null.time() == datetime.time(0, 0, 0),
+                     (not hasattr(dtype, "tz") or not dtype.tz)]
+                    ):
                         return FeatureType.DATE, {}
                 # Datetime feature (with timezone info)
                 if isinstance(dtype, pd.DatetimeTZDtype):
