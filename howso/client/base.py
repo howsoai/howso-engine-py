@@ -1913,6 +1913,11 @@ class AbstractHowsoClient(ABC):
                 not when computing details robustly. Details will be computed
                 for all context and action features if this value is not
                 specified.
+            - feature_density_convictions : bool, optional
+                If True, outputs the feature density convictions for the local data around the prediction.
+                Computed as the average weighted mean absolute deviation of local values / weighted mean absolute deviation of local values.
+                Will also return 'feature_average_local_mad' and 'feature_local_mad' as explanation details under each of
+                their respective keys.
             - feature_deviations : bool, optional
                 If True, outputs computed feature deviations for all (context
                 and action) features locally around the prediction.
