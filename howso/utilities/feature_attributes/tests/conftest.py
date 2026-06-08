@@ -7,7 +7,7 @@ from unittest.mock import patch
 import mongomock
 import pytest
 
-from .utils import TemporaryDirectoryIgnoreErrors
+from howso.utilities.feature_attributes.tests.utils import TemporaryDirectoryIgnoreErrors
 
 try:
     from howso.connectors.abstract_data import (

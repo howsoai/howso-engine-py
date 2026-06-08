@@ -20,8 +20,7 @@ except (ModuleNotFoundError, ImportError):
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
 from howso.utilities.features import FeatureType
-
-from .utils import TemporaryDirectoryIgnoreErrors
+from howso.utilities.feature_attributes.tests.utils import TemporaryDirectoryIgnoreErrors
 
 cwd = Path(__file__).parent.parent.parent.parent
 iris_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'iris.csv'))
