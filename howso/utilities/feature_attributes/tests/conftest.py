@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from contextlib import suppress
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import mongomock
 import pytest
+
+from .utils import TemporaryDirectoryIgnoreErrors
 
 try:
     from howso.connectors.abstract_data import (
@@ -23,26 +23,6 @@ try:
     )
 except (ModuleNotFoundError, ImportError):
     pass
-
-
-class TemporaryDirectoryIgnoreErrors(TemporaryDirectory):
-    """
-    Override to fix a known issue with TemporaryDirectory that can cause cleanup errors.
-
-    There are fixes in Python's >= 3.12, but until then, just use this.
-
-    Once 3.12 is the minimum version, this can be removed if the parameter `ignore_cleanup_errors`
-    is set to `True` in the TemporaryDirectory constructor.
-    """
-
-    def cleanup(self):
-        """
-        Override cleanup to suppress any exceptions that may occur during cleanup.
-
-        This is a workaround for known issues with TemporaryDirectory cleanup.
-        """
-        with suppress(Exception):
-            super().cleanup()
 
 
 def mongodb_data(df) -> Iterator[MongoDBData]:

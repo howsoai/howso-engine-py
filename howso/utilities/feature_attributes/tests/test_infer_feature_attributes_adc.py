@@ -1,8 +1,6 @@
 """Tests the `infer_feature_attributes` package with AbstractData classes."""
-from contextlib import suppress
 from datetime import date
 from pathlib import Path
-from tempfile import TemporaryDirectory
 import warnings
 
 import pandas as pd
@@ -22,6 +20,8 @@ except (ModuleNotFoundError, ImportError):
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
 from howso.utilities.features import FeatureType
+
+from .utils import TemporaryDirectoryIgnoreErrors
 
 cwd = Path(__file__).parent.parent.parent.parent
 iris_df = pd.read_csv(Path(cwd, 'utilities', 'tests', 'data', 'iris.csv'))
@@ -65,25 +65,6 @@ features_3 = {
     }
 }
 
-
-class TemporaryDirectoryIgnoreErrors(TemporaryDirectory):
-    """
-    Override to fix a known issue with TemporaryDirectory that can cause cleanup errors.
-
-    There are fixes in Python's >= 3.12, but until then, just use this.
-
-    Once 3.12 is the minimum version, this can be removed if the parameter `ignore_cleanup_errors`
-    is set to `True` in the TemporaryDirectory constructor.
-    """
-
-    def cleanup(self):
-        """
-        Override cleanup to suppress any exceptions that may occur during cleanup.
-
-        This is a workaround for known issues with TemporaryDirectory cleanup.
-        """
-        with suppress(Exception):
-            super().cleanup()
 
 
 @pytest.mark.parametrize('adc', [

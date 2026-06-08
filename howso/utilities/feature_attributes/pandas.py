@@ -232,10 +232,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 if isinstance(first_non_null, datetime.date):
                     return FeatureType.DATE, {}
                 # Date-only Timestamp objects in Pandas will have a default time of midnight
-                if all(
-                    [isinstance(first_non_null, pd.Timestamp),
-                     first_non_null.time() == datetime.time(0, 0, 0),
-                     (not hasattr(dtype, "tz") or not dtype.tz)]
+                if (isinstance(first_non_null, pd.Timestamp)
+                    and first_non_null.time() == datetime.time(0, 0, 0)
+                    and (not hasattr(dtype, "tz") or not dtype.tz)
                     ):
                         return FeatureType.DATE, {}
                 # Datetime feature (with timezone info)

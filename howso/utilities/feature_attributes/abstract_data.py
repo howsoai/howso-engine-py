@@ -194,11 +194,13 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 first_non_null = self._get_first_non_null(feature_name)
                 if isinstance(first_non_null, datetime.date):
                     return FeatureType.DATE, {}
-                if isinstance(first_non_null, pd.Timestamp):
-                    # Date-only Timestamp objects in Pandas will have a default time of midnight
-                    if first_non_null.time() == datetime.time(0, 0, 0) and (not hasattr(dtype, "tz") or not dtype.tz):
+                # Date-only Timestamp objects in Pandas will have a default time of midnight
+                if (isinstance(first_non_null, pd.Timestamp)
+                    and first_non_null.time() == datetime.time(0, 0, 0)
+                    and (not hasattr(dtype, "tz") or not dtype.tz)
+                    ):
                         return FeatureType.DATE, {}
-                elif isinstance(dtype, pd.DatetimeTZDtype):
+                if isinstance(dtype, pd.DatetimeTZDtype):
                     # If using a named time zone capture it, otherwise
                     # rely on the offset in the iso8601 format
                     tz_name = getattr(dtype.tz, 'key', None) or getattr(dtype.tz, 'zone', None)
