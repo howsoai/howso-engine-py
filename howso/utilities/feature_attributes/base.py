@@ -1492,7 +1492,7 @@ class InferFeatureAttributesBase(ABC):
     @staticmethod
     def _is_datetime(string: str) -> bool:
         """
-        Return True if string can be interpreted as a date.
+        Return True if string can be interpreted as a date(time).
 
         Parameters
         ----------
@@ -1542,6 +1542,10 @@ class InferFeatureAttributesBase(ABC):
         # possible for it to have a datetime as the sole value, but the
         # column itself is not actually a datetime type
         rand_val = self._get_random_value(feature, no_nulls=True)
+
+        # Casting `datetime` objects to string will result in valid ISO-8601
+        if isinstance(rand_val, (datetime.date, datetime.datetime)):
+            return True
 
         # Try to parse one or both values as strictly iso8601
         try:
