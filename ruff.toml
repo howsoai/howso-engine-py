@@ -1,0 +1,136 @@
+line-length = 119
+indent-width = 4
+
+# Exclude additional files and directories.
+extend-exclude = [
+    "scratch",
+]
+
+[lint]
+# Select all of the Ruff rule groups that Hatch would select by default.
+# https://hatch.pypa.io/latest/config/internal/static-analysis/ lists the rules.
+# These are alphabetical by original Python package name, the same ordering that's in the Ruff
+# documentation https://docs.astral.sh/ruff/rules/
+select = [
+    # Minimum standards
+    "ANN",    # flake8-annotations
+    "ARG",    # flake8-unused-arguments
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "E",      # pycodestyle errors
+    "D",      # pydocstyle
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "W",      # pycodestyle warnings
+    # Extended standards
+    "A",      # flake8-builtins
+    "ASYNC",  # flake8-async
+    "BLE",    # flake8-blind-except
+    "COM",    # flake8-commas
+    "DTZ",    # flake8-datetimez
+    "EXE",    # flake8-executable
+    "FA",     # flake8-future-annotations
+    "FLY",    # flynt -- prefer f"{string}" to concatenation
+    "FURB",   # refurb -- use modern APIs like Path.open()
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "LOG",    # flake8-logging
+    "G",      # flake8-logging-format
+    "N",      # pep8-naming
+    "NPY",    # NumPy
+    "PD",     # pandas-vet
+    "PERF",   # perflint
+    "PGH",    # pygrep-hooks -- miscellaneous
+    "PL",     # pylint
+    "PIE",    # flake8-pie
+    "PYI",    # flake8-pyi -- typing-related checks
+    "PT",     # flake8-pytest-style
+    "PTH",    # flake8-use-pathlib
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "S",      # flake8-bandit -- security-oriented checks
+    "SLF",    # flake8-self
+    "SIM",    # flake8-simplify
+    "SLOT",   # flake8-slots
+    "TID",    # flake8-tidy-imports
+    "RUF",    # Ruff-specific rules -- miscellaneous
+    "T10",    # flake8-debugger
+    "T20",    # flake8-print
+    "TRY",    # tryceratops -- opinionated exception handling
+    "YTT",    # flake8-2020 -- incorrect sys.version string checks
+]
+# Not selected:
+#   ERA -- eradicate -- disallows commented-out code
+#   FAST -- FastAPI (only preview settings)
+#   CPY -- flake8-copyright
+#   DJ -- flake8-django
+#   EM -- flake8-errmsg (only preview settings)
+#   FIX -- flake8-fixme -- disallows TODO, FIXME, &c.
+#   INT -- flake8-gettext
+#   INP -- flake8-no-pep420 -- disallows namespace packages (like `howso`)
+#   TD -- flake8-todos -- opinionated TODO formatting
+#   C90 -- mccabe
+#   DOC -- pydoclint (only preview settings)
+ignore = [
+    "ANN401",   # Dynamically typed expressions (typing.Any) are disallowed
+    "C408",     # Prefer dict literals over dict() calls (ignored since plotly conventions use dict() calls)
+    "COM812",   # Missing trailing comma
+    "D100",     # Missing docstring in public module
+    "D104",     # Missing docstring in public package
+    "D107",     # Missing docstring in __init__
+    "PD011",    # Prefer .array or .to_numpy() over .values because .values is type ambiguous
+    "PD901",    # Don't name dataframe variables `df`
+    "PLC0414",  # Allow `from .foo import Bar as Bar `to reexport things without needing `__all__`, then `__init__.py`
+    "PLR0913",  # Too many arguments in function definition
+    "PLR2004",  # Magic value used in comparison
+    "SIM108",   # Use ternary operator instead of `if`-`else`-block
+    "SLF001",   # Private member access
+    "TID252",   # Allow relative imports
+    "TRY003",   # Avoid specifying long messages outside the exception class
+    "UP007",    # Prefer X | Y over typing.Union (ignored since some type-hint inspection breaks on 3.9)
+    "UP038",    # Prefer X | Y over (X, Y) in isinstance (ignore since its slower)
+    "T201",     # Don't use print
+    "PT007",    # Always use list of tuple for pytest fixtures
+]
+
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = [
+    "B",  # flake8-bugbear fixes, some of which add arguments to calls, should warn but not be fixed automatically.
+]
+
+[lint.flake8-unused-arguments]
+ignore-variadic-names = true
+
+[lint.isort]
+combine-as-imports = true
+force-single-line = false
+relative-imports-order = "closest-to-furthest"
+known-first-party = ["howso"]
+force-sort-within-sections = true
+order-by-type = false
+
+[lint.mccabe]
+max-complexity = 15
+
+[lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"**/tests/**" = [
+    "D103",
+    "PLR2004",  # Magic value comparisons
+    "S101",  # Use of `assert` detected
+    "ANN001",
+    "ANN201",
+    "ANN202",
+]
+[lint.pydocstyle]
+convention = "pep257"
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
