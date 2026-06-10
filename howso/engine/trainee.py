@@ -1493,6 +1493,10 @@ class Trainee(BaseTrainee):
                 If True, outputs the distance contribution (expected total
                 surprisal contribution) for the reacted case. Uses both context
                 and action feature values.
+            - residual_contribution : bool, optional
+                If True, outputs the residual contribution (average feature
+                residual surprisal) for the reacted case. Uses both context
+                and action feature values.
             - distance_ratio : bool, optional
                 If True, outputs the ratio of distance (relative surprisal)
                 between this reacted case and its nearest case to the minimum
@@ -3585,6 +3589,10 @@ class Trainee(BaseTrainee):
             The name of the feature to store p value of removal
             values. If set to True the values will be stored to the feature
             'p_value_of_removal'.
+        residual_contribution : bool or str, default False
+            The name of the feature to store residual contribution.
+            If set to True the values will be stored to the
+            feature 'residual_contribution'.
         similarity_conviction : bool or str, default False
             The name of the feature to store similarity conviction
             values. If set to True the values will be stored to the feature
