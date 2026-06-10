@@ -1900,6 +1900,10 @@ class AbstractHowsoClient(ABC):
                 If True, outputs the distance contribution (expected total
                 surprisal contribution) for the reacted case. Uses both context
                 and action feature values.
+            - residual_contribution : bool, optional
+                If True, outputs the residual contribution (average feature
+                residual surprisal) for the reacted case. Uses both context
+                and action feature values.
             - distance_ratio : bool, optional
                 If True, outputs the ratio of distance (relative surprisal)
                 between this reacted case and its nearest case to the minimum
@@ -3591,6 +3595,7 @@ class AbstractHowsoClient(ABC):
         overwrite: bool = False,
         p_value_of_addition: bool | str = False,
         p_value_of_removal: bool | str = False,
+        residual_contribution: bool | str = False,
         similarity_conviction: bool | str = False,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
@@ -3651,6 +3656,10 @@ class AbstractHowsoClient(ABC):
             The name of the feature to store distance contribution.
             If set to True the values will be stored to the
             feature 'distance_contribution'.
+        residual_contribution : bool or str, default False
+            The name of the feature to store residual contribution.
+            If set to True the values will be stored to the
+            feature 'residual_contribution'.
         weight_feature : str, optional
             Name of feature whose values to use as case weights.
             When left unspecified uses the internally managed case weight.
@@ -3675,6 +3684,7 @@ class AbstractHowsoClient(ABC):
             "overwrite": overwrite,
             "p_value_of_addition": p_value_of_addition,
             "p_value_of_removal": p_value_of_removal,
+            "residual_contribution": residual_contribution,
             "similarity_conviction": similarity_conviction,
             "distance_contribution": distance_contribution,
             "weight_feature": weight_feature,
