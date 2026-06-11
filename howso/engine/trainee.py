@@ -1493,6 +1493,10 @@ class Trainee(BaseTrainee):
                 If True, outputs the distance contribution (expected total
                 surprisal contribution) for the reacted case. Uses both context
                 and action feature values.
+            - residual_contribution : bool, optional
+                If True, outputs the residual contribution (average feature
+                residual surprisal) for the reacted case. Uses both context
+                and action feature values.
             - distance_ratio : bool, optional
                 If True, outputs the ratio of distance (relative surprisal)
                 between this reacted case and its nearest case to the minimum
@@ -1506,6 +1510,11 @@ class Trainee(BaseTrainee):
                 not when computing details robustly. Details will be computed
                 for all context and action features if this value is not
                 specified.
+            - feature_density_convictions : bool, optional
+                If True, outputs the feature density convictions for the local data around the prediction.
+                Computed as the average weighted mean absolute deviation of local values / weighted mean absolute deviation of local values.
+                Will also return 'feature_average_local_mad' and 'feature_local_mad' as explanation details under each of
+                their respective keys.
             - feature_deviations : bool, optional
                 If True, outputs computed feature deviations for all (context
                 and action) features locally around the prediction.
@@ -3530,6 +3539,7 @@ class Trainee(BaseTrainee):
         overwrite: bool = False,
         p_value_of_addition: str | bool = False,
         p_value_of_removal: str | bool = False,
+        residual_contribution: bool | str = False,
         similarity_conviction: str | bool = False,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None,
@@ -3584,6 +3594,10 @@ class Trainee(BaseTrainee):
             The name of the feature to store p value of removal
             values. If set to True the values will be stored to the feature
             'p_value_of_removal'.
+        residual_contribution : bool or str, default False
+            The name of the feature to store residual contribution.
+            If set to True the values will be stored to the
+            feature 'residual_contribution'.
         similarity_conviction : bool or str, default False
             The name of the feature to store similarity conviction
             values. If set to True the values will be stored to the feature
@@ -3610,6 +3624,7 @@ class Trainee(BaseTrainee):
                 overwrite=overwrite,
                 p_value_of_addition=p_value_of_addition,
                 p_value_of_removal=p_value_of_removal,
+                residual_contribution=residual_contribution,
                 similarity_conviction=similarity_conviction,
                 features=features,
                 use_case_weights=use_case_weights,

@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.13-dev.txt --pip-args=None
 #
-amalgam-lang==31.0.1
+amalgam-lang==32.0.0
     # via howso-engine (pyproject.toml)
 astroid==4.0.4
     # via pylint
@@ -20,7 +20,7 @@ click==8.4.1
     # via
     #   pip-tools
     #   sacremoses
-coverage[toml]==7.14.0
+coverage[toml]==7.14.1
     # via pytest-cov
 dill==0.4.1
     # via
@@ -28,7 +28,7 @@ dill==0.4.1
     #   pylint
 execnet==2.1.2
     # via pytest-xdist
-faker==40.19.1
+faker==40.22.0
     # via howso-engine (pyproject.toml)
 flake8==3.9.2
     # via
@@ -40,7 +40,7 @@ flake8-import-order==0.19.2
     # via howso-engine (pyproject.toml)
 humanize==4.15.0
     # via howso-engine (pyproject.toml)
-idna==3.16
+idna==3.18
     # via requests
 iniconfig==2.3.0
     # via pytest
@@ -62,6 +62,8 @@ mmh3==5.2.1
     # via howso-engine (pyproject.toml)
 mongomock==4.3.0
     # via howso-engine (pyproject.toml)
+narwhals==2.22.1
+    # via scikit-learn
 numpy==2.4.6
     # via
     #   howso-engine (pyproject.toml)
@@ -80,9 +82,9 @@ pandas==2.3.3
     # via howso-engine (pyproject.toml)
 pip-tools==7.5.3
     # via howso-engine (pyproject.toml)
-pipdeptree==2.35.3
+pipdeptree==3.1.0
     # via howso-engine (pyproject.toml)
-platformdirs==4.9.6
+platformdirs==4.10.0
     # via pylint
 pluggy==1.6.0
     # via
@@ -137,7 +139,7 @@ rich==15.0.0
     # via howso-engine (pyproject.toml)
 sacremoses==0.1.1
     # via howso-engine (pyproject.toml)
-scikit-learn==1.8.0
+scikit-learn==1.9.0
     # via howso-engine (pyproject.toml)
 scipy==1.17.1
     # via scikit-learn
@@ -147,13 +149,13 @@ sentinels==1.1.1
     # via mongomock
 six==1.17.0
     # via python-dateutil
-snowballstemmer==3.0.1
+snowballstemmer==3.1.1
     # via pydocstyle
 threadpoolctl==3.6.0
     # via scikit-learn
 tomlkit==0.15.0
     # via pylint
-tqdm==4.67.3
+tqdm==4.68.2
     # via sacremoses
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)
@@ -167,7 +169,7 @@ wheel==0.47.0
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:
-pip==26.1.1
+pip==26.1.2
     # via pip-tools
 setuptools==82.0.1
     # via

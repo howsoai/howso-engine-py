@@ -84,6 +84,15 @@ class ReactDetails(TypedDict, total=False):
     distance_ratio_parts: pd.DataFrame
     """A DataFrame of the parts that are used to compute the distance ratio for each case."""
 
+    feature_density_convictions: pd.DataFrame
+    """A DataFrame of the feature density convictions for the local data around this case. Computed as the average weighted mean absolute deviation of local values / weighted mean absolute deviation of local values"""
+
+    feature_average_local_mad: pd.DataFrame
+    """A DataFrame of the average weighted mean absolute deviation of all local cases for a specific case, using each case's local data for computation."""
+
+    feature_local_mad: pd.DataFrame
+    """A DataFrame of the weighted mean absolute deviation of all local cases for a specific case, using each case's local data for computation."""
+
     feature_deviations: pd.DataFrame
     """
     A DataFrame of the mean absolute error of predicting each feature using the full set of context features and
