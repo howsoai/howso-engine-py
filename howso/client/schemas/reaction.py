@@ -219,6 +219,9 @@ class ReactDetails(TypedDict, total=False):
     relevant_values: list[dict[str, pd.Series]]
     """A list of dict mapping feature name to the list of relevant values for each context."""
 
+    residual_contribution: list[float]
+    """A list of the computed residual contribution for each given case."""
+
     similarity_conviction: list[float]
     """A list of the average similarity conviction of cases in each group."""
 
