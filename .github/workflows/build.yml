@@ -639,9 +639,9 @@ jobs:
       - generate-changelog
       - workflow-summary
       - pytest-linux-3-11-st
-      - pytest-linux-3-12-mt
+      - pytest-linux-3-14-mt
       - pytest-windows-3-13-mt
-      - pytest-macos-3-14-mt-arm64
+      - pytest-macos-3-12-mt-arm64
       - install-verification-linux-amd64
       - install-verification-linux-arm64
       - install-verification-linux-arm64_8a
