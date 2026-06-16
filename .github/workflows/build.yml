@@ -162,7 +162,7 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
 
-  pytest-linux-3-12-mt:
+  pytest-linux-3-14-mt:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -170,7 +170,7 @@ jobs:
       platform: 'ubuntu-latest'
       platform-pretty: 'Linux'
       amalgam-plat-arch: 'linux-amd64'
-      python-version: '3.12'
+      python-version: '3.14'
       config-fp: './config/latest-mt-traces-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
@@ -190,7 +190,7 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
 
-  pytest-macos-3-14-mt-arm64:
+  pytest-macos-3-12-mt-arm64:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -198,7 +198,7 @@ jobs:
       platform: 'macos-latest'
       platform-pretty: 'MacOS'
       amalgam-plat-arch: 'darwin-arm64'
-      python-version: '3.14'
+      python-version: '3.12'
       config-fp: './config/latest-mt-traces-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
