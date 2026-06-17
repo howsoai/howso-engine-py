@@ -1,4 +1,4 @@
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from sacremoses import MosesDetokenizer, MosesTokenizer
 
@@ -9,11 +9,11 @@ class TokenizerProtocol(Protocol):
 
     def tokenize(self, text: str, **kwargs) -> list[str]:
         """Tokenize a string."""
-        pass
+        ...
 
     def detokenize(self, tokens: list[str], **kwargs) -> str:
         """Detokenize a list of tokens into a string."""
-        pass
+        ...
 
 
 class HowsoTokenizer:
@@ -25,7 +25,7 @@ class HowsoTokenizer:
         self._mt = MosesTokenizer(lang=self.lang)
         self._md = MosesDetokenizer(lang=self.lang)
 
-    def tokenize(self, text: str) -> list[str]:
+    def tokenize(self, text: str, **kwargs: Any) -> list[str]:
         """
         Tokenizes a string into a list of strings.
 
@@ -41,7 +41,7 @@ class HowsoTokenizer:
         """
         return self._mt.tokenize(text)
 
-    def detokenize(self, tokens: list[str]) -> str:
+    def detokenize(self, tokens: list[str], **kwargs: Any) -> str:
         """
         Detokenizes a list of strings into a string.
 

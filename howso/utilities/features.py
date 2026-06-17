@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 import decimal
 from enum import Enum
 from functools import partial
 import json
 import locale
-import typing as t
+from typing import Any, cast
 import warnings
 from zoneinfo import ZoneInfo
 
@@ -17,11 +17,7 @@ from pandas.core.dtypes.common import (
     is_timedelta64_dtype,
 )
 
-from .internals import (
-    deserialize_to_dataframe,
-    IgnoreWarnings,
-    to_pandas_datetime_format
-)
+from .internals import deserialize_to_dataframe, IgnoreWarnings, to_pandas_datetime_format
 from .tokenizing import (
     HowsoTokenizer,
     TokenizerProtocol,
@@ -35,7 +31,6 @@ from .utilities import (
     stringify_json,
     tokenize_strings,
 )
-
 
 __all__ = [
     "FeatureSerializer",
@@ -61,7 +56,7 @@ class FeatureType(Enum):
     TIMEDELTA = "timedelta"
     CONTAINER = "container"
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return a string representation."""
         return str(self.value)
 
@@ -70,23 +65,23 @@ class FeatureSerializer:
     """Adapter for serialization and deserialization of feature data."""
 
     @classmethod
-    def serialize(  # noqa: C901
+    def serialize(  # noqa: PLR0912
         cls,
-        data: t.Optional[pd.DataFrame | np.ndarray | Iterable[t.Any]],
-        columns: Iterable[str] | None,
-        features: Mapping,
+        data: pd.DataFrame | np.ndarray | Iterable[Any] | None,
+        columns: Sequence[str] | None,
+        features: Mapping[str, Any],
         *,
-        tokenizer: TokenizerProtocol = None,
-        warn: bool = False
-    ) -> list[list[t.Any]] | None:
+        tokenizer: TokenizerProtocol | None = None,
+        warn: bool = False,
+    ) -> list[list[Any]] | None:
         """
         Serialize case data into list of lists.
 
         Parameters
         ----------
-        data : pd.DataFrame or np.ndarray or Iterable, default None
+        data : pd.DataFrame or np.ndarray or Iterable or None
             The data to serialize, typically in a Pandas DataFrame, Numpy ndarray or Python Iterable such as a list.
-        columns : Iterable of str, default None
+        columns : Sequence of str or None
             The case column mapping. The order corresponds to the order of cases in output.
             `columns` must be provided for non-DataFrame Iterables.
         features : Mapping
@@ -115,15 +110,13 @@ class FeatureSerializer:
             was received (should be either pd.DataFrame, np.ndarray or Python Iterable (non-str)).
         """
         # Import locally to prevent a circular import
-        from howso.client.exceptions import HowsoError
+        from howso.client.exceptions import HowsoError  # noqa: PLC0415
 
         if data is None:
             return None
         if isinstance(data, np.ndarray):
             if columns is None:
-                raise HowsoError(
-                    "Columns must be provided with numpy arrays."
-                )
+                raise HowsoError("Columns must be provided with numpy arrays.")
             data = pd.DataFrame.from_records(data, columns=columns)
 
         if isinstance(data, pd.DataFrame):
@@ -133,8 +126,7 @@ class FeatureSerializer:
                     filtered_data = data[columns]
                 except KeyError as key_error:
                     raise HowsoError(
-                        "The provided DataFrame is missing one or more of the "
-                        f"expected named columns: {columns}."
+                        f"The provided DataFrame is missing one or more of the expected named columns: {columns}."
                     ) from key_error
             else:
                 columns = data.columns.tolist()
@@ -145,8 +137,8 @@ class FeatureSerializer:
                 col_data = filtered_data[col]
                 if isinstance(col_data, pd.DataFrame):
                     raise ValueError(
-                        "The provided DataFrame contains duplicate column "
-                        "names. All column names must be unique.")
+                        "The provided DataFrame contains duplicate column names. All column names must be unique."
+                    )
                 dtype = col_data.dtype
                 if is_datetime64_any_dtype(dtype):
                     # `to_pydatetime` emits a FutureWarning even when the issue
@@ -163,14 +155,12 @@ class FeatureSerializer:
 
         elif isinstance(data, Iterable) and not isinstance(data, str):
             if columns is None:
-                raise HowsoError(
-                    "Columns must be provided with python Iterables."
-                )
+                raise HowsoError("Columns must be provided with python Iterables.")
             result = list(data)
         else:
             raise ValueError(
-                "Received unexpected data type for case data. Cases "
-                "should be either a DataFrame or a list.")
+                "Received unexpected data type for case data. Cases should be either a DataFrame or a list."
+            )
 
         # Convert 1d list (single case) to 2d list for serialization
         # We check if the first item in the serialized list is a list
@@ -193,10 +183,10 @@ class FeatureSerializer:
     @classmethod
     def deserialize(
         cls,
-        data: Iterable[Iterable[t.Any] | Mapping[str, t.Any]],
-        columns: t.Optional[Iterable[str]] = None,
-        features: t.Optional[Mapping] = None,
-        tokenizer: t.Optional[TokenizerProtocol] = None,
+        data: Iterable[Iterable[Any] | Mapping[str, Any]],
+        columns: Sequence[str] | None = None,
+        features: Mapping[str, Any] | None = None,
+        tokenizer: TokenizerProtocol | None = None,
     ) -> pd.DataFrame:
         """
         Deserialize case data into a DataFrame.
@@ -208,7 +198,7 @@ class FeatureSerializer:
         ----------
         data : list of list or list of dict
             The context data.
-        columns : Iterable of str, optional
+        columns : Sequence of str, optional
             The case column mapping. The order corresponds to the order of cases in output.
             `columns` must be provided for non-DataFrame Iterables.
 
@@ -235,8 +225,12 @@ class FeatureSerializer:
         return df
 
     @classmethod
-    def format_dataframe(cls, df: pd.DataFrame, features: Mapping,
-                         tokenizer: t.Optional[TokenizerProtocol] = None) -> pd.DataFrame:
+    def format_dataframe(
+        cls,
+        df: pd.DataFrame,
+        features: Mapping[str, Any],
+        tokenizer: TokenizerProtocol | None = None,
+    ) -> pd.DataFrame:
         """
         Format DataFrame columns to original type using feature attributes.
 
@@ -271,8 +265,12 @@ class FeatureSerializer:
         return df
 
     @classmethod
-    def format_column(cls, column: pd.Series,  # noqa: C901
-                      feature: Mapping, tokenizer: t.Optional[TokenizerProtocol] = None) -> pd.Series:
+    def format_column(  # noqa: PLR0911
+        cls,
+        column: pd.Series,
+        feature: Mapping[str, Any] | None,
+        tokenizer: TokenizerProtocol | None = None,
+    ) -> pd.Series:
         """
         Format column based on feature typing information.
 
@@ -298,30 +296,28 @@ class FeatureSerializer:
 
         if data_type == FeatureType.NUMERIC.value:
             return cls.format_numeric_column(column, feature)
-        elif data_type == FeatureType.INTEGER.value:
+        if data_type == FeatureType.INTEGER.value:
             return cls.format_integer_column(column, feature)
-        elif data_type == FeatureType.STRING.value:
+        if data_type == FeatureType.STRING.value:
             return cls.format_string_column(column, feature)
-        elif data_type == FeatureType.TOKENIZABLE_STRING.value:
+        if data_type == FeatureType.TOKENIZABLE_STRING.value:
             return cls.format_tokenizable_string_column(column, feature, tokenizer=tokenizer)
-        elif data_type == FeatureType.DATETIME.value:
+        if data_type == FeatureType.DATETIME.value:
             return cls.format_datetime_column(column, feature)
-        elif data_type == FeatureType.DATE.value:
+        if data_type == FeatureType.DATE.value:
             return cls.format_date_column(column, feature)
-        elif data_type == FeatureType.TIME.value:
+        if data_type == FeatureType.TIME.value:
             return cls.format_time_column(column, feature)
-        elif data_type == FeatureType.TIMEDELTA.value:
+        if data_type == FeatureType.TIMEDELTA.value:
             return cls.format_timedelta_column(column, feature)
-        elif data_type == FeatureType.BOOLEAN.value:
+        if data_type == FeatureType.BOOLEAN.value:
             return cls.format_boolean_column(column, feature)
-        elif data_type == FeatureType.CONTAINER.value:
+        if data_type == FeatureType.CONTAINER.value:
             return cls.format_container_column(column, feature)
-        else:
-            return cls.format_unknown_column(column, feature)
+        return cls.format_unknown_column(column, feature)
 
     @classmethod
-    def format_timedelta_column(cls, column: pd.Series, feature: Mapping
-                                ) -> pd.Series:
+    def format_timedelta_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format timedelta column.
 
@@ -339,27 +335,26 @@ class FeatureSerializer:
         """
         typing_info = cls._get_typing_info(feature)
         try:
-            unit = typing_info['unit']
-            if unit not in ['days', 'seconds', 'nanoseconds']:
-                raise ValueError('invalid unit type')
+            unit = typing_info["unit"]
+            if unit not in ["days", "seconds", "nanoseconds"]:
+                raise ValueError("invalid unit type")  # noqa: TRY301
         except (TypeError, KeyError, ValueError):
             warnings.warn(
-                f'Unknown timedelta unit for column "{column.name}", '
-                'column will not be translated to a timedelta64.')
+                f'Unknown timedelta unit for column "{column.name}", column will not be translated to a timedelta64.'
+            )
             return column
 
         try:
             return pd.to_timedelta(column, unit=unit)
-        except Exception:  # noqa: Deliberately broad
+        except Exception:  # noqa: BLE001
             warnings.warn(
                 f'Timedelta column "{column.name}" failed to be parsed as '
-                'timedelta64 values, column will retain current dtype.'
+                "timedelta64 values, column will retain current dtype."
             )
         return column
 
     @classmethod
-    def format_datetime_column(cls, column: pd.Series, feature: Mapping  # noqa: C901
-                               ) -> pd.Series:
+    def format_datetime_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format datetime column.
 
@@ -376,28 +371,26 @@ class FeatureSerializer:
             The formatted column.
         """
         typing_info = cls._get_typing_info(feature)
-        date_time_format = feature.get('date_time_format') or None
-        date_locale = feature.get('locale') or None
+        date_time_format = feature.get("date_time_format") or None
+        date_locale = feature.get("locale") or None
         format_includes_timezone = False
-        if (
-            date_time_format and
-            DATETIME_TIMEZONE_PATTERN.findall(date_time_format)
-        ):
+        if date_time_format and DATETIME_TIMEZONE_PATTERN.findall(date_time_format):
             format_includes_timezone = True
 
         # Load timezone information if provided
-        tz = typing_info.get('timezone')
+        tz = typing_info.get("timezone")
         if tz is not None:
             try:
                 tz = ZoneInfo(tz)
             except KeyError:
                 warnings.warn(
                     f'Unknown timezone "{tz}" for feature "{column.name}", '
-                    'datetime column may not contain original timezone '
-                    'information.')
+                    "datetime column may not contain original timezone "
+                    "information."
+                )
                 tz = None
 
-        def _to_datetime():
+        def _to_datetime() -> pd.Series:
             # Format column to datetime
             target_format = to_pandas_datetime_format(date_time_format)
             if tz is not None:
@@ -425,18 +418,20 @@ class FeatureSerializer:
             warnings.warn(
                 f'Unable to parse column "{column.name}" as datetime64, the '
                 f'locale "{date_locale}" of the datetime does not appear to be '
-                'available on this system. Column will retain current dtype. '
-                'Note: This feature may not work properly until this locale '
-                'is installed.')
-        except Exception:  # noqa: Deliberately broad
-            warnings.warn(f'Unable to parse column "{column.name}" as '
-                          f'datetime64 using format "{date_time_format}". '
-                          'Column will retain current dtype.')
+                "available on this system. Column will retain current dtype. "
+                "Note: This feature may not work properly until this locale "
+                "is installed."
+            )
+        except Exception:  # noqa: BLE001
+            warnings.warn(
+                f'Unable to parse column "{column.name}" as '
+                f'datetime64 using format "{date_time_format}". '
+                "Column will retain current dtype."
+            )
         return column
 
     @classmethod
-    def format_date_column(cls, column: pd.Series, feature: Mapping
-                           ) -> pd.Series:
+    def format_date_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format date only column.
 
@@ -452,8 +447,8 @@ class FeatureSerializer:
         pandas.Series
             The formatted column.
         """
-        date_time_format = feature.get('date_time_format') or None
-        date_locale = feature.get('locale') or None
+        date_time_format = feature.get("date_time_format") or None
+        date_locale = feature.get("locale") or None
         target_format = to_pandas_datetime_format(date_time_format)
         try:
             if date_locale:
@@ -465,18 +460,20 @@ class FeatureSerializer:
             warnings.warn(
                 f'Unable to parse column "{column.name}" as datetime64, the '
                 f'locale "{date_locale}" of the date does not appear to be '
-                'available on this system. Column will retain current dtype. '
-                'Note: This feature may not work properly until this locale '
-                'is installed.')
+                "available on this system. Column will retain current dtype. "
+                "Note: This feature may not work properly until this locale "
+                "is installed."
+            )
         except Exception:  # noqa: Deliberately broad
-            warnings.warn(f'Unable to parse column "{column.name}" as '
-                          f'datetime64 using format {date_time_format}. '
-                          'Column will retain current dtype.')
+            warnings.warn(
+                f'Unable to parse column "{column.name}" as '
+                f"datetime64 using format {date_time_format}. "
+                "Column will retain current dtype."
+            )
         return column
 
     @classmethod
-    def format_time_column(cls, column: pd.Series, feature: Mapping  # noqa: C901
-                           ) -> pd.Series:
+    def format_time_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format time only column.
 
@@ -493,29 +490,28 @@ class FeatureSerializer:
             The formatted column.
         """
         typing_info = cls._get_typing_info(feature)
-        date_time_format = feature.get('date_time_format') or None
+        date_time_format = feature.get("date_time_format") or None
         if date_time_format:
             return cls.format_datetime_column(column, feature)
-        else:
-            # Time feature does not use a date_time_format, treat as seconds
-            tz = None
-            try:
-                tz_name = typing_info['timezone']
-                if tz_name is not None:
-                    try:
-                        tz = ZoneInfo(tz_name)
-                    except KeyError:
-                        warnings.warn(
-                            f'Unknown timezone defined for column "{column.name}", '
-                            'column will not be timezone aware.')
-            except (TypeError, KeyError):
-                pass
 
-            return column.apply(partial(seconds_to_time, tzinfo=tz))
+        # Time feature does not use a date_time_format, treat as seconds
+        tz = None
+        try:
+            tz_name = typing_info["timezone"]
+            if tz_name is not None:
+                try:
+                    tz = ZoneInfo(tz_name)
+                except KeyError:
+                    warnings.warn(
+                        f'Unknown timezone defined for column "{column.name}", column will not be timezone aware.'
+                    )
+        except (TypeError, KeyError):
+            pass
+
+        return column.apply(partial(seconds_to_time, tzinfo=tz))
 
     @classmethod
-    def format_boolean_column(cls, column: pd.Series, feature: Mapping
-                              ) -> pd.Series:
+    def format_boolean_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format boolean column.
 
@@ -532,20 +528,19 @@ class FeatureSerializer:
             The formatted column.
         """
         try:
-            def _apply_bool(value):
+
+            def _apply_bool(value: Any) -> bool:
                 if isinstance(value, str):
                     return value.lower() in ["true", "yes", "on", "(true)"]
                 return bool(value)
 
             return column.apply(_apply_bool)
-        except Exception:  # noqa: Deliberately broad
-            warnings.warn(f'Unable to parse column "{column.name}" as '
-                          f'boolean. Column will retain current dtype.')
+        except Exception:  # noqa: BLE001
+            warnings.warn(f'Unable to parse column "{column.name}" as boolean. Column will retain current dtype.')
             return column
 
     @classmethod
-    def format_integer_column(cls, column: pd.Series, feature: Mapping
-                              ) -> pd.Series:
+    def format_integer_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format integer column.
 
@@ -566,39 +561,38 @@ class FeatureSerializer:
         has_nulls = column.isnull().any()
         if has_nulls:
             # Use pandas extension type for nullable integer
-            type_name = 'Int'
+            type_name = "Int"
         else:
-            type_name = 'int'
+            type_name = "int"
 
-        size = typing_info.get('size')
+        size = typing_info.get("size")
         if size in [1, 2, 4, 8]:
-            type_name = f'{type_name}{size * 8}'
-        unsigned = typing_info.get('unsigned')
+            type_name = f"{type_name}{size * 8}"
+        unsigned = typing_info.get("unsigned")
         if unsigned:
-            type_name = f'U{type_name}' if has_nulls else f'u{type_name}'
+            type_name = f"U{type_name}" if has_nulls else f"u{type_name}"
 
         # unique or int-id features are output as 64bit ints, leave them
         # as-is if original datatype is less than 64 bits
-        if size < 8 and (getattr(feature, 'unique', False) or
-                         getattr(feature, 'subtype', None) == 'int-id'):
-            warnings.warn(f'Unable to restore column "{column.name}" as '
-                          f'{type_name}. Column will retain current dtype.')
+        if size < 8 and (getattr(feature, "unique", False) or getattr(feature, "subtype", None) == "int-id"):
+            warnings.warn(
+                f'Unable to restore column "{column.name}" as {type_name}. Column will retain current dtype.'
+            )
             return column
 
         try:
             # We use floor and to_numeric here to handle cases where the value
             # may be a string of float like values, so we get the column as a
             # generic number first, remove the decimal places and then set the
-            # type to the expected format
-            return np.floor(pd.to_numeric(column)).astype(type_name)
+            # type to the expected format (np.floor will actually return a
+            # pandas series when given one, but the type hint only shows ndarray)
+            return cast(pd.Series, np.floor(pd.to_numeric(column)).astype(cast(np.dtype, type_name)))
         except Exception:  # noqa: Deliberately broad
-            warnings.warn(f'Unable to parse column "{column.name}" as '
-                          f'{type_name}. Column will retain current dtype.')
+            warnings.warn(f'Unable to parse column "{column.name}" as {type_name}. Column will retain current dtype.')
             return column
 
     @classmethod
-    def format_numeric_column(cls, column: pd.Series, feature: Mapping
-                              ) -> pd.Series:
+    def format_numeric_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format numeric column.
 
@@ -615,41 +609,36 @@ class FeatureSerializer:
             The formatted column.
         """
         typing_info = cls._get_typing_info(feature)
-        number_format = typing_info.get('format')
-        type_name = 'float'
+        number_format = typing_info.get("format")
+        type_name = "float"
 
         try:
-            if number_format == 'decimal':
-                type_name = 'Decimal'
+            if number_format == "decimal":
+                type_name = "Decimal"
                 # Note: We cast to string first here in attempt to prevent
                 # floating point errors.
-                return column.apply(lambda x: decimal.Decimal(
-                    str(x)) if x is not None else None)
+                return column.apply(lambda x: decimal.Decimal(str(x)) if x is not None else None)
             else:
-                type_name = 'float'
-                size = typing_info.get('size')
+                type_name = "float"
+                size = typing_info.get("size")
                 if size in [1, 2, 4, 8, 16]:
-                    type_name = f'{type_name}{size * 8}'
+                    type_name = f"{type_name}{size * 8}"
 
                 # unique or int-id features are output as 64bit ints, leave them
                 # as-is if original datatype is less than 64 bits
-                if size < 8 and (getattr(feature, 'unique', False) or
-                                 getattr(feature, 'subtype', None) == 'int-id'):
+                if size < 8 and (getattr(feature, "unique", False) or getattr(feature, "subtype", None) == "int-id"):
                     warnings.warn(
-                        f'Unable to restore column "{column.name}" as '
-                        f'{type_name}. Column will retain current dtype.'
+                        f'Unable to restore column "{column.name}" as {type_name}. Column will retain current dtype.'
                     )
                     return column
 
-                return column.astype(type_name)
-        except Exception:  # noqa: Deliberately broad
-            warnings.warn(f'Unable to parse column "{column.name}" as '
-                          f'{type_name}. Column will retain current dtype.')
+                return column.astype(cast(np.dtype, type_name))
+        except Exception:  # noqa: BLE001
+            warnings.warn(f'Unable to parse column "{column.name}" as {type_name}. Column will retain current dtype.')
             return column
 
     @classmethod
-    def format_string_column(cls, column: pd.Series, feature: Mapping
-                             ) -> pd.Series:
+    def format_string_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format string column.
 
@@ -669,8 +658,12 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_tokenizable_string_column(cls, column: pd.Series, feature: Mapping,
-                                         tokenizer: t.Optional[TokenizerProtocol]) -> pd.Series:
+    def format_tokenizable_string_column(
+        cls,
+        column: pd.Series,
+        feature: Mapping[str, Any],
+        tokenizer: TokenizerProtocol | None = None,
+    ) -> pd.Series:
         """
         Format tokenizable string column.
 
@@ -694,8 +687,7 @@ class FeatureSerializer:
         return pd.Series(tokenizer.detokenize(json.loads(case)) for case in column)
 
     @classmethod
-    def format_unknown_column(cls, column: pd.Series, feature: Mapping
-                              ) -> pd.Series:
+    def format_unknown_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format unknown typed column.
 
@@ -715,7 +707,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_container_column(cls, column: pd.Series, feature: Mapping) -> pd.Series:
+    def format_container_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format a container column (a Python Mapping/Sequence).
 
@@ -734,7 +726,7 @@ class FeatureSerializer:
         return destringify_json(column, feature)
 
     @staticmethod
-    def _get_typing_info(feature: t.Optional[Mapping]) -> dict:
+    def _get_typing_info(feature: Mapping[str, Any] | None) -> dict:
         """
         Get typing info from feature attributes.
 
@@ -748,11 +740,13 @@ class FeatureSerializer:
         dict
             The typing info for the feature. Or empty dict if none found.
         """
+        if feature is None:
+            return {}
         try:
-            typing_info = feature['original_type']
+            typing_info = feature["original_type"]
         except (TypeError, KeyError):
-            return dict()
-        return typing_info or dict()
+            return {}
+        return typing_info or {}
 
 
 serialize_cases = FeatureSerializer.serialize
