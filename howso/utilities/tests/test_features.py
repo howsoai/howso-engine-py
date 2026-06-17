@@ -3,15 +3,9 @@ import decimal
 import json
 import locale
 from pathlib import Path
+import re
 import warnings
 from zoneinfo import ZoneInfo
-
-
-from howso.engine import Trainee
-from howso.utilities import infer_feature_attributes
-from howso.utilities.features import FeatureSerializer, FeatureType
-from howso.utilities.internals import sanitize_for_json
-from howso.utilities.utilities import LocaleOverride
 
 import numpy as np
 import pandas as pd
@@ -20,6 +14,12 @@ from pandas.core.dtypes.common import (
     is_string_dtype,
 )
 import pytest
+
+from howso.engine import Trainee
+from howso.utilities import infer_feature_attributes
+from howso.utilities.features import FeatureSerializer, FeatureType
+from howso.utilities.internals import sanitize_for_json
+from howso.utilities.utilities import LocaleOverride
 
 from . import has_locales
 
@@ -104,7 +104,7 @@ def test_feature_deserialization(data_format, data, original_type, should_warn):
         if original_type["data_type"] == FeatureType.TOKENIZABLE_STRING.value:
             # Tokenizable strings must have their type pre-set to "continuous"
             features = infer_feature_attributes(df, default_time_zone="UTC", types={"a": "continuous"})
-        else:            
+        else:
             features = infer_feature_attributes(df, default_time_zone="UTC")
         if data_format == "numpy":
             df_numpy = np.array(data)
@@ -410,3 +410,119 @@ def test_boolean_features():
     # Compare metrics within a precision of 3 decimals
     for metric in nominal_react:
         pd.testing.assert_frame_equal(nominal_react[metric], boolean_react[metric], check_exact=False, rtol=3)
+
+
+def test_feature_original_type_to_dtype():
+    """Test deserialized feature dtypes given the original type including for derived time-series features."""
+    df = pd.DataFrame(
+        {
+            # Define a time-series dataset for different combinations of feature type, data type and nullable
+            "id": ["0", "0", "0", "1", "1", "1", "2", "2", "2", "3"],
+            "time": [0, 1, 2, 0, 1, 2, 0, 1, 2, 0],
+            "a": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  # continuous int
+            "b": [0, 1, 2, None, 4, 5, 6, 7, None, 9],  # continuous int (Nullable)
+            "c": [0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],  # continuous float
+            "d": [0, 1.0, 2.0, float("nan"), 4.0, 5.0, 6.0, 7.0, float("nan"), 9],  # continuous float (NaN)
+            "e": [0, 1.0, 2.0, None, 4.0, 5.0, 6.0, 7.0, None, 9],  # continuous float (Nullable)
+            "f": [0, 1, 2, 0, 1, 2, 0, 1, 2, 0],  # nominal int
+            "g": [None, None, None, None, 1, 1, None, 1, 1, 2],  # nominal int (Nullable)
+            "h": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],  # nominal str
+            "i": ["0", "1", None, "3", "4", "5", "6", None, "8", "9"],  # nominal str (Nullable)
+            "j": [True, True, False, True, True, False, False, False, False, True],  # nominal bool
+            "k": [True, True, False, True, None, False, False, False, False, True],  # nominal bool (Nullable)
+            "l": ["A", "B", "C", "C", "A", "B", "C", "A", "B", "B"],  # ordinal str
+            "m": ["A", "B", "C", None, "A", "B", "C", "A", "B", "B"],  # ordinal str (Nullable)
+            "n": [1, 2, 3, 2, 3, 1, 3, 1, 2, 2],  # ordinal int
+            "o": [1, 2, 3, 2, 3, 1, None, 1, 2, 2],  # ordinal int (Nullable)
+        }
+    )
+    # Correct inferred dtypes
+    df["b"] = df["b"].astype("Int64")
+    df["g"] = df["g"].astype("Int64")
+    df["o"] = df["o"].astype("Int64")
+
+    # Define the expected attribute types per feature
+    expected_attributes = {
+        # feature type, pandas dtype, original_type.data_type
+        "id": {"type": "nominal", "dtype": pd.StringDtype, "otype": "string"},
+        "time": {"type": "continuous", "dtype": "int", "otype": "integer"},
+        "a": {"type": "continuous", "dtype": "int", "otype": "integer"},
+        "b": {"type": "continuous", "dtype": "Int64", "otype": "integer", "nullable": True},
+        "c": {"type": "continuous", "dtype": "float", "otype": "numeric"},
+        "d": {"type": "continuous", "dtype": "float", "otype": "numeric", "nullable": True},
+        "e": {"type": "continuous", "dtype": "float", "otype": "numeric", "nullable": True},
+        "f": {"type": "nominal", "dtype": "int", "otype": "integer"},
+        "g": {"type": "nominal", "dtype": "Int64", "otype": "integer", "nullable": True},
+        "h": {"type": "nominal", "dtype": pd.StringDtype, "otype": "string"},
+        "i": {"type": "nominal", "dtype": pd.StringDtype, "otype": "string", "nullable": True},
+        "j": {"type": "nominal", "dtype": "bool", "otype": "boolean"},
+        "k": {"type": "nominal", "dtype": "object", "otype": "boolean", "nullable": True},  # nullable bool is object
+        "l": {"type": "ordinal", "dtype": pd.StringDtype, "otype": "string"},
+        "m": {"type": "ordinal", "dtype": pd.StringDtype, "otype": "string", "nullable": True},
+        "n": {"type": "ordinal", "dtype": "int", "otype": "integer"},
+        "o": {"type": "ordinal", "dtype": "Int64", "otype": "integer", "nullable": True},
+        # Time series features
+        ".reverse_series_index": {"type": "continuous", "dtype": "int", "otype": "integer"},
+        ".series_index": {"type": "continuous", "dtype": "int", "otype": "integer"},
+        ".synchronous_counter": {"type": "continuous", "dtype": "int", "otype": "integer"},
+        ".synchronous_counter_lag_1": {"type": "continuous", "dtype": "Int64", "otype": "integer", "nullable": True},
+        ".time_to_horizon": {"type": "continuous", "dtype": "float", "otype": "numeric"},
+    }
+
+    features = infer_feature_attributes(
+        df,
+        id_feature_name="id",
+        time_feature_name="time",
+        types={"nominal": ["f", "g"]},
+        num_lags=2,
+        ordinal_feature_values={
+            "l": ["A", "B", "C"],
+            "m": ["A", "B", "C"],
+            "n": [1, 2, 3],
+            "o": [1, 2, 3],
+        },
+    )
+    trainee = Trainee("test", features=features, overwrite_existing=True)
+    trainee.train(df)
+    trainee.analyze()
+
+    re_derived = re.compile(r"\.([^.]+)_(?:delta|rate|lag)_(\d+)")
+    cases = trainee.get_cases()
+
+    for name, attributes in trainee.features.items():
+        if not name.startswith(".synchronous_counter") and (matches := re_derived.match(name)):
+            # Define expected types for lag/delta/rate
+            nullable = True
+            if "_lag_" in name:
+                # lags use parent type, except integer/bool should always be nullable
+                expected = dict(expected_attributes[matches[1]])
+                if expected["dtype"] == "int":
+                    expected["dtype"] = "Int64"
+                elif expected["dtype"] == "bool":
+                    expected["dtype"] = "object"  # nullable bool is object
+            else:
+                # delta/rate should be numeric
+                expected = {"type": "continuous", "dtype": "float", "otype": "numeric"}
+        else:
+            expected = dict(expected_attributes[name])
+            nullable = expected.get("nullable")
+
+        # Validate expected feature type
+        assert attributes["type"] == expected["type"], f"{name} type: {attributes['type']} != {expected['type']}"
+
+        # Validate expected original type
+        assert "original_type" in attributes
+        otype = attributes["original_type"]["data_type"]
+        expected_otype = expected["otype"]
+        assert otype == expected_otype, f"{name} original type: {otype} != {expected_otype}"
+
+        # Validate expected dtypes given all cases or filtered cases
+        expected_dtype = expected["dtype"]
+        assert cases[name].dtype == expected_dtype, f"{name} dtype: {cases[name].dtype} != {expected_dtype}"
+
+        filtered_cases = trainee.get_cases(features=[name], condition={name: None})
+        if nullable:
+            dtype = filtered_cases[name].dtype
+            assert dtype == expected_dtype, f"{name} dtype: {dtype} != {expected_dtype}"
+        else:
+            assert len(filtered_cases) == 0, f"{name}: found unexpected null cases"
