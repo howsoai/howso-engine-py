@@ -392,7 +392,9 @@ class FeatureSerializer:
 
         def _to_datetime() -> pd.Series:
             # Format column to datetime
-            target_format = to_pandas_datetime_format(date_time_format)
+            target_format = None
+            if date_time_format is not None:
+                target_format = to_pandas_datetime_format(date_time_format)
             if tz is not None:
                 if format_includes_timezone:
                     # When format string includes timezone we want to load
@@ -449,7 +451,9 @@ class FeatureSerializer:
         """
         date_time_format = feature.get("date_time_format") or None
         date_locale = feature.get("locale") or None
-        target_format = to_pandas_datetime_format(date_time_format)
+        target_format = None
+        if date_time_format is not None:
+            target_format = to_pandas_datetime_format(date_time_format)
         try:
             if date_locale:
                 with LocaleOverride(date_locale, category=locale.LC_TIME):
@@ -529,7 +533,9 @@ class FeatureSerializer:
         """
         try:
 
-            def _apply_bool(value: Any) -> bool:
+            def _apply_bool(value: Any) -> bool | None:
+                if pd.isna(value):
+                    return value
                 if isinstance(value, str):
                     return value.lower() in ["true", "yes", "on", "(true)"]
                 return bool(value)
@@ -558,7 +564,7 @@ class FeatureSerializer:
         """
         typing_info = cls._get_typing_info(feature)
 
-        has_nulls = column.isnull().any()
+        has_nulls = column.isna().any()
         if has_nulls:
             # Use pandas extension type for nullable integer
             type_name = "Int"
@@ -574,7 +580,11 @@ class FeatureSerializer:
 
         # unique or int-id features are output as 64bit ints, leave them
         # as-is if original datatype is less than 64 bits
-        if size < 8 and (getattr(feature, "unique", False) or getattr(feature, "subtype", None) == "int-id"):
+        if (
+            size is not None
+            and size < 8
+            and (getattr(feature, "unique", False) or getattr(feature, "subtype", None) == "int-id")
+        ):
             warnings.warn(
                 f'Unable to restore column "{column.name}" as {type_name}. Column will retain current dtype.'
             )
@@ -626,7 +636,11 @@ class FeatureSerializer:
 
                 # unique or int-id features are output as 64bit ints, leave them
                 # as-is if original datatype is less than 64 bits
-                if size < 8 and (getattr(feature, "unique", False) or getattr(feature, "subtype", None) == "int-id"):
+                if (
+                    size is not None
+                    and size < 8
+                    and (getattr(feature, "unique", False) or getattr(feature, "subtype", None) == "int-id")
+                ):
                     warnings.warn(
                         f'Unable to restore column "{column.name}" as {type_name}. Column will retain current dtype.'
                     )
