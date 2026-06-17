@@ -464,7 +464,7 @@ class FeatureSerializer:
                 "Note: This feature may not work properly until this locale "
                 "is installed."
             )
-        except Exception:  # noqa: Deliberately broad
+        except Exception:  # noqa: BLE001
             warnings.warn(
                 f'Unable to parse column "{column.name}" as '
                 f"datetime64 using format {date_time_format}. "
@@ -511,7 +511,7 @@ class FeatureSerializer:
         return column.apply(partial(seconds_to_time, tzinfo=tz))
 
     @classmethod
-    def format_boolean_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
+    def format_boolean_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:  # noqa: ARG003
         """
         Format boolean column.
 
@@ -587,7 +587,7 @@ class FeatureSerializer:
             # type to the expected format (np.floor will actually return a
             # pandas series when given one, but the type hint only shows ndarray)
             return cast(pd.Series, np.floor(pd.to_numeric(column)).astype(cast(np.dtype, type_name)))
-        except Exception:  # noqa: Deliberately broad
+        except Exception:  # noqa: BLE001
             warnings.warn(f'Unable to parse column "{column.name}" as {type_name}. Column will retain current dtype.')
             return column
 
@@ -638,7 +638,7 @@ class FeatureSerializer:
             return column
 
     @classmethod
-    def format_string_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
+    def format_string_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:  # noqa: ARG003
         """
         Format string column.
 
@@ -661,7 +661,7 @@ class FeatureSerializer:
     def format_tokenizable_string_column(
         cls,
         column: pd.Series,
-        feature: Mapping[str, Any],
+        feature: Mapping[str, Any],  # noqa: ARG003
         tokenizer: TokenizerProtocol | None = None,
     ) -> pd.Series:
         """
@@ -687,7 +687,7 @@ class FeatureSerializer:
         return pd.Series(tokenizer.detokenize(json.loads(case)) for case in column)
 
     @classmethod
-    def format_unknown_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
+    def format_unknown_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:  # noqa: ARG003
         """
         Format unknown typed column.
 
