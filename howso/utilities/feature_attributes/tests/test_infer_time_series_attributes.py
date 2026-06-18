@@ -11,6 +11,7 @@ from howso import client
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
+from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
 import numpy as np
 import pandas as pd
 import pytest
@@ -502,3 +503,57 @@ def test_infer_time_invariant_features():
     # 4. Verify time invariant features are correct, others use defaults
     assert "time_series" not in features["gender"]
     assert "time_series" not in features["country"]
+
+
+def test_time_series_suggestions_collector_is_attached():
+    """The time series IFA path must attach an IFASuggestionCollector to the result."""
+    df = pd.read_csv(example_timeseries_path)
+    features = infer_feature_attributes(
+        df,
+        time_feature_name="date",
+        id_feature_name="ID",
+        datetime_feature_formats={"date": "%Y%m%d"},
+    )
+    # Before the fix, features.suggestions returned the fallback string.
+    assert isinstance(features.suggestions, IFASuggestionCollector)
+
+
+def test_time_series_fanout_suggestions():
+    """Fanout suggestions are accessible and applicable on the time series IFA path."""
+    rng = np.random.default_rng(42)
+    n_products, n_series_per_product, n_steps = 4, 5, 20
+
+    rows = []
+    for pid in range(n_products):
+        for sid in range(n_series_per_product):
+            for t in range(n_steps):
+                rows.append({
+                    "series_id": f"s{pid}_{sid}",
+                    "date": pd.Timestamp("2020-01-01") + pd.Timedelta(days=t),
+                    "product_id": f"prod_{pid}",
+                    "product_category": f"cat_{pid}",  # always same per product_id
+                    "product_size": float(pid * 10),    # always same per product_id
+                    "value": float(rng.normal(100.0, 10.0)),
+                })
+    df = pd.DataFrame(rows)
+
+    with pytest.warns(UserWarning, match="You have one or more suggestions"):
+        features = infer_feature_attributes(
+            df,
+            time_feature_name="date",
+            id_feature_name="series_id",
+        )
+
+    assert isinstance(features.suggestions, IFASuggestionCollector)
+    assert "fanout_features" in features.suggestions.suggestions
+
+    fof_map = features.suggestions.fanout_features.get_fanout_feature_map()
+    assert len(fof_map) > 0
+
+    # Applying the suggestion should write fanout_on to the affected features.
+    features.apply_suggestion("fanout_features")
+    fanout_on_values = [
+        v for f in features.values()
+        for v in f.get("fanout_on", [])
+    ]
+    assert len(fanout_on_values) > 0

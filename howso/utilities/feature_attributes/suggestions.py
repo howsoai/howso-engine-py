@@ -6,11 +6,11 @@ import warnings
 
 from rich.console import Console
 from rich.table import Table
-from typing_extensions import Self
+from typing import Self
 
 # Fanout features parameters
 # --------------------------
-FanoutFeaturesMap = dict[tuple[str] | str, list[str]]
+FanoutFeaturesMap = dict[tuple[str, ...] | str, list[str]]
 
 # Signal preservation parameters
 # ------------------------------
@@ -78,23 +78,22 @@ class IFASuggestion(ABC):
         ...
 
     @abstractmethod
-    def merge(self, other: Self) -> Self:
+    def merge(self, other: Self) -> None:
         """Merge this suggestion with another if more than one were computed across separate processes."""
         ...
 
 
 class FanoutFeaturesSuggestion(IFASuggestion):
-    """A suggestion to configure fanout features."""
+    """
+    A suggestion to configure fanout features.
+
+    Parameters
+    ----------
+    fanout_features : FanoutFeaturesMap
+        A candidate configuration for fanout features.
+    """
 
     def __init__(self, fanout_features: FanoutFeaturesMap) -> None:
-        """
-        Instantiate this Preserve Rare Values Suggestion.
-
-        Parameters
-        ----------
-        fanout_features : FanoutFeaturesMap
-            A candidate configuration for fanout features.
-        """
         self._fanout_features = fanout_features
 
     def __repr__(self) -> str:
@@ -193,9 +192,14 @@ class FanoutFeaturesSuggestion(IFASuggestion):
         """Get the `fanout_features_map` for use in future calls to `infer_feature_attributes`."""
         return self._fanout_features
 
-    def merge(self, other: Self) -> Self:
+    def merge(self, other: Self) -> None:
         """Merge another FanoutFeaturesSuggestion into this one."""
-        self._fanout_features.update(other.get_fanout_feature_map())  # TODO is this right?
+        for key, cols in other.get_fanout_feature_map().items():
+            if key in self._fanout_features:
+                existing = self._fanout_features[key]
+                self._fanout_features[key] = existing + [c for c in cols if c not in existing]
+            else:
+                self._fanout_features[key] = cols
 
 class PRVSuggestion(IFASuggestion):
     """A suggestion to configure preservation for rare values."""
@@ -327,9 +331,9 @@ class PRVSuggestion(IFASuggestion):
                                     in config["protected_values_multipliers"]])
         return values_map
 
-    def merge(self, other: Self) -> Self:
+    def merge(self, other: Self) -> None:
         """Merge another PRVSuggestion into this one if there are no conflicts."""
-        for feature, config in other.get_config():
+        for feature, config in other.get_config().items():
             if feature not in self._prvc:
                 self._prvc[feature] = config
             elif self._prvc[feature] != config:
@@ -382,11 +386,13 @@ class IFASuggestionCollector:
         """Append a new IFASuggestion to this collector."""
         if suggestion.name in self._suggestions:
             self._suggestions[suggestion.name].merge(suggestion)
-        # Ensure the suggestion has access to the feature attributes
-        self._suggestions[suggestion.name] = suggestion
+        else:
+            self._suggestions[suggestion.name] = suggestion
 
-    def merge(self, other: Self) -> Self:
+    def merge(self, other: Self) -> None:
         """Merge all IFASuggestions in another collector object with the IFASuggestions in this object."""
         for name, suggestion in other.suggestions.items():
             if name in self._suggestions:
                 self._suggestions[name].merge(suggestion)
+            else:
+                self._suggestions[name] = suggestion
