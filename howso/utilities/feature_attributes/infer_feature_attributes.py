@@ -282,6 +282,12 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         If included, feature attributes will be generated in the form
         ``{table_name: {feature_attribute: value}}``.
 
+    enable_suggestions : bool, default True
+        (Optional) If False, skip all automatic suggestion computation.
+        Explicitly provided configuration parameters are still applied as
+        normal. Disabling suggestions can meaningfully reduce runtime on large
+        datasets when suggestions are not needed.
+
     tight_bounds: Iterable of str, default None
         (Optional) Set tight min and max bounds for the features
         specified in the Iterable.

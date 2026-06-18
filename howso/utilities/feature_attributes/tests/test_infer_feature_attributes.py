@@ -1296,3 +1296,23 @@ def test_infer_fanout_features():
     features = infer_feature_attributes(joined_olist_df, fanout_feature_map=fof_map, max_workers=2, default_time_zone="UTC")
     assert "customer_id" in features["customer_state"].get("fanout_on", [])
     assert "product_id" in features["product_length_cm"].get("fanout_on", [])
+
+
+def test_enable_suggestions_false():
+    """enable_suggestions=False must skip fanout and PRV inference with no warning and empty suggestions."""
+    import warnings as _warnings
+    from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
+
+    with _warnings.catch_warnings():
+        _warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(joined_olist_df, enable_suggestions=False, default_time_zone="UTC")
+
+    assert isinstance(features.suggestions, IFASuggestionCollector)
+    assert len(features.suggestions.suggestions) == 0
+
+    # Explicit fanout_feature_map must still be applied even when suggestions are disabled
+    fof_map = {"customer_id": ["customer_city", "customer_state"]}
+    features = infer_feature_attributes(
+        joined_olist_df, enable_suggestions=False, fanout_feature_map=fof_map, default_time_zone="UTC"
+    )
+    assert "customer_id" in features["customer_city"].get("fanout_on", [])

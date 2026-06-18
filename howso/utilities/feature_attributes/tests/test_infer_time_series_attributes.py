@@ -505,6 +505,26 @@ def test_infer_time_invariant_features():
     assert "time_series" not in features["country"]
 
 
+def test_enable_suggestions_false_time_series():
+    """enable_suggestions=False suppresses suggestion computation on the time series path."""
+    import warnings as _warnings
+
+    df = pd.read_csv(example_timeseries_path)
+    with _warnings.catch_warnings():
+        _warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(
+            df,
+            time_feature_name="date",
+            id_feature_name="ID",
+            datetime_feature_formats={"date": "%Y%m%d"},
+            default_time_zone="UTC",
+            enable_suggestions=False,
+        )
+
+    assert isinstance(features.suggestions, IFASuggestionCollector)
+    assert len(features.suggestions.suggestions) == 0
+
+
 def test_time_series_suggestions_collector_is_attached():
     """The time series IFA path must attach an IFASuggestionCollector to the result."""
     df = pd.read_csv(example_timeseries_path)
