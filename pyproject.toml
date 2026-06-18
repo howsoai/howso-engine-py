@@ -36,8 +36,7 @@ dependencies = [
     "Faker>=4.1.1",
     "humanize>=4.0.0",
     "mmh3",
-    "numpy>=2.3; python_version >= '3.14'", # Minimum version supporting 3.14
-    "numpy;      python_version < '3.14'",
+    "numpy>=2.3,<2.5",
     "packaging",
     "pandas<3.0",
     "psutil",
