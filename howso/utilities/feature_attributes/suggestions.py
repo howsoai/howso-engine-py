@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 import textwrap
-from typing import Any
+from typing import Any, cast
 import warnings
 
 from rich.console import Console
@@ -78,7 +78,7 @@ class IFASuggestion(ABC):
         ...
 
     @abstractmethod
-    def merge(self, other: Self) -> None:
+    def merge(self, other: "IFASuggestion") -> None:
         """Merge this suggestion with another if more than one were computed across separate processes."""
         ...
 
@@ -192,8 +192,9 @@ class FanoutFeaturesSuggestion(IFASuggestion):
         """Get the `fanout_features_map` for use in future calls to `infer_feature_attributes`."""
         return self._fanout_features
 
-    def merge(self, other: Self) -> None:
+    def merge(self, other: IFASuggestion) -> None:
         """Merge another FanoutFeaturesSuggestion into this one."""
+        assert isinstance(other, FanoutFeaturesSuggestion)
         for key, cols in other.get_fanout_feature_map().items():
             if key in self._fanout_features:
                 existing = self._fanout_features[key]
@@ -204,7 +205,7 @@ class FanoutFeaturesSuggestion(IFASuggestion):
 class PRVSuggestion(IFASuggestion):
     """A suggestion to configure preservation for rare values."""
 
-    def __init__(self, prvc: PreserveRareValuesConfig, values_ranking: Sequence[Mapping[str, Any]],
+    def __init__(self, prvc: FullPreserveRareValuesConfig, values_ranking: Sequence[Mapping[str, Any]],
                  user_set_max_distilled_cases: bool) -> None:
         """
         Instantiate this Preserve Rare Values Suggestion.
@@ -224,7 +225,10 @@ class PRVSuggestion(IFASuggestion):
 
     def __repr__(self) -> str:
         """Print a helpful description of this IFASuggestion."""
-        num_candidates = sum(len(cfg["protected_values_multipliers"]) for cfg in self._prvc.values())
+        num_candidates = sum(
+            len(cast(list[dict[str, Any]], cfg["protected_values_multipliers"]))
+            for cfg in self._prvc.values()
+        )
         candidates_explanation = ""
         for candidate in self._ranking:
             candidates_explanation += f"\n    - Column name: {candidate['feature']}, value: {candidate['value']}"
@@ -319,7 +323,7 @@ class PRVSuggestion(IFASuggestion):
         for feature, config in self._prvc.items():
             attributes[feature]["preserve_rare_values"] = config
 
-    def get_config(self) -> PreserveRareValuesConfig:
+    def get_config(self) -> FullPreserveRareValuesConfig:
         """Get the `preserve_rare_values_config` for use in future calls to `infer_feature_attributes`."""
         return self._prvc
 
@@ -327,12 +331,13 @@ class PRVSuggestion(IFASuggestion):
         """Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes."""
         values_map = {}
         for feature, config in self._prvc.items():
-            values_map[feature] = ([value_config["value"] for value_config
-                                    in config["protected_values_multipliers"]])
+            multipliers = cast(list[dict[str, Any]], config["protected_values_multipliers"])
+            values_map[feature] = [value_config["value"] for value_config in multipliers]
         return values_map
 
-    def merge(self, other: Self) -> None:
+    def merge(self, other: IFASuggestion) -> None:
         """Merge another PRVSuggestion into this one if there are no conflicts."""
+        assert isinstance(other, PRVSuggestion)
         for feature, config in other.get_config().items():
             if feature not in self._prvc:
                 self._prvc[feature] = config
