@@ -6,7 +6,7 @@
 #
 amalgam-lang==32.0.1
     # via howso-engine (pyproject.toml)
-certifi==2026.5.20
+certifi==2026.6.17
     # via
     #   howso-engine (pyproject.toml)
     #   requests
@@ -28,7 +28,7 @@ mdurl==0.1.2
     # via markdown-it-py
 mmh3==5.2.1
     # via howso-engine (pyproject.toml)
-numpy==2.4.6 ; python_version < "3.14"
+numpy==2.4.6
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
@@ -60,7 +60,7 @@ semantic-version==2.10.0
     # via howso-engine (pyproject.toml)
 six==1.17.0
     # via python-dateutil
-tqdm==4.68.2
+tqdm==4.68.3
     # via sacremoses
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)
