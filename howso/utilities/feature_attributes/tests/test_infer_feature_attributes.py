@@ -17,34 +17,35 @@ import pytest
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.base import FeatureAttributesBase, FLOAT_MAX, FLOAT_MIN, INTEGER_MAX
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
+from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
 from howso.utilities.features import FeatureType
 
-if platform.system().lower() == 'windows':
-    DT_MAX = '6053-01-24'
-    ALMOST_DT_MAX = '6053-01-23'
+if platform.system().lower() == "windows":
+    DT_MAX = "6053-01-24"
+    ALMOST_DT_MAX = "6053-01-23"
 else:
-    DT_MAX = '2262-04-11'
-    ALMOST_DT_MAX = '2262-04-10'
+    DT_MAX = "2262-04-11"
+    ALMOST_DT_MAX = "2262-04-10"
 
 cwd = Path(__file__).parent.parent.parent.parent
-iris_path = Path(cwd, 'utilities', 'tests', 'data', 'iris.csv')
-int_path = Path(cwd, 'utilities', 'tests', 'data', 'integers.csv')
-joined_olist_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'joined_olist.parquet'))[:10000]
+iris_path = Path(cwd, "utilities", "tests", "data", "iris.csv")
+int_path = Path(cwd, "utilities", "tests", "data", "integers.csv")
+joined_olist_df = pd.read_parquet(Path(cwd, "utilities", "tests", "data", "joined_olist.parquet"))[:10000]
 try:
-    nypd_arrest_df = pd.read_parquet(Path(cwd, 'utilities', 'tests', 'data', 'NYPD_arrest_data_25K.parquet'))
+    nypd_arrest_df = pd.read_parquet(Path(cwd, "utilities", "tests", "data", "NYPD_arrest_data_25K.parquet"))
 except ImportError:
     nypd_arrest_df = None
-stock_path = Path(cwd, 'utilities', 'tests', 'data', 'mini_stock_data.csv')
-ts_path = Path(cwd, 'utilities', 'tests', 'data', 'example_timeseries.csv')
+stock_path = Path(cwd, "utilities", "tests", "data", "mini_stock_data.csv")
+ts_path = Path(cwd, "utilities", "tests", "data", "example_timeseries.csv")
 
 # Partially defined dictionary-1
 features_1 = {
     "sepal_length": {
         "type": "continuous",
-        'bounds': {
-            'min': 2.72,
-            'max': 3,
-            'allow_null': True
+        "bounds": {
+            "min": 2.72,
+            "max": 3,
+            "allow_null": True
         },
     },
     "sepal_width": {
@@ -93,206 +94,206 @@ def test_infer_features_attributes():
     features = infer_feature_attributes(df)
 
     for feature, attributes in features.items():
-        assert expected_types[feature] == attributes['type']
+        assert expected_types[feature] == attributes["type"]
 
 
 @pytest.mark.parametrize(
-    'feature, nominality', [
+    "feature, nominality", [
         # "id_no" _would_ be inferred "continuous", but we specifically tell
         # `_process()` that it is indeed an ID feature, so it
         # will be set to "nominal".
-        ('id_no', 'nominal'),
+        ("id_no", "nominal"),
 
         # The "badge_no" feature contains ALL unique values so it exceeds the
         # sqrt(total num. rows) test, but they are all the same length
         # integers, so it passes "all the same length" check.
-        ('badge_no', 'nominal'),
+        ("badge_no", "nominal"),
 
         # The "salary" feature has mostly uniques (some duplicates) but too
         # many that it readily exceeds the threshold of sqrt(total num. rows)
         # and they are not all the same length, so, "continuous".
-        ('salary', 'continuous'),
+        ("salary", "continuous"),
 
         # The "dept_no" feature has a number of uniques that exceed the
         # sqrt(total num. rows) but all the integers are the same length,
         # so "nominal".
-        ('dept_no', 'nominal'),
+        ("dept_no", "nominal"),
 
         # This column is all None, will be returned as "continuous".
-        ('hat_size', 'continuous'),
+        ("hat_size", "continuous"),
     ]
 )
 def test_integer_nominality(feature, nominality):
     """Exercise infer_feature_attributes for integers and their nominality."""
     df = pd.read_csv(int_path)
-    inferred_features = infer_feature_attributes(df, id_feature_name=['id_no'])
-    assert inferred_features[feature]['type'] == nominality
+    inferred_features = infer_feature_attributes(df, id_feature_name=["id_no"])
+    assert inferred_features[feature]["type"] == nominality
 
 
 @pytest.mark.parametrize("data, expected_type", [
     # Integer
-    (pd.DataFrame([[1], [None]], dtype='Int8', columns=['a']),
-     {'data_type': str(FeatureType.INTEGER), 'size': 1}),
-    (pd.DataFrame([[1], [16]], dtype='int', columns=['a']),
-     {'data_type': str(FeatureType.INTEGER), 'size': 8}),
+    (pd.DataFrame([[1], [None]], dtype="Int8", columns=["a"]),
+     {"data_type": str(FeatureType.INTEGER), "size": 1}),
+    (pd.DataFrame([[1], [16]], dtype="int", columns=["a"]),
+     {"data_type": str(FeatureType.INTEGER), "size": 8}),
     # Float
-    (pd.DataFrame([[1.0], [4.4]], dtype='float', columns=['a']),
-     {'data_type': str(FeatureType.NUMERIC), 'size': 8}),
-    (pd.DataFrame([[None], [4.4]], dtype='float32', columns=['a']),
-     {'data_type': str(FeatureType.NUMERIC), 'size': 4}),
+    (pd.DataFrame([[1.0], [4.4]], dtype="float", columns=["a"]),
+     {"data_type": str(FeatureType.NUMERIC), "size": 8}),
+    (pd.DataFrame([[None], [4.4]], dtype="float32", columns=["a"]),
+     {"data_type": str(FeatureType.NUMERIC), "size": 4}),
     # Boolean
-    (pd.DataFrame([[True], [False], [None]], dtype='bool', columns=['a']),
-     {'data_type': str(FeatureType.BOOLEAN)}),
+    (pd.DataFrame([[True], [False], [None]], dtype="bool", columns=["a"]),
+     {"data_type": str(FeatureType.BOOLEAN)}),
     # String
-    (pd.DataFrame([["test"], [None]], columns=['a']),
-     {'data_type': str(FeatureType.STRING)}),
-    (pd.DataFrame([["test"], [None]], dtype='string', columns=['a']),
-     {'data_type': str(FeatureType.STRING)}),
-    (pd.DataFrame([["test"], [None]], dtype=np.bytes_, columns=['a']),
-     {'data_type': str(FeatureType.STRING)}),
-    (pd.DataFrame([["test"]], dtype='S', columns=['a']),
-     {'data_type': str(FeatureType.STRING)}),
-    (pd.DataFrame([["test"]], dtype='U', columns=['a']),
-     {'data_type': str(FeatureType.STRING)}),
+    (pd.DataFrame([["test"], [None]], columns=["a"]),
+     {"data_type": str(FeatureType.STRING)}),
+    (pd.DataFrame([["test"], [None]], dtype="string", columns=["a"]),
+     {"data_type": str(FeatureType.STRING)}),
+    (pd.DataFrame([["test"], [None]], dtype=np.bytes_, columns=["a"]),
+     {"data_type": str(FeatureType.STRING)}),
+    (pd.DataFrame([["test"]], dtype="S", columns=["a"]),
+     {"data_type": str(FeatureType.STRING)}),
+    (pd.DataFrame([["test"]], dtype="U", columns=["a"]),
+     {"data_type": str(FeatureType.STRING)}),
     # Datetime
-    (pd.DataFrame([["2020-01-01T10:00:00"]], dtype='datetime64[ns]', columns=['a']),
-     {'data_type': str(FeatureType.DATETIME)}),
-    (pd.DataFrame([[datetime.datetime.now()]], columns=['a']),
-     {'data_type': str(FeatureType.DATETIME)}),
-    (pd.DataFrame([[datetime.datetime.now(ZoneInfo('US/Eastern'))]], columns=['a']),
-     {'data_type': str(FeatureType.DATETIME), 'timezone': 'US/Eastern'}),
-    (pd.DataFrame([[datetime.datetime.now(datetime.timezone(datetime.timedelta(minutes=300)))]], columns=['a']),
-     {'data_type': str(FeatureType.DATETIME)}),
+    (pd.DataFrame([["2020-01-01T10:00:00"]], dtype="datetime64[ns]", columns=["a"]),
+     {"data_type": str(FeatureType.DATETIME)}),
+    (pd.DataFrame([[datetime.datetime.now()]], columns=["a"]),
+     {"data_type": str(FeatureType.DATETIME)}),
+    (pd.DataFrame([[datetime.datetime.now(ZoneInfo("US/Eastern"))]], columns=["a"]),
+     {"data_type": str(FeatureType.DATETIME), "timezone": "US/Eastern"}),
+    (pd.DataFrame([[datetime.datetime.now(datetime.timezone(datetime.timedelta(minutes=300)))]], columns=["a"]),
+     {"data_type": str(FeatureType.DATETIME)}),
     # Date
-    (pd.DataFrame([[datetime.date(2020, 1, 1)]], columns=['a']),
-     {'data_type': str(FeatureType.DATE)}),
-    (pd.DataFrame([[pd.Timestamp(datetime.date(2020, 1, 1))]], columns=['a']),
-     {'data_type': str(FeatureType.DATE)}),
-    (pd.DataFrame([["2020-01-01"]], dtype='datetime64[ns]', columns=['a']),
-     {'data_type': str(FeatureType.DATE)}),
+    (pd.DataFrame([[datetime.date(2020, 1, 1)]], columns=["a"]),
+     {"data_type": str(FeatureType.DATE)}),
+    (pd.DataFrame([[pd.Timestamp(datetime.date(2020, 1, 1))]], columns=["a"]),
+     {"data_type": str(FeatureType.DATE)}),
+    (pd.DataFrame([["2020-01-01"]], dtype="datetime64[ns]", columns=["a"]),
+     {"data_type": str(FeatureType.DATE)}),
     # Timedelta
-    (pd.DataFrame([[datetime.timedelta(days=1)]], columns=['a']),
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
-    (pd.DataFrame([[np.timedelta64(5, 'D')]], columns=['a']),
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
-    (pd.DataFrame([[np.timedelta64(5, 'Y')]], columns=['a']),
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
-    (pd.DataFrame([[np.timedelta64(5000, 'ns')]], columns=['a']),
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
-    (pd.DataFrame([[np.timedelta64(5000, 's')]], columns=['a']),
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
-    (pd.DataFrame([[np.timedelta64(60, 'm')]], columns=['a']),
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}),
+    (pd.DataFrame([[datetime.timedelta(days=1)]], columns=["a"]),
+     {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
+    (pd.DataFrame([[np.timedelta64(5, "D")]], columns=["a"]),
+     {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
+    (pd.DataFrame([[np.timedelta64(5, "Y")]], columns=["a"]),
+     {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
+    (pd.DataFrame([[np.timedelta64(5000, "ns")]], columns=["a"]),
+     {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
+    (pd.DataFrame([[np.timedelta64(5000, "s")]], columns=["a"]),
+     {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
+    (pd.DataFrame([[np.timedelta64(60, "m")]], columns=["a"]),
+     {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
 ])
 def test_get_feature_type(data, expected_type):
     """Test get_feature_type returns expected data types."""
     infer = InferFeatureAttributesDataFrame(data)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        feature_type, original_type = infer._get_feature_type('a')
-    expected_feature_type = expected_type.pop('data_type')
+        feature_type, original_type = infer._get_feature_type("a")
+    expected_feature_type = expected_type.pop("data_type")
     assert str(feature_type) == expected_feature_type
     assert original_type == expected_type
 
 
-@pytest.mark.parametrize('data, is_time, expected_format, provided_format', [
-    (pd.DataFrame(["08:08:08"], columns=['a']), True, '%H:%M:%S', None),
-    (pd.DataFrame(["8:8:8"], columns=['a']), True, '%H:%M:%S', None),
-    (pd.DataFrame(["8:59:59am"], columns=['a']), True, '%I:%M:%S%p', None),
-    (pd.DataFrame(["01:00:00"], columns=['a']), True, '%H:%M:%S', None),
-    (pd.DataFrame(["23:59:59"], columns=['a']), True, '%H:%M:%S', None),
-    (pd.DataFrame(["23:59:59.59"], columns=['a']), True, '%H:%M:%S.%f', None),
-    (pd.DataFrame(["2:30 am"], columns=['a']), True, '%I:%M %p', None),
-    (pd.DataFrame(["2:01 pm"], columns=['a']), True, '%I:%M %p', None),
-    (pd.DataFrame(["4:25"], columns=['a']), True, '%H:%M', None),
-    (pd.DataFrame(["20:00"], columns=['a']), True, '%H:%M', None),
-    (pd.DataFrame(["1am"], columns=['a']), True, '%I%p', None),
-    (pd.DataFrame(["12 pm"], columns=['a']), True, '%I %p', None),
-    (pd.DataFrame([datetime.time(15)], columns=['a']), True, '%H:%M:%S', None),
-    (pd.DataFrame(["-01:01:01"], columns=['a']), False, None, None),
-    (pd.DataFrame(["24:0:0"], columns=['a']), False, None, None),
-    (pd.DataFrame(["59:0:0"], columns=['a']), False, None, None),
-    (pd.DataFrame(["3:60"], columns=['a']), False, None, None),
-    (pd.DataFrame(["12 o'clock"], columns=['a']), False, None, None),
-    (pd.DataFrame(["10pm is the time"], columns=['a']), False, None, None),
-    (pd.DataFrame(["8.5:32:32"], columns=['a']), False, None, None),
-    (pd.DataFrame([["2020-01-01T10:00:00"]], columns=['a']), False, None, None),
-    (pd.DataFrame([["2020-01-01"]], columns=['a']), False, None, None),
-    (pd.DataFrame(["08/03/1999 23:59:59"], columns=['a']), False, None, '%M/%D/%Y %H:%M:%S'),
-    (pd.DataFrame(["5"], columns=['a']), False, None, '%C'),
-    (pd.DataFrame(["1999 23"], columns=['a']), False, None, '%Y %H'),
+@pytest.mark.parametrize("data, is_time, expected_format, provided_format", [
+    (pd.DataFrame(["08:08:08"], columns=["a"]), True, "%H:%M:%S", None),
+    (pd.DataFrame(["8:8:8"], columns=["a"]), True, "%H:%M:%S", None),
+    (pd.DataFrame(["8:59:59am"], columns=["a"]), True, "%I:%M:%S%p", None),
+    (pd.DataFrame(["01:00:00"], columns=["a"]), True, "%H:%M:%S", None),
+    (pd.DataFrame(["23:59:59"], columns=["a"]), True, "%H:%M:%S", None),
+    (pd.DataFrame(["23:59:59.59"], columns=["a"]), True, "%H:%M:%S.%f", None),
+    (pd.DataFrame(["2:30 am"], columns=["a"]), True, "%I:%M %p", None),
+    (pd.DataFrame(["2:01 pm"], columns=["a"]), True, "%I:%M %p", None),
+    (pd.DataFrame(["4:25"], columns=["a"]), True, "%H:%M", None),
+    (pd.DataFrame(["20:00"], columns=["a"]), True, "%H:%M", None),
+    (pd.DataFrame(["1am"], columns=["a"]), True, "%I%p", None),
+    (pd.DataFrame(["12 pm"], columns=["a"]), True, "%I %p", None),
+    (pd.DataFrame([datetime.time(15)], columns=["a"]), True, "%H:%M:%S", None),
+    (pd.DataFrame(["-01:01:01"], columns=["a"]), False, None, None),
+    (pd.DataFrame(["24:0:0"], columns=["a"]), False, None, None),
+    (pd.DataFrame(["59:0:0"], columns=["a"]), False, None, None),
+    (pd.DataFrame(["3:60"], columns=["a"]), False, None, None),
+    (pd.DataFrame(["12 o'clock"], columns=["a"]), False, None, None),
+    (pd.DataFrame(["10pm is the time"], columns=["a"]), False, None, None),
+    (pd.DataFrame(["8.5:32:32"], columns=["a"]), False, None, None),
+    (pd.DataFrame([["2020-01-01T10:00:00"]], columns=["a"]), False, None, None),
+    (pd.DataFrame([["2020-01-01"]], columns=["a"]), False, None, None),
+    (pd.DataFrame(["08/03/1999 23:59:59"], columns=["a"]), False, None, "%M/%D/%Y %H:%M:%S"),
+    (pd.DataFrame(["5"], columns=["a"]), False, None, "%C"),
+    (pd.DataFrame(["1999 23"], columns=["a"]), False, None, "%Y %H"),
 ])
 def test_infer_time_features(data, is_time, expected_format, provided_format):
     """Test IFA against many possible valid and invalid time-only features."""
     ifa = InferFeatureAttributesDataFrame(data)
-    feature_type, _ = ifa._get_feature_type('a')
+    feature_type, _ = ifa._get_feature_type("a")
     if is_time:
         assert feature_type == FeatureType.TIME
-        features = infer_feature_attributes(data, tight_bounds=['a'],
-                                            datetime_feature_formats={'a': provided_format})
-        assert features['a']['type'] == 'continuous'
-        assert features['a']['date_time_format'] == expected_format
+        features = infer_feature_attributes(data, tight_bounds=["a"],
+                                            datetime_feature_formats={"a": provided_format})
+        assert features["a"]["type"] == "continuous"
+        assert features["a"]["date_time_format"] == expected_format
     else:
         assert feature_type != FeatureType.TIME
 
 
-@pytest.mark.parametrize('data, tight_bounds, provided_format, expected_bounds, cycle_length', [
+@pytest.mark.parametrize("data, tight_bounds, provided_format, expected_bounds, cycle_length", [
     (
-        pd.DataFrame(["00:00:00", "23:59:59"], columns=['a']), ['a'], None,
-        {'min': 0, 'max': 86399, 'observed_min': 0, 'observed_max': 86399, 'allow_null': True}, 86400
+        pd.DataFrame(["00:00:00", "23:59:59"], columns=["a"]), ["a"], None,
+        {"min": 0, "max": 86399, "observed_min": 0, "observed_max": 86399, "allow_null": True}, 86400
     ),
     (
-        pd.DataFrame(["03:00:00.0", "12:00:01.5"], columns=['a']), ['a'], None,
-        {'min': 10800, 'max': 43201.5, 'observed_min': 10800, 'observed_max': 43201.5, 'allow_null': True}, 86400
+        pd.DataFrame(["03:00:00.0", "12:00:01.5"], columns=["a"]), ["a"], None,
+        {"min": 10800, "max": 43201.5, "observed_min": 10800, "observed_max": 43201.5, "allow_null": True}, 86400
     ),
     (
-        pd.DataFrame(["03:00:00.0", "12:00:01.5"], columns=['a']), None, None,
-        {'min': 0, 'max': 86400, 'observed_min': 10800.0, 'observed_max': 43201.5, 'allow_null': True}, 86400
+        pd.DataFrame(["03:00:00.0", "12:00:01.5"], columns=["a"]), None, None,
+        {"min": 0, "max": 86400, "observed_min": 10800.0, "observed_max": 43201.5, "allow_null": True}, 86400
     ),
     (
-        pd.DataFrame(["25:0", "30:0"], columns=['a']), ['a'], '%M:%S',
-        {'min': 1500, 'max': 1800, 'observed_min': 1500, 'observed_max': 1800, 'allow_null': True}, 3600
+        pd.DataFrame(["25:0", "30:0"], columns=["a"]), ["a"], "%M:%S",
+        {"min": 1500, "max": 1800, "observed_min": 1500, "observed_max": 1800, "allow_null": True}, 3600
     ),
     (
-        pd.DataFrame(["25.0", "30.5"], columns=['a']), None, '%S.%f',
-        {'min': 0, 'max': 60, 'observed_min': 25.0, 'observed_max': 30.5, 'allow_null': True}, 60
+        pd.DataFrame(["25.0", "30.5"], columns=["a"]), None, "%S.%f",
+        {"min": 0, "max": 60, "observed_min": 25.0, "observed_max": 30.5, "allow_null": True}, 60
     ),
     (
-        pd.DataFrame(["5", "7"], columns=['a']), None, '%f',
-        {'min': 0, 'max': 1, 'observed_min': 0.5, 'observed_max': 0.7, 'allow_null': True}, 1
+        pd.DataFrame(["5", "7"], columns=["a"]), None, "%f",
+        {"min": 0, "max": 1, "observed_min": 0.5, "observed_max": 0.7, "allow_null": True}, 1
     ),
 ])
 def test_infer_time_feature_bounds(data, tight_bounds, provided_format, expected_bounds, cycle_length):
     """Test that IFA correctly calculates the bounds and cycle length of time-only features."""
     features = infer_feature_attributes(data, tight_bounds=tight_bounds,
-                                        datetime_feature_formats={'a': provided_format})
-    assert features['a']['type'] == 'continuous'
-    assert 'cycle_length' in features['a']
-    assert features['a']['cycle_length'] == cycle_length
-    assert features['a']['bounds'] == expected_bounds
-    assert features['a']['date_time_format'] is not None
-    assert features['a']['data_type'] == "formatted_time"
+                                        datetime_feature_formats={"a": provided_format})
+    assert features["a"]["type"] == "continuous"
+    assert "cycle_length" in features["a"]
+    assert features["a"]["cycle_length"] == cycle_length
+    assert features["a"]["bounds"] == expected_bounds
+    assert features["a"]["date_time_format"] is not None
+    assert features["a"]["data_type"] == "formatted_time"
 
 
-@pytest.mark.parametrize('data, data_type', [
-    (123, 'float128'),
+@pytest.mark.parametrize("data, data_type", [
+    (123, "float128"),
 ])
 def test_get_feature_type_raises(data, data_type):
     """Test get_feature_type raises exception."""
     # Place this here to avoid circular import
     from howso.client.exceptions import HowsoError
     if not hasattr(np, data_type):
-        pytest.skip('Unsupported platform')
+        pytest.skip("Unsupported platform")
 
     with pytest.raises(HowsoError):
-        df = pd.DataFrame([[getattr(np, data_type)(data)]], columns=['a'])
+        df = pd.DataFrame([[getattr(np, data_type)(data)]], columns=["a"])
         infer_feature_attributes(df)
 
 
-@pytest.mark.parametrize('should_fail, data', [
+@pytest.mark.parametrize("should_fail, data", [
     (True, [[1]]),
     (True, {3: [1]}),
-    (False, {'col1': [1]}),
+    (False, {"col1": [1]}),
 ])
 def test_column_names(should_fail, data):
     """Test invalid column names raises."""
@@ -306,11 +307,11 @@ def test_column_names(should_fail, data):
         assert features is not None
 
 
-@pytest.mark.parametrize('should_include, dependent_features', [
+@pytest.mark.parametrize("should_include, dependent_features", [
     (False, None),
-    (True, {'sepal_length': ['sepal_width', 'class']}),
-    (True, {'sepal_width': ['sepal_length']}),
-    (True, {'sepal_length': ['class']}),
+    (True, {"sepal_length": ["sepal_width", "class"]}),
+    (True, {"sepal_width": ["sepal_length"]}),
+    (True, {"sepal_length": ["class"]}),
     (False, None),
     (True, None),
 ])
@@ -323,47 +324,47 @@ def test_dependent_features(should_include, dependent_features):
         # Should include dependent features
         if dependent_features:
             for feat, dep_feats in dependent_features.items():
-                assert 'dependent_features' in features[feat]
+                assert "dependent_features" in features[feat]
                 for dep_feat in dep_feats:
-                    assert dep_feat in features[feat]['dependent_features']
+                    assert dep_feat in features[feat]["dependent_features"]
     else:
         # Should not include dependent features
         for attributes in features.values():
-            assert 'dependent_features' not in attributes
+            assert "dependent_features" not in attributes
 
 
-@pytest.mark.parametrize('tight_bounds, data, expected_bounds', [
-    (None, [2, 3, 4, 5, 6, 7], {'min': 0, 'max': 10, 'observed_min': 2, 'observed_max': 7, 'allow_null': False}),
-    (None, [2, 3, 4, 4, 5, 6, 6, 6, 6], {'min': 0, 'max': 6, 'observed_min': 2, 'observed_max': 6, 'allow_null': False}),  # noqa: E501
-    (None, [2, 3, 4, 4, 4, 4, 6, 6, 6, 6], {'min': 0, 'max': 6.0, 'observed_min': 2.0, 'observed_max': 6.0, 'allow_null': False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6], {'min': 2.0, 'max': 6.0, 'observed_min': 2.0, 'observed_max': 6.0, 'allow_null': False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6, 6], {'min': 0, 'max': 6.0, 'observed_min': 2.0, 'observed_max': 6.0, 'allow_null': False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 7], {'min': 2.0, 'max': 10.0, 'observed_min': 2.0, 'observed_max': 7.0, 'allow_null': False}),  # noqa: E501
-    (None, [float('nan'), float('nan')], {'allow_null': True}),
-    (['a'], [2, 3, 4, 5, 6, 7], {'min': 2, 'max': 7, 'observed_min': 2, 'observed_max': 7, 'allow_null': False}),
-    (['a'], [2, 3, 4, None, 6, 7], {'min': 2, 'max': 7, 'observed_min': 2, 'observed_max': 7, 'allow_null': True}),
+@pytest.mark.parametrize("tight_bounds, data, expected_bounds", [
+    (None, [2, 3, 4, 5, 6, 7], {"min": 0, "max": 10, "observed_min": 2, "observed_max": 7, "allow_null": False}),
+    (None, [2, 3, 4, 4, 5, 6, 6, 6, 6], {"min": 0, "max": 6, "observed_min": 2, "observed_max": 6, "allow_null": False}),  # noqa: E501
+    (None, [2, 3, 4, 4, 4, 4, 6, 6, 6, 6], {"min": 0, "max": 6.0, "observed_min": 2.0, "observed_max": 6.0, "allow_null": False}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6], {"min": 2.0, "max": 6.0, "observed_min": 2.0, "observed_max": 6.0, "allow_null": False}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6, 6], {"min": 0, "max": 6.0, "observed_min": 2.0, "observed_max": 6.0, "allow_null": False}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 7], {"min": 2.0, "max": 10.0, "observed_min": 2.0, "observed_max": 7.0, "allow_null": False}),  # noqa: E501
+    (None, [float("nan"), float("nan")], {"allow_null": True}),
+    (["a"], [2, 3, 4, 5, 6, 7], {"min": 2, "max": 7, "observed_min": 2, "observed_max": 7, "allow_null": False}),
+    (["a"], [2, 3, 4, None, 6, 7], {"min": 2, "max": 7, "observed_min": 2, "observed_max": 7, "allow_null": True}),
     (
-        ['a'],
-        ['1905-01-01', '1904-05-03', '2020-01-15', '2000-04-26', '2000-04-24'],
-        {'min': '1904-05-03', 'max': '2020-01-15', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
+        ["a"],
+        ["1905-01-01", "1904-05-03", "2020-01-15", "2000-04-26", "2000-04-24"],
+        {"min": "1904-05-03", "max": "2020-01-15", "observed_min": "1904-05-03", "observed_max": "2020-01-15"}
     ),
     (
         None,
-        ['1905-01-01', '1904-05-03', '2020-01-15', '2000-04-26', '2000-04-24'],
-        {'min': '1829-04-11', 'max': '2095-02-04', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
+        ["1905-01-01", "1904-05-03", "2020-01-15", "2000-04-26", "2000-04-24"],
+        {"min": "1829-04-11", "max": "2095-02-04", "observed_min": "1904-05-03", "observed_max": "2020-01-15"}
     ),
     (
         None,
-        ['1905-01-01', '1904-05-03', '2020-01-15', '2020-01-15', '2020-01-15',
-         '2020-01-15', '2000-04-26', '2000-04-24'],
-        {'min': '1829-04-11', 'max': '2020-01-15', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
+        ["1905-01-01", "1904-05-03", "2020-01-15", "2020-01-15", "2020-01-15",
+         "2020-01-15", "2000-04-26", "2000-04-24"],
+        {"min": "1829-04-11", "max": "2020-01-15", "observed_min": "1904-05-03", "observed_max": "2020-01-15"}
     ),
     (
         None,
-        ['1905-01-01', '1904-05-03', '1904-05-03', '1904-05-03', '1904-05-03',
-         '2020-01-15', '2020-01-15', '2020-01-15', '2020-01-15', '2000-04-26',
-         '2000-04-24'],
-        {'min': '1904-05-03', 'max': '2020-01-15', 'observed_min': '1904-05-03', 'observed_max': '2020-01-15'}
+        ["1905-01-01", "1904-05-03", "1904-05-03", "1904-05-03", "1904-05-03",
+         "2020-01-15", "2020-01-15", "2020-01-15", "2020-01-15", "2000-04-26",
+         "2000-04-24"],
+        {"min": "1904-05-03", "max": "2020-01-15", "observed_min": "1904-05-03", "observed_max": "2020-01-15"}
     ),
     (
         None,
@@ -371,22 +372,22 @@ def test_dependent_features(should_include, dependent_features):
          "1904-05-03T00:00:00+0500", "1904-05-03T00:00:00+0500",
          "1904-05-03T00:00:00+0500", "1904-05-03T00:00:00-0200",
          "1904-05-03T00:00:00+0500", "2022-01-15T00:00:00+0500"],
-        {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
-         'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
+        {"min": "1904-05-03T00:00:00+0500", "max": "2098-09-17T14:04:45+0500",
+         "observed_min": "1904-05-03T00:00:00+0500", "observed_max": "2022-03-26T00:00:00+0500"}
     ),
     (
-        ['a'],
+        ["a"],
         [datetime.datetime(1905, 1, 1), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1904-05-03', 'max': '2022-03-26',
-         'observed_min': '1904-05-03', 'observed_max': '2022-03-26'}
+        {"min": "1904-05-03", "max": "2022-03-26",
+         "observed_min": "1904-05-03", "observed_max": "2022-03-26"}
     ),
     (
         None,
         [datetime.datetime(1905, 1, 1), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1827-11-08', 'max': '2098-09-17',
-         'observed_min': '1904-05-03', 'observed_max': '2022-03-26'}
+        {"min": "1827-11-08", "max": "2098-09-17",
+         "observed_min": "1904-05-03", "observed_max": "2022-03-26"}
     ),
     (
         None,
@@ -394,8 +395,8 @@ def test_dependent_features(should_include, dependent_features):
          datetime.datetime(1904, 5, 3), datetime.datetime(1904, 5, 3),
          datetime.datetime(1904, 5, 3), datetime.datetime(1904, 5, 3),
          datetime.datetime(2020, 1, 15), datetime.datetime(2022, 3, 26)],
-        {'min': '1904-05-03', 'max': '2098-09-17',
-         'observed_min': '1904-05-03', 'observed_max': '2022-03-26'}
+        {"min": "1904-05-03", "max": "2098-09-17",
+         "observed_min": "1904-05-03", "observed_max": "2022-03-26"}
     ),
     (
         None,
@@ -407,8 +408,8 @@ def test_dependent_features(should_include, dependent_features):
          datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
          datetime.datetime(2020, 1, 15, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
          datetime.datetime(2022, 3, 26, tzinfo=datetime.timezone(datetime.timedelta(minutes=300)))],
-        {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
-         'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
+        {"min": "1904-05-03T00:00:00+0500", "max": "2098-09-17T14:04:45+0500",
+         "observed_min": "1904-05-03T00:00:00+0500", "observed_max": "2022-03-26T00:00:00+0500"}
     ),
     (
         None,
@@ -420,17 +421,17 @@ def test_dependent_features(should_include, dependent_features):
          datetime.datetime(1904, 5, 3, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
          datetime.datetime(2020, 1, 15, tzinfo=datetime.timezone(datetime.timedelta(minutes=300))),
          datetime.datetime(2022, 3, 26, tzinfo=datetime.timezone(datetime.timedelta(minutes=300)))],
-        {'min': '1904-05-03T00:00:00+0500', 'max': '2098-09-17T14:04:45+0500',
-         'observed_min': '1904-05-03T00:00:00+0500', 'observed_max': '2022-03-26T00:00:00+0500'}
+        {"min": "1904-05-03T00:00:00+0500", "max": "2098-09-17T14:04:45+0500",
+         "observed_min": "1904-05-03T00:00:00+0500", "observed_max": "2022-03-26T00:00:00+0500"}
     ),
     (
-        ['a'],
+        ["a"],
         [datetime.timedelta(days=1), datetime.timedelta(days=1),
          datetime.timedelta(seconds=5), datetime.timedelta(days=1, seconds=30),
          datetime.timedelta(minutes=50), datetime.timedelta(days=5)],
-        {'min': 5, 'max': 5 * 24 * 60 * 60,
-         'observed_min': 5, 'observed_max': 5 * 24 * 60 * 60,
-         'allow_null': True, 'allow_null': True}
+        {"min": 5, "max": 5 * 24 * 60 * 60,
+         "observed_min": 5, "observed_max": 5 * 24 * 60 * 60,
+         "allow_null": True, "allow_null": True}
     ),
     (
         None,
@@ -439,20 +440,20 @@ def test_dependent_features(should_include, dependent_features):
          datetime.timedelta(minutes=50), datetime.timedelta(days=5),
          datetime.timedelta(days=5), datetime.timedelta(days=5),
          datetime.timedelta(days=5)],
-        {'min': 0, 'max': 5 * 24 * 60 * 60.0,
-         'observed_min': 5.0, 'observed_max': 5 * 24 * 60 * 60.0,
-         'allow_null': True, 'allow_null': True}
+        {"min": 0, "max": 5 * 24 * 60 * 60.0,
+         "observed_min": 5.0, "observed_max": 5 * 24 * 60 * 60.0,
+         "allow_null": True, "allow_null": True}
     ),
 ])
 def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
     """Test the infer_feature_bounds() method."""
-    df = pd.DataFrame(pd.Series(data), columns=['a'])
+    df = pd.DataFrame(pd.Series(data), columns=["a"])
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         features = infer_feature_attributes(df, tight_bounds=tight_bounds)
-    assert features['a']['type'] == 'continuous'
-    assert 'bounds' in features['a']
-    assert features['a']['bounds'] == expected_bounds
+    assert features["a"]["type"] == "continuous"
+    assert "bounds" in features["a"]
+    assert features["a"]["bounds"] == expected_bounds
 
 
 def test_to_json() -> None:
@@ -469,14 +470,14 @@ def test_to_json() -> None:
 
     # Make sure the json representation has expected data
     for k, v in inferred_features.items():
-        assert v['type'] == features[k]['type']
-        if 'bounds' in v:
-            assert v['bounds'] == features[k]['bounds']
+        assert v["type"] == features[k]["type"]
+        if "bounds" in v:
+            assert v["bounds"] == features[k]["bounds"]
 
 
-@pytest.mark.parametrize('dependent_features', [
+@pytest.mark.parametrize("dependent_features", [
     {"sepal_length": ["class"],
-     'sepal_width': ["petal_width"]}
+     "sepal_width": ["petal_width"]}
 ])
 def test_get_parameters(dependent_features):
     """Test the get_parameters() method."""
@@ -484,9 +485,9 @@ def test_get_parameters(dependent_features):
     features = infer_feature_attributes(df, dependent_features=dependent_features)
 
     # Verify dependent_features
-    assert 'dependent_features' in features.get_parameters()
+    assert "dependent_features" in features.get_parameters()
     for key, value in dependent_features.items():
-        assert features.get_parameters()['dependent_features'][key] == value
+        assert features.get_parameters()["dependent_features"][key] == value
 
 
 def test_get_names_without():
@@ -500,24 +501,24 @@ def test_get_names_without():
     assert features.get_names() == all_features
 
     # Test get feature names without
-    without = ['sepal_length', 'petal_length', 'petal_width']
+    without = ["sepal_length", "petal_length", "petal_width"]
     assert features.get_names(without=without) == [f for f in all_features if f not in without]
 
     # Test a feature in 'without' that is not in the features list
     with pytest.raises(ValueError):
-        without = ['sepal_length', 'petal_length', 'personality']
+        without = ["sepal_length", "petal_length", "personality"]
         features.get_names(without=without)
 
 
 @pytest.mark.parametrize("types, data_types, num", [
     ("continuous", None, 4),
     ({"continuous"}, None, 4),
-    (('nominal'), None, 1),
-    (['continuous', 'nominal'], None, 5),
-    ("continuous", ['number'], 4),
-    (('nominal'), ['string'], 1),
-    (['continuous', 'nominal'], ['string', 'number'], 5),
-    (('nominal'), ['boolean'], 0),
+    (("nominal"), None, 1),
+    (["continuous", "nominal"], None, 5),
+    ("continuous", ["number"], 4),
+    (("nominal"), ["string"], 1),
+    (["continuous", "nominal"], ["string", "number"], 5),
+    (("nominal"), ["boolean"], 0),
 ])
 def test_get_names_types(types, data_types, num):
     """Test the get_names() method with the types and/or data_types parameter(s)."""
@@ -534,24 +535,24 @@ def test_copy():
     f_copy = copy(f_orig)
 
     assert f_copy.params == f_orig.params
-    orig = f_orig['sepal_width']['bounds']['min']
-    assert f_copy['sepal_width']['bounds']['min'] == orig
+    orig = f_orig["sepal_width"]["bounds"]["min"]
+    assert f_copy["sepal_width"]["bounds"]["min"] == orig
 
     # Now, change the orig, so we can ensure that f_copy is independent.
-    f_orig['sepal_width']['bounds']['min'] = -2
+    f_orig["sepal_width"]["bounds"]["min"] = -2
     # Assert that f_copy was unaffected
-    assert f_copy['sepal_width']['bounds']['min'] == orig
+    assert f_copy["sepal_width"]["bounds"]["min"] == orig
 
 
 @pytest.mark.parametrize("tight_bounds", [
-    (['DATE', 'TURNOVER', '%DELIVERABLE']),
-    (['DATE', '%DELIVERABLE']),
-    (['DATE', 'TURNOVER']),
-    (['%DELIVERABLE', 'TURNOVER']),
-    (['DATE']),
-    (['TURNOVER']),
-    (['%DELIVERABLE']),
-    ([''])
+    (["DATE", "TURNOVER", "%DELIVERABLE"]),
+    (["DATE", "%DELIVERABLE"]),
+    (["DATE", "TURNOVER"]),
+    (["%DELIVERABLE", "TURNOVER"]),
+    (["DATE"]),
+    (["TURNOVER"]),
+    (["%DELIVERABLE"]),
+    ([""])
 ])
 def test_tight_bounds(tight_bounds):
     """Test the tight_bounds argument with a features list."""
@@ -562,12 +563,12 @@ def test_tight_bounds(tight_bounds):
     no_tight_bounds = infer_feature_attributes(df)
 
     for feature in features.keys():
-        if 'bounds' not in features[feature]:
+        if "bounds" not in features[feature]:
             continue
         if feature in tight_bounds:
-            assert features[feature]['bounds'] == all_tight_bounds[feature]['bounds']
+            assert features[feature]["bounds"] == all_tight_bounds[feature]["bounds"]
         else:
-            assert features[feature]['bounds'] == no_tight_bounds[feature]['bounds']
+            assert features[feature]["bounds"] == no_tight_bounds[feature]["bounds"]
 
 
 def test_validate_dataframe():
@@ -584,11 +585,11 @@ def test_validate_dataframe():
     assert features.validate(df, raise_errors=True) is None
     # Example timeseries dataset
     df = pd.read_csv(ts_path)
-    features = infer_feature_attributes(df, time_feature_name='date')
+    features = infer_feature_attributes(df, time_feature_name="date")
     assert features.validate(df, raise_errors=True) is None
     # Mini stock data dataset
     df = pd.read_csv(stock_path)
-    features = infer_feature_attributes(df, time_feature_name='DATE')
+    features = infer_feature_attributes(df, time_feature_name="DATE")
     assert features.validate(df, raise_errors=True) is None
     # Also try this one with a non-ts infer
     df = pd.read_csv(stock_path)
@@ -597,32 +598,32 @@ def test_validate_dataframe():
     # Should not raise any exceptions and return a "coerced" dataframe
     df = pd.read_csv(iris_path)
     features = infer_feature_attributes(df)
-    df['sepal_length'] = df['sepal_length'].astype('int64')
+    df["sepal_length"] = df["sepal_length"].astype("int64")
     df = features.validate(df, coerce=True, raise_errors=True)
     assert df is not None
-    assert pd.api.types.is_float_dtype(df['sepal_length'])
+    assert pd.api.types.is_float_dtype(df["sepal_length"])
     # Try validating a categorical feature
     df = pd.read_csv(iris_path)
-    features['class']['type'] = 'ordinal'
-    features['class']['bounds'] = {}
-    unique = list(df['class'].unique())
-    features['class']['bounds']['allowed'] = unique
-    df['class'] = df['class'].astype(pd.CategoricalDtype(categories=unique))
+    features["class"]["type"] = "ordinal"
+    features["class"]["bounds"] = {}
+    unique = list(df["class"].unique())
+    features["class"]["bounds"]["allowed"] = unique
+    df["class"] = df["class"].astype(pd.CategoricalDtype(categories=unique))
     df = features.validate(df, coerce=True, raise_errors=True)
     assert df is not None
-    assert isinstance(df['class'].dtype, pd.CategoricalDtype)
+    assert isinstance(df["class"].dtype, pd.CategoricalDtype)
 
 
 @pytest.mark.parametrize("ftype, data_type, decimal_places, bounds, date_time_format, expected_dtype", [
-    ("continuous", "number", 0, {'allow_null': False}, None, "int64"),
-    ("continuous", "number", 1, {'allow_null': False}, None, "float64"),
-    ("continuous", "number", 0, {'allow_null': False}, "%Y-%m-%d", "datetime64"),
-    ("ordinal", "number", 0, {'allow_null': False}, None, "int64"),
-    ("ordinal", "number", 2, {'allow_null': True}, None, "float64"),
-    ("ordinal", "string", None, {'allowed': ['SBIN'], 'allow_null': False}, None, "object"),
-    ("nominal", "number", 0, {'allow_null': False}, None, "int64"),
-    ("nominal", "number", 9, {'allow_null': False}, None, "float64"),
-    ("nominal", "boolean", 0, {'allow_null': False}, None, "bool"),
+    ("continuous", "number", 0, {"allow_null": False}, None, "int64"),
+    ("continuous", "number", 1, {"allow_null": False}, None, "float64"),
+    ("continuous", "number", 0, {"allow_null": False}, "%Y-%m-%d", "datetime64"),
+    ("ordinal", "number", 0, {"allow_null": False}, None, "int64"),
+    ("ordinal", "number", 2, {"allow_null": True}, None, "float64"),
+    ("ordinal", "string", None, {"allowed": ["SBIN"], "allow_null": False}, None, "object"),
+    ("nominal", "number", 0, {"allow_null": False}, None, "int64"),
+    ("nominal", "number", 9, {"allow_null": False}, None, "float64"),
+    ("nominal", "boolean", 0, {"allow_null": False}, None, "bool"),
 ])
 def test_validate_df_multiple_dtypes(ftype, data_type, decimal_places, bounds, date_time_format,
                                      expected_dtype):
@@ -630,35 +631,35 @@ def test_validate_df_multiple_dtypes(ftype, data_type, decimal_places, bounds, d
     # First, read in the mini_stock_series dataset as it has a variety of data types
     df = pd.read_csv(stock_path)
     # Based on the expected_dtype, choose the feature in the dataset that is loosely described by the given parameters
-    if expected_dtype == 'int64':
-        feature = 'VOLUME'
-    elif expected_dtype == 'float64':
-        feature = 'PREV CLOSE'
-    elif expected_dtype == 'datetime64':
-        feature = 'DATE'
-    elif expected_dtype == 'bool':
+    if expected_dtype == "int64":
+        feature = "VOLUME"
+    elif expected_dtype == "float64":
+        feature = "PREV CLOSE"
+    elif expected_dtype == "datetime64":
+        feature = "DATE"
+    elif expected_dtype == "bool":
         # Make a new column of a bool dtype since there are none in the dataset
-        df['NEW'] = True
-        feature = 'NEW'
+        df["NEW"] = True
+        feature = "NEW"
     else:
-        feature = 'SYMBOL'
+        feature = "SYMBOL"
     # Infer the feature attributes like normal, but replace the attributes for the chosen feature
     # with our parameter attributes, which should also be considered valid.
-    attrs = infer_feature_attributes(df, time_feature_name='DATE')
+    attrs = infer_feature_attributes(df, time_feature_name="DATE")
     attrs[feature] = {
-        'type': ftype,
-        'data_type': data_type,
-        'decimal_places': decimal_places,
-        'bounds': bounds,
-        'date_time_format': date_time_format,
+        "type": ftype,
+        "data_type": data_type,
+        "decimal_places": decimal_places,
+        "bounds": bounds,
+        "date_time_format": date_time_format,
     }
     if not date_time_format:
-        del attrs[feature]['date_time_format']
+        del attrs[feature]["date_time_format"]
     # validate() should not raise any errors
     coerced_df = attrs.validate(df, raise_errors=True, coerce=True)
     assert coerced_df is not None
     # coerced_df should also contain a coerced DATE column, as it is originally detected as a string
-    assert pd.api.types.is_datetime64_any_dtype(coerced_df['DATE'].dtype)
+    assert pd.api.types.is_datetime64_any_dtype(coerced_df["DATE"].dtype)
 
 
 @pytest.mark.parametrize(
@@ -703,13 +704,13 @@ def test_validate_df_semi_structured(data, expected_data_type: str, expected_ori
 
 @pytest.mark.parametrize("extra_attrs, success", (
     ({}, False),
-    ({'auto_derive_on_train': False}, False),
-    ({'auto_derive_on_train': True}, False),
-    ({'derived_feature_code': '{* #VOLUMNE 2.2}'}, False),
-    ({'auto_derive_on_train': False,
-      'derived_feature_code': '{* #VOLUMNE 2.2}'}, False),
-    ({'auto_derive_on_train': True,
-      'derived_feature_code': '{* #VOLUMNE 2.2}'}, True),
+    ({"auto_derive_on_train": False}, False),
+    ({"auto_derive_on_train": True}, False),
+    ({"derived_feature_code": "{* #VOLUMNE 2.2}"}, False),
+    ({"auto_derive_on_train": False,
+      "derived_feature_code": "{* #VOLUMNE 2.2}"}, False),
+    ({"auto_derive_on_train": True,
+      "derived_feature_code": "{* #VOLUMNE 2.2}"}, True),
 ))
 def test_validate_df_missing_features(extra_attrs, success):
     """
@@ -719,10 +720,10 @@ def test_validate_df_missing_features(extra_attrs, success):
     exempt from raising warnings that the feature is missing.
     """
     df = pd.read_csv(stock_path)
-    attrs = infer_feature_attributes(df, time_feature_name='DATE')
+    attrs = infer_feature_attributes(df, time_feature_name="DATE")
     # Add a would-be derived/computed feature
-    attrs['to_be_computed'] = {"type": "continuous"}
-    attrs['to_be_computed'].update(extra_attrs)
+    attrs["to_be_computed"] = {"type": "continuous"}
+    attrs["to_be_computed"].update(extra_attrs)
 
     if success:
         # We expect this to run without raising an error (due to the warning)
@@ -731,37 +732,36 @@ def test_validate_df_missing_features(extra_attrs, success):
             attrs.validate(df)
     else:
         # We expect this to raise an exception when run.
-        with pytest.raises(Exception):
-            with warnings.catch_warnings():
-                warnings.simplefilter("error")
-                attrs.validate(df)
+        with pytest.raises(Exception), warnings.catch_warnings():
+            warnings.simplefilter("error")
+            attrs.validate(df)
 
 
 @pytest.mark.parametrize("datetime_min_max, float_min_max, int_min_max", [
     (
-        ('DATE', None, None, False),
-        ('CLOSE', None, None, False),
-        ('VOLUME', None, None, False),
+        ("DATE", None, None, False),
+        ("CLOSE", None, None, False),
+        ("VOLUME", None, None, False),
     ),
     (
-        ('DATE', None, DT_MAX, True),
-        ('CLOSE', FLOAT_MIN - .00001, FLOAT_MAX + .00001, True),
-        ('VOLUME', int(INTEGER_MAX / 10) * -1, INTEGER_MAX, True),
+        ("DATE", None, DT_MAX, True),
+        ("CLOSE", FLOAT_MIN - .00001, FLOAT_MAX + .00001, True),
+        ("VOLUME", int(INTEGER_MAX / 10) * -1, INTEGER_MAX, True),
     ),
     (
-        ('DATE', ALMOST_DT_MAX, None, False),
-        ('CLOSE', -1 * (FLOAT_MAX / 10.0), None, False),
-        ('VOLUME', -1 * int(INTEGER_MAX / 10), None, False),
+        ("DATE", ALMOST_DT_MAX, None, False),
+        ("CLOSE", -1 * (FLOAT_MAX / 10.0), None, False),
+        ("VOLUME", -1 * int(INTEGER_MAX / 10), None, False),
     ),
     (
-        ('DATE', DT_MAX, ALMOST_DT_MAX, True),
-        ('CLOSE', FLOAT_MIN * -0.1, FLOAT_MIN * -0.01, True),
-        ('VOLUME', INTEGER_MAX * -1, (INTEGER_MAX * -1) - 1, True),
+        ("DATE", DT_MAX, ALMOST_DT_MAX, True),
+        ("CLOSE", FLOAT_MIN * -0.1, FLOAT_MIN * -0.01, True),
+        ("VOLUME", INTEGER_MAX * -1, (INTEGER_MAX * -1) - 1, True),
     ),
     (
-        ('DATE', None, None, False),
-        ('CLOSE', FLOAT_MAX * -1.0, (FLOAT_MAX * -1.0) - 1, True),
-        ('VOLUME', None, None, False),
+        ("DATE", None, None, False),
+        ("CLOSE", FLOAT_MAX * -1.0, (FLOAT_MAX * -1.0) - 1, True),
+        ("VOLUME", None, None, False),
     ),
 ])
 def test_unsupported_data(datetime_min_max, float_min_max, int_min_max):
@@ -777,7 +777,7 @@ def test_unsupported_data(datetime_min_max, float_min_max, int_min_max):
             df.at[1, feature] = val_2
         expected_unsupported[feature] = unsupported
 
-    features = infer_feature_attributes(df, tight_bounds=['DATE', 'CLOSE', 'VOLUME'])
+    features = infer_feature_attributes(df, tight_bounds=["DATE", "CLOSE", "VOLUME"])
 
     for feature in features.keys():
         if expected_unsupported.get(feature, False):
@@ -789,50 +789,50 @@ def test_unsupported_data(datetime_min_max, float_min_max, int_min_max):
 @pytest.mark.parametrize("value, is_json, is_yaml", [
     ('{"key": "value", "_key": "_value"}', True, False),
     ('{"key":\n    {"key2": [1, 2, 3, 4]}\n}', True, False),
-    ('[]', True, False),
-    ('{}', True, False),
-    ('a: 1\nb:\nc: 3\n\nd: 4', False, True),
+    ("[]", True, False),
+    ("{}", True, False),
+    ("a: 1\nb:\nc: 3\n\nd: 4", False, True),
     ("---\nname: The Howso Engine.\ndescription: >\n  The Howso Engine™ is a "
      "natively and fully explainable ML engine and toolbox.", False, True),
-    ('not:valid:\nyaml\norjson', False, False),
+    ("not:valid:\nyaml\norjson", False, False),
     (12345, False, False),
-    ('abcdefg', False, False),
-    ('abcd\nefg', False, False),
+    ("abcdefg", False, False),
+    ("abcd\nefg", False, False),
     (None, False, False),
     ([1, 2, 3, 4], True, False),
-    ({'a': 'b', 'c': 'd'}, True, False),
+    ({"a": "b", "c": "d"}, True, False),
 ])
 def test_json_yaml_features(value, is_json, is_yaml):
     """Test that infer_feature_attributes correctly identifies JSON and YAML features."""
-    df = pd.DataFrame({'a': [value]})
+    df = pd.DataFrame({"a": [value]})
 
     features = infer_feature_attributes(df)
 
     if is_json:
-        assert features['a']['type'] == 'continuous'
-        assert features['a']['data_type'] == 'json'
+        assert features["a"]["type"] == "continuous"
+        assert features["a"]["data_type"] == "json"
     elif is_yaml:
-        assert features['a']['type'] == 'continuous'
-        assert features['a']['data_type'] == 'yaml'
+        assert features["a"]["type"] == "continuous"
+        assert features["a"]["data_type"] == "yaml"
     else:
-        assert features['a'].get('data_type') != 'json'
-        assert features['a'].get('data_type') != 'yaml'
+        assert features["a"].get("data_type") != "json"
+        assert features["a"].get("data_type") != "yaml"
 
 
-@pytest.mark.parametrize('max_workers', [0, 2])
-@pytest.mark.parametrize('data, types, expected_types, is_valid', [
-    (pd.DataFrame({'a': [0, 1, 2, 0, 1, 2]}), dict(a='continuous'), dict(a='continuous'), True),
-    (pd.DataFrame({'a': [0, 1, 2], 'b': ['1', '2', '3']}, columns=['a', 'b']), dict(continuous=['a', 'b']),
-     dict(a='continuous', b='continuous'), True),
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7]}), dict(a='nominal'), dict(a='nominal'), True),
-    (pd.DataFrame({'a': [True, False, False, True]}), dict(a='continuous'), dict(a='nominal'), True),
-    (pd.DataFrame({'nominal': [True, False, False, True]}), dict(nominal='nominal'), dict(nominal='nominal'), True),
-    (pd.DataFrame({'nominal': [True, False, False, True]}), dict(nominal=['nominal']), dict(nominal='nominal'), True),
-    (pd.DataFrame({'ordinal': [True, False, False, True]}), dict(ordinal='nominal'), dict(ordinal='nominal'), True),
-    (pd.DataFrame({'continuous': [True, False, False]}), dict(continuous='nominal'), dict(continuous='nominal'), True),
-    (pd.DataFrame({'a': [True, False, False, True]}), dict(a='boolean'), {}, False),
-    (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(ordinal=['a']), {}, False),
-    (pd.DataFrame({'a': ['one', 'two', 'three', 'four']}), dict(a='ordinal'), {}, False),
+@pytest.mark.parametrize("max_workers", [0, 2])
+@pytest.mark.parametrize("data, types, expected_types, is_valid", [
+    (pd.DataFrame({"a": [0, 1, 2, 0, 1, 2]}), dict(a="continuous"), dict(a="continuous"), True),
+    (pd.DataFrame({"a": [0, 1, 2], "b": ["1", "2", "3"]}, columns=["a", "b"]), dict(continuous=["a", "b"]),
+     dict(a="continuous", b="continuous"), True),
+    (pd.DataFrame({"a": [0, 1, 2, 3, 4, 5, 6, 7]}), dict(a="nominal"), dict(a="nominal"), True),
+    (pd.DataFrame({"a": [True, False, False, True]}), dict(a="continuous"), dict(a="nominal"), True),
+    (pd.DataFrame({"nominal": [True, False, False, True]}), dict(nominal="nominal"), dict(nominal="nominal"), True),
+    (pd.DataFrame({"nominal": [True, False, False, True]}), dict(nominal=["nominal"]), dict(nominal="nominal"), True),
+    (pd.DataFrame({"ordinal": [True, False, False, True]}), dict(ordinal="nominal"), dict(ordinal="nominal"), True),
+    (pd.DataFrame({"continuous": [True, False, False]}), dict(continuous="nominal"), dict(continuous="nominal"), True),
+    (pd.DataFrame({"a": [True, False, False, True]}), dict(a="boolean"), {}, False),
+    (pd.DataFrame({"a": ["one", "two", "three", "four"]}), dict(ordinal=["a"]), {}, False),
+    (pd.DataFrame({"a": ["one", "two", "three", "four"]}), dict(a="ordinal"), {}, False),
 ])
 def test_preset_feature_types(data, types, expected_types, is_valid, max_workers):
     """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
@@ -843,9 +843,9 @@ def test_preset_feature_types(data, types, expected_types, is_valid, max_workers
             features = infer_feature_attributes(data, types=types, max_workers=max_workers)
             for feature_name, expected_type in expected_types.items():
                 # Make sure it is the correct type
-                assert features[feature_name]['type'] == expected_type
+                assert features[feature_name]["type"] == expected_type
                 # All features in this test, including nominals, should have bounds (at the very least: `allow_null`)
-                assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
+                assert "allow_null" in features[feature_name].get("bounds", {}).keys()
         else:
             with pytest.raises(ValueError):
                 infer_feature_attributes(data, types=types, max_workers=max_workers)
@@ -855,7 +855,7 @@ def test_preset_feature_types_with_multiprocessing():
     """Test that the `types` parameter behaves well with multiprocessing enabled."""
     df = pd.read_csv(stock_path)
     # Identified continuous features
-    continuous = ['CLOSE']
+    continuous = ["CLOSE"]
     # Everything else is nominal, in this case.
     nominals = [f for f in df.columns if f not in continuous]
     features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=2)
@@ -870,7 +870,7 @@ def test_feature_order():
                 return False
         return True
     df = pd.read_csv(stock_path)
-    continuous = ['CLOSE']
+    continuous = ["CLOSE"]
     nominals = [f for f in df.columns if f not in continuous]
     features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=10)
     assert same_order(features.keys(), df.columns)
@@ -887,30 +887,30 @@ def test_archival():
     preserved through the archival process (to_json / from_json).
     """
     data = pd.DataFrame({
-        'a': [0, 1, 2, 3, 4, 5, 6, 7],
-        'b': ['apple', 'banana', 'banana', 'cherry', 'apple', 'apple', 'cherry', 'banana'],
-        'c': [2, 3, 4, 2, 3, 4, 2, 3],
-        'd': [1, 1, 1, 1, 2, 2, 2, 2],
+        "a": [0, 1, 2, 3, 4, 5, 6, 7],
+        "b": ["apple", "banana", "banana", "cherry", "apple", "apple", "cherry", "banana"],
+        "c": [2, 3, 4, 2, 3, 4, 2, 3],
+        "d": [1, 1, 1, 1, 2, 2, 2, 2],
         # NOTE: That the second red is not a typo.
-        'e': ["red", "orange", "yellow", "red", "green", "blue", "indigo", "violet"],
+        "e": ["red", "orange", "yellow", "red", "green", "blue", "indigo", "violet"],
     })
     features = infer_feature_attributes(
         data,
-        tight_bounds=['a'],
+        tight_bounds=["a"],
         fanout_feature_map={
             ("c", "d"): ("e", ),
         }
     )
-    assert features['a']['type'] == 'continuous'
-    assert features['b']['type'] == 'nominal'
+    assert features["a"]["type"] == "continuous"
+    assert features["b"]["type"] == "nominal"
 
     archive = features.to_json(archive=True)
     new_features = FeatureAttributesBase.from_json(archive)
 
-    assert new_features['a']['type'] == 'continuous'
-    assert new_features['b']['type'] == 'nominal'
-    assert new_features.params['tight_bounds'] == ['a']
-    fanout_feature_key = list(new_features.params['fanout_feature_map'].keys())[0]
+    assert new_features["a"]["type"] == "continuous"
+    assert new_features["b"]["type"] == "nominal"
+    assert new_features.params["tight_bounds"] == ["a"]
+    fanout_feature_key = list(new_features.params["fanout_feature_map"].keys())[0]
     assert isinstance(fanout_feature_key, tuple)
     assert isinstance(new_features.params["fanout_feature_map"][fanout_feature_key], tuple)
 
@@ -918,12 +918,12 @@ def test_archival():
 def test_disk_archival():
     """Test that archival of the FeatureAttributes instance to disk works as expected."""
     data = pd.DataFrame({
-        'a': [0, 1, 2, 3, 4, 5, 6, 7],
-        'b': ['apple', 'banana', 'banana', 'cherry', 'apple', 'apple', 'cherry', 'banana']
+        "a": [0, 1, 2, 3, 4, 5, 6, 7],
+        "b": ["apple", "banana", "banana", "cherry", "apple", "apple", "cherry", "banana"]
     })
-    features = infer_feature_attributes(data, tight_bounds=['a'])
-    assert features['a']['type'] == 'continuous'
-    assert features['b']['type'] == 'nominal'
+    features = infer_feature_attributes(data, tight_bounds=["a"])
+    assert features["a"]["type"] == "continuous"
+    assert features["b"]["type"] == "nominal"
 
     with TemporaryDirectory() as tmp_dir:
         json_path = Path(tmp_dir, "fa_archive.json")
@@ -931,22 +931,22 @@ def test_disk_archival():
         features.to_json(archive=True, json_path=json_path)
         new_features = FeatureAttributesBase.from_json(json_path=json_path)
 
-    assert new_features['a']['type'] == 'continuous'
-    assert new_features['b']['type'] == 'nominal'
-    assert new_features.params['tight_bounds'] == ['a']
+    assert new_features["a"]["type"] == "continuous"
+    assert new_features["b"]["type"] == "nominal"
+    assert new_features.params["tight_bounds"] == ["a"]
 
 
 @pytest.mark.parametrize(
-    'series, ordinals, min_value, max_value', [
+    "series, ordinals, min_value, max_value", [
         (  # ordinal strings
-            ['grape', 'apple', 'banana', 'banana', 'cherry', 'apple', 'apple', 'fig', 'cherry', 'banana'],
-            ['apple', 'banana', 'cherry'],
-            'apple', 'cherry'
+            ["grape", "apple", "banana", "banana", "cherry", "apple", "apple", "fig", "cherry", "banana"],
+            ["apple", "banana", "cherry"],
+            "apple", "cherry"
         ),
         (  # ordinal strings, includes an empty string
-            ['**', '*', '***', '*', '****', '*****', '**', '', '****', '***'],
-            ['', '*', '**', '***', '****', '*****'],
-            '', '*****'
+            ["**", "*", "***", "*", "****", "*****", "**", "", "****", "***"],
+            ["", "*", "**", "***", "****", "*****"],
+            "", "*****"
         ),
         (  # ordinal numerals
             [4, 2, 1, 7, 3, 3, 8, 2, 1, 0],
@@ -959,14 +959,14 @@ def test_disk_archival():
             -6, 8
         ),
         (  # ordinal numerals as strings.
-            ['4', '2', '1', '7', '3', '3', '8', '2', '1', '0'],
-            ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
-            '1', '8'
+            ["4", "2", "1", "7", "3", "3", "8", "2", "1", "0"],
+            ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+            "1", "8"
         ),
         (  # ordinal numerals as string ordinals with unusual ordering
-            ['4', '2', '1', '7', '3', '3', '8', '2', '1', '0'],
-            ['5', '7', '3', '2', '4', '9', '10', '8', '6', '1'],
-            '7', '1'
+            ["4", "2", "1", "7", "3", "3", "8", "2", "1", "0"],
+            ["5", "7", "3", "2", "4", "9", "10", "8", "6", "1"],
+            "7", "1"
         ),
         (  # floats as ordinals
             [0.4, 0.2, 0.1, 0.7, 0.3, 0.3, 0.8, 0.2, 0.1, 0.0],
@@ -974,29 +974,29 @@ def test_disk_archival():
             0.0, 0.8
         ),
         (  # Dates as ordinals
-            ["1-Mar-2020", "1-Mar-2020", "1-Apr-2020", "1-Mar-2020", "1-Feb-2020", '1-Dec-2020', '1-Jul-2020'],
+            ["1-Mar-2020", "1-Mar-2020", "1-Apr-2020", "1-Mar-2020", "1-Feb-2020", "1-Dec-2020", "1-Jul-2020"],
             ["1-Jan-2020", "1-Feb-2020", "1-Mar-2020", "1-Apr-2020", "1-May-2020", "1-Jun-2020"],
-            '1-Feb-2020', '1-Apr-2020'
+            "1-Feb-2020", "1-Apr-2020"
         )
     ]
 )
 def test_observed_ordinal_values(series, ordinals, min_value, max_value):
     """Test that observed_min/max in ordinal features works as expected."""
-    data = pd.DataFrame({'a': series})
+    data = pd.DataFrame({"a": series})
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        features = infer_feature_attributes(data, ordinal_feature_values={'a': ordinals})
-    assert features['a']['bounds']['observed_min'] == min_value
-    assert features['a']['bounds']['observed_max'] == max_value
+        features = infer_feature_attributes(data, ordinal_feature_values={"a": ordinals})
+    assert features["a"]["bounds"]["observed_min"] == min_value
+    assert features["a"]["bounds"]["observed_max"] == max_value
 
 
 def test_formatted_date_time():
     """Test formatted_date_time is set when a datetime, and raises when no date_time_format is specified."""
     data = pd.DataFrame({
-        'a': [0, 1, 2, 3],
-        'time': ['10-10', '04-25', '10-30', '12-01'],
-        'custom': ['2010/10/10', '2010/10/11', '2010/10/12', '2010/10/14'],
-        'iso': ['2010-10-10', '2010-10-11', '2010-10-12', '2010-10-14']
+        "a": [0, 1, 2, 3],
+        "time": ["10-10", "04-25", "10-30", "12-01"],
+        "custom": ["2010/10/10", "2010/10/11", "2010/10/12", "2010/10/14"],
+        "iso": ["2010-10-10", "2010-10-11", "2010-10-12", "2010-10-14"]
     })
 
     # Verify formatted_date_time is set when a date_time_format is configured
@@ -1004,20 +1004,20 @@ def test_formatted_date_time():
         warnings.simplefilter("error")
         features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"},
                                             default_time_zone="UTC")
-        assert features['a']['data_type'] != "formatted_date_time"
+        assert features["a"]["data_type"] != "formatted_date_time"
         # custom feature dates should be formatted_date_time
-        assert features['custom']['data_type'] == "formatted_date_time"
+        assert features["custom"]["data_type"] == "formatted_date_time"
         # auto detected iso dates should be formatted_date_time
-        assert features['iso']['data_type'] == "formatted_date_time"
+        assert features["iso"]["data_type"] == "formatted_date_time"
 
 
 def test_default_time_zone():
     """Test that ``infer_feature_attributes`` correctly handles default time zones."""
     data = pd.DataFrame({
-        'custom': ['2010/10/10 7:30', '2010/10/11 8:45', '2010/10/12 9:00', '2010/10/14 12:00'],
-        'custom2': ['2002/10/10 3:30', '2000/10/11 10:45', '2013/10/12 5:00', '2014/10/14 11:00'],
-        'custom3': ['2010/10/10 07:30 -0500', '2010/10/11 08:45 -0500', '2010/10/12 09:00 -0500',
-                    '2012/12/12 06:00 -0500'],
+        "custom": ["2010/10/10 7:30", "2010/10/11 8:45", "2010/10/12 9:00", "2010/10/14 12:00"],
+        "custom2": ["2002/10/10 3:30", "2000/10/11 10:45", "2013/10/12 5:00", "2014/10/14 11:00"],
+        "custom3": ["2010/10/10 07:30 -0500", "2010/10/11 08:45 -0500", "2010/10/12 09:00 -0500",
+                    "2012/12/12 06:00 -0500"],
     })
 
     # No default time zone or time zone identifier in format string; warning should be raised
@@ -1037,12 +1037,12 @@ def test_default_time_zone():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         # Providing a default_time_zone should prevent the warning
-        data.drop('custom3', axis=1, inplace=True)  # Will raise an unrelated warning that we already tested for
+        data.drop("custom3", axis=1, inplace=True)  # Will raise an unrelated warning that we already tested for
         infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
                                                                  "custom2": "%Y/%m/%d %H:%M"}, default_time_zone="EST")
         data = pd.DataFrame({
-            'custom': ['2010/10/10 07:30 UTC', '2010/10/11 08:45 UTC', '2010/10/12 09:00 UTC'],
-            'custom2': ['2010/10/10 07:30 GMT', '2010/10/11 08:45 GMT', '2010/10/12 09:00 GMT'],
+            "custom": ["2010/10/10 07:30 UTC", "2010/10/11 08:45 UTC", "2010/10/12 09:00 UTC"],
+            "custom2": ["2010/10/10 07:30 GMT", "2010/10/11 08:45 GMT", "2010/10/12 09:00 GMT"],
         })
         # Providing data with a time zone and corresponding format string identifier should prevent the error
         infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M %Z",
@@ -1061,7 +1061,7 @@ def test_nullable_integer_validation():
     """Test that IFA correctly validates data with nullable integers."""
     df = pd.DataFrame({"a": ["1", "2", "3", pd.NA, "4"]}, dtype="Int64")
     attrs = infer_feature_attributes(df)
-    df = df.astype('float64')  # Force a coersion back to Int64
+    df = df.astype("float64")  # Force a coersion back to Int64
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         attrs.validate(df, coerce=True)
@@ -1104,19 +1104,19 @@ def test_no_warnings_datetime_feature_formats():
 
 def test_datetime_empty_time_values():
     """Test that datetimes with an empty time value still are determined datetime features with the correct format."""
-    df = pd.DataFrame({'a': ['2025-08-22T00:00:00'], 'b': ['2025-08-22 00:00:00']})
-    features = infer_feature_attributes(df, default_time_zone='UTC')
-    assert features['a']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
-    assert features['b']['date_time_format'] == '%Y-%m-%d %H:%M:%S'
+    df = pd.DataFrame({"a": ["2025-08-22T00:00:00"], "b": ["2025-08-22 00:00:00"]})
+    features = infer_feature_attributes(df, default_time_zone="UTC")
+    assert features["a"]["date_time_format"] == "%Y-%m-%dT%H:%M:%S"
+    assert features["b"]["date_time_format"] == "%Y-%m-%d %H:%M:%S"
 
 
 def test_empty_string_first_non_nulls():
     """Test that IFA correctly handles first non-null values that are empty strings."""
-    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy']})
+    df = pd.DataFrame({"a": ["", "ahoy", "howdy"]})
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         infer_feature_attributes(df)
-    df = pd.DataFrame({'a': ['', 'ahoy', 'howdy'], 'b': ['\n', '8/26/2025', '8/3/1999']})
+    df = pd.DataFrame({"a": ["", "ahoy", "howdy"], "b": ["\n", "8/26/2025", "8/3/1999"]})
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
         infer_feature_attributes(df)
 
@@ -1215,21 +1215,21 @@ def test_preserve_rare_values():
     """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
     # Manufacture some data
     n = 100_000
-    features = ['a', 'b', 'i', 'mass']
+    features = ["a", "b", "i", "mass"]
     data = []
     for i in range(n):
         mass = 1
         percentile = i % 100
         if percentile < 99:
-            a_val = '1'
+            a_val = "1"
         else:
             a_val = None
         if percentile < 95:
-            b_val = 'x'
+            b_val = "x"
         elif percentile < 99:
-            b_val = 'y'
+            b_val = "y"
         else:
-            b_val = 'z'
+            b_val = "z"
         case = [a_val, b_val, i + 1, mass]
         data.append(case)
 
@@ -1300,11 +1300,8 @@ def test_infer_fanout_features():
 
 def test_enable_suggestions_false():
     """enable_suggestions=False must skip fanout and PRV inference with no warning and empty suggestions."""
-    import warnings as _warnings
-    from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
-
-    with _warnings.catch_warnings():
-        _warnings.simplefilter("error", UserWarning)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(joined_olist_df, enable_suggestions=False, default_time_zone="UTC")
 
     assert isinstance(features.suggestions, IFASuggestionCollector)

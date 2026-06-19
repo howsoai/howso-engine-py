@@ -194,7 +194,8 @@ class FanoutFeaturesSuggestion(IFASuggestion):
 
     def merge(self, other: IFASuggestion) -> None:
         """Merge another FanoutFeaturesSuggestion into this one."""
-        assert isinstance(other, FanoutFeaturesSuggestion)
+        if not isinstance(other, FanoutFeaturesSuggestion):
+            raise TypeError(f"Cannot merge {type(other).__name__} into FanoutFeaturesSuggestion.")
         for key, cols in other.get_fanout_feature_map().items():
             if key in self._fanout_features:
                 existing = self._fanout_features[key]
@@ -337,7 +338,8 @@ class PRVSuggestion(IFASuggestion):
 
     def merge(self, other: IFASuggestion) -> None:
         """Merge another PRVSuggestion into this one if there are no conflicts."""
-        assert isinstance(other, PRVSuggestion)
+        if not isinstance(other, PRVSuggestion):
+            raise TypeError(f"Cannot merge {type(other).__name__} into PRVSuggestion.")
         for feature, config in other.get_config().items():
             if feature not in self._prvc:
                 self._prvc[feature] = config
