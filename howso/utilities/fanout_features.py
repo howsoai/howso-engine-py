@@ -451,8 +451,9 @@ class _StreamingFanoutInferrer:
             relational tables on FK->PK.
         features : Mapping[str, Mapping[str, Any]]
             Feature mapping in Howso's ``infer_feature_attributes`` format --
-            ``{column_name: {"type": "nominal" | "continuous", ...}}``.
-            Columns absent from the mapping are ignored entirely.
+            ``{column_name: {"type": ..., ...}}``. Only ``"nominal"`` and
+            ``"continuous"`` features participate in fanout detection; all
+            others are ignored.
         sample_size : int, optional
             Row sample size used as a cheap pre-filter to reject obvious
             non-FDs before paying the cost of a full-data check. Default
@@ -476,18 +477,8 @@ class _StreamingFanoutInferrer:
         Raises
         ------
         ValueError
-            If any feature has a ``type`` other than ``"nominal"`` or
-            ``"continuous"``, or references a column not present in ``df``.
+            If any feature references a column not present in ``df``.
         """
-        valid_types: set[str] = {"nominal", "continuous"}
-        invalid: dict[str, Mapping[str, Any]] = {
-            c: t for c, t in features.items() if t["type"] not in valid_types
-        }
-        if invalid:
-            raise ValueError(
-                f"feature 'type' values must be 'nominal' or 'continuous'; "
-                f"got invalid entries: {invalid}"
-            )
         missing: list[str] = [c for c in features if c not in df.columns]
         if missing:
             raise ValueError(f"features references columns not in df: {missing}")

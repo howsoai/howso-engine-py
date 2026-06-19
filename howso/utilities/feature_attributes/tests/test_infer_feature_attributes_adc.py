@@ -500,7 +500,7 @@ def test_formatted_date_time(adc):
     with warnings.catch_warnings():
         warnings.filterwarnings("error")
         features = infer_feature_attributes(adc, datetime_feature_formats={"custom": "%Y/%m/%d"},
-                                            default_time_zone="UTC")
+                                            default_time_zone="UTC", enable_suggestions=False)
         assert features['a']['data_type'] != "formatted_date_time"
         # custom feature dates should be formatted_date_time
         assert features['custom']['data_type'] == "formatted_date_time"
@@ -560,7 +560,7 @@ def test_empty_string_first_non_nulls():
     adc = make_data_source(df)
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        infer_feature_attributes(adc)
+        infer_feature_attributes(adc, enable_suggestions=False)
     df = pd.DataFrame({'a': ['', 'ahoy', 'howdy'], 'b': ['\n', '8/26/2025', '8/3/1999']})
     adc = make_data_source(df)
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
@@ -673,7 +673,7 @@ def test_dependent_features_uniques_warning(adc):
     convert_data(DataFrameData(df), adc)
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        infer_feature_attributes(df, dependent_features={"d": ["b", "c"]})
+        infer_feature_attributes(df, dependent_features={"d": ["b", "c"]}, enable_suggestions=False)
     with pytest.warns(UserWarning, match="- a\n"):
         infer_feature_attributes(df, dependent_features={"d": ["b", "c", "a"]})
     with pytest.warns(UserWarning, match="- a\n"):

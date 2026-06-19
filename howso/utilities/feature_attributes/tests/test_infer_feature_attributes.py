@@ -682,7 +682,7 @@ def test_validate_df_semi_structured(data, expected_data_type: str, expected_ori
     })
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        feature_attributes = infer_feature_attributes(df)
+        feature_attributes = infer_feature_attributes(df, enable_suggestions=False)
 
     attrs = feature_attributes["doc"]
 
@@ -1003,7 +1003,7 @@ def test_formatted_date_time():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"},
-                                            default_time_zone="UTC")
+                                            default_time_zone="UTC", enable_suggestions=False)
         assert features["a"]["data_type"] != "formatted_date_time"
         # custom feature dates should be formatted_date_time
         assert features["custom"]["data_type"] == "formatted_date_time"
@@ -1039,14 +1039,16 @@ def test_default_time_zone():
         # Providing a default_time_zone should prevent the warning
         data.drop("custom3", axis=1, inplace=True)  # Will raise an unrelated warning that we already tested for
         infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
-                                                                 "custom2": "%Y/%m/%d %H:%M"}, default_time_zone="EST")
+                                                                 "custom2": "%Y/%m/%d %H:%M"}, default_time_zone="EST",
+                                 enable_suggestions=False)
         data = pd.DataFrame({
             "custom": ["2010/10/10 07:30 UTC", "2010/10/11 08:45 UTC", "2010/10/12 09:00 UTC"],
             "custom2": ["2010/10/10 07:30 GMT", "2010/10/11 08:45 GMT", "2010/10/12 09:00 GMT"],
         })
         # Providing data with a time zone and corresponding format string identifier should prevent the error
         infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M %Z",
-                                                                 "custom2": "%Y/%m/%d %H:%M %Z"})
+                                                                 "custom2": "%Y/%m/%d %H:%M %Z"},
+                                 enable_suggestions=False)
 
 
 def test_constrained_date_bounds():
@@ -1076,7 +1078,7 @@ def test_memory_usage_warning():
     # Test that the warning disappears when the threshold is configured to be larger
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        infer_feature_attributes(df, memory_warning_threshold=1024)
+        infer_feature_attributes(df, memory_warning_threshold=1024, enable_suggestions=False)
     # Test that two violating features raise a warning
     df = pd.DataFrame({"big": ["a" * 1024], "bigger": ["b" * 2048]})
     with pytest.warns(match="2 features have an average memory size exceeding the "
@@ -1099,7 +1101,7 @@ def test_no_warnings_datetime_feature_formats():
         warnings.simplefilter("error")
         df = pd.DataFrame([["01-01-2015", "2025-01"]], columns=["date", "month"])
         infer_feature_attributes(df, datetime_feature_formats={"date": "%d-%m-%Y", "month": "%Y-%m"},
-                                 default_time_zone="UTC")
+                                 default_time_zone="UTC", enable_suggestions=False)
 
 
 def test_datetime_empty_time_values():
@@ -1115,7 +1117,7 @@ def test_empty_string_first_non_nulls():
     df = pd.DataFrame({"a": ["", "ahoy", "howdy"]})
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        infer_feature_attributes(df)
+        infer_feature_attributes(df, enable_suggestions=False)
     df = pd.DataFrame({"a": ["", "ahoy", "howdy"], "b": ["\n", "8/26/2025", "8/3/1999"]})
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
         infer_feature_attributes(df)
@@ -1187,7 +1189,7 @@ def test_dependent_features_uniques_warning():
     )
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        infer_feature_attributes(df, dependent_features={"d": ["b", "c"]})
+        infer_feature_attributes(df, dependent_features={"d": ["b", "c"]}, enable_suggestions=False)
     with pytest.warns(UserWarning, match="- a\n"):
         infer_feature_attributes(df, dependent_features={"d": ["b", "c", "a"]})
     with pytest.warns(UserWarning, match="- a\n"):
@@ -1202,7 +1204,7 @@ def test_set_data():
     })
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        features = infer_feature_attributes(df)
+        features = infer_feature_attributes(df, enable_suggestions=False)
         assert features["a"]["data_type"] == "json"
         assert features["a"]["original_type"]["data_type"] == "container"
         assert "coercion" not in features["a"]["original_type"]
@@ -1265,10 +1267,10 @@ def test_preserve_rare_values():
     # Supplying the suggested values_map and config to IFA should result in no warnings
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        features = infer_feature_attributes(df, preserve_rare_values_config=config)
+        features = infer_feature_attributes(df, preserve_rare_values_config=config, enable_suggestions=False)
         assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
         assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
-        features = infer_feature_attributes(df, preserve_rare_values_map=values_map)
+        features = infer_feature_attributes(df, preserve_rare_values_map=values_map, enable_suggestions=False)
         assert "protected_values" in features["a"].get("preserve_rare_values", {})
         assert "protected_values" in features["b"].get("preserve_rare_values", {})
 
