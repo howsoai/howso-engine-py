@@ -10,7 +10,7 @@ astroid==4.0.4
     # via pylint
 build==1.5.0
     # via pip-tools
-certifi==2026.5.20
+certifi==2026.6.17
     # via
     #   howso-engine (pyproject.toml)
     #   requests
@@ -103,7 +103,7 @@ pyflakes==2.3.1
     # via flake8
 pygments==2.20.0
     # via rich
-pylint==4.0.5
+pylint==4.0.6
     # via howso-engine (pyproject.toml)
 pyproject-hooks==1.2.0
     # via
@@ -155,7 +155,7 @@ threadpoolctl==3.6.0
     # via scikit-learn
 tomlkit==0.15.0
     # via pylint
-tqdm==4.68.2
+tqdm==4.68.3
     # via sacremoses
 typing-extensions==4.15.0
     # via howso-engine (pyproject.toml)

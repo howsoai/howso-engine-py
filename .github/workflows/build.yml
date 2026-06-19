@@ -105,7 +105,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.13"
 
     - name: Install pypa/build
       run: >-
@@ -147,7 +147,7 @@ jobs:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       validate-amlg-versions: true
 
-  pytest-linux-3-10-st:
+  pytest-linux-3-11-st:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -155,14 +155,14 @@ jobs:
       platform: 'ubuntu-latest'
       platform-pretty: 'Linux'
       amalgam-plat-arch: 'linux-amd64'
-      python-version: '3.10'
+      python-version: '3.11'
       config-fp: './config/latest-st-traces-howso.yml'
       config-pretty: 'ST'
       workers: 'off'  # Amalgam ST > 78.0 is not thread safe at all
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
 
-  pytest-linux-3-12-mt:
+  pytest-linux-3-14-mt:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -170,13 +170,13 @@ jobs:
       platform: 'ubuntu-latest'
       platform-pretty: 'Linux'
       amalgam-plat-arch: 'linux-amd64'
-      python-version: '3.12'
+      python-version: '3.14'
       config-fp: './config/latest-mt-traces-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
 
-  pytest-windows-3-11-mt:
+  pytest-windows-3-13-mt:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -184,13 +184,13 @@ jobs:
       platform: 'windows-latest'
       platform-pretty: 'Windows'
       amalgam-plat-arch: 'windows-amd64'
-      python-version: '3.11'
+      python-version: '3.13'
       config-fp: './config/latest-mt-traces-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
 
-  pytest-macos-3-13-mt-arm64:
+  pytest-macos-3-12-mt-arm64:
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -198,7 +198,7 @@ jobs:
       platform: 'macos-latest'
       platform-pretty: 'MacOS'
       amalgam-plat-arch: 'darwin-arm64'
-      python-version: '3.13'
+      python-version: '3.12'
       config-fp: './config/latest-mt-traces-howso.yml'
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
@@ -638,10 +638,10 @@ jobs:
       - metadata
       - generate-changelog
       - workflow-summary
-      - pytest-linux-3-10-st
-      - pytest-linux-3-12-mt
-      - pytest-windows-3-11-mt
-      - pytest-macos-3-13-mt-arm64
+      - pytest-linux-3-11-st
+      - pytest-linux-3-14-mt
+      - pytest-windows-3-13-mt
+      - pytest-macos-3-12-mt-arm64
       - install-verification-linux-amd64
       - install-verification-linux-arm64
       - install-verification-linux-arm64_8a
