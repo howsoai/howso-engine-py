@@ -103,9 +103,10 @@ def test_feature_deserialization(data_format, data, original_type, should_warn):
         df = pd.DataFrame(pd.Series(data, name='a'))
         if original_type["data_type"] == FeatureType.TOKENIZABLE_STRING.value:
             # Tokenizable strings must have their type pre-set to "continuous"
-            features = infer_feature_attributes(df, default_time_zone="UTC", types={"a": "continuous"})
+            features = infer_feature_attributes(df, default_time_zone="UTC", types={"a": "continuous"},
+                                                enable_suggestions=False)
         else:
-            features = infer_feature_attributes(df, default_time_zone="UTC")
+            features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)
         if data_format == "numpy":
             df_numpy = np.array(data)
             df_numpy = np.array([[value] for value in df_numpy])
@@ -237,7 +238,7 @@ def test_date_feature_serialization(
         warnings.simplefilter(action=action, append=True)
         columns = ['a']
         df = pd.DataFrame(pd.Series(data, name='a'))
-        features = infer_feature_attributes(df, default_time_zone=default_tz)
+        features = infer_feature_attributes(df, default_time_zone=default_tz, enable_suggestions=False)
         features['a']['date_time_format'] = dt_format
         if data_format == "numpy":
             df_numpy = np.array(data)

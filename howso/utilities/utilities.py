@@ -4,6 +4,7 @@ from collections.abc import (
     Callable,
     Collection,
     Generator,
+    Hashable,
     Iterable,
     Mapping,
     Sequence,

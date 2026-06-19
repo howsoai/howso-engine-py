@@ -20,8 +20,11 @@ import pandas as pd
 from typing_extensions import Self
 import yaml
 
+from howso.utilities.fanout_features import infer_fanout_feature_config
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
 from howso.utilities.feature_attributes.suggestions import (
+    FanoutFeaturesMap,
+    FanoutFeaturesSuggestion,
     FullPreserveRareValuesConfig,
     IFASuggestion,
     IFASuggestionCollector,
@@ -814,7 +817,8 @@ class InferFeatureAttributesBase(ABC):
                  datetime_feature_formats: dict | None = None,
                  default_time_zone: str | None = None,
                  dependent_features: dict[str, list[str]] | None = None,
-                 fanout_feature_map: dict[tuple[str] | str, list[str]] | None = None,
+                 enable_suggestions: bool = True,
+                 fanout_feature_map: FanoutFeaturesMap | None = None,
                  id_feature_name: str | Iterable[str] | None = None,
                  include_extended_nominal_probabilities: bool = False,
                  include_sample: bool = False,
@@ -1164,9 +1168,14 @@ class InferFeatureAttributesBase(ABC):
                 for f in fanout_features:
                     if f in self.attributes:
                         self.attributes[f]["fanout_on"] = list(key_features)
+        # If not provided, infer them and issue a suggestion (unless suggestions are disabled)
+        elif enable_suggestions:
+            candidate_fanout = infer_fanout_feature_config(self.attributes, self.data, max_rows=self.max_rows_to_eval)
+            self.suggestions_collector.append(FanoutFeaturesSuggestion(candidate_fanout))
 
+        # Compute or suggest `preserve_rare_values` configuration
         self._process_rare_values(preserve_rare_values_map, preserve_rare_values_config, max_distilled_cases,
-                                  significance_threshold)
+                                  significance_threshold, enable_suggestions)
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
@@ -1955,7 +1964,7 @@ class InferFeatureAttributesBase(ABC):
 
     def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all", "off"],  # noqa: PLR0912, PLR0915
                              preserve_rare_values_config: PreserveRareValuesConfig, max_distilled_cases: int,
-                             significance_threshold: int) -> None:
+                             significance_threshold: int, enable_suggestions: bool = True) -> None:
         """Procesess `preserve_rare_values` configuration or make recommendation."""
         _prvc: FullPreserveRareValuesConfig = {}
         # Did the user specify max_distilled_cases? Save this information for later.
@@ -2030,7 +2039,7 @@ class InferFeatureAttributesBase(ABC):
                     self.attributes[feature]["preserve_rare_values"] = {"protected_values": values}  # pyright: ignore[reportGeneralTypeIssues]
 
         # Workflow 3: User provided no value specifications; determine candidates and make a suggestion
-        else:
+        elif enable_suggestions:
             # Skip this if data is smaller than the default (true for many test cases);
             # probably indicates that data distillation happening is unlikely
             if self._get_row_count() < max_distilled_cases:
@@ -2051,4 +2060,4 @@ class InferFeatureAttributesBase(ABC):
                 if feature not in self.attributes:
                     # Multiprocessing is enabled, and this feature will be handled in another process
                     continue
-                self.attributes[feature]["preserve_rare_values"] = config  # pyright: ignore[reportGeneralTypeIssues]
+                self.attributes[feature]["preserve_rare_values"] = config  # pyright: ignore[reportGeneralTypeIssues]#

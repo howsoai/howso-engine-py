@@ -7,14 +7,15 @@ import random
 from typing import Any
 import warnings
 
-from howso import client
-from howso.engine import Trainee
-from howso.utilities.feature_attributes import infer_feature_attributes
-from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 import numpy as np
 import pandas as pd
 import pytest
 
+from howso import client
+from howso.engine import Trainee
+from howso.utilities.feature_attributes import infer_feature_attributes
+from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
+from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
 
 root_path = (
     Path(client.__file__).parent.parent
@@ -25,22 +26,22 @@ mini_stock_data_path = data_path.joinpath("mini_stock_data.csv")
 
 # Partially defined dictionary-1
 features_1 = {
-    'f1': {
-        'bounds': {
-            'allow_null': False,
-            'max': 5103.08,
-            'min': 20.08
+    "f1": {
+        "bounds": {
+            "allow_null": False,
+            "max": 5103.08,
+            "min": 20.08
         },
-        'type': 'continuous'
+        "type": "continuous"
     },
-    'f2': {
-        'bounds': {
-            'allow_null': False,
-            'max': 6103,
-            'min': 0
+    "f2": {
+        "bounds": {
+            "allow_null": False,
+            "max": 6103,
+            "min": 0
         },
-        'time_series': True,
-        'type': 'continuous'
+        "time_series": True,
+        "type": "continuous"
     },
 }
 
@@ -79,8 +80,8 @@ def test_infer_features_attributes_single_ID():
 
     for feature, attributes in features.items():
         print(feature)
-        assert expected_types[feature] == attributes['type']
-        assert 'sample' in attributes and attributes['sample'] is not None
+        assert expected_types[feature] == attributes["type"]
+        assert "sample" in attributes and attributes["sample"] is not None
 
 
 def test_infer_features_attributes_multiple_ID():
@@ -112,7 +113,7 @@ def test_infer_features_attributes_multiple_ID():
 
     for feature, attributes in features.items():
         print(feature)
-        assert expected_types[feature] == attributes['type']
+        assert expected_types[feature] == attributes["type"]
 
     assert features["ID"]["id_feature"] is True
     assert features["ID2"]["id_feature"] is True
@@ -130,8 +131,8 @@ def test_set_rate_delta_boundaries():
     time_feature_name = "date"
 
     # Test overwrite order 0
-    rate_boundaries = {"f3": {"min": {'0': 1234.5678, '1': 12345}, "max": {'0': 5678.1234}}}
-    delta_boundaries = {"date": {"min": {'0': 8765.4321}, "max": {'0': 4321.8765, '1': 54321}}}
+    rate_boundaries = {"f3": {"min": {"0": 1234.5678, "1": 12345}, "max": {"0": 5678.1234}}}
+    delta_boundaries = {"date": {"min": {"0": 8765.4321}, "max": {"0": 4321.8765, "1": 54321}}}
 
     features = infer_feature_attributes(
         df,
@@ -143,22 +144,22 @@ def test_set_rate_delta_boundaries():
     )
 
     # Make sure that order 0 was overwritten for rate/delta min & max
-    assert features['f3']['time_series']['rate_min'][0] == rate_boundaries['f3']['min']['0']
-    assert features['f3']['time_series']['rate_max'][0] == rate_boundaries['f3']['max']['0']
-    assert features['date']['time_series']['delta_min'][0] == delta_boundaries['date']['min']['0']
-    assert features['date']['time_series']['delta_max'][0] == delta_boundaries['date']['max']['0']
+    assert features["f3"]["time_series"]["rate_min"][0] == rate_boundaries["f3"]["min"]["0"]
+    assert features["f3"]["time_series"]["rate_max"][0] == rate_boundaries["f3"]["max"]["0"]
+    assert features["date"]["time_series"]["delta_min"][0] == delta_boundaries["date"]["min"]["0"]
+    assert features["date"]["time_series"]["delta_max"][0] == delta_boundaries["date"]["max"]["0"]
 
     # Make sure that order 1 was ignored
-    assert len(features['f3']['time_series']['rate_min']) == 1
-    assert len(features['f3']['time_series']['rate_max']) == 1
-    assert len(features['date']['time_series']['delta_min']) == 1
-    assert len(features['date']['time_series']['delta_max']) == 1
+    assert len(features["f3"]["time_series"]["rate_min"]) == 1
+    assert len(features["f3"]["time_series"]["rate_max"]) == 1
+    assert len(features["date"]["time_series"]["delta_min"]) == 1
+    assert len(features["date"]["time_series"]["delta_max"]) == 1
 
     # If a boundary type is mismatched, a warning should be raised and the value should be ignored
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        rate_boundaries = {"date": {"min": {'0': 1234.5678, '1': 12345}, "max": {'0': 5678.1234}}}
-        delta_boundaries = {"f3": {"min": {'0': 8765.4321}, "max": {'0': 4321.8765, '1': 54321}}}
+        warnings.simplefilter("ignore")
+        rate_boundaries = {"date": {"min": {"0": 1234.5678, "1": 12345}, "max": {"0": 5678.1234}}}
+        delta_boundaries = {"f3": {"min": {"0": 8765.4321}, "max": {"0": 4321.8765, "1": 54321}}}
         features = infer_feature_attributes(
             df,
             time_feature_name=time_feature_name,
@@ -167,10 +168,10 @@ def test_set_rate_delta_boundaries():
             rate_boundaries=rate_boundaries,
             delta_boundaries=delta_boundaries,
         )
-        assert 'rate_min' not in features['date']['time_series']
-        assert 'rate_max' not in features['date']['time_series']
-        assert 'delta_min' not in features['f3']['time_series']
-        assert 'delta_max' not in features['f3']['time_series']
+        assert "rate_min" not in features["date"]["time_series"]
+        assert "rate_max" not in features["date"]["time_series"]
+        assert "delta_min" not in features["f3"]["time_series"]
+        assert "delta_max" not in features["f3"]["time_series"]
 
 
 @pytest.mark.parametrize(
@@ -199,7 +200,7 @@ def test_time_feature_is_universal(universal_value, expected):
         time_feature_is_universal=universal_value,
     )
 
-    assert features[time_feature_name]['time_series'].get("universal") == expected
+    assert features[time_feature_name]["time_series"].get("universal") == expected
 
 
 def test_infer_features_attributes_tight_bounds_dependent_functionality():
@@ -236,26 +237,25 @@ def test_invalid_time_feature_format():
     df = pd.read_csv(example_timeseries_path)
     time_feature_name = "date"
 
-    with pytest.raises(ValueError, match="does not match the data"):
-        with warnings.catch_warnings():
-            # warnings are expected
-            warnings.filterwarnings("ignore")
-            infer_feature_attributes(
-                df,
-                time_feature_name=time_feature_name,
-                id_feature_name="ID",
-                datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"}  # invalid format
-            )
+    with pytest.raises(ValueError, match="does not match the data"), warnings.catch_warnings():
+        # warnings are expected
+        warnings.filterwarnings("ignore")
+        infer_feature_attributes(
+            df,
+            time_feature_name=time_feature_name,
+            id_feature_name="ID",
+            datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"}  # invalid format
+        )
 
 
-@pytest.mark.parametrize('data, types, expected_types, is_valid', [
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(b='continuous'), dict(b='continuous'),
+@pytest.mark.parametrize("data, types, expected_types, is_valid", [
+    (pd.DataFrame({"a": [0, 1, 2, 3, 4, 5], "b": [3, 4, 5, 6, 7, 8]}), dict(b="continuous"), dict(b="continuous"),
      True),
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5], 'b': [3, 4, 5, 6, 7, 8]}), dict(a='nominal'), dict(a='continuous'), True),
-    (pd.DataFrame({'a': [0, 1, 2, 3, 4, 5, 6, 7], 'b': [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b='nominal'),
-     dict(b='nominal'), True),
-    (pd.DataFrame({'a': [True, False, False, True], 'b': [False, True, False, True]}), dict(b='continuous'),
-     dict(b='nominal'), True),
+    (pd.DataFrame({"a": [0, 1, 2, 3, 4, 5], "b": [3, 4, 5, 6, 7, 8]}), dict(a="nominal"), dict(a="continuous"), True),
+    (pd.DataFrame({"a": [0, 1, 2, 3, 4, 5, 6, 7], "b": [3, 4, 5, 6, 7, 8, 9, 1]}), dict(b="nominal"),
+     dict(b="nominal"), True),
+    (pd.DataFrame({"a": [True, False, False, True], "b": [False, True, False, True]}), dict(b="continuous"),
+     dict(b="nominal"), True),
 ])
 def test_preset_feature_types(data, types, expected_types, is_valid):
     """Test that infer_feature_attributes correctly presets feature types with the `types` parameter."""
@@ -263,12 +263,12 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if is_valid:
-            features = infer_feature_attributes(data, types=types, time_feature_name='a')
+            features = infer_feature_attributes(data, types=types, time_feature_name="a")
             for feature_name, expected_type in expected_types.items():
                 # Make sure it is the correct type
-                assert features[feature_name]['type'] == expected_type
+                assert features[feature_name]["type"] == expected_type
                 # All features in this test, including nominals, should have bounds (at the very least: `allow_null`)
-                assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
+                assert "allow_null" in features[feature_name].get("bounds", {}).keys()
         else:
             with pytest.raises(ValueError):
                 infer_feature_attributes(data, types=types)
@@ -285,7 +285,7 @@ def test_lags():
 
     # Ensure that an invalid lags value raises a helpful TypeError
     with pytest.raises(TypeError):
-        fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags={"date": '0'})
+        fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags={"date": "0"})
 
 
 def test_nominal_vs_continuous_detection():
@@ -453,10 +453,10 @@ def test_nominals_are_ignored_in_ifa_for_ts():
 
     # Are there any bad nominals? (the ID feature does not count)
     # Test that a "time_series" key exists, but that it does not contain a "type".
-    nominals = set(features.get_names(types=["nominals"])) - {"SERIES", }
+    nominals = set(features.get_names(types=["nominals"])) - {"SERIES" }
     bad_nominals = [
         feature for feature in nominals
-        if feature != "SERIES" and "time_series" not in features[feature] or "type" in features[feature]["time_series"]
+        if (feature != "SERIES" and "time_series" not in features[feature]) or "type" in features[feature]["time_series"]
     ]
     print(", ".join(bad_nominals))
     assert bool(bad_nominals) is False
@@ -502,3 +502,75 @@ def test_infer_time_invariant_features():
     # 4. Verify time invariant features are correct, others use defaults
     assert "time_series" not in features["gender"]
     assert "time_series" not in features["country"]
+
+
+def test_enable_suggestions_false_time_series():
+    """enable_suggestions=False suppresses suggestion computation on the time series path."""
+    df = pd.read_csv(example_timeseries_path)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(
+            df,
+            time_feature_name="date",
+            id_feature_name="ID",
+            datetime_feature_formats={"date": "%Y%m%d"},
+            default_time_zone="UTC",
+            enable_suggestions=False,
+        )
+
+    assert isinstance(features.suggestions, IFASuggestionCollector)
+    assert len(features.suggestions.suggestions) == 0
+
+
+def test_time_series_suggestions_collector_is_attached():
+    """The time series IFA path must attach an IFASuggestionCollector to the result."""
+    df = pd.read_csv(example_timeseries_path)
+    features = infer_feature_attributes(
+        df,
+        time_feature_name="date",
+        id_feature_name="ID",
+        datetime_feature_formats={"date": "%Y%m%d"},
+    )
+    # Before the fix, features.suggestions returned the fallback string.
+    assert isinstance(features.suggestions, IFASuggestionCollector)
+
+
+def test_time_series_fanout_suggestions():
+    """Fanout suggestions are accessible and applicable on the time series IFA path."""
+    rng = np.random.default_rng(42)
+    n_products, n_series_per_product, n_steps = 4, 5, 20
+
+    rows = []
+    for pid in range(n_products):
+        for sid in range(n_series_per_product):
+            for t in range(n_steps):
+                rows.append({
+                    "series_id": f"s{pid}_{sid}",
+                    "date": pd.Timestamp("2020-01-01") + pd.Timedelta(days=t),
+                    "product_id": f"prod_{pid}",
+                    "product_category": f"cat_{pid}",  # always same per product_id
+                    "product_size": float(pid * 10),    # always same per product_id
+                    "value": float(rng.normal(100.0, 10.0)),
+                })
+    df = pd.DataFrame(rows)
+
+    with pytest.warns(UserWarning, match="You have one or more suggestions"):
+        features = infer_feature_attributes(
+            df,
+            time_feature_name="date",
+            id_feature_name="series_id",
+        )
+
+    assert isinstance(features.suggestions, IFASuggestionCollector)
+    assert "fanout_features" in features.suggestions.suggestions
+
+    fof_map = features.suggestions.fanout_features.get_fanout_feature_map()
+    assert len(fof_map) > 0
+
+    # Applying the suggestion should write fanout_on to the affected features.
+    features.apply_suggestion("fanout_features")
+    fanout_on_values = [
+        v for f in features.values()
+        for v in f.get("fanout_on", [])
+    ]
+    assert len(fanout_on_values) > 0

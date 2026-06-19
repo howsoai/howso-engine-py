@@ -19,6 +19,8 @@ from .abstract_data import InferFeatureAttributesAbstractData
 from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
 from .pandas import InferFeatureAttributesDataFrame
 from .protocols import IFACompatibleADCProtocol
+from .suggestions import IFASuggestionCollector
+from .warnings import IFAWarningCollector
 from ..utilities import (
     date_to_epoch,
     is_valid_datetime_format,
@@ -298,8 +300,9 @@ class InferFeatureAttributesTimeSeries(ABC):
         """Instantiate this InferFeatureAttributesTimeSeries object."""
         self.data = data
         self.time_feature_name = time_feature_name
-        # Keep track of features that contain unsupported data
         self.unsupported = []
+        self.warnings_collector = IFAWarningCollector()
+        self.suggestions_collector = IFASuggestionCollector()
 
     def _set_rate_delta_bounds(self, btype: str, bounds: dict, features: dict) -> None:
         """Set optimally-specified rate/delta bounds in the features dict."""
@@ -336,6 +339,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         delta_boundaries: t.Optional[dict] = None,
         dependent_features: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
+        enable_suggestions: bool = True,
         fanout_feature_map: t.Optional[dict[str | tuple[str], list[str]]] = None,
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         include_extended_nominal_probabilities: t.Optional[bool] = False,
@@ -678,6 +682,7 @@ class InferFeatureAttributesTimeSeries(ABC):
             datetime_feature_formats=datetime_feature_formats,
             default_time_zone=default_time_zone,
             dependent_features=dependent_features,
+            enable_suggestions=enable_suggestions,
             fanout_feature_map=fanout_feature_map,
             id_feature_name=id_feature_name,
             include_extended_nominal_probabilities=include_extended_nominal_probabilities,
@@ -695,6 +700,11 @@ class InferFeatureAttributesTimeSeries(ABC):
 
         # Add any features with unsupported data to this object's list
         self.unsupported.extend(features.unsupported)
+
+        # Propagate suggestions from the inner IFA call
+        if isinstance(features.suggestions, IFASuggestionCollector):
+            for suggestion in features.suggestions.suggestions.values():
+                self.suggestions_collector.append(suggestion)
 
         # Set all non time invariant features to be `time_series` features
         for f_name in features:
@@ -800,9 +810,14 @@ class InferFeatureAttributesTimeSeries(ABC):
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
         feature_attributes = self._process(**kwargs)
+        self.warnings_collector.emit_all()
         # Put the time_feature_name back into the kwargs dictionary.
         kwargs["time_feature_name"] = self.time_feature_name
-        return SingleTableFeatureAttributes(feature_attributes, params=kwargs, unsupported=self.unsupported)
+        return SingleTableFeatureAttributes(
+            feature_attributes, params=kwargs,
+            unsupported=self.unsupported,
+            suggestions_collector=self.suggestions_collector,
+        )
 
     @abstractmethod
     def _is_null_column(self, feature_name: str) -> bool:
