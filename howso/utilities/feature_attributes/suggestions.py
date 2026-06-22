@@ -206,17 +206,6 @@ class FanoutFeaturesSuggestion(IFASuggestion):
 class PRVSuggestion(IFASuggestion):
     """A suggestion to configure preservation for rare values."""
 
-    _MAX_DISTILLED_CASES_WARNING = (
-        "Suggested rare values configuration will be applied, but the computed case weight "
-        "multipliers are likely inaccurate as `max_distilled_cases` was not provided to "
-        "`infer_feature_attributes`. Please provide this parameter or be aware that the case "
-        "weight multipliers were computed based on a default `max_distilled_cases` value of 25,000. "
-        "An accurate max_distilled_cases enables Howso to correctly weight the influence of rare "
-        "values in the data, since the weighting is calibrated proportionally to the number of cases "
-        "remaining after distillation. An inaccurate value may result in rare values being "
-        "under-weighted or over-weighted, thus this suggestion was not applied."
-    )
-
     def __init__(self, prvc: FullPreserveRareValuesConfig, values_ranking: Sequence[Mapping[str, Any]],
                  user_set_max_distilled_cases: bool) -> None:
         """
@@ -234,10 +223,6 @@ class PRVSuggestion(IFASuggestion):
         self._prvc = prvc
         self._ranking = values_ranking
         self._user_set_mdc = user_set_max_distilled_cases
-
-    def _warn_if_max_distilled_cases_not_set(self) -> None:
-        if not self._user_set_mdc:
-            warnings.warn(self._MAX_DISTILLED_CASES_WARNING, UserWarning, stacklevel=3)
 
     def __repr__(self) -> str:
         """Print a helpful description of this IFASuggestion."""
@@ -332,19 +317,53 @@ class PRVSuggestion(IFASuggestion):
 
     def apply(self, attributes: dict) -> None:
         """Apply the computed rare values preservation config to the FeatureAttributesBase object."""
-        self._warn_if_max_distilled_cases_not_set()
+        if not self._user_set_mdc:
+            warnings.warn(
+                "The computed case weights for Rare values multipliers  are likely inaccurate as "
+                "`max_distilled_cases` was not provided to `infer_feature_attributes`. Please provide "
+                "this parameter or be aware that the case weight multipliers were computed based on a "
+                "default `max_distilled_cases` value of 25,000. "
+                "An accurate max_distilled_cases enables Howso to correctly weight the influence of rare "
+                "values in the data, since the weighting is calibrated proportionally to the number of cases "
+                "remaining after distillation. Since an inaccurate value may result in rare values being "
+                "under-weighted or over-weighted, this suggestion was not applied.",
+                UserWarning,
+                stacklevel=3,
+            )
         if self._user_set_mdc:
             for feature, config in self._prvc.items():
                 attributes[feature]["preserve_rare_values"] = config
 
     def get_config(self) -> FullPreserveRareValuesConfig:
         """Get the `preserve_rare_values_config` for use in future calls to `infer_feature_attributes`."""
-        self._warn_if_max_distilled_cases_not_set()
+        if not self._user_set_mdc:
+            warnings.warn(
+                "The computed case weights for Rare values multipliers  are likely inaccurate as "
+                "`max_distilled_cases` was not provided to `infer_feature_attributes`. Please provide "
+                "this parameter or be aware that the case weight multipliers were computed based on a "
+                "default `max_distilled_cases` value of 25,000. "
+                "An accurate max_distilled_cases enables Howso to correctly weight the influence of rare "
+                "values in the data, since the weighting is calibrated proportionally to the number of cases "
+                "remaining after distillation.",
+                UserWarning,
+                stacklevel=3,
+            )
         return self._prvc
 
     def get_values_map(self) -> PreserveRareValuesMap:
         """Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes."""
-        self._warn_if_max_distilled_cases_not_set()
+        if not self._user_set_mdc:
+            warnings.warn(
+                "The computed case weights for Rare values multipliers  are likely inaccurate as "
+                "`max_distilled_cases` was not provided to `infer_feature_attributes`. Please provide "
+                "this parameter or be aware that the case weight multipliers were computed based on a "
+                "default `max_distilled_cases` value of 25,000. "
+                "An accurate max_distilled_cases enables Howso to correctly weight the influence of rare "
+                "values in the data, since the weighting is calibrated proportionally to the number of cases "
+                "remaining after distillation.",
+                UserWarning,
+                stacklevel=3,
+            )
         values_map = {}
         for feature, config in self._prvc.items():
             multipliers = cast(list[dict[str, Any]], config["protected_values_multipliers"])
