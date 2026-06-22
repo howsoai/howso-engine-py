@@ -4202,6 +4202,7 @@ class AbstractHowsoClient(ABC):
         new_cases: t.Optional[TabularData3D] = None,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
+        residual_contributions: bool = False,
         similarity_conviction: bool = False,
         weight_feature: t.Optional[str] = None,
         use_case_weights: t.Optional[bool] = None,
@@ -4291,6 +4292,8 @@ class AbstractHowsoClient(ABC):
             If true will output p value of addition.
         p_value_of_removal : bool, default False
             If true will output p value of removal.
+        residual_contributions : bool, default False
+            Calculate and output mean residual contribution for each group's cases.
         similarity_conviction : bool, default False
             If true will output the mean similarity conviction of the group's
             cases.
@@ -4334,6 +4337,7 @@ class AbstractHowsoClient(ABC):
             "case_indices": case_indices,
             "details": details,
             "distance_contributions": distance_contributions,
+            "residual_contributions": residual_contributions,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
             "kl_divergence_addition": kl_divergence_addition,
