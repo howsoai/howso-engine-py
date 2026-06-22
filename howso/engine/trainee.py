@@ -3172,6 +3172,7 @@ class Trainee(BaseTrainee):
         new_cases: t.Optional[TabularData3D] = None,
         p_value_of_addition: bool = False,
         p_value_of_removal: bool = False,
+        residual_contributions: bool = False,
         similarity_conviction: bool = False,
         use_case_weights: t.Optional[bool] = None,
         features: t.Optional[Collection[str]] = None,
@@ -3267,6 +3268,8 @@ class Trainee(BaseTrainee):
             If true will output :math:`p` value of addition.
         p_value_of_removal : bool, default False
             If true will output :math:`p` value of removal.
+        residual_contributions : bool, default False
+            Calculate and output mean residual contribution for each group's cases.
         similarity_conviction : bool, default False
             If true will output the mean similarity conviction of the group's
             cases.
@@ -3300,6 +3303,7 @@ class Trainee(BaseTrainee):
                 p_value_of_removal=p_value_of_removal,
                 similarity_conviction=similarity_conviction,
                 distance_contributions=distance_contributions,
+                residual_contributions=residual_contributions,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
             )
