@@ -501,6 +501,19 @@ class _StreamingFanoutInferrer:
             codes[c] = arr.astype(np.int64, copy=False)
             card[c] = len(uniq)
 
+        # Drop globally-constant columns (cardinality <= 1). A constant column
+        # carries no fanout signal as it is functionally determined by every other
+        # key. Left in, it attaches to every key's fanout set, manufacturing
+        # spurious sibling levels that share only the constants and so violate the
+        # strict-subset-chain assumption (and emit a misleading "strict-tree"
+        # warning). Excluding them here keeps the fanout analysis to columns that
+        # actually fan out.
+        constant_cols: set[str] = {c for c in all_cols if card[c] <= 1}
+        if constant_cols:
+            nominal_cols = [c for c in nominal_cols if c not in constant_cols]
+            continuous_cols = [c for c in continuous_cols if c not in constant_cols]
+            all_cols = [c for c in all_cols if c not in constant_cols]
+
         sample: np.ndarray = (
             rng.choice(n, sample_size, replace=False)
             if n > sample_size

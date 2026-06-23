@@ -38,6 +38,20 @@ except ImportError:
 stock_path = Path(cwd, "utilities", "tests", "data", "mini_stock_data.csv")
 ts_path = Path(cwd, "utilities", "tests", "data", "example_timeseries.csv")
 
+# Frame with two independent nominal keys, a continuous column, and a
+# globally-constant column. A constant column is functionally determined by
+# every key, so before the fan-out fix it attached to every key's fan-out set,
+# producing sibling levels that tripped the "strict-tree" warning and wrongly
+# listed the constant as a fan-out feature. Used by the constant-column
+# regression tests in both the Pandas and ADC suites.
+_FANOUT_CONSTANT_ROWS = 240
+fanout_constant_df = pd.DataFrame({
+    "key_a": [f"a{i % 5}" for i in range(_FANOUT_CONSTANT_ROWS)],
+    "key_b": [f"b{i % 8}" for i in range(_FANOUT_CONSTANT_ROWS)],
+    "measure": [i * 0.1 for i in range(_FANOUT_CONSTANT_ROWS)],
+    "const_col": ["CONSTANT"] * _FANOUT_CONSTANT_ROWS,
+})
+
 # Partially defined dictionary-1
 features_1 = {
     "sepal_length": {
@@ -1298,6 +1312,34 @@ def test_infer_fanout_features():
     features = infer_feature_attributes(joined_olist_df, fanout_feature_map=fof_map, max_workers=2, default_time_zone="UTC")
     assert "customer_id" in features["customer_state"].get("fanout_on", [])
     assert "product_id" in features["product_length_cm"].get("fanout_on", [])
+
+
+def test_infer_fanout_features_ignores_constant_columns():
+    """Globally-constant columns must not produce fan-out levels or trip the strict-tree warning.
+
+    A constant column is functionally determined by every key, so prior to the
+    fix it attached to every key's fan-out set -- manufacturing sibling levels
+    that violate the strict-subset-chain assumption (emitting a misleading
+    "strict-tree" warning) and listing the constant itself as a fan-out feature.
+    """
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        features = infer_feature_attributes(fanout_constant_df)
+
+    strict_tree = [w for w in record if "strict" in str(w.message).lower()]
+    assert not strict_tree, (
+        f"unexpected strict-tree warning(s): {[str(w.message) for w in strict_tree]}"
+    )
+
+    # The constant column must never be configured as a fan-out feature.
+    fof_map = features.suggestions.fanout_features.get_fanout_feature_map()
+    assert "const_col" not in fof_map
+    assert all("const_col" not in cols for cols in fof_map.values())
+
+    features.apply_suggestion("fanout_features")
+    assert "fanout_on" not in features["const_col"]
+    for feat in fanout_constant_df.columns:
+        assert "const_col" not in features[feat].get("fanout_on", [])
 
 
 def test_enable_suggestions_false():
