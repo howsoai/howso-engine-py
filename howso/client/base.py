@@ -22,6 +22,7 @@ import warnings
 
 import numpy as np
 from pandas import DataFrame
+from scipy.sparse import csr_matrix
 
 from howso.utilities import internals
 from howso.utilities import utilities as util
@@ -5640,7 +5641,8 @@ class AbstractHowsoClient(ABC):
         *,
         action_feature: t.Optional[str] = None,
         case_indices: t.Optional[CaseIndices] = None,
-        feature_values: t.Optional[Collection[t.Any] | DataFrame] = None,
+        num_nearest_neighbors: int = 20,
+        sparse: bool = True,
         use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None
     ) -> Distances:
@@ -5670,10 +5672,13 @@ class AbstractHowsoClient(ABC):
             session. If specified, returns distances for all of these
             cases. Ignored if `feature_values` is provided. If neither
             `feature_values` nor `case_indices` is specified, uses full dataset.
-        feature_values : Collection of object or DataFrame, optional
-            If specified, returns distances of the local model relative to
-            these values, ignores `case_indices` parameter. If provided a
-            DataFrame, only the first row will be used.
+        num_nearest_neighbors : int, default 20
+            The number of nearest neighbors to compute distances of for each case when returning sparse distance
+            matrices. If ``sparse`` is False, then this parameter is ignored.
+        sparse : bool, default True
+            If true, then the returned distance matrix is sparse and only filled in with the ``num_nearest_neighbors``
+            distances for the closest cases for each row. If false, the full distance matrix is returned for all
+            specified cases (or all cases if no cases are specified.)
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
@@ -5700,24 +5705,6 @@ class AbstractHowsoClient(ABC):
         if case_indices is not None:
             util.validate_case_indices(case_indices)
 
-        if feature_values is not None:
-            if (
-                isinstance(feature_values, Iterable)
-                and len(np.array(feature_values).shape) == 1
-                and len(feature_values) > 0
-            ):
-                # Convert 1d list to 2d list for serialization
-                feature_values = [feature_values]
-
-            if features is None:
-                features = internals.get_features_from_data(feature_values, data_parameter='feature_values')
-            feature_values = serialize_cases(feature_values, features, feature_attributes, tokenizer=self._tokenizer)
-            if feature_values:
-                # Only a single case should be provided
-                feature_values = feature_values[0]
-            # Ignored when feature_values specified
-            case_indices = None
-
         if case_indices is not None and len(case_indices) < 2:
             raise ValueError("If providing `case_indices`, must provide at "
                              "least 2 cases for computation.")
@@ -5725,9 +5712,7 @@ class AbstractHowsoClient(ABC):
         if self.configuration.verbose:
             print(f'Getting distances between cases for Trainee with id: {trainee_id}')
 
-        preallocate = True  # If matrix should be preallocated in memory
         matrix_ndarray = None  # Used when preallocating
-        matrix_list = []  # Used if we cannot preallocate
         page_size = 2000
         indices = []
         total_rows = 0
@@ -5738,43 +5723,73 @@ class AbstractHowsoClient(ABC):
             "get_distances. Rerunning this operation may resolve this error."
         )
 
-        if feature_values is not None:
-            # When specifying feature values, only distances closest to this
-            # case will be returned. The largest matrix size that could be
-            # expected is 144x144, so we can request the entire matrix at once.
-            # Set num_cases to 1 so we only page once.
-            num_cases = 1
-            preallocate = False  # won't know the actual size beforehand
-        elif case_indices is not None:
+        if case_indices is not None:
             num_cases = len(case_indices)
         else:
             num_cases = self.get_num_training_cases(trainee_id)
 
-        # Preallocate matrix (This will raise a numpy MemoryError if too large)
-        if preallocate:
-            matrix_ndarray = np.zeros((num_cases, num_cases), dtype='float64')
+        if sparse:
 
-        for row_offset in range(0, num_cases, page_size):
-            for column_offset in range(0, num_cases, page_size):
+            # Data structs to accumulate for sparse representation
+            total = num_cases * num_nearest_neighbors
+            rows = np.arange(num_cases, dtype=np.int32).repeat(num_nearest_neighbors)
+            cols = np.empty(total, dtype=np.int32)
+            vals = np.empty(total, dtype=np.float32)
+
+            for row_offset in range(0, num_cases, page_size):
                 result = self.execute(trainee_id, "get_distances", {
                     "features": features,
                     "action_feature": action_feature,
                     "case_indices": case_indices,
-                    "feature_values": feature_values,
                     "weight_feature": weight_feature,
                     "use_case_weights": use_case_weights,
                     "row_offset": row_offset,
                     "row_count": page_size,
-                    "column_offset": column_offset,
-                    "column_count": page_size,
+                    "sparse": True,
+                    "num_nearest_neighbors": num_nearest_neighbors
                 })
 
-                column_case_indices = result['column_case_indices']
+                column_indices = result['column_numeric_indices']
                 row_case_indices = result['row_case_indices']
                 distances = result['distances']
 
-                if preallocate and matrix_ndarray is not None:
-                    # Fill in allocated matrix
+                indices += row_case_indices
+                try:
+                    for batch_row, (col_idxs, col_dists) in enumerate(zip(column_indices, distances)):
+                        start_idx = row_offset * num_nearest_neighbors + batch_row * num_nearest_neighbors
+                        cols[start_idx: start_idx+num_nearest_neighbors] = col_idxs
+                        vals[start_idx: start_idx+num_nearest_neighbors] = col_dists
+                except ValueError as err:
+                    # Unexpected shape when populating array
+                    raise HowsoError(mismatch_msg) from err
+
+            sparse_dists = csr_matrix((vals, (rows, cols)), shape=(num_cases, num_cases))
+            total_cols, total_rows = sparse_dists.shape
+            out_df = DataFrame.sparse.from_spmatrix(sparse_dists)
+        else:
+            # sparse = False
+            # Preallocate matrix (This will raise a numpy MemoryError if too large)
+            matrix_ndarray = np.zeros((num_cases, num_cases), dtype='float64')
+
+            for row_offset in range(0, num_cases, page_size):
+                for column_offset in range(0, num_cases, page_size):
+                    result = self.execute(trainee_id, "get_distances", {
+                        "features": features,
+                        "action_feature": action_feature,
+                        "case_indices": case_indices,
+                        "weight_feature": weight_feature,
+                        "use_case_weights": use_case_weights,
+                        "row_offset": row_offset,
+                        "row_count": page_size,
+                        "column_offset": column_offset,
+                        "column_count": page_size,
+                        "sparse": False,
+                    })
+
+                    column_case_indices = result['column_case_indices']
+                    row_case_indices = result['row_case_indices']
+                    distances = result['distances']
+
                     try:
                         matrix_ndarray[
                             row_offset:row_offset + len(row_case_indices),
@@ -5783,47 +5798,26 @@ class AbstractHowsoClient(ABC):
                     except ValueError as err:
                         # Unexpected shape when populating array
                         raise HowsoError(mismatch_msg) from err
-                else:
+
                     if column_offset == 0:
-                        # Append new rows
-                        matrix_list += distances
-                    else:
-                        # Extend existing columns
-                        try:
-                            for i, cols in enumerate(distances):
-                                matrix_list[row_offset + i].extend(cols)
-                        except (AttributeError, IndexError):
-                            # Unexpected shape when populating array
-                            raise HowsoError(mismatch_msg)
+                        total_rows += len(row_case_indices)
+                    if row_offset == 0:
+                        total_cols += len(column_case_indices)
+                        # Collect the axis indices. Both axis will be the same,
+                        # so we only need to collect them the first time we page
+                        # through the columns when row offset is 0.
+                        indices += column_case_indices
 
-                if column_offset == 0:
-                    total_rows += len(row_case_indices)
-                if row_offset == 0:
-                    total_cols += len(column_case_indices)
-                    # Collect the axis indices. Both axis will be the same,
-                    # so we only need to collect them the first time we page
-                    # through the columns when row offset is 0.
-                    indices += column_case_indices
-
-        if preallocate:
-            if total_cols != num_cases or total_rows != num_cases:
-                # Received unexpected number of distances
-                raise HowsoError(mismatch_msg)
             distances_matrix = matrix_ndarray if matrix_ndarray is not None else np.ndarray(0, dtype="float64")
-        else:
-            if matrix_list:
-                # Validate matrix shape
-                if (
-                    total_cols != total_rows or
-                    not all(len(r) == total_cols for r in matrix_list)
-                ):
-                    raise HowsoError(mismatch_msg)
-            # Convert matrix to numpy array
-            distances_matrix = np.array(matrix_list, dtype='float64')
+            out_df = internals.deserialize_to_dataframe(distances_matrix)
+
+        if total_cols != num_cases or total_rows != num_cases:
+            # Received unexpected number of distances
+            raise HowsoError(mismatch_msg)
 
         return {
             'case_indices': indices,
-            'distances': internals.deserialize_to_dataframe(distances_matrix)
+            'distances': out_df # Could be sparse or not sparse
         }
 
     def get_params(
