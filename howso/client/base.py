@@ -5764,7 +5764,7 @@ class AbstractHowsoClient(ABC):
                     raise HowsoError(mismatch_msg) from err
 
             sparse_dists = csr_matrix((vals, (rows, cols)), shape=(num_cases, num_cases))
-            total_cols, total_rows = sparse_dists.shape
+            total_rows, total_cols = sparse_dists.shape
             out_df = DataFrame.sparse.from_spmatrix(sparse_dists)
         else:
             # sparse = False
