@@ -62,10 +62,11 @@ dev = [
     "pipdeptree",
     "pycodestyle",
     "pylint",
-    "pytest<8.0",
+    "pytest<10.0",
     "pytest-cov",
     "pytest-xdist",
     "pytest-mock~=1.0,<1.14.0",
+    "ruff~=0.11.0",
 ]
 no-telemetry = [
         "howso-engine-no-telemetry",

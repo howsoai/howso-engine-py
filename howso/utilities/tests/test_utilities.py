@@ -10,6 +10,7 @@ import pandas as pd
 from pandas.testing import assert_frame_equal
 import pytest
 
+import howso.utilities as utils
 from howso.utilities import (
     format_confusion_matrix,
     get_hash,
@@ -18,9 +19,7 @@ from howso.utilities import (
     LocaleOverride,
     matrix_processing,
 )
-import howso.utilities as utils
-
-from . import has_locales
+from howso.utilities.tests import has_locales
 
 
 @pytest.mark.skipif(

@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 
 from howso.client.exceptions import DatetimeFormatWarning
+from howso.client.tests import NOMINAL_SUBSTITUTION_AVAILABLE
 from howso.utilities import infer_feature_attributes
-from . import NOMINAL_SUBSTITUTION_AVAILABLE
 
 
 class TestInferFeatureAttributes:
