@@ -5,12 +5,16 @@ import typing as t
 
 import pandas as pd
 
-from .abstract_data import InferFeatureAttributesAbstractData
-from .base import FeatureAttributesBase
-from .pandas import InferFeatureAttributesDataFrame
-from .protocols import IFACompatibleADCProtocol, SQLRelationalDatastoreProtocol, TableNameProtocol
-from .relational import InferFeatureAttributesSQLDatastore
-from .time_series import IFATimeSeriesADC, IFATimeSeriesPandas
+from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
+from howso.utilities.feature_attributes.base import FeatureAttributesBase
+from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
+from howso.utilities.feature_attributes.protocols import (
+    IFACompatibleADCProtocol,
+    SQLRelationalDatastoreProtocol,
+    TableNameProtocol,
+)
+from howso.utilities.feature_attributes.relational import InferFeatureAttributesSQLDatastore
+from howso.utilities.feature_attributes.time_series import IFATimeSeriesADC, IFATimeSeriesPandas
 
 
 def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQLRelationalDatastoreProtocol, *,

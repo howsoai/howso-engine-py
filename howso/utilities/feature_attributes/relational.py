@@ -9,22 +9,26 @@ import logging
 from math import ceil, isnan, log
 import re
 import typing as t
-from typing_extensions import override
 import warnings
 
 import numpy as np
 import pandas as pd
 from pandas.core.dtypes.common import is_float_dtype
+from typing_extensions import override
 
-from .base import InferFeatureAttributesBase, MultiTableFeatureAttributes, SingleTableFeatureAttributes
-from .protocols import (
+from howso.utilities.feature_attributes.base import (
+    InferFeatureAttributesBase,
+    MultiTableFeatureAttributes,
+    SingleTableFeatureAttributes,
+)
+from howso.utilities.feature_attributes.protocols import (
     SessionProtocol,
     SQLRelationalDatastoreProtocol,
     SQLTableProtocol,
     TableNameProtocol,
 )
-from ..features import FeatureType
-from ..utilities import (
+from howso.utilities.features import FeatureType
+from howso.utilities.utilities import (
     date_to_epoch,
     determine_iso_format,
     epoch_to_date,

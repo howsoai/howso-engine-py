@@ -18,12 +18,12 @@ import typing as t
 import uuid
 import warnings
 
+from amalgam.api import Amalgam
 import certifi
 from packaging.version import parse as parse_version
 import urllib3
 from urllib3.util import Retry, Timeout
 
-from amalgam.api import Amalgam
 from howso import utilities as util
 from howso.client import get_configuration_path
 from howso.client.api import DEFAULT_ENGINE_PATH
@@ -43,7 +43,7 @@ from howso.client.schemas import (
 from howso.client.typing import LibraryType, Persistence
 from howso.direct.schemas import CombineTraineesResult, DirectTrainee
 from howso.utilities import HowsoTokenizer, internals, TokenizerProtocol
-from ..utilities.random import get_random_seed
+from howso.utilities.random import get_random_seed
 
 # Client version
 CLIENT_VERSION = importlib.metadata.version('howso-engine')

@@ -7,7 +7,7 @@ from uuid import UUID
 
 from dateutil.parser import parse as dt_parse
 
-from .base import BaseSchema
+from howso.client.schemas.base import BaseSchema
 
 __all__ = [
     "Session",

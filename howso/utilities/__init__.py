@@ -1,29 +1,29 @@
 """This module contains various utilities for the Howso clients."""
-from .decorators import ConsoleFeedback
-from .fanout_features import infer_fanout_feature_config
-from .feature_attributes import infer_feature_attributes  # noqa: F401
-from .feature_attributes.base import (
+from howso.utilities.decorators import ConsoleFeedback
+from howso.utilities.fanout_features import infer_fanout_feature_config
+from howso.utilities.feature_attributes import infer_feature_attributes  # noqa: F401
+from howso.utilities.feature_attributes.base import (
     FeatureAttributesBase,
     MultiTableFeatureAttributes,
     SingleTableFeatureAttributes,
 )
-from .features import (  # noqa: F401
+from howso.utilities.features import (  # noqa: F401
     deserialize_cases,
     FeatureType,
     format_column,
     format_dataframe,
     serialize_cases,
 )
-from .monitors import (
+from howso.utilities.monitors import (
     FrozenTimer,
     ProgressTimer,
     Timer,
 )
-from .tokenizing import (
+from howso.utilities.tokenizing import (
     HowsoTokenizer,
     TokenizerProtocol,
 )
-from .utilities import (  # noqa: F401
+from howso.utilities.utilities import (  # noqa: F401
     align_data,
     build_react_series_df,
     check_feature_names,

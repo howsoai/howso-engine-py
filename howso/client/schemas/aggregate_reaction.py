@@ -1,11 +1,11 @@
-from collections.abc import Mapping, Iterator
+from collections.abc import Iterator, Mapping
 from copy import deepcopy
 from pprint import pformat
 from typing import Any, Literal, overload, TypeAlias, TypeVar
 
 import pandas as pd
 
-from ..typing import ConfusionMatrix
+from howso.client.typing import ConfusionMatrix
 
 __all__ = [
     "AggregateReaction"

@@ -6,7 +6,7 @@ Notice: These are internal utilities and are not intended to be
 """
 from __future__ import annotations
 
-from collections import OrderedDict, deque
+from collections import deque, OrderedDict
 from collections.abc import Callable, Collection, Generator, Iterable, Mapping
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from copy import deepcopy
@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 from semantic_version import Version
 
-from .monitors import ProgressTimer
+from howso.utilities.monitors import ProgressTimer
 
 logger = logging.getLogger(__name__)
 

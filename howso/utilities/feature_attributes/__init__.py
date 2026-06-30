@@ -1,5 +1,5 @@
 """This module contains tools to infer feature attributes from a variety of data types."""
-from . import (
+from howso.utilities.feature_attributes import (
     abstract_data,
     base,
     pandas,
@@ -7,7 +7,7 @@ from . import (
     relational,
     time_series,
 )
-from .infer_feature_attributes import infer_feature_attributes
+from howso.utilities.feature_attributes.infer_feature_attributes import infer_feature_attributes
 
 __all__ = [
     "abstract_data",

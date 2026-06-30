@@ -15,13 +15,13 @@ import pandas as pd
 from pandas.core.dtypes.common import is_string_dtype
 import psutil
 
-from .abstract_data import InferFeatureAttributesAbstractData
-from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
-from .pandas import InferFeatureAttributesDataFrame
-from .protocols import IFACompatibleADCProtocol
-from .suggestions import IFASuggestionCollector
-from .warnings import IFAWarningCollector
-from ..utilities import (
+from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
+from howso.utilities.feature_attributes.base import InferFeatureAttributesBase, SingleTableFeatureAttributes
+from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
+from howso.utilities.feature_attributes.protocols import IFACompatibleADCProtocol
+from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
+from howso.utilities.feature_attributes.warnings import IFAWarningCollector
+from howso.utilities.utilities import (
     date_to_epoch,
     is_valid_datetime_format,
     lazy_map,

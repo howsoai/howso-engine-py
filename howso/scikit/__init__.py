@@ -7,7 +7,7 @@ except ImportError:
         "scikit-learn must be installed to use the howso.scikit module. Please run `pip install howso-engine[scikit]`"
     )
 
-from .scikit import (  # noqa: F401
+from howso.scikit.scikit import (  # noqa: F401
     ACTION,
     CLASSIFICATION,
     DEFAULT_TTL,
