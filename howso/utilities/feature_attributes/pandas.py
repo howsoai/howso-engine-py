@@ -967,6 +967,13 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     unique_vals.append(val)  # Keep original value
             return unique_vals
 
+    def _get_measurement_scale_values(self, feature_name: str, max_samples: int = 50_000) -> pd.Series | None:
+        """Return a numeric sample of the feature's values for measurement-scale inference."""
+        column = self.data[feature_name]
+        if len(column) > max_samples:
+            column = column.sample(n=max_samples, random_state=0)
+        return column
+
     def _get_row_count(self) -> int:
         """Get the total number of rows in the data."""
         return self.data.shape[0]

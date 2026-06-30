@@ -21,6 +21,7 @@ from typing_extensions import Self
 import yaml
 
 from howso.utilities.fanout_features import infer_fanout_feature_config
+from howso.utilities.feature_attributes.measurement_scale import infer_continuous_type
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
 from howso.utilities.feature_attributes.suggestions import (
     FanoutFeaturesMap,
@@ -60,6 +61,15 @@ WIN_DT_MAX = "6053-01-24"
 FeatureAttributesBaseType = t.TypeVar("FeatureAttributesBaseType", bound="FeatureAttributesBase")
 
 SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
+
+_PRESET_CONTINUOUS_TYPES = frozenset({"ratio", "interval"})
+
+
+def _attributes_for_preset_type(type_name: str) -> dict[str, str]:
+    """Map a user-provided type preset to feature attributes."""
+    if type_name in _PRESET_CONTINUOUS_TYPES:
+        return {"type": "continuous", "continuous_type": type_name}
+    return {"type": type_name}
 
 
 class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
@@ -810,7 +820,6 @@ class InferFeatureAttributesBase(ABC):
 
     warnings_collector: IFAWarningCollector = IFAWarningCollector()
     suggestions_collector: IFASuggestionCollector = IFASuggestionCollector()
-
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,
                  max_distilled_cases: int | None = None,
@@ -884,10 +893,10 @@ class InferFeatureAttributesBase(ABC):
                     for feat_name in v:
                         # The feature might not be present if this is executed under multiprocessing
                         if feat_name in self.data.columns:
-                            preset_types[feat_name] = {"type": k}
+                            preset_types[feat_name] = _attributes_for_preset_type(k)
                 # The feature might not be present if this is executed under multiprocessing
                 elif k in self.data.columns:
-                    preset_types[k] = {"type": v}
+                    preset_types[k] = _attributes_for_preset_type(v)
 
         # Make updates with the `merge` function
         merge = FeatureAttributesBase.merge
@@ -1177,6 +1186,9 @@ class InferFeatureAttributesBase(ABC):
         self._process_rare_values(preserve_rare_values_map, preserve_rare_values_config, max_distilled_cases,
                                   significance_threshold, enable_suggestions)
 
+        # Infer ratio vs. interval scale for eligible continuous numeric features.
+        self._apply_continuous_type()
+
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
         for fname in self.data.columns:
@@ -1189,6 +1201,42 @@ class InferFeatureAttributesBase(ABC):
             ordered_attributes[fname] = self.attributes[fname]
 
         return ordered_attributes
+
+    def _get_measurement_scale_values(self, feature_name: str) -> pd.Series | None:
+        """
+        Return a numeric sample of a feature's values for measurement-scale inference.
+
+        Subclasses override this to provide source-specific access to the raw
+        values. The default returns ``None``, which causes the feature to fall
+        back to ``interval``.
+        """
+        return None
+
+    def _apply_continuous_type(self) -> None:
+        """
+        Set ``continuous_type`` for each feature.
+
+        Eligible plain numeric continuous features receive ``"ratio"`` or
+        ``"interval"`` based on measurement-scale inference. All other features
+        receive ``NaN``.
+        """
+        for feature_name, attributes in self.attributes.items():
+            if attributes.get("continuous_type") in _PRESET_CONTINUOUS_TYPES:
+                continue
+
+            if (
+                attributes.get("type") == "continuous"
+                and attributes.get("data_type") == "number"
+                and "date_time_format" not in attributes
+                and feature_name in self.data.columns
+            ):
+                values = self._get_measurement_scale_values(feature_name)
+                if values is None or len(values) == 0:
+                    attributes["continuous_type"] = "interval"
+                else:
+                    attributes["continuous_type"] = infer_continuous_type(values)
+            else:
+                attributes["continuous_type"] = float("nan")
 
     @abstractmethod
     def __call__(self) -> FeatureAttributesBase:

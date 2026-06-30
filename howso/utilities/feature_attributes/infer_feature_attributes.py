@@ -325,17 +325,21 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
 
     types: dict, default None
         (Optional) Dict of features and their intended type (i.e., "nominal,"
-        "ordinal," or "continuous"), or types mapped to MutableSequences of
-        feature names. Any types provided here will override the types that would
-        otherwise be inferred, and will direct ``infer_feature_attributes`` to
-        compute the attributes accordingly.
+        "ordinal," "continuous," "ratio," or "interval"), or types mapped to
+        MutableSequences of feature names. Any types provided here will override
+        the types that would otherwise be inferred, and will direct
+        ``infer_feature_attributes`` to compute the attributes accordingly.
+        ``ratio`` and ``interval`` set ``type`` to ``continuous`` and assign
+        ``continuous_type`` to the provided value.
 
         Example::
 
             {
                 "feature_1": "nominal",
                 "feature_2": "ordinal",
-                "continuous": ["feature_3", "feature_4", "feature_5"]
+                "feature_3": "ratio",
+                "interval": ["feature_4", "feature_5"],
+                "continuous": ["feature_6", "feature_7"],
             }
 
     Returns

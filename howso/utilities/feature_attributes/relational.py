@@ -410,6 +410,19 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             )
         return set(distinct_values)
 
+    def _get_measurement_scale_values(self, feature_name: str, max_samples: int = 50_000) -> pd.Series | None:
+        """Return a numeric sample of the feature's values for measurement-scale inference."""
+        with session_scope(self.session_cls) as session:
+            rows = (
+                session.query(self.data.c[feature_name])
+                       .filter(self.data.c[feature_name].is_not(None))
+                       .limit(max_samples)
+                       .all()
+            )
+        if not rows:
+            return None
+        return pd.Series([self._value_to_number(row[0]) for row in rows])
+
     @classmethod
     def _value_to_number(cls, value: t.Any) -> t.Any:
         """Convert value to a number."""

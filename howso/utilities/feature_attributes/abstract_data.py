@@ -373,6 +373,15 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         """
         return self.data.get_random_value(feature_name, no_nulls=no_nulls, count=count)
 
+    def _get_measurement_scale_values(self, feature_name: str, max_samples: int = 50_000) -> pd.Series | None:
+        """Return a numeric sample of the feature's values for measurement-scale inference."""
+        row_count = self.data.get_row_count() or max_samples
+        samples = min(int(row_count), max_samples)
+        df = self._get_n_random_rows(samples=samples, seed=0)
+        if feature_name not in df.columns:
+            return None
+        return df[feature_name]
+
     def _get_unique_count(self, feature_name: str | Iterable[str]) -> int:
         """Get the number of unique values in the provided column(s)."""
         return self.data.get_unique_count(feature_name)  # pyright: ignore[reportAttributeAccessIssue]

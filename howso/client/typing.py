@@ -259,6 +259,14 @@ class FeatureAttributes(TypedDict):
     - ordinal: A nominal numeric value with ordering (e.g., rating scale, 1-5 stars)
     """
 
+    continuous_type: NotRequired[Literal["ratio", "interval"] | float]
+    """
+    Measurement scale for eligible continuous numeric features.
+
+    ``ratio`` or ``interval`` for plain numeric continuous features; ``NaN`` for
+    all other features.
+    """
+
     auto_derive_on_train: NotRequired[FeatureAutoDeriveOnTrain]
     """Configuration for auto deriving feature values based on the other values of the case or series."""
 
