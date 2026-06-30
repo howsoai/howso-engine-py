@@ -1,6 +1,6 @@
 import pytest
 
-from ..exceptions import HowsoApiError, HowsoApiValidationError, HowsoValidationError
+from howso.client.exceptions import HowsoApiError, HowsoApiValidationError, HowsoValidationError
 
 
 @pytest.mark.parametrize("collection, size", [

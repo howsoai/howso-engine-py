@@ -1,7 +1,8 @@
-import pytest
 import warnings
 
-from ..feature_flags import FeatureFlags
+import pytest
+
+from howso.client.feature_flags import FeatureFlags
 
 
 @pytest.mark.parametrize("flags, target, expected", [

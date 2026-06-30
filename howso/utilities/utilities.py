@@ -39,8 +39,8 @@ import mmh3
 import numpy as np
 import pandas as pd
 
-from .internals import serialize_models
-from .tokenizing import TokenizerProtocol
+from howso.utilities.internals import serialize_models
+from howso.utilities.tokenizing import TokenizerProtocol
 
 if TYPE_CHECKING:
     from howso.client.typing import NormalizeMethod

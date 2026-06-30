@@ -1,4 +1,4 @@
-from .client import (  # noqa: F401
+from howso.client.pandas.client import (  # noqa: F401
     HowsoPandasClient,
     HowsoPandasClientMixin,
 )

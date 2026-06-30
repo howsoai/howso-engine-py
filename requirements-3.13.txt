@@ -12,7 +12,7 @@ certifi==2026.6.17
     #   requests
 charset-normalizer==3.4.7
     # via requests
-click==8.4.1
+click==8.4.2
     # via sacremoses
 faker==40.23.0
     # via howso-engine (pyproject.toml)
@@ -48,7 +48,7 @@ pytz==2026.2
     # via pandas
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
-regex==2026.5.9
+regex==2026.6.28
     # via sacremoses
 requests==2.34.2
     # via howso-engine (pyproject.toml)

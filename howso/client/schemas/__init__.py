@@ -1,14 +1,20 @@
-from .aggregate_reaction import AggregateReaction
-from .base import BaseSchema
-from .group_reaction import GroupReaction
-from .project import Project, ProjectDict
-from .reaction import ReactDetails, Reaction
-from .session import Session, SessionDict
-from .trainee import (
-    ResourceLimit, Trainee, TraineeDict, TraineeRuntime, TraineeRuntimeOptions, TraineeScaling,
-    TraineeScalingResources, TraineeVersion
+from howso.client.schemas.aggregate_reaction import AggregateReaction
+from howso.client.schemas.base import BaseSchema
+from howso.client.schemas.group_reaction import GroupReaction
+from howso.client.schemas.project import Project, ProjectDict
+from howso.client.schemas.reaction import ReactDetails, Reaction
+from howso.client.schemas.session import Session, SessionDict
+from howso.client.schemas.trainee import (
+    ResourceLimit,
+    Trainee,
+    TraineeDict,
+    TraineeRuntime,
+    TraineeRuntimeOptions,
+    TraineeScaling,
+    TraineeScalingResources,
+    TraineeVersion,
 )
-from .version import HowsoVersion
+from howso.client.schemas.version import HowsoVersion
 
 __all__ = [
     'AggregateReaction',
