@@ -23,16 +23,13 @@ from pandas.core.dtypes.common import (
     is_unsigned_integer_dtype,
 )
 
+from howso.utilities.feature_attributes.base import InferFeatureAttributesBase, SingleTableFeatureAttributes
 from howso.utilities.feature_attributes.suggestions import (
     IFASuggestionCollector,
 )
-from .base import (
-    InferFeatureAttributesBase,
-    SingleTableFeatureAttributes
-)
-from .warnings import IFAWarningCollector, IFAWarningEmitterType
-from ..features import FeatureType
-from ..utilities import (
+from howso.utilities.feature_attributes.warnings import IFAWarningCollector, IFAWarningEmitterType
+from howso.utilities.features import FeatureType
+from howso.utilities.utilities import (
     date_to_epoch,
     determine_iso_format,
     epoch_to_date,

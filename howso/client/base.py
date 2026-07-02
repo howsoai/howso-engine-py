@@ -24,31 +24,21 @@ import numpy as np
 from pandas import DataFrame
 from scipy.sparse import csr_matrix
 
-from howso.utilities import internals
-from howso.utilities import utilities as util
-from howso.utilities.feature_attributes.base import (
-    FeatureAttributesBase,
-    MultiTableFeatureAttributes,
-    SingleTableFeatureAttributes,
-)
-from howso.utilities.features import serialize_cases
-from howso.utilities.monitors import ProgressTimer
-
-from .exceptions import (
+from howso.client.exceptions import (
     HowsoError,
     UnsupportedArgumentWarning,
 )
-from .schemas import (
+from howso.client.schemas import (
+    GroupReaction,
     HowsoVersion,
     Project,
-    GroupReaction,
     Reaction,
     Session,
     Trainee,
     TraineeRuntime,
     TraineeRuntimeOptions,
 )
-from .typing import (
+from howso.client.typing import (
     AblationThresholdMap,
     CaseIndices,
     Cases,
@@ -68,6 +58,14 @@ from .typing import (
     TargetedModel,
     TrainStatus,
 )
+from howso.utilities import internals, utilities as util
+from howso.utilities.feature_attributes.base import (
+    FeatureAttributesBase,
+    MultiTableFeatureAttributes,
+    SingleTableFeatureAttributes,
+)
+from howso.utilities.features import serialize_cases
+from howso.utilities.monitors import ProgressTimer
 
 if t.TYPE_CHECKING:
     from .cache import TraineeCache

@@ -19,9 +19,8 @@ from howso.engine import Trainee
 from howso.utilities import infer_feature_attributes
 from howso.utilities.features import FeatureSerializer, FeatureType
 from howso.utilities.internals import sanitize_for_json
+from howso.utilities.tests import has_locales
 from howso.utilities.utilities import LocaleOverride
-
-from . import has_locales
 
 cwd = Path(__file__).parent.parent.parent
 monk_path = Path(cwd, 'utilities', 'tests', 'data', 'monk1.csv')
