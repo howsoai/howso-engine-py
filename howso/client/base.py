@@ -5726,13 +5726,15 @@ class AbstractHowsoClient(ABC):
         else:
             num_cases = self.get_num_training_cases(trainee_id)
 
-        if sparse:
+        # Cannot find more neighbors than there are cases in the matrix
+        num_nearest_neighors = min(num_nearest_neighbors, num_cases)
 
+        if sparse:
             # Data structs to accumulate for sparse representation
             total = num_cases * num_nearest_neighbors
-            rows = np.arange(num_cases, dtype=np.int32).repeat(num_nearest_neighbors)
-            cols = np.empty(total, dtype=np.int32)
-            vals = np.empty(total, dtype=np.float32)
+            rows = np.arange(num_cases, dtype='int64').repeat(num_nearest_neighbors)
+            cols = np.zeros(total, dtype='int64')
+            vals = np.zeros(total, dtype='float64')
 
             for row_offset in range(0, num_cases, page_size):
                 result = self.execute(trainee_id, "get_distances", {
@@ -5753,10 +5755,10 @@ class AbstractHowsoClient(ABC):
 
                 indices += row_case_indices
                 try:
-                    for batch_row, (col_idxs, col_dists) in enumerate(zip(column_indices, distances)):
-                        start_idx = row_offset * num_nearest_neighbors + batch_row * num_nearest_neighbors
-                        cols[start_idx: start_idx+num_nearest_neighbors] = col_idxs
-                        vals[start_idx: start_idx+num_nearest_neighbors] = col_dists
+                    start = row_offset * num_nearest_neighbors
+                    end = start + len(row_case_indices) * num_nearest_neighbors
+                    cols[start:end] = np.asarray(column_indices, dtype='int64').ravel()
+                    vals[start:end] = np.asarray(distances, dtype='float64').ravel()
                 except ValueError as err:
                     # Unexpected shape when populating array
                     raise HowsoError(mismatch_msg) from err
