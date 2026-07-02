@@ -4258,7 +4258,7 @@ class Trainee(BaseTrainee):
         weight_feature: t.Optional[str] = None,
     ) -> list[float]:
         """
-        Computes pairwise distances between specified cases.
+        Compute pairwise distances between specified cases.
 
         Returns a list of computed distances between each respective pair of
         cases specified in either ``from_values`` or ``from_case_indices`` to
@@ -4331,14 +4331,15 @@ class Trainee(BaseTrainee):
         self,
         features: t.Optional[Collection[str]] = None,
         *,
-        use_case_weights: t.Optional[bool] = None,
         action_feature: t.Optional[str] = None,
         case_indices: t.Optional[CaseIndices] = None,
-        feature_values: t.Optional[Collection[t.Any] | DataFrame] = None,
+        num_nearest_neighbors: int = 20,
+        sparse: bool = True,
+        use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None
     ) -> Distances:
         """
-        Computes distances matrix for specified cases.
+        Compute distances matrix for specified cases.
 
         Returns a dict with computed distances between all cases
         specified in ``case_indices`` or from all cases in local model as defined
@@ -4360,10 +4361,13 @@ class Trainee(BaseTrainee):
             session. If specified, returns distances for all of these
             cases. Ignored if ``feature_values`` is provided. If neither
             ``feature_values`` nor ``case_indices`` is specified, uses full dataset.
-        feature_values : DataFrame or list of object
-            If specified, returns distances of the local model relative to
-            these values, ignores ``case_indices`` parameter. If provided a
-            DataFrame, only the first row will be used.
+        num_nearest_neighbors : int, default 20
+            The number of nearest neighbors to compute distances of for each case when returning sparse distance
+            matrices. If ``sparse`` is False, then this parameter is ignored.
+        sparse : bool, default True
+            If true, then the returned distance matrix is sparse and only filled in with the ``num_nearest_neighbors``
+            distances for the closest cases for each row. If false, the full distance matrix is returned for all
+            specified cases (or all cases if no cases are specified.)
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
@@ -4389,7 +4393,8 @@ class Trainee(BaseTrainee):
                 features=features,
                 action_feature=action_feature,
                 case_indices=case_indices,
-                feature_values=feature_values,
+                sparse=sparse,
+                num_nearest_neighbors=num_nearest_neighbors,
                 weight_feature=weight_feature,
                 use_case_weights=use_case_weights
             )
