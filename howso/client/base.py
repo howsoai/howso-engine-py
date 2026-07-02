@@ -22,7 +22,6 @@ import warnings
 
 import numpy as np
 from pandas import DataFrame
-from scipy.sparse import csr_matrix
 
 from howso.client.exceptions import (
     HowsoError,
@@ -5730,6 +5729,14 @@ class AbstractHowsoClient(ABC):
         num_nearest_neighbors = min(num_nearest_neighbors, num_cases-1)
 
         if sparse:
+            try:
+                from scipy.sparse import csr_matrix # noqa
+            except ImportError as e:
+                raise ImportError(
+                    "scipy is required for using `get_distances` with `sparse=True`. "
+                    "Install it with: pip install scipy"
+                ) from e
+
             # Data structs to accumulate for sparse representation
             total = num_cases * num_nearest_neighbors
             rows = np.arange(num_cases, dtype='int64').repeat(num_nearest_neighbors)
