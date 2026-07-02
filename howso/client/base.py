@@ -5727,7 +5727,7 @@ class AbstractHowsoClient(ABC):
             num_cases = self.get_num_training_cases(trainee_id)
 
         # Cannot find more neighbors than there are cases in the matrix
-        num_nearest_neighors = min(num_nearest_neighbors, num_cases)
+        num_nearest_neighbors = min(num_nearest_neighbors, num_cases-1)
 
         if sparse:
             # Data structs to accumulate for sparse representation
