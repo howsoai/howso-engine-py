@@ -103,7 +103,7 @@ jobs:
         cat version.json
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.13"
 
@@ -226,7 +226,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.12"
 
@@ -383,7 +383,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.12"
 
@@ -441,7 +441,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.12"
 
@@ -506,7 +506,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.12"
 
@@ -554,7 +554,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.12"
 
@@ -598,7 +598,7 @@ jobs:
         cd tmp && if [ ! -f *.whl ]; then mv */*.whl ./; fi
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.12"
 
@@ -683,7 +683,7 @@ jobs:
           ls ./dist
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.11"
 
