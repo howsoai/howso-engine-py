@@ -405,7 +405,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         original_type = feature_attributes[feature_name]['original_type']
         decimal_places = feature_attributes[feature_name].get('decimal_places')
 
-        # Only integers by default do no allow nulls.
+        # Only integers by default do not allow nulls.
         if original_type.get('data_type') == FeatureType.INTEGER.value:
             allow_null = False
 
