@@ -132,7 +132,7 @@ class HowsoPandasClientMixin:
     def get_marginal_stats(
         self,
         trainee_id: str,
-        *,
+        *args,
         features: t.Optional[Collection[str]] = None,
         **kwargs
     ) -> DataFrame:
@@ -144,7 +144,7 @@ class HowsoPandasClientMixin:
         DataFrame
             A DataFrame of feature name columns to statistic value rows.
         """
-        response = super().get_marginal_stats(trainee_id, features=features, **kwargs)
+        response = super().get_marginal_stats(trainee_id, *args, features=features, **kwargs)
         if features:
             # Return features in order if an order was given
             return pd.DataFrame(response)[features]
