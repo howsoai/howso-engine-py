@@ -51,6 +51,44 @@ def _get_theoretical_min_max(
     )
 
 
+def _groupby_nunique_safe(
+    df: pd.DataFrame,
+    id_features: Sequence[str],
+    feature: str,
+    grouped: t.Optional[t.Any] = None,
+) -> pd.Series:
+    """
+    Compute the number of unique values of ``feature`` within each ``id_features`` group.
+
+    Falls back to comparing string representations when ``feature`` contains unhashable
+    values (e.g., lists, dicts), since ``nunique()`` requires hashable values.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame (or chunk) containing ``feature`` and ``id_features``.
+    id_features : Sequence[str]
+        The column(s) to group by.
+    feature : str
+        The column to compute the number of unique values of, per group.
+    grouped : Any, optional
+        A pre-computed ``df.groupby(id_features)`` to reuse, to avoid re-grouping for
+        every feature. If not provided, one will be computed from ``df``.
+
+    Returns
+    -------
+    pd.Series
+        The number of unique values of ``feature`` per group.
+    """
+    if grouped is None:
+        grouped = df.groupby(list(id_features))
+    try:
+        return grouped[feature].nunique(dropna=False)
+    except TypeError:
+        stringified = df[feature].map(repr)
+        return stringified.groupby([df[f] for f in id_features]).nunique(dropna=False)
+
+
 def _infer_delta_min_max_from_chunk(  # noqa: C901
     chunk: pd.DataFrame,
     features: dict,
@@ -298,7 +336,6 @@ class InferFeatureAttributesTimeSeries(ABC):
 
     def __init__(self, data: pd.DataFrame | IFACompatibleADCProtocol, time_feature_name: str):
         """Instantiate this InferFeatureAttributesTimeSeries object."""
-        self.data = data
         self.time_feature_name = time_feature_name
         self.unsupported = []
         self.warnings_collector = IFAWarningCollector()
@@ -839,6 +876,10 @@ class InferFeatureAttributesTimeSeries(ABC):
 class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
     """InferFeatureAttributesTimeSeries implementation for Pands DataFrames."""
 
+    def __init__(self, data: pd.DataFrame, time_feature_name: str) -> None:
+        self.data: pd.DataFrame = data
+        super().__init__(data, time_feature_name)
+
     def _infer_delta_min_max(
         self,
         features: dict,
@@ -873,13 +914,21 @@ class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
 
     def _infer_time_invariant_features(self, id_features: Sequence[str], max_rows: int = 10_000_000) -> list[str]:
         """Infer the time invariant features of the data (not including the provided `id_features`)."""
-        time_invariant_features = self.data.groupby(id_features).nunique(dropna=False).isin([0, 1]).all()
-        time_invariant_features = list(time_invariant_features[time_invariant_features].index)
+        grouped = self.data.groupby(list(id_features))
+        candidate_features = [f for f in self.data.columns if f not in id_features]
+        time_invariant_features = [
+            f for f in candidate_features
+            if _groupby_nunique_safe(self.data, id_features, f, grouped=grouped).isin([0, 1]).all()
+        ]
         return list(map(str, time_invariant_features))  # Ensure all feature names are strings
 
 
 class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
     """InferFeatureAttributesTimeSeries implementation for AbstractData classes."""
+
+    def __init__(self, data: IFACompatibleADCProtocol, time_feature_name: str) -> None:
+        self.data: IFACompatibleADCProtocol = data
+        super().__init__(data, time_feature_name)
 
     @staticmethod
     def _compute_time_series_min_max(
@@ -1329,8 +1378,9 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
             if not time_invariant:
                 break
 
+            chunk_grouped = chunk.groupby(list(id_features))
             for feature in list(time_invariant):
-                if chunk.groupby(id_features).nunique(dropna=False)[feature].gt(1).any():
+                if _groupby_nunique_safe(chunk, id_features, feature, grouped=chunk_grouped).gt(1).any():
                     time_invariant.discard(feature)
 
         return list(time_invariant)

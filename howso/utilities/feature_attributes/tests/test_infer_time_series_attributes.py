@@ -504,6 +504,30 @@ def test_infer_time_invariant_features():
     assert "time_series" not in features["country"]
 
 
+def test_infer_time_invariant_features_unhashable_values():
+    """Test that unhashable values (e.g., lists) don't break time invariant feature inference."""
+    data = {
+        "ID1": ["a", "a", "a", "b", "b", "b"],
+        "time": [1, 2, 3, 1, 2, 3],
+        "invariant_list": [[1, 2], [1, 2], [1, 2], [3, 4], [3, 4], [3, 4]],
+        "varying_list": [[1, 2], [1, 3], [1, 2], [3, 4], [3, 4], [3, 5]],
+        "value": [11, 12, 15, 18, 23, 31],
+    }
+    df = pd.DataFrame(data)
+
+    ifa_kwargs: dict[Any, Any] = dict(
+        time_feature_name="time",
+        id_feature_name="ID1",
+        default_time_zone="UTC",
+    )
+
+    # Should not raise a TypeError due to the unhashable list values
+    features = infer_feature_attributes(df, **ifa_kwargs)  # pyright: ignore[reportArgumentType]
+
+    assert "time_series" not in features["invariant_list"]
+    assert "time_series" in features["varying_list"]
+
+
 def test_enable_suggestions_false_time_series():
     """enable_suggestions=False suppresses suggestion computation on the time series path."""
     df = pd.read_csv(example_timeseries_path)
