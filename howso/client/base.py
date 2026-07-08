@@ -1499,12 +1499,13 @@ class AbstractHowsoClient(ABC):
         trainee_id: str,
         *,
         condition: t.Optional[Mapping] = None,
+        features: t.Optional[Collection[str]] = None,
         num_cases: t.Optional[int] = None,
         precision: t.Optional[Precision] = None,
         weight_feature: t.Optional[str] = None
     ) -> dict[str, dict[str, float]]:
         """
-        Get marginal stats for all features.
+        Get marginal stats of features.
 
         Parameters
         ----------
@@ -1528,6 +1529,9 @@ class AbstractHowsoClient(ABC):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
+        features : Collection of str, optional
+            The list of features names for which to compute marginal stats.
+            If None, then marginal stats are computed for all trained features.
         num_cases : int, default None
             The maximum amount of cases to use to calculate marginal stats.
             If not specified, the limit will be k cases if precision is
@@ -1561,6 +1565,7 @@ class AbstractHowsoClient(ABC):
             print(f'Getting feature marginal stats for trainee with id: {trainee_id}')
 
         stats = self.execute(trainee_id, "get_marginal_stats", {
+            "features": features,
             "condition": condition,
             "num_cases": num_cases,
             "precision": precision,
