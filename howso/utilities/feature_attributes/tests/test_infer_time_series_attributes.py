@@ -521,9 +521,20 @@ def test_infer_time_invariant_features_unhashable_values():
         default_time_zone="UTC",
     )
 
-    # Should not raise a TypeError due to the unhashable list values
-    features = infer_feature_attributes(df, **ifa_kwargs)  # pyright: ignore[reportArgumentType]
+    # Should not raise a TypeError due to the unhashable list values, but should warn
+    # that these features could not be evaluated for time invariance.
+    with pytest.warns(UserWarning, match="time_invariant_features"):
+        features = infer_feature_attributes(df, **ifa_kwargs)  # pyright: ignore[reportArgumentType]
 
+    # Since neither feature could be safely evaluated, both are treated as time series
+    # features rather than guessed at.
+    assert "time_series" in features["invariant_list"]
+    assert "time_series" in features["varying_list"]
+
+    # The user can still explicitly mark an unhashable feature as time invariant.
+    features = infer_feature_attributes(
+        df, **ifa_kwargs, time_invariant_features=["invariant_list"]  # pyright: ignore[reportArgumentType]
+    )
     assert "time_series" not in features["invariant_list"]
     assert "time_series" in features["varying_list"]
 
