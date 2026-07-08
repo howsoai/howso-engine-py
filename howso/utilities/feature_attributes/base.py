@@ -11,13 +11,13 @@ import math
 from pathlib import Path
 import platform
 import typing as t
+from typing import Self
 import warnings
 from zoneinfo import ZoneInfo
 
 from dateutil.parser import isoparse, parse as dt_parse
 import numpy as np
 import pandas as pd
-from typing_extensions import Self
 import yaml
 
 from howso.utilities.fanout_features import infer_fanout_feature_config
@@ -208,7 +208,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
             )
 
         if json_path:
-            with open(json_path, mode="r") as fp:
+            with open(json_path) as fp:
                 obj_dict = json.load(fp, object_pairs_hook=feature_attributes_pairs_hook)
         else:
             obj_dict = json.loads(json_str or "", object_pairs_hook=feature_attributes_pairs_hook)
@@ -233,11 +233,11 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         pandas.DataFrame
             A DataFrame representation of the inferred feature attributes.
         """
-        raise NotImplementedError('Function not yet implemented for all subclasses of `FeatureAttributesBase`')
+        raise NotImplementedError("Function not yet implemented for all subclasses of `FeatureAttributesBase`")
 
-    def get_names(self, *, types: t.Optional[str | Container] = None,
-                  data_types: t.Optional[str | Container] = None,
-                  without: t.Optional[str | Iterable[str]] = None,
+    def get_names(self, *, types: str | Container | None = None,
+                  data_types: str | Container | None = None,
+                  without: str | Iterable[str] | None = None,
                   ) -> list[str]:
         """
         Get feature names associated with this FeatureAttributes object.
@@ -263,24 +263,24 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         if without:
             for feature in without:
                 if feature not in self.keys():
-                    raise ValueError(f'Feature {feature} does not exist in this FeatureAttributes '
-                                     'object')
+                    raise ValueError(f"Feature {feature} does not exist in this FeatureAttributes "
+                                     "object")
         names = self.keys()
 
         if types:
             if isinstance(types, str):
-                types = [types, ]
+                types = [types ]
         else:
             types = []
         if data_types:
             if isinstance(data_types, str):
-                data_types = [data_types, ]
+                data_types = [data_types ]
         else:
             data_types = []
         names = [
             name for name in names
-            if (self[name].get('type') in types or not types)
-            and (self[name].get('data_type') in data_types or not data_types)
+            if (self[name].get("type") in types or not types)
+            and (self[name].get("data_type") in data_types or not data_types)
         ]
 
         return [
@@ -288,11 +288,11 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
             if without is None or key not in without
         ]
 
-    def _validate_bounds(self, data: pd.DataFrame, feature: str,  # noqa: C901
+    def _validate_bounds(self, data: pd.DataFrame, feature: str,
                          attributes: FeatureAttributes) -> list[str]:
         """Validate the feature bounds of the provided DataFrame."""
         # Import here to avoid circular import
-        from howso.utilities import date_to_epoch
+        from howso.utilities import date_to_epoch  # noqa: PLC0415
 
         errors = []
 
@@ -302,29 +302,29 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
         # Gather some data to use for validation
         series = data[feature]
-        bounds = attributes['bounds']  # pyright: ignore[reportTypedDictNotRequiredAccess]
-        min_bound = bounds.get('min')
-        max_bound = bounds.get('max')
+        bounds = attributes["bounds"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+        min_bound = bounds.get("min")
+        max_bound = bounds.get("max")
         # Get unique values but exclude NoneTypes
         unique_values = series.dropna().unique()
         additional_errors = 0
 
-        if bounds.get('allowed'):
+        if bounds.get("allowed"):
             # Check nominal bounds
-            allowed_values = attributes['bounds']['allowed']  # pyright: ignore[reportTypedDictNotRequiredAccess]
+            allowed_values = attributes["bounds"]["allowed"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
             out_of_band_values = set(unique_values) - set(allowed_values)
             if pd.isna(list(out_of_band_values)).all():
                 # Placeholder for behavior when columns contain nans
                 pass
             elif out_of_band_values:
                 errors.append(f"'{feature}' contains out-of-band values: {out_of_band_values}")
-        elif attributes.get('date_time_format'):
+        elif attributes.get("date_time_format"):
             # Time-only attributes have bounds represented in seconds
-            if attributes.get('original_type', {}).get('data_type') == 'time':
+            if attributes.get("original_type", {}).get("data_type") == "time":
                 unique_time_values = pd.to_datetime(
                     series,
-                    format=attributes['date_time_format'],  # pyright: ignore[reportTypedDictNotRequiredAccess]
-                    errors='coerce'
+                    format=attributes["date_time_format"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                    errors="coerce"
                 ).dropna().unique()
                 for value in unique_time_values:
                     value_in_seconds = time_to_seconds(value.time())
@@ -340,11 +340,11 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
             else:
                 try:
                     if min_bound:
-                        min_bound_epoch = date_to_epoch(min_bound, time_format=attributes['date_time_format'])
+                        min_bound_epoch = date_to_epoch(min_bound, time_format=attributes["date_time_format"])
                     if max_bound:
-                        max_bound_epoch = date_to_epoch(max_bound, time_format=attributes['date_time_format'])
+                        max_bound_epoch = date_to_epoch(max_bound, time_format=attributes["date_time_format"])
                     for value in unique_values:
-                        epoch = date_to_epoch(value, time_format=attributes['date_time_format'])
+                        epoch = date_to_epoch(value, time_format=attributes["date_time_format"])
                         if (max_bound and epoch > max_bound_epoch) or (min_bound and epoch < min_bound_epoch):
                             if len(errors) < 5:
                                 errors.append(
@@ -354,7 +354,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                             else:
                                 additional_errors += 1
                 except ValueError as err:
-                    errors.append(f'Could not validate datetime bounds due to the following error: {err}')
+                    errors.append(f"Could not validate datetime bounds due to the following error: {err}")
         elif min_bound or max_bound:
             # Check int/float bounds
             for value in unique_values:
@@ -371,7 +371,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                 f'"{feature}" had {additional_errors} additional values outside of bounds that were not displayed.')
         return errors
 
-    def _validate_dtype(self, data: pd.DataFrame, feature: str,  # noqa: C901
+    def _validate_dtype(self, data: pd.DataFrame, feature: str,
                         expected_dtype: str | pd.CategoricalDtype, coerced_df: pd.DataFrame,
                         coerce: bool = False, localize_datetimes: bool = True) -> list[str]:
         """Validate the data type of a feature and optionally attempt to coerce."""
@@ -389,40 +389,38 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                 is_valid = True
             except Exception: # noqa: Intentionally broad
                 pass
-        elif expected_dtype == 'datetime64':
+        elif expected_dtype == "datetime64":
             try:
-                format = self[feature]['date_time_format']  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                format = self[feature]["date_time_format"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
                 if ".%f" in format:
                     format = "ISO8601"
                 series = pd.to_datetime(coerced_df[feature], format=format)
                 if coerce:
                     if localize_datetimes and not isinstance(series, pd.DatetimeTZDtype):
                         coerced_df[feature] = series.dt.tz_localize(
-                            'UTC', ambiguous='infer', nonexistent='NaT'
+                            "UTC", ambiguous="infer", nonexistent="NaT"
                         )
                     else:
                         coerced_df[feature] = series
                 is_valid = True
             except Exception: # noqa: Intentionally broad
                 pass
+        # Else, compare the dtype directly
+        elif data[feature].dtype.name == expected_dtype:
+            is_valid = True
+        # If the feature can be converted, consider it valid (slightly differing numeric types, etc.)
         else:
-            # Else, compare the dtype directly
-            if data[feature].dtype.name == expected_dtype:
+            try:
+                series = series.astype(expected_dtype)
+                if coerce:
+                    coerced_df[feature] = series
                 is_valid = True
-            # If the feature can be converted, consider it valid (slightly differing numeric types, etc.)
-            else:
-                try:
-                    series = series.astype(expected_dtype)
-                    if coerce:
-                        coerced_df[feature] = series
+            except pd.errors.IntCastingNaNError:
+                # If this happens, there is a null value, thus a float dtype is OK
+                if pd.api.types.is_float_dtype(series):
                     is_valid = True
-                except pd.errors.IntCastingNaNError:
-                    # If this happens, there is a null value, thus a float dtype is OK
-                    if pd.api.types.is_float_dtype(series):
-                        is_valid = True
-                except Exception as err: # noqa: Intentionally broad
-                    coerce_err = str(err)
-                    pass
+            except Exception as err: # noqa: Intentionally broad
+                coerce_err = str(err)
 
         # Raise warnings if the types do not match
         if not is_valid:
@@ -439,11 +437,11 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
     @staticmethod
     def _allows_null(attributes: FeatureAttributes) -> bool:
         """Return whether the given attributes indicates the allowance of null values."""
-        return 'bounds' in attributes and attributes['bounds'].get('allow_null', False)
+        return "bounds" in attributes and attributes["bounds"].get("allow_null", False)
 
-    def _validate_df(self, data: pd.DataFrame, coerce: bool = False,  # noqa: C901
-                     raise_errors: bool = False, table_name: t.Optional[str] = None, validate_bounds=True,
-                     allow_missing_features: bool = False, localize_datetimes=True, nullable_int_dtype='Int64'):
+    def _validate_df(self, data: pd.DataFrame, coerce: bool = False,
+                     raise_errors: bool = False, table_name: str | None = None, validate_bounds=True,
+                     allow_missing_features: bool = False, localize_datetimes=True, nullable_int_dtype="Int64"):
         errors = []
         coerced_df = data.copy(deep=True)
         features = t.cast(dict[str, "FeatureAttributes"], self[table_name] if table_name else self)
@@ -452,23 +450,23 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
             if feature not in data.columns:
                 # Check if column is missing (and not supposed to be)
                 if not (
-                    feature.startswith('.')
+                    feature.startswith(".")
                     or (
-                        attributes.get('auto_derive_on_train', False)
-                        and 'derived_feature_code' in attributes
+                        attributes.get("auto_derive_on_train", False)
+                        and "derived_feature_code" in attributes
                     )
                     or allow_missing_features
                 ):
-                    errors.append(f'{feature} is missing from the dataframe')
+                    errors.append(f"{feature} is missing from the dataframe")
                 # OK if it's an internal feature or is being processed by Validator
                 continue
 
             # Check nominal types
-            if attributes['type'] == 'nominal':
-                if attributes.get('data_type') == 'number':
+            if attributes["type"] == "nominal":
+                if attributes.get("data_type") == "number":
                     # Check type (float)
-                    if attributes.get('decimal_places', 0) > 0:
-                        errors.extend(self._validate_dtype(data, feature, 'float64',
+                    if attributes.get("decimal_places", 0) > 0:
+                        errors.extend(self._validate_dtype(data, feature, "float64",
                                                            coerced_df, coerce=coerce))
                     # Check type (nullable Int)
                     elif self._allows_null(attributes):
@@ -476,34 +474,34 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                                                            coerced_df, coerce=coerce))
                     # Check type (int)
                     else:
-                        errors.extend(self._validate_dtype(data, feature, 'int64',
+                        errors.extend(self._validate_dtype(data, feature, "int64",
                                                            coerced_df, coerce=coerce))
-                elif attributes.get('data_type') == 'boolean':
+                elif attributes.get("data_type") == "boolean":
                     # Check type (boolean)
-                    errors.extend(self._validate_dtype(data, feature, 'bool',
+                    errors.extend(self._validate_dtype(data, feature, "bool",
                                                        coerced_df, coerce=coerce))
-                elif attributes.get('bounds') and attributes['bounds'].get('allowed'):  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                elif attributes.get("bounds") and attributes["bounds"].get("allowed"):  # pyright: ignore[reportTypedDictNotRequiredAccess]
                     # Check type (categorical)
-                    schema_dtype = pd.CategoricalDtype(attributes['bounds']['allowed'],  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                    schema_dtype = pd.CategoricalDtype(attributes["bounds"]["allowed"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
                                                        ordered=True)
                     errors.extend(self._validate_dtype(data, feature, schema_dtype,
                                                        coerced_df, coerce=coerce))
                 else:
                     # Else, should be an object
-                    errors.extend(self._validate_dtype(data, feature, 'object',
+                    errors.extend(self._validate_dtype(data, feature, "object",
                                                        coerced_df, coerce=coerce))
 
             # Check ordinal types
-            elif attributes['type'] == 'ordinal':
-                if attributes.get('bounds') and attributes['bounds'].get('allowed'):  # pyright: ignore[reportTypedDictNotRequiredAccess]
+            elif attributes["type"] == "ordinal":
+                if attributes.get("bounds") and attributes["bounds"].get("allowed"):  # pyright: ignore[reportTypedDictNotRequiredAccess]
                     # Check type (categorical)
-                    schema_dtype = pd.CategoricalDtype(attributes['bounds']['allowed'],  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                    schema_dtype = pd.CategoricalDtype(attributes["bounds"]["allowed"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
                                                        ordered=True)
                     errors.extend(self._validate_dtype(data, feature, schema_dtype,
                                                        coerced_df, coerce=coerce))
                 # Check type (float)
-                elif attributes.get('decimal_places', 0) > 0:
-                    errors.extend(self._validate_dtype(data, feature, 'float64',
+                elif attributes.get("decimal_places", 0) > 0:
+                    errors.extend(self._validate_dtype(data, feature, "float64",
                                                        coerced_df, coerce=coerce))
                 # Check type (nullable Int)
                 elif self._allows_null(attributes):
@@ -511,55 +509,53 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                                                        coerced_df, coerce=coerce))
                 # Check type (int)
                 else:
-                    errors.extend(self._validate_dtype(data, feature, 'int64',
+                    errors.extend(self._validate_dtype(data, feature, "int64",
                                                        coerced_df, coerce=coerce))
 
             # Check continuous types
-            else:
-                if 'date_time_format' in attributes:
-                    # Check type (datetime)
-                    errors.extend(self._validate_dtype(data, feature, 'datetime64',
-                                                       coerced_df, coerce=coerce,
-                                                       localize_datetimes=localize_datetimes))
+            elif "date_time_format" in attributes:
+                # Check type (datetime)
+                errors.extend(self._validate_dtype(data, feature, "datetime64",
+                                                   coerced_df, coerce=coerce,
+                                                   localize_datetimes=localize_datetimes))
 
-                # Check semi-structured type (object)
-                elif attributes.get("data_type") in {"json", "yaml", "amalgam", "string", "string_mixable"}:
-                    errors.extend(self._validate_dtype(data, feature, "object", coerced_df, coerce=coerce))
+            # Check semi-structured type (object)
+            elif attributes.get("data_type") in {"json", "yaml", "amalgam", "string", "string_mixable"}:
+                errors.extend(self._validate_dtype(data, feature, "object", coerced_df, coerce=coerce))
 
-                # Check type (float)
-                elif attributes.get('decimal_places', -1) > 0:
-                    errors.extend(self._validate_dtype(data, feature, 'float64',
-                                                       coerced_df, coerce=coerce))
-                # Check type (nullable Int)
-                elif self._allows_null(attributes):
-                    errors.extend(self._validate_dtype(data, feature, nullable_int_dtype,
-                                                       coerced_df, coerce=coerce))
-                # Check type (int)
-                elif attributes.get('decimal_places', -1) == 0:
-                    errors.extend(self._validate_dtype(data, feature, 'int64',
-                                                       coerced_df, coerce=coerce))
-                elif attributes.get('data_type') == 'number':
-                    # If feature is continuous and not a datetime, it should have a numeric data_type.
-                    # If it cannot be casted to a float, then add an error.
-                    if len(self._validate_dtype(data, feature, 'float64',
-                                                coerced_df, coerce=True)):
-                        errors.extend([f"Feature '{feature}' should be numeric"
-                                       " when 'type' is 'continuous' and "
-                                       "'data_type' is 'number'."])
+            # Check type (float)
+            elif attributes.get("decimal_places", -1) > 0:
+                errors.extend(self._validate_dtype(data, feature, "float64",
+                                                   coerced_df, coerce=coerce))
+            # Check type (nullable Int)
+            elif self._allows_null(attributes):
+                errors.extend(self._validate_dtype(data, feature, nullable_int_dtype,
+                                                   coerced_df, coerce=coerce))
+            # Check type (int)
+            elif attributes.get("decimal_places", -1) == 0:
+                errors.extend(self._validate_dtype(data, feature, "int64",
+                                                   coerced_df, coerce=coerce))
+            elif attributes.get("data_type") == "number":
+                # If feature is continuous and not a datetime, it should have a numeric data_type.
+                # If it cannot be casted to a float, then add an error.
+                if len(self._validate_dtype(data, feature, "float64",
+                                            coerced_df, coerce=True)):
+                    errors.extend([f"Feature '{feature}' should be numeric"
+                                   " when 'type' is 'continuous' and "
+                                   "'data_type' is 'number'."])
 
             # Check feature bounds
             if validate_bounds:
                 errors.extend(self._validate_bounds(data, feature, attributes))
 
         if errors:
-            msg = ('Failed to validate DataFrame against feature attributes due to the '
-                   'following errors:\n')
+            msg = ("Failed to validate DataFrame against feature attributes due to the "
+                   "following errors:\n")
             for error in errors:
-                msg = msg + f'{error}\n'
+                msg = msg + f"{error}\n"
             if raise_errors:
                 raise ValueError(msg)
-            else:
-                warnings.warn(msg)
+            warnings.warn(msg)
 
         if coerce:
             return coerced_df
@@ -595,7 +591,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         None | DataFrame
             None or the coerced DataFrame if 'coerce' is True and there were no errors.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @staticmethod
     def merge(attributes: dict[str, dict], entries: dict[str, dict]) -> FeatureAttributesBase:
@@ -632,18 +628,18 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         validate_features(entries)
         # Compare to existing attributes
         for feature_name in entries.keys():
-            orig_type = attributes.get(feature_name, {}).get('type')
-            new_type = entries[feature_name].get('type')
+            orig_type = attributes.get(feature_name, {}).get("type")
+            new_type = entries[feature_name].get("type")
             # TODO 22059: Allow ordinals here when we can attempt to infer values
-            if new_type == 'ordinal' and not (
-                attributes.get(feature_name, {}).get('bounds', {}).get('allowed') or
-                entries.get(feature_name, {}).get('bounds', {}).get('allowed')
+            if new_type == "ordinal" and not (
+                attributes.get(feature_name, {}).get("bounds", {}).get("allowed") or
+                entries.get(feature_name, {}).get("bounds", {}).get("allowed")
             ):
-                raise ValueError('Inference of ordinal values is not yet supported. Please '
-                                 'preset ordinal features with their ordered values using '
-                                 '`ordinal_feature_values`.')
+                raise ValueError("Inference of ordinal values is not yet supported. Please "
+                                 "preset ordinal features with their ordered values using "
+                                 "`ordinal_feature_values`.")
             # Sanity check: booleans must be nominal
-            elif entries[feature_name].get('data_type') == 'boolean' and orig_type and orig_type != 'nominal':
+            if entries[feature_name].get("data_type") == "boolean" and orig_type and orig_type != "nominal":
                 warnings.warn(
                     f'Feature "{feature_name}" was preset as {orig_type} '
                     'but was detected to be a boolean. Booleans '
@@ -651,7 +647,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                 )
             # In otherwise valid cases, ensure that existing types are not overwritten
             elif orig_type and new_type:
-                del entries[feature_name]['type']
+                del entries[feature_name]["type"]
             # Finally, update the dict with all remaining attributes
             if feature_name not in attributes.keys():
                 attributes[feature_name] = entries[feature_name]
@@ -663,8 +659,6 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
 class MultiTableFeatureAttributes(FeatureAttributesBase):
     """A dict-like object containing feature attributes for multiple tables."""
-
-    pass
 
 
 class SingleTableFeatureAttributes(FeatureAttributesBase):
@@ -707,7 +701,7 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
     @validate.register
     def _(self, data: pd.DataFrame, coerce=False, raise_errors=False, validate_bounds=True,
           allow_missing_features=False, localize_datetimes=True,
-          nullable_int_dtype: str | np.dtype | pd.api.extensions.ExtensionDtype = 'Int64'):
+          nullable_int_dtype: str | np.dtype | pd.api.extensions.ExtensionDtype = "Int64"):
         return self._validate_df(data, coerce=coerce, raise_errors=raise_errors,
                                  validate_bounds=validate_bounds,
                                  allow_missing_features=allow_missing_features,
@@ -742,7 +736,7 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
         pandas.DataFrame
             A DataFrame representation of the inferred feature attributes.
         """
-        sep = '|'
+        sep = "|"
         key_order = [
             "sample",
             "type",
@@ -773,7 +767,7 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
             df = pd.json_normalize(attributes, sep=sep)
             # Update the column names to create a MultiIndex
             df.columns = pd.MultiIndex.from_tuples([
-                tuple(c.split(sep)) if sep in c else (c, '')
+                tuple(c.split(sep)) if sep in c else (c, "")
                 for c in df.columns
             ])
             # Set the outer key (e.g., 'f0') as the index
@@ -1091,8 +1085,7 @@ class InferFeatureAttributesBase(ABC):
                             suggestion = f"Please verify that cases in '{feature_name}' are of a consistent data type."
                         raise ValueError(f"The following error was raised while trying to compute bounds for feature "
                                          f"'{feature_name}':\n\n {err}\n\n{suggestion}") from err
-                    else:
-                        raise
+                    raise
                 if bounds:
                     # Use `update` on the bounds dictionary in case `allowed` ordinal values have already been set
                     bounds.update(self.attributes[feature_name].get("bounds", {}))
@@ -1235,14 +1228,13 @@ class InferFeatureAttributesBase(ABC):
                     "data_type": "formatted_date_time",
                     "date_time_format": fmt
                 }
-            else:
-                # It isn't clear how this method would be called on a feature
-                # if it has no data, but just in case...
-                return {
-                    "type": "continuous",
-                    "data_type": "number",
-                }
-        elif self._is_json_feature(feature_name):
+            # It isn't clear how this method would be called on a feature
+            # if it has no data, but just in case...
+            return {
+                "type": "continuous",
+                "data_type": "number",
+            }
+        if self._is_json_feature(feature_name):
             typing_attrs = {
                 "type": "continuous",
                 "data_type": "json",
@@ -1253,34 +1245,32 @@ class InferFeatureAttributesBase(ABC):
                 if isinstance(first_non_null, Set):
                     typing_attrs["original_type"]["coercion"] = "set"
             return typing_attrs
-        elif self._is_yaml_feature(feature_name):
+        if self._is_yaml_feature(feature_name):
             return {
                 "type": "continuous",
                 "data_type": "yaml"
             }
-        else:
-            # The user may have pre-set the type as "continuous" to force it to be considered a tokenizable string;
-            # but that may also be the case for string ints or floats. Check that first.
-            is_tokenizable_string = False
-            if self.attributes.get(feature_name, {}).get("type") == "continuous":
-                try:
-                    # If the column can be converted to float, and was set to be "continuous",
-                    # it is probably not a tokenizable string.
-                    col = self.data[feature_name]
-                    col.astype("float")
-                except Exception:  # noqa: Intentionally broad
-                    # If it cannot be converted to float, but it was set to be "continuous",
-                    # it is probably a tokenizable string.
-                    is_tokenizable_string = True
-            if is_tokenizable_string:
-                return {
-                    "type": "continuous",
-                    "data_type": "json",
-                    # Also set the original_type here so that we do not need to re-check _is_tokenizable_string
-                    "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
-                }
-            else:
-                return self._infer_unknown_attributes(feature_name)
+        # The user may have pre-set the type as "continuous" to force it to be considered a tokenizable string;
+        # but that may also be the case for string ints or floats. Check that first.
+        is_tokenizable_string = False
+        if self.attributes.get(feature_name, {}).get("type") == "continuous":
+            try:
+                # If the column can be converted to float, and was set to be "continuous",
+                # it is probably not a tokenizable string.
+                col = self.data[feature_name]
+                col.astype("float")
+            except Exception:  # noqa: Intentionally broad
+                # If it cannot be converted to float, but it was set to be "continuous",
+                # it is probably a tokenizable string.
+                is_tokenizable_string = True
+        if is_tokenizable_string:
+            return {
+                "type": "continuous",
+                "data_type": "json",
+                # Also set the original_type here so that we do not need to re-check _is_tokenizable_string
+                "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
+            }
+        return self._infer_unknown_attributes(feature_name)
 
     def _infer_unknown_attributes(self, *args: t.Any) -> dict:
         """Get inferred attributes for the given unknown-type column."""
@@ -1478,7 +1468,7 @@ class InferFeatureAttributesBase(ABC):
                     f'The feature "{feature_name}" must have a `date_time_format` defined '
                     f'when its `data_type` is "{data_type}".'
                 )
-            elif dt_format and data_type in {"formatted_date_time", "formatted_time"}:
+            if dt_format and data_type in {"formatted_date_time", "formatted_time"}:
                 # If the date/time format does not include a time zone, warn the user that
                 # the default of UTC will be used. However, due to potential multiprocessing,
                 # and to avoid an excess of warnings if done per-feature, stash the offending
@@ -1492,7 +1482,7 @@ class InferFeatureAttributesBase(ABC):
                     rand_val = self._get_random_value(feature_name)
                     if isinstance(rand_val, datetime.datetime):
                         # Some datetime objects might have a time zone attribute not visible as a string
-                        if getattr(rand_val, 'tzinfo', None) is not None and isinstance(rand_val.tzinfo, ZoneInfo):
+                        if getattr(rand_val, "tzinfo", None) is not None and isinstance(rand_val.tzinfo, ZoneInfo):
                             continue
                     # Warn in case of UTC offset -- could lead to unexpected results due to time zone
                     # differences

@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 import textwrap
-from typing import Any, cast
+from typing import Any, cast, Self
 import warnings
 
 from rich.console import Console
 from rich.table import Table
-from typing import Self
 
 # Fanout features parameters
 # --------------------------
