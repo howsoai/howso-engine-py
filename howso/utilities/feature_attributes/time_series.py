@@ -55,7 +55,7 @@ def _groupby_nunique_safe(
     df: pd.DataFrame,
     id_features: Sequence[str],
     feature: str,
-    grouped: t.Optional[t.Any] = None,
+    grouped: t.Any | None = None,
 ) -> pd.Series:
     """
     Compute the number of unique values of ``feature`` within each ``id_features`` group.
