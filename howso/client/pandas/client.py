@@ -147,8 +147,8 @@ class HowsoPandasClientMixin:
         response = super().get_marginal_stats(trainee_id, *args, features=features, **kwargs)
         if features:
             # Return features in order if an order was given
-            return pd.DataFrame(response)[features]
-        return pd.DataFrame(response)
+            return pd.DataFrame(response)[features].sort_index()
+        return pd.DataFrame(response).sort_index()
 
     def get_value_masses(self, trainee_id: str,  *args, **kwargs) -> dict[str, ValueMasses]:
         """
