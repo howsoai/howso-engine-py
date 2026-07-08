@@ -3369,17 +3369,22 @@ class Trainee(BaseTrainee):
             raise AssertionError("Client must have the 'get_feature_conviction' method.")
 
     def get_marginal_stats(
-        self, *,
+        self,
+        features: t.Optional[Collection[str]] = None,
+        *,
         condition: t.Optional[Mapping[str, t.Any]] = None,
         num_cases: t.Optional[int] = None,
         precision: t.Optional[Precision] = None,
         weight_feature: t.Optional[str] = None,
     ) -> DataFrame:
         """
-        Get marginal stats for all features.
+        Get marginal stats of features.
 
         Parameters
         ----------
+        features : Collection of str, optional
+            The list of features names for which to compute marginal stats.
+            If None, then marginal stats are computed for all trained features.
         condition : map of str -> any, optional
             A condition map to select which cases to compute marginal stats
             for.
@@ -3419,6 +3424,7 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, HowsoPandasClientMixin):
             return self.client.get_marginal_stats(
                 trainee_id=self.id,
+                features=features,
                 condition=condition,
                 num_cases=num_cases,
                 precision=precision,

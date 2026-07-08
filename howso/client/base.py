@@ -1497,6 +1497,7 @@ class AbstractHowsoClient(ABC):
     def get_marginal_stats(
         self,
         trainee_id: str,
+        features: t.Optional[Collection[str]] = None,
         *,
         condition: t.Optional[Mapping] = None,
         num_cases: t.Optional[int] = None,
@@ -1504,12 +1505,15 @@ class AbstractHowsoClient(ABC):
         weight_feature: t.Optional[str] = None
     ) -> dict[str, dict[str, float]]:
         """
-        Get marginal stats for all features.
+        Get marginal stats of features.
 
         Parameters
         ----------
         trainee_id : str
             The ID of the Trainee to retrieve marginal stats for.
+        features : Collection of str, optional
+            The list of features names for which to compute marginal stats.
+            If None, then marginal stats are computed for all trained features.
         condition : Mapping or None, optional
             A condition map to select which cases to compute marginal stats
             for.
@@ -1561,6 +1565,7 @@ class AbstractHowsoClient(ABC):
             print(f'Getting feature marginal stats for trainee with id: {trainee_id}')
 
         stats = self.execute(trainee_id, "get_marginal_stats", {
+            "features": features,
             "condition": condition,
             "num_cases": num_cases,
             "precision": precision,
