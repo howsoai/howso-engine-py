@@ -129,7 +129,13 @@ class HowsoPandasClientMixin:
             rows.append(response['familiarity_conviction_removal'])
         return deserialize_to_dataframe(rows, index=index)
 
-    def get_marginal_stats(self, *args, **kwargs) -> DataFrame:
+    def get_marginal_stats(
+        self,
+        trainee_id: str,
+        features: t.Optional[Collection[str]] = None,
+        *args,
+        **kwargs
+    ) -> DataFrame:
         """
         Base: :func:`howso.client.AbstractHowsoClient.get_marginal_stats`.
 
@@ -138,10 +144,10 @@ class HowsoPandasClientMixin:
         DataFrame
             A DataFrame of feature name columns to statistic value rows.
         """
-        response = super().get_marginal_stats(*args, **kwargs)
-        if requested_features := kwargs.get("features"):
+        response = super().get_marginal_stats(trainee_id, features, *args, **kwargs)
+        if features:
             # Return features in order if an order was given
-            return pd.DataFrame(response)[requested_features]
+            return pd.DataFrame(response)[features]
         return pd.DataFrame(response)
 
     def get_value_masses(self, trainee_id: str,  *args, **kwargs) -> dict[str, ValueMasses]:
