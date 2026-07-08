@@ -132,6 +132,7 @@ class HowsoPandasClientMixin:
     def get_marginal_stats(
         self,
         trainee_id: str,
+        *,
         features: t.Optional[Collection[str]] = None,
         **kwargs
     ) -> DataFrame:
