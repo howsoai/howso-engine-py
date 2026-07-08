@@ -401,6 +401,8 @@ class IFASuggestionCollector:
 
     def __repr__(self) -> str:
         """Print a helpful description of the available suggestions."""
+        if not self._suggestions:
+            return "You have no suggestions."
         table = Table(title="Suggestions for Potential Data Quality Improvements",
                       caption="To view a more detailed description of a suggestion, access its `name` as a property "
                       "(e.g., `your_attributes_object.suggestions.preserve_rare_values`).\n\nTo apply all suggestions,"

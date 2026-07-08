@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-import typing as t
+from typing import Any
 
 import pandas as pd
 
@@ -17,16 +17,22 @@ from howso.utilities.feature_attributes.relational import InferFeatureAttributes
 from howso.utilities.feature_attributes.time_series import IFATimeSeriesADC, IFATimeSeriesPandas
 
 
-def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQLRelationalDatastoreProtocol, *,
-                             tables: t.Optional[Iterable[TableNameProtocol]] = None,
-                             time_feature_name: t.Optional[str] = None,
-                             **kwargs
-                             ) -> FeatureAttributesBase:
+def infer_feature_attributes(
+    data: pd.DataFrame | IFACompatibleADCProtocol | SQLRelationalDatastoreProtocol,
+    *,
+    tables: Iterable[TableNameProtocol] | None = None,
+    time_feature_name: str | None = None,
+    **kwargs: Any,
+) -> FeatureAttributesBase:
     """
-    Return a dict-like feature attributes object with useful accessor methods.
+    Infer the feature attributes of a given data source.
 
-    The returned object is a subclass of FeatureAttributesBase that is appropriate for the
-    provided data type.
+    Feature attributes provide Howso with a schema like representation of the data and is required in order to
+    ingest the data into Howso. It is important to inspect the result of this method in order to verify the accuracy
+    of what is inferred and so that any inaccuracies can be corrected before data ingestion. This method makes a best
+    guess at the feature attributes and in some cases may not automatically set certain attributes if there is
+    ambiguity, instead raising suggestions for further consideration which can be reviewed by accessing the
+    :attr:`~FeatureAttributesBase.suggestions` attribute.
 
     Parameters
     ----------
@@ -347,7 +353,8 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
     FeatureAttributesBase
         A subclass of ``FeatureAttributesBase`` (Single/MultiTableFeatureAttributes)
         that extends ``dict``, thus providing dict-like access to feature
-        attributes and useful accessor methods.
+        attributes and useful accessor methods. The subclass variant is dependent
+        on the provided data source.
 
     Examples
     --------

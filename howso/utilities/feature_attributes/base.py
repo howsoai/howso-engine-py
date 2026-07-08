@@ -11,7 +11,6 @@ import math
 from pathlib import Path
 import platform
 import typing as t
-from typing import Self
 import warnings
 from zoneinfo import ZoneInfo
 
@@ -56,9 +55,6 @@ INTEGER_MAX = int(math.pow(2, 53))
 LINUX_DT_MAX = "2262-04-11"
 WIN_DT_MAX = "6053-01-24"
 
-# Define a TypeVar which is FeatureAttributesBase or any subclass.
-FeatureAttributesBaseType = t.TypeVar("FeatureAttributesBaseType", bound="FeatureAttributesBase")
-
 SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
 
 
@@ -87,7 +83,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         self.update(feature_attributes)
         self.unsupported = unsupported or []
         self.warnings_collector = IFAWarningCollector()
-        self.suggestions_collector = suggestions_collector or "You have no suggestions."
+        self.suggestions_collector = suggestions_collector or IFASuggestionCollector()
 
     def __copy__(self) -> FeatureAttributesBase:
         """Return a (deep)copy of this instance of FeatureAttributesBase."""
@@ -175,11 +171,11 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
     @classmethod
     def from_json(
-        cls: Self,
+        cls: type[FeatureAttributesBase],
         json_str: str | None = None,
         *,
         json_path: str | None = None
-    ) -> Self:
+    ) -> FeatureAttributesBase:
         """
         Reconstruct a FeatureAttributesBase from JSON.
 
@@ -192,7 +188,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
         Returns
         -------
-        FeatureAttributesBaseType
+        FeatureAttributesBase
             An instance of FeatureAttributesBase or any of its subclasses.
         """
         if json_path and json_str:
