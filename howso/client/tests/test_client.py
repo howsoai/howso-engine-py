@@ -1199,6 +1199,8 @@ class TestBaseClient:
             features=["class", "petal_width"]
         )
         assert len(subset_marginal_stats) == 2
+        assert "class" in subset_marginal_stats
+        assert "petal_width" in subset_marginal_stats
 
     def test_remove_feature_verbose(self, trainee, capsys):
         """Test for expected verbose output when remove_feature is called."""
