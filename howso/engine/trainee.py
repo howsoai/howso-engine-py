@@ -3370,9 +3370,9 @@ class Trainee(BaseTrainee):
 
     def get_marginal_stats(
         self,
-        features: t.Optional[Collection[str]] = None,
         *,
         condition: t.Optional[Mapping[str, t.Any]] = None,
+        features: t.Optional[Collection[str]] = None,
         num_cases: t.Optional[int] = None,
         precision: t.Optional[Precision] = None,
         weight_feature: t.Optional[str] = None,
@@ -3382,9 +3382,6 @@ class Trainee(BaseTrainee):
 
         Parameters
         ----------
-        features : Collection of str, optional
-            The list of features names for which to compute marginal stats.
-            If None, then marginal stats are computed for all trained features.
         condition : map of str -> any, optional
             A condition map to select which cases to compute marginal stats
             for.
@@ -3403,6 +3400,9 @@ class Trainee(BaseTrainee):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
+        features : Collection of str, optional
+            The list of features names for which to compute marginal stats.
+            If None, then marginal stats are computed for all trained features.
         num_cases : int, default None
             The maximum amount of cases to use to calculate marginal stats.
             If not specified, the limit will be k cases if precision is
