@@ -57,6 +57,18 @@ class ClientOptions(BaseOptions):
         """Additional client init parameters."""
         return self._config.get('client_extra_params') or {}
 
+    @property
+    def auto_progress(self) -> str:
+        """
+        Opt-in setting for auto-progress reporting on long-running methods.
+
+        Valid values: ``"auto"`` (default), ``"on"``, ``"off"``. ``auto``
+        means: enable when running interactively (TTY or notebook), otherwise
+        off. The ``HOWSO_PROGRESS`` env var takes precedence over this value.
+        """
+        value = self._config.get('auto_progress', 'auto')
+        return str(value).lower() if value is not None else 'auto'
+
 
 class HowsoConfiguration(t.Generic[CO]):
     """
@@ -113,3 +125,8 @@ class HowsoConfiguration(t.Generic[CO]):
         """Setup configuration attributes."""
         self.feature_flags: FeatureFlags = self.feature_flags_class(self._config.get('feature_flags'))
         self.client: CO = t.cast(CO, self.client_config_class(self._config.get('howso')))
+
+    @property
+    def auto_progress(self) -> str:
+        """Pass-through to :attr:`ClientOptions.auto_progress` for convenience."""
+        return self.client.auto_progress

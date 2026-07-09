@@ -62,6 +62,7 @@ from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
+from howso.utilities.progress import auto_progress
 
 __all__ = [
     "Trainee",
@@ -662,6 +663,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have 'set_random_seed' method")
 
+    @auto_progress("Train")
     def train(
         self,
         cases: TabularData2D | Generator[DataFrame, int],
@@ -971,6 +973,7 @@ class Trainee(BaseTrainee):
         distribute_weight_feature: str | None = None,
         reduce_max_cases: int | None = None,
         skip_auto_analyze: bool = False,
+        task_id: str | None = None,
         **kwargs: Any,
     ) -> dict:
         """
@@ -1002,6 +1005,9 @@ class Trainee(BaseTrainee):
             which defaults to 50,000.
         skip_auto_analyze : bool, default False
             Whether to skip auto-analyzing as cases are removed.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
 
         Returns
         -------
@@ -1016,6 +1022,7 @@ class Trainee(BaseTrainee):
                 distribute_weight_feature=distribute_weight_feature,
                 reduce_max_cases=reduce_max_cases,
                 skip_auto_analyze=skip_auto_analyze,
+                task_id=task_id,
                 **kwargs,
             )
         else:
@@ -1063,6 +1070,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'set_auto_analyze_params' method.")
 
+    @auto_progress("Analyze")
     def analyze(
         self,
         context_features: Collection[str] | None = None,
@@ -1083,6 +1091,7 @@ class Trainee(BaseTrainee):
         rebalance_features: Collection[str] | None = None,
         reduce_only: bool = False,
         targeted_model: TargetedModel | None = None,
+        task_id: str | None = None,
         use_case_weights: bool | None = None,
         use_deviations: bool | None = None,
         use_sdm: bool = True,
@@ -1162,6 +1171,9 @@ class Trainee(BaseTrainee):
                   features as possible action features, ignores
                   action_features parameter.
 
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
@@ -1201,6 +1213,7 @@ class Trainee(BaseTrainee):
                 rebalance_features=rebalance_features,
                 reduce_only=reduce_only,
                 targeted_model=targeted_model,
+                task_id=task_id,
                 use_case_weights=use_case_weights,
                 use_deviations=use_deviations,
                 use_sdm=use_sdm,
@@ -1290,6 +1303,7 @@ class Trainee(BaseTrainee):
 
         return results['action']
 
+    @auto_progress("React")
     def react(
         self,
         contexts: TabularData2D | None = None,
@@ -1328,6 +1342,7 @@ class Trainee(BaseTrainee):
         return_context_values: bool = False,
         substitute_output: bool = True,
         suppress_warning: bool = False,
+        task_id: str | None = None,
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: bool | None = None,
         use_differential_privacy: bool = False,
@@ -1897,6 +1912,9 @@ class Trainee(BaseTrainee):
             applicable if a substitution value map has been set.
         suppress_warning : bool, default False
             When True, warnings will not be displayed.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_aggregation_based_differential_privacy : bool, default False
             If True this changes generative output to use aggregation instead
             of selection (the default approach) before adding noise.
@@ -1958,12 +1976,14 @@ class Trainee(BaseTrainee):
             return_context_values=return_context_values,
             substitute_output=substitute_output,
             suppress_warning=suppress_warning,
+            task_id=task_id,
             use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
             use_case_weights=use_case_weights,
             use_differential_privacy=use_differential_privacy,
             weight_feature=weight_feature,
         )
 
+    @auto_progress("React (series)")
     def react_series(
         self,
         *,
@@ -2004,6 +2024,7 @@ class Trainee(BaseTrainee):
         series_stop_maps: list[SeriesStopMap] | None = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
+        task_id: str | None = None,
         use_aggregation_based_differential_privacy: bool = False,
         use_all_features: bool = True,
         use_case_weights: bool | None = None,
@@ -2195,6 +2216,9 @@ class Trainee(BaseTrainee):
             See parameter ``substitute_output`` in :meth:`react`.
         suppress_warning : bool, default False
             See parameter ``suppress_warning`` in :meth:`react`.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_aggregation_based_differential_privacy : bool, default False
             See parameter ``use_aggregation_based_differential_privacy`` in
             :meth:`react`.
@@ -2260,6 +2284,7 @@ class Trainee(BaseTrainee):
                 series_stop_maps=series_stop_maps,
                 substitute_output=substitute_output,
                 suppress_warning=suppress_warning,
+                task_id=task_id,
                 use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
                 use_all_features=use_all_features,
                 use_case_weights=use_case_weights,
@@ -2269,6 +2294,7 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Trainee ID is needed for react_series.")
 
+    @auto_progress("React (stationary)")
     def react_series_stationary(
         self,
         action_features: Collection[str],
@@ -2285,6 +2311,7 @@ class Trainee(BaseTrainee):
         series_context_values: TabularData3D | None = None,
         series_id_features: Collection[str] | None = None,
         series_id_values: TabularData2D | None = None,
+        task_id: str | None = None,
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: bool | None = None,
         use_derived_ts_features: bool = True,
@@ -2364,6 +2391,9 @@ class Trainee(BaseTrainee):
             2d list of ID feature values. Each sublist should specify ID
             feature values that can uniquely identify the cases making up a
             single series.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_aggregation_based_differential_privacy : bool, default False
             If True this changes generative output to use aggregation instead
             of selection (the default approach) before adding noise.
@@ -2408,6 +2438,7 @@ class Trainee(BaseTrainee):
                 series_context_values=series_context_values,
                 series_id_features=series_id_features,
                 series_id_values=series_id_values,
+                task_id=task_id,
                 use_aggregation_based_differential_privacy=use_aggregation_based_differential_privacy,
                 use_case_weights=use_case_weights,
                 use_derived_ts_features=use_derived_ts_features,
@@ -2417,12 +2448,14 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Trainee ID is needed for react_series_stationary.")
 
+    @auto_progress("Impute")
     def impute(
         self,
         *,
         batch_size: int = 1,
         features: Collection[str] | None = None,
         features_to_impute: Collection[str] | None = None,
+        task_id: str | None = None,
     ):
         """
         Impute (fill) the missing values for the specified features_to_impute.
@@ -2447,6 +2480,9 @@ class Trainee(BaseTrainee):
         features_to_impute : Collection of str, optional
             A list of feature names to impute. If not specified, features
             will be used.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         """
         if isinstance(self.client, AbstractHowsoClient):
             self.client.impute(
@@ -2454,6 +2490,7 @@ class Trainee(BaseTrainee):
                 batch_size=batch_size,
                 features=features,
                 features_to_impute=features_to_impute,
+                task_id=task_id,
             )
         else:
             raise AssertionError("Client must have 'impute' method")
@@ -3188,6 +3225,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_substitute_feature_values' method.")
 
+    @auto_progress("React group")
     def react_group(
         self,
         *,
@@ -3207,6 +3245,7 @@ class Trainee(BaseTrainee):
         p_value_of_removal: bool = False,
         residual_contributions: bool = False,
         similarity_conviction: bool = False,
+        task_id: str | None = None,
         use_case_weights: bool | None = None,
         weight_feature: str | None = None,
     ) -> GroupReaction:
@@ -3311,6 +3350,9 @@ class Trainee(BaseTrainee):
         similarity_conviction : bool, default False
             If true will output the mean similarity conviction of the group's
             cases.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
@@ -3343,6 +3385,7 @@ class Trainee(BaseTrainee):
                 p_value_of_removal=p_value_of_removal,
                 residual_contributions=residual_contributions,
                 similarity_conviction=similarity_conviction,
+                task_id=task_id,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
             )
@@ -3573,6 +3616,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the `get_value_masses` method.")
 
+    @auto_progress("React into features")
     def react_into_features(
         self,
         *,
@@ -3590,6 +3634,7 @@ class Trainee(BaseTrainee):
         p_value_of_removal: str | bool = False,
         residual_contribution: bool | str = False,
         similarity_conviction: str | bool = False,
+        task_id: str | None = None,
         use_case_weights: bool | None = None,
         weight_feature: str | None = None,
     ):
@@ -3651,6 +3696,9 @@ class Trainee(BaseTrainee):
             The name of the feature to store similarity conviction
             values. If set to True the values will be stored to the feature
             'similarity_conviction'.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
@@ -3676,6 +3724,7 @@ class Trainee(BaseTrainee):
                 residual_contribution=residual_contribution,
                 similarity_conviction=similarity_conviction,
                 features=features,
+                task_id=task_id,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,
             )
@@ -3683,6 +3732,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'react_into_features' method.")
 
+    @auto_progress("React aggregate")
     def react_aggregate(
         self,
         *,
@@ -3712,6 +3762,7 @@ class Trainee(BaseTrainee):
         robust_hyperparameters: bool | None = None,
         sample_model_fraction: float | None = None,
         sub_model_size: int | None = None,
+        task_id: str | None = None,
         use_case_weights: bool | None = None,
         value_robust_contributions_action_feature: str | None = None,
         value_robust_contributions_buckets: dict[str, list[tuple[float, float]]] | None = None,
@@ -4049,6 +4100,9 @@ class Trainee(BaseTrainee):
         sub_model_size : int, optional
             Subset of model to use for calculations. Applicable only
             to models > 1000 cases.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
@@ -4116,6 +4170,7 @@ class Trainee(BaseTrainee):
                 robust_hyperparameters=robust_hyperparameters,
                 sample_model_fraction=sample_model_fraction,
                 sub_model_size=sub_model_size,
+                task_id=task_id,
                 use_case_weights=use_case_weights,
                 value_robust_contributions_features=value_robust_contributions_features,
                 value_robust_contributions_action_feature=value_robust_contributions_action_feature,

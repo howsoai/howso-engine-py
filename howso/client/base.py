@@ -55,6 +55,7 @@ from howso.client.typing import (
     TabularData2D,
     TabularData3D,
     TargetedModel,
+    TaskProgress,
     TrainStatus,
 )
 from howso.utilities import internals, utilities as util
@@ -785,6 +786,7 @@ class AbstractHowsoClient(ABC):
         features: Collection[str] | None = None,
         features_to_impute: Collection[str] | None = None,
         batch_size: int = 1,
+        task_id: str | None = None,
     ):
         """
         Impute, or fill in the missing values, for the specified features.
@@ -811,6 +813,9 @@ class AbstractHowsoClient(ABC):
             The default value (which is 1) should return the best accuracy but
             might be slower. Higher values should improve performance but may
             decrease accuracy of results.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if not self.active_session:
@@ -825,6 +830,7 @@ class AbstractHowsoClient(ABC):
             "features": features,
             "features_to_impute": features_to_impute,
             "session": self.active_session.id,
+            "task_id": task_id,
         })
         self._auto_persist_trainee(trainee_id)
 
@@ -1699,6 +1705,7 @@ class AbstractHowsoClient(ABC):
         return_context_values: bool = False,
         substitute_output: bool = True,
         suppress_warning: bool = False,
+        task_id: str | None = None,
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: bool | None = None,
         use_differential_privacy: bool = False,
@@ -2299,6 +2306,9 @@ class AbstractHowsoClient(ABC):
             values. Only applicable if a substitution value map has been set.
         suppress_warning : bool, defaults to False
             If True, warnings will not be displayed.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_aggregation_based_differential_privacy : bool, default False
             If True this changes generative output to use aggregation instead
             of selection (the default approach) before adding noise.
@@ -2438,6 +2448,7 @@ class AbstractHowsoClient(ABC):
                 "preserve_feature_values": preserve_feature_values,
                 "return_context_values": return_context_values,
                 "substitute_output": substitute_output,
+                "task_id": task_id,
                 "use_case_weights": use_case_weights,
                 "weight_feature": weight_feature,
             }
@@ -2491,6 +2502,7 @@ class AbstractHowsoClient(ABC):
                 "preserve_feature_values": preserve_feature_values,
                 "return_context_values": return_context_values,
                 "substitute_output": substitute_output,
+                "task_id": task_id,
                 "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy,
                 "use_case_weights": use_case_weights,
                 "use_differential_privacy": use_differential_privacy,
@@ -2804,6 +2816,7 @@ class AbstractHowsoClient(ABC):
         series_stop_maps: list[SeriesStopMap] | None = None,
         substitute_output: bool = True,
         suppress_warning: bool = False,
+        task_id: str | None = None,
         use_aggregation_based_differential_privacy: bool = False,
         use_all_features: bool = True,
         use_case_weights: bool | None = None,
@@ -3012,6 +3025,9 @@ class AbstractHowsoClient(ABC):
             See parameter ``substitute_output`` in :meth:`AbstractHowsoClient.react`.
         suppress_warning : bool
             See parameter ``suppress_warning`` in :meth:`AbstractHowsoClient.react`.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_aggregation_based_differential_privacy : bool, default False
             See parameter ``use_aggregation_based_differential_privacy`` in
             :meth:`AbstractHowsoClient.react`.
@@ -3171,6 +3187,7 @@ class AbstractHowsoClient(ABC):
                 "series_id_values": series_id_values,
                 "series_stop_maps": series_stop_maps,
                 "substitute_output": substitute_output,
+                "task_id": task_id,
                 "use_all_features": use_all_features,
                 "use_case_weights": use_case_weights,
                 "weight_feature": weight_feature,
@@ -3230,6 +3247,7 @@ class AbstractHowsoClient(ABC):
                 "series_id_values": series_id_values,
                 "series_stop_maps": series_stop_maps,
                 "substitute_output": substitute_output,
+                "task_id": task_id,
                 "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy,
                 "use_all_features": use_all_features,
                 "use_case_weights": use_case_weights,
@@ -3337,6 +3355,7 @@ class AbstractHowsoClient(ABC):
         series_context_values: TabularData3D | None = None,
         series_id_features: Collection[str] | None = None,
         series_id_values: TabularData2D | None = None,
+        task_id: str | None = None,
         use_aggregation_based_differential_privacy: bool = False,
         use_case_weights: bool | None = None,
         use_derived_ts_features: bool = True,
@@ -3416,6 +3435,9 @@ class AbstractHowsoClient(ABC):
             2d list of ID feature values. Each sublist should specify ID
             feature values that can uniquely identify the cases making up a
             single series.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_aggregation_based_differential_privacy : bool, default False
             If True this changes generative output to use aggregation instead
             of selection (the default approach) before adding noise.
@@ -3508,6 +3530,7 @@ class AbstractHowsoClient(ABC):
             "series_context_values": serialized_series_context_values,
             "series_id_features": series_id_features,
             "series_id_values": serialized_series_id_values,
+            "task_id": task_id,
             "use_aggregation_based_differential_privacy": use_aggregation_based_differential_privacy,
             "use_case_weights": use_case_weights,
             "use_derived_ts_features": use_derived_ts_features,
@@ -3603,6 +3626,7 @@ class AbstractHowsoClient(ABC):
         p_value_of_removal: bool | str = False,
         residual_contribution: bool | str = False,
         similarity_conviction: bool | str = False,
+        task_id: str | None = None,
         use_case_weights: bool | None = None,
         weight_feature: str | None = None,
     ):
@@ -3666,6 +3690,9 @@ class AbstractHowsoClient(ABC):
             The name of the feature to store similarity conviction
             values. If set to True the values will be stored to the feature
             'similarity_conviction'.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
@@ -3693,6 +3720,7 @@ class AbstractHowsoClient(ABC):
             "p_value_of_removal": p_value_of_removal,
             "residual_contribution": residual_contribution,
             "similarity_conviction": similarity_conviction,
+            "task_id": task_id,
             "use_case_weights": use_case_weights,
             "weight_feature": weight_feature,
         })
@@ -3732,6 +3760,7 @@ class AbstractHowsoClient(ABC):
         robust_hyperparameters: bool | None = None,
         sample_model_fraction: float | None = None,
         sub_model_size: int | None = None,
+        task_id: str | None = None,
         use_case_weights: bool | None = None,
         value_robust_contributions_action_feature: str | None = None,
         value_robust_contributions_buckets: dict[str, list[tuple[float, float]]] | None = None,
@@ -4065,6 +4094,9 @@ class AbstractHowsoClient(ABC):
         sub_model_size : int, optional
             Subset of model to use for calculations. Applicable only
             to models > 1000 cases.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
@@ -4167,6 +4199,7 @@ class AbstractHowsoClient(ABC):
             "robust_hyperparameters": robust_hyperparameters,
             "sample_model_fraction": sample_model_fraction,
             "sub_model_size": sub_model_size,
+            "task_id": task_id,
             "use_case_weights": use_case_weights,
             "value_robust_contributions_action_feature": value_robust_contributions_action_feature,
             "value_robust_contributions_buckets": value_robust_contributions_buckets,
@@ -4206,6 +4239,7 @@ class AbstractHowsoClient(ABC):
         p_value_of_removal: bool = False,
         residual_contributions: bool = False,
         similarity_conviction: bool = False,
+        task_id: str | None = None,
         use_case_weights: bool | None = None,
         weight_feature: str | None = None,
     ) -> GroupReaction:
@@ -4305,6 +4339,9 @@ class AbstractHowsoClient(ABC):
         similarity_conviction : bool, default False
             If true will output the mean similarity conviction of the group's
             cases.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
@@ -4354,6 +4391,7 @@ class AbstractHowsoClient(ABC):
             "p_value_of_addition": p_value_of_addition,
             "p_value_of_removal": p_value_of_removal,
             "similarity_conviction": similarity_conviction,
+            "task_id": task_id,
             "use_case_weights": use_case_weights,
             "weight_feature": weight_feature,
         })
@@ -4428,6 +4466,7 @@ class AbstractHowsoClient(ABC):
         rebalance_features: Collection[str] | None = None,
         reduce_only: bool = False,
         targeted_model: TargetedModel | None = None,
+        task_id: str | None = None,
         use_case_weights: bool | None = None,
         use_deviations: bool | None = None,
         use_sdm: bool = True,
@@ -4508,6 +4547,9 @@ class AbstractHowsoClient(ABC):
                 - **targetless**: Analyze hyperparameters for all context
                   features as possible action features, ignores
                   action_features parameter.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights
@@ -4559,6 +4601,7 @@ class AbstractHowsoClient(ABC):
             rebalance_features=rebalance_features,
             reduce_only=reduce_only,
             targeted_model=targeted_model,
+            task_id=task_id,
             use_case_weights=use_case_weights,
             use_deviations=use_deviations,
             use_sdm=use_sdm,
@@ -4996,6 +5039,7 @@ class AbstractHowsoClient(ABC):
         distribute_weight_feature: str | None = None,
         reduce_max_cases: int | None = None,
         skip_auto_analyze: bool = False,
+        task_id: str | None = None,
         **kwargs,
     ) -> dict:
         """
@@ -5027,6 +5071,9 @@ class AbstractHowsoClient(ABC):
             which defaults to 50,000.
         skip_auto_analyze : bool, default False
             Whether to skip auto-analyzing as cases are removed.
+        task_id : str, optional
+            If provided, should be a short, unique identifier that can be used
+            with ``get_progress`` if concurrent progress updates are desired.
 
         Returns
         -------
@@ -5040,6 +5087,7 @@ class AbstractHowsoClient(ABC):
             features=features,
             reduce_max_cases=reduce_max_cases,
             skip_auto_analyze=skip_auto_analyze,
+            task_id=task_id,
         )
         params.update(kwargs)
         if kwargs:
@@ -5972,3 +6020,27 @@ class AbstractHowsoClient(ABC):
             "impute_session": impute_session,
             "session": self.active_session.id,
         })
+
+    def get_progress(self, trainee_id: str, task_id: str) -> TaskProgress:
+        """
+        Get concurrent progress feedback for a long running task.
+
+        Given a ``task_id`` that matches the same provided at the start of a
+        long-running operation, for example: ``analyze()``. This method will
+        make a request to the Howso Engine about the progress.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee.
+        task_id : str
+            A unique identifier originally provided when starting a long-
+            running operation such as ``analyze()``.
+
+        Returns
+        -------
+        TaskProgress
+            A mapping of the current ``step``, the ``total`` number of steps,
+            and a ``details`` description, as reported by the Howso Engine.
+        """
+        return self.execute(trainee_id, "get_progress", {"task_id": task_id})
