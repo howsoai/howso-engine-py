@@ -49,7 +49,7 @@ class ConsoleFeedback(ContextDecorator):
 
             # Wait for the next frame delay with fine-grained checks
             for _ in range(int(self.frame_delay_seconds / self._granularity)):
-                if self._stop_event is None or self._stop_event.is_set():
+                if not self._stop_event or self._stop_event.is_set():
                     break
                 time.sleep(self._granularity)
 

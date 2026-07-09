@@ -18,7 +18,7 @@ import logging
 from pathlib import Path
 import random
 import re
-import typing as t
+from typing import Any, Protocol, TypeVar, overload
 import unicodedata
 import uuid
 import warnings
@@ -32,13 +32,13 @@ from howso.utilities.monitors import ProgressTimer
 
 logger = logging.getLogger(__name__)
 
-T = t.TypeVar("T")
+T = TypeVar("T")
 
 
 def deserialize_to_dataframe(
-    data: Iterable[Iterable[t.Any]] | Iterable[Mapping[str, t.Any]] | None,
-    columns: t.Optional[Iterable[str]] = None,
-    index: t.Optional[Iterable[t.Any]] = None
+    data: Iterable[Iterable[Any]] | Iterable[Mapping[str, Any]] | None,
+    columns: Iterable[str] | None = None,
+    index: Iterable[Any] | None = None
 ) -> pd.DataFrame:
     """
     Deserialize data into a DataFrame.
@@ -68,9 +68,9 @@ def deserialize_to_dataframe(
 
 
 def get_features_from_data(
-    data: t.Any, *,
-    data_parameter: t.Optional[str] = 'cases',
-    features_parameter: t.Optional[str] = 'features'
+    data: Any, *,
+    data_parameter: str | None = 'cases',
+    features_parameter: str | None = 'features'
 ) -> list[str]:
     """
     Retrieve feature names from dataframe columns.
@@ -113,7 +113,7 @@ def get_features_from_data(
             f"`{data_parameter}` are not provided as a DataFrame.")
 
 
-def serialize_models(obj: t.Any, *, exclude_null: bool = False) -> t.Any:
+def serialize_models(obj: Any, *, exclude_null: bool = False) -> Any:
     """
     Serialize client model instances.
 
@@ -355,7 +355,7 @@ def random_handle() -> str:
         return uuid.uuid4().hex[-12:]
 
 
-def slugify(value: t.Any, allow_unicode: bool = False):
+def slugify(value: Any, allow_unicode: bool = False):
     """
     Slugify a value.
 
@@ -448,7 +448,7 @@ def insufficient_generation_check(
     return False
 
 
-def sanitize_for_json(obj: t.Any):  # noqa: C901
+def sanitize_for_json(obj: Any):  # noqa: C901
     """
     Sanitizes data for JSON serialization.
 
@@ -643,7 +643,7 @@ def get_packaged_engine_version() -> Version | None:
         return None
 
 
-class BaseBatchScalingManager(t.Protocol):
+class BaseBatchScalingManager(Protocol):
     """Interface definition for scaling batching operations."""
 
     @property
@@ -811,7 +811,7 @@ class BatchScalingManager(BaseBatchScalingManager):
         self,
         batch_size: float,
         batch_duration: datetime.timedelta,
-        memory_sizes: t.Optional[tuple[int, int]],
+        memory_sizes: tuple[int, int] | None,
     ) -> float:
         """
         Scale batch size based on duration or memory size of the batch.
@@ -879,10 +879,10 @@ class BatchScalingManager(BaseBatchScalingManager):
 
         return self.clamp(batch_size)
 
-    @t.overload
+    @overload
     def clamp(self, batch_size: int) -> int: ...  # noqa: E704 D102
 
-    @t.overload
+    @overload
     def clamp(self, batch_size: float) -> float: ...  # noqa: E704 D102
 
     def clamp(self, batch_size: int | float) -> int | float:
@@ -934,7 +934,7 @@ class ReactInBatches:
     ----------
     trainee_id : str
         The ID of the Trainee to react to.
-    params : dict[str, t.Any]
+    params : dict[str, Any]
         The engine react parameters.
     progress : ProgressTimer
         Progress tracker.
@@ -964,14 +964,14 @@ class ReactInBatches:
             self,
             *,
             trainee_id: str,
-            params: dict[str, t.Any],
+            params: dict[str, Any],
             progress: ProgressTimer,
             batch_scaler: BaseBatchScalingManager,
             get_thread_count: Callable[[str], int],
             get_concurrency: Callable[[str], int | None],
-            params_for_batch: Callable[[dict[str, t.Any], int, int], dict[str, t.Any]],
-            react_function: Callable[[str, dict[str, t.Any]], tuple[dict[str, t.Any], int, int]],
-            progress_callback: Callable[[ProgressTimer, dict[str, t.Any] | None], None] | None = None,
+            params_for_batch: Callable[[dict[str, Any], int, int], dict[str, Any]],
+            react_function: Callable[[str, dict[str, Any]], tuple[dict[str, Any], int, int]],
+            progress_callback: Callable[[ProgressTimer, dict[str, Any] | None], None] | None = None,
     ) -> None:
         self.result = {}
         """The final result of the computation."""
@@ -982,7 +982,7 @@ class ReactInBatches:
         self._params = params
         """The caller-supplied set of call parameters."""
 
-        self._futures: deque[tuple[int, Future[tuple[dict[str, t.Any], int, int]]]] = deque()
+        self._futures: deque[tuple[int, Future[tuple[dict[str, Any], int, int]]]] = deque()
         """
         A double-ended queue of triples of batch size, start time, and futures.
 
@@ -990,7 +990,7 @@ class ReactInBatches:
         produce the results of the react function.
         """
 
-        self._running: set[Future[tuple[dict[str, t.Any], int, int]]] = set()
+        self._running: set[Future[tuple[dict[str, Any], int, int]]] = set()
         """A set of incomplete futures."""
 
         self._progress = progress
@@ -999,7 +999,7 @@ class ReactInBatches:
         self._batch_scaler = batch_scaler
         """Manager to dynamically scale the batch size."""
 
-        self._batch_scaling_future: tuple[datetime.datetime, Future[tuple[dict[t.Any, t.Any], int, int]]] | None = None
+        self._batch_scaling_future: tuple[datetime.datetime, Future[tuple[dict[Any, Any], int, int]]] | None = None
         """A specific future that will update the batch scaler when complete, with its start time."""
 
         self._get_thread_count = get_thread_count
@@ -1017,7 +1017,7 @@ class ReactInBatches:
         self._progress_callback = progress_callback
         """A callback invoked after each batch completes with incremental results."""
 
-    def _send_progress(self, results: dict[str, t.Any] | None) -> None:
+    def _send_progress(self, results: dict[str, Any] | None) -> None:
         """Invoke the progress callback if needed."""
         if self._progress_callback:
             self._progress_callback(self._progress, results)
@@ -1034,16 +1034,16 @@ class ReactInBatches:
         cls,
         *,
         trainee_id: str,
-        params: dict[str, t.Any],
+        params: dict[str, Any],
         total_size: int,
         batch_size: int | None,
         initial_batch_size: int | None,
         get_thread_count: Callable[[str], int],
         get_concurrency: Callable[[str], int | None],
-        params_for_batch: Callable[[dict[str, t.Any], int, int], dict[str, t.Any]],
-        react_function: Callable[[str, dict[str, t.Any]], tuple[dict[str, t.Any], int, int]],
-        progress_callback: Callable[[ProgressTimer, dict[str, t.Any] | None], None] | None = None,
-    ) -> dict[str, t.Any]:
+        params_for_batch: Callable[[dict[str, Any], int, int], dict[str, Any]],
+        react_function: Callable[[str, dict[str, Any]], tuple[dict[str, Any], int, int]],
+        progress_callback: Callable[[ProgressTimer, dict[str, Any] | None], None] | None = None,
+    ) -> dict[str, Any]:
         """Run a react-type operation in batches."""
         with ProgressTimer(total_size) as progress:
             # Come up with a batch size, if we weren't provided with one.
@@ -1188,7 +1188,7 @@ class ParamsForBatch:
         self._slice_keys = slice_keys
         self._num_to_generate_param = num_to_generate_param
 
-    def __call__(self, params: dict[str, t.Any], batch_start: int, batch_end: int) -> dict[str, t.Any]:
+    def __call__(self, params: dict[str, Any], batch_start: int, batch_end: int) -> dict[str, Any]:
         """Get slices out of a react parameter set."""
         result = {}
         for k, v in params.items():
@@ -1263,10 +1263,10 @@ def to_pandas_datetime_format(f: str):
 
 
 def fix_feature_value_keys(
-    input_dict: dict[str, t.Any],
+    input_dict: dict[str, Any],
     feature_attributes: Mapping[str, Mapping],
     feature_name: str
-) -> dict[str | float | int, t.Any]:
+) -> dict[str | float | int, Any]:
     """
     Cleans up misformatted keys for a dict with feature values as keys.
 
@@ -1340,9 +1340,9 @@ def update_caps_maps(
 
 
 def update_confusion_matrix(
-    confusion_matrix: dict[str, dict[str, float | dict[str, t.Any]]],
+    confusion_matrix: dict[str, dict[str, float | dict[str, Any]]],
     feature_attributes: Mapping[str, Mapping]
-) -> dict[str, t.Any]:
+) -> dict[str, Any]:
     """
     Cleans up misformatted keys from non-string nominal feature's confusion matrices.
 
@@ -1351,7 +1351,7 @@ def update_confusion_matrix(
 
     Parameters
     ----------
-    confusion_matrix : dict[str, dict[str, float | dict[str, t.Any]]]
+    confusion_matrix : dict[str, dict[str, float | dict[str, Any]]]
         The mapping that defines the confusion matrix.
     feature_attributes : Mapping[str, Mapping]
         The feature attributes of the data.
@@ -1416,7 +1416,10 @@ def _datetime_matches_format(dt_obj: datetime.date | datetime.datetime, fmt: str
         return False
 
 
-def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: dict) -> tuple[list[t.Any]]:  # noqa: C901 E501
+def coerce_date_time_formats(
+    date_time_values: list[Any],
+    feature_attributes: dict
+) -> tuple[list[Any], list[Any], list[Any], str | None]:  # noqa: C901 E501
     """
     Verify that the provided list of date(time) values conform to the feature attributes of the time feature.
 
@@ -1447,7 +1450,7 @@ def coerce_date_time_formats(date_time_values: list[t.Any], feature_attributes: 
     """
     time_feature_found = False
     time_feature_format = None
-    for feature, attributes in feature_attributes.items():
+    for attributes in feature_attributes.values():
         if attributes.get("time_series", {}).get("time_feature") is True:
             time_feature_found = True
             time_feature_format = attributes.get("date_time_format")
@@ -1528,7 +1531,7 @@ class IgnoreWarnings:
         The warning classes to ignore.
     """
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         warning_types: type[Warning] | Iterable[type[Warning]]
     ):
