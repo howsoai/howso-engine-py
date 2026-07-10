@@ -11,6 +11,8 @@ import pytest
 from howso.client.configuration import ClientOptions, HowsoConfiguration
 from howso.utilities import (
     auto_progress,
+    auto_progress_enabled,
+    auto_progress_forced,
     auto_progress_scope,
     auto_reporter,
     disable_auto_progress,
@@ -306,6 +308,43 @@ def test_gating_env_var_garbage_falls_through(monkeypatch):
     t = _trainee_with_cfg("on")  # config says on
     monkeypatch.setenv("HOWSO_PROGRESS", "maybe")  # env unrecognized
     assert _auto_progress_enabled(t) is True  # config wins
+
+
+def test_auto_progress_forced_reflects_force_flags():
+    assert auto_progress_forced() is None
+    enable_auto_progress()
+    assert auto_progress_forced() is True
+    disable_auto_progress()
+    assert auto_progress_forced() is False
+    reset_auto_progress()
+    assert auto_progress_forced() is None
+
+
+def test_auto_progress_forced_tracks_scope():
+    with auto_progress_scope(False):
+        assert auto_progress_forced() is False
+        with auto_progress_scope(True):
+            assert auto_progress_forced() is True
+        assert auto_progress_forced() is False
+    assert auto_progress_forced() is None
+
+
+def test_auto_progress_enabled_matches_private_gate(monkeypatch):
+    """Verify the public accessor mirrors the decorator's gating decision."""
+    t = _trainee_with_cfg("on")
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: False)
+    assert auto_progress_enabled(t) is _auto_progress_enabled(t) is True
+    monkeypatch.setenv("HOWSO_PROGRESS", "off")
+    assert auto_progress_enabled(t) is _auto_progress_enabled(t) is False
+
+
+def test_auto_progress_enabled_without_trainee(monkeypatch):
+    """Verify the trainee argument is optional — config layer is skipped."""
+    monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+    assert auto_progress_enabled() is True
+    disable_auto_progress()
+    assert auto_progress_enabled() is False
 
 
 def test_auto_progress_scope_restores_prior_state(monkeypatch):

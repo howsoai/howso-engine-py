@@ -55,6 +55,8 @@ __all__ = [
     "RichProgressReporter",
     "SimpleProgressReporter",
     "auto_progress",
+    "auto_progress_enabled",
+    "auto_progress_forced",
     "auto_progress_scope",
     "auto_reporter",
     "disable_auto_progress",
@@ -660,6 +662,48 @@ def auto_progress(label_or_method=None, /):
     def factory(method: Callable[..., Any]) -> Callable[..., Any]:
         return _decorate(method, label or _default_label(method.__name__))
     return factory
+
+
+def auto_progress_enabled(trainee: Any = None) -> bool:
+    """
+    Report whether an :func:`auto_progress`-decorated call would be wrapped now.
+
+    Public read of the same decision the decorator makes for ``trainee``
+    (see :func:`_auto_progress_enabled` for the precedence stack). Intended
+    for downstream packages that compose their own progress sessions and
+    need to honor the same force-flag / env / config / heuristic gating.
+
+    Parameters
+    ----------
+    trainee : Any, optional
+        The trainee whose client configuration participates in the decision.
+        When omitted, the config layer is skipped and the remaining layers
+        (force flag, env var, TTY/notebook heuristic) decide.
+
+    Returns
+    -------
+    bool
+        True when auto-progress would be enabled for the next decorated call.
+    """
+    return _auto_progress_enabled(trainee)
+
+
+def auto_progress_forced() -> bool | None:
+    """
+    Return the thread-local auto-progress force flag.
+
+    ``True``/``False`` when :func:`enable_auto_progress` /
+    :func:`disable_auto_progress` / :func:`auto_progress_scope` has forced a
+    state for the current thread, or ``None`` when unset. Lets downstream
+    packages slot their own overrides between the force flags and the
+    env-var/config layers of the precedence stack.
+
+    Returns
+    -------
+    bool or None
+        The forced state, or ``None`` when no force is in effect.
+    """
+    return getattr(_state, "forced", None)
 
 
 def enable_auto_progress() -> None:
