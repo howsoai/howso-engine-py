@@ -4276,7 +4276,7 @@ class AbstractHowsoClient(ABC):
         familiarity_conviction_removal : bool, default False
             Calculate and output familiarity conviction of removing
             the specified cases.
-        group_id_features : list of str, optional
+        group_id_features : Collection of str, optional
             List of feature names whose values in the specified cases identify
             trained cases that should be held out of queries. This parameter is ignored if
             ``new_cases`` is not specified. It is assumed that all groups of
