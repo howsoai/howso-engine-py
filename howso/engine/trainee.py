@@ -3180,7 +3180,7 @@ class Trainee(BaseTrainee):
         weight_feature: t.Optional[str] = None,
     ) -> GroupReaction:
         """
-        Computes specified data for a **set** of cases.
+        Compute specified data for a **set** of cases.
 
         Return the list of familiarity convictions (and optionally, distance
         contributions or :math:`p` values) for each set.
@@ -3245,8 +3245,8 @@ class Trainee(BaseTrainee):
         features : Collection of str, optional
             A list of feature names to consider while calculating convictions.
         group_id_features : list of str, optional
-            List of feature names whose values identify trained cases that
-            should be held out of queries. This parameter is ignored if
+            List of feature names whose values in the specified cases identify
+            trained cases that should be held out of queries. This parameter is ignored if
             ``new_cases`` is not specified. It is assumed that all groups of
             cases have a singular value for each feature in
             ``group_id_features``.
