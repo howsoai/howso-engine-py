@@ -3167,6 +3167,7 @@ class Trainee(BaseTrainee):
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = False,
         familiarity_conviction_removal: bool = False,
+        group_id_features: t.Optional[Collection[str]] = None,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
         new_cases: t.Optional[TabularData3D] = None,
@@ -3179,7 +3180,7 @@ class Trainee(BaseTrainee):
         weight_feature: t.Optional[str] = None,
     ) -> GroupReaction:
         """
-        Computes specified data for a **set** of cases.
+        Compute specified data for a **set** of cases.
 
         Return the list of familiarity convictions (and optionally, distance
         contributions or :math:`p` values) for each set.
@@ -3243,6 +3244,12 @@ class Trainee(BaseTrainee):
             the specified cases.
         features : Collection of str, optional
             A list of feature names to consider while calculating convictions.
+        group_id_features : Collection of str, optional
+            List of feature names whose values in the specified cases identify
+            trained cases that should be held out of queries. This parameter is ignored if
+            ``new_cases`` is not specified. It is assumed that all groups of
+            cases have a singular value for each feature in
+            ``group_id_features``.
         kl_divergence_addition : bool, default False
             Calculate and output KL divergence of adding the
             specified cases.
@@ -3295,6 +3302,7 @@ class Trainee(BaseTrainee):
                 conditions=conditions,
                 details=details,
                 features=features,
+                group_id_features=group_id_features,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
                 kl_divergence_addition=kl_divergence_addition,
