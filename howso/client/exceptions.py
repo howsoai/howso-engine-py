@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Generator, Mapping
-import typing as t
+from typing import Any, NotRequired, Self, TypeAliasType, TypedDict, Union
 
 from requests import JSONDecodeError as RequestsJSONDecodeError, Response
-from typing_extensions import NotRequired, TypeAliasType, TypedDict
 
 
 class ValidationErrorDetail(TypedDict):
@@ -16,8 +15,7 @@ class ValidationErrorDetail(TypedDict):
 
 
 ValidationErrorCollection = TypeAliasType(
-    "ValidationErrorCollection",
-    t.Union[list[ValidationErrorDetail], dict[str, "ValidationErrorCollection"]]
+    "ValidationErrorCollection", Union[list[ValidationErrorDetail], dict[str, "ValidationErrorCollection"]]
 )
 """A collection of validation error objects."""
 
@@ -40,7 +38,7 @@ class HowsoError(Exception):
     code = None
     url = None
 
-    def __init__(self, message: str, code: t.Optional[str] = None, url: t.Optional[str] = None):
+    def __init__(self, message: str, code: str | None = None, url: str | None = None) -> None:
         """Initialize a HowsoError."""
         if code is None:
             code = "0"
@@ -72,10 +70,10 @@ class HowsoValidationError(HowsoError):
         self,
         message: str,
         *,
-        code: t.Optional[str] = None,
-        errors: t.Optional[Mapping[str, ValidationErrorCollection]] = None,
-        url: t.Optional[str] = None,
-    ):
+        code: str | None = None,
+        errors: Mapping[str, ValidationErrorCollection] | None = None,
+        url: str | None = None,
+    ) -> None:
         self.errors = errors
         super().__init__(message, code=code, url=url)
 
@@ -83,26 +81,26 @@ class HowsoValidationError(HowsoError):
         """Get validation error messages for each field."""
         messages = []
         for error in self.iter_errors():
-            msg = error['message']
-            if field := error.get('field'):
+            msg = error["message"]
+            if field := error.get("field"):
                 msg = f"{'.'.join(field)}: {msg}"
             messages.append(msg)
         return messages
 
     def iter_errors(self) -> Generator[ValidationErrorDetail]:
         """Iterate over field error messages."""
-        def _traverse(path: list[str], collection: Mapping | list):
+
+        def _traverse(path: list[str], collection: Mapping[str, Any] | list[Any]) -> Generator[ValidationErrorDetail]:
             if isinstance(collection, Mapping):
                 for key, item in collection.items():
                     yield from _traverse([*path, key], item)
             elif isinstance(collection, list):
                 for item in collection:
                     error = ValidationErrorDetail(
-                        message=item.get('message') or 'An unknown error occurred.',
-                        field=path
+                        message=item.get("message") or "An unknown error occurred.", field=path
                     )
-                    if code := item.get('code'):
-                        error['code'] = code
+                    if code := item.get("code"):
+                        error["code"] = code
                     yield error
 
         if self.errors is not None:
@@ -133,11 +131,11 @@ class HowsoApiError(HowsoError):
         self,
         message: str,
         *,
-        code: t.Optional[str] = None,
-        errors: t.Optional[Mapping[str, ValidationErrorCollection]] = None,
-        status: t.Optional[int] = None,
-        url: t.Optional[str] = None,
-    ):
+        code: str | None = None,
+        errors: Mapping[str, ValidationErrorCollection] | None = None,
+        status: int | None = None,
+        url: str | None = None,
+    ) -> None:
         """Initialize a HowsoApiError."""
         if status is None:
             status = -1
@@ -146,7 +144,7 @@ class HowsoApiError(HowsoError):
         super().__init__(message, code=code, url=url)
 
     @classmethod
-    def from_dict(cls, obj: Mapping | None):
+    def from_dict(cls, obj: Mapping[str, Any] | None) -> Self:
         """
         Build a HowsoApiError from API response.
 
@@ -163,12 +161,12 @@ class HowsoApiError(HowsoError):
         if obj is None:
             obj = {}
 
-        default_msg = 'An unknown error occurred.'
-        detail = obj.get('detail') or default_msg
-        status = obj.get('status')
-        code = obj.get('code')
-        url = obj.get('type')
-        errors = obj.get('errors')
+        default_msg = "An unknown error occurred."
+        detail = obj.get("detail") or default_msg
+        status = obj.get("status")
+        code = obj.get("code")
+        url = obj.get("type")
+        errors = obj.get("errors")
 
         if isinstance(detail, list):
             # This helper can only process a single message at a time, use the first value
@@ -177,16 +175,16 @@ class HowsoApiError(HowsoError):
         return cls(detail, code=code, status=status, url=url, errors=errors)
 
     @classmethod
-    def from_response(cls, obj: Response):
+    def from_response(cls, obj: Response) -> Self:
         """Build HowsoApiError from Response object."""
         status = obj.status_code
-        default_msg = 'An unknown error occurred.'
+        default_msg = "An unknown error occurred."
         try:
             data = obj.json()
-            message = data.get('detail') or default_msg
-            code = data.get('code')
-            url = data.get('type')
-            errors = data.get('errors')
+            message = data.get("detail") or default_msg
+            code = data.get("code")
+            url = data.get("type")
+            errors = data.get("errors")
         except (RequestsJSONDecodeError, TypeError, AttributeError):
             message = default_msg
             code = None
@@ -207,11 +205,11 @@ class HowsoApiValidationError(HowsoValidationError, HowsoApiError):
         self,
         message: str,
         *,
-        code: t.Optional[str] = None,
-        errors: t.Optional[Mapping[str, ValidationErrorCollection]] = None,
-        status: t.Optional[int] = 400,
-        url: t.Optional[str] = None,
-    ):
+        code: str | None = None,
+        errors: Mapping[str, ValidationErrorCollection] | None = None,
+        status: int | None = 400,
+        url: str | None = None,
+    ) -> None:
         super(HowsoValidationError, self).__init__(message=message, code=code, status=status, errors=errors, url=url)
 
 
@@ -243,7 +241,7 @@ class DatetimeFormatWarning(HowsoWarning):
     """A warning for potential problems with datetime formats."""
 
 
-class NoOngoingTaskException(HowsoError):
+class NoOngoingTaskError(HowsoError):
     """A call to request progress was made where there is no ongoing task."""
 
     #: Engine error message that identifies this condition. Used to promote the
