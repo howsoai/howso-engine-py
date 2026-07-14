@@ -23,7 +23,7 @@ Typical use::
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -67,8 +67,6 @@ __all__ = [
 
 ProgressSource = Literal["engine", "batch"]
 
-_NO_ONGOING_TASK = "There is no currently ongoing task matching the specified task_id."
-
 # Databricks notebook cells can disconnect if no output is emitted for ~30s.
 # A heartbeat well under that window keeps the cell alive during long batches.
 HEARTBEAT_INTERVAL = float(os.environ.get("HOWSO_HEARTBEAT_INTERVAL", "15.0"))
@@ -95,14 +93,29 @@ class ProgressEvent:
 
 
 class ProgressReporter(Protocol):
-    """Sink for :class:`ProgressEvent` updates produced by :func:`with_progress`."""
+    """
+    Sink for :class:`ProgressEvent` updates produced by :func:`with_progress`.
 
-    def start(self, label: str, *, sources: tuple[ProgressSource, ...]) -> None:
-        """Begin a reporting session with the given label and known sources."""
+    Lifecycle is ``start`` -> zero or more ``update`` calls -> ``finish``.
+    ``start`` declares the set of progress ``sources`` up front, establishing
+    one logical track per source. Each subsequent ``update`` carries a
+    ``source`` discriminator that selects the track it applies to:
+
+    * ``event.source`` must be one of the ``sources`` passed to ``start``;
+      updates for an undeclared source (or any update before ``start`` /
+      after ``finish``) are ignored.
+    * A source maps to exactly one track. How a track renders is
+      implementation-defined: :class:`RichProgressReporter` updates a single
+      live bar in place, while :class:`SimpleProgressReporter` emits an
+      append-only stream of lines for the source.
+    """
+
+    def start(self, label: str, *, sources: Sequence[ProgressSource]) -> None:
+        """Begin a reporting session, declaring the tracks ``update`` may target."""
         ...
 
     def update(self, event: ProgressEvent) -> None:
-        """Apply a single progress event."""
+        """Apply a single progress event to the track named by ``event.source``."""
         ...
 
     def finish(self, *, success: bool, duration: timedelta) -> None:
@@ -114,9 +127,11 @@ class RichProgressReporter:
     """
     Rich-based reporter that renders one bar per progress source.
 
-    When a method exposes both ``progress_callback`` and ``task_id``, two
-    bars are shown — the outer one tracks Python batches, the inner one
-    tracks engine-reported steps within the current batch.
+    When started with both the ``batch`` and ``engine`` sources, two bars are
+    rendered: the ``batch`` (outer) bar carries the session label, and the
+    ``engine`` (inner) bar is indented beneath it so the two read as nested.
+    Which sources are present is decided upstream by :func:`with_progress`
+    from the wrapped method's ``progress_callback`` / ``task_id`` hooks.
 
     Parameters
     ----------
@@ -140,7 +155,7 @@ class RichProgressReporter:
         self._tasks: dict[ProgressSource, TaskID] = {}
         self._label: str = ""
 
-    def start(self, label: str, *, sources: tuple[ProgressSource, ...]) -> None:
+    def start(self, label: str, *, sources: Sequence[ProgressSource]) -> None:
         """
         Begin a reporting session and add one bar per progress source.
 
@@ -148,7 +163,7 @@ class RichProgressReporter:
         ----------
         label : str
             Short description shown on the batch (outer) bar.
-        sources : tuple of ProgressSource
+        sources : sequence of ProgressSource
             Which progress sources will emit events; one bar is created for
             each, in the given order.
 
@@ -264,7 +279,7 @@ class SimpleProgressReporter:
         self._prefixes: dict[ProgressSource, str] = {}
         self._finished: bool = False
 
-    def start(self, label: str, *, sources: tuple[ProgressSource, ...]) -> None:
+    def start(self, label: str, *, sources: Sequence[ProgressSource]) -> None:
         """
         Begin a reporting session and print the session header.
 
@@ -272,7 +287,7 @@ class SimpleProgressReporter:
         ----------
         label : str
             Short description printed as the header line.
-        sources : tuple of ProgressSource
+        sources : sequence of ProgressSource
             Which progress sources will emit events; per-source step and
             heartbeat tracking is initialized for each.
 
@@ -316,6 +331,10 @@ class SimpleProgressReporter:
         if self._finished:
             # A late update from the poll thread (e.g. after join() timed out)
             # must not print past the completion line.
+            return
+        if event.source not in self._last_step:
+            # An undeclared source has no track; ignore it so behavior matches
+            # RichProgressReporter (see the ProgressReporter contract).
             return
         now = monotonic()
         prefix = self._prefixes.get(event.source, "")
@@ -364,6 +383,18 @@ def auto_reporter(*, console: Console | None = None) -> ProgressReporter:
     (which can drop live-rendered output), when ``HOWSO_SIMPLE_PROGRESS`` is
     set to a truthy value (``1``/``on``/``true``/``yes``), or when stdout is
     not a tty. Otherwise rich's live renderer is used.
+
+    Parameters
+    ----------
+    console : Console, optional
+        Console the chosen reporter renders into. Defaults to a fresh
+        :class:`rich.console.Console` created by the reporter.
+
+    Returns
+    -------
+    ProgressReporter
+        A :class:`SimpleProgressReporter` in degraded environments, otherwise
+        a :class:`RichProgressReporter`.
     """
     if "DATABRICKS_RUNTIME_VERSION" in os.environ:
         return SimpleProgressReporter(console=console)
@@ -467,7 +498,7 @@ def with_progress(
     if has_task_id:
         # Deferred import: howso.client pulls in howso.utilities at import time,
         # so we can't import it at module scope without a circular dependency.
-        from howso.client.exceptions import HowsoError
+        from howso.client.exceptions import NoOngoingTaskException  # noqa: PLC0415
 
         task_id = str(uuid4())
         kwargs["task_id"] = task_id
@@ -476,17 +507,17 @@ def with_progress(
             while not stop_event.is_set():
                 try:
                     p = client.get_progress(trainee_id, task_id)  # pyright: ignore[reportOptionalMemberAccess]
-                except HowsoError as exc:
-                    # Between batches there may be no live task; ignore that
-                    # specific error and keep polling. Any other engine error
-                    # means progress can't be reported — stop quietly rather
-                    # than killing this daemon thread with a traceback on
-                    # stderr (the wrapped call itself is unaffected).
-                    if _NO_ONGOING_TASK not in str(exc):
-                        return
+                except NoOngoingTaskException:
+                    # Between batches (or before the engine registers the task)
+                    # there is no live task to report on; skip this tick and
+                    # keep polling. Falls through to the wait below rather than
+                    # ``continue`` so we don't busy-loop the engine.
+                    pass
                 except Exception:
-                    # Progress is best-effort; never let the poller thread die
-                    # noisily and clutter an otherwise-successful call.
+                    # Any other engine error means progress can't be reported —
+                    # stop quietly rather than killing this daemon thread with a
+                    # traceback on stderr (the wrapped call itself is
+                    # unaffected). Progress is best-effort.
                     return
                 else:
                     # get_progress returns None between/after tasks; only
@@ -513,11 +544,11 @@ def with_progress(
         success = True
         return result
     finally:
+        duration = timedelta(seconds=monotonic() - start_time)
         stop_event.set()
         if poll_thread is not None:
             with suppress(RuntimeError):
                 poll_thread.join(timeout=max(polling_interval * 2, 2.0))
-        duration = timedelta(seconds=monotonic() - start_time)
         reporter.finish(success=success, duration=duration)
 
 
