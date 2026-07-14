@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Generator, Mapping
-from typing import Any, NotRequired, Self, TypeAliasType, TypedDict, Union
+from typing import Any, NotRequired, Self, TypedDict, Union
 
 from requests import JSONDecodeError as RequestsJSONDecodeError, Response
+from typing_extensions import TypeAliasType  # Can import from `typing` from Python 3.12.
 
 
 class ValidationErrorDetail(TypedDict):
