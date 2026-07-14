@@ -241,3 +241,12 @@ class UnsupportedArgumentWarning(HowsoWarning):
 
 class DatetimeFormatWarning(HowsoWarning):
     """A warning for potential problems with datetime formats."""
+
+
+class NoOngoingTaskException(HowsoError):
+    """A call to request progress was made where there is no ongoing task."""
+
+    #: Engine error message that identifies this condition. Used to promote the
+    #: generic engine ``HowsoError`` into this typed exception (see
+    #: ``BaseClient.get_progress``).
+    MESSAGE = "There is no currently ongoing task matching the specified task_id."

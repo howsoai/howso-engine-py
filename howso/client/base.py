@@ -8,7 +8,6 @@ from collections.abc import (
     Callable,
     Collection,
     Generator,
-    Iterable,
     Mapping,
     MutableMapping,
     Sized,
@@ -25,6 +24,7 @@ from pandas import DataFrame
 
 from howso.client.exceptions import (
     HowsoError,
+    NoOngoingTaskException,
     UnsupportedArgumentWarning,
 )
 from howso.client.schemas import (
@@ -783,7 +783,7 @@ class AbstractHowsoClient(ABC):
     def impute(
         self,
         trainee_id: str,
-        features: Collection[str] | None = None,
+        features: Collection[str] | str | None = None,
         features_to_impute: Collection[str] | None = None,
         batch_size: int = 1,
         task_id: str | None = None,
@@ -799,9 +799,10 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to impute.
-        features : Collection of str, optional
+        features : Collection of str or str, optional
             A list of feature names to use for imputation.
             If not specified, all features will be used imputed.
+            A single string will be wrapped in a list.
         features_to_impute : Collection of str, optional
             A list of feature names to impute.
             If not specified, features will be used (see above)
@@ -817,6 +818,10 @@ class AbstractHowsoClient(ABC):
             If provided, should be a short, unique identifier that can be used
             with ``get_progress`` if concurrent progress updates are desired.
         """
+        # Since Collection[str] is indistinguishable from str, let's just
+        # convert a single string to a list of the one string.
+        if isinstance(features, str):
+            features = [features]
         trainee_id = self._resolve_trainee(trainee_id).id
         if not self.active_session:
             raise HowsoError(self.ERROR_MESSAGES["missing_session"], code="missing_session")
@@ -6042,5 +6047,20 @@ class AbstractHowsoClient(ABC):
         TaskProgress
             A mapping of the current ``step``, the ``total`` number of steps,
             and a ``details`` description, as reported by the Howso Engine.
+
+        Raises
+        ------
+        NoOngoingTaskException
+            When no task matching ``task_id`` is currently running (for
+            example, between batches or before the engine has registered the
+            task).
         """
-        return self.execute(trainee_id, "get_progress", {"task_id": task_id})
+        try:
+            return self.execute(trainee_id, "get_progress", {"task_id": task_id})
+        except HowsoError as err:
+            # The engine signals a missing task with a generic error message;
+            # promote it to a typed exception so callers can catch it directly
+            # instead of string-matching (see howso.utilities.with_progress).
+            if NoOngoingTaskException.MESSAGE in (err.message or ""):
+                raise NoOngoingTaskException(err.message or "", code=err.code) from err
+            raise
