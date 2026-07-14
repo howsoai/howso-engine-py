@@ -430,6 +430,9 @@ class FeatureAttributes(TypedDict):
     Only applicable to nominal features.
     """
 
+    nulls_observed: bool
+    """Whether any nulls were observed in this feature."""
+
     null_is_dependent: NotRequired[bool]
     """
     How dependent features with nulls are treated during react.

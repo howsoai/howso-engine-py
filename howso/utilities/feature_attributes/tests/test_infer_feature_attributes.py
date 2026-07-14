@@ -1357,3 +1357,13 @@ def test_enable_suggestions_false():
         joined_olist_df, enable_suggestions=False, fanout_feature_map=fof_map, default_time_zone="UTC"
     )
     assert "customer_id" in features["customer_city"].get("fanout_on", [])
+
+def test_feature_contains_nulls():
+    """Ensure that the `nulls_observed` attribute is correctly set."""
+    df = pd.read_csv(iris_path)
+    features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)
+    assert not features["class"]["nulls_observed"]
+
+    df.loc[len(df) - 1, "class"] = None
+    features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)
+    assert features["class"]["nulls_observed"]
