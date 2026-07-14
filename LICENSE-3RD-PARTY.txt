@@ -90,12 +90,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 build
-1.5.0
+1.5.1
 MIT
 Filipe Laíns <lains@riseup.net>, Bernát Gábor <gaborjbernat@gmail.com>, layday <layday@protonmail.com>, Henry Schreiner <henryschreineriii@gmail.com>
 https://build.pypa.io
 A simple, correct Python build frontend
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/build-1.5.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/build-1.5.1.dist-info/licenses/LICENSE
 Copyright © 2019 Filipe Laíns <filipe.lains@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -148,12 +148,12 @@ one at http://mozilla.org/MPL/2.0/.
 
 
 charset-normalizer
-3.4.7
+3.4.9
 MIT
 "Ahmed R. TAHRI" <tahri.ahmed@proton.me>
 https://github.com/jawah/charset_normalizer/blob/master/CHANGELOG.md
 The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet.
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/charset_normalizer-3.4.7.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/charset_normalizer-3.4.9.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2025 TAHRI Ahmed R.
@@ -3362,12 +3362,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 tqdm
-4.68.3
+4.68.4
 MPL-2.0 AND MIT
 UNKNOWN
 https://tqdm.github.io
 Fast, Extensible Progress Meter
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/tqdm-4.68.3.dist-info/licenses/LICENCE
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/tqdm-4.68.4.dist-info/licenses/LICENCE
 `tqdm` is a product of collaborative work.
 Unless otherwise stated, all authors (see commit logs) retain copyright
 for their respective work, and release the work under the MIT licence
