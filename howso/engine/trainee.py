@@ -1985,7 +1985,7 @@ class Trainee(BaseTrainee):
             weight_feature=weight_feature,
         )
 
-    @auto_progress("React (series)")
+    @auto_progress("React Series")
     def react_series(
         self,
         *,
@@ -2296,7 +2296,7 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Trainee ID is needed for react_series.")
 
-    @auto_progress("React (stationary)")
+    @auto_progress("React Series (stationary)")
     def react_series_stationary(
         self,
         action_features: Collection[str],
