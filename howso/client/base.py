@@ -24,7 +24,7 @@ from pandas import DataFrame
 
 from howso.client.exceptions import (
     HowsoError,
-    NoOngoingTaskException,
+    NoOngoingTaskError,
     UnsupportedArgumentWarning,
 )
 from howso.client.schemas import (
@@ -484,7 +484,7 @@ class AbstractHowsoClient(ABC):
 
     def set_random_seed(self, trainee_id: str, seed: int | float | str):
         """
-        Sets the random seed for the Trainee.
+        Set the random seed for the Trainee.
 
         Parameters
         ----------
@@ -851,7 +851,7 @@ class AbstractHowsoClient(ABC):
         precision: Precision | None = None,
     ) -> int:
         """
-        Removes training cases from a Trainee.
+        Remove training cases from a Trainee.
 
         The training cases will be completely purged from the model and
         the model will behave as if it had never been trained with them.
@@ -975,7 +975,7 @@ class AbstractHowsoClient(ABC):
         target_path: Collection[str] | None = None,
     ) -> int:
         """
-        Moves training cases from one Trainee to another in the hierarchy.
+        Move training cases from one Trainee to another in the hierarchy.
 
         Parameters
         ----------
@@ -1305,7 +1305,7 @@ class AbstractHowsoClient(ABC):
 
     def get_substitute_feature_values(self, trainee_id: str, clear_on_get: bool = True) -> dict:
         """
-        Gets a substitution map for use in extended nominal generation.
+        Get a substitution map for use in extended nominal generation.
 
         Parameters
         ----------
@@ -1344,7 +1344,7 @@ class AbstractHowsoClient(ABC):
         feature_attributes: Mapping[str, Mapping]
     ) -> dict[str, dict]:
         """
-        Sets feature attributes for a Trainee.
+        Set feature attributes for a Trainee.
 
         Parameters
         ----------
@@ -2687,7 +2687,7 @@ class AbstractHowsoClient(ABC):
         context_values: TabularData2D | None = None,
     ) -> tuple[Collection[str] | None, TabularData2D | None]:
         """
-        Helper method to pre-process generative react parameters.
+        Help pre-process generative react parameters.
 
         Updates the passed-in parameters as necessary.
 
@@ -5265,7 +5265,7 @@ class AbstractHowsoClient(ABC):
         features: Collection[str] | None = None
     ) -> Cases:
         """
-        Gets the extreme cases of a Trainee for the given feature(s).
+        Get the extreme cases of a Trainee for the given feature(s).
 
         Parameters
         ----------
@@ -5502,7 +5502,7 @@ class AbstractHowsoClient(ABC):
         condition_session: str | None = None
     ):
         """
-        Removes a feature from a Trainee.
+        Remove a feature from a Trainee.
 
         Updates the accumulated data mass for the model proportional to the
         number of cases modified.
@@ -5959,7 +5959,7 @@ class AbstractHowsoClient(ABC):
 
     def set_params(self, trainee_id: str, params: Mapping):
         """
-        Sets specific hyperparameters in the Trainee.
+        Set specific hyperparameters in the Trainee.
 
         Parameters
         ----------
@@ -6004,7 +6004,7 @@ class AbstractHowsoClient(ABC):
         impute_session: str | Session | None = None
     ):
         """
-        Clears values that were imputed during a specified session.
+        Clear values that were imputed during a specified session.
 
         Won't clear values that were manually set by the user after the impute.
 
@@ -6050,7 +6050,7 @@ class AbstractHowsoClient(ABC):
 
         Raises
         ------
-        NoOngoingTaskException
+        NoOngoingTaskError
             When no task matching ``task_id`` is currently running (for
             example, between batches or before the engine has registered the
             task).
@@ -6061,6 +6061,6 @@ class AbstractHowsoClient(ABC):
             # The engine signals a missing task with a generic error message;
             # promote it to a typed exception so callers can catch it directly
             # instead of string-matching (see howso.utilities.with_progress).
-            if NoOngoingTaskException.MESSAGE in (err.message or ""):
-                raise NoOngoingTaskException(err.message or "", code=err.code) from err
+            if NoOngoingTaskError.MESSAGE in (err.message or ""):
+                raise NoOngoingTaskError(err.message or "", code=err.code) from err
             raise

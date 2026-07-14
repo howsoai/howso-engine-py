@@ -498,7 +498,7 @@ def with_progress(
     if has_task_id:
         # Deferred import: howso.client pulls in howso.utilities at import time,
         # so we can't import it at module scope without a circular dependency.
-        from howso.client.exceptions import NoOngoingTaskException  # noqa: PLC0415
+        from howso.client.exceptions import NoOngoingTaskError  # noqa: PLC0415
 
         task_id = str(uuid4())
         kwargs["task_id"] = task_id
@@ -507,7 +507,7 @@ def with_progress(
             while not stop_event.is_set():
                 try:
                     p = client.get_progress(trainee_id, task_id)  # pyright: ignore[reportOptionalMemberAccess]
-                except NoOngoingTaskException:
+                except NoOngoingTaskError:
                     # Between batches (or before the engine registers the task)
                     # there is no live task to report on; skip this tick and
                     # keep polling. Falls through to the wait below rather than
