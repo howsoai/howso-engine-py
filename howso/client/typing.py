@@ -128,6 +128,9 @@ class FeatureBounds(TypedDict, total=False):
     min: float | str
     """The minimum value to be output. May be a number or date string."""
 
+    nulls_observed: bool
+    """Whether any nulls were observed in this feature."""
+
     observed_max: float | str
     """The observed maximum value in the data. May be a number, string, or date string."""
 
@@ -429,9 +432,6 @@ class FeatureAttributes(TypedDict):
 
     Only applicable to nominal features.
     """
-
-    nulls_observed: bool
-    """Whether any nulls were observed in this feature."""
 
     null_is_dependent: NotRequired[bool]
     """

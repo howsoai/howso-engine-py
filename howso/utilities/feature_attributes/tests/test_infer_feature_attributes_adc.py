@@ -868,8 +868,8 @@ def test_infer_fanout_features_ignores_constant_columns(adc):
 def test_feature_contains_nulls(adc):
     """Ensure that the `nulls_observed` attribute is correctly set."""
     features = infer_feature_attributes(adc, default_time_zone="UTC", enable_suggestions=False)
-    assert not features["class"]["nulls_observed"]
+    assert not features["class"].get("bounds", {}).get("nulls_observed")
 
     adc.write_chunk(pd.DataFrame({"sepal_width": [3], "sepal_length": [2], "petal_width": [1], "petal_length": [0.5], "class": [None]}))
     features = infer_feature_attributes(adc, default_time_zone="UTC", enable_suggestions=False)
-    assert features["class"]["nulls_observed"]
+    assert features["class"].get("bounds", {}).get("nulls_observed")

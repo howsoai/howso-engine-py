@@ -1061,9 +1061,6 @@ class InferFeatureAttributesBase(ABC):
             if self.default_time_zone is not None:
                 self.attributes[feature_name]["default_time_zone"] = self.default_time_zone
 
-            # Record whether we have observed any nulls in this column
-            self.attributes[feature_name]["nulls_observed"] = self._contains_nulls(feature_name)
-
         # Edit ID feature attributes in-place
         for id_feature in self.id_feature_names:
             self._add_id_attribute(self.attributes, id_feature)
@@ -1100,6 +1097,10 @@ class InferFeatureAttributesBase(ABC):
                     # Use `update` on the bounds dictionary in case `allowed` ordinal values have already been set
                     bounds.update(self.attributes[feature_name].get("bounds", {}))
                     _attributes["bounds"] = bounds
+                # Record whether we have observed any nulls in this column
+                if "bounds" not in _attributes:
+                    _attributes["bounds"] = {}
+                _attributes["bounds"]["nulls_observed"] = self._contains_nulls(feature_name)
 
         # Do any features contain data unsupported by the core?
         self._check_unsupported_data(self.attributes)
