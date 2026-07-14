@@ -7,10 +7,10 @@ from pathlib import Path
 import typing as t
 from uuid import uuid4
 
+from amalgam.api import Amalgam
 from typing_extensions import NotRequired, TypeAlias, TypedDict
 
-from amalgam.api import Amalgam
-from .exceptions import HowsoError
+from howso.client.exceptions import HowsoError
 
 DEFAULT_ENGINE_PATH = Path(__file__).parent.parent.joinpath("howso-engine")
 

@@ -1,10 +1,10 @@
 Faker
-40.23.0
+40.28.1
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/faker-40.23.0.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/faker-40.28.1.dist-info/licenses/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -90,12 +90,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 build
-1.5.0
+1.5.1
 MIT
 Filipe Laíns <lains@riseup.net>, Bernát Gábor <gaborjbernat@gmail.com>, layday <layday@protonmail.com>, Henry Schreiner <henryschreineriii@gmail.com>
 https://build.pypa.io
 A simple, correct Python build frontend
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/build-1.5.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/build-1.5.1.dist-info/licenses/LICENSE
 Copyright © 2019 Filipe Laíns <filipe.lains@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -148,12 +148,12 @@ one at http://mozilla.org/MPL/2.0/.
 
 
 charset-normalizer
-3.4.7
+3.4.9
 MIT
 "Ahmed R. TAHRI" <tahri.ahmed@proton.me>
 https://github.com/jawah/charset_normalizer/blob/master/CHANGELOG.md
 The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet.
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/charset_normalizer-3.4.7.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/charset_normalizer-3.4.9.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2025 TAHRI Ahmed R.
@@ -178,12 +178,12 @@ SOFTWARE.
 
 
 click
-8.4.1
+8.4.2
 BSD-3-Clause
 UNKNOWN
 https://github.com/pallets/click/
 Composable command line interface toolkit
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/click-8.4.1.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/click-8.4.2.dist-info/licenses/LICENSE.txt
 Copyright 2014 Pallets
 
 Redistribution and use in source and binary forms, with or without
@@ -215,12 +215,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 humanize
-4.15.0
+4.16.0
 MIT
 Jason Moiron <jmoiron@jmoiron.net>
 https://github.com/python-humanize/humanize
 Python humanize utilities
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/humanize-4.15.0.dist-info/licenses/LICENCE
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/humanize-4.16.0.dist-info/licenses/LICENCE
 Copyright (c) 2010-2020 Jason Moiron and Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -2845,12 +2845,12 @@ DEALINGS IN THE SOFTWARE.
 
 
 regex
-2026.5.9
+2026.6.28
 Apache-2.0 AND CNRI-Python
 Matthew Barnett <regex@mrabarnett.plus.com>
 https://github.com/mrabarnett/mrab-regex
 Alternative regular expression module, to replace re.
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/regex-2026.5.9.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/regex-2026.6.28.dist-info/licenses/LICENSE.txt
 This work was derived from the 're' module of CPython 2.6 and CPython 3.1,
 copyright (c) 1998-2001 by Secret Labs AB and licensed under CNRI's Python 1.6
 license.
@@ -3362,12 +3362,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 tqdm
-4.68.3
+4.68.4
 MPL-2.0 AND MIT
 UNKNOWN
 https://tqdm.github.io
 Fast, Extensible Progress Meter
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/tqdm-4.68.3.dist-info/licenses/LICENCE
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/tqdm-4.68.4.dist-info/licenses/LICENCE
 `tqdm` is a product of collaborative work.
 Unless otherwise stated, all authors (see commit logs) retain copyright
 for their respective work, and release the work under the MIT licence
@@ -3420,12 +3420,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 typing_extensions
-4.15.0
+4.16.0
 PSF-2.0
 "Guido van Rossum, Jukka Lehtosalo, Łukasz Langa, Michael Lee" <levkivskyi@gmail.com>
 https://github.com/python/typing_extensions
 Backported and Experimental Type Hints for Python 3.9+
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/typing_extensions-4.15.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/typing_extensions-4.16.0.dist-info/licenses/LICENSE
 A. HISTORY OF THE SOFTWARE
 ==========================
 

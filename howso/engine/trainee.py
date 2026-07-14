@@ -3167,6 +3167,7 @@ class Trainee(BaseTrainee):
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = False,
         familiarity_conviction_removal: bool = False,
+        group_id_features: t.Optional[Collection[str]] = None,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
         new_cases: t.Optional[TabularData3D] = None,
@@ -3179,7 +3180,7 @@ class Trainee(BaseTrainee):
         weight_feature: t.Optional[str] = None,
     ) -> GroupReaction:
         """
-        Computes specified data for a **set** of cases.
+        Compute specified data for a **set** of cases.
 
         Return the list of familiarity convictions (and optionally, distance
         contributions or :math:`p` values) for each set.
@@ -3243,6 +3244,12 @@ class Trainee(BaseTrainee):
             the specified cases.
         features : Collection of str, optional
             A list of feature names to consider while calculating convictions.
+        group_id_features : Collection of str, optional
+            List of feature names whose values in the specified cases identify
+            trained cases that should be held out of queries. This parameter is ignored if
+            ``new_cases`` is not specified. It is assumed that all groups of
+            cases have a singular value for each feature in
+            ``group_id_features``.
         kl_divergence_addition : bool, default False
             Calculate and output KL divergence of adding the
             specified cases.
@@ -3295,6 +3302,7 @@ class Trainee(BaseTrainee):
                 conditions=conditions,
                 details=details,
                 features=features,
+                group_id_features=group_id_features,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
                 kl_divergence_addition=kl_divergence_addition,
@@ -3369,14 +3377,16 @@ class Trainee(BaseTrainee):
             raise AssertionError("Client must have the 'get_feature_conviction' method.")
 
     def get_marginal_stats(
-        self, *,
+        self,
+        *,
         condition: t.Optional[Mapping[str, t.Any]] = None,
+        features: t.Optional[Collection[str]] = None,
         num_cases: t.Optional[int] = None,
         precision: t.Optional[Precision] = None,
         weight_feature: t.Optional[str] = None,
     ) -> DataFrame:
         """
-        Get marginal stats for all features.
+        Get marginal stats of features.
 
         Parameters
         ----------
@@ -3398,6 +3408,9 @@ class Trainee(BaseTrainee):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
+        features : Collection of str, optional
+            The list of features names for which to compute marginal stats.
+            If None, then marginal stats are computed for all trained features.
         num_cases : int, default None
             The maximum amount of cases to use to calculate marginal stats.
             If not specified, the limit will be k cases if precision is
@@ -3419,6 +3432,7 @@ class Trainee(BaseTrainee):
         if isinstance(self.client, HowsoPandasClientMixin):
             return self.client.get_marginal_stats(
                 trainee_id=self.id,
+                features=features,
                 condition=condition,
                 num_cases=num_cases,
                 precision=precision,
@@ -3976,7 +3990,7 @@ class Trainee(BaseTrainee):
         num_robust_prediction_contributions_samples_per_case : int, optional
             Specifies the number of robust samples to use for each case for
             robust prediction contribution computations. Defaults to 300 +
-            2 * (number of features) when unspecified.
+            30 * (number of features) with a max of 3000 when unspecified.
         num_robust_residual_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             for robust mda and residual computation.
@@ -4258,7 +4272,7 @@ class Trainee(BaseTrainee):
         weight_feature: t.Optional[str] = None,
     ) -> list[float]:
         """
-        Computes pairwise distances between specified cases.
+        Compute pairwise distances between specified cases.
 
         Returns a list of computed distances between each respective pair of
         cases specified in either ``from_values`` or ``from_case_indices`` to
@@ -4331,14 +4345,15 @@ class Trainee(BaseTrainee):
         self,
         features: t.Optional[Collection[str]] = None,
         *,
-        use_case_weights: t.Optional[bool] = None,
         action_feature: t.Optional[str] = None,
         case_indices: t.Optional[CaseIndices] = None,
-        feature_values: t.Optional[Collection[t.Any] | DataFrame] = None,
+        num_nearest_neighbors: int = 20,
+        sparse: bool = True,
+        use_case_weights: t.Optional[bool] = None,
         weight_feature: t.Optional[str] = None
     ) -> Distances:
         """
-        Computes distances matrix for specified cases.
+        Compute distances matrix for specified cases.
 
         Returns a dict with computed distances between all cases
         specified in ``case_indices`` or from all cases in local model as defined
@@ -4360,10 +4375,13 @@ class Trainee(BaseTrainee):
             session. If specified, returns distances for all of these
             cases. Ignored if ``feature_values`` is provided. If neither
             ``feature_values`` nor ``case_indices`` is specified, uses full dataset.
-        feature_values : DataFrame or list of object
-            If specified, returns distances of the local model relative to
-            these values, ignores ``case_indices`` parameter. If provided a
-            DataFrame, only the first row will be used.
+        num_nearest_neighbors : int, default 20
+            The number of nearest neighbors to compute distances of for each case when returning sparse distance
+            matrices. If ``sparse`` is False, then this parameter is ignored.
+        sparse : bool, default True
+            If true, then the returned distance matrix is sparse and only filled in with the ``num_nearest_neighbors``
+            distances for the closest cases for each row. If false, the full distance matrix is returned for all
+            specified cases (or all cases if no cases are specified.)
         use_case_weights : bool, optional
             If set to True, will scale influence weights by each case's
             ``weight_feature`` weight. If unspecified, case weights will
@@ -4389,7 +4407,8 @@ class Trainee(BaseTrainee):
                 features=features,
                 action_feature=action_feature,
                 case_indices=case_indices,
-                feature_values=feature_values,
+                sparse=sparse,
+                num_nearest_neighbors=num_nearest_neighbors,
                 weight_feature=weight_feature,
                 use_case_weights=use_case_weights
             )

@@ -4,8 +4,8 @@ from collections.abc import Mapping
 import typing as t
 from uuid import UUID
 
-from ...client.schemas.trainee import Trainee, TraineeDict
-from ...client.typing import Persistence
+from howso.client.schemas.trainee import Trainee, TraineeDict
+from howso.client.typing import Persistence
 
 
 class DirectTraineeDict(TraineeDict):

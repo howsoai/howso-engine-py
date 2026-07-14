@@ -9,7 +9,7 @@ from typing_extensions import TypeVar
 import yaml
 
 from howso.client.exceptions import HowsoConfigurationError
-from .feature_flags import FeatureFlags
+from howso.client.feature_flags import FeatureFlags
 
 CO = TypeVar("CO", bound="ClientOptions")
 

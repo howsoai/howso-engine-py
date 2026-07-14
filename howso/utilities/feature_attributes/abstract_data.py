@@ -22,12 +22,12 @@ from pandas.core.dtypes.common import (
     is_unsigned_integer_dtype,
 )
 
-from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
-from .protocols import IFACompatibleADCProtocol
-from .suggestions import IFASuggestionCollector
-from .warnings import IFAWarningCollector, IFAWarningEmitterType
-from ..features import FeatureType
-from ..utilities import (
+from howso.utilities.feature_attributes.base import InferFeatureAttributesBase, SingleTableFeatureAttributes
+from howso.utilities.feature_attributes.protocols import IFACompatibleADCProtocol
+from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
+from howso.utilities.feature_attributes.warnings import IFAWarningCollector, IFAWarningEmitterType
+from howso.utilities.features import FeatureType
+from howso.utilities.utilities import (
     date_to_epoch,
     determine_iso_format,
     epoch_to_date,
@@ -39,7 +39,6 @@ from ..utilities import (
     TIME_PATTERN,
     time_to_seconds,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -415,7 +414,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         original_type = feature_attributes[feature_name]['original_type']
         decimal_places = feature_attributes[feature_name].get('decimal_places')
 
-        # Only integers by default do no allow nulls.
+        # Only integers by default do not allow nulls.
         if original_type.get('data_type') == FeatureType.INTEGER.value:
             allow_null = False
 

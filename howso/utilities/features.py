@@ -17,12 +17,12 @@ from pandas.core.dtypes.common import (
     is_timedelta64_dtype,
 )
 
-from .internals import deserialize_to_dataframe, IgnoreWarnings, to_pandas_datetime_format
-from .tokenizing import (
+from howso.utilities.internals import deserialize_to_dataframe, IgnoreWarnings, to_pandas_datetime_format
+from howso.utilities.tokenizing import (
     HowsoTokenizer,
     TokenizerProtocol,
 )
-from .utilities import (
+from howso.utilities.utilities import (
     DATETIME_TIMEZONE_PATTERN,
     destringify_json,
     LocaleOverride,

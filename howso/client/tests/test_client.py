@@ -1194,6 +1194,14 @@ class TestBaseClient:
         assert conditional_marginal_stats['class']['count'] == 2
         assert conditional_marginal_stats['petal_width']['mean'] == 8
 
+        subset_marginal_stats = self.client.get_marginal_stats(
+            trainee.id,
+            features=["class", "petal_width"]
+        )
+        assert len(subset_marginal_stats) == 2
+        assert "class" in subset_marginal_stats
+        assert "petal_width" in subset_marginal_stats
+
     def test_remove_feature_verbose(self, trainee, capsys):
         """Test for expected verbose output when remove_feature is called."""
         feature = 'test'

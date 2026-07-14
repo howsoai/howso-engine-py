@@ -6,8 +6,8 @@ from uuid import UUID
 
 from typing_extensions import NotRequired, ReadOnly, TypedDict
 
-from .base import BaseSchema
-from ..typing import LibraryType, Persistence
+from howso.client.schemas.base import BaseSchema
+from howso.client.typing import LibraryType, Persistence
 
 __all__ = [
     "Trainee",

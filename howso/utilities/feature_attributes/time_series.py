@@ -15,13 +15,13 @@ import pandas as pd
 from pandas.core.dtypes.common import is_string_dtype
 import psutil
 
-from .abstract_data import InferFeatureAttributesAbstractData
-from .base import InferFeatureAttributesBase, SingleTableFeatureAttributes
-from .pandas import InferFeatureAttributesDataFrame
-from .protocols import IFACompatibleADCProtocol
-from .suggestions import IFASuggestionCollector
-from .warnings import IFAWarningCollector
-from ..utilities import (
+from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
+from howso.utilities.feature_attributes.base import InferFeatureAttributesBase, SingleTableFeatureAttributes
+from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
+from howso.utilities.feature_attributes.protocols import IFACompatibleADCProtocol
+from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
+from howso.utilities.feature_attributes.warnings import IFAWarningCollector
+from howso.utilities.utilities import (
     date_to_epoch,
     is_valid_datetime_format,
     lazy_map,
@@ -48,6 +48,19 @@ def _get_theoretical_min_max(
     return InferFeatureAttributesBase.infer_loose_feature_bounds(
         observed_min_rate or 0,
         observed_max_rate or 0,
+    )
+
+
+def _warn_unhashable_time_invariant_features(unhashable_features: Collection[str]) -> None:
+    """Warn that the given features could not be evaluated for time invariance."""
+    if not unhashable_features:
+        return
+    warnings.warn(
+        "The following features contain unhashable values (e.g., lists or dicts) and could not be "
+        f"evaluated for time invariance, so they will be treated as time series features: "
+        f"{sorted(unhashable_features)}. If any of these features are actually time invariant, specify "
+        "them explicitly via the `time_invariant_features` parameter.",
+        UserWarning,
     )
 
 
@@ -843,6 +856,10 @@ class InferFeatureAttributesTimeSeries(ABC):
 class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
     """InferFeatureAttributesTimeSeries implementation for Pands DataFrames."""
 
+    def __init__(self, data: pd.DataFrame, time_feature_name: str) -> None:
+        self.data: pd.DataFrame
+        super().__init__(data, time_feature_name)
+
     def _infer_delta_min_max(
         self,
         features: dict,
@@ -877,13 +894,32 @@ class IFATimeSeriesPandas(InferFeatureAttributesTimeSeries):
 
     def _infer_time_invariant_features(self, id_features: Sequence[str], max_rows: int = 10_000_000) -> list[str]:
         """Infer the time invariant features of the data (not including the provided `id_features`)."""
-        time_invariant_features = self.data.groupby(id_features).nunique(dropna=False).isin([0, 1]).all()
-        time_invariant_features = list(time_invariant_features[time_invariant_features].index)
+        grouped = self.data.groupby(list(id_features))
+        candidate_features = [f for f in self.data.columns if f not in id_features]
+        time_invariant_features = []
+        unhashable_features = []
+        for feature in candidate_features:
+            try:
+                nunique = grouped[feature].nunique(dropna=False)
+            except TypeError:
+                # `feature` contains unhashable values (e.g., lists, dicts), which nunique()
+                # cannot process. Exclude it from consideration rather than guess.
+                unhashable_features.append(feature)
+                continue
+            if nunique.isin([0, 1]).all():
+                time_invariant_features.append(feature)
+
+        _warn_unhashable_time_invariant_features(unhashable_features)
+
         return list(map(str, time_invariant_features))  # Ensure all feature names are strings
 
 
 class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
     """InferFeatureAttributesTimeSeries implementation for AbstractData classes."""
+
+    def __init__(self, data: IFACompatibleADCProtocol, time_feature_name: str) -> None:
+        self.data: IFACompatibleADCProtocol
+        super().__init__(data, time_feature_name)
 
     @staticmethod
     def _compute_time_series_min_max(
@@ -1326,6 +1362,7 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
         """Infer the time invariant features of the data (not including the provided `id_features`)."""
         candidate_features = [str(f) for f in self.data.headers if f not in id_features]
         time_invariant = set(candidate_features)
+        unhashable_features = set()
 
         max_chunks = ceil(max_rows / DEFAULT_CHUNK_SIZE)
 
@@ -1333,9 +1370,20 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
             if not time_invariant:
                 break
 
+            chunk_grouped = chunk.groupby(list(id_features))
             for feature in list(time_invariant):
-                if chunk.groupby(id_features).nunique(dropna=False)[feature].gt(1).any():
+                try:
+                    is_varying = chunk_grouped[feature].nunique(dropna=False).gt(1).any()
+                except TypeError:
+                    # `feature` contains unhashable values (e.g., lists, dicts), which nunique()
+                    # cannot process. Exclude it from consideration rather than guess.
                     time_invariant.discard(feature)
+                    unhashable_features.add(feature)
+                    continue
+                if is_varying:
+                    time_invariant.discard(feature)
+
+        _warn_unhashable_time_invariant_features(unhashable_features)
 
         return list(time_invariant)
 

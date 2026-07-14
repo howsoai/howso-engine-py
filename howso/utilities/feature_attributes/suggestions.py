@@ -120,9 +120,9 @@ class FanoutFeaturesSuggestion(IFASuggestion):
                 break
             fofs = values[:3]
             num_not_shown = len(values) - len(fofs)
-            _start = f"Columns `{'`, `'.join(fofs)}"
+            _start = f"Columns `{'`, `'.join(fofs)}`"
             if num_not_shown > 0:
-                _start += f"`, and {num_not_shown} more"
+                _start += f", and {num_not_shown} more"
             body += f"  - {_start} have repeated values derived from observations in `{key}`\n"
         body += "\n"
 
