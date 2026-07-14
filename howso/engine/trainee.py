@@ -3990,7 +3990,7 @@ class Trainee(BaseTrainee):
         num_robust_prediction_contributions_samples_per_case : int, optional
             Specifies the number of robust samples to use for each case for
             robust prediction contribution computations. Defaults to 300 +
-            2 * (number of features) when unspecified.
+            30 * (number of features) with a max of 3000 when unspecified.
         num_robust_residual_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             for robust mda and residual computation.
