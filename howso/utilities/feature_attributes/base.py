@@ -1097,6 +1097,10 @@ class InferFeatureAttributesBase(ABC):
                     # Use `update` on the bounds dictionary in case `allowed` ordinal values have already been set
                     bounds.update(self.attributes[feature_name].get("bounds", {}))
                     _attributes["bounds"] = bounds
+                # Record whether we have observed any nulls in this column
+                if "bounds" not in _attributes:
+                    _attributes["bounds"] = {}
+                _attributes["bounds"]["nulls_observed"] = self._contains_nulls(feature_name)
 
         # Do any features contain data unsupported by the core?
         self._check_unsupported_data(self.attributes)
@@ -1189,6 +1193,10 @@ class InferFeatureAttributesBase(ABC):
             ordered_attributes[fname] = self.attributes[fname]
 
         return ordered_attributes
+
+    @abstractmethod
+    def _contains_nulls(self, feature_name: str) -> bool:
+        """Get whether the provided feature has any nulls."""
 
     @abstractmethod
     def __call__(self) -> FeatureAttributesBase:
@@ -1962,8 +1970,8 @@ class InferFeatureAttributesBase(ABC):
             )
         return prvc
 
-    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all", "off"],  # noqa: PLR0912, PLR0915
-                             preserve_rare_values_config: PreserveRareValuesConfig, max_distilled_cases: int,
+    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all", "off"] | None,  # noqa: PLR0912, PLR0915
+                             preserve_rare_values_config: PreserveRareValuesConfig | None, max_distilled_cases: int,
                              significance_threshold: int, enable_suggestions: bool = True) -> None:
         """Procesess `preserve_rare_values` configuration or make recommendation."""
         _prvc: FullPreserveRareValuesConfig = {}
