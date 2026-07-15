@@ -40,7 +40,7 @@ from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
 features_1 = {
     'f1': {
         'bounds': {
-            'allow_null': False,
+            'allow_null': True,
             'max': 5103.08,
             'min': 20.08
         },
@@ -48,7 +48,7 @@ features_1 = {
     },
     'f2': {
         'bounds': {
-            'allow_null': False,
+            'allow_null': True,
             'max': 6103,
             'min': 0
         },
