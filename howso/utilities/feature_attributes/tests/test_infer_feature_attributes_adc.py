@@ -246,7 +246,11 @@ def test_infer_time_feature_bounds(adc, data, tight_bounds, provided_format, exp
     assert features['a']['type'] == 'continuous'
     assert 'cycle_length' in features['a']
     assert features['a']['cycle_length'] == cycle_length
-    assert features['a']['bounds'] == expected_bounds
+    bounds = features['a']['bounds']
+    # `nulls_observed` is always present under `bounds`; its value is covered by test_feature_contains_nulls
+    assert 'nulls_observed' in bounds
+    del bounds['nulls_observed']
+    assert bounds == expected_bounds
     assert features['a']['date_time_format'] is not None
     assert features['a']['data_type'] == "formatted_time"
 
@@ -345,7 +349,11 @@ def test_infer_feature_bounds(adc, data, tight_bounds, expected_bounds):
         features = infer_feature_attributes(adc, tight_bounds=tight_bounds)
     assert features['a']['type'] == 'continuous'
     assert 'bounds' in features['a']
-    assert features['a']['bounds'] == expected_bounds
+    bounds = features['a']['bounds']
+    # `nulls_observed` is always present under `bounds`; its value is covered by test_feature_contains_nulls
+    assert 'nulls_observed' in bounds
+    del bounds['nulls_observed']
+    assert bounds == expected_bounds
 
 
 @pytest.mark.parametrize("adc", [
