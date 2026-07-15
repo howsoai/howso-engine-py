@@ -796,3 +796,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
     def _get_value_count(self, feature_name: str, value: t.Any) -> int:
         """Get the number of occurances of the provided value of the provided feature."""
         return self.data.get_value_count(feature_name, value, max_rows_to_eval=self.max_rows_to_eval)
+
+    def _contains_nulls(self, feature_name: str) -> bool:
+        """Get whether the provided feature contains any nulls."""
+        return self.data.contains_nulls(feature_name)

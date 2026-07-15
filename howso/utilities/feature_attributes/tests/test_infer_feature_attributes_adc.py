@@ -246,7 +246,11 @@ def test_infer_time_feature_bounds(adc, data, tight_bounds, provided_format, exp
     assert features['a']['type'] == 'continuous'
     assert 'cycle_length' in features['a']
     assert features['a']['cycle_length'] == cycle_length
-    assert features['a']['bounds'] == expected_bounds
+    bounds = features['a']['bounds']
+    # `nulls_observed` is always present under `bounds`; its value is covered by test_feature_contains_nulls
+    assert 'nulls_observed' in bounds
+    del bounds['nulls_observed']
+    assert bounds == expected_bounds
     assert features['a']['date_time_format'] is not None
     assert features['a']['data_type'] == "formatted_time"
 
@@ -345,7 +349,11 @@ def test_infer_feature_bounds(adc, data, tight_bounds, expected_bounds):
         features = infer_feature_attributes(adc, tight_bounds=tight_bounds)
     assert features['a']['type'] == 'continuous'
     assert 'bounds' in features['a']
-    assert features['a']['bounds'] == expected_bounds
+    bounds = features['a']['bounds']
+    # `nulls_observed` is always present under `bounds`; its value is covered by test_feature_contains_nulls
+    assert 'nulls_observed' in bounds
+    del bounds['nulls_observed']
+    assert bounds == expected_bounds
 
 
 @pytest.mark.parametrize("adc", [
@@ -855,3 +863,21 @@ def test_infer_fanout_features_ignores_constant_columns(adc):
     assert "fanout_on" not in features["const_col"]
     for feat in fanout_constant_df.columns:
         assert "const_col" not in features[feat].get("fanout_on", [])
+
+
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", iris_df),
+    ("SQLTableData", iris_df),
+    ("ParquetDataset", iris_df),
+    ("TabularFile", iris_df),
+    ("DaskDataFrameData", iris_df),
+    ("DataFrameData", iris_df),
+], indirect=True)
+def test_feature_contains_nulls(adc):
+    """Ensure that the `nulls_observed` attribute is correctly set."""
+    features = infer_feature_attributes(adc, default_time_zone="UTC", enable_suggestions=False)
+    assert not features["class"].get("bounds", {}).get("nulls_observed")
+
+    adc.write_chunk(pd.DataFrame({"sepal_width": [3], "sepal_length": [2], "petal_width": [1], "petal_length": [0.5], "class": [None]}))
+    features = infer_feature_attributes(adc, default_time_zone="UTC", enable_suggestions=False)
+    assert features["class"].get("bounds", {}).get("nulls_observed")
