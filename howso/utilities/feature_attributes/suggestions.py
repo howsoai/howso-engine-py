@@ -138,8 +138,8 @@ class FanoutFeaturesSuggestion(IFASuggestion):
 
         rows.extend([
             (
-                "Get a reusable `fanout_features_map`",
-                "You may provide `fanout_features_map` as a parameter to "
+                "Get a reusable `fanout_feature_map`",
+                "You may provide `fanout_feature_map` as a parameter to "
                 "`infer_feature_attributes` if you wish to adjust the fan-out feature "
                 "configuration. Our detected fan-out feature configuration may be a "
                 "good starting point.",
@@ -148,7 +148,7 @@ class FanoutFeaturesSuggestion(IFASuggestion):
             ),
             (
                 "Apply suggestion to this feature attributes object",
-                "Save the suggested candidate `fanout_features_map` "
+                "Save the suggested candidate `fanout_feature_map` "
                 "to this feature attributes object.",
                 "Call `apply_suggestion()` on the feature attributes object: "
                 '`apply_suggestion("fanout_features")`'
@@ -188,7 +188,7 @@ class FanoutFeaturesSuggestion(IFASuggestion):
                     attributes[f]["fanout_on"] = list(_key_features)
 
     def get_fanout_feature_map(self) -> FanoutFeaturesMap:
-        """Get the `fanout_features_map` for use in future calls to `infer_feature_attributes`."""
+        """Get the `fanout_feature_map` for use in future calls to `infer_feature_attributes`."""
         return self._fanout_features
 
     def merge(self, other: IFASuggestion) -> None:

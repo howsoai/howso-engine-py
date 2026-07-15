@@ -819,7 +819,7 @@ class InferFeatureAttributesBase(ABC):
                  mode_bound_features: Iterable[str] | None = None,
                  num_series: int = 1,
                  nominal_substitution_config: dict[str, dict] | None = None,
-                 ordinal_feature_values: dict[str, list[str]] | None = None,
+                 ordinal_feature_values: dict[str, list[t.Any]] | None = None,
                  preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all", "off"] | None = None,
                  preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None = None,
                  significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
