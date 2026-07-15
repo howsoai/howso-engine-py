@@ -984,3 +984,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if value in counts.index:
             return int(counts.loc[value])
         return 0
+
+    def _contains_nulls(self, feature_name: str) -> bool:
+        """Get whether the provided feature contains any null values."""
+        return bool(self.data[feature_name].isna().any())
