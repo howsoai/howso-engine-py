@@ -348,14 +348,14 @@ def test_dependent_features(should_include, dependent_features):
 
 
 @pytest.mark.parametrize("tight_bounds, data, expected_bounds", [
-    (None, [2, 3, 4, 5, 6, 7], {"min": 0, "max": 10, "observed_min": 2, "observed_max": 7, "allow_null": False}),
-    (None, [2, 3, 4, 4, 5, 6, 6, 6, 6], {"min": 0, "max": 6, "observed_min": 2, "observed_max": 6, "allow_null": False}),  # noqa: E501
-    (None, [2, 3, 4, 4, 4, 4, 6, 6, 6, 6], {"min": 0, "max": 6.0, "observed_min": 2.0, "observed_max": 6.0, "allow_null": False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6], {"min": 2.0, "max": 6.0, "observed_min": 2.0, "observed_max": 6.0, "allow_null": False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6, 6], {"min": 0, "max": 6.0, "observed_min": 2.0, "observed_max": 6.0, "allow_null": False}),  # noqa: E501
-    (None, [2, 2, 2, 2, 4, 5, 6, 7], {"min": 2.0, "max": 10.0, "observed_min": 2.0, "observed_max": 7.0, "allow_null": False}),  # noqa: E501
+    (None, [2, 3, 4, 5, 6, 7], {"min": 0, "max": 10, "observed_min": 2, "observed_max": 7, "allow_null": True}),
+    (None, [2, 3, 4, 4, 5, 6, 6, 6, 6], {"min": 0, "max": 6, "observed_min": 2, "observed_max": 6, "allow_null": True}),  # noqa: E501
+    (None, [2, 3, 4, 4, 4, 4, 6, 6, 6, 6], {"min": 0, "max": 6.0, "observed_min": 2.0, "observed_max": 6.0, "allow_null": True}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6], {"min": 2.0, "max": 6.0, "observed_min": 2.0, "observed_max": 6.0, "allow_null": True}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 6, 6, 6, 6], {"min": 0, "max": 6.0, "observed_min": 2.0, "observed_max": 6.0, "allow_null": True}),  # noqa: E501
+    (None, [2, 2, 2, 2, 4, 5, 6, 7], {"min": 2.0, "max": 10.0, "observed_min": 2.0, "observed_max": 7.0, "allow_null": True}),  # noqa: E501
     (None, [float("nan"), float("nan")], {"allow_null": True}),
-    (["a"], [2, 3, 4, 5, 6, 7], {"min": 2, "max": 7, "observed_min": 2, "observed_max": 7, "allow_null": False}),
+    (["a"], [2, 3, 4, 5, 6, 7], {"min": 2, "max": 7, "observed_min": 2, "observed_max": 7, "allow_null": True}),
     (["a"], [2, 3, 4, None, 6, 7], {"min": 2, "max": 7, "observed_min": 2, "observed_max": 7, "allow_null": True}),
     (
         ["a"],
@@ -629,15 +629,15 @@ def test_validate_dataframe():
 
 
 @pytest.mark.parametrize("ftype, data_type, decimal_places, bounds, date_time_format, expected_dtype", [
-    ("continuous", "number", 0, {"allow_null": False}, None, "int64"),
-    ("continuous", "number", 1, {"allow_null": False}, None, "float64"),
-    ("continuous", "number", 0, {"allow_null": False}, "%Y-%m-%d", "datetime64"),
-    ("ordinal", "number", 0, {"allow_null": False}, None, "int64"),
+    ("continuous", "number", 0, {"allow_null": True}, None, "int64"),
+    ("continuous", "number", 1, {"allow_null": True}, None, "float64"),
+    ("continuous", "number", 0, {"allow_null": True}, "%Y-%m-%d", "datetime64"),
+    ("ordinal", "number", 0, {"allow_null": True}, None, "int64"),
     ("ordinal", "number", 2, {"allow_null": True}, None, "float64"),
-    ("ordinal", "string", None, {"allowed": ["SBIN"], "allow_null": False}, None, "object"),
-    ("nominal", "number", 0, {"allow_null": False}, None, "int64"),
-    ("nominal", "number", 9, {"allow_null": False}, None, "float64"),
-    ("nominal", "boolean", 0, {"allow_null": False}, None, "bool"),
+    ("ordinal", "string", None, {"allowed": ["SBIN"], "allow_null": True}, None, "object"),
+    ("nominal", "number", 0, {"allow_null": True}, None, "int64"),
+    ("nominal", "number", 9, {"allow_null": True}, None, "float64"),
+    ("nominal", "boolean", 0, {"allow_null": True}, None, "bool"),
 ])
 def test_validate_df_multiple_dtypes(ftype, data_type, decimal_places, bounds, date_time_format,
                                      expected_dtype):
