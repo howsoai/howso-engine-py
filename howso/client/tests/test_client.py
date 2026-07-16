@@ -1463,6 +1463,47 @@ class TestBaseClient:
         )
         assert reaction["action"].iloc[0]["review"] == df.iloc[0]["review"]
 
+    def test_tokenizable_strings_reaction_null(self):
+        """Test that the semistructured/tokenizable string flow can handle nulls coming back from HSE."""
+        data = {
+            "product": [
+                "turbo-encabulator",
+                "banana-phone",
+                "boneless-pizza",
+            ],
+            "rating": [
+                5,
+                3,
+                1,
+            ],
+            "review": [
+                "Not only provides inverse reactive current for use in unilateral phase detractors, but is also "
+                "capable of automatically synchronizing cardinal gram-meters.",
+                "it's ok. works well enough. the connection isn't very clear but what else can you expect from a "
+                "banana.",
+                "they forgot to take the bones out!!!!11",
+            ],
+        }
+        df = pd.DataFrame(data)
+        feature_attributes = infer_feature_attributes(df, types={"review": "continuous"}, enable_suggestions=False)
+        assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
+        assert feature_attributes["review"]["data_type"] == "json"
+        assert feature_attributes["review"]["type"] == "continuous"
+        client = HowsoClient()
+        t = Trainee()
+        client.set_feature_attributes(t.id, feature_attributes)
+        # React without training any data
+        reaction = client.react(
+            t.id,
+            contexts=[[5, 'turbo-encabulator']],
+            context_features=['rating', 'product'],
+            action_features=['review'],
+            generate_new_cases='attempt',
+            details={"influential_cases": True},
+            desired_conviction=5,
+        )
+        assert reaction["action"].iloc[0]["review"] == None
+
     def test_set_single_reaction(self):
         """Test that Python Set objects can be processed and are correctly serialized and deserialized."""
         data = {

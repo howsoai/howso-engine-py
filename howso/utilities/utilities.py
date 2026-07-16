@@ -771,9 +771,32 @@ def serialize_datetimes(  # noqa: C901
             case[i] = dt_value
 
 
+def is_null_value(value: Any) -> bool:
+    """
+    Determine whether a single case value is null.
+
+    Unlike :func:`pandas.isna`, this is safe to call on container values such as lists and dicts,
+    for which :func:`pandas.isna` returns element-wise results rather than a single bool.
+
+    Parameters
+    ----------
+    value : Any
+        The case value to check.
+
+    Returns
+    -------
+    bool
+        True if the value is a null scalar (None, `np.nan`, `pd.NA`, ...).
+    """
+    return pd.api.types.is_scalar(value) and bool(pd.isna(value))
+
+
 def stringify_json(cases: list[list[Any]], features: Iterable[str], feature_attributes: Mapping) -> None:
     """
     Ensure that any JSON features have their cases stringified.
+
+    Null values are left as-is so that they are sent to the engine as nulls rather than as the
+    JSON string "null".
 
     Parameters
     ----------
@@ -789,19 +812,29 @@ def stringify_json(cases: list[list[Any]], features: Iterable[str], feature_attr
             orig_type_info = feature_attributes[feature_name].get("original_type", {})
             # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
             if orig_type_info.get("data_type", {}) in ["container", "tokenizable_string"]:
-                if orig_type_info.get("coercion") == "set":
-                    # If an original type indicates a set, convert to list for serialization
-                    for case_group in cases:
-                        case_group[idx] = json.dumps(list(case_group[idx]))
-                    # Deserialize only
-                else:
-                    for case_group in cases:
-                        case_group[idx] = json.dumps(case_group[idx])
+                coerce_set = orig_type_info.get("coercion") == "set"
+                for case_group in cases:
+                    value = case_group[idx]
+                    if is_null_value(value):
+                        case_group[idx] = None
+                        continue
+                    if coerce_set:
+                        # If an original type indicates a set, convert to list for serialization
+                        value = list(value)
+                    case_group[idx] = json.dumps(value)
 
 
-def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series:  # noqa: ARG001
+def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series:
     """
     Ensure that any JSON features have their cases destringified.
+
+    A case value may arrive either JSON encoded as a string or already decoded as a native value
+    (for example, a list or dict embedded directly in the response). String values are decoded
+    with `json.loads`; any value that is already decoded is passed through as-is rather than
+    decoded a second time.
+
+    Null values are returned as None. A null may arrive either directly as a null value or JSON
+    encoded as the literal ``null`` (which `json.loads` decodes to None).
 
     Parameters
     ----------
@@ -813,8 +846,15 @@ def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series
     destringified_cases = []
     typing_info = feature_attributes.get("original_type", {})
     for case_to_destringify in cases:
-        formatted_case = json.loads(case_to_destringify)
-        if typing_info.get("coercion") == "set":
+        if is_null_value(case_to_destringify):
+            destringified_cases.append(None)
+            continue
+        if isinstance(case_to_destringify, (str, bytes, bytearray)):
+            # The JSON literal ``null`` decodes to None, which cannot be coerced any further
+            formatted_case = json.loads(case_to_destringify)
+        else:
+            formatted_case = case_to_destringify
+        if formatted_case is not None and typing_info.get("coercion") == "set":
             formatted_case = set(formatted_case)
         destringified_cases.append(formatted_case)
     return pd.Series(destringified_cases)
@@ -825,6 +865,8 @@ def tokenize_strings(
 ) -> None:
     """
     Process tokenizable strings in the provided cases by tokenizing or detokenizing them in place.
+
+    Null values are left as-is, as there is nothing to tokenize.
 
     Parameters
     ----------
@@ -843,6 +885,8 @@ def tokenize_strings(
         if feature_attributes.get(feature_name, {}).get("original_type", {}).get("data_type") != "tokenizable_string":
             continue
         for case_group in cases:
+            if is_null_value(case_group[idx]):
+                continue
             case_group[idx] = tokenizer.tokenize(case_group[idx])
 
 
