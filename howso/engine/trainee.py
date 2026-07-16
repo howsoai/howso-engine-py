@@ -2886,6 +2886,36 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_num_training_cases' method.")
 
+    def get_num_lags_needed(
+        self,
+        *,
+        action_features: t.Optional[Collection[str]] = None,
+        context_features: t.Optional[Collection[str]] = None,
+    ) -> int:
+        """
+        Return the number of lagged timesteps recommended for a query with the given features.
+
+        Parameters
+        ----------
+        action_features : collection of str, optional
+            The features that are to be predicted or generated in the desired operation.
+        context_features : collection of str, optional
+            The features that are to be used as contexts in the desired operation.
+
+        Returns
+        -------
+        int
+            The number of lagged timesteps recommended for use.
+        """
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_num_lags_needed(
+                self.id,
+                action_features=action_features,
+                context_features=context_features
+            )
+        else:
+            raise AssertionError("Client must have the 'get_num_lags_needed' method.")
+
     def add_feature(
         self,
         feature_name: str,
