@@ -10,7 +10,7 @@ import logging
 import math
 from pathlib import Path
 import platform
-import typing as t
+from typing import Any, cast, Literal, Self, TYPE_CHECKING
 import warnings
 from zoneinfo import ZoneInfo
 
@@ -40,7 +40,7 @@ from howso.utilities.utilities import (
     time_to_seconds,
 )
 
-if t.TYPE_CHECKING:
+if TYPE_CHECKING:
     from howso.client.typing import FeatureAttributes
 
 logger = logging.getLogger(__name__)
@@ -61,14 +61,19 @@ SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
 class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
     """Provides accessor methods for and dict-like access to inferred feature attributes."""
 
-    def __init__(self, feature_attributes: Mapping, params: dict | None = None, unsupported: list[str] | None = None,
-                 suggestions_collector: IFASuggestionCollector | None = None) -> None:
+    def __init__(
+        self,
+        feature_attributes: Mapping[str, Any],
+        params: dict[str, Any] | None = None,
+        unsupported: list[str] | None = None,
+        suggestions_collector: IFASuggestionCollector | None = None,
+    ) -> None:
         """
         Instantiate this FeatureAttributesBase object.
 
         Parameters
         ----------
-        feature_attributes : dict
+        feature_attributes : Mapping
             The feature attributes dictionary to be wrapped by this object.
         params : dict
             (Optional) The parameters used in the call to infer_feature_attributes.
@@ -119,7 +124,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         """Get the suggestions for this FeatureAttributesBase object."""
         return self.suggestions_collector
 
-    def get_parameters(self) -> dict:
+    def get_parameters(self) -> dict[str, Any]:
         """
         Get the keyword arguments used with the initial call to infer_feature_attributes.
 
@@ -171,11 +176,11 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
     @classmethod
     def from_json(
-        cls: type[FeatureAttributesBase],
+        cls,
         json_str: str | None = None,
         *,
         json_path: str | None = None
-    ) -> FeatureAttributesBase:
+    ) -> Self:
         """
         Reconstruct a FeatureAttributesBase from JSON.
 
@@ -440,7 +445,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                      allow_missing_features: bool = False, localize_datetimes=True, nullable_int_dtype="Int64"):
         errors = []
         coerced_df = data.copy(deep=True)
-        features = t.cast(dict[str, "FeatureAttributes"], self[table_name] if table_name else self)
+        features = cast(dict[str, "FeatureAttributes"], self[table_name] if table_name else self)
 
         for feature, attributes in features.items():
             if feature not in data.columns:
@@ -558,7 +563,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
         return None
 
-    def validate(self, data: t.Any, coerce: bool = False, raise_errors: bool = False, validate_bounds: bool = True,
+    def validate(self, data: Any, coerce: bool = False, raise_errors: bool = False, validate_bounds: bool = True,
                  allow_missing_features: bool = False, localize_datetimes: bool = True) -> None | pd.DataFrame:
         """
         Validate the given data against this FeatureAttributes object.
@@ -661,7 +666,7 @@ class SingleTableFeatureAttributes(FeatureAttributesBase):
     """A dict-like object containing feature attributes for a single table or DataFrame."""
 
     @singledispatchmethod
-    def validate(data: t.Any, **kwargs):
+    def validate(data: Any, **kwargs: Any):
         """
         Validate the given single table data against this FeatureAttributes object.
 
@@ -819,8 +824,8 @@ class InferFeatureAttributesBase(ABC):
                  mode_bound_features: Iterable[str] | None = None,
                  num_series: int = 1,
                  nominal_substitution_config: dict[str, dict] | None = None,
-                 ordinal_feature_values: dict[str, list[t.Any]] | None = None,
-                 preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all", "off"] | None = None,
+                 ordinal_feature_values: dict[str, list[Any]] | None = None,
+                 preserve_rare_values_map: PreserveRareValuesMap | Literal["all", "off"] | None = None,
                  preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None = None,
                  significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
                  tight_bounds: Iterable[str] | None = None,
@@ -1276,7 +1281,7 @@ class InferFeatureAttributesBase(ABC):
             }
         return self._infer_unknown_attributes(feature_name)
 
-    def _infer_unknown_attributes(self, *args: t.Any) -> dict:
+    def _infer_unknown_attributes(self, *args: Any) -> dict:
         """Get inferred attributes for the given unknown-type column."""
         return {
             "type": "nominal",
@@ -1771,7 +1776,7 @@ class InferFeatureAttributesBase(ABC):
         """Get random samples from the given data as a DataFrame."""
 
     @abstractmethod
-    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> t.Any:
+    def _get_random_value(self, feature_name: str, no_nulls: bool = False) -> Any:
         """Retrieve a random value from the data."""
 
     @abstractmethod
@@ -1779,7 +1784,7 @@ class InferFeatureAttributesBase(ABC):
         """Return whether this feature has a unique constraint."""
 
     @abstractmethod
-    def _get_first_non_null(self, feature_name: str) -> t.Any:
+    def _get_first_non_null(self, feature_name: str) -> Any:
         """
         Get the first non-null value in the given column.
 
@@ -1804,7 +1809,7 @@ class InferFeatureAttributesBase(ABC):
         """Get the number of unique values in the provided feature(s)."""
 
     @abstractmethod
-    def _get_unique_values(self, feature_name: str) -> Collection[t.Any]:
+    def _get_unique_values(self, feature_name: str) -> Collection[Any]:
         """Get a set of the unique values for the given feature_name."""
 
     @abstractmethod
@@ -1812,7 +1817,7 @@ class InferFeatureAttributesBase(ABC):
         """Get the total number of rows in the data."""
 
     @abstractmethod
-    def _get_value_count(self, feature_name: str, value: t.Any) -> int:
+    def _get_value_count(self, feature_name: str, value: Any) -> int:
         """Get the number of occurrences of the provided value of the provided feature."""
 
     def _find_protected_value_candidates(self, max_distilled_cases: int,
@@ -1864,7 +1869,7 @@ class InferFeatureAttributesBase(ABC):
         top_five = sorted(value_counts, key=lambda d: d["count"], reverse=True)[:5]
         return pvm, top_five
 
-    def _compute_unprotected_multiplier(self, feature: str, protected_values_multipliers: Sequence[dict[str, t.Any]],
+    def _compute_unprotected_multiplier(self, feature: str, protected_values_multipliers: Sequence[dict[str, Any]],
                                         *, row_count: int | None = None) -> float:
         """
         Compute the unprotected multiplier for the provided feature given a list of rare values with multipliers.
@@ -1905,7 +1910,7 @@ class InferFeatureAttributesBase(ABC):
     def _compute_preserve_rare_values_config(
         self,
         max_distilled_cases: int,
-        preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all"],
+        preserve_rare_values_map: PreserveRareValuesMap | Literal["all"],
         significance_threshold: int
     ) -> FullPreserveRareValuesConfig:
         """
@@ -1956,7 +1961,7 @@ class InferFeatureAttributesBase(ABC):
             )
         return prvc
 
-    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap | t.Literal["all", "off"] | None,  # noqa: PLR0912, PLR0915
+    def _process_rare_values(self, preserve_rare_values_map: PreserveRareValuesMap | Literal["all", "off"] | None,  # noqa: PLR0912, PLR0915
                              preserve_rare_values_config: PreserveRareValuesConfig | None, max_distilled_cases: int,
                              significance_threshold: int, enable_suggestions: bool = True) -> None:
         """Procesess `preserve_rare_values` configuration or make recommendation."""
