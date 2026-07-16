@@ -191,6 +191,10 @@ class IFACompatibleADCProtocol(t.Protocol):
     def get_unique_values(self, column_name: Hashable) -> Collection[t.Any]:
         """Return the unique values in `column_name`."""
 
+    @abstractmethod
+    def is_nullable_column(self, column_name: Hashable) -> bool:
+        """Return whether the provided column allows nulls."""
+
 
 class RelationshipProtocol(t.Protocol):
     """Protocol for an object representing a relationship in a database."""
