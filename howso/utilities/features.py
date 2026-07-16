@@ -4,7 +4,6 @@ from collections.abc import Iterable, Mapping, Sequence
 import decimal
 from enum import Enum
 from functools import partial
-import json
 import locale
 from typing import Any, cast
 import warnings
@@ -675,11 +674,13 @@ class FeatureSerializer:
     def format_tokenizable_string_column(
         cls,
         column: pd.Series,
-        feature: Mapping[str, Any],  # noqa: ARG003
+        feature: Mapping[str, Any],
         tokenizer: TokenizerProtocol | None = None,
     ) -> pd.Series:
         """
         Format tokenizable string column.
+
+        Null values are preserved as None, as there is nothing to detokenize.
 
         Parameters
         ----------
@@ -698,7 +699,10 @@ class FeatureSerializer:
             The formatted column.
         """
         tokenizer = tokenizer or HowsoTokenizer()
-        return pd.Series(tokenizer.detokenize(json.loads(case)) for case in column)
+        return pd.Series(
+            None if tokens is None else tokenizer.detokenize(tokens)
+            for tokens in destringify_json(column, feature)
+        )
 
     @classmethod
     def format_unknown_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:  # noqa: ARG003

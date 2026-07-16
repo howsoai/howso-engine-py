@@ -11,7 +11,7 @@
             "default_time_zone": "UTC",
             "id_feature": true,
             "bounds": {
-                "allow_null": false
+                "allow_null": true
             },
             "non_sensitive": true
         },
@@ -106,7 +106,7 @@
                 "observed_max": "2019-08-31T00:00:00",
                 "min": "2003-11-14T02:58:57",
                 "max": "2025-11-16T21:01:02",
-                "allow_null": false
+                "allow_null": true
             },
             "time_series": {
                 "type": "delta",
