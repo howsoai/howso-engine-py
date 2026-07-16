@@ -63,7 +63,7 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
     def __init__(
         self,
-        feature_attributes: Mapping[str, Any],
+        feature_attributes: Mapping[str, FeatureAttributes],
         params: dict[str, Any] | None = None,
         unsupported: list[str] | None = None,
         suggestions_collector: IFASuggestionCollector | None = None,
@@ -236,8 +236,8 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
         """
         raise NotImplementedError("Function not yet implemented for all subclasses of `FeatureAttributesBase`")
 
-    def get_names(self, *, types: str | Container | None = None,
-                  data_types: str | Container | None = None,
+    def get_names(self, *, types: str | Container[str] | None = None,
+                  data_types: str | Container[str] | None = None,
                   without: str | Iterable[str] | None = None,
                   ) -> list[str]:
         """
