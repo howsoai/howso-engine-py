@@ -90,10 +90,10 @@ def infer_feature_attributes(
 
     Feature attributes provide Howso with a schema like representation of the data and is required in order to
     ingest the data into Howso. It is important to inspect the result of this method in order to verify the accuracy
-    of what is inferred and so that any inaccuracies can be corrected before data ingestion. This method makes a best
+    of what was inferred and so that any inaccuracies can be corrected before data ingestion. This method makes a best
     guess at the feature attributes and in some cases may not automatically set certain attributes if there is
-    ambiguity, instead raising suggestions for further consideration which can be reviewed by accessing the
-    :attr:`~FeatureAttributesBase.suggestions` attribute.
+    ambiguity, instead providing suggestions for further consideration which can be reviewed by accessing the
+    :attr:`~howso.utilities.feature_attributes.base.FeatureAttributesBase.suggestions` attribute.
 
     Parameters
     ----------
