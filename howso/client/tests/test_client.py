@@ -1448,12 +1448,9 @@ class TestBaseClient:
         assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
         assert feature_attributes["review"]["data_type"] == "json"
         assert feature_attributes["review"]["type"] == "continuous"
-        client = HowsoClient()
-        t = Trainee()
-        client.set_feature_attributes(t.id, feature_attributes)
-        client.train(t.id, df)
-        reaction = client.react(
-            t.id,
+        t = Trainee(features=feature_attributes)
+        t.train(df)
+        reaction = t.react(
             contexts=[[5, 'turbo-encabulator']],
             context_features=['rating', 'product'],
             action_features=['review'],
@@ -1489,12 +1486,9 @@ class TestBaseClient:
         assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
         assert feature_attributes["review"]["data_type"] == "json"
         assert feature_attributes["review"]["type"] == "continuous"
-        client = HowsoClient()
-        t = Trainee()
-        client.set_feature_attributes(t.id, feature_attributes)
+        t = Trainee(features=feature_attributes)
         # React without training any data
-        reaction = client.react(
-            t.id,
+        reaction = t.react(
             contexts=[[5, 'turbo-encabulator']],
             context_features=['rating', 'product'],
             action_features=['review'],
