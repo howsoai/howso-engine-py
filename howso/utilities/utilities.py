@@ -828,11 +828,6 @@ def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series
     """
     Ensure that any JSON features have their cases destringified.
 
-    A case value may arrive either JSON encoded as a string or already decoded as a native value
-    (for example, a list or dict embedded directly in the response). String values are decoded
-    with `json.loads`; any value that is already decoded is passed through as-is rather than
-    decoded a second time.
-
     Null values are returned as None. A null may arrive either directly as a null value or JSON
     encoded as the literal ``null`` (which `json.loads` decodes to None).
 
