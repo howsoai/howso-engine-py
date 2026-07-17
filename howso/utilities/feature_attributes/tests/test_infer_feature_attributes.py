@@ -1329,7 +1329,7 @@ def test_infer_fanout_features_ignores_constant_columns():
     fix it attached to every key's fan-out set -- manufacturing sibling levels
     that violate the strict-subset-chain assumption (emitting a misleading
     "strict-tree" warning) and listing the constant itself as a fan-out feature.
-    Once the constant column is correctly excluded, this data has no genuine
+    Once the constant column is correctly excluded, this data has no
     fan-out structure, so no fan-out suggestion (and thus no suggestion warning)
     should be produced.
     """
@@ -1343,7 +1343,7 @@ def test_infer_fanout_features_ignores_constant_columns():
     )
 
     # The constant column is the only fan-out candidate and is correctly excluded, so
-    # no fan-out suggestion should be produced -- and therefore no suggestion warning.
+    # no fan-out suggestion should be produced, therefore producing no suggestion warning.
     assert "fanout_features" not in features.suggestions.suggestions
     suggestion_warnings = [w for w in record if "one or more suggestions" in str(w.message)]
     assert not suggestion_warnings, (
