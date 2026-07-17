@@ -1,25 +1,20 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 import textwrap
-from typing import Any, cast
+from typing import Any, Self, TYPE_CHECKING
 import warnings
 
 from rich.console import Console
 from rich.table import Table
-from typing import Self
+
+if TYPE_CHECKING:
+    from howso.client.typing import FullPreserveRareValuesConfig, PreserveRareValuesMap
 
 # Fanout features parameters
 # --------------------------
 FanoutFeaturesMap = dict[tuple[str, ...] | str, list[str]]
-
-# Signal preservation parameters
-# ------------------------------
-# Provided by the user to specify values to protect, multipliers must be computed automatically
-PreserveRareValuesMap = dict[str, list[Any]]
-# Provided by the user to specify values to protect *with* multipliers, must only compute unprotected multipliers
-PreserveRareValuesConfig = dict[str, list[dict[str, Any]]]
-# Used internally to represent a "complete" configuration with protected *and* unprotected multipliers
-FullPreserveRareValuesConfig = dict[str, dict[str, list[dict[str, Any]] | float]]
 
 
 def wrap_text(text: str, width: int) -> str:
@@ -227,7 +222,7 @@ class PRVSuggestion(IFASuggestion):
     def __repr__(self) -> str:
         """Print a helpful description of this IFASuggestion."""
         num_candidates = sum(
-            len(cast(list[dict[str, Any]], cfg["protected_values_multipliers"]))
+            len(cfg["protected_values_multipliers"])
             for cfg in self._prvc.values()
         )
         candidates_explanation = ""
@@ -366,7 +361,7 @@ class PRVSuggestion(IFASuggestion):
             )
         values_map = {}
         for feature, config in self._prvc.items():
-            multipliers = cast(list[dict[str, Any]], config["protected_values_multipliers"])
+            multipliers = config["protected_values_multipliers"]
             values_map[feature] = [value_config["value"] for value_config in multipliers]
         return values_map
 
