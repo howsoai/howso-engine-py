@@ -5269,6 +5269,39 @@ class AbstractHowsoClient(ABC):
             return ret.get('count', 0)
         return 0
 
+    def get_num_lags_needed(
+        self,
+        trainee_id: str,
+        *,
+        action_features: t.Optional[Collection[str]] = None,
+        context_features: t.Optional[Collection[str]] = None,
+    ) -> int:
+        """
+        Return the number of lagged timesteps recommended for a query with the given features.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The Id of the Trainee to retrieve the number of training cases from.
+        action_features : collection of str, optional
+            The features that are to be predicted or generated in the desired operation.
+        context_features : collection of str, optional
+            The features that are to be used as contexts in the desired operation.
+
+        Returns
+        -------
+        int
+            The number of lagged timesteps recommended to give as context
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        ret = self.execute(trainee_id, "get_num_lags_needed", {
+            "action_features": action_features,
+            "context_features": context_features,
+        })
+        if isinstance(ret, dict):
+            return ret.get('num_lags', 1)
+        return 1
+
     def get_feature_conviction(
         self,
         trainee_id: str,
