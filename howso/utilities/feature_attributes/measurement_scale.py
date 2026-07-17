@@ -539,11 +539,9 @@ def infer_continuous_type(x: pd.Series) -> ContinuousType:
     gaps = np.diff(sorted_distr)
 
     paired_vals = sorted_distr[1:]
-    _, p_val = stats.pearsonr(np.log(paired_vals), gaps)
+    _, p_val = stats.pearsonr(np.abs(paired_vals), gaps)
 
-    return p_val < 1e-4
-
-    if p_val < 1e-4:
+    if p_val < 1e-3:
         return "ratio"
     return "interval"
 
