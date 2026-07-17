@@ -262,12 +262,7 @@ class FeatureRareValueConfig(TypedDict):
     """The protected values and their individual case-weight multipliers."""
 
     unprotected_multiplier: NotRequired[float]
-    """
-    The case-weight multiplier applied to all non-protected values of the feature.
-
-    Optional on input: if omitted from a user-provided configuration, it is computed
-    automatically from the protected multipliers.
-    """
+    """The case-weight multiplier applied to all non-protected values of the feature."""
 
 
 class DeferredRareValueConfig(TypedDict):
