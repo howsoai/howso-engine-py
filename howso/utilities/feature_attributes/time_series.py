@@ -16,10 +16,19 @@ from pandas.core.dtypes.common import is_string_dtype
 import psutil
 
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
-from howso.utilities.feature_attributes.base import InferFeatureAttributesBase, SingleTableFeatureAttributes
+from howso.utilities.feature_attributes.base import (
+    InferFeatureAttributesBase,
+    SIGNIFICANT_THRESHOLD_DEFAULT,
+    SingleTableFeatureAttributes,
+)
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
 from howso.utilities.feature_attributes.protocols import IFACompatibleADCProtocol
-from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
+from howso.utilities.feature_attributes.suggestions import (
+    FullPreserveRareValuesConfig,
+    IFASuggestionCollector,
+    PreserveRareValuesConfig,
+    PreserveRareValuesMap,
+)
 from howso.utilities.feature_attributes.warnings import IFAWarningCollector
 from howso.utilities.utilities import (
     date_to_epoch,
@@ -359,6 +368,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         include_sample: bool = False,
         infer_bounds: bool = True,
         lags: t.Optional[list | dict] = None,
+        max_distilled_cases: t.Optional[int] = None,
         max_workers: t.Optional[int] = None,
         memory_warning_threshold: t.Optional[int] = 512,
         mode_bound_features: t.Optional[Iterable[str]] = None,
@@ -366,7 +376,10 @@ class InferFeatureAttributesTimeSeries(ABC):
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
         ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
+        preserve_rare_values_map: t.Optional[PreserveRareValuesMap | t.Literal["all", "off"]] = None,
+        preserve_rare_values_config: t.Optional[PreserveRareValuesConfig | FullPreserveRareValuesConfig] = None,
         rate_boundaries: t.Optional[dict] = None,
+        significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
         time_invariant_features: t.Optional[Iterable[str]] = None,
         tight_bounds: t.Optional[Iterable[str]] = None,
         time_feature_is_universal: t.Optional[bool] = None,
@@ -516,6 +529,13 @@ class InferFeatureAttributesTimeSeries(ABC):
                 case by holding the value of a feature from a previous time step.
                 These lag features allow for cases to hold more temporal information.
 
+        max_distilled_cases : int, default None
+            (Optional) The maximum target size of the data after distillation. If provided, allows for
+            a potentially more accurate suggestion of a `preserve_rare_values_map` configuration.
+
+            .. note ::
+                See also: `preserve_rare_values_map`.
+
         max_workers: int, default None
             If unset or set to None (recommended), let the ProcessPoolExecutor
             choose the best maximum number of process pool workers to process
@@ -574,6 +594,31 @@ class InferFeatureAttributesTimeSeries(ABC):
                     "size" : [ "small", "medium", "large", "huge" ]
                 }
 
+        preserve_rare_values_config : dict, default None
+            (Optional) A map of feature name to a list of dict specifying a protected value and
+            a case weight multiplier. Enables case weight rebalancing for data distillation workflows
+            such that protected values do not lose signal. Compute automatically by providing
+            a `preserve_rare_values_map` for a fine-grained selection of protected values.
+
+            Example::
+
+                {
+                    "feature_a": [
+                        {"value": "x", "multiplier": 3},
+                        {"value": "y", "multiplier": 150}
+                    ]
+                }
+
+            Alternatively, you may provide a "full" `preserve_rare_values_config` that specifies both
+            the "unprotected_multiplier" and "protected_values_multipliers" for each feature. This is
+            the format that can be expected if your `preserve_rare_values_config` comes from a
+            suggestion after calling `infer_feature_attributes`.
+
+        preserve_rare_values_map : dict or "all", default None
+            (Optional) A map of feature name to list of values that should be protected during data
+            distillation. If set to "all", will infer and attempt to preserve all detected rare
+            values.
+
         rate_boundaries : dict, default None
             (Optional) For time series, specify the rate boundaries in the form
             {"feature" : {"min|max" : {order : value}}}. Works with partial values
@@ -591,6 +636,10 @@ class InferFeatureAttributesTimeSeries(ABC):
                         }
                     }
                 }
+
+        significance_threshold : int, default 30
+            (Optional) After data distillation, the number of cases that are expected to result in a
+            signal for preserved rare values.
 
         tight_bounds: Iterable of str, default None
             (Optional) Set tight min and max bounds for the features
@@ -701,12 +750,16 @@ class InferFeatureAttributesTimeSeries(ABC):
             include_extended_nominal_probabilities=include_extended_nominal_probabilities,
             include_sample=include_sample,
             infer_bounds=infer_bounds,
+            max_distilled_cases=max_distilled_cases,
             max_workers=max_workers,
             memory_warning_threshold=memory_warning_threshold,
             mode_bound_features=mode_bound_features,
             nominal_substitution_config=nominal_substitution_config,
             num_series=num_series,
             ordinal_feature_values=ordinal_feature_values,
+            preserve_rare_values_map=preserve_rare_values_map,
+            preserve_rare_values_config=preserve_rare_values_config,
+            significance_threshold=significance_threshold,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
             types=types,
         )

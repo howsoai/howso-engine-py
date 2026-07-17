@@ -474,6 +474,9 @@ class FeatureAttributes(TypedDict):
     post_process: NotRequired[str]
     """Custom Amalgam code that is called on resulting values of this feature during react operations."""
 
+    preserve_rare_values: NotRequired[dict[str, Any]]
+    """Configuration for preserving rare values during data distillation."""
+
     recursive_matching: NotRequired[bool]
     """
     Whether operations work recursively on feature values.

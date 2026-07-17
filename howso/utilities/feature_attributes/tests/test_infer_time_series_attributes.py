@@ -570,6 +570,49 @@ def test_time_series_suggestions_collector_is_attached():
     assert isinstance(features.suggestions, IFASuggestionCollector)
 
 
+def test_preserve_rare_values_time_series():
+    """The rare-value distillation params are accepted and applied on the time series IFA path."""
+    rng = np.random.default_rng(0)
+    n_series, n_steps = 20, 100
+    rows = []
+    for sid in range(n_series):
+        for t in range(n_steps):
+            rows.append({
+                "ID": f"s{sid}",
+                "date": float(t),
+                "value": float(rng.normal(100.0, 10.0)),
+                # "rare" is significant on its own (count >= significance_threshold) but
+                # would drop below it after distillation, making it a rare-value candidate.
+                "cat": rng.choice(["a", "b", "c", "rare"], p=[0.4, 0.3, 0.27, 0.03]),
+            })
+    df = pd.DataFrame(rows)
+
+    # preserve_rare_values_map="all" with max_distilled_cases computes multipliers.
+    # Previously these params raised a TypeError on the time series path.
+    features = infer_feature_attributes(
+        df,
+        time_feature_name="date",
+        id_feature_name="ID",
+        max_distilled_cases=500,
+        preserve_rare_values_map="all",
+        significance_threshold=25,
+        enable_suggestions=False,
+    )
+    assert "preserve_rare_values" in features["cat"]
+    assert "protected_values_multipliers" in features["cat"]["preserve_rare_values"]
+
+    # A pre-computed preserve_rare_values_config is applied as-is.
+    config = {"cat": [{"value": "rare", "multiplier": 5}]}
+    features = infer_feature_attributes(
+        df,
+        time_feature_name="date",
+        id_feature_name="ID",
+        preserve_rare_values_config=config,
+        enable_suggestions=False,
+    )
+    assert "preserve_rare_values" in features["cat"]
+
+
 def test_time_series_fanout_suggestions():
     """Fanout suggestions are accessible and applicable on the time series IFA path."""
     rng = np.random.default_rng(42)
