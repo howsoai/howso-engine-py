@@ -6,6 +6,7 @@ from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 ContinuousType = Literal["ratio", "interval"]
 MeasurementScale = Literal["ratio", "interval", "binary"]
@@ -533,11 +534,17 @@ def infer_continuous_type(x: pd.Series) -> ContinuousType:
     Ambiguous data-only cases map to ``interval``. Binary 0/1 features also
     map to ``interval`` here; IFA uses ``type`` for nominal/continuous distinction.
     """
-    result = infer_measurement_scale(x)
+    distr = x.array
+    sorted_distr = np.sort(distr)
+    gaps = np.diff(sorted_distr)
 
-    if result["measurement_scale"] == "ratio":
+    paired_vals = sorted_distr[1:]
+    _, p_val = stats.pearsonr(np.log(paired_vals), gaps)
+
+    return p_val < 1e-4
+
+    if p_val < 1e-4:
         return "ratio"
-
     return "interval"
 
 
