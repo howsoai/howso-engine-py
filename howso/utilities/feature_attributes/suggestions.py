@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 import textwrap
-from typing import Any, cast
+from typing import Any, TypedDict
 import warnings
 
 from rich.console import Console
@@ -14,12 +14,28 @@ FanoutFeaturesMap = dict[tuple[str, ...] | str, list[str]]
 
 # Signal preservation parameters
 # ------------------------------
+
+
+class ProtectedValueMultiplier(TypedDict):
+    """A single protected value paired with its case-weight multiplier."""
+
+    value: Any
+    multiplier: float
+
+
+class FeatureRareValueConfig(TypedDict):
+    """A "complete" rare-value configuration for a single feature: protected *and* unprotected multipliers."""
+
+    protected_values_multipliers: list[ProtectedValueMultiplier]
+    unprotected_multiplier: float
+
+
 # Provided by the user to specify values to protect, multipliers must be computed automatically
 PreserveRareValuesMap = dict[str, list[Any]]
 # Provided by the user to specify values to protect *with* multipliers, must only compute unprotected multipliers
-PreserveRareValuesConfig = dict[str, list[dict[str, Any]]]
+PreserveRareValuesConfig = dict[str, list[ProtectedValueMultiplier]]
 # Used internally to represent a "complete" configuration with protected *and* unprotected multipliers
-FullPreserveRareValuesConfig = dict[str, dict[str, list[dict[str, Any]] | float]]
+FullPreserveRareValuesConfig = dict[str, FeatureRareValueConfig]
 
 
 def wrap_text(text: str, width: int) -> str:
@@ -227,7 +243,7 @@ class PRVSuggestion(IFASuggestion):
     def __repr__(self) -> str:
         """Print a helpful description of this IFASuggestion."""
         num_candidates = sum(
-            len(cast(list[dict[str, Any]], cfg["protected_values_multipliers"]))
+            len(cfg["protected_values_multipliers"])
             for cfg in self._prvc.values()
         )
         candidates_explanation = ""
@@ -366,7 +382,7 @@ class PRVSuggestion(IFASuggestion):
             )
         values_map = {}
         for feature, config in self._prvc.items():
-            multipliers = cast(list[dict[str, Any]], config["protected_values_multipliers"])
+            multipliers = config["protected_values_multipliers"]
             values_map[feature] = [value_config["value"] for value_config in multipliers]
         return values_map
 

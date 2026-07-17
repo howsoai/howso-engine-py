@@ -252,10 +252,11 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         the format that can be expected if your `preserve_rare_values_config` comes from a
         suggestion after calling `infer_feature_attributes`.
 
-    preserve_rare_values_map : dict or "all", default None
+    preserve_rare_values_map : dict, "all", or "off", default None
         (Optional) A map of feature name to list of values that should be protected during data
         distillation. If set to "all", will infer and attempt to preserve all detected rare
-        values.
+        values. If set to "off", rare value preservation is disabled entirely, including its
+        automatic suggestion.
 
     rate_boundaries : dict, default None
         (Optional) For time series, specify the rate boundaries in the form
