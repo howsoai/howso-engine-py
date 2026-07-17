@@ -365,7 +365,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         nominal_substitution_config: t.Optional[dict[str, dict]] = None,
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
-        ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
+        ordinal_feature_values: t.Optional[dict[str, list[t.Any]]] = None,
         rate_boundaries: t.Optional[dict] = None,
         time_invariant_features: t.Optional[Iterable[str]] = None,
         tight_bounds: t.Optional[Iterable[str]] = None,

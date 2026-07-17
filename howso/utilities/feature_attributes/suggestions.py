@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 import textwrap
-from typing import Any, cast
+from typing import Any, cast, Self
 import warnings
 
 from rich.console import Console
 from rich.table import Table
-from typing import Self
 
 # Fanout features parameters
 # --------------------------
@@ -139,8 +138,8 @@ class FanoutFeaturesSuggestion(IFASuggestion):
 
         rows.extend([
             (
-                "Get a reusable `fanout_features_map`",
-                "You may provide `fanout_features_map` as a parameter to "
+                "Get a reusable `fanout_feature_map`",
+                "You may provide `fanout_feature_map` as a parameter to "
                 "`infer_feature_attributes` if you wish to adjust the fan-out feature "
                 "configuration. Our detected fan-out feature configuration may be a "
                 "good starting point.",
@@ -149,7 +148,7 @@ class FanoutFeaturesSuggestion(IFASuggestion):
             ),
             (
                 "Apply suggestion to this feature attributes object",
-                "Save the suggested candidate `fanout_features_map` "
+                "Save the suggested candidate `fanout_feature_map` "
                 "to this feature attributes object.",
                 "Call `apply_suggestion()` on the feature attributes object: "
                 '`apply_suggestion("fanout_features")`'
@@ -189,7 +188,7 @@ class FanoutFeaturesSuggestion(IFASuggestion):
                     attributes[f]["fanout_on"] = list(_key_features)
 
     def get_fanout_feature_map(self) -> FanoutFeaturesMap:
-        """Get the `fanout_features_map` for use in future calls to `infer_feature_attributes`."""
+        """Get the `fanout_feature_map` for use in future calls to `infer_feature_attributes`."""
         return self._fanout_features
 
     def merge(self, other: IFASuggestion) -> None:
@@ -402,6 +401,8 @@ class IFASuggestionCollector:
 
     def __repr__(self) -> str:
         """Print a helpful description of the available suggestions."""
+        if not self._suggestions:
+            return "You have no suggestions."
         table = Table(title="Suggestions for Potential Data Quality Improvements",
                       caption="To view a more detailed description of a suggestion, access its `name` as a property "
                       "(e.g., `your_attributes_object.suggestions.preserve_rare_values`).\n\nTo apply all suggestions,"

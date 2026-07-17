@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-import typing as t
+from collections.abc import Iterable, Sequence
+from typing import Any, Literal, overload, TypeAlias, TypedDict, Unpack
 
 import pandas as pd
 
@@ -14,19 +14,94 @@ from howso.utilities.feature_attributes.protocols import (
     TableNameProtocol,
 )
 from howso.utilities.feature_attributes.relational import InferFeatureAttributesSQLDatastore
+from howso.utilities.feature_attributes.suggestions import (
+    FullPreserveRareValuesConfig,
+    PreserveRareValuesConfig,
+    PreserveRareValuesMap,
+)
 from howso.utilities.feature_attributes.time_series import IFATimeSeriesADC, IFATimeSeriesPandas
 
+FeatureType: TypeAlias = Literal["continuous", "ordinal", "nominal"]
 
-def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQLRelationalDatastoreProtocol, *,
-                             tables: t.Optional[Iterable[TableNameProtocol]] = None,
-                             time_feature_name: t.Optional[str] = None,
-                             **kwargs
-                             ) -> FeatureAttributesBase:
+
+class InferOptions(TypedDict, total=False):
+    """Infer feature attributes options."""
+
+    attempt_infer_extended_nominals: bool
+    datetime_feature_formats: dict[str, str | tuple[str, str]]
+    default_time_zone: str | None
+    dependent_features: dict[str, list[str]]
+    enable_suggestions: bool
+    fanout_feature_map: dict[tuple[str, ...] | str, list[str]]
+    id_feature_name: str | Sequence[str] | None
+    include_extended_nominal_probabilities: bool
+    include_sample: bool
+    infer_bounds: bool
+    max_distilled_cases: int | None
+    max_rows_to_eval: int
+    max_workers: int | None
+    memory_warning_threshold: int | None
+    mode_bound_features: Iterable[str]
+    nominal_substitution_config: dict[str, dict[str, Any]]
+    ordinal_feature_values: dict[str, list[Any] | tuple[str]]
+    preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig
+    preserve_rare_values_map: PreserveRareValuesMap | Literal["all", "off"]
+    significance_threshold: int
+    tight_bounds: Iterable[str]
+    types: dict[str, FeatureType] | dict[FeatureType, list[str]]
+
+
+class InferTimeSeriesOptions(InferOptions, total=False):
+    """Infer feature attributes options for time-series data."""
+
+    delta_boundaries: dict[str, dict[Literal["min", "max"], dict[int | str, Any]]]
+    derived_orders: dict[str, int]
+    lags: dict[str, int | list[int]] | list[int]
+    num_lags: int | dict[str, int]
+    orders_of_derivatives: dict[str, int]
+    rate_boundaries: dict[str, dict[Literal["min", "max"], dict[int | str, Any]]]
+    time_feature_is_universal: bool | None
+    time_invariant_features: Iterable[str]
+    time_series_type_default: Literal["rate", "delta", "covariate"]
+    time_series_types_override: dict[str, Literal["rate", "delta", "covariate"]]
+
+
+@overload
+def infer_feature_attributes(
+    data: pd.DataFrame | IFACompatibleADCProtocol | SQLRelationalDatastoreProtocol,
+    *,
+    tables: Iterable[TableNameProtocol] | None = None,
+    time_feature_name: str,
+    **kwargs: Unpack[InferTimeSeriesOptions],
+) -> FeatureAttributesBase: ...
+
+
+@overload
+def infer_feature_attributes(
+    data: pd.DataFrame | IFACompatibleADCProtocol | SQLRelationalDatastoreProtocol,
+    *,
+    tables: Iterable[TableNameProtocol] | None = None,
+    time_feature_name: None = None,
+    **kwargs: Unpack[InferOptions],
+) -> FeatureAttributesBase: ...
+
+
+def infer_feature_attributes(
+    data: pd.DataFrame | IFACompatibleADCProtocol | SQLRelationalDatastoreProtocol,
+    *,
+    tables: Iterable[TableNameProtocol] | None = None,
+    time_feature_name: str | None = None,
+    **kwargs: Any,
+) -> FeatureAttributesBase:
     """
-    Return a dict-like feature attributes object with useful accessor methods.
+    Infer the feature attributes of a given data source.
 
-    The returned object is a subclass of FeatureAttributesBase that is appropriate for the
-    provided data type.
+    Feature attributes provide Howso with a schema like representation of the data and is required in order to
+    ingest the data into Howso. It is important to inspect the result of this method in order to verify the accuracy
+    of what was inferred and so that any inaccuracies can be corrected before data ingestion. This method makes a best
+    guess at the feature attributes and in some cases may not automatically set certain attributes if there is
+    ambiguity, instead providing suggestions for further consideration which can be reviewed by accessing the
+    :attr:`~howso.utilities.feature_attributes.base.FeatureAttributesBase.suggestions` attribute.
 
     Parameters
     ----------
@@ -42,7 +117,7 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
             Please refer to ``kwargs`` for other parameters related to
             extended nominals.
 
-    datetime_feature_formats : dict, default None
+    datetime_feature_formats : dict, optional
         (Optional) Dict defining custom (non-ISO8601) datetime or time-only formats.
         By default, datetime features are assumed to be in ISO8601 format.  Non-English datetimes
         must have locales specified.  If locale is omitted, the default system locale is used.
@@ -63,7 +138,7 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         ``datetime_feature_formats`` and it is not inferred from the data. If not specified
         anywhere, the Howso Engine will default to UTC.
 
-    delta_boundaries : dict, default None
+    delta_boundaries : dict, optional
         (Optional) For time series, specify the delta boundaries in the form
         {"feature" : {"min|max" : {order : value}}}. Works with partial values
         by specifying only particular order of derivatives you would like to
@@ -116,7 +191,7 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                     "measurement_amount": [ "measurement" ]
                 }
 
-    derived_orders : dict, default None
+    derived_orders : dict, optional
         (Optional) Dict of features to the number of orders of derivatives
         that should be derived instead of synthesized. For example, for a
         feature with a 3rd order of derivative, setting its derived_orders
@@ -143,7 +218,7 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         (Optional) If True, bounds will be inferred for the features if the
         feature column has at least one non NaN value
 
-    lags : list or dict, default None
+    lags : list or dict, optional
         (Optional) A list containing the specific indices of the desired lag
         features to derive for each feature (not including the series time
         feature). Specifying derived lag features for the feature specified by
@@ -189,18 +264,18 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         (Optional) Maximum number of bytes that a feature's per-case average can compute to
         without raising a warning about memory usage (Pandas DataFrame only).
 
-    mode_bound_features : list of str, default None
+    mode_bound_features : list of str, optional
         (Optional) Explicit list of feature names to use mode bounds for
         when inferring loose bounds. If None, assumes all features. A mode
         bound is used instead of a loose bound when the mode for the
         feature is the same as an original bound, as it may represent an
         application-specific min/max.
 
-    nominal_substitution_config : dict of dicts, default None
+    nominal_substitution_config : dict of dicts, optional
         (Optional) Configuration of the nominal substitution engine
         and the nominal generators and detectors.
 
-    num_lags : int or dict, default None
+    num_lags : int or dict, optional
         (Optional) An integer specifying the number of lag features to
         derive for each feature (not including the series time feature).
         Specifying derived lag features for the feature specified by
@@ -212,14 +287,14 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
             The num_lags parameter will be overridden by the lags parameter per
             feature.
 
-    orders_of_derivatives : dict, default None
+    orders_of_derivatives : dict, optional
         (Optional) Dict of features and their corresponding order of
         derivatives for the specified type (delta/rate). If provided will
         generate the specified number of derivatives and boundary values. If
         set to 0, will not generate any delta/rate features. By default all
         continuous features have an order value of 1.
 
-    ordinal_feature_values : dict, default None
+    ordinal_feature_values : dict, optional
         (optional) Dict for ordinal string features defining an ordered
         list of string values for each feature, ordered low to high. If
         specified will set 'type' to be 'ordinal' for all features in
@@ -232,7 +307,7 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
                 "size" : [ "small", "medium", "large", "huge" ]
             }
 
-    preserve_rare_values_config : dict, default None
+    preserve_rare_values_config : dict, optional
         (Optional) A map of feature name to a list of dict specifying a protected value and
         a case weight multiplier. Enables case weight rebalancing for data distillation workflows
         such that protected values do not lose signal. Compute automatically by providing
@@ -252,12 +327,12 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         the format that can be expected if your `preserve_rare_values_config` comes from a
         suggestion after calling `infer_feature_attributes`.
 
-    preserve_rare_values_map : dict or "all", default None
+    preserve_rare_values_map : dict or "all", optional
         (Optional) A map of feature name to list of values that should be protected during data
         distillation. If set to "all", will infer and attempt to preserve all detected rare
         values.
 
-    rate_boundaries : dict, default None
+    rate_boundaries : dict, optional
         (Optional) For time series, specify the rate boundaries in the form
         {"feature" : {"min|max" : {order : value}}}. Works with partial values
         by specifying only particular order of derivatives you would like to
@@ -292,7 +367,7 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         normal. Disabling suggestions can meaningfully reduce runtime on large
         datasets when suggestions are not needed.
 
-    tight_bounds: Iterable of str, default None
+    tight_bounds: Iterable of str, optional
         (Optional) Set tight min and max bounds for the features
         specified in the Iterable.
 
@@ -307,7 +382,7 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
     time_feature_name : str, default None
         (Optional, required for time series) The name of the time feature.
 
-    time_invariant_features : list of str, default None
+    time_invariant_features : list of str, optional
         (Optional) Names of time-invariant features. If none are provided, they will be
         inferred automatically.
 
@@ -322,12 +397,12 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         feature values are predicted via interpolation at each timestep
         rather than being derived using a delta or rate.
 
-    time_series_types_override : dict, default None
+    time_series_types_override : dict, optional
         (Optional) Dict of features and their corresponding time series type,
         one of 'rate', 'delta', or 'covariate'. Used to override ``time_series_type_default``
         for the specified features.
 
-    types: dict, default None
+    types: dict, optional
         (Optional) Dict of features and their intended type (i.e., "nominal,"
         "ordinal," or "continuous"), or types mapped to MutableSequences of
         feature names. Any types provided here will override the types that would
@@ -347,7 +422,8 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
     FeatureAttributesBase
         A subclass of ``FeatureAttributesBase`` (Single/MultiTableFeatureAttributes)
         that extends ``dict``, thus providing dict-like access to feature
-        attributes and useful accessor methods.
+        attributes and useful accessor methods. The subclass variant is dependent
+        on the provided data source.
 
     Examples
     --------
@@ -401,22 +477,24 @@ def infer_feature_attributes(data: pd.DataFrame | IFACompatibleADCProtocol | SQL
         elif isinstance(data, IFACompatibleADCProtocol):
             infer = IFATimeSeriesADC(data, time_feature_name)
         else:
-            raise NotImplementedError('`infer_feature_attributes` for time series only supported for DataFrames and '
-                                      'AbstractData classes.')
+            raise NotImplementedError(
+                "`infer_feature_attributes` for time series only supported for DataFrames and AbstractData classes."
+            )
     elif time_feature_name:
-        raise ValueError("'time_feature_name' was included, but 'data' must be of type DataFrame "
-                         "for time series feature attributes to be calculated.")
+        raise ValueError(
+            "'time_feature_name' was included, but 'data' must be of type DataFrame "
+            "for time series feature attributes to be calculated."
+        )
     # Else, check data type
     elif isinstance(data, pd.DataFrame):
         infer = InferFeatureAttributesDataFrame(data)
     elif isinstance(data, SQLRelationalDatastoreProtocol):
         if tables is None:
-            raise TypeError("'tables' is a required parameter if 'data' implements "
-                            "SQLRelationalDatastoreProtocol.")
+            raise TypeError("'tables' is a required parameter if 'data' implements SQLRelationalDatastoreProtocol.")
         infer = InferFeatureAttributesSQLDatastore(data, tables)
     elif isinstance(data, IFACompatibleADCProtocol):
         infer = InferFeatureAttributesAbstractData(data)
     else:
-        raise NotImplementedError('Data not recognized as a DataFrame, AbstractData class, or compatible datastore.')
+        raise NotImplementedError("Data not recognized as a DataFrame, AbstractData class, or compatible datastore.")
 
     return infer(**kwargs)
