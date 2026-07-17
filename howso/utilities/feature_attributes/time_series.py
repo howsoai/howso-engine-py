@@ -23,18 +23,20 @@ from howso.utilities.feature_attributes.base import (
 )
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
 from howso.utilities.feature_attributes.protocols import IFACompatibleADCProtocol
-from howso.utilities.feature_attributes.suggestions import (
-    FullPreserveRareValuesConfig,
-    IFASuggestionCollector,
-    PreserveRareValuesConfig,
-    PreserveRareValuesMap,
-)
+from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
 from howso.utilities.feature_attributes.warnings import IFAWarningCollector
 from howso.utilities.utilities import (
     date_to_epoch,
     is_valid_datetime_format,
     lazy_map,
 )
+
+if t.TYPE_CHECKING:
+    from howso.client.typing import (
+        FullPreserveRareValuesConfig,
+        PreserveRareValuesConfig,
+        PreserveRareValuesMap,
+    )
 
 logger = logging.getLogger(__name__)
 

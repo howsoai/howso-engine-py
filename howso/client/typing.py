@@ -245,6 +245,31 @@ class FeatureTimeSeries(TypedDict, total=False):
     the default.
     """
 
+class ProtectedValueMultiplier(TypedDict):
+    """A single protected value paired with its case-weight multiplier."""
+
+    value: Any
+    """The feature value to protect during data distillation."""
+
+    multiplier: float
+    """The case-weight multiplier applied to cases holding this value."""
+
+
+class FeatureRareValueConfig(TypedDict):
+    """A rare-value preservation configuration for a single feature."""
+
+    protected_values_multipliers: list[ProtectedValueMultiplier]
+    """The protected values and their individual case-weight multipliers."""
+
+    unprotected_multiplier: NotRequired[float]
+    """
+    The case-weight multiplier applied to all non-protected values of the feature.
+
+    Optional on input: if omitted from a user-provided configuration, it is computed
+    automatically from the protected multipliers.
+    """
+
+
 class FeatureAttributes(TypedDict):
     """
     Attributes for a single feature.
@@ -553,6 +578,15 @@ PathLike: TypeAlias = Union[str, os.PathLike]
 
 Persistence: TypeAlias = Literal["allow", "always", "never"]
 """Valid values for ``persistence`` parameters."""
+
+PreserveRareValuesMap: TypeAlias = dict[str, list[Any]]
+"""Map of feature name to a list of values to protect during data distillation."""
+
+PreserveRareValuesConfig: TypeAlias = dict[str, list[ProtectedValueMultiplier]]
+"""Map of feature name to a list of protected values with case-weight multipliers."""
+
+FullPreserveRareValuesConfig: TypeAlias = dict[str, FeatureRareValueConfig]
+"""Map of feature name to a complete rare-value configuration (protected and unprotected multipliers)."""
 
 Precision: TypeAlias = Literal["exact", "similar"]
 """Valid values for ``precision`` parameters."""

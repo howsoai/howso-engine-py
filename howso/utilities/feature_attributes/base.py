@@ -25,13 +25,8 @@ from howso.utilities.feature_attributes.serializers import feature_attributes_pa
 from howso.utilities.feature_attributes.suggestions import (
     FanoutFeaturesMap,
     FanoutFeaturesSuggestion,
-    FeatureRareValueConfig,
-    FullPreserveRareValuesConfig,
     IFASuggestion,
     IFASuggestionCollector,
-    PreserveRareValuesConfig,
-    PreserveRareValuesMap,
-    ProtectedValueMultiplier,
     PRVSuggestion,
 )
 from howso.utilities.feature_attributes.warnings import IFAWarningCollector, IFAWarningEmitterType
@@ -44,7 +39,14 @@ from howso.utilities.utilities import (
 )
 
 if t.TYPE_CHECKING:
-    from howso.client.typing import FeatureAttributes
+    from howso.client.typing import (
+        FeatureAttributes,
+        FeatureRareValueConfig,
+        FullPreserveRareValuesConfig,
+        PreserveRareValuesConfig,
+        PreserveRareValuesMap,
+        ProtectedValueMultiplier,
+    )
 
 logger = logging.getLogger(__name__)
 

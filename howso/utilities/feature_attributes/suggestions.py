@@ -1,41 +1,20 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 import textwrap
-from typing import Any, TypedDict
+from typing import Any, Self, TYPE_CHECKING
 import warnings
 
 from rich.console import Console
 from rich.table import Table
-from typing import Self
+
+if TYPE_CHECKING:
+    from howso.client.typing import FullPreserveRareValuesConfig, PreserveRareValuesMap
 
 # Fanout features parameters
 # --------------------------
 FanoutFeaturesMap = dict[tuple[str, ...] | str, list[str]]
-
-# Signal preservation parameters
-# ------------------------------
-
-
-class ProtectedValueMultiplier(TypedDict):
-    """A single protected value paired with its case-weight multiplier."""
-
-    value: Any
-    multiplier: float
-
-
-class FeatureRareValueConfig(TypedDict):
-    """A "complete" rare-value configuration for a single feature: protected *and* unprotected multipliers."""
-
-    protected_values_multipliers: list[ProtectedValueMultiplier]
-    unprotected_multiplier: float
-
-
-# Provided by the user to specify values to protect, multipliers must be computed automatically
-PreserveRareValuesMap = dict[str, list[Any]]
-# Provided by the user to specify values to protect *with* multipliers, must only compute unprotected multipliers
-PreserveRareValuesConfig = dict[str, list[ProtectedValueMultiplier]]
-# Used internally to represent a "complete" configuration with protected *and* unprotected multipliers
-FullPreserveRareValuesConfig = dict[str, FeatureRareValueConfig]
 
 
 def wrap_text(text: str, width: int) -> str:
