@@ -265,7 +265,7 @@ class FeatureRareValueConfig(TypedDict):
     """The case-weight multiplier applied to all non-protected values of the feature."""
 
 
-class DeferredRareValueConfig(TypedDict):
+class DeferredFeatureValueConfig(TypedDict):
     """
     Rare values marked for protection whose case-weight multipliers are not yet computed.
 
@@ -507,7 +507,7 @@ class FeatureAttributes(TypedDict):
     post_process: NotRequired[str]
     """Custom Amalgam code that is called on resulting values of this feature during react operations."""
 
-    preserve_rare_values: NotRequired[FeatureRareValueConfig | DeferredRareValueConfig]
+    preserve_rare_values: NotRequired[FeatureRareValueConfig | DeferredFeatureValueConfig]
     """
     Configuration for preserving rare values during data distillation.
 
