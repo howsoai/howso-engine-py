@@ -565,6 +565,17 @@ class FeatureAttributes(TypedDict):
     """Flag feature as only having unique values. Only applicable to nominal features."""
 
 
+class TaskProgress(TypedDict):
+    details: str
+    """Description of progress."""
+
+    step: int
+    """The current step number."""
+
+    total: int
+    """The total number of steps."""
+
+
 FeatureAttributesIndex: TypeAlias = MutableMapping[str, FeatureAttributes]
 """Feature name to feature attribute configuration."""
 
