@@ -1819,7 +1819,9 @@ class Trainee(BaseTrainee):
         leave_case_out : bool, default False
             When True and specified along with ``case_indices``, each individual
             react will respectively ignore the corresponding case specified
-            by ``case_indices`` by leaving it out.
+            by ``case_indices`` by leaving it out. When True
+            without specified case_indices, the first trained case
+            with matching context values will be ignored.
         mutate_schema_features : list of str, optional
             List of semi-structured features whose values will be mutated,
             possibly changing their schema in generative reacts. Ignored in
