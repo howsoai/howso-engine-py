@@ -1,10 +1,10 @@
 Faker
-40.31.0
+40.35.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/faker-40.31.0.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/faker-40.35.0.dist-info/licenses/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -119,12 +119,12 @@ DEALINGS IN THE SOFTWARE.
 
 
 certifi
-2026.6.17
+2026.7.22
 Mozilla Public License 2.0 (MPL 2.0)
 Kenneth Reitz
 https://github.com/certifi/python-certifi
 Python package for providing Mozilla's CA Bundle.
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/certifi-2026.6.17.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/certifi-2026.7.22.dist-info/licenses/LICENSE
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
@@ -3362,12 +3362,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 tqdm
-4.69.0
+4.69.1
 MPL-2.0 AND MIT
 UNKNOWN
 https://tqdm.github.io
 Fast, Extensible Progress Meter
-/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/tqdm-4.69.0.dist-info/licenses/LICENCE
+/home/runner/.pyenv/versions/3.14.6/lib/python3.14/site-packages/tqdm-4.69.1.dist-info/licenses/LICENCE
 `tqdm` is a product of collaborative work.
 Unless otherwise stated, all authors (see commit logs) retain copyright
 for their respective work, and release the work under the MIT licence
