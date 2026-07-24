@@ -4,13 +4,15 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.12-dev.txt --pip-args=None
 #
-amalgam-lang==34.2.0
+amalgam-lang==34.2.1
     # via howso-engine (pyproject.toml)
 astroid==4.0.4
     # via pylint
 build==1.5.0
-    # via pip-tools
-certifi==2026.6.17
+    # via
+    #   nab-python
+    #   pip-tools
+certifi==2026.7.22
     # via
     #   howso-engine (pyproject.toml)
     #   requests
@@ -28,7 +30,7 @@ dill==0.4.1
     #   pylint
 execnet==2.1.2
     # via pytest-xdist
-faker==40.31.0
+faker==40.35.0
     # via howso-engine (pyproject.toml)
 flake8==3.9.2
     # via
@@ -44,6 +46,8 @@ idna==3.18
     # via requests
 iniconfig==2.3.0
     # via pytest
+installer==1.0.1
+    # via nab-python
 isort==8.0.1
     # via pylint
 joblib==1.5.3
@@ -62,6 +66,14 @@ mmh3==5.2.1
     # via howso-engine (pyproject.toml)
 mongomock==4.3.0
     # via howso-engine (pyproject.toml)
+nab-index==0.0.11
+    # via
+    #   nab-python
+    #   pipdeptree
+nab-python==0.0.11
+    # via pipdeptree
+nab-resolver==0.0.11
+    # via nab-python
 narwhals==2.24.0
     # via scikit-learn
 numpy==2.4.6
@@ -75,16 +87,16 @@ packaging==26.2
     #   build
     #   howso-engine (pyproject.toml)
     #   mongomock
-    #   pipdeptree
+    #   nab-index
     #   pytest
     #   wheel
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
 pip-tools==7.6.0
     # via howso-engine (pyproject.toml)
-pipdeptree==3.1.1
+pipdeptree==4.1.0
     # via howso-engine (pyproject.toml)
-platformdirs==4.10.1
+platformdirs==4.11.0
     # via pylint
 pluggy==1.6.0
     # via
@@ -110,6 +122,7 @@ pylint==4.0.6
 pyproject-hooks==1.2.0
     # via
     #   build
+    #   nab-python
     #   pip-tools
 pytest==9.1.1
     # via
@@ -157,17 +170,28 @@ snowballstemmer==3.1.1
     # via pydocstyle
 threadpoolctl==3.6.0
     # via scikit-learn
+tomli==2.4.1
+    # via nab-python
+tomli-w==1.2.0
+    # via nab-python
 tomlkit==0.15.1
     # via pylint
-tqdm==4.69.0
+tqdm==4.69.1
     # via sacremoses
+truststore==0.10.4
+    # via nab-index
 typing-extensions==4.16.0
-    # via howso-engine (pyproject.toml)
+    # via
+    #   howso-engine (pyproject.toml)
+    #   nab-index
+    #   nab-python
+    #   nab-resolver
 tzdata==2026.3
     # via pandas
 urllib3==2.7.0
     # via
     #   howso-engine (pyproject.toml)
+    #   nab-index
     #   requests
 wheel==0.47.0
     # via pip-tools
