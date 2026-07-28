@@ -839,7 +839,7 @@ def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series
         The feature attributes of the feature to which the provided cases belong.
     """
     destringified_cases = []
-    typing_info = feature_attributes.get("original_type", {})
+    typing_info = feature_attributes.get("original_type", {}) or {}
     for case_to_destringify in cases:
         if is_null_value(case_to_destringify):
             destringified_cases.append(None)
@@ -877,7 +877,8 @@ def tokenize_strings(
     if not isinstance(tokenizer, TokenizerProtocol):
         raise ValueError("The class provided under `token_processor` must satisfy the `TokenizerProtocol` protocol.")
     for idx, feature_name in enumerate(features):
-        if feature_attributes.get(feature_name, {}).get("original_type", {}).get("data_type") != "tokenizable_string":
+        orig_type = feature_attributes.get(feature_name, {}).get("original_type", {}) or {}
+        if orig_type.get("data_type") != "tokenizable_string":
             continue
         for case_group in cases:
             if is_null_value(case_group[idx]):

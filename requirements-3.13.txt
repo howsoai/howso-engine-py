@@ -4,9 +4,9 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --output-file=requirements-3.13.txt --pip-args=None
 #
-amalgam-lang==34.2.0
+amalgam-lang==34.2.1
     # via howso-engine (pyproject.toml)
-certifi==2026.6.17
+certifi==2026.7.22
     # via
     #   howso-engine (pyproject.toml)
     #   requests
@@ -14,7 +14,7 @@ charset-normalizer==3.4.9
     # via requests
 click==8.4.2
     # via sacremoses
-faker==40.31.0
+faker==40.35.0
     # via howso-engine (pyproject.toml)
 humanize==4.16.0
     # via howso-engine (pyproject.toml)
@@ -60,7 +60,7 @@ semantic-version==2.10.0
     # via howso-engine (pyproject.toml)
 six==1.17.0
     # via python-dateutil
-tqdm==4.69.0
+tqdm==4.69.1
     # via sacremoses
 typing-extensions==4.16.0
     # via howso-engine (pyproject.toml)
