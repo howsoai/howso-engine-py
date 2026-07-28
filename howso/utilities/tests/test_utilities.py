@@ -16,6 +16,7 @@ from howso.utilities import (
     get_hash,
     get_kwargs,
     get_optimized_max_chunk_size,
+    HowsoTokenizer,
     LocaleOverride,
     matrix_processing,
 )
@@ -672,16 +673,6 @@ def test_get_optimized_max_chunk_size(
         assert max_chunk_size < 2 * chunk_size <= 2 * max_chunk_size
 
 
-class _UpperTokenizer:
-    """Minimal tokenizer satisfying ``TokenizerProtocol`` for tests."""
-
-    def tokenize(self, text, **kwargs):
-        return text.upper().split()
-
-    def detokenize(self, tokens, **kwargs):
-        return " ".join(tokens)
-
-
 def test_tokenize_strings_null_original_type():
     """A tokenizable feature whose ``original_type`` is None must not raise."""
     cases = [["hello world"]]
@@ -690,7 +681,7 @@ def test_tokenize_strings_null_original_type():
     # chained ``.get`` calls with an AttributeError.
     feature_attributes = {"text": {"original_type": None}}
 
-    tokenize_strings(cases, features, feature_attributes, _UpperTokenizer())
+    tokenize_strings(cases, features, feature_attributes, HowsoTokenizer())
 
     # Without a resolvable ``tokenizable_string`` data_type, the case is left as-is.
     assert cases == [["hello world"]]
