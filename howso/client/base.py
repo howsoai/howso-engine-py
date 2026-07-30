@@ -1881,6 +1881,10 @@ class AbstractHowsoClient(ABC):
             - categorical_action_probabilities : bool, optional
                 If True, outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
+            - contributions_context_features : list of str, optional
+                A list of feature names that specifies which features are to be used as contexts when computing
+                contribution related details (distance_contribution, similarity_conviction, and residual_contribution).
+                When unspecified, both action and context features are used.
             - derivation_parameters : bool, optional
                 If True, outputs a dictionary of the parameters used in the
                 react call. These include k, p, distance_transform,
