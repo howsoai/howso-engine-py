@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.11-dev.txt --pip-args=None
 #
-amalgam-lang==34.2.1
+amalgam-lang==34.2.2
     # via howso-engine (pyproject.toml)
 astroid==4.0.4
     # via pylint
@@ -30,7 +30,7 @@ dill==0.4.1
     #   pylint
 execnet==2.1.2
     # via pytest-xdist
-faker==40.35.0
+faker==40.36.0
     # via howso-engine (pyproject.toml)
 flake8==3.9.2
     # via
@@ -140,7 +140,7 @@ python-dateutil==2.9.0.post0
     # via
     #   howso-engine (pyproject.toml)
     #   pandas
-pytz==2026.2
+pytz==2026.3.post1
     # via
     #   mongomock
     #   pandas
@@ -176,7 +176,7 @@ tomli-w==1.2.0
     # via nab-python
 tomlkit==0.15.1
     # via pylint
-tqdm==4.69.1
+tqdm==4.70.0
     # via sacremoses
 truststore==0.10.4
     # via nab-index
@@ -197,7 +197,7 @@ wheel==0.47.0
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:
-pip==26.1.2
+pip==26.2
     # via pip-tools
 setuptools==83.0.0
     # via
