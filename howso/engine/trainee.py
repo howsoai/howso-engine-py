@@ -3583,8 +3583,7 @@ class Trainee(BaseTrainee):
         *,
         analyze: t.Optional[bool] = None,
         clustering: bool = False,
-        clustering_expansion_threshold: t.Optional[float] = None,
-        clustering_inclusion_relative_threshold: t.Optional[float] = None,
+        clustering_min_cluster_mass: t.Optional[float] = None,
         distance_contribution: str | bool = False,
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,
@@ -3609,15 +3608,9 @@ class Trainee(BaseTrainee):
         clustering : bool, optional
             If True, will cluster and store cluster ids into ".cluster_id".
 			Will also compute and overwrite distance contributions and similarity convictions.
-        clustering_expansion_threshold : float, optional
-            Similarity conviction threshold of cases considered for expansion of a cluster, only
-            cases with similarity conviction equal to or greater than this value will be
-            considered to be clustered in the same cluster as their neighbors. If none is provided,
-            will default to 0.5
-        clustering_inclusion_relative_threshold : float, optional
-            The initially unclustered candidate cases' distance contribution needs to be less than
-            this value times the max distance contribution from their nearest cluster to be included
-            in that cluster. If none is provided, will default to 1.5
+        clustering_min_cluster_mass : float, optional
+            Smallest mass (number) of cases needed that can be considered an individual cluster.
+            When unspecified is dynamically computed based on dataset, but will be at least 3.
         distance_contribution : bool or str, default False
             The name of the feature to store distance contribution.
             If set to True the values will be stored to the feature
@@ -3669,8 +3662,7 @@ class Trainee(BaseTrainee):
                 trainee_id=self.id,
                 analyze=analyze,
                 clustering=clustering,
-                clustering_expansion_threshold=clustering_expansion_threshold,
-                clustering_inclusion_relative_threshold=clustering_inclusion_relative_threshold,
+                clustering_min_cluster_mass=clustering_min_cluster_mass,
                 distance_contribution=distance_contribution,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
