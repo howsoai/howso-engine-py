@@ -3599,8 +3599,7 @@ class AbstractHowsoClient(ABC):
         *,
         analyze: t.Optional[bool] = None,
         clustering: t.Optional[bool] = None,
-        clustering_expansion_threshold: t.Optional[float] = None,
-        clustering_inclusion_relative_threshold: t.Optional[float] = None,
+        clustering_min_cluster_mass: t.Optional[float] = None,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
@@ -3627,15 +3626,9 @@ class AbstractHowsoClient(ABC):
         clustering : bool, optional
             If True, will cluster and store cluster ids into ".cluster_id".
             Will also compute and overwrite distance contributions and similarity convictions.
-        clustering_expansion_threshold : float, optional
-            Similarity conviction threshold of cases considered for expansion of a cluster, only
-            cases with similarity conviction equal to or greater than this value will be
-            considered to be clustered in the same cluster as their neighbors. If none is provided,
-            will default to 0.5
-        clustering_inclusion_relative_threshold : float, optional
-            The initially unclustered candidate cases' distance contribution needs to be less than
-            this value times the max distance contribution from their nearest cluster to be included
-            in that cluster. If none is provided, will default to 1.5
+        clustering_min_cluster_mass : float, optional
+            Smallest mass (number) of cases needed that can be considered an individual cluster.
+			When unspecified is dynamically computed based on dataset, but will be at least 3.
         features : iterable of str, optional
             An iterable of features to calculate convictions.
         familiarity_conviction_addition : bool or str, default False
@@ -3689,8 +3682,7 @@ class AbstractHowsoClient(ABC):
         self.execute(trainee_id, "react_into_features", {
             "analyze": analyze,
             "clustering": clustering,
-            "clustering_expansion_threshold": clustering_expansion_threshold,
-            "clustering_inclusion_relative_threshold": clustering_inclusion_relative_threshold,
+            "clustering_min_cluster_mass": clustering_min_cluster_mass,
             "features": features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
