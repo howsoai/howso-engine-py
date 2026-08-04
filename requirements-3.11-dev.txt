@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.11-dev.txt --pip-args=None
 #
-amalgam-lang==34.2.2
+amalgam-lang==34.2.4
     # via howso-engine (pyproject.toml)
 astroid==4.0.4
     # via pylint
@@ -22,7 +22,7 @@ click==8.4.2
     # via
     #   pip-tools
     #   sacremoses
-coverage[toml]==7.15.2
+coverage[toml]==7.15.3
     # via pytest-cov
 dill==0.4.1
     # via
@@ -66,13 +66,13 @@ mmh3==5.2.1
     # via howso-engine (pyproject.toml)
 mongomock==4.3.0
     # via howso-engine (pyproject.toml)
-nab-index==0.0.11
+nab-index==0.0.12
     # via
     #   nab-python
     #   pipdeptree
-nab-python==0.0.11
+nab-python==0.0.12
     # via pipdeptree
-nab-resolver==0.0.11
+nab-resolver==0.0.12
     # via nab-python
 narwhals==2.24.0
     # via scikit-learn
@@ -94,7 +94,7 @@ pandas==2.3.3
     # via howso-engine (pyproject.toml)
 pip-tools==7.6.0
     # via howso-engine (pyproject.toml)
-pipdeptree==4.1.0
+pipdeptree==4.2.0
     # via howso-engine (pyproject.toml)
 platformdirs==4.11.0
     # via pylint
