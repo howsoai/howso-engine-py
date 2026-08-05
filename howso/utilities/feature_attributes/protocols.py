@@ -74,28 +74,28 @@ class IFACompatibleADCProtocol(t.Protocol):
         """Return a list of the column names of the data."""
 
     @property
+    @abstractmethod
     def name(self) -> str:
         """Return a meaningful name for this data."""
-        raise NotImplementedError
 
     @property
+    @abstractmethod
     def primary_keys(self) -> str | list[str] | None:
         """Return the primary key(s) of the data."""
-        raise NotImplementedError
 
     @property
+    @abstractmethod
     def foreign_keys(self) -> str | Iterable[str] | None:
         """Return the foreign key(s) of the data."""
-        raise NotImplementedError
 
     @property
+    @abstractmethod
     def supports_non_nullable_columns(self) -> bool:
         """Return whether this data source supports columns with nullable constraints."""
-        raise NotImplementedError
 
+    @abstractmethod
     def finalize(self) -> None:
         """Perform any final clean-up."""
-        raise NotImplementedError
 
     @abstractmethod
     def get_row_count(self) -> int | None:
@@ -223,6 +223,7 @@ class IFACompatibleADCProtocol(t.Protocol):
                             ) -> Iterator[pd.DataFrame]:
         """Yield a data frame per group from the given groups."""
 
+    @abstractmethod
     def yield_grouped_chunk_with_lag_context(self, group_feature: Hashable | Sequence[Hashable],
                                              groups: Iterable[Iterable[t.Any]], *,
                                              id_feature_name: Hashable | Sequence[Hashable],
@@ -236,7 +237,6 @@ class IFACompatibleADCProtocol(t.Protocol):
         Not all data sources support this; those that do not raise
         ``NotImplementedError``.
         """
-        raise NotImplementedError
 
     @abstractmethod
     def yield_variable_length_chunks(self, initial_chunk_size: int = 100, *,
