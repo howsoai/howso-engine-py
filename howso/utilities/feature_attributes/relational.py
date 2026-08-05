@@ -272,6 +272,9 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
             raise ImportError('Must have SQLAlchemy installed to instantiate '
                               'FeatureAttributesSQLTable. See synthesizer-data-services/'
                               'requirements.in for versioning.')
+        warnings.warn("Direct SQL datastore support for infer_feature_attributes is deprecated. "
+                      "Please contact support@howso.com for information about data connectors.",
+                      DeprecationWarning, stacklevel=2)
         self.data = data
         self.table_name = table_name
         self.column_types = column_types
