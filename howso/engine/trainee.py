@@ -3610,7 +3610,7 @@ class Trainee(BaseTrainee):
 			Will also compute and overwrite distance contributions and similarity convictions.
         clustering_min_cluster_mass : float, optional
             Smallest mass (number) of cases needed that can be considered an individual cluster.
-            When unspecified is dynamically computed based on dataset, but will be at least 3.
+            When unspecified defaults to 5.
         distance_contribution : bool or str, default False
             The name of the feature to store distance contribution.
             If set to True the values will be stored to the feature

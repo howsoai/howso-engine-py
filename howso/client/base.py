@@ -3628,7 +3628,7 @@ class AbstractHowsoClient(ABC):
             Will also compute and overwrite distance contributions and similarity convictions.
         clustering_min_cluster_mass : float, optional
             Smallest mass (number) of cases needed that can be considered an individual cluster.
-			When unspecified is dynamically computed based on dataset, but will be at least 3.
+			When unspecified defaults to 5.
         features : iterable of str, optional
             An iterable of features to calculate convictions.
         familiarity_conviction_addition : bool or str, default False
