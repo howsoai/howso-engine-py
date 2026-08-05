@@ -718,7 +718,7 @@ def infer_fanout_feature_config(
 
     Parameters
     ----------
-    data : DataFrame or AbstractDataProtocol
+    data : DataFrame or IFACompatibleADCProtocol
         Howso data connector exposing ``yield_chunk()`` -- iterates DataFrames.
     features : Mapping[str, Any]
         Feature mapping in Howso's ``infer_feature_attributes`` format.

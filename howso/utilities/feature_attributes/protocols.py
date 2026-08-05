@@ -31,18 +31,46 @@ class SQLTableProtocol(t.Protocol):
     schema: str
 
 
-class AbstractDataProtocol(t.Protocol):
-    """Protocol for an abstract data class object."""
+class SessionProtocol(t.Protocol):
+    """Protocol for a sqlalchemy Session object."""
 
-    @property
-    def foreign_keys(self) -> str | Iterable[str] | None:
-        """Return the foreign key(s) of the table."""
+    @abstractmethod
+    def commit(self):
+        """Flush pending changes and commit the current transaction."""
         raise NotImplementedError
+
+    @abstractmethod
+    def close(self):
+        """Close out the transactional resources and ORM objects used by this Session."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def rollback(self):
+        """Rollback the current transaction in progress."""
+        raise NotImplementedError
+
+
+@t.runtime_checkable
+class IFACompatibleADCProtocol(t.Protocol):
+    """
+    Protocol for an abstract data class object compatible with `infer_feature_attributes`.
+
+    An ADC is always the combination of the base abstract data class and the
+    IFA support mixin, so this protocol declares both sets of members as one
+    interface rather than splitting them the way the implementations do.
+
+    Because this protocol is runtime-checkable, every member declared here is
+    required of any object that will be recognized as an ADC, so adding a
+    member raises the floor on which implementations still qualify. Only
+    declare members that all IFA-compatible ADCs implement; members provided
+    by a subset of backends (e.g. ``get_inspector``) belong on a narrower
+    protocol such as :class:`IFACompatibleSQLADCProtocol`.
+    """
 
     @property
     @abstractmethod
     def headers(self) -> list[str]:
-        """Return a list of the column names of the table."""
+        """Return a list of the column names of the data."""
 
     @property
     def name(self) -> str:
@@ -51,7 +79,12 @@ class AbstractDataProtocol(t.Protocol):
 
     @property
     def primary_keys(self) -> str | list[str] | None:
-        """Return the primary key(s) of the table."""
+        """Return the primary key(s) of the data."""
+        raise NotImplementedError
+
+    @property
+    def foreign_keys(self) -> str | Iterable[str] | None:
+        """Return the foreign key(s) of the data."""
         raise NotImplementedError
 
     @property
@@ -65,153 +98,11 @@ class AbstractDataProtocol(t.Protocol):
 
     @abstractmethod
     def get_row_count(self) -> int | None:
-        """Get the number of rows in a file."""
-        raise NotImplementedError
+        """Get the number of rows in the data source."""
 
     @abstractmethod
     def get_dataframe(self) -> pd.DataFrame:
-        """Get the file as a DataFrame."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_group_map(self, column_name: Hashable | Sequence[Hashable], *,
-                      seed: int | None = None
-                      ) -> dict[Hashable, int]:
-        """
-        Get a map of each unique value of `column_name` to its group number.
-
-        If a sequence of column names is provided, groups by the combination of
-        all specified columns.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
-        """Get a specified number of random rows."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def write_chunk(self, chunk: pd.DataFrame, *,
-                    if_exists: t.Literal["fail", "replace", "append"] = "append"
-                    ) -> None:
-        """Write a chunk."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def yield_variable_length_chunks(self, initial_chunk_size: int = 100, *,
-                                     maintain_natural_order: bool = False,
-                                     max_rows: int | None = None,
-                                     skip_rows: int = 0,
-                                     seed: int | None = None,
-                                     ) -> Generator[pd.DataFrame, int, None]:
-        """
-        Provide a bidirectional generator of variable-length chunks.
-
-        Call ``next(gen)`` or ``gen.send(None)`` for the first chunk; for each
-        subsequent chunk, ``gen.send(n)`` returns a chunk of length ``n``.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def yield_chunk(self, chunk_size: int = 5000, *,
-                    max_chunks: int | None = None,
-                    skip_chunks: int | None = None,
-                    maintain_natural_order: bool = False,
-                    seed: int | None = None,
-                    ) -> Iterator[pd.DataFrame]:
-        """Provide a chunk generator."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def yield_grouped_chunk(self, column_name: Hashable | Sequence[Hashable] | None,
-                            groups: Iterable[Iterable[t.Any]], *,
-                            feature_attributes: Mapping[Hashable, t.Any] | None,
-                            max_chunks: int | None = None,
-                            skip_chunks: int = 0,
-                            time_feature: str = "",
-                            ) -> Iterator[pd.DataFrame]:
-        """Provide a grouped chunk generator."""
-        raise NotImplementedError
-
-    def yield_grouped_chunk_with_lag_context(self, group_feature: Hashable | Sequence[Hashable],
-                                             groups: Iterable[Iterable[t.Any]], *,
-                                             id_feature_name: Hashable | Sequence[Hashable],
-                                             time_feature: str,
-                                             num_lags: int,
-                                             feature_attributes: Mapping[Hashable, t.Any] | None = None,
-                                             ) -> Iterator[pd.DataFrame]:
-        """
-        Provide a grouped chunk generator augmented with per-series lag context.
-
-        Not all data sources support this; those that do not raise
-        ``NotImplementedError``.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def map_keys(self, chunk: pd.DataFrame) -> tuple[pd.DataFrame, dict[t.Any, dict[t.Any, list[t.Any]]]]:
-        """Map keys to a chunk, returning the updated chunk and the primary key map."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_unique_values(self, column_name: Hashable | Sequence[Hashable]) -> Collection[t.Any]:
-        """Return the set of unique values in the provided column(s)."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_unique_count(self, column_name: Hashable | Sequence[Hashable]) -> int:
-        """Get the number of unique values in the provided column(s)."""
-
-    @abstractmethod
-    def is_unique(self, column_name: Hashable) -> bool:
-        """Return whether the given column contains only unique values."""
-
-    @abstractmethod
-    def contains_nulls(self, column_name: Hashable) -> bool:
-        """Return whether the given column contains any null values."""
-
-    def is_nullable_column(self, column_name: Hashable) -> bool:
-        """
-        Return whether the given column allows nulls per the source schema.
-
-        Unlike :meth:`contains_nulls`, which inspects the data itself, this
-        reports the column's declared nullability. Data sources that do not
-        constrain nullability report all columns nullable.
-        """
-        raise NotImplementedError
-
-
-@t.runtime_checkable
-class IFACompatibleADCProtocol(t.Protocol):
-    """
-    Protocol for an abstract data file object with extended functionality.
-
-    Includes functions that make it compatible with `infer_feature_attributes`.
-    Because this protocol is runtime-checkable, every member declared here is
-    required of any object that will be recognized as an ADC. Only declare
-    members that all IFA-compatible ADCs implement; members provided by a
-    subset of backends (e.g. ``get_inspector``) belong on a narrower protocol
-    such as :class:`IFACompatibleSQLADCProtocol`.
-    """
-
-    @property
-    @abstractmethod
-    def headers(self) -> list[str]:
-        """Return a list of the column names of the data."""
-
-    @property
-    def primary_keys(self) -> str | list[str] | None:
-        """Return the primary key(s) of the data."""
-        raise NotImplementedError
-
-    @property
-    def foreign_keys(self) -> str | Iterable[str] | None:
-        """Return the foreign key(s) of the data."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_row_count(self) -> int | None:
-        """Get the number of rows in the data source."""
+        """Get the data as a DataFrame."""
 
     @abstractmethod
     def get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
@@ -299,6 +190,10 @@ class IFACompatibleADCProtocol(t.Protocol):
         """Return whether the given column contains any null values."""
 
     @abstractmethod
+    def is_unique(self, column_name: Hashable) -> bool:
+        """Return whether the given column contains only unique values."""
+
+    @abstractmethod
     def is_nullable_column(self, column_name: Hashable) -> bool:
         """
         Return whether the provided column allows nulls.
@@ -326,6 +221,45 @@ class IFACompatibleADCProtocol(t.Protocol):
                             time_feature: str = "",
                             ) -> Iterator[pd.DataFrame]:
         """Yield a data frame per group from the given groups."""
+
+    def yield_grouped_chunk_with_lag_context(self, group_feature: Hashable | Sequence[Hashable],
+                                             groups: Iterable[Iterable[t.Any]], *,
+                                             id_feature_name: Hashable | Sequence[Hashable],
+                                             time_feature: str,
+                                             num_lags: int,
+                                             feature_attributes: Mapping[Hashable, t.Any] | None = None,
+                                             ) -> Iterator[pd.DataFrame]:
+        """
+        Provide a grouped chunk generator augmented with per-series lag context.
+
+        Not all data sources support this; those that do not raise
+        ``NotImplementedError``.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def yield_variable_length_chunks(self, initial_chunk_size: int = 100, *,
+                                     maintain_natural_order: bool = False,
+                                     max_rows: int | None = None,
+                                     skip_rows: int = 0,
+                                     seed: int | None = None,
+                                     ) -> Generator[pd.DataFrame, int, None]:
+        """
+        Provide a bidirectional generator of variable-length chunks.
+
+        Call ``next(gen)`` or ``gen.send(None)`` for the first chunk; for each
+        subsequent chunk, ``gen.send(n)`` returns a chunk of length ``n``.
+        """
+
+    @abstractmethod
+    def write_chunk(self, chunk: pd.DataFrame, *,
+                    if_exists: t.Literal["fail", "replace", "append"] = "append"
+                    ) -> None:
+        """Write a chunk."""
+
+    @abstractmethod
+    def map_keys(self, chunk: pd.DataFrame) -> tuple[pd.DataFrame, dict[t.Any, dict[t.Any, list[t.Any]]]]:
+        """Map keys to a chunk, returning the updated chunk and the primary key map."""
 
 
 @t.runtime_checkable
@@ -360,7 +294,7 @@ class DatastoreProtocol(t.Protocol):
     """Protocol for a datastore object."""
 
     @abstractmethod
-    def items(self) -> Generator[tuple[TableNameProtocol, AbstractDataProtocol], None, None]:
+    def items(self) -> Generator[tuple[TableNameProtocol, IFACompatibleADCProtocol], None, None]:
         """Get items in the datastore."""
         raise NotImplementedError
 
@@ -402,12 +336,12 @@ class DatastoreProtocol(t.Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def get_data(self, table_name: TableNameProtocol) -> AbstractDataProtocol:
+    def get_data(self, table_name: TableNameProtocol) -> IFACompatibleADCProtocol:
         """Get the data in a specified table."""
         raise NotImplementedError
 
     @abstractmethod
-    def set_data(self, table_name: TableNameProtocol, data: AbstractDataProtocol):
+    def set_data(self, table_name: TableNameProtocol, data: IFACompatibleADCProtocol):
         """Set the data in a specified table."""
         raise NotImplementedError
 
