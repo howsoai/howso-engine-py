@@ -55,12 +55,13 @@ class IFACompatibleADCProtocol(t.Protocol):
     """
     Protocol for an abstract data class object compatible with `infer_feature_attributes`.
 
-    An ADC is always the combination of the base abstract data class and the
-    IFA support mixin, so this protocol declares both sets of members as one
-    interface rather than splitting them the way the implementations do.
+    Since IFA requires functions declared both in the base `AbstractData` class
+    and the extended IFA support mixin, this protocol declares both sets of
+    members as one interface rather than splitting them like in the way the
+    are written.
 
-    Because this protocol is runtime-checkable, every member declared here is
-    required of any object that will be recognized as an ADC, so adding a
+    Also, because this protocol is runtime-checkable, every member declared here
+    is required of any object that will be recognized as an ADC, so adding a
     member raises the floor on which implementations still qualify. Only
     declare members that all IFA-compatible ADCs implement; members provided
     by a subset of backends (e.g. ``get_inspector``) belong on a narrower
