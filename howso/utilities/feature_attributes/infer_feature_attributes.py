@@ -17,10 +17,12 @@ from howso.utilities.feature_attributes.relational import InferFeatureAttributes
 from howso.utilities.feature_attributes.time_series import IFATimeSeriesADC, IFATimeSeriesPandas
 
 if TYPE_CHECKING:
-    from howso.client.typing import FullPreserveRareValuesConfig, PreserveRareValuesConfig, PreserveRareValuesMap
-
-FeatureType: TypeAlias = Literal["continuous", "ordinal", "nominal"]
-
+    from howso.client.typing import (
+        FeatureType,
+        FullPreserveRareValuesConfig,
+        PreserveRareValuesConfig,
+        PreserveRareValuesMap,
+    )
 
 class InferOptions(TypedDict, total=False):
     """Infer feature attributes options."""
