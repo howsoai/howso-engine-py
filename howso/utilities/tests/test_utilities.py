@@ -16,10 +16,12 @@ from howso.utilities import (
     get_hash,
     get_kwargs,
     get_optimized_max_chunk_size,
+    HowsoTokenizer,
     LocaleOverride,
     matrix_processing,
 )
 from howso.utilities.tests import has_locales
+from howso.utilities.utilities import tokenize_strings
 
 
 @pytest.mark.skipif(
@@ -669,3 +671,17 @@ def test_get_optimized_max_chunk_size(
     if respects_max:
         chunk_size = result[0]
         assert max_chunk_size < 2 * chunk_size <= 2 * max_chunk_size
+
+
+def test_tokenize_strings_null_original_type():
+    """A tokenizable feature whose ``original_type`` is None must not raise."""
+    cases = [["hello world"]]
+    features = ["text"]
+    # ``original_type`` present but set to None previously broke the None-safe
+    # chained ``.get`` calls with an AttributeError.
+    feature_attributes = {"text": {"original_type": None}}
+
+    tokenize_strings(cases, features, feature_attributes, HowsoTokenizer())
+
+    # Without a resolvable ``tokenizable_string`` data_type, the case is left as-is.
+    assert cases == [["hello world"]]

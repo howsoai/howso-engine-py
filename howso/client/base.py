@@ -1881,6 +1881,10 @@ class AbstractHowsoClient(ABC):
             - categorical_action_probabilities : bool, optional
                 If True, outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
+            - contributions_context_features : list of str, optional
+                A list of feature names that specifies which features are to be used as contexts when computing
+                contribution related details (distance_contribution, similarity_conviction, and residual_contribution).
+                When unspecified, both action and context features are used.
             - derivation_parameters : bool, optional
                 If True, outputs a dictionary of the parameters used in the
                 react call. These include k, p, distance_transform,
@@ -2163,7 +2167,9 @@ class AbstractHowsoClient(ABC):
         leave_case_out : bool, default False
             If set to True and specified along with case_indices,
             each individual react will respectively ignore the corresponding
-            case specified by case_indices by leaving it out.
+            case specified by case_indices by leaving it out. If set to True
+            without specified case_indices, then the first trained case
+            with matching context values will be ignored.
         mutate_schema_features : iterable of str, optional
             List of semi-structured features whose values will be mutated,
             possibly changing their schema in generative reacts. Ignored in
@@ -3593,8 +3599,7 @@ class AbstractHowsoClient(ABC):
         *,
         analyze: t.Optional[bool] = None,
         clustering: t.Optional[bool] = None,
-        clustering_expansion_threshold: t.Optional[float] = None,
-        clustering_inclusion_relative_threshold: t.Optional[float] = None,
+        clustering_min_cluster_mass: t.Optional[float] = None,
         distance_contribution: bool | str = False,
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
@@ -3621,15 +3626,9 @@ class AbstractHowsoClient(ABC):
         clustering : bool, optional
             If True, will cluster and store cluster ids into ".cluster_id".
             Will also compute and overwrite distance contributions and similarity convictions.
-        clustering_expansion_threshold : float, optional
-            Similarity conviction threshold of cases considered for expansion of a cluster, only
-            cases with similarity conviction equal to or greater than this value will be
-            considered to be clustered in the same cluster as their neighbors. If none is provided,
-            will default to 0.5
-        clustering_inclusion_relative_threshold : float, optional
-            The initially unclustered candidate cases' distance contribution needs to be less than
-            this value times the max distance contribution from their nearest cluster to be included
-            in that cluster. If none is provided, will default to 1.5
+        clustering_min_cluster_mass : float, optional
+            Smallest mass (number) of cases needed that can be considered an individual cluster.
+			When unspecified defaults to 5.
         features : iterable of str, optional
             An iterable of features to calculate convictions.
         familiarity_conviction_addition : bool or str, default False
@@ -3683,8 +3682,7 @@ class AbstractHowsoClient(ABC):
         self.execute(trainee_id, "react_into_features", {
             "analyze": analyze,
             "clustering": clustering,
-            "clustering_expansion_threshold": clustering_expansion_threshold,
-            "clustering_inclusion_relative_threshold": clustering_inclusion_relative_threshold,
+            "clustering_min_cluster_mass": clustering_min_cluster_mass,
             "features": features,
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,

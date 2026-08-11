@@ -508,8 +508,7 @@ class HowsoEstimator(BaseEstimator):
         *,
         analyze=None,
         clustering=None,
-        clustering_expansion_threshold=None,
-        clustering_inclusion_relative_threshold=None,
+        clustering_min_cluster_mass=None,
         distance_contribution=False,
         familiarity_conviction_addition=False,
         familiarity_conviction_removal=False,
@@ -580,8 +579,7 @@ class HowsoEstimator(BaseEstimator):
             features=features,
             analyze=analyze,
             clustering=clustering,
-            clustering_expansion_threshold=clustering_expansion_threshold,
-            clustering_inclusion_relative_threshold=clustering_inclusion_relative_threshold,
+            clustering_min_cluster_mass=clustering_min_cluster_mass,
             distance_contribution=distance_contribution,
             familiarity_conviction_addition=familiarity_conviction_addition,
             familiarity_conviction_removal=familiarity_conviction_removal,
@@ -679,6 +677,10 @@ class HowsoEstimator(BaseEstimator):
             - categorical_action_probabilities : bool, optional
                 If True, outputs probabilities for each class for the action.
                 Applicable only to categorical action features.
+            - contributions_context_features : list of str, optional
+                A list of feature names that specifies which features are to be used as contexts when computing
+                contribution related details (distance_contribution, similarity_conviction, and residual_contribution).
+                When unspecified, both action and context features are used.
             - derivation_parameters : bool, optional
                 If True, outputs a dictionary of the parameters used in the
                 react call. These include k, p, distance_transform,

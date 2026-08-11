@@ -245,6 +245,39 @@ class FeatureTimeSeries(TypedDict, total=False):
     the default.
     """
 
+class ProtectedValueMultiplier(TypedDict):
+    """A single protected value paired with its case-weight multiplier."""
+
+    value: Any
+    """The feature value to protect during data distillation."""
+
+    multiplier: float
+    """The case-weight multiplier applied to cases holding this value."""
+
+
+class FeatureRareValueConfig(TypedDict):
+    """A rare-value preservation configuration for a single feature."""
+
+    protected_values_multipliers: list[ProtectedValueMultiplier]
+    """The protected values and their individual case-weight multipliers."""
+
+    unprotected_multiplier: NotRequired[float]
+    """The case-weight multiplier applied to all non-protected values of the feature."""
+
+
+class DeferredFeatureValueConfig(TypedDict):
+    """
+    Rare values marked for protection whose case-weight multipliers are not yet computed.
+
+    Written to a feature's ``preserve_rare_values`` attribute when protected values are
+    supplied without a ``max_distilled_cases`` value; the multipliers are resolved later
+    in the stack.
+    """
+
+    protected_values: list[Any]
+    """The feature values to protect during data distillation."""
+
+
 class FeatureAttributes(TypedDict):
     """
     Attributes for a single feature.
@@ -474,6 +507,14 @@ class FeatureAttributes(TypedDict):
     post_process: NotRequired[str]
     """Custom Amalgam code that is called on resulting values of this feature during react operations."""
 
+    preserve_rare_values: NotRequired[FeatureRareValueConfig | DeferredFeatureValueConfig]
+    """
+    Configuration for preserving rare values during data distillation.
+
+    Either a fully-computed config with case-weight multipliers, or a deferred config
+    listing only the protected values (when multipliers have not yet been computed).
+    """
+
     recursive_matching: NotRequired[bool]
     """
     Whether operations work recursively on feature values.
@@ -550,6 +591,15 @@ PathLike: TypeAlias = Union[str, os.PathLike]
 
 Persistence: TypeAlias = Literal["allow", "always", "never"]
 """Valid values for ``persistence`` parameters."""
+
+PreserveRareValuesMap: TypeAlias = dict[str, list[Any]]
+"""Map of feature name to a list of values to protect during data distillation."""
+
+PreserveRareValuesConfig: TypeAlias = dict[str, list[ProtectedValueMultiplier]]
+"""Map of feature name to a list of protected values with case-weight multipliers."""
+
+FullPreserveRareValuesConfig: TypeAlias = dict[str, FeatureRareValueConfig]
+"""Map of feature name to a complete rare-value configuration (protected and unprotected multipliers)."""
 
 Precision: TypeAlias = Literal["exact", "similar"]
 """Valid values for ``precision`` parameters."""
