@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import Any, Literal, overload, TypeAlias, TypedDict, Unpack
+from typing import Any, Literal, overload, TYPE_CHECKING, TypeAlias, TypedDict, Unpack
 
 import pandas as pd
 
@@ -14,12 +14,10 @@ from howso.utilities.feature_attributes.protocols import (
     TableNameProtocol,
 )
 from howso.utilities.feature_attributes.relational import InferFeatureAttributesSQLDatastore
-from howso.utilities.feature_attributes.suggestions import (
-    FullPreserveRareValuesConfig,
-    PreserveRareValuesConfig,
-    PreserveRareValuesMap,
-)
 from howso.utilities.feature_attributes.time_series import IFATimeSeriesADC, IFATimeSeriesPandas
+
+if TYPE_CHECKING:
+    from howso.client.typing import FullPreserveRareValuesConfig, PreserveRareValuesConfig, PreserveRareValuesMap
 
 FeatureType: TypeAlias = Literal["continuous", "ordinal", "nominal"]
 
