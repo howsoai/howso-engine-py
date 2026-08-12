@@ -635,3 +635,5 @@ _ThresholdMeasureKey: TypeAlias = Literal[
 
 AblationThresholdMap: TypeAlias = dict[_ThresholdMeasureKey, dict[str, float]]
 """Threshold map(s) for auto-ablation and data reduction."""
+
+FeatureType: TypeAlias = Literal["continuous", "ordinal", "nominal"]

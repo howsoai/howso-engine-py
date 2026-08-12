@@ -377,7 +377,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         nominal_substitution_config: t.Optional[dict[str, dict]] = None,
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
-        ordinal_feature_values: t.Optional[dict[str, list[str]]] = None,
+        ordinal_feature_values: t.Optional[dict[str, list[t.Any]]] = None,
         preserve_rare_values_map: t.Optional[PreserveRareValuesMap | t.Literal["all", "off"]] = None,
         preserve_rare_values_config: t.Optional[PreserveRareValuesConfig | FullPreserveRareValuesConfig] = None,
         rate_boundaries: t.Optional[dict] = None,
