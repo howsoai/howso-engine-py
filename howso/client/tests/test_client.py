@@ -914,7 +914,7 @@ class TestBaseClient:
                 f'id: {trainee.id}') in out
 
     @pytest.mark.parametrize('params', (
-        {"hyperparameter_map": {
+        {"data_parameters_map": {
             "targetless": {
                 "f1.f2.f3.": {
                     ".none": {"dt": -1, "p": .1, "k": 8}
@@ -931,7 +931,7 @@ class TestBaseClient:
 
     def test_set_and_get_params(self, trainee, trainee_builder):
         """Test for set_params and get_params functionality."""
-        param_map = {"hyperparameter_map": {
+        param_map = {"data_parameters_map": {
             "targeted": {
                 "petal_length": {
                     "sepal_length.sepal_width.": {
@@ -991,14 +991,14 @@ class TestBaseClient:
         )['action']['petal_length'].iloc[0]
         assert first_pred == third_pred
 
-        # verify that both trainees have the same hyperparameter_map now
+        # verify that both trainees have the same data_parameters_map now
         first_params = self.client.get_params(trainee.id)
         second_params = self.client.get_params(other_trainee.id)
-        assert first_params['hyperparameter_map'] == second_params['hyperparameter_map']
+        assert first_params['data_parameters_map'] == second_params['data_parameters_map']
 
-    def test_get_specific_hyperparameters(self, trainee):
+    def test_get_specific_dataparameters(self, trainee):
         """Test to verify parameters of get_params are functional."""
-        param_map = {"hyperparameter_map": {
+        param_map = {"data_parameters_map": {
             "targeted": {
                 "petal_length": {
                     "sepal_length.sepal_width.": {
@@ -1020,10 +1020,10 @@ class TestBaseClient:
         self.client.set_params(trainee.id, param_map)
 
         params = self.client.get_params(trainee.id, action_feature='')
-        assert params['hyperparameter_map'] == {"dt": -1, "p": .5, "k": 3}
+        assert params['data_parameters_map'] == {"dt": -1, "p": .5, "k": 3}
 
         params = self.client.get_params(trainee.id, action_feature='petal_length')
-        assert params['hyperparameter_map'] == {"dt": -1, "p": .1, "k": 2}
+        assert params['data_parameters_map'] == {"dt": -1, "p": .1, "k": 2}
 
     def test_get_configuration_path_exceptions(self):
         """

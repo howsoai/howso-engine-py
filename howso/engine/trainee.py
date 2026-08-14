@@ -1082,7 +1082,7 @@ class Trainee(BaseTrainee):
             Defaults to 0.005 (0.5%) when unspecified. When set to 0 will use
             all ``num_feature_probability_samples`` instead of converging.
         dt_values : Collection of float, optional
-            The dt value hyperparameters to analyze with.
+            The dt value data parameters to analyze with.
         inverse_residuals_as_weights : bool, default False
             When True, will compute and use inverse of residuals as feature
             weights.
@@ -1110,7 +1110,7 @@ class Trainee(BaseTrainee):
             Number of samples to use for analysis. The rest will be
             randomly held-out and not included in calculations.
         p_values : Collection of float, optional
-            The p value hyperparameters to analyze with.
+            The p value data parameters to analyze with.
         rebalance_features : Collection[str], optional
             The list of features whose values to use to rebalance case
             weighting of the data and to store into weight_feature.
@@ -1118,15 +1118,15 @@ class Trainee(BaseTrainee):
             When true, used by reduce_data flow to simplify analyze flow by
             skipping computation of feature weights.
         targeted_model : {"omni_targeted", "single_targeted", "targetless"}, optional
-            Type of hyperparameter targeting.
+            Type of data parameters targeting.
             Valid options include:
 
-                - **single_targeted**: Analyze hyperparameters for the
+                - **single_targeted**: Analyze data parameters for the
                   specified action_features.
-                - **omni_targeted**: Analyze hyperparameters for each context
+                - **omni_targeted**: Analyze data parameters for each context
                   feature as an action feature, ignores action_features
                   parameter.
-                - **targetless**: Analyze hyperparameters for all context
+                - **targetless**: Analyze data parameters for all context
                   features as possible action features, ignores
                   action_features parameter.
 
@@ -3696,7 +3696,7 @@ class Trainee(BaseTrainee):
         forecast_window_length: t.Optional[float] = None,
         goal_dependent_features: t.Optional[Collection[str]] = None,
         goal_features_map: t.Optional[Mapping] = None,
-        hyperparameter_param_path: t.Optional[Collection[str]] = None,
+        dataparameters_param_path: t.Optional[Collection[str]] = None,
         num_robust_accuracy_contributions_permutation_samples: t.Optional[int] = None,
         num_robust_accuracy_contributions_samples: t.Optional[int] = None,
         num_robust_influence_samples: t.Optional[int] = None,
@@ -3706,7 +3706,6 @@ class Trainee(BaseTrainee):
         num_robust_residual_samples: t.Optional[int] = None,
         num_samples: t.Optional[int] = None,
         prediction_stats_action_feature: t.Optional[str] = None,
-        robust_hyperparameters: t.Optional[bool] = None,
         sample_model_fraction: t.Optional[float] = None,
         sub_model_size: t.Optional[int] = None,
         use_case_weights: t.Optional[bool] = None,
@@ -3976,12 +3975,12 @@ class Trainee(BaseTrainee):
                     "feature_a" : { "goal": "max" },
                     "feature_b" : { "value": 99 }
                 }
-        hyperparameter_param_path : Collection of str, optional.
-            Full path for hyperparameters to use for computation. If specified
+        dataparameters_param_path : Collection of str, optional.
+            Full path for data parameters to use for computation. If specified
             for any residual computations, takes precedence over
             ``prediction_stats_action_feature`` and ``feature_influences_action_feature``
             parameters.  Can be set to a 'paramPath' value from the results of
-            'get_params()' for a specific set of hyperparameters.
+            'get_params()' for a specific set of data parameters.
         num_robust_accuracy_contributions_permutation_samples : int, optional
             Total sample size of model to use (using sampling with replacement)
             when computing robust accuracy contributions (with permutation).
@@ -4028,15 +4027,11 @@ class Trainee(BaseTrainee):
             Total sample size of model to use (using sampling with replacement)
             for all non-robust computation. Defaults to 1000.
             If specified overrides ``sample_model_fraction``.
-        robust_hyperparameters : bool, optional
-            When specified, will attempt to return residuals that were
-            computed using hyperparameters with the specified robust or
-            non-robust type.
         prediction_stats_action_feature : str, optional
             When calculating residuals and prediction stats, uses this target features's
-            hyperparameters. The trainee should have been analyzed with this feature as the
+            data parameters. The trainee should have been analyzed with this feature as the
             action feature first. If not provided, by default residuals and prediction
-            stats uses targetless hyperparameters. Targetless hyperparameters may also
+            stats uses targetless data parameters. Targetless data parameters may also
             be selected using an empty string: "".
         sample_model_fraction : float, optional
             A value between 0.0 - 1.0, percent of model to use in sampling
@@ -4100,7 +4095,7 @@ class Trainee(BaseTrainee):
                 forecast_window_length=forecast_window_length,
                 goal_dependent_features=goal_dependent_features,
                 goal_features_map=goal_features_map,
-                hyperparameter_param_path=hyperparameter_param_path,
+                dataparameters_param_path=dataparameters_param_path,
                 num_robust_accuracy_contributions_permutation_samples=num_robust_accuracy_contributions_permutation_samples,  # noqa: E501
                 num_robust_accuracy_contributions_samples=num_robust_accuracy_contributions_samples,
                 num_robust_influence_samples=num_robust_influence_samples,
@@ -4110,7 +4105,6 @@ class Trainee(BaseTrainee):
                 num_robust_residual_samples=num_robust_residual_samples,
                 num_samples=num_samples,
                 prediction_stats_action_feature=prediction_stats_action_feature,
-                robust_hyperparameters=robust_hyperparameters,
                 sample_model_fraction=sample_model_fraction,
                 sub_model_size=sub_model_size,
                 use_case_weights=use_case_weights,
@@ -4137,23 +4131,23 @@ class Trainee(BaseTrainee):
         Get the parameters used by the Trainee.
 
         If ``action_feature``, ``context_features``, ``mode``, or ``weight_feature``
-        are specified, then the best hyperparameters analyzed in the Trainee are the
-        value of the "hyperparameter_map" key, otherwise this value will be the
-        dictionary containing all the hyperparameter sets in the Trainee.
+        are specified, then the best data parameters analyzed in the Trainee are the
+        value of the "data_parameters_map" key, otherwise this value will be the
+        dictionary containing all the data parameters sets in the Trainee.
 
         Parameters
         ----------
         action_feature : str, optional
-            If specified will return the best analyzed hyperparameters to
+            If specified will return the best analyzed data parameters to
             target this feature.
         context_features : Collection of str, optional
-            If specified, will find and return the best analyzed hyperparameters
+            If specified, will find and return the best analyzed data parameters
             to use with these context features.
         mode : str, optional
-            If specified, will find and return the best analyzed hyperparameters
+            If specified, will find and return the best analyzed data parameters
             that were computed in this mode.
         weight_feature : str, optional
-            If specified, will find and return the best analyzed hyperparameters
+            If specified, will find and return the best analyzed data parameters
             that were analyzed using this weight feature.
         numerical_precision : str, optional
             Sets the preference for performance vs. computational accuracy.
@@ -4174,7 +4168,7 @@ class Trainee(BaseTrainee):
         -------
         dict of str -> any
             A dict including the either all of the Trainee's internal
-            parameters or only the best hyperparameters selected using the
+            parameters or only the best data parameters selected using the
             passed parameters.
         """
         if isinstance(self.client, AbstractHowsoClient):
@@ -4195,14 +4189,14 @@ class Trainee(BaseTrainee):
         Parameters
         ----------
         params : map of str -> any
-            A dictionary in the following format containing the hyperparameter
+            A dictionary in the following format containing the data parameters
             information, which is required, and other parameters which are
             all optional.
 
             Example::
 
                 {
-                    "hyperparameter_map": {
+                    "data_parameters_map": {
                         "targetless": {
                             "f1.f2.f3": {
                                 ".none": {
@@ -4320,9 +4314,9 @@ class Trainee(BaseTrainee):
             List of feature names to use when computing pairwise distances.
             If unspecified uses all features.
         action_feature : str, optional
-            The action feature. If specified, uses targeted hyperparameters
+            The action feature. If specified, uses targeted data parameters
             used to predict this ``action_feature``, otherwise uses targetless
-            hyperparameters. Targetless hyperparameters may also be specified using an
+            data parameters. Targetless data parameters may also be specified using an
             empty string: "".
         from_case_indices : iterable of (str, int), optional
             An Iterable of Sequences, of session id and index, where index
@@ -4393,9 +4387,9 @@ class Trainee(BaseTrainee):
             List of feature names to use when computing distances. If
             unspecified uses all features.
         action_feature : str, optional
-            The action feature. If specified, uses targeted hyperparameters
+            The action feature. If specified, uses targeted data parameters
             used to predict this ``action_feature``, otherwise uses targetless
-            hyperparameters. Targetless hyperparameters may also be specified using an
+            data parameters. Targetless data parameters may also be specified using an
             empty string: "".
         case_indices : Sequence of (str, int), optional
             List of tuples, of session id and index, where index is the
