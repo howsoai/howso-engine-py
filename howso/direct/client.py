@@ -53,7 +53,7 @@ logger = logging.getLogger('howso.direct')
 
 _VERSION_CHECKED = False
 DT_FORMAT_KEY = 'date_time_format'
-HYPERPARAMETER_KEY = "hyperparameter_map"
+DATA_PARAMETERS_KEY = "data_parameters_map"
 VERSION_CHECK_HOST = "https://version-check.howso.com"
 
 SUBTRAINEE_CONTAINER = ".trainee_container"

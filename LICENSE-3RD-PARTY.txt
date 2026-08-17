@@ -56,12 +56,12 @@ SOFTWARE.
 
 
 Pygments
-2.20.0
+2.21.0
 BSD-2-Clause
 Georg Brandl <georg@python.org>
 https://pygments.org
 Pygments is a syntax highlighting package written in Python.
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/pygments-2.20.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/pygments-2.21.0.dist-info/licenses/LICENSE
 Copyright (c) 2006-2022 by the respective authors (see AUTHORS file).
 All rights reserved.
 
@@ -148,12 +148,12 @@ one at http://mozilla.org/MPL/2.0/.
 
 
 charset-normalizer
-3.4.9
+3.5.1
 MIT
 "Ahmed R. TAHRI" <tahri.ahmed@proton.me>
 https://github.com/jawah/charset_normalizer/blob/master/CHANGELOG.md
 The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet.
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/charset_normalizer-3.4.9.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/charset_normalizer-3.5.1.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2025 TAHRI Ahmed R.
@@ -3274,12 +3274,12 @@ SOFTWARE.
 
 
 sacremoses
-0.1.1
+0.2.0
 MIT License
 UNKNOWN
 https://github.com/hplt-project/sacremoses
 SacreMoses
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/sacremoses-0.1.1.dist-info/LICENSE
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/sacremoses-0.2.0.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2020 alvations
