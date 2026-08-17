@@ -536,7 +536,7 @@ class TestClient:
         self._train(trainee)
         self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
         cases = self.client.get_cases(trainee.id,
-                                      features=['play', 'penguin', 'familiarity_conviction_addition'],
+                                      features=['play', 'penguin', '.familiarity_conviction_addition'],
                                       session=self.client.active_session.id)
         pprint(cases)
         assert '.familiarity_conviction_addition' in cases['features']
