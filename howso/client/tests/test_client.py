@@ -539,7 +539,7 @@ class TestClient:
                                       features=['play', 'penguin', 'familiarity_conviction_addition'],
                                       session=self.client.active_session.id)
         pprint(cases)
-        assert 'familiarity_conviction_addition' in cases['features']
+        assert '.familiarity_conviction_addition' in cases['features']
 
     def test_save(self, trainee):
         """
@@ -879,7 +879,7 @@ class TestBaseClient:
         self.client.react_into_features(trainee.id, familiarity_conviction_addition=True, overwrite=True)
         trainee_cache = self.client.trainee_cache.get_item(trainee.id)
 
-        assert 'familiarity_conviction_addition' in trainee_cache.get('feature_attributes', {}).keys()
+        assert '.familiarity_conviction_addition' in trainee_cache.get('feature_attributes', {}).keys()
 
     def test_react_into_features_verbose(self, trainee, capsys):
         """
