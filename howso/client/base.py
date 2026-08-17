@@ -4266,8 +4266,8 @@ class AbstractHowsoClient(ABC):
         features : Collection of str, optional
             The feature names to consider while calculating convictions.
         distance_contributions : bool, default False
-            Calculate and output distance contribution ratios in
-            the output dict for each case.
+            Calculate and output the average distance contribution for each group
+            holding out rest of the group.
         familiarity_conviction_addition : bool, default False
             Calculate and output familiarity conviction of adding the
             specified cases.

@@ -3270,8 +3270,8 @@ class Trainee(BaseTrainee):
                 If true, returns the full residuals of the action features
                 predicted for each group.
         distance_contributions : bool, default False
-            Calculate and output distance contribution ratios in
-            the output dict for each case.
+            Calculate and output the average distance contribution for each group
+            holding out rest of the group.
         familiarity_conviction_addition : bool, default False
             Calculate and output familiarity conviction of adding the
             specified cases.
