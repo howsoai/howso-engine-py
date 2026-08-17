@@ -533,15 +533,15 @@ class HowsoEstimator(BaseEstimator):
         distance_contribution : bool or str, default False
             The name of the feature to store distance contribution. If set to
             True the values will be stored to the feature
-            'distance_contribution'.
+            '.distance_contribution'.
         familiarity_conviction_addition : bool or str, default False
             The name of the feature to store conviction of addition values. If
             set to True the values will be stored to the feature
-            'familiarity_conviction_addition'.
+            '.familiarity_conviction_addition'.
         familiarity_conviction_removal : bool or str, default False
             The name of the feature to store conviction of removal values. If
             set to True the values will be stored to the feature
-            'familiarity_conviction_removal'.
+            '.familiarity_conviction_removal'.
         influence_weight_entropy : bool or str, default False
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
@@ -553,15 +553,15 @@ class HowsoEstimator(BaseEstimator):
         p_value_of_addition : bool or str, default False
             The name of the feature to store p value of addition values. If set
             to True the values will be stored to the feature
-            'p_value_of_addition'.
+            '.p_value_of_addition'.
         p_value_of_removal : bool or str, default False
             The name of the feature to store p value of removal values. If set
             to True the values will be stored to the feature
-            'p_value_of_removal'.
+            '.p_value_of_removal'.
         similarity_conviction : bool or str, default False
             The name of the feature to store similarity conviction
             values. If set to True the values will be stored to the feature
-            'similarity_conviction'.
+            '.similarity_conviction'.
         use_case_weights : bool, optional
             When True, will scale influence weights by each case's
             `weight_feature` weight. If unspecified, case weights will
