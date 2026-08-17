@@ -545,7 +545,7 @@ class HowsoEstimator(BaseEstimator):
         influence_weight_entropy : bool or str, default False
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
-            'influence_weight_entropy'.
+            '.influence_weight_entropy'.
         overwrite: bool, default False
             When true will forcibly overwrite previously stored values.
             Default is false, will error out if trying to
