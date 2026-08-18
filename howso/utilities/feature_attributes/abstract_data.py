@@ -148,21 +148,57 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
         return any([c['column_names'] == [feature_name] for c in uniques])
 
+    def _get_column_dtype(self, feature_name: str) -> t.Any:
+        """
+        Return a feature's dtype, coercing a string representation to a real dtype.
+
+        Some ADCs report dtypes as their string representation. Parse those
+        with Pandas rather than NumPy: NumPy has no concept of a time zone, so
+        `np.dtype` rejects strings like "datetime64[ns, UTC]" outright. A dtype
+        left as a string makes every `DatetimeTZDtype` and `tz` check below
+        read as though the column were tz-naive, which both misclassifies a
+        tz-aware column whose first value falls at midnight as date-only and
+        drops the "%z" from its inferred format.
+        """
+        dtype = self.data.get_column_dtype(feature_name)
+        if isinstance(dtype, str):
+            try:
+                dtype = pd.api.types.pandas_dtype(dtype)
+            except TypeError:
+                # Not a dtype Pandas recognizes; leave as-is
+                pass
+        return dtype
+
+    def _is_datetime_date_only(self, feature_name: str, max_rows: int = 1000) -> bool:
+        """
+        Return whether every sampled value of a datetime feature falls at midnight.
+
+        A genuinely date-only column deserialized into a datetime dtype carries
+        a midnight time component on every row. Deciding that from a single
+        value misreads any column that merely *starts* at midnight -- hourly
+        telemetry beginning at 00:00, for instance -- and silently discards its
+        time component. Scanning stops at the first value that proves the
+        column carries a time, so the common case costs one chunk at most.
+        """
+        seen = 0
+        for chunk in self.data.yield_chunk(maintain_natural_order=True):
+            column = pd.to_datetime(chunk[feature_name], errors="coerce").dropna()
+            if column.empty:
+                continue
+            if (column != column.dt.normalize()).any():
+                return False
+            seen += len(column)
+            if seen >= max_rows:
+                break
+        # No non-null values observed: nothing indicates a time component.
+        return True
+
     def _get_feature_type(self, feature_name: str  # noqa: C901
                           ) -> tuple[FeatureType | None, dict | None]:
         # Import this here to avoid circular import
         from howso.client.exceptions import HowsoError
 
-        dtype = self.data.get_column_dtype(feature_name)
-
-        # Some ADCs will return the string representation of the dtype.
-        # Convert to NumPy DType so that we can access attributes like 'itemsize.'
-        if isinstance(dtype, str):
-            try:
-                dtype = np.dtype(dtype)
-            except Exception:
-                # If there is a problem, leave as-is
-                pass
+        dtype = self._get_column_dtype(feature_name)
         try:
             if is_float_dtype(dtype):
                 typing_info = {}
@@ -191,20 +227,40 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                     return FeatureType.DATE, {}
                 # datetime64[Y/M/D] only supported by Pandas > 3.0; need more checks for date-only columns
                 first_non_null = self._get_first_non_null(feature_name)
-                if isinstance(first_non_null, datetime.date) and not isinstance(first_non_null, pd.Timestamp):
-                    # Timestamp objects are instances of datetime.date/time, but only return 'DATE' here if
-                    # it's *not* a Timestamp as there may be tzinfo we should inspect.
+                if (isinstance(first_non_null, datetime.date)
+                        and not isinstance(first_non_null, datetime.datetime)):
+                    # `datetime.datetime` subclasses `datetime.date` (and
+                    # `pd.Timestamp` subclasses `datetime.datetime`), so only a
+                    # value that is a date and *not* a datetime is genuinely
+                    # date-only. Excluding just `pd.Timestamp` here let the
+                    # plain `datetime.datetime` objects that several connectors
+                    # return be misread as dates. Datetimes fall through so
+                    # their time and tzinfo are inspected below.
                     return FeatureType.DATE, {}
-                # Date-only Timestamp objects in Pandas will have a default time of midnight
-                if (isinstance(first_non_null, pd.Timestamp)
+                # Date-only Timestamp objects in Pandas will have a default time of
+                # midnight. Confirm that holds across the column rather than for
+                # just this one value, so a timed column that happens to start at
+                # midnight is not demoted to a date.
+                if (isinstance(first_non_null, datetime.datetime)
                     and first_non_null.time() == datetime.time(0, 0, 0)
                     and (not hasattr(dtype, "tz") or not dtype.tz)
+                    and self._is_datetime_date_only(feature_name)
                     ):
+                        # `datetime.datetime` rather than `pd.Timestamp`: several
+                        # connectors hand back plain datetimes, and testing only
+                        # for Timestamp let a genuinely date-only column from
+                        # those sources fall through as a datetime.
                         return FeatureType.DATE, {}
                 if isinstance(dtype, pd.DatetimeTZDtype):
                     # If using a named time zone capture it, otherwise
                     # rely on the offset in the iso8601 format
                     tz_name = getattr(dtype.tz, 'key', None) or getattr(dtype.tz, 'zone', None)
+                    if tz_name is None and dtype.tz is datetime.timezone.utc:
+                        # Parsing a dtype *string* yields stdlib UTC, which
+                        # exposes neither `key` nor `zone` the way `zoneinfo`
+                        # and `pytz` zones do. It is still a named zone, unlike
+                        # the fixed offsets that deliberately fall through here.
+                        tz_name = 'UTC'
                     if tz_name:
                         typing_info['timezone'] = tz_name
                 return FeatureType.DATETIME, typing_info
@@ -660,7 +716,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                 'type': 'nominal',
             }
 
-        dtype = self.data.get_column_dtype(feature_name)
+        dtype = self._get_column_dtype(feature_name)
         # Pandas datetime64 columns will be deserialized to ISO8601
         dt_format = ISO_8601_FORMAT
         if isinstance(dtype, pd.DatetimeTZDtype):

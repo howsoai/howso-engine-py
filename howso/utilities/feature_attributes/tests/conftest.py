@@ -78,23 +78,50 @@ def tabular_file(df) -> Iterator[TabularFile]:
         yield destination
 
 
+# Maps the parametrized ADC name to the generator that builds it. Anything not
+# listed falls back to a plain pandas DataFrame.
+_ADC_FACTORIES = {
+    "MongoDBData": mongodb_data,
+    "SQLTableData": sqltable_data,
+    "ParquetDataFile": parquet_datafile,
+    "ParquetDataset": parquet_dataset,
+    "TabularFile": tabular_file,
+    "DaskDataFrameData": dask_dataframe_data,
+    "DataFrameData": pd_dataframe_data,
+}
+
+
 @pytest.fixture
 def adc(request):
     """Produce an ADC populated with arbitrary data given a parametrized tuple."""
     adc_type, df = request.param
-    if adc_type == "MongoDBData":
-        adc_gen = mongodb_data(df)
-    elif adc_type == "SQLTableData":
-        adc_gen = sqltable_data(df)
-    elif adc_type == "ParquetDataFile":
-        adc_gen = parquet_datafile(df)
-    elif adc_type == "TabularFile":
-        adc_gen = tabular_file(df)
-    elif adc_type == "DaskDataFrameData":
-        adc_gen = dask_dataframe_data(df)
-    else:  # Pandas DataFrame
-        adc_gen = pd_dataframe_data(df)
-    yield from adc_gen
+    yield from _ADC_FACTORIES.get(adc_type, pd_dataframe_data)(df)
+
+
+@pytest.fixture
+def make_adc(request):
+    """
+    Return a factory building additional ADCs of the same type as the parametrized `adc`.
+
+    A test that needs a second set of data cannot reuse its `adc` fixture,
+    because writing to an ADC appends rather than replaces. This hands back a
+    fresh, independently populated connector of the same type instead, so the
+    test keeps exercising the connector it was parametrized with.
+    """
+    adc_type, _ = request.node.callspec.params["adc"]
+    generators = []
+
+    def factory(df):
+        adc_gen = _ADC_FACTORIES.get(adc_type, pd_dataframe_data)(df)
+        generators.append(adc_gen)
+        return next(adc_gen)
+
+    yield factory
+
+    # Exhaust each generator so its factory runs the same teardown (temporary
+    # directories, patched clients) that the `adc` fixture relies on.
+    for adc_gen in generators:
+        next(adc_gen, None)
 
 
 @pytest.fixture(scope="session", name="spark")
