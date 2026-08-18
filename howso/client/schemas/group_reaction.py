@@ -26,8 +26,6 @@ GroupMetric: TypeAlias = Literal[
     "familiarity_conviction_removal",
     "distance_contribution",
     "residual_contribution",
-    "base_model_average_distance_contribution",
-    "combined_model_average_distance_contribution",
     "kl_divergence_addition",
     "kl_divergence_removal",
     "p_value_of_addition",

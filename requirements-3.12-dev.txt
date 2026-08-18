@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --output-file=requirements-3.12-dev.txt --pip-args=None
 #
-amalgam-lang==34.2.6
+amalgam-lang==34.3.0
     # via howso-engine (pyproject.toml)
 astroid==4.0.4
     # via pylint
@@ -16,7 +16,7 @@ certifi==2026.7.22
     # via
     #   howso-engine (pyproject.toml)
     #   requests
-charset-normalizer==3.4.9
+charset-normalizer==3.5.1
     # via requests
 click==8.4.2
     # via
@@ -66,13 +66,13 @@ mmh3==5.2.1
     # via howso-engine (pyproject.toml)
 mongomock==4.3.0
     # via howso-engine (pyproject.toml)
-nab-index==0.0.12
+nab-index==0.0.13
     # via
     #   nab-python
     #   pipdeptree
-nab-python==0.0.12
+nab-python==0.0.13
     # via pipdeptree
-nab-resolver==0.0.12
+nab-resolver==0.0.13
     # via nab-python
 narwhals==2.24.0
     # via scikit-learn
@@ -92,11 +92,11 @@ packaging==26.3
     #   wheel
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
-pip-tools==7.6.0
+pip-tools==7.6.1
     # via howso-engine (pyproject.toml)
-pipdeptree==4.2.0
+pipdeptree==4.2.1
     # via howso-engine (pyproject.toml)
-platformdirs==4.11.0
+platformdirs==4.11.3
     # via pylint
 pluggy==1.6.0
     # via
@@ -113,11 +113,11 @@ pydocstyle==6.3.0
     # via flake8-docstrings
 pyflakes==2.3.1
     # via flake8
-pygments==2.20.0
+pygments==2.21.0
     # via
     #   pytest
     #   rich
-pylint==4.0.6
+pylint==4.0.7
     # via howso-engine (pyproject.toml)
 pyproject-hooks==1.2.0
     # via
@@ -154,7 +154,7 @@ rich==15.0.0
     # via howso-engine (pyproject.toml)
 ruff==0.11.13
     # via howso-engine (pyproject.toml)
-sacremoses==0.1.1
+sacremoses==0.2.0
     # via howso-engine (pyproject.toml)
 scikit-learn==1.9.0
     # via howso-engine (pyproject.toml)
@@ -185,7 +185,6 @@ typing-extensions==4.16.0
     #   howso-engine (pyproject.toml)
     #   nab-index
     #   nab-python
-    #   nab-resolver
 tzdata==2026.3
     # via pandas
 urllib3==2.7.0
@@ -193,13 +192,13 @@ urllib3==2.7.0
     #   howso-engine (pyproject.toml)
     #   nab-index
     #   requests
-wheel==0.47.0
+wheel==0.48.0
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:
 pip==26.2.1
     # via pip-tools
-setuptools==83.0.0
+setuptools==84.0.0
     # via
     #   flake8-import-order
     #   pip-tools
