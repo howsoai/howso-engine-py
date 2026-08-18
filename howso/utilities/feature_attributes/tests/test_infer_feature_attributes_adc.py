@@ -192,7 +192,8 @@ def test_infer_time_features(adc, data, is_time, expected_format, provided_forma
     if is_time:
         assert feature_type == FeatureType.TIME
         features = infer_feature_attributes(adc, tight_bounds=['a'],
-                                            datetime_feature_formats={'a': provided_format})
+                                            datetime_feature_formats={'a': provided_format},
+                                            default_time_zone="UTC")
         assert features['a']['type'] == 'continuous'
         assert features['a']['date_time_format'] == expected_format
     else:
@@ -629,7 +630,7 @@ def test_infer_tokenizable_string(adc):
     }
     df = pd.DataFrame(data)
     convert_data(DataFrameData(df), adc)
-    feature_attributes = infer_feature_attributes(df, types={"continuous": ["review"]})
+    feature_attributes = infer_feature_attributes(adc, types={"continuous": ["review"]})
     assert feature_attributes["review"]["data_type"] == "json"
     assert feature_attributes["review"]["type"] == "continuous"
     assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
@@ -645,32 +646,25 @@ def test_infer_tokenizable_string(adc):
     ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
-def test_boolean_detection(adc):
-    """Test that IFA correctly detects Python bool objects and string booleans."""
-    df = pd.DataFrame()
+@pytest.mark.parametrize('values, expected_data_type', [
     # Python bool
-    df["boolean"] = [True, False] * 100
-    convert_data(DataFrameData(df), adc)
-    feature_attributes = infer_feature_attributes(df)
-    assert feature_attributes["boolean"]["data_type"] == "boolean"
-
+    ([True, False] * 100, "boolean"),
     # True/False string
-    df["boolean"] = ["True", "False"] * 100
-    convert_data(DataFrameData(df), adc)
-    feature_attributes = infer_feature_attributes(df)
-    assert feature_attributes["boolean"]["data_type"] == "boolean"
-
+    (["True", "False"] * 100, "boolean"),
     # Possible boolean but should be inferred as string
-    df["boolean"] = ["t", "f"] * 100
-    convert_data(DataFrameData(df), adc)
-    feature_attributes = infer_feature_attributes(df)
-    assert feature_attributes["boolean"]["data_type"] == "string"
-
+    (["t", "f"] * 100, "string"),
     # Mix of booleans and non-booleans
-    df["boolean"] = ["true", "false", "maybe", "another_thing"] * 50
+    (["true", "false", "maybe", "another_thing"] * 50, "string"),
+])
+def test_boolean_detection(adc, values, expected_data_type):
+    """Test that IFA correctly detects Python bool objects and string booleans."""
+    # Each case takes its own empty `adc` fixture instance so that the cases
+    # stay independent: `convert_data` appends, so sharing one connector across
+    # them would infer the feature from the union of every case's values.
+    df = pd.DataFrame({"boolean": values})
     convert_data(DataFrameData(df), adc)
-    feature_attributes = infer_feature_attributes(df)
-    assert feature_attributes["boolean"]["data_type"] == "string"
+    feature_attributes = infer_feature_attributes(adc)
+    assert feature_attributes["boolean"]["data_type"] == expected_data_type
 
 
 @pytest.mark.parametrize("adc", [
@@ -695,11 +689,11 @@ def test_dependent_features_uniques_warning(adc):
     convert_data(DataFrameData(df), adc)
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        infer_feature_attributes(df, dependent_features={"d": ["b", "c"]}, enable_suggestions=False)
+        infer_feature_attributes(adc, dependent_features={"d": ["b", "c"]}, enable_suggestions=False)
     with pytest.warns(UserWarning, match="- a\n"):
-        infer_feature_attributes(df, dependent_features={"d": ["b", "c", "a"]})
+        infer_feature_attributes(adc, dependent_features={"d": ["b", "c", "a"]})
     with pytest.warns(UserWarning, match="- a\n"):
-        infer_feature_attributes(df, dependent_features={"a": ["b", "c", "d"]})
+        infer_feature_attributes(adc, dependent_features={"a": ["b", "c", "d"]})
 
 
 @pytest.mark.parametrize("adc", [
@@ -709,7 +703,7 @@ def test_dependent_features_uniques_warning(adc):
     ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
-def test_preserve_rare_values(adc):
+def test_preserve_rare_values(adc, make_adc):
     """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
     # Manufacture some data
     n = 10_000
@@ -732,23 +726,28 @@ def test_preserve_rare_values(adc):
         data.append(case)
 
     df = pd.DataFrame(data, columns=features)
+    convert_data(df, adc)
 
     # Test auto-apply with all values
-    features = infer_feature_attributes(df, max_distilled_cases=1250, preserve_rare_values_map="all")
+    features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
     assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["value"] == '2'
     assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == 2.4
     assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
-    # Multipliers should be deferred if `max_distilled_cases` not provided
+    # Multipliers should be deferred if `max_distilled_cases` not provided.
+    # This needs a second connector of the same type as `adc`: writing the
+    # larger frame into `adc` itself would append to the data already there
+    # rather than replace it.
     df_large = pd.concat([df] * 3)
-    features = infer_feature_attributes(df_large, preserve_rare_values_map={"a": ['2']})
+    adc_large = make_adc(df_large)
+    features = infer_feature_attributes(adc_large, preserve_rare_values_map={"a": ['2']})
     assert "preserve_rare_values" in features["a"]
     assert features["a"]["preserve_rare_values"]["protected_values"][0] == '2'
 
     # Test auto-apply with selected values
-    features = infer_feature_attributes(df, max_distilled_cases=1250, preserve_rare_values_map={"b": ['y', 'z']})
+    features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map={"b": ['y', 'z']})
     assert "preserve_rare_values" not in features["a"]
     assert "preserve_rare_values" in features["b"]
     assert len(features["b"]["preserve_rare_values"]["protected_values_multipliers"]) == 1
@@ -757,7 +756,7 @@ def test_preserve_rare_values(adc):
 
     # Test that a suggestion is issued
     with pytest.warns(UserWarning, match="You have one or more suggestions"):
-        features = infer_feature_attributes(df, max_distilled_cases=1250)
+        features = infer_feature_attributes(adc, max_distilled_cases=1250)
         for feat in features:
             assert "preserve_rare_values" not in feat
         # Test a suggestion application
@@ -771,6 +770,7 @@ def test_preserve_rare_values(adc):
 
     with pytest.warns(UserWarning, match="Could not evaluate rare values candidates for some columns"):
         infer_feature_attributes(data, types={"unhashable": "nominal"})
+
 
 def test_sql_date_column(tmp_path):
     """Test that IFA correctly recognizes SQLAlchemy DATE columns."""
@@ -886,3 +886,78 @@ def test_feature_contains_nulls(adc):
     adc.write_chunk(pd.DataFrame({"sepal_width": [3], "sepal_length": [2], "petal_width": [1], "petal_length": [0.5], "class": [None]}))
     features = infer_feature_attributes(adc, default_time_zone="UTC", enable_suggestions=False)
     assert features["class"].get("bounds", {}).get("nulls_observed")
+
+
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+@pytest.mark.parametrize("tz", [None, "UTC"])
+def test_datetime_beginning_at_midnight_keeps_its_time(adc, tz):
+    """A timed column whose first value is midnight is not demoted to a date."""
+    # Hourly readings starting exactly at 00:00. Deciding date-vs-datetime from
+    # the first value alone classifies this as date-only and silently discards
+    # every hour in the column.
+    df = pd.DataFrame({
+        "when": pd.date_range("2026-01-01 00:00:00", periods=48, freq="h", tz=tz),
+        "value": range(48),
+    })
+    convert_data(DataFrameData(df), adc)
+
+    features = infer_feature_attributes(adc, default_time_zone="UTC")
+
+    assert features["when"]["original_type"]["data_type"] == "datetime"
+    assert "%H:%M:%S" in features["when"]["date_time_format"]
+
+
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_date_only_column_is_still_a_date(adc):
+    """A column that carries no time is still inferred as a date."""
+    # The other side of `test_datetime_beginning_at_midnight_keeps_its_time`:
+    # every value here really is at midnight, so it must stay a date.
+    df = pd.DataFrame({
+        "when": pd.date_range("2026-01-01", periods=12, freq="D"),
+        "value": range(12),
+    })
+    convert_data(DataFrameData(df), adc)
+
+    features = infer_feature_attributes(adc, default_time_zone="UTC")
+
+    assert features["when"]["original_type"]["data_type"] == "date"
+    assert features["when"]["date_time_format"] == "%Y-%m-%d"
+
+
+@pytest.mark.parametrize("adc", [
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_timezone_aware_datetime_retains_its_zone(adc):
+    """A tz-aware column keeps its zone and the offset in its format."""
+    # ADCs report dtypes as strings, and "datetime64[ns, UTC]" is not a dtype
+    # NumPy can parse. Losing that leaves the column looking tz-naive.
+    df = pd.DataFrame({
+        "when": pd.date_range("2026-03-01 06:30:00", periods=24, freq="h", tz="UTC"),
+        "value": range(24),
+    })
+    convert_data(DataFrameData(df), adc)
+
+    features = infer_feature_attributes(adc, default_time_zone="UTC")
+
+    assert features["when"]["original_type"]["data_type"] == "datetime"
+    assert features["when"]["original_type"].get("timezone") == "UTC"
+    assert features["when"]["date_time_format"].endswith("%z")
