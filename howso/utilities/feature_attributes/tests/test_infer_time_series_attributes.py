@@ -288,6 +288,23 @@ def test_lags():
         fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags={"date": "0"})
 
 
+def test_lags_num_lags_confusion():
+    """Validates that passing one of `lags`/`num_lags` the other's type raises a helpful TypeError."""
+    df = pd.read_csv(example_timeseries_path)
+
+    # `lags` takes a list or dict; an int is almost certainly a `num_lags` value.
+    with pytest.raises(TypeError, match=r"`lags` must be a list or dict.*Did you mean `num_lags`\?"):
+        infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags=3)
+
+    # ...and the mirror case.
+    with pytest.raises(TypeError, match=r"`num_lags` must be an int or dict.*Did you mean `lags`\?"):
+        infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", num_lags=[1, 3, 5])
+
+    # Other unsupported types still raise, just without the cross-reference.
+    with pytest.raises(TypeError, match=r"`lags` must be a list or dict"):
+        infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags="3")
+
+
 def test_nominal_vs_continuous_detection():
     """Test that IFA correctly determines nominal vs. continuous features in time series data."""
     # Time-series data with 4756 cases, 41 series; avg. 116 cases/series; sqrt(116) ~= 10.77

@@ -701,6 +701,20 @@ class InferFeatureAttributesTimeSeries(ABC):
             A subclass of FeatureAttributesBase that extends `dict`, thus providing
             dict-like access to feature attributes and useful helper methods.
         """
+        # `lags` and `num_lags` are easy to confuse, and each silently do nothing when handed the
+        # other's type, so reject unsupported types up front and point at the other parameter.
+        if lags is not None and not isinstance(lags, (list, dict)):
+            hint = " Did you mean `num_lags`?" if isinstance(lags, int) and not isinstance(lags, bool) else ""
+            raise TypeError(
+                f"`lags` must be a list or dict, but a value of type {type(lags).__name__} was provided.{hint}"
+            )
+        if num_lags is not None and not isinstance(num_lags, (int, dict)):
+            hint = " Did you mean `lags`?" if isinstance(num_lags, list) else ""
+            raise TypeError(
+                f"`num_lags` must be an int or dict, but a value of type "
+                f"{type(num_lags).__name__} was provided.{hint}"
+            )
+
         if isinstance(self.data, IFACompatibleADCProtocol):
             infer = InferFeatureAttributesAbstractData(self.data)
         elif isinstance(self.data, pd.DataFrame):
