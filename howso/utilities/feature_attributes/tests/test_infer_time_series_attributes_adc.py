@@ -786,3 +786,66 @@ def test_infer_time_invariant_features_max_rows(adc):
         ]
         # Should be exactly one call (to _infer_time_invariant_features) with these parameters
         assert len(calls_with_max_chunks) == 1
+
+
+@pytest.mark.parametrize('chunk_groups', [
+    # The populated series land in the first chunk, so the second chunk contributes an empty list.
+    [["a", "b"], ["c", "d"]],
+    # ...and the reverse, where the first chunk is the one that contributes an empty list.
+    [["c", "d"], ["a", "b"]],
+])
+@pytest.mark.parametrize('adc', [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_chunked_delta_min_max_with_sparse_feature(adc, chunk_groups):
+    """Test that chunk aggregation tolerates chunks in which a feature is entirely null.
+
+    A feature that is null for every row of some series yields no rate/delta values for the chunks
+    made up only of those series, so the per-chunk results are ragged. Aggregating them must not
+    depend on which chunk happens to come first.
+    """
+    data = {
+        "ID1": ["a"] * 3 + ["b"] * 3 + ["c"] * 3 + ["d"] * 3,
+        "time": [1, 2, 3] * 4,
+        "value": [11, 12, 15, 18, 23, 31, 18, 25, 27, 28, 25, 54],
+        # Populated only for series "a" and "b", so whichever chunk holds "c" and "d" produces
+        # no rate/delta values at all for these two features.
+        "sparse_rate": [4.0, 4.9, 5.8, 7.6, 6.2, 0.3, None, None, None, None, None, None],
+        "sparse_delta": [1.0, 3.5, 2.5, 9.0, 2.0, 5.0, None, None, None, None, None, None],
+    }
+    df = pd.DataFrame(data)
+    convert_data(DataFrameData(df), adc)
+
+    ifa_kwargs: dict[Any, Any] = dict(
+        time_feature_name="time",
+        id_feature_name="ID1",
+        default_time_zone="UTC",
+        time_series_types_override={"sparse_delta": "delta"},
+        max_workers=1,
+    )
+
+    # `get_chunk_groups` packs series into chunks with an unseeded RNG and refuses to make more
+    # than one chunk for so few series, so pin the split rather than driving it via `chunk_size`.
+    groups_target = "howso.connectors.abstract_data.get_chunk_groups"
+    with patch(groups_target, return_value=chunk_groups):
+        chunked = infer_feature_attributes(adc, **ifa_kwargs)  # pyright: ignore[reportArgumentType]
+    # Every series in a single chunk, which bypasses aggregation entirely.
+    with patch(groups_target, return_value=[["a", "b", "c", "d"]]):
+        single = infer_feature_attributes(adc, **ifa_kwargs)  # pyright: ignore[reportArgumentType]
+
+    checks = [
+        ("sparse_rate", ("rate_min", "rate_max")),
+        ("sparse_delta", ("delta_min", "delta_max")),
+        ("value", ("rate_min", "rate_max")),
+    ]
+    for f_name, keys in checks:
+        for key in keys:
+            expected = single[f_name]["time_series"][key]
+            assert expected, f"{f_name}.{key} was unexpectedly empty in the single-chunk run"
+            assert chunked[f_name]["time_series"][key] == expected
