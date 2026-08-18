@@ -1069,11 +1069,11 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
         try:
             from howso.connectors.abstract_data import get_chunk_groups
         except (ModuleNotFoundError, ImportError):
-            chunk_iterator = self.data.yield_chunk(chunk_size=chunk_size)  # type: ignore
+            chunk_iterator = self.data.yield_chunk(chunk_size=chunk_size)
         else:
-            group_map = self.data.get_group_map(column_name=id_feature_name)  # type: ignore
+            group_map = self.data.get_group_map(column_name=id_feature_name)
             groups = get_chunk_groups(group_map=group_map, chunk_size=chunk_size)
-            chunk_iterator = self.data.yield_grouped_chunk(  # type: ignore
+            chunk_iterator = self.data.yield_grouped_chunk(
                 column_name=id_feature_name,
                 groups=groups,
                 feature_attributes=features,
