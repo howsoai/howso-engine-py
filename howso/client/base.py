@@ -3625,7 +3625,6 @@ class AbstractHowsoClient(ABC):
             these specified features computing their values.
         clustering : bool, optional
             If True, will cluster and store cluster ids into ".cluster_id".
-            Will also compute and overwrite distance contributions and similarity convictions.
         clustering_min_cluster_mass : float, optional
             Smallest mass (number) of cases needed that can be considered an individual cluster.
 			When unspecified defaults to 5.
