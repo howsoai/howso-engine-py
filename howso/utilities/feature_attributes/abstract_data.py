@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Iterable, Mapping
+from contextlib import suppress
 import datetime
 from datetime import time, timedelta
 import decimal
@@ -162,20 +163,18 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         """
         dtype = self.data.get_column_dtype(feature_name)
         if isinstance(dtype, str):
-            try:
+            # Not every string names a dtype Pandas recognizes; leave those as-is.
+            with suppress(TypeError):
                 dtype = pd.api.types.pandas_dtype(dtype)
-            except TypeError:
-                # Not a dtype Pandas recognizes; leave as-is
-                pass
         return dtype
 
     def _is_datetime_date_only(self, feature_name: str, max_rows: int = 1000) -> bool:
         """
         Return whether every sampled value of a datetime feature falls at midnight.
 
-        A genuinely date-only column deserialized into a datetime dtype carries
+        A date-only column deserialized into a datetime dtype carries
         a midnight time component on every row. Deciding that from a single
-        value misreads any column that merely *starts* at midnight -- hourly
+        value misreads any column that merely starts at midnight -- hourly
         telemetry beginning at 00:00, for instance -- and silently discards its
         time component. Scanning stops at the first value that proves the
         column carries a time, so the common case costs one chunk at most.
@@ -231,7 +230,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                         and not isinstance(first_non_null, datetime.datetime)):
                     # `datetime.datetime` subclasses `datetime.date` (and
                     # `pd.Timestamp` subclasses `datetime.datetime`), so only a
-                    # value that is a date and *not* a datetime is genuinely
+                    # value that is a date and not a datetime is strictly
                     # date-only. Excluding just `pd.Timestamp` here let the
                     # plain `datetime.datetime` objects that several connectors
                     # return be misread as dates. Datetimes fall through so
@@ -248,7 +247,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                     ):
                         # `datetime.datetime` rather than `pd.Timestamp`: several
                         # connectors hand back plain datetimes, and testing only
-                        # for Timestamp let a genuinely date-only column from
+                        # for Timestamp let a genuine date-only column from
                         # those sources fall through as a datetime.
                         return FeatureType.DATE, {}
                 if isinstance(dtype, pd.DatetimeTZDtype):

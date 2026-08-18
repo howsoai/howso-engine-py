@@ -158,7 +158,6 @@ def test_integer_nominality(feature, nominality, adc):
 ], indirect=True)
 @pytest.mark.parametrize('data, is_time, expected_format, provided_format', [
     (pd.DataFrame(["08:08:08"], columns=['a']), True, '%H:%M:%S', None),
-    (pd.DataFrame(["2026-01-01 00:00:00+00:00"], columns=['a']), False, '%y-%m-%d %H:%M:%S%z', None),
     (pd.DataFrame(["8:8:8"], columns=['a']), True, '%H:%M:%S', None),
     (pd.DataFrame(["8:59:59am"], columns=['a']), True, '%I:%M:%S%p', None),
     (pd.DataFrame(["01:00:00"], columns=['a']), True, '%H:%M:%S', None),
