@@ -248,7 +248,14 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
 
         # Process orders
         ts_type = ts.get("type", "rate")
-        rates = deltas.values if ts_type == "rate" else None
+        if ts_type != "rate":
+            rates = None
+        elif deltas.dtype == object:
+            # A feature that is entirely null within this chunk can come back as object dtype
+            # from some data sources, which the vectorized math below cannot operate on.
+            rates = deltas.to_numpy(dtype=float)
+        else:
+            rates = deltas.values
         deltas_arr = deltas if ts_type == "delta" else None
 
         for order in range(1, num_orders + 1):
@@ -694,6 +701,20 @@ class InferFeatureAttributesTimeSeries(ABC):
             A subclass of FeatureAttributesBase that extends `dict`, thus providing
             dict-like access to feature attributes and useful helper methods.
         """
+        # `lags` and `num_lags` are easy to confuse, and each silently do nothing when handed the
+        # other's type, so reject unsupported types up front and point at the other parameter.
+        if lags is not None and not isinstance(lags, (list, dict)):
+            hint = " Did you mean `num_lags`?" if isinstance(lags, int) and not isinstance(lags, bool) else ""
+            raise TypeError(
+                f"`lags` must be a list or dict, but a value of type {type(lags).__name__} was provided.{hint}"
+            )
+        if num_lags is not None and not isinstance(num_lags, (int, dict)):
+            hint = " Did you mean `lags`?" if isinstance(num_lags, list) else ""
+            raise TypeError(
+                f"`num_lags` must be an int or dict, but a value of type "
+                f"{type(num_lags).__name__} was provided.{hint}"
+            )
+
         if isinstance(self.data, IFACompatibleADCProtocol):
             infer = InferFeatureAttributesAbstractData(self.data)
         elif isinstance(self.data, pd.DataFrame):
@@ -1378,13 +1399,21 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                 if not aggregated[key]:
                     continue
 
-                # Values are lists (one per order of derivative)
-                # Need to aggregate element-wise across chunks
-                num_orders = len(aggregated[key][0])
+                # Values are lists (one per order of derivative). A chunk in which the feature
+                # is entirely null contributes an empty list, so the lists are not guaranteed to
+                # be the same length; aggregate element-wise over only those that have a value.
+                non_empty = [chunk_vals for chunk_vals in aggregated[key] if chunk_vals]
+                if not non_empty:
+                    continue
+
+                num_orders = max(len(chunk_vals) for chunk_vals in non_empty)
                 result = []
                 for order_idx in range(num_orders):
-                    values_at_order = [chunk_vals[order_idx] for chunk_vals in aggregated[key]]
-                    result.append(op(values_at_order))
+                    values_at_order = [
+                        chunk_vals[order_idx] for chunk_vals in non_empty if order_idx < len(chunk_vals)
+                    ]
+                    if values_at_order:
+                        result.append(op(values_at_order))
 
                 features[f_name]["time_series"][key] = result
 
