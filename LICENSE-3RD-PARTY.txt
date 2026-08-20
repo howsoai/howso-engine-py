@@ -244,12 +244,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 idna
-3.18
+3.19
 BSD-3-Clause
 Kim Davies <kim+pypi@gumleaf.org>
 https://github.com/kjd/idna
 Internationalized Domain Names in Applications (IDNA)
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/idna-3.18.dist-info/licenses/LICENSE.md
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/idna-3.19.dist-info/licenses/LICENSE.md
 BSD 3-Clause License
 
 Copyright (c) 2013-2026, Kim Davies and contributors.
