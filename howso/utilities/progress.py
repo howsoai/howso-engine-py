@@ -23,7 +23,7 @@ Typical use::
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Generator, Mapping, Sequence
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -33,7 +33,7 @@ import os
 import sys
 import threading
 from time import monotonic
-from typing import Any, Literal, overload, Protocol
+from typing import Any, Literal, overload, Protocol, TypeVar
 from uuid import uuid4
 
 from rich.console import Console
@@ -64,6 +64,11 @@ __all__ = [
     "reset_auto_progress",
     "with_progress",
 ]
+
+
+# Used by auto_progress()
+_M = TypeVar("_M", bound=Callable[..., Any])
+
 
 ProgressSource = Literal["engine", "batch"]
 
@@ -641,10 +646,10 @@ def _auto_progress_enabled(trainee: Any) -> bool:
 
 
 @overload
-def auto_progress(label_or_method: Callable[..., Any], /) -> Callable[..., Any]: ...
+def auto_progress(label_or_method: _M, /) -> _M: ...
 @overload
-def auto_progress(label_or_method: str | None = ..., /) -> Callable[[Callable[..., Any]], Callable[..., Any]]: ...
-def auto_progress(label_or_method=None, /):
+def auto_progress(label_or_method: str | None = ..., /) -> Callable[[_M], _M]: ...
+def auto_progress(label_or_method: Any = None, /) -> Any:
     """
     Decorate a ``Trainee`` method to opt into unified progress reporting.
 
@@ -753,7 +758,7 @@ def reset_auto_progress() -> None:
 
 
 @contextmanager
-def auto_progress_scope(enabled: bool = True) -> Iterator[None]:
+def auto_progress_scope(enabled: bool = True) -> Generator[None]:
     """
     Temporarily force auto-progress on or off for the current thread.
 

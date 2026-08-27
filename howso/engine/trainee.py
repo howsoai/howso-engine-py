@@ -146,7 +146,8 @@ class Trainee(BaseTrainee):
         self._created: bool = False
         self._updating: bool = False
         self._was_saved: bool = False
-        self._client = client or get_client()
+        # NOTE: self.client is a accessor property see setter and getter below.
+        self.client = client or get_client()
 
         self._features = features
         self._custom_save_path = None
