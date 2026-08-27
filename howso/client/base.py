@@ -6123,6 +6123,7 @@ class AbstractHowsoClient(ABC):
             task).
         """
         try:
+            trainee_id = self._resolve_trainee(trainee_id).id
             return self.execute(trainee_id, "get_progress", {"task_id": task_id})
         except HowsoError as err:
             # The engine signals a missing task with a generic error message;
