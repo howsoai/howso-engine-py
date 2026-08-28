@@ -154,3 +154,46 @@ def test_persistence_fails(mocker: MockFixture, client: HowsoDirectClient) -> No
     with pytest.raises(HowsoError) as error_info:
         client.update_trainee(t1_new)
     assert error_info.value.code == "persist_failed"
+
+
+@pytest.mark.parametrize(("concurrency", "expected"), (
+    (b"MultiThreaded", "mt"),
+    (b"SingleThreaded", "st"),
+    # The OpenMP build is single-threaded at its core despite reporting
+    # several available threads.
+    (b"SingleThreaded+OpenMP", "st"),
+))
+def test_get_trainee_runtime_library_type(
+    client: HowsoDirectClient, mocker: MockFixture, concurrency: bytes, expected: str
+):
+    """Library type is derived from the loaded library, not from its filename."""
+    mocker.patch.object(client.amlg, "get_concurrency_type_string", return_value=concurrency)
+    trainee = client.create_trainee(name="runtime-library-type")
+    try:
+        assert client.get_trainee_runtime(trainee.id)["library_type"] == expected
+    finally:
+        client.delete_trainee(trainee.id)
+
+
+@pytest.mark.parametrize(("postfix", "expected"), (
+    ("-mt", "mt"),
+    ("-st", "st"),
+    ("-st-omp", "st"),
+    # A library path without a postfix leaves nothing to infer from, so the
+    # single-threaded answer is used: callers rely on this to decide whether
+    # concurrent engine requests are safe.
+    (None, "st"),
+))
+def test_get_trainee_runtime_library_type_falls_back_to_postfix(
+    client: HowsoDirectClient, mocker: MockFixture, postfix: str | None, expected: str
+):
+    """When the library cannot report its concurrency, the postfix decides."""
+    mocker.patch.object(
+        client.amlg, "get_concurrency_type_string", side_effect=AttributeError("no symbol")
+    )
+    mocker.patch.object(client.amlg, "library_postfix", postfix)
+    trainee = client.create_trainee(name="runtime-library-type-fallback")
+    try:
+        assert client.get_trainee_runtime(trainee.id)["library_type"] == expected
+    finally:
+        client.delete_trainee(trainee.id)

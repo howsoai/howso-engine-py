@@ -416,3 +416,36 @@ class TestEngine:
 
         for feature in data.columns:
             assert feature in total_df.columns
+
+@pytest.fixture(name="simple_trainee")
+def simple_trainee_fixture():
+    """Ensure a minimal managed Trainee that deletes itself upon completion."""
+    t = Trainee(features={"x": {"type": "continuous"}})
+    try:
+        yield t
+    finally:
+        t.delete()
+
+
+def test_supports_engine_progress_matches_library_type(simple_trainee):
+    """Engine progress is offered only for a confirmed multi-threaded Trainee."""
+    library_type = simple_trainee.get_runtime()["library_type"]
+    assert simple_trainee.supports_engine_progress is (library_type == "mt")
+
+
+def test_supports_engine_progress_is_cached(simple_trainee, mocker):
+    """The runtime is consulted once, not on every progress-wrapped call."""
+    spy = mocker.spy(simple_trainee.client, "get_trainee_runtime")
+    # Prime the cache, then read repeatedly.
+    first = simple_trainee.supports_engine_progress
+    values = [simple_trainee.supports_engine_progress for _ in range(5)]
+    assert spy.call_count == 1
+    assert all(v is first for v in values)
+
+
+def test_supports_engine_progress_invalidated_by_new_client(simple_trainee):
+    """A different client may serve a different engine, so the cache resets."""
+    assert simple_trainee.supports_engine_progress is not None
+    assert simple_trainee._supports_engine_progress is not None
+    simple_trainee.client = simple_trainee.client
+    assert simple_trainee._supports_engine_progress is None

@@ -31,6 +31,7 @@ from howso.utilities.progress import (
     auto_reporter,
     disable_auto_progress,
     enable_auto_progress,
+    engine_polling_supported,
     reset_auto_progress,
     with_progress,
 )
@@ -116,6 +117,7 @@ __all__ = [
     "disable_auto_progress",
     "dprint",
     "enable_auto_progress",
+    "engine_polling_supported",
     "epoch_to_date",
     "format_column",
     "format_confusion_matrix",

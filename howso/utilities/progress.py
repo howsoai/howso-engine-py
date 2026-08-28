@@ -5,7 +5,11 @@ Howso surfaces two distinct progress signals:
 
 * **Engine-side** — methods that accept ``task_id`` cooperate with
   ``client.get_progress(trainee_id, task_id)``, which can be polled from
-  another thread for step/total updates emitted by the Amalgam engine.
+  another thread for step/total updates emitted by the Amalgam engine. This
+  requires an engine that tolerates being polled while it works: a
+  single-threaded engine does not — polling one terminates the process — so
+  for those Trainees the engine source is silently skipped and only the
+  Python-side signal is used. See :func:`engine_polling_supported`.
 * **Python-side** — methods that accept ``progress_callback`` chunk work in
   Python and invoke the callback with a :class:`ProgressTimer` between
   batches.
@@ -61,6 +65,7 @@ __all__ = [
     "auto_reporter",
     "disable_auto_progress",
     "enable_auto_progress",
+    "engine_polling_supported",
     "reset_auto_progress",
     "with_progress",
 ]
@@ -113,6 +118,10 @@ class ProgressReporter(Protocol):
       implementation-defined: :class:`RichProgressReporter` updates a single
       live bar in place, while :class:`SimpleProgressReporter` emits an
       append-only stream of lines for the source.
+    * ``sources`` may be empty — for example an engine-only method on a
+      Trainee whose engine cannot be polled. No track is created, every
+      ``update`` is ignored, and the session degrades to a label plus a
+      completion line.
     """
 
     def start(self, label: str, *, sources: Sequence[ProgressSource]) -> None:
@@ -136,7 +145,8 @@ class RichProgressReporter:
     rendered: the ``batch`` (outer) bar carries the session label, and the
     ``engine`` (inner) bar is indented beneath it so the two read as nested.
     Which sources are present is decided upstream by :func:`with_progress`
-    from the wrapped method's ``progress_callback`` / ``task_id`` hooks.
+    from the wrapped method's ``progress_callback`` / ``task_id`` hooks. With
+    no sources at all, nothing is rendered until the final completion line.
 
     Parameters
     ----------
@@ -170,7 +180,8 @@ class RichProgressReporter:
             Short description shown on the batch (outer) bar.
         sources : sequence of ProgressSource
             Which progress sources will emit events; one bar is created for
-            each, in the given order.
+            each, in the given order. May be empty, in which case no bars are
+            created.
 
         Returns
         -------
@@ -294,7 +305,8 @@ class SimpleProgressReporter:
             Short description printed as the header line.
         sources : sequence of ProgressSource
             Which progress sources will emit events; per-source step and
-            heartbeat tracking is initialized for each.
+            heartbeat tracking is initialized for each. May be empty, in which
+            case only the label and completion lines are printed.
 
         Returns
         -------
@@ -418,6 +430,76 @@ def _supports_param(bound_func: Callable, name: str) -> bool:
     return name in sig.parameters
 
 
+def engine_polling_supported(client: Any, trainee_id: str | None) -> bool:
+    """
+    Report whether a Trainee's ``get_progress`` is safe to poll from another thread.
+
+    Polling a **single-threaded** engine while it is executing terminates the
+    process: the engine may die before Python can raise, so no ``try``/``except``
+    around the poll can contain it. This check is therefore preventative and
+    *fail-closed* — polling is reported as supported only when it can be
+    positively confirmed safe.
+
+    The Trainee's runtime is consulted via ``client.get_trainee_runtime``,
+    which every client implements, and polling is supported only when that
+    reports the ``mt`` library type. A Trainee on an ``st`` library — and any
+    Trainee whose runtime cannot be determined — is reported as unsupported.
+    Note that thread *counts* are not a usable signal here: a single-threaded
+    build with OpenMP reports several threads, and a multi-threaded build can
+    be pinned to one.
+
+    ``HOWSO_ENGINE_PROGRESS=off`` (or ``0``/``no``/``false``) forces the same
+    result. No value of that variable can force polling *on*, because doing so
+    would re-enable a hard process crash.
+
+    Parameters
+    ----------
+    client : Any
+        The client whose ``get_progress`` would be polled.
+    trainee_id : str or None
+        The Trainee that would be polled. Without one there is nothing to ask
+        about, and polling is reported as unsupported.
+
+    Returns
+    -------
+    bool
+        True only when engine progress polling is confirmed safe.
+    """
+    if client is None or not trainee_id:
+        return False
+    if _parse_tristate(os.environ.get("HOWSO_ENGINE_PROGRESS")) is False:
+        return False
+    try:
+        runtime = client.get_trainee_runtime(trainee_id)
+        library_type = (
+            runtime.get("library_type")
+            if isinstance(runtime, Mapping)
+            else getattr(runtime, "library_type", None)
+        )
+    except Exception:  # noqa: BLE001
+        # A client that cannot answer, a Trainee the service no longer knows
+        # about, or an unexpected runtime shape all mean the same thing here:
+        # we cannot prove the engine is multi-threaded, so we must assume it
+        # is not.
+        return False
+    return str(library_type).strip().lower() == "mt"
+
+
+def _cached_polling_support(trainee: Any, client: Any, trainee_id: str | None) -> bool:
+    """
+    Read a Trainee's cached polling support, falling back to asking directly.
+
+    A ``Trainee`` resolves :func:`engine_polling_supported` once and caches it
+    for its lifetime, since the library type is fixed when the Trainee is
+    created. Other bound-method hosts have no such cache and are asked on
+    every call.
+    """
+    supported = getattr(trainee, "supports_engine_progress", None)
+    if supported is None:
+        return engine_polling_supported(client, trainee_id)
+    return bool(supported)
+
+
 def with_progress(
     label: str,
     bound_func: Callable[..., Any],
@@ -434,12 +516,17 @@ def with_progress(
     methods may expose:
 
     * ``task_id`` — a fresh UUID is supplied and a background thread polls
-      ``trainee.client.get_progress`` while the call runs.
+      ``trainee.client.get_progress`` while the call runs. Skipped when
+      :func:`engine_polling_supported` cannot confirm the Trainee is safe to
+      poll — notably Trainees on a single-threaded engine, where polling would
+      kill the process.
     * ``progress_callback`` — a wrapper translates each
       :class:`ProgressTimer` tick into a :class:`ProgressEvent`.
 
-    Whichever hooks are present are wired into ``reporter``. If neither is
-    present, ``bound_func`` is still invoked and a completion line is printed.
+    Whichever hooks are present and usable are wired into ``reporter``. If
+    neither is — including the case where the only hook is ``task_id`` on a
+    Trainee that cannot be polled — ``bound_func`` is still invoked and a
+    completion line is printed.
 
     Parameters
     ----------
@@ -478,8 +565,12 @@ def with_progress(
     client = getattr(trainee, "client", None) if trainee is not None else None
     trainee_id = getattr(trainee, "id", None) if trainee is not None else None
 
-    # Engine polling is only useful when we can actually reach get_progress.
-    has_task_id = has_task_id and client is not None and trainee_id is not None
+    # Engine polling is only useful when we can actually reach get_progress,
+    # and only safe when the engine behind it tolerates a concurrent poll. A
+    # single-threaded engine does not: polling it terminates the process, so
+    # this gate must be preventative — the ``except`` clauses in ``_poll``
+    # below are powerless against it.
+    has_task_id = has_task_id and _cached_polling_support(trainee, client, trainee_id)
 
     sources: list[ProgressSource] = []
     if has_batch_cb:
