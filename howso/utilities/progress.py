@@ -137,7 +137,56 @@ class ProgressReporter(Protocol):
         ...
 
 
-class RichProgressReporter:
+class BaseProgressReporter:
+    """Base of all implementations of a Progress Reporter."""
+
+    _console: Console
+    """Console the concrete reporter renders into. Set by each subclass."""
+
+    def _flush_all(self) -> None:
+        """
+        Drain every stream this reporter could interleave with.
+
+        Progress is rendered either as a live region redrawn in place
+        (:class:`RichProgressReporter`) or as an append-only run of lines
+        (:class:`SimpleProgressReporter`). Either way, bytes still sitting in
+        some *other* stream's buffer — a warning written to ``stderr``, a
+        ``print`` from the wrapped call — surface whenever that buffer
+        happens to drain, which is frequently mid-redraw. Flushing at the
+        session boundaries forces that output out first, so it lands above
+        the progress region instead of through it.
+
+        Streams are deduplicated by identity (the console's file is normally
+        ``sys.stdout`` itself) and flushed newest-wrapper-first, so a stack
+        such as ipykernel's ``OutStream`` over the real ``stdout`` drains in
+        order. Every flush is individually guarded: a closed, detached, or
+        replaced stream — pytest's captured ``stdout``, a torn-down notebook
+        kernel — must not take down the reporting session.
+
+        Note that this reaches only Python-level buffers.
+
+        Returns
+        -------
+        None
+        """
+        streams = (
+            self._console.file,
+            sys.stdout,
+            sys.stderr,
+            sys.__stdout__,
+            sys.__stderr__,
+        )
+        seen: set[int] = set()
+        for stream in streams:
+            flush = getattr(stream, "flush", None)
+            if flush is None or id(stream) in seen:
+                continue
+            seen.add(id(stream))
+            with suppress(Exception):
+                flush()
+
+
+class RichProgressReporter(BaseProgressReporter):
     """
     Rich-based reporter that renders one bar per progress source.
 
@@ -198,6 +247,9 @@ class RichProgressReporter:
             console=self._console,
             transient=self._transient,
         )
+        # Flush both stderr and stdout
+        self._flush_all()
+
         self._progress.start()
         # When both sources are present, label the outer (batch) bar with the
         # method name and the inner (engine) bar with an indented hint so the
@@ -264,9 +316,10 @@ class RichProgressReporter:
         status = "complete" if success else "failed"
         if self._label:
             self._console.print(f"{marker} {self._label} {status} in {duration}")
+        self._flush_all()
 
 
-class SimpleProgressReporter:
+class SimpleProgressReporter(BaseProgressReporter):
     """
     Line-printing reporter for terminals where rich's live renderer is unreliable.
 
@@ -317,6 +370,7 @@ class SimpleProgressReporter:
         self._finished = False
         self._last_step = dict.fromkeys(sources, -1)
         self._last_output = dict.fromkeys(sources, 0.0)
+        self._flush_all()
         # Every progress line is indented under the label header for a
         # uniform "section + body" look. When both sources are present,
         # the engine bar gets an additional indent so it visually nests
@@ -390,6 +444,7 @@ class SimpleProgressReporter:
         status = "complete" if success else "failed"
         if self._label:
             self._console.print(f"{marker} {self._label} {status} in {duration}")
+        self._flush_all()
 
 
 def auto_reporter(*, console: Console | None = None) -> ProgressReporter:

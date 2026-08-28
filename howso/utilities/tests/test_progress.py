@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from datetime import timedelta
 import inspect
+import sys
 import time
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -205,6 +207,70 @@ def test_simple_reporter_unknown_total_renders_question_mark(capsys):
     reporter.update(ProgressEvent(source="engine", step=0, total=0, details=""))
     out = capsys.readouterr().out
     assert "[0/?]" in out
+
+
+class _RecordingStream:
+    """Minimal file-like double that counts ``flush`` calls."""
+
+    def __init__(self, *, raises: bool = False) -> None:  # pyright: ignore[reportMissingSuperCall]
+        self.flushes = 0
+        self._raises = raises
+
+    def write(self, text: str) -> int:
+        return len(text)
+
+    def flush(self) -> None:
+        self.flushes += 1
+        if self._raises:
+            raise ValueError("underlying buffer has been detached")
+
+
+def _reporter_writing_to(monkeypatch, console_file) -> SimpleProgressReporter:
+    """Build a reporter whose console renders into ``console_file``."""
+    reporter = SimpleProgressReporter()
+    monkeypatch.setattr(reporter, "_console", SimpleNamespace(file=console_file))
+    return reporter
+
+
+def test_flush_all_drains_console_stdout_and_stderr(monkeypatch):
+    console_file, out, err = _RecordingStream(), _RecordingStream(), _RecordingStream()
+    reporter = _reporter_writing_to(monkeypatch, console_file)
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(sys, "stderr", err)
+    reporter._flush_all()  # pyright: ignore[reportPrivateUsage]
+    assert (console_file.flushes, out.flushes, err.flushes) == (1, 1, 1)
+
+
+def test_flush_all_flushes_a_shared_stream_only_once(monkeypatch):
+    """The console's file is normally ``sys.stdout`` itself — flush it once, not thrice."""
+    shared = _RecordingStream()
+    reporter = _reporter_writing_to(monkeypatch, shared)
+    monkeypatch.setattr(sys, "stdout", shared)
+    monkeypatch.setattr(sys, "stderr", shared)
+    reporter._flush_all()  # pyright: ignore[reportPrivateUsage]
+    assert shared.flushes == 1
+
+
+def test_flush_all_survives_a_detached_stream(monkeypatch):
+    """A stream that raises on flush must not abort the session, nor the remaining flushes."""
+    broken, out, err = _RecordingStream(raises=True), _RecordingStream(), _RecordingStream()
+    reporter = _reporter_writing_to(monkeypatch, broken)
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(sys, "stderr", err)
+    reporter._flush_all()  # pyright: ignore[reportPrivateUsage]
+    assert broken.flushes == 1
+    assert (out.flushes, err.flushes) == (1, 1)
+
+
+@pytest.mark.parametrize("reporter_cls", [SimpleProgressReporter, RichProgressReporter])
+def test_reporter_flushes_at_both_session_boundaries(reporter_cls, monkeypatch, capsys):  # noqa: ARG001
+    """Pending output is drained before the first render and again after the last."""
+    reporter = reporter_cls()
+    flushes: list[str] = []
+    monkeypatch.setattr(reporter, "_flush_all", lambda: flushes.append("flush"))
+    reporter.start("Train", sources=("batch",))
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert len(flushes) == 2
 
 
 def test_auto_reporter_databricks_prefers_simple(monkeypatch):
