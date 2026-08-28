@@ -17,6 +17,7 @@ from howso.utilities import (
     auto_reporter,
     disable_auto_progress,
     enable_auto_progress,
+    engine_polling_supported,
     ProgressEvent,
     reset_auto_progress,
     RichProgressReporter,
@@ -34,16 +35,49 @@ from howso.utilities.progress import (
 class _FakeClient:
     """Minimal client double exposing the subset ``with_progress`` touches."""
 
-    def __init__(self, progress_payloads=None):  # pyright: ignore[reportMissingSuperCall]
+    def __init__(self, progress_payloads=None, library_type="mt"):  # pyright: ignore[reportMissingSuperCall]
         self._payloads = list(progress_payloads or [
             {"step": 1, "total": 3, "details": "step 1"},
         ])
+        # Defaults to the multi-threaded library so that engine polling is
+        # permitted; single-threaded cases opt in explicitly. Pass an
+        # ``Exception`` instance to make the lookup raise.
+        self._library_type = library_type
         self.poll_count = 0
 
     def get_progress(self, trainee_id, task_id):  # noqa: ARG002
         self.poll_count += 1
         idx = min(self.poll_count - 1, len(self._payloads) - 1)
         return self._payloads[idx]
+
+    def get_trainee_runtime(self, trainee_id):  # noqa: ARG002
+        if isinstance(self._library_type, Exception):
+            raise self._library_type
+        return {
+            "library_type": self._library_type,
+            "tracing_enabled": False,
+            "versions": {"trainee": "1.0.0", "amalgam": "1.0.0"},
+        }
+
+
+class _FakeAmalgam:
+    """Amalgam double reporting a configurable concurrency type."""
+
+    def __init__(self, concurrency: Any = b"MultiThreaded") -> None:  # pyright: ignore[reportMissingSuperCall]
+        self._concurrency = concurrency
+
+    def get_concurrency_type_string(self):
+        if isinstance(self._concurrency, Exception):
+            raise self._concurrency
+        return self._concurrency
+
+
+class _FakeLocalClient(_FakeClient):
+    """Client double running an engine in-process, as the direct client does."""
+
+    def __init__(self, concurrency: Any = b"MultiThreaded", **kwargs: Any) -> None:  # pyright: ignore[reportMissingSuperCall]
+        super().__init__(**kwargs)
+        self.amlg = _FakeAmalgam(concurrency)
 
 
 class _FakeTrainee:
@@ -213,6 +247,7 @@ def _reset_state(monkeypatch):
     monkeypatch.delenv("HOWSO_PROGRESS", raising=False)
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.delenv("DATABRICKS_RUNTIME_VERSION", raising=False)
+    monkeypatch.delenv("HOWSO_ENGINE_PROGRESS", raising=False)
     yield
     reset_auto_progress()
 
@@ -410,6 +445,189 @@ def test_with_progress_both_method_wires_both_sources():
     assert set(r.started_sources or ()) == {"batch", "engine"}
     sources_seen = {e.source for e in r.events}
     assert "batch" in sources_seen
+
+
+@pytest.mark.parametrize(("library_type", "expected"), [
+    ("mt", True),
+    (" mt ", True),
+    # A multi-threaded variant stays supported, mirroring how "st-omp" exists.
+    ("mt-omp", True),
+    # The value is sometimes carried in Amalgam library postfix form.
+    ("-mt", True),
+    (" -mt ", True),
+    ("st", False),
+    # The OpenMP build is single-threaded despite advertising several threads.
+    ("st-omp", False),
+    ("-st", False),
+    ("-st-omp", False),
+    (None, False),
+    # An unrecognized value is not multi-threaded just because it starts "mt".
+    ("mtx", False),
+    ("mt_single", False),
+    ("", False),
+])
+def test_engine_polling_supported_library_type(library_type, expected):
+    client = _FakeClient(library_type=library_type)
+    assert engine_polling_supported(client, "fake-trainee") is expected
+
+
+@pytest.mark.parametrize(("concurrency", "expected"), [
+    (b"MultiThreaded", True),
+    (b"SingleThreaded", False),
+    (b"SingleThreaded+OpenMP", False),
+    ("MultiThreaded", True),          # a str return is understood too
+    (b"  MultiThreaded  ", True),
+])
+def test_engine_polling_supported_uses_in_process_library(concurrency, expected):
+    """A client with an in-process library is asked directly, not via the runtime."""
+    client = _FakeLocalClient(concurrency)
+    assert engine_polling_supported(client, "fake-trainee") is expected
+
+
+def test_engine_polling_supported_prefers_library_over_reported_type():
+    """``library_type`` guesses "mt" for a postfix-less path; the library knows better."""
+    client = _FakeLocalClient(b"SingleThreaded", library_type="mt")
+    assert engine_polling_supported(client, "fake-trainee") is False
+
+
+def test_engine_polling_supported_library_call_raises_is_fail_closed():
+    client = _FakeLocalClient(OSError("no symbol"))
+    assert engine_polling_supported(client, "fake-trainee") is False
+
+
+def test_with_progress_in_process_single_threaded_skips_engine_source():
+    t = _FakeTrainee(_FakeLocalClient(b"SingleThreaded"))
+    r = _RecordingReporter()
+    assert with_progress("Task", t.task_only, reporter=r, polling_interval=0.01) == "task_only-done"
+    assert r.started_sources == ()
+    assert t.client.poll_count == 0
+
+
+def test_engine_polling_supported_runtime_object_attribute():
+    """A client returning an object rather than a mapping is still understood."""
+    class Runtime:
+        library_type = "mt"
+
+    class Client:
+        def get_trainee_runtime(self, trainee_id):  # noqa: ARG002
+            return Runtime()
+
+    assert engine_polling_supported(Client(), "fake-trainee") is True
+
+
+def test_engine_polling_supported_runtime_missing_library_type():
+    class Client:
+        def get_trainee_runtime(self, trainee_id):  # noqa: ARG002
+            return {"tracing_enabled": False}
+
+    assert engine_polling_supported(Client(), "fake-trainee") is False
+
+
+def test_engine_polling_supported_runtime_raises_is_fail_closed():
+    client = _FakeClient(library_type=RuntimeError("boom"))
+    assert engine_polling_supported(client, "fake-trainee") is False
+
+
+def test_engine_polling_supported_client_without_runtime_method():
+    """A client that cannot answer must not be assumed safe."""
+    assert engine_polling_supported(object(), "fake-trainee") is False
+
+
+@pytest.mark.parametrize("trainee_id", [None, ""])
+def test_engine_polling_supported_requires_trainee_id(trainee_id):
+    assert engine_polling_supported(_FakeClient(), trainee_id) is False
+
+
+def test_engine_polling_supported_requires_client():
+    assert engine_polling_supported(None, "fake-trainee") is False
+
+
+@pytest.mark.parametrize("env_value", ["off", "0", "no", "n", "false", "FALSE"])
+def test_engine_polling_supported_env_off_overrides_multithreaded(monkeypatch, env_value):
+    monkeypatch.setenv("HOWSO_ENGINE_PROGRESS", env_value)
+    assert engine_polling_supported(_FakeClient(library_type="mt"), "fake-trainee") is False
+
+
+@pytest.mark.parametrize("env_value", ["on", "1", "yes", "y", "true", "TRUE"])
+def test_engine_polling_supported_env_on_cannot_force_single_threaded(monkeypatch, env_value):
+    """The override is one-way: nothing may re-enable a poll that kills the process."""
+    monkeypatch.setenv("HOWSO_ENGINE_PROGRESS", env_value)
+    assert engine_polling_supported(_FakeClient(library_type="st"), "fake-trainee") is False
+
+
+def test_engine_polling_supported_env_on_leaves_multithreaded_enabled(monkeypatch):
+    monkeypatch.setenv("HOWSO_ENGINE_PROGRESS", "on")
+    assert engine_polling_supported(_FakeClient(library_type="mt"), "fake-trainee") is True
+
+
+@pytest.mark.parametrize(("library_type", "expected"), [("mt", True), ("st", False)])
+def test_engine_polling_supported_env_garbage_falls_through(monkeypatch, library_type, expected):
+    monkeypatch.setenv("HOWSO_ENGINE_PROGRESS", "maybe")
+    assert engine_polling_supported(_FakeClient(library_type=library_type), "fake-trainee") is expected
+
+
+@pytest.mark.parametrize("library_type", ["st", "st-omp"])
+def test_with_progress_single_threaded_skips_engine_source(library_type):
+    """An engine-only method degrades to a bare session rather than polling."""
+    t = _FakeTrainee(_FakeClient(library_type=library_type))
+    r = _RecordingReporter()
+    result = with_progress("Task", t.task_only, reporter=r, polling_interval=0.01)
+    assert result == "task_only-done"
+    assert r.started_sources == ()
+    assert t.received_task_id is None  # no task_id injected
+    assert r.events == []
+    assert t.client.poll_count == 0  # the poll thread never started
+    assert r.finished_success is True
+
+
+def test_with_progress_single_threaded_keeps_batch_source():
+    """``train``/``react`` keep their Python-side bar on a single-threaded engine."""
+    t = _FakeTrainee(_FakeClient(library_type="st"))
+    r = _RecordingReporter()
+    result = with_progress("Both", t.both, reporter=r, polling_interval=0.01)
+    assert result == "both-done"
+    assert r.started_sources == ("batch",)
+    assert t.received_task_id is None
+    assert {e.source for e in r.events} == {"batch"}
+    assert t.client.poll_count == 0
+
+
+def test_with_progress_runtime_lookup_failure_skips_engine_source():
+    t = _FakeTrainee(_FakeClient(library_type=OSError("unreachable")))
+    r = _RecordingReporter()
+    result = with_progress("Task", t.task_only, reporter=r, polling_interval=0.01)
+    assert result == "task_only-done"
+    assert r.started_sources == ()
+    assert t.client.poll_count == 0
+
+
+def test_with_progress_engine_env_off_leaves_batch_source(monkeypatch):
+    monkeypatch.setenv("HOWSO_ENGINE_PROGRESS", "off")
+    t = _FakeTrainee(_FakeClient(library_type="mt"))
+    r = _RecordingReporter()
+    result = with_progress("Both", t.both, reporter=r, polling_interval=0.01)
+    assert result == "both-done"
+    assert r.started_sources == ("batch",)
+    assert t.client.poll_count == 0
+
+
+def test_simple_reporter_empty_sources_prints_label_and_completion(capsys):
+    reporter = SimpleProgressReporter()
+    reporter.start("Analyze", sources=())
+    reporter.update(ProgressEvent(source="engine", step=1, total=6, details="Analyzing"))
+    reporter.finish(success=True, duration=timedelta(seconds=1.5))
+    out = capsys.readouterr().out
+    assert "Analyze" in out
+    assert "Analyze complete in 0:00:01.500000" in out
+    assert "[" not in out  # the undeclared source produced no track line
+
+
+def test_rich_reporter_empty_sources_completes_lifecycle(capsys):
+    reporter = RichProgressReporter()
+    reporter.start("Analyze", sources=())
+    reporter.update(ProgressEvent(source="engine", step=1, total=6, details="Analyzing"))
+    reporter.finish(success=True, duration=timedelta(seconds=1.5))
+    assert "Analyze complete in" in capsys.readouterr().out
 
 
 def test_with_progress_neither_method_still_runs():

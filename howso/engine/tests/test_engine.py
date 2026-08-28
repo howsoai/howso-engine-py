@@ -13,6 +13,7 @@ from howso.engine import (
     load_trainee,
     Trainee,
 )
+from howso.utilities import engine_polling_supported
 
 class TestEngine:
     """Test the Howso Engine module."""
@@ -416,3 +417,41 @@ class TestEngine:
 
         for feature in data.columns:
             assert feature in total_df.columns
+
+@pytest.fixture(name="simple_trainee")
+def simple_trainee_fixture():
+    """Ensure a minimal managed Trainee that deletes itself upon completion."""
+    t = Trainee(features={"x": {"type": "continuous"}})
+    try:
+        yield t
+    finally:
+        t.delete()
+
+
+def test_supports_engine_progress_matches_library_type(simple_trainee):
+    """Engine progress is offered only for a confirmed multi-threaded Trainee."""
+    library_type = simple_trainee.get_runtime()["library_type"]
+    assert simple_trainee.supports_engine_progress is (library_type == "mt")
+
+
+def test_supports_engine_progress_is_cached(simple_trainee, mocker):
+    """The engine is interrogated once, not on every progress-wrapped call."""
+    # Spy on the detection itself rather than on either signal it may consult,
+    # so the assertion holds regardless of which one answers.
+    spy = mocker.patch(
+        "howso.engine.trainee.engine_polling_supported",
+        wraps=engine_polling_supported,
+    )
+    # Clear anything resolved during setup, then read repeatedly.
+    simple_trainee._supports_engine_progress = None
+    values = [simple_trainee.supports_engine_progress for _ in range(5)]
+    assert spy.call_count == 1
+    assert all(v is values[0] for v in values)
+
+
+def test_supports_engine_progress_invalidated_by_new_client(simple_trainee):
+    """A different client may serve a different engine, so the cache resets."""
+    assert simple_trainee.supports_engine_progress is not None
+    assert simple_trainee._supports_engine_progress is not None
+    simple_trainee.client = simple_trainee.client
+    assert simple_trainee._supports_engine_progress is None

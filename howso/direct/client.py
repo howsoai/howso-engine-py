@@ -1277,7 +1277,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             versions=TraineeVersion(trainee=trainee_version, amalgam=amlg_version)
         )
 
-    def query_trainees(self, search_terms: t.Optional[str] = None) -> list[dict]:
+    def query_trainees(self, search_terms: str | None = None) -> list[dict[str, str]]:
         """
         Query accessible Trainees.
 
