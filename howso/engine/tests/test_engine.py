@@ -13,6 +13,7 @@ from howso.engine import (
     load_trainee,
     Trainee,
 )
+from howso.utilities import engine_polling_supported
 
 class TestEngine:
     """Test the Howso Engine module."""
@@ -434,13 +435,18 @@ def test_supports_engine_progress_matches_library_type(simple_trainee):
 
 
 def test_supports_engine_progress_is_cached(simple_trainee, mocker):
-    """The runtime is consulted once, not on every progress-wrapped call."""
-    spy = mocker.spy(simple_trainee.client, "get_trainee_runtime")
-    # Prime the cache, then read repeatedly.
-    first = simple_trainee.supports_engine_progress
+    """The engine is interrogated once, not on every progress-wrapped call."""
+    # Spy on the detection itself rather than on either signal it may consult,
+    # so the assertion holds regardless of which one answers.
+    spy = mocker.patch(
+        "howso.engine.trainee.engine_polling_supported",
+        wraps=engine_polling_supported,
+    )
+    # Clear anything resolved during setup, then read repeatedly.
+    simple_trainee._supports_engine_progress = None
     values = [simple_trainee.supports_engine_progress for _ in range(5)]
     assert spy.call_count == 1
-    assert all(v is first for v in values)
+    assert all(v is values[0] for v in values)
 
 
 def test_supports_engine_progress_invalidated_by_new_client(simple_trainee):

@@ -1267,27 +1267,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id = self._resolve_trainee(trainee_id).id
         trainee_version = self.execute(trainee_id, "get_trainee_version", {})
         amlg_version = self.amlg.get_version_string().decode()
-
-        # The library is authoritative about its own concurrency and always
-        # answers, so the postfix is only a fallback: it is None when a library
-        # path without a postfix is configured, and reports values outside of
-        # ``LibraryType`` (such as "st-omp") for the OpenMP builds.
-        try:
-            concurrency = self.amlg.get_concurrency_type_string()
-        except Exception:  # noqa: BLE001
-            concurrency = self.amlg.library_postfix or ""
-        if isinstance(concurrency, bytes):
-            concurrency = concurrency.decode("utf-8", errors="replace")
-        # Only a confirmed multi-threaded library is reported as one. Callers
-        # use this to decide whether concurrent engine requests are safe, and
-        # a single-threaded engine dies when one arrives mid-task, so a
-        # library that cannot identify itself is classified single-threaded.
-        library_type: LibraryType = (
-            "mt" if concurrency.strip() in {"MultiThreaded", "-mt"} else "st"
-        )
+        library_type = 'mt'
+        if self.amlg.library_postfix:
+            library_type = self.amlg.library_postfix[1:]
 
         return TraineeRuntime(
-            library_type=library_type,
+            library_type=t.cast(LibraryType, library_type),
             tracing_enabled=self._trace_enabled,
             versions=TraineeVersion(trainee=trainee_version, amalgam=amlg_version)
         )

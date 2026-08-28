@@ -60,6 +60,26 @@ class _FakeClient:
         }
 
 
+class _FakeAmalgam:
+    """Amalgam double reporting a configurable concurrency type."""
+
+    def __init__(self, concurrency: Any = b"MultiThreaded") -> None:  # pyright: ignore[reportMissingSuperCall]
+        self._concurrency = concurrency
+
+    def get_concurrency_type_string(self):
+        if isinstance(self._concurrency, Exception):
+            raise self._concurrency
+        return self._concurrency
+
+
+class _FakeLocalClient(_FakeClient):
+    """Client double running an engine in-process, as the direct client does."""
+
+    def __init__(self, concurrency: Any = b"MultiThreaded", **kwargs: Any) -> None:  # pyright: ignore[reportMissingSuperCall]
+        super().__init__(**kwargs)
+        self.amlg = _FakeAmalgam(concurrency)
+
+
 class _FakeTrainee:
     """Bound-method host with both progress hooks available."""
 
@@ -429,17 +449,54 @@ def test_with_progress_both_method_wires_both_sources():
 
 @pytest.mark.parametrize(("library_type", "expected"), [
     ("mt", True),
-    ("MT", True),
     (" mt ", True),
+    # A multi-threaded variant stays supported, mirroring how "st-omp" exists.
+    ("mt-omp", True),
+    # The value is sometimes carried in Amalgam library postfix form.
+    ("-mt", True),
+    (" -mt ", True),
     ("st", False),
-    # The value the OpenMP build used to report; it is single-threaded despite
-    # advertising several threads.
+    # The OpenMP build is single-threaded despite advertising several threads.
     ("st-omp", False),
+    ("-st", False),
+    ("-st-omp", False),
     (None, False),
 ])
 def test_engine_polling_supported_library_type(library_type, expected):
     client = _FakeClient(library_type=library_type)
     assert engine_polling_supported(client, "fake-trainee") is expected
+
+
+@pytest.mark.parametrize(("concurrency", "expected"), [
+    (b"MultiThreaded", True),
+    (b"SingleThreaded", False),
+    (b"SingleThreaded+OpenMP", False),
+    ("MultiThreaded", True),          # a str return is understood too
+    (b"  MultiThreaded  ", True),
+])
+def test_engine_polling_supported_uses_in_process_library(concurrency, expected):
+    """A client with an in-process library is asked directly, not via the runtime."""
+    client = _FakeLocalClient(concurrency)
+    assert engine_polling_supported(client, "fake-trainee") is expected
+
+
+def test_engine_polling_supported_prefers_library_over_reported_type():
+    """``library_type`` guesses "mt" for a postfix-less path; the library knows better."""
+    client = _FakeLocalClient(b"SingleThreaded", library_type="mt")
+    assert engine_polling_supported(client, "fake-trainee") is False
+
+
+def test_engine_polling_supported_library_call_raises_is_fail_closed():
+    client = _FakeLocalClient(OSError("no symbol"))
+    assert engine_polling_supported(client, "fake-trainee") is False
+
+
+def test_with_progress_in_process_single_threaded_skips_engine_source():
+    t = _FakeTrainee(_FakeLocalClient(b"SingleThreaded"))
+    r = _RecordingReporter()
+    assert with_progress("Task", t.task_only, reporter=r, polling_interval=0.01) == "task_only-done"
+    assert r.started_sources == ()
+    assert t.client.poll_count == 0
 
 
 def test_engine_polling_supported_runtime_object_attribute():

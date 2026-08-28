@@ -440,13 +440,17 @@ def engine_polling_supported(client: Any, trainee_id: str | None) -> bool:
     *fail-closed* — polling is reported as supported only when it can be
     positively confirmed safe.
 
-    The Trainee's runtime is consulted via ``client.get_trainee_runtime``,
-    which every client implements, and polling is supported only when that
-    reports the ``mt`` library type. A Trainee on an ``st`` library — and any
-    Trainee whose runtime cannot be determined — is reported as unsupported.
-    Note that thread *counts* are not a usable signal here: a single-threaded
-    build with OpenMP reports several threads, and a multi-threaded build can
-    be pinned to one.
+    Two sources answer this, in order:
+
+    * A client running an engine in-process exposes the library as ``amlg``,
+      which reports its own concurrency type authoritatively.
+    * Any other client is asked via ``client.get_trainee_runtime``, which every
+      client implements, and only the ``mt`` library type is treated as safe.
+
+    A Trainee on a single-threaded library — and any Trainee whose engine
+    cannot be identified — is reported as unsupported. Note that thread
+    *counts* are not a usable signal here: a single-threaded build with OpenMP
+    reports several threads, and a multi-threaded build can be pinned to one.
 
     ``HOWSO_ENGINE_PROGRESS=off`` (or ``0``/``no``/``false``) forces the same
     result. No value of that variable can force polling *on*, because doing so
@@ -470,19 +474,34 @@ def engine_polling_supported(client: Any, trainee_id: str | None) -> bool:
     if _parse_tristate(os.environ.get("HOWSO_ENGINE_PROGRESS")) is False:
         return False
     try:
-        runtime = client.get_trainee_runtime(trainee_id)
-        library_type = (
-            runtime.get("library_type")
-            if isinstance(runtime, Mapping)
-            else getattr(runtime, "library_type", None)
-        )
+        amlg = getattr(client, "amlg", None)
+        if amlg is not None:
+            # An in-process library identifies its own build exactly, which
+            # ``library_type`` cannot always do: it is derived from the library
+            # filename, so it reports "mt" for a path carrying no postfix.
+            concurrency = amlg.get_concurrency_type_string()
+            if isinstance(concurrency, bytes):
+                concurrency = concurrency.decode("utf-8", errors="replace")
+            supported = concurrency.strip() == "MultiThreaded"
+        else:
+            # A remote client reports the library type it provisioned. Only
+            # "mt" is safe; "st" and the OpenMP builds' "st-omp" are not.
+            runtime = client.get_trainee_runtime(trainee_id)
+            library_type = (
+                runtime.get("library_type")
+                if isinstance(runtime, Mapping)
+                else getattr(runtime, "library_type", None)
+            )
+            # The value is sometimes carried around in its Amalgam library
+            # postfix form ("-mt"), so tolerate a leading dash.
+            supported = str(library_type).strip().lstrip("-").startswith("mt")
     except Exception:  # noqa: BLE001
         # A client that cannot answer, a Trainee the service no longer knows
         # about, or an unexpected runtime shape all mean the same thing here:
         # we cannot prove the engine is multi-threaded, so we must assume it
         # is not.
         return False
-    return str(library_type).strip().lower() == "mt"
+    return supported
 
 
 def _cached_polling_support(trainee: Any, client: Any, trainee_id: str | None) -> bool:
