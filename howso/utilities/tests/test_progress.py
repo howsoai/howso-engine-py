@@ -461,6 +461,10 @@ def test_with_progress_both_method_wires_both_sources():
     ("-st", False),
     ("-st-omp", False),
     (None, False),
+    # An unrecognized value is not multi-threaded just because it starts "mt".
+    ("mtx", False),
+    ("mt_single", False),
+    ("", False),
 ])
 def test_engine_polling_supported_library_type(library_type, expected):
     client = _FakeClient(library_type=library_type)

@@ -493,8 +493,11 @@ def engine_polling_supported(client: Any, trainee_id: str | None) -> bool:
                 else getattr(runtime, "library_type", None)
             )
             # The value is sometimes carried around in its Amalgam library
-            # postfix form ("-mt"), so tolerate a leading dash.
-            supported = str(library_type).strip().lstrip("-").startswith("mt")
+            # postfix form ("-mt"), so tolerate a leading dash. Comparing the
+            # leading segment rather than a bare prefix keeps a hypothetical
+            # "mt-omp" supported without also accepting an unrecognized value
+            # that merely starts with "mt".
+            supported = str(library_type).strip().lstrip("-").split("-")[0] == "mt"
     except Exception:  # noqa: BLE001
         # A client that cannot answer, a Trainee the service no longer knows
         # about, or an unexpected runtime shape all mean the same thing here:
