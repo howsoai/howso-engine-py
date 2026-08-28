@@ -482,7 +482,7 @@ def engine_polling_supported(client: Any, trainee_id: str | None) -> bool:
             concurrency = amlg.get_concurrency_type_string()
             if isinstance(concurrency, bytes):
                 concurrency = concurrency.decode("utf-8", errors="replace")
-            supported = concurrency.strip().lstrip("-").startswith("MultiThreaded")
+            supported = concurrency.strip().lstrip().startswith("MultiThreaded")
         else:
             # A remote client reports the library type it provisioned. Only
             # "mt" is safe; "st" and the OpenMP builds' "st-omp" are not.
