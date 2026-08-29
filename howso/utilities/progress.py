@@ -947,6 +947,61 @@ class RichNotebookProgressReporter(RichProgressReporter):
         note = f"engine {step}/{total or '?'}"
         return _one_line(f"{note} \u00b7 {detail}" if detail else note)
 
+    def _prepare_merged(self, label: str, sources: Sequence[ProgressSource]) -> bool:
+        """
+        Build the single-bar model, without delivering anything.
+
+        The caller decides how frames reach the reader -- repainted over stdout,
+        or pushed into a display slot. Sharing this is what makes a notebook
+        rendered by nbconvert or papermill look like the interactive one.
+
+        Parameters
+        ----------
+        label : str
+            Session label.
+        sources : sequence of ProgressSource
+            Declared sources, all of which share one bar.
+
+        Returns
+        -------
+        bool
+            False when there is nothing to track, so the caller can bail out
+            rather than open a live region or claim a display slot for nothing.
+        """
+        self._label = label
+        self._detail = ""
+        self._engine = None
+        # ``batch`` is the outer measure when it is live, so it owns the bar and
+        # ``engine`` is demoted to the details text. Otherwise the first declared
+        # source owns it, which matters for ``activity``: it is neither, and
+        # would otherwise leave this reporter blank.
+        if "batch" in sources:
+            self._primary = "batch"
+        elif "engine" in sources:
+            self._primary = "engine"
+        else:
+            self._primary = sources[0] if sources else None
+        self._secondary = (
+            "engine" if (self._primary == "batch" and "engine" in sources) else None
+        )
+        if self._primary is None:
+            return False
+        self._progress = Progress(
+            *self._make_columns(
+                activity=tuple(sources) == ("activity",),
+                label_width=_label_column_width(
+                    label, *self._track_descriptions(label, sources).values()
+                ),
+            ),
+            console=self._console,
+            transient=self._transient,
+            # Columns are pinned instead: letting rich redistribute slack put
+            # labels and bars in different columns from one session to the next.
+            expand=False,
+            refresh_per_second=NOTEBOOK_REFRESH_HZ,
+        )
+        return True
+
     def start(self, label: str, *, sources: Sequence[ProgressSource]) -> None:
         """
         Begin a reporting session, mapping every source onto a single bar.
@@ -964,46 +1019,40 @@ class RichNotebookProgressReporter(RichProgressReporter):
         -------
         None
         """
-        self._label = label
-        self._detail = ""
-        self._engine = None
-        # ``batch`` is the outer measure when it is live, so it owns the bar and
-        # ``engine`` is demoted to the details text. Otherwise the first declared
-        # source owns it — that fallback matters for ``activity``, which is
-        # neither and would otherwise leave this reporter blank.
-        if "batch" in sources:
-            self._primary = "batch"
-        elif "engine" in sources:
-            self._primary = "engine"
-        else:
-            self._primary = sources[0] if sources else None
-        self._secondary = "engine" if (self._primary == "batch" and "engine" in sources) else None
-        if self._primary is None:
-            # Nothing to track. Skip the live region entirely rather than
-            # starting one that would emit stray control codes and needlessly
-            # swap sys.stdout for a FileProxy.
+        if not self._prepare_merged(label, sources):
             return
-        self._progress = Progress(
-            *self._make_columns(
-                activity=tuple(sources) == ("activity",),
-                label_width=_label_column_width(label, *self._track_descriptions(label, sources).values()),
-            ),
-            console=self._console,
-            transient=self._transient,
-            # Pads every frame to the full console width. Notebook front-ends
-            # implement ``\r`` as a length-based overwrite and ignore the
-            # erase-line that rich pairs with it, so a frame shorter than its
-            # predecessor would leave the previous frame's tail on screen.
-            expand=False,
-            refresh_per_second=NOTEBOOK_REFRESH_HZ,
-        )
         self._flush_all()
         # Wrap for the repainting region only, so the completion line and
         # anything the caller prints afterwards go straight to the real file.
         self._unwrapped_file = self._console.file
         self._console.file = _OverwriteSafeWriter(self._unwrapped_file)  # pyright: ignore[reportAttributeAccessIssue]
         self._progress.start()
-        task = self._progress.add_task(label or "Working", total=None, details="", eta="", done=False, ok=False)
+        self._add_merged_task(label, sources)
+
+    def _add_merged_task(self, label: str, sources: Sequence[ProgressSource]) -> None:
+        """
+        Create the one shared track and point every declared source at it.
+
+        Split out so the display-slot reporter can build the same single-bar
+        model without the ANSI machinery around it -- a batch-rendered notebook
+        should look like the interactive one.
+
+        Parameters
+        ----------
+        label : str
+            Session label, shown on the bar.
+        sources : sequence of ProgressSource
+            Sources to register against the single track.
+
+        Returns
+        -------
+        None
+        """
+        if self._progress is None:
+            return
+        task = self._progress.add_task(
+            label or "Working", total=None, details="", eta="", done=False, ok=False
+        )
         # Registering every declared source against the one track keeps the
         # inherited "an undeclared source is ignored" guard working unchanged.
         for source in sources:
@@ -1203,7 +1252,7 @@ class _TightRenderable:
         return data
 
 
-class RichDisplayProgressReporter(RichProgressReporter):
+class RichDisplayProgressReporter(RichNotebookProgressReporter):
     """
     Rich reporter that repaints via IPython's display-update protocol.
 
@@ -1219,6 +1268,12 @@ class RichDisplayProgressReporter(RichProgressReporter):
     spec since 5.1 — notably *not* ``ipywidgets``, which cannot work here: a
     kernel cannot learn whether its front-end renders widgets, and a front-end
     that does not leaves the cell showing the string ``Output()``.
+
+    One caveat: the frame is turned into HTML by rich's ``JupyterMixin``, which
+    renders through the *global* console rather than this reporter's. In a
+    kernel that is a Jupyter console and the output matches the stdout reporter
+    exactly; a colourless or narrower global console would render the bar's
+    unfilled track as blanks instead.
 
     Colors are baked to literal hex on this path, since the frame is delivered
     as HTML rather than ANSI. That is not a loss for us: rich's stock styles
@@ -1236,7 +1291,8 @@ class RichDisplayProgressReporter(RichProgressReporter):
 
     def __init__(self, *, console: Console | None = None) -> None:
         """Initialize the reporter."""
-        super().__init__(console=console or _notebook_console(), transient=False)
+        # The parent already pins ``transient=False`` and the notebook console.
+        super().__init__(console=console)
         self._handle: Any = None
         self._last_push: float = 0.0
         self._inline: RichNotebookProgressReporter | None = None
@@ -1322,28 +1378,14 @@ class RichDisplayProgressReporter(RichProgressReporter):
             self._inline = RichNotebookProgressReporter(console=self._console)
             self._inline.start(label, sources=sources)
             return
-        self._progress = Progress(
-            *self._make_columns(
-                activity=tuple(sources) == ("activity",),
-                label_width=_label_column_width(label, *self._track_descriptions(label, sources).values()),
-            ),
-            console=self._console,
-            transient=self._transient,
-        )
-        # Deliberately no ``Progress.start()``: starting it would install rich's
-        # Live renderer and with it the cursor-up repaint this class exists to
-        # avoid. The Progress here is only a model that knows how to render.
-        descriptions = self._track_descriptions(label, sources)
-        fallback = label or "Working"
-        for source in sources:
-            self._tasks[source] = self._progress.add_task(
-                descriptions.get(source, fallback),
-                total=None,
-                details="",
-                eta="",
-                done=False,
-                ok=False,
-            )
+        # The same single-bar model the stdout reporter builds, so a notebook
+        # rendered by nbconvert or papermill looks like the interactive one.
+        # Deliberately no ``Progress.start()``: that would install rich's Live
+        # renderer and with it the cursor-up repaint this class exists to avoid.
+        # The Progress here is only a model that knows how to render.
+        if not self._prepare_merged(label, sources):
+            return
+        self._add_merged_task(label, sources)
         self._flush_all()
         # Imported here rather than at module scope: IPython is not a
         # dependency, and this class is only ever selected once

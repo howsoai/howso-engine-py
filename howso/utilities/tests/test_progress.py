@@ -789,62 +789,69 @@ def test_notebook_reporter_bar_never_pulses():
     assert len(colors) <= 6, f"gradient detected, {len(colors)} colors"
 
 
-@pytest.mark.parametrize("sources", [("batch", "engine")])
-def test_display_reporter_uses_a_slot_for_every_bar(monkeypatch, sources):
+def test_display_reporter_matches_the_stdout_reporter(monkeypatch):
     """
-    Verify even a lone bar is rendered through a display slot.
+    Verify a headless render looks like the interactive one.
 
-    Sending a single bar to stdout instead would close the vertical gap between
-    groups, but stdout repaints in place with a carriage return, and rich's
-    frames shrink drastically — a ~980 character pulse frame is replaced by a
-    ~165 character determinate one. The survivors begin mid-escape-sequence and
-    render as literal text. A display slot replaces its content outright, so
-    that cannot happen.
+    This reporter exists so notebooks rendered en masse by nbconvert or
+    papermill show what a person sees in the notebook. It therefore builds the
+    same single-bar model as the stdout reporter and differs only in delivery —
+    a display slot instead of a carriage-return repaint.
     """
+    events = [
+        ProgressEvent(source="batch", step=2, total=4, details="batch 2"),
+        ProgressEvent(source="engine", step=1, total=3, details="reacting"),
+    ]
+
+    inline = RichNotebookProgressReporter()
+    sink = io.StringIO()
+    inline._console.file = sink
+    inline.start("React", sources=("batch", "engine"))
+    for event in events:
+        inline.update(event)
+    _require_progress(inline).refresh()
+    expected = _ANSI.sub("", [f for f in sink.getvalue().split("\r")
+                              if "\u2501" in f][-1]).split("\n")[0].rstrip()
+    inline.finish(success=True, duration=timedelta(seconds=9))
+
+    # ``_repr_mimebundle_`` renders through rich's *global* console, which this
+    # process leaves colourless and 80 wide. A kernel's is a Jupyter console, so
+    # pin an equivalent or the comparison measures the test rig, not the code.
+    import rich
+
+    monkeypatch.setattr(
+        rich, "_console",
+        Console(force_terminal=True, color_system="truecolor", width=NOTEBOOK_COLUMNS),
+        raising=False,
+    )
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    handle = _fake_display(monkeypatch)
+    display = RichDisplayProgressReporter()
+    display._console.file = io.StringIO()
+    display.start("React", sources=("batch", "engine"))
+    for event in events:
+        display.update(event)
+    display._push(force=True)
+    rows = [_ANSI.sub("", row) for row in _rows(handle.frames[-1])]
+    display.finish(success=True, duration=timedelta(seconds=9))
+
+    assert len(rows) == 1, f"expected one merged bar, got {rows}"
+    assert rows[0].rstrip() == expected
+
+
+@pytest.mark.parametrize("sources", [("batch",), ("batch", "engine")])
+def test_display_reporter_uses_one_bar_whatever_the_sources(monkeypatch, sources):
+    """One merged bar, so the layout does not change with the engine's presence."""
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
     handle = _fake_display(monkeypatch)
     reporter = RichDisplayProgressReporter()
     reporter._console.file = io.StringIO()
-    reporter.start("Train", sources=sources)
+    reporter.start("React", sources=sources)
     for source in sources:
-        reporter.update(ProgressEvent(source=source, step=5, total=5, details="b"))
-    reporter.finish(success=True, duration=timedelta(seconds=1))
-    assert handle.frames                       # a slot was claimed
-    assert len(_rows(handle.frames[-1])) == len(sources) + 1   # bars + completion
-
-
-def test_two_sources_merge_onto_one_bar_when_inline(monkeypatch):
-    """The engine rides in the details text rather than getting its own line."""
-    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: True)
-    reporter = RichNotebookProgressReporter()
-    sink = io.StringIO()          # keep our own handle: start() wraps the file
-    reporter._console.file = sink
-    reporter.start("React", sources=("batch", "engine"))
-    try:
-        reporter.update(ProgressEvent(source="batch", step=12, total=30, details="batch 3"))
-        reporter.update(ProgressEvent(source="engine", step=1, total=3, details="reacting"))
-        _require_progress(reporter).refresh()
-        assert len(_require_progress(reporter).tasks) == 1
-        line = _ANSI.sub("", [f for f in sink.getvalue().split("\r") if "\u2501" in f][-1])
-        assert "12/30" in line          # the batch owns the bar
-        assert "engine 1/3" in line     # the engine rides along
-    finally:
-        reporter.finish(success=True, duration=timedelta(seconds=1))
-
-
-def test_display_reporter_renders_both_bars(monkeypatch):
-    """The headline feature: the nested layout the ANSI path had to give up."""
-    handle = _fake_display(monkeypatch)
-    reporter = RichDisplayProgressReporter()
-    reporter._console.file = io.StringIO()
-    reporter.start("Train", sources=("batch", "engine"))
-    reporter.update(ProgressEvent(source="batch", step=1, total=5, details="batch 1"))
-    reporter.update(ProgressEvent(source="engine", step=2, total=5, details="step 2"))
-    reporter.finish(success=True, duration=timedelta(seconds=1))
+        reporter.update(ProgressEvent(source=source, step=1, total=4, details="x"))
+    reporter.finish(success=True, duration=timedelta(seconds=9))
     rows = _rows(handle.frames[-1])
-    assert len(rows) == 3               # two bars plus the completion line
-    assert "Train" in rows[0]
-    assert "engine" in rows[1]          # the indented inner track
-    assert "engine" not in rows[0]
+    assert len(rows) == 2      # the bar, plus the folded-in completion line
 
 
 def test_display_reporter_puts_completion_line_in_the_same_block(monkeypatch):
