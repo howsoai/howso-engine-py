@@ -1099,7 +1099,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'set_auto_analyze_params' method.")
 
-    @auto_progress("Analyze")
+    @auto_progress("Analyze", indeterminate=True)
     def analyze(
         self,
         context_features: Collection[str] | None = None,
@@ -1862,7 +1862,7 @@ class Trainee(BaseTrainee):
 
                 - "goal": "min" or "max", will make a prediction while minimizing or
                   maximizing the value for the feature.
-                - "value" : somevalue, will make a prediction while approaching the
+                - "value" : some_value, will make a prediction while approaching the
                   specified value.
 
             .. NOTE::
@@ -2483,7 +2483,7 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Trainee ID is needed for react_series_stationary.")
 
-    @auto_progress("Impute")
+    @auto_progress("Impute", indeterminate=True)
     def impute(
         self,
         *,
@@ -3290,7 +3290,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_substitute_feature_values' method.")
 
-    @auto_progress("React group")
+    @auto_progress("React group", indeterminate=True)
     def react_group(
         self,
         *,
@@ -3681,7 +3681,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the `get_value_masses` method.")
 
-    @auto_progress("React into features")
+    @auto_progress("React into features", indeterminate=True)
     def react_into_features(
         self,
         *,
@@ -3788,7 +3788,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'react_into_features' method.")
 
-    @auto_progress("React aggregate")
+    @auto_progress("React aggregate", indeterminate=True)
     def react_aggregate(
         self,
         *,

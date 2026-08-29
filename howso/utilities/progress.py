@@ -34,6 +34,7 @@ from datetime import timedelta
 from functools import wraps
 import importlib.util
 import inspect
+import io
 import os
 import sys
 import threading
@@ -42,6 +43,7 @@ from typing import Any, Literal, overload, Protocol, TypeVar
 from uuid import uuid4
 
 from rich.console import Console
+from rich.measure import Measurement
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -52,7 +54,8 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from rich.table import Table
+from rich.segment import Segment
+from rich.table import Column, Table
 from rich.text import Text
 
 from howso.utilities.monitors import ProgressTimer
@@ -81,11 +84,18 @@ __all__ = [
 _M = TypeVar("_M", bound=Callable[..., Any])
 
 
-ProgressSource = Literal["engine", "batch"]
+ProgressSource = Literal["engine", "batch", "activity"]
+"""
+Which mechanism a progress event came from.
+
+``activity`` is not a measurement — it is declared when a method opts into
+:func:`auto_progress`'s ``indeterminate`` and offers no real progress hook, so
+that a long call still reads as alive rather than silent.
+"""
 
 
 def _env_number(name: str, default: float) -> float:
-    """Read a numeric environment variable, falling back on anything unparseable."""
+    """Read a numeric environment variable, falling back on anything unparsable."""
     with suppress(TypeError, ValueError):
         return float(os.environ[name]) if name in os.environ else default
     return default
@@ -99,7 +109,7 @@ HEARTBEAT_INTERVAL = _env_number("HOWSO_HEARTBEAT_INTERVAL", 15.0)
 # ``Console.size`` probes ``os.get_terminal_size()`` on the std file descriptors
 # before falling back to 80 — so a kernel launched from a terminal would
 # silently inherit *that* terminal's width.
-NOTEBOOK_COLUMNS = int(_env_number("HOWSO_PROGRESS_COLUMNS", 100.0))
+NOTEBOOK_COLUMNS = int(_env_number("HOWSO_PROGRESS_COLUMNS", 120.0))
 
 # Refresh rate for notebook bars. Every frame is a full-width write over the
 # kernel's IOPub channel, so this stays well below rich's default of 10 and
@@ -111,6 +121,21 @@ NOTEBOOK_REFRESH_HZ = _env_number("HOWSO_PROGRESS_FPS", 4.0)
 # a second rendered line would reintroduce the cursor-up codes that
 # :class:`RichNotebookProgressReporter` exists to avoid.
 NOTEBOOK_DETAIL_LIMIT = 48
+
+# Bar width in columns. Sized from the worst case that must not clip: the
+# longest label, a comma-grouped 100,000,000-row counter (23 characters), the
+# details, elapsed and an estimate, all inside NOTEBOOK_COLUMNS.
+BAR_WIDTH = 24
+
+_AUTO_PROGRESS_LABELS: set[str] = set()
+"""
+Every label :func:`auto_progress` has registered, for sizing the label column.
+
+Populated at decoration time, so it grows as modules are imported — including
+downstream packages that decorate their own methods. Sizing from this rather
+than a hard-coded number means renaming or adding a method keeps the columns
+aligned without anyone remembering to update a constant.
+"""
 
 
 @dataclass
@@ -180,6 +205,48 @@ class BaseProgressReporter:
     _label: str
     """Current session label. Set by each subclass in ``start``."""
 
+    def _mark_done(self, *, success: bool) -> None:
+        """
+        Settle every track before the final frame is rendered.
+
+        Marks the session ended either way — which stops the spinner — and
+        records whether it succeeded, which is what decides the bar's color: a
+        failed session stays in the pending color, reading correctly beside the
+        red mark on the completion line.
+
+        The estimate is always cleared — a finished bar should not advertise a
+        time remaining. The details are cleared only on success, where
+        ``batch 7`` is merely the last chunk index and the counter already says
+        ``120/120``. On a failure the same text says *where* it stopped, which
+        is worth keeping.
+
+        Parameters
+        ----------
+        success : bool
+            Whether the wrapped call completed without raising.
+
+        Returns
+        -------
+        None
+        """
+        progress = getattr(self, "_progress", None)
+        if progress is None:
+            return
+        totals = {task.id: task.total for task in progress.tasks}
+        for task_id in set(getattr(self, "_tasks", {}).values()):
+            with suppress(Exception):
+                fields: dict[str, Any] = {"done": True, "ok": success, "eta": ""}
+                if success:
+                    fields["details"] = ""
+                    # The engine stops reporting the moment the call returns, so
+                    # its last step is usually short of the total — leaving a
+                    # part-filled bar that reads as still running next to its own
+                    # "complete" line. The call did finish; say so.
+                    total = totals.get(task_id)
+                    if total is not None:
+                        fields["completed"] = total
+                progress.update(task_id, **fields)
+
     def _eta_text(self, eta: timedelta | None) -> str:
         """
         Render an estimate, labelled to fit this reporter's console.
@@ -217,7 +284,7 @@ class BaseProgressReporter:
             return ""
         marker = "[green]✓[/green]" if success else "[red]✗[/red]"
         status = "complete" if success else "failed"
-        return f"{marker} {self._label} {status} in {duration}"
+        return f"{marker} {self._label} {status} in {_format_duration(duration)}"
 
     def _flush_all(self) -> None:
         """
@@ -304,27 +371,55 @@ class RichProgressReporter(BaseProgressReporter):
         BarColumn
             rich's stock bar.
         """
-        return BarColumn()
+        return _StateBarColumn(bar_width=BAR_WIDTH)
 
-    def _make_columns(self) -> tuple[ProgressColumn, ...]:
+    def _make_columns(
+        self, *, activity: bool = False, label_width: int | None = None
+    ) -> tuple[ProgressColumn, ...]:
         """
         Build the column layout shared by every bar this reporter renders.
 
         Subclasses that lay tracks out differently reuse this so a bar reads
         the same wherever it is rendered.
 
+        Parameters
+        ----------
+        label_width : int, optional
+            Pin the label column to this width. Leaving it unset lets rich size
+            the column from its content, which makes labels and bars land in
+            different columns from one session to the next.
+        activity : bool, default False
+            Drop the counter, details and estimate columns. An activity track
+            measures nothing, so they would render a meaningless ``0/?`` and
+            two permanently empty columns — each still costing its padding.
+
         Returns
         -------
         tuple of ProgressColumn
             The columns to hand to :class:`rich.progress.Progress`.
         """
+        label = (
+            TextColumn("[bold cyan]{task.description}")
+            if label_width is None
+            else TextColumn("[bold cyan]{task.description}",
+                            table_column=Column(width=label_width))
+        )
+        if activity:
+            # No details column either: an activity track carries none, and an
+            # empty column still takes its padding on both sides, leaving a
+            # visible extra space between the bar and the elapsed time.
+            return (
+                _StateSpinnerColumn(),
+                label,
+                self._bar_column(),
+                _ElapsedColumn(),
+            )
         return (
-            SpinnerColumn(),
-            TextColumn("[bold cyan]{task.description}"),
+            _StateSpinnerColumn(),
+            label,
             self._bar_column(),
-            MofNCompleteColumn(),
-            TextColumn("[dim]{task.fields[details]}"),
-            TimeElapsedColumn(),
+            _CountColumn(),
+            _ElapsedColumn(),
             TextColumn("[dim]{task.fields[eta]}"),
         )
 
@@ -375,7 +470,10 @@ class RichProgressReporter(BaseProgressReporter):
         """
         self._label = label
         self._progress = Progress(
-            *self._make_columns(),
+            *self._make_columns(
+                activity=tuple(sources) == ("activity",),
+                label_width=_label_column_width(label, *self._track_descriptions(label, sources).values()),
+            ),
             console=self._console,
             transient=self._transient,
         )
@@ -391,6 +489,8 @@ class RichProgressReporter(BaseProgressReporter):
                 total=None,
                 details="",
                 eta="",
+                done=False,
+                ok=False,
             )
 
     def update(self, event: ProgressEvent) -> None:
@@ -435,6 +535,7 @@ class RichProgressReporter(BaseProgressReporter):
         None
         """
         if self._progress is not None:
+            self._mark_done(success=success)
             self._progress.stop()
             self._progress = None
             self._tasks.clear()
@@ -510,24 +611,92 @@ def _one_line(text: str, limit: int = NOTEBOOK_DETAIL_LIMIT) -> str:
     return flattened[: limit - 1] + "\u2026"
 
 
-class _QuietBarColumn(BarColumn):
-    r"""
-    A bar that renders a static empty track instead of pulsing.
+class _SolidBar:
+    """
+    A single-run bar drawn in one color, for work with no known total.
 
-    rich pulses whenever the total is unknown — ``should_pulse = self.pulse or
-    self.total is None`` in ``rich/progress_bar.py`` — and a pulse frame spends
-    ~980 characters on a 20-step colour gradient where the determinate frame
-    replacing it needs ~165. On a stream that repaints with a carriage return
-    that disparity is what has to be padded over, so removing it shrinks the
-    spread from ~819 characters to ~13.
+    The reason we don't use the default "pulsing" bar is because that pulsing
+    bar requires many times more symbols across the wire to accomplish.
 
-    Only the bar is given a total; the task keeps its ``None``, so
-    :class:`~rich.progress.MofNCompleteColumn` still honestly shows ``0/?``.
+    Parameters
+    ----------
+    style : str
+        Style to draw the whole bar in.
+    width : int, optional
+        Bar width in columns, mirroring ``BarColumn.bar_width``. ``None`` fills
+        the space available, which is rich's flexible mode. Honoring this is
+        what keeps an indeterminate bar the same length as a determinate one:
+        the activity layout drops two columns, and a bar that simply filled
+        would absorb the freed space and render visibly longer.
+    """
+
+    def __init__(self, style: str, width: int | None = None) -> None:
+        """Initialize the bar."""
+        self.style = style
+        self.width = width
+
+    def __rich_console__(self, console: Console, options: Any) -> Any:
+        """
+        Emit the bar as one styled segment spanning the available width.
+
+        Parameters
+        ----------
+        console : Console
+            Console being rendered into.
+        options : ConsoleOptions
+            Render options, which carry the width to fill.
+
+        Yields
+        ------
+        Segment
+            A single run of bar glyphs.
+        """
+        yield Segment("\u2501" * self._width(options), console.get_style(self.style))
+
+    def _width(self, options: Any) -> int:
+        """Resolve the drawn width against the space available."""
+        width = options.max_width if self.width is None else min(self.width, options.max_width)
+        return max(width, 1)
+
+    def __rich_measure__(self, console: Console, options: Any) -> Measurement:
+        """
+        Report the exact width this bar wants.
+
+        Without a measurement rich hands the column all the space left over and
+        the bar simply draws short inside it, so the blank remainder pushes
+        every following column to the right. That only shows on tracks with an
+        unknown total, since a determinate bar is rich's own ``ProgressBar``,
+        which measures itself.
+
+        Parameters
+        ----------
+        console : Console
+            Console being measured against.
+        options : ConsoleOptions
+            Render options carrying the available width.
+
+        Returns
+        -------
+        Measurement
+            The same width for minimum and maximum, so the column is exact.
+        """
+        width = self._width(options)
+        return Measurement(width, width)
+
+
+class _StateSpinnerColumn(SpinnerColumn):
+    """
+    A spinner that stops when the session ends, even with no known total.
+
+    rich blanks its spinner on ``task.finished``, which is ``completed >=
+    total`` — never true while the total is ``None``. A completed
+    indeterminate session would otherwise keep a spinner frame on screen and
+    read as though it were still running.
     """
 
     def render(self, task: Any) -> Any:
         """
-        Render the bar, substituting a static track when the total is unknown.
+        Render the spinner, or the finished marker once the session has ended.
 
         Parameters
         ----------
@@ -536,16 +705,64 @@ class _QuietBarColumn(BarColumn):
 
         Returns
         -------
-        ProgressBar
+        RenderableType
+            The spinner frame, or ``finished_text``.
+        """
+        if task.fields.get("done"):
+            return self.finished_text
+        return super().render(task)
+
+
+class _StateBarColumn(BarColumn):
+    r"""
+    A bar that shows *state* rather than motion when the total is unknown.
+
+    rich pulses whenever the total is unknown (``should_pulse = self.pulse or
+    self.total is None`` in ``rich/progress_bar.py``), coloring every cell of
+    a 20-step gradient individually: ~980 characters per frame against ~165 for
+    a determinate one. On a stream repainted with a carriage return that whole
+    gulf has to be padded over, producing a very wide blank line. Lowering the
+    color depth does not help — the cost is the per-cell coloring, not the
+    palette (measured 982 truecolor, 742 at 256, 502 at standard).
+
+    Motion is already covered: :class:`~rich.progress.SpinnerColumn` leads every
+    layout and animates from ``Live`` refreshes at constant cost. So this draws
+    a single solid run instead — red while pending, green once done — which
+    holds frame length exactly constant and uses one named-ANSI color that the
+    front-end maps onto the user's theme.
+
+    A task with no total is never ``finished`` in rich's terms, so completion is
+    read from a ``done`` field the reporter sets. A failed session simply never
+    turns green, which reads correctly beside the red mark on the completion
+    line.
+    """
+
+    PENDING_STYLE = "red"
+    DONE_STYLE = "green"
+
+    def render(self, task: Any) -> Any:
+        """
+        Render the bar, substituting a solid run when the total is unknown.
+
+        Parameters
+        ----------
+        task : Task
+            The task to render.
+
+        Returns
+        -------
+        ProgressBar or _SolidBar
             The bar to draw.
         """
-        bar = super().render(task)
         if task.total is None:
-            bar.total, bar.completed, bar.pulse = 1, 0, False
-        return bar
+            succeeded = task.fields.get("done") and task.fields.get("ok")
+            return _SolidBar(
+                self.DONE_STYLE if succeeded else self.PENDING_STYLE, self.bar_width
+            )
+        return super().render(task)
 
 
-class _OverwriteSafeWriter:
+class _OverwriteSafeWriter(io.TextIOBase):
     r"""
     Pad each repaint so it fully covers the frame it replaces.
 
@@ -557,7 +774,7 @@ class _OverwriteSafeWriter:
 
     Constant visible width does not help: what matters is raw length, and the
     two diverge wildly. rich's indeterminate pulse spends ~980 characters on a
-    20-step colour gradient occupying the same ~97 columns that a determinate
+    20-step color gradient occupying the same ~97 columns that a determinate
     frame draws in ~165.
 
     Padding uses **spaces**, deliberately. Escape sequences would occupy raw
@@ -583,8 +800,16 @@ class _OverwriteSafeWriter:
 
     def __init__(self, wrapped: Any) -> None:
         """Initialize the writer."""
+        # ``io.TextIOBase`` so this satisfies the ``IO[str]`` that
+        # ``Console.file`` is typed as. rich wraps stdout the same way for the
+        # same reason — see ``rich.file_proxy.FileProxy``.
+        super().__init__()
         self._wrapped = wrapped
         self._written = 0
+
+    def writable(self) -> bool:
+        """Report that this stream accepts writes."""
+        return True
 
     def write(self, text: str) -> int:
         r"""
@@ -688,7 +913,7 @@ class RichNotebookProgressReporter(RichProgressReporter):
             A :class:`_QuietBarColumn`, whose narrow frame-length spread keeps
             the carriage-return repaint's padding to a few characters.
         """
-        return _QuietBarColumn()
+        return _StateBarColumn(bar_width=BAR_WIDTH)
 
     def _compose_details(self) -> str:
         """Render the details column from whichever sources have reported."""
@@ -718,9 +943,16 @@ class RichNotebookProgressReporter(RichProgressReporter):
         self._label = label
         self._detail = ""
         self._engine = None
-        # ``batch`` is the outer measure whenever it is live, so it owns the
-        # bar and ``engine`` is demoted to the details column.
-        self._primary = "batch" if "batch" in sources else ("engine" if "engine" in sources else None)
+        # ``batch`` is the outer measure when it is live, so it owns the bar and
+        # ``engine`` is demoted to the details text. Otherwise the first declared
+        # source owns it — that fallback matters for ``activity``, which is
+        # neither and would otherwise leave this reporter blank.
+        if "batch" in sources:
+            self._primary = "batch"
+        elif "engine" in sources:
+            self._primary = "engine"
+        else:
+            self._primary = sources[0] if sources else None
         self._secondary = "engine" if (self._primary == "batch" and "engine" in sources) else None
         if self._primary is None:
             # Nothing to track. Skip the live region entirely rather than
@@ -728,23 +960,26 @@ class RichNotebookProgressReporter(RichProgressReporter):
             # swap sys.stdout for a FileProxy.
             return
         self._progress = Progress(
-            *self._make_columns(),
+            *self._make_columns(
+                activity=tuple(sources) == ("activity",),
+                label_width=_label_column_width(label, *self._track_descriptions(label, sources).values()),
+            ),
             console=self._console,
             transient=self._transient,
             # Pads every frame to the full console width. Notebook front-ends
             # implement ``\r`` as a length-based overwrite and ignore the
             # erase-line that rich pairs with it, so a frame shorter than its
             # predecessor would leave the previous frame's tail on screen.
-            expand=True,
+            expand=False,
             refresh_per_second=NOTEBOOK_REFRESH_HZ,
         )
         self._flush_all()
         # Wrap for the repainting region only, so the completion line and
         # anything the caller prints afterwards go straight to the real file.
         self._unwrapped_file = self._console.file
-        self._console.file = _OverwriteSafeWriter(self._unwrapped_file)
+        self._console.file = _OverwriteSafeWriter(self._unwrapped_file)  # pyright: ignore[reportAttributeAccessIssue]
         self._progress.start()
-        task = self._progress.add_task(label or "Working", total=None, details="", eta="")
+        task = self._progress.add_task(label or "Working", total=None, details="", eta="", done=False, ok=False)
         # Registering every declared source against the one track keeps the
         # inherited "an undeclared source is ignored" guard working unchanged.
         for source in sources:
@@ -800,7 +1035,7 @@ class RichNotebookProgressReporter(RichProgressReporter):
         try:
             # The wrapper must stay in place across super().finish(), because
             # that is what calls Progress.stop() — which emits one final frame.
-            # Restoring first left that frame unpadded against a much longer
+            # Restoring first left that frame un-padded against a much longer
             # predecessor, which was the whole visible bug.
             super().finish(success=success, duration=duration)
         finally:
@@ -1048,20 +1283,26 @@ class RichDisplayProgressReporter(RichProgressReporter):
         if not sources:
             # Nothing to track: no slot, no delegate, just the completion line.
             return
-        if len(sources) < 2 and _interactive_frontend():
-            # A display slot buys exactly one thing: room for more than one
-            # line. A single bar does not need it, and claiming one would split
-            # the cell — a notebook merges consecutive stdout writes into a
-            # single block but never merges display blocks, so every display
-            # group is fenced off from the lines around it, including the
-            # caller's own prints. Staying on stdout keeps this session in the
-            # same block as its neighbours. The in-place repaint that requires
-            # is made safe by :class:`_OverwriteSafeWriter`.
+        if _interactive_frontend():
+            # Stay on stdout whenever something is watching. A notebook merges
+            # consecutive stdout writes into one block but never merges display
+            # blocks, so a display group is fenced off from the lines around it
+            # — including the caller's own prints — by the notebook's padding.
+            # That cost is not worth a second bar: the stdout reporter folds the
+            # engine into the outer bar's details instead, which keeps the whole
+            # cell in one block. The in-place repaint this needs is made safe by
+            # :class:`_OverwriteSafeWriter`.
+            #
+            # Headless runs still take the display slot below, where separate
+            # blocks are the only thing that survives into the saved notebook.
             self._inline = RichNotebookProgressReporter(console=self._console)
             self._inline.start(label, sources=sources)
             return
         self._progress = Progress(
-            *self._make_columns(),
+            *self._make_columns(
+                activity=tuple(sources) == ("activity",),
+                label_width=_label_column_width(label, *self._track_descriptions(label, sources).values()),
+            ),
             console=self._console,
             transient=self._transient,
         )
@@ -1076,13 +1317,15 @@ class RichDisplayProgressReporter(RichProgressReporter):
                 total=None,
                 details="",
                 eta="",
+                done=False,
+                ok=False,
             )
         self._flush_all()
         # Imported here rather than at module scope: IPython is not a
         # dependency, and this class is only ever selected once
         # ``_display_handle_available()`` has confirmed a live shell.
         with suppress(ImportError):
-            from IPython.display import display
+            from IPython.display import display  # noqa: PLC0415
 
             # Returns None when there is no active shell to render into.
             self._handle = display(
@@ -1138,6 +1381,7 @@ class RichDisplayProgressReporter(RichProgressReporter):
         # the line separately would send it to stdout, and a notebook shows a
         # stream block and a display block as two outputs, each with its own
         # vertical padding — leaving a conspicuous gap under the bars.
+        self._mark_done(success=success)
         frame = self._frame(self._progress)
         if line:
             # ``Table.grid`` rather than ``Group``: only a JupyterMixin carries
@@ -1266,6 +1510,17 @@ class SimpleProgressReporter(BaseProgressReporter):
             return
         now = monotonic()
         prefix = self._prefixes.get(event.source, "")
+        if event.source == "activity":
+            # Nothing is being counted, so a "[0/?]" line would say nothing.
+            # Report liveness on the heartbeat cadence instead: the ticker
+            # fires far more often than a reader needs to see a line.
+            if now - self._last_output.get(event.source, 0.0) < HEARTBEAT_INTERVAL:
+                return
+            elapsed = timedelta(seconds=int(now - self._start_time))
+            detail = f" {event.details}" if event.details else ""
+            self._console.print(f"{prefix}[dim]\u00b7{detail} {elapsed} elapsed[/dim]")
+            self._last_output[event.source] = now
+            return
         total = event.total or "?"
         width = len(str(total))
         eta = self._eta_text(event.eta)
@@ -1360,7 +1615,26 @@ def auto_reporter(*, console: Console | None = None) -> ProgressReporter:
     return SimpleProgressReporter(console=console)
 
 
-def _supports_param(bound_func: Callable, name: str) -> bool:
+def _supports_param(bound_func: Callable[..., Any], name: str) -> bool:
+    """
+    Report whether ``bound_func`` accepts a parameter called ``name``.
+
+    Parameters
+    ----------
+    bound_func : callable
+        The function to inspect. Only its signature is read, never called, so
+        this is deliberately as wide as a callable annotation goes.
+    name : str
+        The parameter to look for.
+
+    Returns
+    -------
+    bool
+        True when the parameter is present. A callable whose signature cannot
+        be read — a builtin, or an object with a hostile ``__signature__`` —
+        reports False rather than raising, since the caller only uses this to
+        decide whether it is worth passing a progress hook.
+    """
     try:
         sig = inspect.signature(bound_func)
     except (TypeError, ValueError):
@@ -1455,13 +1729,14 @@ def _cached_polling_support(trainee: Any, client: Any, trainee_id: str | None) -
     return bool(supported)
 
 
-def with_progress(
+def with_progress(  # noqa: PLR0915
     label: str,
     bound_func: Callable[..., Any],
     /,
     *args: Any,
     reporter: ProgressReporter | None = None,
     polling_interval: float = 1.0,
+    indeterminate: bool = False,
     **kwargs: Any,
 ) -> Any:
     """
@@ -1573,7 +1848,7 @@ def with_progress(
                     # keep polling. Falls through to the wait below rather than
                     # ``continue`` so we don't busy-loop the engine.
                     pass
-                except Exception:
+                except Exception:  # noqa: BLE001
                     # Any other engine error means progress can't be reported —
                     # stop quietly rather than killing this daemon thread with a
                     # traceback on stderr (the wrapped call itself is
@@ -1595,20 +1870,38 @@ def with_progress(
 
         poll_thread = threading.Thread(target=_poll, daemon=True)
 
+    tick_thread: threading.Thread | None = None
+    if indeterminate and not sources:
+        # Nothing measurable to report, but the caller asked for the session to
+        # read as alive. Two of the four reporters only emit on ``update`` (the
+        # display slot pushes a frame, the line printer prints a line), so a
+        # ticker is what makes them show anything at all before completion.
+        sources.append("activity")
+
+        def _tick() -> None:
+            while not stop_event.is_set():
+                reporter.update(ProgressEvent(source="activity", step=0, total=0))
+                stop_event.wait(polling_interval)
+
+        tick_thread = threading.Thread(target=_tick, daemon=True)
+
     reporter.start(label, sources=tuple(sources))
     success = False
     try:
         if poll_thread is not None:
             poll_thread.start()
+        if tick_thread is not None:
+            tick_thread.start()
         result = bound_func(*args, **kwargs)
         success = True
         return result
     finally:
         duration = timedelta(seconds=monotonic() - start_time)
         stop_event.set()
-        if poll_thread is not None:
-            with suppress(RuntimeError):
-                poll_thread.join(timeout=max(polling_interval * 2, 2.0))
+        for thread in (poll_thread, tick_thread):
+            if thread is not None:
+                with suppress(RuntimeError):
+                    thread.join(timeout=max(polling_interval * 2, 2.0))
         reporter.finish(success=success, duration=duration)
 
 
@@ -1649,6 +1942,139 @@ def _parse_tristate(value: Any) -> bool | None:
 ETA_LABEL_MIN_WIDTH = 100
 
 
+def _format_duration(delta: timedelta) -> str:
+    """
+    Render a duration as ``H:MM:SS``, letting the hours run past a day.
+
+    ``str(timedelta)`` switches to ``"1 day, 1:00:00"`` past 24 hours and
+    ``"41 days, 16:00:00"`` past a month — 14 to 17 characters where the same
+    value was 7. In a pinned layout that silently shifts or clips a column, and
+    multi-hour runs are ordinary here. Accumulating into the hours field keeps
+    the width growing by one character per decade instead.
+
+    Parameters
+    ----------
+    delta : timedelta
+        The duration to render. Negative values clamp to zero.
+
+    Returns
+    -------
+    str
+        For example ``"0:00:09"``, ``"10:00:00"`` or ``"100:00:00"``.
+    """
+    total = max(int(delta.total_seconds()), 0)
+    hours, remainder = divmod(total, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours}:{minutes:02d}:{seconds:02d}"
+
+
+def _format_count(value: int) -> str:
+    """
+    Render a step count with thousands separators.
+
+    Batches routinely reach tens of millions of rows, where a bare
+    ``100000000`` is unreadable. Grouping costs width — ``100,000,000`` is 11
+    characters against 9 — which is why the bar is sized from this worst case
+    rather than the other way round.
+
+    Parameters
+    ----------
+    value : int
+        The count to render.
+
+    Returns
+    -------
+    str
+        For example ``"9,999"`` or ``"100,000,000"``.
+    """
+    return f"{value:,}"
+
+
+class _CountColumn(MofNCompleteColumn):
+    """
+    Step counter, carrying the details text alongside it.
+
+    The details share this column rather than occupying their own. An empty
+    column still costs its padding on both sides, so once the details are
+    cleared at completion a separate column would leave two spaces before the
+    elapsed time where every other row has one.
+    """
+
+    def render(self, task: Any) -> Any:
+        """
+        Render ``completed/total``, followed by any details.
+
+        Parameters
+        ----------
+        task : Task
+            The task to render.
+
+        Returns
+        -------
+        Text
+            The counter, and the details when there are any.
+        """
+        total = _format_count(int(task.total)) if task.total is not None else "?"
+        counter = f"{_format_count(int(task.completed))}{self.separator}{total}"
+        details = task.fields.get("details") or ""
+        text = Text(counter, style="progress.download")
+        if details:
+            text.append(f" {details}", style="progress.data.speed")
+        return text
+
+
+class _ElapsedColumn(TimeElapsedColumn):
+    """Elapsed time in the same ``H:MM:SS`` form as every other duration."""
+
+    def render(self, task: Any) -> Any:
+        """
+        Render elapsed time.
+
+        Parameters
+        ----------
+        task : Task
+            The task to render.
+
+        Returns
+        -------
+        Text
+            The elapsed time, or a placeholder before the task starts.
+        """
+        elapsed = task.finished_time if task.finished else task.elapsed
+        if elapsed is None:
+            return Text("-:--:--", style="progress.elapsed")
+        return Text(_format_duration(timedelta(seconds=elapsed)), style="progress.elapsed")
+
+
+def _label_column_width(*labels: str) -> int:
+    """
+    Width to pin the label column to, so every session lines up.
+
+    Sized from every label the decorator has registered, plus the one in hand —
+    a caller may pass a bespoke label straight to :func:`with_progress` without
+    ever going through the decorator, and that must not be clipped.
+
+    Without a pinned width, rich re-measures the column from its content each
+    frame and ``expand`` redistributes the slack, so labels and bars land in
+    different columns from one session to the next and shift again when the
+    content changes.
+
+    Parameters
+    ----------
+    *labels : str
+        Every description this session will actually render. Pass the derived
+        track descriptions, not just the session label: the nested engine track
+        renders as ``"  engine"``, which is wider than a short label like
+        ``"Train"`` and would otherwise be clipped to ``"en…"``.
+
+    Returns
+    -------
+    int
+        Column width in characters.
+    """
+    return max({len(name) for name in _AUTO_PROGRESS_LABELS} | {len(name) for name in labels})
+
+
 def _format_eta(eta: timedelta | None, *, long: bool = True) -> str:
     """
     Render an estimate, labelled to fit the space available.
@@ -1669,13 +2095,15 @@ def _format_eta(eta: timedelta | None, *, long: bool = True) -> str:
     Returns
     -------
     str
-        ``"est. remaining: 0:01:23"``, ``"ETA 0:01:23"``, or ``""`` when there
+        ``"est. rem.: 0:01:23"``, ``"ETA 0:01:23"``, or ``""`` when there
         is no usable estimate.
     """
-    if eta is None or eta.total_seconds() < 0:
+    if eta is None or int(eta.total_seconds()) <= 0:
+        # Below a second there is nothing useful left to say, and "0:00:00"
+        # on a bar that has just filled reads as a stuck clock.
         return ""
-    label = "est. remaining:" if long else "ETA"
-    return f"{label} {timedelta(seconds=int(eta.total_seconds()))}"
+    label = "est. rem.:" if long else "ETA"
+    return f"{label} {_format_duration(eta)}"
 
 
 def _default_label(name: str) -> str:
@@ -1740,8 +2168,10 @@ def _auto_progress_enabled(trainee: Any) -> bool:
 @overload
 def auto_progress(label_or_method: _M, /) -> _M: ...
 @overload
-def auto_progress(label_or_method: str | None = ..., /) -> Callable[[_M], _M]: ...
-def auto_progress(label_or_method: Any = None, /) -> Any:
+def auto_progress(
+    label_or_method: str | None = ..., /, *, indeterminate: bool = ...
+) -> Callable[[_M], _M]: ...
+def auto_progress(label_or_method: Any = None, /, *, indeterminate: bool = False) -> Any:
     """
     Decorate a ``Trainee`` method to opt into unified progress reporting.
 
@@ -1775,11 +2205,13 @@ def auto_progress(label_or_method: Any = None, /) -> Any:
                     label,
                     method.__get__(self, type(self)),
                     *args,
+                    indeterminate=indeterminate,
                     **kwargs,
                 )
             finally:
                 _state.depth = depth
         wrapper._auto_progress_label = label  # type: ignore[attr-defined]
+        _AUTO_PROGRESS_LABELS.add(label)
         return wrapper
 
     if callable(label_or_method):

@@ -1,4 +1,4 @@
-"""Tests for ``howso.utilities.progress``."""
+# pyright: reportMissingParameterType=false
 from __future__ import annotations
 
 import builtins
@@ -7,6 +7,7 @@ import inspect
 import io
 import re
 import sys
+import threading
 import time
 from types import SimpleNamespace
 from typing import Any
@@ -14,7 +15,7 @@ import warnings
 
 import pytest
 from rich.console import Console
-from rich.progress import BarColumn
+from rich.progress import BarColumn, Progress
 
 from howso.client.configuration import ClientOptions, HowsoConfiguration
 from howso.utilities import (
@@ -46,6 +47,8 @@ from howso.utilities.progress import (
     _one_line,  # pyright: ignore[reportPrivateUsage]
     _OverwriteSafeWriter,  # pyright: ignore[reportPrivateUsage]
     _parse_tristate,  # pyright: ignore[reportPrivateUsage]
+    _SolidBar,  # pyright: ignore[reportPrivateUsage]
+    BAR_WIDTH,
     ETA_LABEL_MIN_WIDTH,
     NOTEBOOK_COLUMNS,
 )
@@ -54,7 +57,7 @@ from howso.utilities.progress import (
 class _FakeClient:
     """Minimal client double exposing the subset ``with_progress`` touches."""
 
-    def __init__(self, progress_payloads=None, library_type="mt"):  # pyright: ignore[reportMissingSuperCall]
+    def __init__(self, progress_payloads=None, library_type="mt") -> None:  # pyright: ignore[reportMissingSuperCall]
         self._payloads = list(progress_payloads or [
             {"step": 1, "total": 3, "details": "step 1"},
         ])
@@ -104,7 +107,7 @@ class _FakeTrainee:
 
     id = "fake-trainee"
 
-    def __init__(self, client=None):  # pyright: ignore[reportMissingSuperCall]
+    def __init__(self, client=None) -> None:  # pyright: ignore[reportMissingSuperCall]
         self.client = client or _FakeClient()
         self.received_task_id = None
         self.received_progress_callback = None
@@ -169,7 +172,7 @@ def test_simple_reporter_single_source_no_indent(capsys):
     assert "  [1/6] Analyzing" in out
     assert "  [2/6] Computing" in out
     assert "    [" not in out  # no double-indent in single-source mode
-    assert "Analyze complete in 0:00:01.500000" in out
+    assert "Analyze complete in 0:00:01" in out
 
 
 def test_simple_reporter_both_sources_engine_indented(capsys):
@@ -296,6 +299,23 @@ def test_reporter_flushes_at_both_session_boundaries(reporter_cls, monkeypatch, 
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 
+def _require_progress(reporter: RichProgressReporter) -> Progress:
+    """
+    Return a reporter's live ``Progress``, asserting it exists.
+
+    Typed against ``RichProgressReporter`` because that is the class declaring
+    ``_progress``; the notebook and display reporters inherit it, while
+    ``SimpleProgressReporter`` prints lines and has none. The attribute is
+    ``Progress | None`` because a session with no sources never starts one.
+    Every caller here has just started a session that does, so the assertion
+    narrows the type and states that precondition rather than letting the test
+    fail later with an opaque ``NoneType`` error.
+    """
+    progress = reporter._progress
+    assert progress is not None
+    return progress
+
+
 def _render(reporter, sources, events) -> str:
     """
     Drive a full session and return the raw bytes the console received.
@@ -311,7 +331,7 @@ def _render(reporter, sources, events) -> str:
     for event in events:
         reporter.update(event)
         if reporter._progress is not None:
-            reporter._progress.refresh()
+            _require_progress(reporter).refresh()
     reporter.finish(success=True, duration=timedelta(seconds=4))
     return buf.getvalue()
 
@@ -321,23 +341,37 @@ def _fake_kernel(monkeypatch):
     class ZMQInteractiveShell:
         pass
 
-    monkeypatch.setattr(builtins, "get_ipython", lambda: ZMQInteractiveShell(), raising=False)
+    monkeypatch.setattr(builtins, "get_ipython", ZMQInteractiveShell, raising=False)
 
 
-def _apply_carriage_returns(raw: str) -> tuple[str, str]:
+def _bar_color(frame: str) -> list[str]:
+    """
+    Return the first SGR color code applied to a bar glyph in ``frame``.
+
+    A list rather than a scalar so an unstyled frame compares as ``[]`` instead
+    of raising, which keeps a failure message readable.
+    """
+    return re.findall(r"\x1b\[([0-9;]+)m\u2501", frame)[:1]
+
+
+def _overwrite_residue(raw: str) -> str:
     r"""
-    Replay a repaint region the way a notebook front-end does.
+    Replay a repaint region and return whatever outlives the final frame.
 
     Front-ends implement ``\r`` as a raw-index overwrite and strip the
-    erase-line code, so a shorter frame leaves the previous frame's tail
-    behind. Returns the rendered line and the line that was intended.
+    erase-line code, so a frame shorter than its predecessor leaves that
+    predecessor's tail on screen.
+
+    The assertion to build on this is that the residue is *blank*, not that
+    there is none — residue is unavoidable whenever frames shrink. Comparing
+    ANSI-stripped text instead would pass or fail on where the byte boundary
+    happens to land, which is exactly how this bug once reached a user.
     """
-    region = raw.split("\n")[0]
+    region = raw.split("\n", maxsplit=1)[0]
     line = ""
     for chunk in region.split("\r"):
         line = chunk + line[len(chunk):]
-    intended = region.split("\r")[-1]
-    return _ANSI.sub("", line).rstrip(), _ANSI.sub("", intended).rstrip()
+    return line[len(region.split("\r")[-1]):]
 
 
 def test_notebook_reporter_leaves_no_residue_when_frames_shrink():
@@ -345,7 +379,7 @@ def test_notebook_reporter_leaves_no_residue_when_frames_shrink():
     Verify a short frame still covers the long one before it.
 
     Visible width is constant, but raw length is not: rich's indeterminate
-    pulse spends ~980 characters on a colour gradient occupying the same
+    pulse spends ~980 characters on a color gradient occupying the same
     columns a determinate frame draws in ~165. Since the overwrite is by raw
     index, the shortfall would otherwise surface as literal escape-sequence
     fragments such as ``;112m``.
@@ -354,32 +388,24 @@ def test_notebook_reporter_leaves_no_residue_when_frames_shrink():
     buf = io.StringIO()
     reporter._console.file = buf
     reporter.start("Train", sources=("batch",))
-    reporter._progress.refresh()          # the long pulse frame
+    _require_progress(reporter).refresh()          # the long pulse frame
     for step in (1, 60, 120):             # then much shorter determinate frames
         reporter.update(ProgressEvent(source="batch", step=step, total=120, details="batch 2"))
-        reporter._progress.refresh()
+        _require_progress(reporter).refresh()
     reporter.finish(success=True, duration=timedelta(seconds=1))
-    region = buf.getvalue().split("\n")[0]
-    line = ""
-    for chunk in region.split("\r"):
-        line = chunk + line[len(chunk):]
-    residue = line[len(region.split("\r")[-1]):]
-    # Not "no residue" — residue is unavoidable when frames shrink. What
-    # matters is that it is blank. Asserting only that the ANSI-stripped text
-    # matches would pass or fail on where the byte boundary happens to land,
-    # which is exactly how this bug reached a user once already.
+    residue = _overwrite_residue(buf.getvalue())
     assert set(residue) <= {" "}, f"visible residue: {residue!r}"
 
 
 def test_notebook_reporter_padding_is_invisible():
-    """The padding must add raw length only — never colour, never extra columns."""
+    """The padding must add raw length only — never color, never extra columns."""
     reporter = RichNotebookProgressReporter()
     buf = io.StringIO()
     reporter._console.file = buf
     reporter.start("Train", sources=("batch",))
-    reporter._progress.refresh()
+    _require_progress(reporter).refresh()
     reporter.update(ProgressEvent(source="batch", step=120, total=120, details="b"))
-    reporter._progress.refresh()
+    _require_progress(reporter).refresh()
     reporter.finish(success=True, duration=timedelta(seconds=1))
     for line in buf.getvalue().split("\n"):
         for chunk in line.split("\r"):
@@ -409,7 +435,7 @@ def test_notebook_reporter_survives_multiline_engine_details():
     assert "\x1b[1A" not in out
 
 
-def test_notebook_reporter_frames_are_constant_width():
+def test_notebook_reporter_frames_fit_the_console():
     """Front-ends overwrite by length and ignore erase-line, so a short frame leaves residue."""
     out = _render(RichNotebookProgressReporter(), ("batch", "engine"), [
         ProgressEvent(source="batch", step=1, total=10, details="b"),
@@ -422,12 +448,20 @@ def test_notebook_reporter_frames_are_constant_width():
     # leave one unallocated. Exact coverage is not this property's job anyway —
     # _OverwriteSafeWriter guarantees that by raw length. What matters here is
     # that no frame is *substantially* short and that any excess is blank.
+    # Frames no longer fill the console: ``expand`` is off, because letting rich
+    # redistribute slack is what made labels and bars land in different columns
+    # from one session to the next. What still has to hold is that a frame never
+    # exceeds the console width and never carries visible trailing padding.
     for line in out.split("\n"):
         for chunk in line.split("\r"):
             if "\u2501" not in chunk:
                 continue
             visible = _ANSI.sub("", chunk)
-            assert len(visible) >= NOTEBOOK_COLUMNS - 1
+            # The writer pads by *raw* length, and escapes occupy raw length
+            # without occupying columns, so trailing blanks can run a little
+            # past the console width. What must hold is that the content fits
+            # and everything past it is blank.
+            assert len(visible.rstrip()) <= NOTEBOOK_COLUMNS
             assert visible[NOTEBOOK_COLUMNS:].strip() == ""
 
 
@@ -452,7 +486,7 @@ def test_notebook_console_flags():
 def test_notebook_console_overrides_rich_jupyter_detection(monkeypatch):
     """A stock Console would go Jupyter here; ours must not."""
     _fake_kernel(monkeypatch)
-    from rich.console import Console
+    from rich.console import Console  # noqa: PLC0415
 
     assert Console().is_jupyter is True  # the fake is doing its job
     assert RichNotebookProgressReporter()._console.is_jupyter is False
@@ -474,7 +508,7 @@ def test_notebook_reporter_uses_one_task_for_both_sources():
     reporter.start("Train", sources=("batch", "engine"))
     try:
         assert len(set(reporter._tasks.values())) == 1
-        assert len(reporter._progress.tasks) == 1
+        assert len(_require_progress(reporter).tasks) == 1
     finally:
         reporter.finish(success=True, duration=timedelta(seconds=1))
 
@@ -487,7 +521,7 @@ def test_notebook_reporter_engine_does_not_move_the_bar():
     try:
         reporter.update(ProgressEvent(source="batch", step=5, total=10, details="b"))
         reporter.update(ProgressEvent(source="engine", step=1, total=3, details="e"))
-        task = reporter._progress.tasks[0]
+        task = _require_progress(reporter).tasks[0]
         assert (task.completed, task.total) == (5, 10)
         assert "engine 1/3" in task.fields["details"]
     finally:
@@ -501,7 +535,7 @@ def test_notebook_reporter_engine_only_drives_the_bar():
     reporter.start("Analyze", sources=("engine",))
     try:
         reporter.update(ProgressEvent(source="engine", step=3, total=6, details="computing"))
-        task = reporter._progress.tasks[0]
+        task = _require_progress(reporter).tasks[0]
         assert (task.completed, task.total) == (3, 6)
     finally:
         reporter.finish(success=True, duration=timedelta(seconds=1))
@@ -514,7 +548,7 @@ def test_notebook_reporter_ignores_undeclared_source():
     reporter.start("Analyze", sources=("engine",))
     try:
         reporter.update(ProgressEvent(source="batch", step=9, total=9, details="nope"))
-        assert reporter._progress.tasks[0].completed == 0
+        assert _require_progress(reporter).tasks[0].completed == 0
     finally:
         reporter.finish(success=True, duration=timedelta(seconds=1))
 
@@ -611,7 +645,7 @@ def _fake_display(monkeypatch) -> _FakeDisplayHandle:
     module = SimpleNamespace(display=display)
     monkeypatch.setitem(sys.modules, "IPython.display", module)
     monkeypatch.setitem(sys.modules, "IPython", SimpleNamespace(
-        display=module, get_ipython=lambda: object()))
+        display=module, get_ipython=object))
     return handle
 
 
@@ -621,9 +655,16 @@ def _rows(renderable) -> list[str]:
     return [line for line in plain.splitlines() if line.strip()]
 
 
-@pytest.mark.parametrize("sources", [(), ("batch",), ("engine",)])
-def test_display_reporter_stays_inline_for_a_single_bar(monkeypatch, sources):
-    """One bar needs no display slot, and claiming one would fragment the cell."""
+@pytest.mark.parametrize("sources", [(), ("batch",), ("engine",), ("batch", "engine")])
+def test_display_reporter_stays_inline_when_watched(monkeypatch, sources):
+    """
+    Verify a watched notebook never claims a display slot, even for two sources.
+
+    A notebook merges consecutive stdout writes into one block but never merges
+    display blocks, so a display group is fenced off from the lines around it by
+    the notebook's padding. The stdout reporter folds the engine into the outer
+    bar's details rather than paying that for a second bar.
+    """
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: True)
     handle = _fake_display(monkeypatch)
     reporter = RichDisplayProgressReporter()
@@ -660,9 +701,9 @@ def test_notebook_reporter_emits_no_cursor_codes():
     buf = io.StringIO()
     reporter._console.file = buf
     reporter.start("Train", sources=("batch",))
-    reporter._progress.refresh()
+    _require_progress(reporter).refresh()
     reporter.update(ProgressEvent(source="batch", step=150, total=150, details="b"))
-    reporter._progress.refresh()
+    _require_progress(reporter).refresh()
     reporter.finish(success=True, duration=timedelta(seconds=1))
     assert "\x1b[?25" not in buf.getvalue()
 
@@ -699,7 +740,7 @@ def test_notebook_reporter_keeps_the_writer_through_stop(monkeypatch):
 
     ``Progress.stop()`` runs inside ``super().finish()`` and emits one last
     frame. Restoring the plain file before that call left the final frame
-    unpadded against a much longer predecessor, which is the residue that
+    un-padded against a much longer predecessor, which is the residue that
     reached a user. This asserts the ordering directly: with the quiet bar the
     last frame now happens to be the longest, so the defect no longer shows up
     in the output it produces, and a test on residue alone would not catch a
@@ -724,7 +765,7 @@ def test_notebook_reporter_bar_never_pulses():
     """
     Verify an unknown total renders a static track, not a pulse.
 
-    A pulse frame spends ~980 characters on a colour gradient where the
+    A pulse frame spends ~980 characters on a color gradient where the
     determinate frame replacing it needs ~165, and on a carriage-return
     repaint that entire disparity has to be padded over as blanks.
     """
@@ -732,16 +773,16 @@ def test_notebook_reporter_bar_never_pulses():
     buf = io.StringIO()
     reporter._console.file = buf
     reporter.start("Train", sources=("batch",))
-    reporter._progress.refresh()
+    _require_progress(reporter).refresh()
     reporter.update(ProgressEvent(source="batch", step=1, total=120, details="b"))
-    reporter._progress.refresh()
+    _require_progress(reporter).refresh()
     reporter.finish(success=True, duration=timedelta(seconds=1))
     # Measure the pulse itself, not its knock-on size: the writer pads every
     # frame up to the running maximum, so a length comparison would be masked
     # by the very padding the pulse makes necessary.
     first = next(c for c in buf.getvalue().split("\r") if "\u2501" in c)
-    colours = set(re.findall(r"\x1b\[([0-9;]+)m", first))
-    assert len(colours) <= 6, f"gradient detected, {len(colours)} colours"
+    colors = set(re.findall(r"\x1b\[([0-9;]+)m", first))
+    assert len(colors) <= 6, f"gradient detected, {len(colors)} colors"
 
 
 @pytest.mark.parametrize("sources", [("batch", "engine")])
@@ -765,6 +806,25 @@ def test_display_reporter_uses_a_slot_for_every_bar(monkeypatch, sources):
     reporter.finish(success=True, duration=timedelta(seconds=1))
     assert handle.frames                       # a slot was claimed
     assert len(_rows(handle.frames[-1])) == len(sources) + 1   # bars + completion
+
+
+def test_two_sources_merge_onto_one_bar_when_inline(monkeypatch):
+    """The engine rides in the details text rather than getting its own line."""
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: True)
+    reporter = RichNotebookProgressReporter()
+    sink = io.StringIO()          # keep our own handle: start() wraps the file
+    reporter._console.file = sink
+    reporter.start("React", sources=("batch", "engine"))
+    try:
+        reporter.update(ProgressEvent(source="batch", step=12, total=30, details="batch 3"))
+        reporter.update(ProgressEvent(source="engine", step=1, total=3, details="reacting"))
+        _require_progress(reporter).refresh()
+        assert len(_require_progress(reporter).tasks) == 1
+        line = _ANSI.sub("", [f for f in sink.getvalue().split("\r") if "\u2501" in f][-1])
+        assert "12/30" in line          # the batch owns the bar
+        assert "engine 1/3" in line     # the engine rides along
+    finally:
+        reporter.finish(success=True, duration=timedelta(seconds=1))
 
 
 def test_display_reporter_renders_both_bars(monkeypatch):
@@ -874,7 +934,7 @@ def test_display_reporter_empty_sources_claims_no_slot(monkeypatch):
     assert "Train complete in" in _ANSI.sub("", buf.getvalue())
 
 
-def test_display_reporter_keeps_richs_stock_bar_palette():
+def test_display_reporter_keeps_rich_stock_bar_palette():
     """
     Verify the bar keeps rich's stock styles.
 
@@ -920,7 +980,7 @@ def test_auto_reporter_notebook_without_display_falls_back_to_ansi(monkeypatch):
 def test_format_eta_drops_sub_second_precision():
     """A timedelta stringifies with microseconds, which is false precision here."""
     assert _format_eta(timedelta(seconds=83, microseconds=456789)) == (
-        "est. remaining: 0:01:23"
+        "est. rem.: 0:01:23"
     )
 
 
@@ -937,7 +997,7 @@ def test_format_eta_shortens_the_label_on_a_narrow_console():
     spelled-out form pushes the counter and elapsed time into ellipses, while
     the short form leaves them intact.
     """
-    assert _format_eta(timedelta(seconds=83), long=True) == "est. remaining: 0:01:23"
+    assert _format_eta(timedelta(seconds=83), long=True) == "est. rem.: 0:01:23"
     assert _format_eta(timedelta(seconds=83), long=False) == "ETA 0:01:23"
     # and a bar reporter picks between them from its console width
     assert RichProgressReporter(
@@ -974,10 +1034,14 @@ def test_batch_callback_withholds_the_estimate_at_tick_zero():
             self.client = _FakeClient()
 
         def cb_only(self, *, progress_callback=None):
+            # ``with_progress`` always supplies the callback; assert rather
+            # than guard with ``if``, so a harness that stopped wiring it fails
+            # here instead of quietly reporting no events.
+            assert progress_callback is not None
             with ProgressTimer(10) as timer:
-                progress_callback(timer)      # current_tick is still 0
+                progress_callback(timer)  # current_tick is still 0
                 timer.update(1)
-                progress_callback(timer)      # now there is a measurement
+                progress_callback(timer)  # now there is a measurement
             return "done"
 
     reporter = _RecordingReporter()
@@ -1040,7 +1104,7 @@ def test_interactive_frontend_reads_allow_stdin(monkeypatch, shell, expected):
     lines rather than to corrupted output.
     """
     monkeypatch.setitem(sys.modules, "IPython",
-                        SimpleNamespace(get_ipython=lambda: shell))
+                        SimpleNamespace(get_ipython=lambda: shell))  # pyright: ignore[reportUnknownLambdaType]
     assert _interactive_frontend() is expected
 
 
@@ -1128,6 +1192,362 @@ def test_auto_reporter_notebook_without_display_and_flag_off_uses_simple(monkeyp
     assert type(auto_reporter()) is SimpleProgressReporter
 
 
+class _NoHooks:
+    """A trainee whose only progress hook disappears when engine polling is off."""
+
+    id = "fake-trainee"
+
+    def __init__(self, sleep: float = 0.0) -> None:
+        self.client = _FakeClient()
+        self._sleep = sleep
+
+    def neither(self):
+        if self._sleep:
+            time.sleep(self._sleep)
+        return "neither-done"
+
+
+def test_engine_events_never_carry_an_estimate():
+    """
+    Verify engine work never claims a time to completion.
+
+    Engine step durations vary enough that an estimate derived from them would
+    mislead, so the field must stay empty at every step and total.
+    """
+    trainee = _FakeTrainee()
+    reporter = _RecordingReporter()
+    with_progress("React", trainee.both, reporter=reporter, polling_interval=0.01)
+    engine = [e for e in reporter.events if e.source == "engine"]
+    assert engine
+    assert all(e.eta is None for e in engine)
+
+
+def test_stepped_engine_still_fills_proportionally():
+    """A known total is real information about steps, even without a time claim."""
+    reporter = RichProgressReporter(console=_notebook_console())
+    reporter._console.file = io.StringIO()
+    reporter.start("Analyze", sources=("engine",))
+    try:
+        reporter.update(ProgressEvent(source="engine", step=12, total=30, details="k-fold"))
+        task = _require_progress(reporter).tasks[0]
+        assert (task.completed, task.total) == (12, 30)
+    finally:
+        reporter.finish(success=True, duration=timedelta(seconds=1))
+
+
+def test_indeterminate_declares_an_activity_source():
+    reporter = _RecordingReporter()
+    with_progress("Analyze", _NoHooks().neither, reporter=reporter, indeterminate=True)
+    assert reporter.started_sources == ("activity",)
+
+
+def test_without_the_flag_a_hookless_method_declares_no_sources():
+    reporter = _RecordingReporter()
+    with_progress("Analyze", _NoHooks().neither, reporter=reporter)
+    assert reporter.started_sources == ()
+
+
+def test_activity_ticker_reports_before_completion():
+    """
+    Verify something reaches the reporter while the call is still running.
+
+    Two of the four reporters emit only on ``update``, so without the ticker a
+    long call would stay silent until it finished — the whole point here.
+    """
+    reporter = _RecordingReporter()
+    with_progress("Analyze", _NoHooks(sleep=0.25).neither, reporter=reporter,
+                  indeterminate=True, polling_interval=0.02)
+    assert [e for e in reporter.events if e.source == "activity"]
+
+
+def test_activity_ticker_does_not_outlive_the_call():
+    before = threading.active_count()
+    with_progress("Analyze", _NoHooks(sleep=0.05).neither, reporter=_RecordingReporter(),
+                  indeterminate=True, polling_interval=0.01)
+    assert threading.active_count() <= before
+
+
+def _indeterminate_frames(reporter, *, success: bool = True) -> list[str]:
+    """Render a source-less session and return its bar frames."""
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Analyze", sources=("activity",))
+    for _ in range(3):
+        time.sleep(0.11)
+        _require_progress(reporter).refresh()
+    reporter.finish(success=success, duration=timedelta(seconds=1))
+    return [f for f in buf.getvalue().split("\r") if "\u2501" in f]
+
+
+@pytest.mark.parametrize(("sources", "event"), [
+    (("batch",), ProgressEvent(source="batch", step=2, total=2, details="batch 1")),
+    (("engine",), ProgressEvent(source="engine", step=3, total=0, details="k-fold")),
+    (("activity",), None),
+])
+def test_every_bar_is_the_same_width(sources, event):
+    """
+    Verify a bar is the same length whatever the session type.
+
+    The activity layout drops the counter and estimate columns, so a bar that
+    filled the space available would absorb what they freed and render visibly
+    longer than a batch bar in the same notebook. ``BarColumn.bar_width``
+    governs the determinate case; the solid bar has to honor it too.
+    """
+    reporter = RichProgressReporter(console=_notebook_console())
+    reporter._console.file = io.StringIO()
+    reporter.start("React aggregate", sources=sources)
+    try:
+        if event is not None:
+            reporter.update(event)
+        _require_progress(reporter).refresh()
+        frame = [f for f in reporter._console.file.getvalue().split("\r") if "\u2501" in f][-1]
+    finally:
+        reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert len(re.findall(r"[\u2501\u257a\u2578]", _ANSI.sub("", frame))) == BAR_WIDTH
+
+
+def test_completed_indeterminate_session_stops_spinning():
+    """
+    Verify the spinner stops once the session ends.
+
+    rich blanks its spinner on ``task.finished``, which is ``completed >=
+    total`` and so never true while the total is ``None``. Left alone, a
+    finished ``analyze`` keeps a spinner frame beside its own completion line
+    and reads as though it were still running.
+    """
+    frames = _indeterminate_frames(RichProgressReporter(console=_notebook_console()))
+    assert _ANSI.sub("", frames[0]).strip()[:1] not in {"", "A"}   # spinning during
+    assert _ANSI.sub("", frames[-1]).lstrip().startswith("Analyze")  # blank after
+
+
+@pytest.mark.parametrize("eta", [
+    timedelta(seconds=0),
+    timedelta(microseconds=400),
+    timedelta(milliseconds=999),
+])
+def test_spent_estimate_renders_as_nothing(eta):
+    """A bar that has just filled must not advertise "est. remaining: 0:00:00"."""
+    assert _format_eta(eta) == ""
+
+
+def test_engine_bar_completes_when_the_call_succeeds():
+    """
+    Verify a short-reporting engine still ends on a full bar.
+
+    The poll thread stops the moment the wrapped call returns, so the engine's
+    last reported step is usually below its total. Left alone the bar sits
+    part-filled — reading as still running directly above its own "complete"
+    line.
+    """
+    reporter = RichNotebookProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Analyze", sources=("engine",))
+    reporter.update(ProgressEvent(source="engine", step=2, total=3, details=""))
+    _require_progress(reporter).refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    final = _ANSI.sub("", [f for f in reporter._console.file.getvalue().split("\r")
+                           if "\u2501" in f][-1])
+    assert "3/3" in final
+    assert "2/3" not in final
+
+
+def test_failed_engine_bar_stays_where_it_stopped():
+    """A failure must not be dressed up as a completed run."""
+    reporter = RichNotebookProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Analyze", sources=("engine",))
+    reporter.update(ProgressEvent(source="engine", step=2, total=3, details=""))
+    _require_progress(reporter).refresh()
+    reporter.finish(success=False, duration=timedelta(seconds=1))
+    final = _ANSI.sub("", [f for f in reporter._console.file.getvalue().split("\r")
+                           if "\u2501" in f][-1])
+    assert "2/3" in final
+
+
+def test_completed_batch_drops_its_details_with_no_gap():
+    """
+    Verify the chunk index goes on completion, leaving exactly one space.
+
+    ``batch 7`` is only the last chunk index; once the counter reads 120/120 it
+    says nothing. Clearing it must not leave a hole: the details share the
+    counter's column precisely because an empty column of their own would cost
+    padding on both sides and show as two spaces before the elapsed time.
+    """
+    reporter = RichNotebookProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch",))
+    reporter.update(ProgressEvent(source="batch", step=120, total=120, details="batch 7"))
+    _require_progress(reporter).refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=8))
+    final = _ANSI.sub("", [f for f in reporter._console.file.getvalue().split("\r")
+                           if "\u2501" in f][-1])
+    assert "batch 7" not in final
+    elapsed = re.search(r"\d+:\d\d:\d\d", final)
+    assert elapsed
+    before = final[:elapsed.start()]
+    assert len(before) - len(before.rstrip()) == 1
+
+
+def test_failed_batch_keeps_its_details():
+    """On a failure the last detail says where it stopped, which is worth keeping."""
+    reporter = RichNotebookProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch",))
+    reporter.update(ProgressEvent(source="batch", step=60, total=120, details="batch 4"))
+    _require_progress(reporter).refresh()
+    reporter.finish(success=False, duration=timedelta(seconds=8))
+    final = _ANSI.sub("", [f for f in reporter._console.file.getvalue().split("\r")
+                           if "\u2501" in f][-1])
+    assert "batch 4" in final
+
+
+def test_completed_batch_bar_drops_its_estimate():
+    """The estimate is cleared at session end, not left reading zero."""
+    reporter = RichProgressReporter(console=_notebook_console())
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch",))
+    reporter.update(ProgressEvent(source="batch", step=1000, total=2000,
+                                  details="batch 3", eta=timedelta(seconds=45)))
+    _require_progress(reporter).refresh()
+    during = _ANSI.sub("", reporter._console.file.getvalue())
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    final = _ANSI.sub("", reporter._console.file.getvalue().split("\r")[-2])
+    assert "est. rem.: 0:00:45" in during
+    assert "remaining" not in final
+
+
+def test_solid_bar_measures_itself_exactly():
+    """
+    Verify the indeterminate bar reports its own width.
+
+    Without a measurement rich hands the column all the space left over; the
+    bar draws short inside it and the blank remainder shoves every following
+    column to the right. Only tracks with an unknown total were affected, since
+    a determinate bar is rich's own ``ProgressBar``, which measures itself.
+    """
+    console = _notebook_console()
+    bar = _SolidBar("red", BAR_WIDTH)
+    options = console.options.update(width=NOTEBOOK_COLUMNS)
+    measurement = bar.__rich_measure__(console, options)
+    assert (measurement.minimum, measurement.maximum) == (BAR_WIDTH, BAR_WIDTH)
+
+
+def test_indeterminate_row_left_aligns_its_trailing_columns():
+    """A row with no counter must not leave a gulf between bar and elapsed."""
+    reporter = RichProgressReporter(console=_notebook_console())
+    reporter._console.file = io.StringIO()
+    reporter.start("Analyze", sources=("activity",))
+    try:
+        reporter.update(ProgressEvent(source="activity", step=0, total=0))
+        _require_progress(reporter).refresh()
+        line = _ANSI.sub("", [f for f in reporter._console.file.getvalue().split("\r")
+                              if "\u2501" in f][-1])
+    finally:
+        reporter.finish(success=True, duration=timedelta(seconds=1))
+    bar_end = line.rindex("\u2501") + 1
+    elapsed = re.search(r"\d+:\d\d:\d\d", line)
+    assert elapsed is not None
+    # Exactly one space, the same as a batch row. An empty column still costs
+    # its padding on both sides, so a details column that never has content
+    # shows up as a second space between the bar and the elapsed time.
+    assert elapsed.start() - bar_end == 1, f"gap of {elapsed.start() - bar_end} columns"
+
+
+def test_indeterminate_bar_is_no_costlier_than_a_normal_one():
+    """
+    Verify the indeterminate bar stays cheap.
+
+    rich's pulse colors every cell of a 20-step gradient — ~980 characters a
+    frame against ~160 — and on the carriage-return path that entire gulf has
+    to be padded over as blanks. A solid single-run bar holds the length flat.
+    """
+    reporter = RichProgressReporter(console=_notebook_console())
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Analyze", sources=("engine",))
+    try:
+        _require_progress(reporter).refresh()                      # total unknown
+        indeterminate = [f for f in buf.getvalue().split("\r") if "\u2501" in f][-1]
+        reporter.update(ProgressEvent(source="engine", step=5, total=10, details=""))
+        _require_progress(reporter).refresh()                      # total known
+        determinate = [f for f in buf.getvalue().split("\r") if "\u2501" in f][-1]
+    finally:
+        reporter.finish(success=True, duration=timedelta(seconds=1))
+    # Constant length is not the property to assert — rich's pulse frames are
+    # constant too, just uniformly enormous. What matters is that the
+    # indeterminate frame costs no more than an ordinary one, since the gulf
+    # between them is what _OverwriteSafeWriter has to pad over.
+    assert len(indeterminate) < len(determinate) * 1.5, (
+        f"indeterminate={len(indeterminate)} determinate={len(determinate)}"
+    )
+
+
+@pytest.mark.parametrize(("success", "final"), [(True, "32"), (False, "31")])
+def test_indeterminate_bar_shows_state_by_color(success, final):
+    """Red while pending, green once done — and a failure never turns green."""
+    frames = _indeterminate_frames(
+        RichProgressReporter(console=_notebook_console()), success=success)
+    assert _bar_color(frames[0]) == ["31"]
+    assert _bar_color(frames[-1]) == [final]
+
+
+def test_indeterminate_spinner_animates():
+    """
+    Verify the spinner is what conveys liveness.
+
+    The bar is deliberately static, so a frozen spinner would leave the session
+    looking hung while every length and color assertion still passed.
+    """
+    frames = _indeterminate_frames(RichProgressReporter(console=_notebook_console()))
+    glyphs = {_ANSI.sub("", f).strip()[:1] for f in frames}
+    assert len(glyphs) > 1
+
+
+def test_activity_track_drops_the_counter_and_estimate():
+    """An activity track measures nothing, so "0/?" would be noise."""
+    frames = _indeterminate_frames(RichProgressReporter(console=_notebook_console()))
+    rendered = _ANSI.sub("", "".join(frames))
+    assert "0/?" not in rendered
+    assert "0:00:0" in rendered      # elapsed is still shown
+
+
+def test_notebook_reporter_renders_an_activity_session():
+    """
+    Verify the stdout reporter does not ignore an activity-only session.
+
+    Its primary-track selection knows ``batch`` and ``engine``; without a
+    fallback, ``activity`` matched neither and the reporter started no Progress
+    at all, leaving the very sessions this exists for completely blank.
+    """
+    reporter = RichNotebookProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Analyze", sources=("activity",))
+    assert reporter._progress is not None
+    reporter.update(ProgressEvent(source="activity", step=0, total=0))
+    _require_progress(reporter).refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    frames = [f for f in buf.getvalue().split("\r") if "\u2501" in f]
+    assert frames
+    # The property that matters is the same one the other repaint tests assert:
+    # whatever the writer leaves behind must be blank. Equal frame lengths would
+    # be stricter than necessary — the closing frame is longer, which needs no
+    # padding at all.
+    residue = _overwrite_residue(buf.getvalue())
+    assert set(residue) <= {" "}, f"visible residue: {residue!r}"
+
+
+def test_simple_reporter_activity_line(capsys, monkeypatch):
+    monkeypatch.setattr("howso.utilities.progress.HEARTBEAT_INTERVAL", 0.0)
+    reporter = SimpleProgressReporter()
+    reporter.start("Analyze", sources=("activity",))
+    reporter.update(ProgressEvent(source="activity", step=0, total=0))
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    out = capsys.readouterr().out
+    assert "elapsed" in out
+    assert "0/?" not in out
+
+
 def test_auto_reporter_databricks_picks_rich_notebook(monkeypatch):
     """Databricks lost its carve-out and is now treated as an ordinary notebook."""
     monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
@@ -1197,7 +1617,7 @@ def test_gating_re_entrancy_short_circuits_even_when_forced(monkeypatch):  # noq
     t = _trainee_with_cfg(None)
     enable_auto_progress()
     # Simulate "we're already inside one wrapped call".
-    from howso.utilities.progress import _state  # pyright: ignore[reportPrivateUsage]
+    from howso.utilities.progress import _state  # pyright: ignore[reportPrivateUsage]  # noqa: PLC0415
     _state.depth = 1
     try:
         assert _auto_progress_enabled(t) is False
@@ -1324,7 +1744,7 @@ def test_auto_progress_scope_restores_prior_state(monkeypatch):
 class _RecordingReporter:
     """Capture every event sent to the reporter for inspection in assertions."""
 
-    def __init__(self):  # pyright: ignore[reportMissingSuperCall]
+    def __init__(self) -> None:  # pyright: ignore[reportMissingSuperCall]
         self.events = []
         self.started_sources = None
         self.finished_success = None
@@ -1452,7 +1872,7 @@ def test_engine_polling_supported_runtime_missing_library_type():
 
 
 def test_engine_polling_supported_runtime_raises_is_fail_closed():
-    client = _FakeClient(library_type=RuntimeError("boom"))
+    client = _FakeClient(library_type=RuntimeError("boom"))  # pyright: ignore[reportArgumentType]
     assert engine_polling_supported(client, "fake-trainee") is False
 
 
@@ -1521,7 +1941,7 @@ def test_with_progress_single_threaded_keeps_batch_source():
 
 
 def test_with_progress_runtime_lookup_failure_skips_engine_source():
-    t = _FakeTrainee(_FakeClient(library_type=OSError("unreachable")))
+    t = _FakeTrainee(_FakeClient(library_type=OSError("unreachable")))  # pyright: ignore[reportArgumentType]
     r = _RecordingReporter()
     result = with_progress("Task", t.task_only, reporter=r, polling_interval=0.01)
     assert result == "task_only-done"
@@ -1546,7 +1966,7 @@ def test_simple_reporter_empty_sources_prints_label_and_completion(capsys):
     reporter.finish(success=True, duration=timedelta(seconds=1.5))
     out = capsys.readouterr().out
     assert "Analyze" in out
-    assert "Analyze complete in 0:00:01.500000" in out
+    assert "Analyze complete in 0:00:01" in out
     assert "[" not in out  # the undeclared source produced no track line
 
 
@@ -1579,7 +1999,7 @@ def test_with_progress_honors_caller_supplied_callback():
     t = _FakeTrainee()
     r = _RecordingReporter()
     captured = []
-    def my_cb(p, *a, **k):
+    def my_cb(p, *a, **k):  # noqa: ANN002, ANN003
         captured.append(p.current_tick)
     with_progress("CB", t.cb_only, reporter=r, progress_callback=my_cb)
     assert captured == [1, 2]
@@ -1606,7 +2026,7 @@ def test_decorator_preserves_metadata():
 
     assert my_method.__name__ == "my_method"
     assert "Add five" in (my_method.__doc__ or "")
-    assert my_method.__wrapped__.__name__ == "my_method"
+    assert my_method.__wrapped__.__name__ == "my_method"  # pyright: ignore[reportFunctionMemberAccess]
     sig = inspect.signature(my_method)
     assert list(sig.parameters) == ["self", "x"]
 
@@ -1615,14 +2035,16 @@ def test_decorator_factory_form_uses_explicit_label():
     @auto_progress("Custom Label")
     def m(self):  # noqa: ARG001
         return 1
-    assert m._auto_progress_label == "Custom Label"
+    assert getattr(m, "_auto_progress_label", None) == "Custom Label"
 
 
 def test_decorator_bare_form_derives_label_from_method_name():
     @auto_progress
     def react_series_stationary(self):  # noqa: ARG001
         return 1
-    assert react_series_stationary._auto_progress_label == "React series stationary"
+    assert getattr(react_series_stationary, "_auto_progress_label", None) == (
+        "React series stationary"
+    )
 
 
 def test_decorator_passes_through_when_disabled(monkeypatch):
@@ -1632,7 +2054,7 @@ def test_decorator_passes_through_when_disabled(monkeypatch):
     calls = []
     class T(_FakeTrainee):
         @auto_progress("Cb")
-        def cb_only(self, *, progress_callback=None):
+        def cb_only(self, *, progress_callback=None):  # pyright: ignore[reportIncompatibleMethodOverride]
             calls.append(progress_callback)
             return "ok"
     t = T()
@@ -1676,7 +2098,7 @@ def test_decorator_nested_calls_do_not_stack(capsys, monkeypatch):  # noqa: ARG0
     assert "Inner" not in out
 
 
-@pytest.mark.parametrize("name,label", [
+@pytest.mark.parametrize(("name", "label"), [
     ("train", "Train"),
     ("analyze", "Analyze"),
     ("react", "React"),
@@ -1688,7 +2110,7 @@ def test_decorator_nested_calls_do_not_stack(capsys, monkeypatch):  # noqa: ARG0
     ("impute", "Impute"),
 ])
 def test_trainee_methods_decorated_with_expected_labels(name, label):
-    from howso.engine import Trainee
+    from howso.engine import Trainee  # noqa: PLC0415
     method = getattr(Trainee, name)
     assert getattr(method, "_auto_progress_label", None) == label
     # functools.wraps preserves original signature for with_progress's
@@ -1698,7 +2120,7 @@ def test_trainee_methods_decorated_with_expected_labels(name, label):
 
 def test_predict_is_not_decorated():
     """Verify ``predict`` is not wrapped — it has no progress hooks."""
-    from howso.engine import Trainee
+    from howso.engine import Trainee  # noqa: PLC0415
     assert not hasattr(Trainee.predict, "_auto_progress_label")
 
 
