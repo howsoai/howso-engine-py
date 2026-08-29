@@ -1,14 +1,19 @@
 """Tests for ``howso.utilities.progress``."""
 from __future__ import annotations
 
+import builtins
 from datetime import timedelta
 import inspect
+import io
+import re
 import sys
 import time
 from types import SimpleNamespace
 from typing import Any
+import warnings
 
 import pytest
+from rich.progress import BarColumn
 
 from howso.client.configuration import ClientOptions, HowsoConfiguration
 from howso.utilities import (
@@ -22,6 +27,8 @@ from howso.utilities import (
     engine_polling_supported,
     ProgressEvent,
     reset_auto_progress,
+    RichDisplayProgressReporter,
+    RichNotebookProgressReporter,
     RichProgressReporter,
     SimpleProgressReporter,
     with_progress,
@@ -29,8 +36,13 @@ from howso.utilities import (
 from howso.utilities.monitors import ProgressTimer
 from howso.utilities.progress import (
     _auto_progress_enabled,  # pyright: ignore[reportPrivateUsage]
+    _display_handle_available,  # pyright: ignore[reportPrivateUsage]
     _in_notebook,  # pyright: ignore[reportPrivateUsage]
+    _notebook_console,  # pyright: ignore[reportPrivateUsage]
+    _one_line,  # pyright: ignore[reportPrivateUsage]
+    _OverwriteSafeWriter,  # pyright: ignore[reportPrivateUsage]
     _parse_tristate,  # pyright: ignore[reportPrivateUsage]
+    NOTEBOOK_COLUMNS,
 )
 
 
@@ -262,7 +274,10 @@ def test_flush_all_survives_a_detached_stream(monkeypatch):
     assert (out.flushes, err.flushes) == (1, 1)
 
 
-@pytest.mark.parametrize("reporter_cls", [SimpleProgressReporter, RichProgressReporter])
+@pytest.mark.parametrize(
+    "reporter_cls",
+    [SimpleProgressReporter, RichProgressReporter, RichNotebookProgressReporter],
+)
 def test_reporter_flushes_at_both_session_boundaries(reporter_cls, monkeypatch, capsys):  # noqa: ARG001
     """Pending output is drained before the first render and again after the last."""
     reporter = reporter_cls()
@@ -273,9 +288,596 @@ def test_reporter_flushes_at_both_session_boundaries(reporter_cls, monkeypatch, 
     assert len(flushes) == 2
 
 
-def test_auto_reporter_databricks_prefers_simple(monkeypatch):
+_ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+
+
+def _render(reporter, sources, events) -> str:
+    """
+    Drive a full session and return the raw bytes the console received.
+
+    Each update is followed by an explicit ``refresh()``. Rich's live display
+    is driven by a background thread at ``refresh_per_second``, so without
+    this a short session can finish before the frame under test is ever
+    painted — which would make every control-code assertion below vacuous.
+    """
+    buf = io.StringIO()
+    reporter._console.file = buf  # is_terminal is unaffected by a file swap
+    reporter.start("Train", sources=sources)
+    for event in events:
+        reporter.update(event)
+        if reporter._progress is not None:
+            reporter._progress.refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=4))
+    return buf.getvalue()
+
+
+def _fake_kernel(monkeypatch):
+    """Make rich's own ``_is_jupyter()`` believe it is inside a kernel."""
+    class ZMQInteractiveShell:
+        pass
+
+    monkeypatch.setattr(builtins, "get_ipython", lambda: ZMQInteractiveShell(), raising=False)
+
+
+def _apply_carriage_returns(raw: str) -> tuple[str, str]:
+    r"""
+    Replay a repaint region the way a notebook front-end does.
+
+    Front-ends implement ``\r`` as a raw-index overwrite and strip the
+    erase-line code, so a shorter frame leaves the previous frame's tail
+    behind. Returns the rendered line and the line that was intended.
+    """
+    region = raw.split("\n")[0]
+    line = ""
+    for chunk in region.split("\r"):
+        line = chunk + line[len(chunk):]
+    intended = region.split("\r")[-1]
+    return _ANSI.sub("", line).rstrip(), _ANSI.sub("", intended).rstrip()
+
+
+def test_notebook_reporter_leaves_no_residue_when_frames_shrink():
+    """
+    Verify a short frame still covers the long one before it.
+
+    Visible width is constant, but raw length is not: rich's indeterminate
+    pulse spends ~980 characters on a colour gradient occupying the same
+    columns a determinate frame draws in ~165. Since the overwrite is by raw
+    index, the shortfall would otherwise surface as literal escape-sequence
+    fragments such as ``;112m``.
+    """
+    reporter = RichNotebookProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch",))
+    reporter._progress.refresh()          # the long pulse frame
+    for step in (1, 60, 120):             # then much shorter determinate frames
+        reporter.update(ProgressEvent(source="batch", step=step, total=120, details="batch 2"))
+        reporter._progress.refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    region = buf.getvalue().split("\n")[0]
+    line = ""
+    for chunk in region.split("\r"):
+        line = chunk + line[len(chunk):]
+    residue = line[len(region.split("\r")[-1]):]
+    # Not "no residue" — residue is unavoidable when frames shrink. What
+    # matters is that it is blank. Asserting only that the ANSI-stripped text
+    # matches would pass or fail on where the byte boundary happens to land,
+    # which is exactly how this bug reached a user once already.
+    assert set(residue) <= {" "}, f"visible residue: {residue!r}"
+
+
+def test_notebook_reporter_padding_is_invisible():
+    """The padding must add raw length only — never colour, never extra columns."""
+    reporter = RichNotebookProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch",))
+    reporter._progress.refresh()
+    reporter.update(ProgressEvent(source="batch", step=120, total=120, details="b"))
+    reporter._progress.refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    for line in buf.getvalue().split("\n"):
+        for chunk in line.split("\r"):
+            if "\u2501" in chunk:
+                # padding may extend the line, but only ever with blanks
+                assert _ANSI.sub("", chunk)[NOTEBOOK_COLUMNS:].strip() == ""
+
+
+@pytest.mark.parametrize("sources", [("batch",), ("engine",), ("batch", "engine")])
+def test_notebook_reporter_emits_no_cursor_up(sources):
+    """The whole point of the class: notebooks discard cursor motion, so never emit it."""
+    events = [
+        ProgressEvent(source=s, step=i, total=10, details=f"{s} {i}")
+        for i, s in enumerate(sources, 1)
+    ]
+    out = _render(RichNotebookProgressReporter(), sources, events)
+    assert "\x1b[1A" not in out
+    assert "\r" in out  # it still repaints in place
+
+
+def test_notebook_reporter_survives_multiline_engine_details():
+    """``details`` is arbitrary engine payload; one newline would make the bar 2 lines high."""
+    out = _render(RichNotebookProgressReporter(), ("batch", "engine"), [
+        ProgressEvent(source="batch", step=1, total=10, details="b"),
+        ProgressEvent(source="engine", step=1, total=3, details="line1\nline2\nline3 " * 20),
+    ])
+    assert "\x1b[1A" not in out
+
+
+def test_notebook_reporter_frames_are_constant_width():
+    """Front-ends overwrite by length and ignore erase-line, so a short frame leaves residue."""
+    out = _render(RichNotebookProgressReporter(), ("batch", "engine"), [
+        ProgressEvent(source="batch", step=1, total=10, details="b"),
+        ProgressEvent(source="engine", step=9, total=10, details="a much longer detail string"),
+        ProgressEvent(source="batch", step=9, total=10, details="b"),
+    ])
+    # A frame is a \r-delimited chunk *within* one physical line. Each is at
+    # least the console width; anything beyond that is the overwrite padding,
+    # which must be blank.
+    for line in out.split("\n"):
+        for chunk in line.split("\r"):
+            if "\u2501" not in chunk:
+                continue
+            visible = _ANSI.sub("", chunk)
+            assert len(visible) >= NOTEBOOK_COLUMNS
+            assert visible[NOTEBOOK_COLUMNS:].strip() == ""
+
+
+def test_terminal_reporter_still_uses_cursor_up():
+    """Characterization: the terminal reporter keeps its nested layout, cursor codes and all."""
+    reporter = RichProgressReporter(console=_notebook_console())
+    out = _render(reporter, ("batch", "engine"), [
+        ProgressEvent(source="batch", step=1, total=10, details="b"),
+        ProgressEvent(source="engine", step=1, total=3, details="e"),
+    ])
+    assert "\x1b[1A" in out
+
+
+def test_notebook_console_flags():
+    console = RichNotebookProgressReporter()._console
+    assert console.is_jupyter is False
+    assert console.is_terminal is True
+    assert console.legacy_windows is False
+    assert console.width == NOTEBOOK_COLUMNS
+
+
+def test_notebook_console_overrides_rich_jupyter_detection(monkeypatch):
+    """A stock Console would go Jupyter here; ours must not."""
+    _fake_kernel(monkeypatch)
+    from rich.console import Console
+
+    assert Console().is_jupyter is True  # the fake is doing its job
+    assert RichNotebookProgressReporter()._console.is_jupyter is False
+
+
+def test_notebook_reporter_emits_no_ipywidgets_warning(monkeypatch):
+    """End-to-end guard: rich's Jupyter path warns and renders nothing without ipywidgets."""
+    _fake_kernel(monkeypatch)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        out = _render(RichNotebookProgressReporter(), ("batch",), [
+            ProgressEvent(source="batch", step=1, total=2, details="b"),
+        ])
+    assert "Train" in _ANSI.sub("", out)
+
+
+def test_notebook_reporter_uses_one_task_for_both_sources():
+    reporter = RichNotebookProgressReporter()
+    reporter.start("Train", sources=("batch", "engine"))
+    try:
+        assert len(set(reporter._tasks.values())) == 1
+        assert len(reporter._progress.tasks) == 1
+    finally:
+        reporter.finish(success=True, duration=timedelta(seconds=1))
+
+
+def test_notebook_reporter_engine_does_not_move_the_bar():
+    """``batch`` owns the bar; ``engine`` may only contribute text."""
+    reporter = RichNotebookProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch", "engine"))
+    try:
+        reporter.update(ProgressEvent(source="batch", step=5, total=10, details="b"))
+        reporter.update(ProgressEvent(source="engine", step=1, total=3, details="e"))
+        task = reporter._progress.tasks[0]
+        assert (task.completed, task.total) == (5, 10)
+        assert "engine 1/3" in task.fields["details"]
+    finally:
+        reporter.finish(success=True, duration=timedelta(seconds=1))
+
+
+def test_notebook_reporter_engine_only_drives_the_bar():
+    """With no batch source, engine is promoted to owning the bar."""
+    reporter = RichNotebookProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Analyze", sources=("engine",))
+    try:
+        reporter.update(ProgressEvent(source="engine", step=3, total=6, details="computing"))
+        task = reporter._progress.tasks[0]
+        assert (task.completed, task.total) == (3, 6)
+    finally:
+        reporter.finish(success=True, duration=timedelta(seconds=1))
+
+
+def test_notebook_reporter_ignores_undeclared_source():
+    """Same Protocol contract as the other reporters."""
+    reporter = RichNotebookProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Analyze", sources=("engine",))
+    try:
+        reporter.update(ProgressEvent(source="batch", step=9, total=9, details="nope"))
+        assert reporter._progress.tasks[0].completed == 0
+    finally:
+        reporter.finish(success=True, duration=timedelta(seconds=1))
+
+
+def test_notebook_reporter_empty_sources_starts_no_live_region():
+    """No sources: no bar, no FileProxy swap — but still a completion line."""
+    reporter = RichNotebookProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=())
+    assert reporter._progress is None
+    assert not hasattr(sys.stdout, "rich_proxied_file")  # no FileProxy installed
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert "Train complete in" in _ANSI.sub("", buf.getvalue())
+
+
+def test_notebook_reporter_restores_stdio():
+    """A leaked FileProxy in a kernel is sticky, so finish() must always unwind it."""
+    original_out, original_err = sys.stdout, sys.stderr
+    reporter = RichNotebookProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch",))
+    assert hasattr(sys.stdout, "rich_proxied_file")  # rich swapped it in
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert sys.stdout is original_out
+    assert sys.stderr is original_err
+
+
+@pytest.mark.parametrize(("raw", "expected"), [
+    ("plain", "plain"),
+    ("two\nlines", "two lines"),
+    ("tabs\tand\r\nnewlines", "tabs and newlines"),
+    ("  collapses   runs  ", "collapses runs"),
+])
+def test_one_line_flattens_whitespace(raw, expected):
+    assert _one_line(raw) == expected
+
+
+def test_one_line_truncates_with_ellipsis():
+    assert _one_line("x" * 100, limit=10) == "x" * 9 + "\u2026"
+
+
+def test_auto_reporter_notebook_picks_rich_notebook(monkeypatch):
+    monkeypatch.delenv("DATABRICKS_RUNTIME_VERSION", raising=False)
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    assert type(auto_reporter()) is RichNotebookProgressReporter
+
+
+def test_auto_reporter_tty_wins_over_notebook(monkeypatch):
+    """Terminal IPython is a notebook by our heuristic but should keep the full layout."""
+    monkeypatch.delenv("DATABRICKS_RUNTIME_VERSION", raising=False)
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    assert type(auto_reporter()) is RichProgressReporter
+
+
+def test_auto_reporter_simple_env_wins_in_notebook(monkeypatch):
+    """HOWSO_SIMPLE_PROGRESS remains the escape hatch back to the old behavior."""
+    monkeypatch.setenv("HOWSO_SIMPLE_PROGRESS", "1")
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    assert type(auto_reporter()) is SimpleProgressReporter
+
+
+class _FakeDisplayHandle:
+    """Stands in for an IPython ``DisplayHandle``, recording every frame."""
+
+    def __init__(self) -> None:  # pyright: ignore[reportMissingSuperCall]
+        self.frames: list[Any] = []
+
+    def update(self, renderable: Any) -> None:
+        self.frames.append(renderable)
+
+
+def _fake_display(monkeypatch) -> _FakeDisplayHandle:
+    """
+    Install a stub ``IPython.display.display`` and return its handle.
+
+    A stub rather than a real kernel: IPython is not a declared dependency, so
+    CI has no ipykernel to render into. The handle records what would have been
+    pushed, which is exactly what these tests assert on.
+    """
+    handle = _FakeDisplayHandle()
+
+    def display(renderable, display_id=None):  # noqa: ARG001
+        handle.frames.append(renderable)
+        return handle
+
+    module = SimpleNamespace(display=display)
+    monkeypatch.setitem(sys.modules, "IPython.display", module)
+    monkeypatch.setitem(sys.modules, "IPython", SimpleNamespace(
+        display=module, get_ipython=lambda: object()))
+    return handle
+
+
+def _rows(renderable) -> list[str]:
+    """Return the visible lines of one pushed frame."""
+    plain = renderable._repr_mimebundle_([], [])["text/plain"]
+    return [line for line in plain.splitlines() if line.strip()]
+
+
+@pytest.mark.parametrize("sources", [(), ("batch",), ("engine",)])
+def test_display_reporter_stays_inline_for_a_single_bar(monkeypatch, sources):
+    """One bar needs no display slot, and claiming one would fragment the cell."""
+    handle = _fake_display(monkeypatch)
+    reporter = RichDisplayProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=sources)
+    for source in sources:
+        reporter.update(ProgressEvent(source=source, step=5, total=5, details="b"))
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert handle.frames == []
+    assert "Train complete in" in _ANSI.sub("", buf.getvalue())
+
+
+def test_overwrite_writer_pads_before_an_embedded_newline():
+    """
+    Verify padding lands on the line being padded, not the one after it.
+
+    A frame's trailing newline is not the last thing in its write — rich
+    appends a show-cursor code after it — so treating the write as one unit put
+    the blanks after the newline, visibly indenting whatever came next.
+    """
+    sink = io.StringIO()
+    writer = _OverwriteSafeWriter(sink)
+    writer.write("\rTHIS-FIRST-FRAME-IS-LONG")     # sets the width to cover
+    writer.write("\rshort\n\x1b[?25h")             # newline is NOT last
+    first_line, _, rest = sink.getvalue().partition("\n")
+    assert first_line.endswith(" ")                # padded, on its own line
+    assert not rest.startswith(" ")                # and nothing spilled over
+
+
+def test_overwrite_writer_pads_only_when_the_frame_shrinks():
+    """A frame at least as long as its predecessor needs no padding at all."""
+    sink = io.StringIO()
+    writer = _OverwriteSafeWriter(sink)
+    writer.write("\rshort")
+    writer.write("\rmuch-longer-frame")
+    assert sink.getvalue() == "\rshort\rmuch-longer-frame"
+
+
+def test_notebook_reporter_keeps_the_writer_through_stop(monkeypatch):
+    """
+    Verify the overwrite-safe writer is still installed when Progress stops.
+
+    ``Progress.stop()`` runs inside ``super().finish()`` and emits one last
+    frame. Restoring the plain file before that call left the final frame
+    unpadded against a much longer predecessor, which is the residue that
+    reached a user. This asserts the ordering directly: with the quiet bar the
+    last frame now happens to be the longest, so the defect no longer shows up
+    in the output it produces, and a test on residue alone would not catch a
+    regression here.
+    """
+    reporter = RichNotebookProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch",))
+    seen: dict[str, str] = {}
+    original = RichProgressReporter.finish
+
+    def spy(self, **kwargs):  # noqa: ANN003
+        seen["file"] = type(self._console.file).__name__
+        return original(self, **kwargs)
+
+    monkeypatch.setattr(RichProgressReporter, "finish", spy)
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert seen["file"] == "_OverwriteSafeWriter"
+
+
+def test_notebook_reporter_bar_never_pulses():
+    """
+    Verify an unknown total renders a static track, not a pulse.
+
+    A pulse frame spends ~980 characters on a colour gradient where the
+    determinate frame replacing it needs ~165, and on a carriage-return
+    repaint that entire disparity has to be padded over as blanks.
+    """
+    reporter = RichNotebookProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch",))
+    reporter._progress.refresh()
+    reporter.update(ProgressEvent(source="batch", step=1, total=120, details="b"))
+    reporter._progress.refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    # Measure the pulse itself, not its knock-on size: the writer pads every
+    # frame up to the running maximum, so a length comparison would be masked
+    # by the very padding the pulse makes necessary.
+    first = next(c for c in buf.getvalue().split("\r") if "\u2501" in c)
+    colours = set(re.findall(r"\x1b\[([0-9;]+)m", first))
+    assert len(colours) <= 6, f"gradient detected, {len(colours)} colours"
+
+
+@pytest.mark.parametrize("sources", [("batch", "engine")])
+def test_display_reporter_uses_a_slot_for_every_bar(monkeypatch, sources):
+    """
+    Verify even a lone bar is rendered through a display slot.
+
+    Sending a single bar to stdout instead would close the vertical gap between
+    groups, but stdout repaints in place with a carriage return, and rich's
+    frames shrink drastically — a ~980 character pulse frame is replaced by a
+    ~165 character determinate one. The survivors begin mid-escape-sequence and
+    render as literal text. A display slot replaces its content outright, so
+    that cannot happen.
+    """
+    handle = _fake_display(monkeypatch)
+    reporter = RichDisplayProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=sources)
+    for source in sources:
+        reporter.update(ProgressEvent(source=source, step=5, total=5, details="b"))
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert handle.frames                       # a slot was claimed
+    assert len(_rows(handle.frames[-1])) == len(sources) + 1   # bars + completion
+
+
+def test_display_reporter_renders_both_bars(monkeypatch):
+    """The headline feature: the nested layout the ANSI path had to give up."""
+    handle = _fake_display(monkeypatch)
+    reporter = RichDisplayProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch", "engine"))
+    reporter.update(ProgressEvent(source="batch", step=1, total=5, details="batch 1"))
+    reporter.update(ProgressEvent(source="engine", step=2, total=5, details="step 2"))
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    rows = _rows(handle.frames[-1])
+    assert len(rows) == 3               # two bars plus the completion line
+    assert "Train" in rows[0]
+    assert "engine" in rows[1]          # the indented inner track
+    assert "engine" not in rows[0]
+
+
+def test_display_reporter_puts_completion_line_in_the_same_block(monkeypatch):
+    """
+    Verify the summary shares one output block with the bars.
+
+    A notebook renders a stdout stream and an HTML display as two separate
+    outputs, each with its own vertical padding, so printing the line instead
+    of folding it in leaves a conspicuous gap under the bars.
+    """
+    handle = _fake_display(monkeypatch)
+    reporter = RichDisplayProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch", "engine"))
+    reporter.update(ProgressEvent(source="batch", step=5, total=5, details="b"))
+    reporter.finish(success=True, duration=timedelta(seconds=3))
+    rows = _rows(handle.frames[-1])
+    assert "Train complete in" in rows[-1]      # folded into the display slot
+    assert "complete in" not in buf.getvalue()  # and NOT printed to stdout
+
+
+def test_display_reporter_emits_no_control_codes(monkeypatch):
+    """Nothing is repainted in place, so no cursor motion should appear at all."""
+    handle = _fake_display(monkeypatch)
+    reporter = RichDisplayProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch", "engine"))
+    reporter.update(ProgressEvent(source="batch", step=1, total=5, details="b"))
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    payload = "".join(f._repr_mimebundle_([], [])["text/html"] for f in handle.frames)
+    assert "\x1b[" not in payload
+    assert "\x1b[1A" not in buf.getvalue()   # nor on the completion line
+
+
+def test_display_reporter_strips_the_pre_margin(monkeypatch):
+    """
+    Verify the notebook HTML carries no outer margin.
+
+    rich emits a bare ``<pre>``, which browsers default to ``margin: 1em 0``.
+    Each progress group is its own output block, so those margins stack
+    between groups and show up as a large gap.
+    """
+    handle = _fake_display(monkeypatch)
+    reporter = RichDisplayProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch", "engine"))
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert handle.frames                        # guard: not vacuously true
+    for frame in handle.frames:
+        bundle = frame._repr_mimebundle_([], [])
+        assert bundle["text/html"].startswith('<pre style="margin:0;')
+        assert "text/plain" in bundle      # the fallback must survive wrapping
+
+
+def test_display_reporter_throttles_pushes(monkeypatch):
+    """Events arrive far faster than a reader can follow, and each push costs HTML."""
+    handle = _fake_display(monkeypatch)
+    clock = iter([0.0] + [0.01 * i for i in range(1, 60)])
+    monkeypatch.setattr("howso.utilities.progress.monotonic", lambda: next(clock))
+    reporter = RichDisplayProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch", "engine"))
+    for i in range(1, 21):   # 20 events across ~0.2s, well under 1/4s apart
+        reporter.update(ProgressEvent(source="batch", step=i, total=20, details="b"))
+    pushed_during_updates = len(handle.frames)
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert 0 < pushed_during_updates < 20   # throttled, but not silent
+
+
+def test_display_reporter_always_pushes_the_final_frame(monkeypatch):
+    """A last event inside the throttle window must not leave the bar short of 100%."""
+    handle = _fake_display(monkeypatch)
+    reporter = RichDisplayProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch", "engine"))
+    reporter.update(ProgressEvent(source="batch", step=20, total=20, details="done"))
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert "20/20" in _rows(handle.frames[-1])[0]
+
+
+def test_display_reporter_empty_sources_claims_no_slot(monkeypatch):
+    handle = _fake_display(monkeypatch)
+    reporter = RichDisplayProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=())
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert handle.frames == []
+    assert "Train complete in" in _ANSI.sub("", buf.getvalue())
+
+
+def test_display_reporter_keeps_richs_stock_bar_palette():
+    """
+    Verify the bar keeps rich's stock styles.
+
+    The HTML path bakes literal hex, and rich's stock styles bake to exactly
+    the RGB a truecolor terminal shows. Restyling the bar would break that
+    match.
+    """
+    bar = next(c for c in RichDisplayProgressReporter()._make_columns()
+               if isinstance(c, BarColumn))
+    assert (bar.style, bar.complete_style, bar.finished_style, bar.pulse_style) == (
+        "bar.back", "bar.complete", "bar.finished", "bar.pulse",
+    )
+
+
+def test_display_handle_available_requires_a_live_shell(monkeypatch):
+    monkeypatch.setitem(sys.modules, "IPython", SimpleNamespace(get_ipython=lambda: None))
+    assert _display_handle_available() is False
+    monkeypatch.delitem(sys.modules, "IPython", raising=False)
+    assert _display_handle_available() is False
+
+
+def test_auto_reporter_notebook_with_display_picks_display_reporter(monkeypatch):
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: True)
+    assert type(auto_reporter()) is RichDisplayProgressReporter
+
+
+def test_auto_reporter_notebook_without_display_falls_back_to_ansi(monkeypatch):
+    """A Databricks runtime that never imported IPython still gets a working bar."""
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: False)
+    assert type(auto_reporter()) is RichNotebookProgressReporter
+
+
+def test_auto_reporter_databricks_picks_rich_notebook(monkeypatch):
+    """Databricks lost its carve-out and is now treated as an ordinary notebook."""
     monkeypatch.setenv("DATABRICKS_RUNTIME_VERSION", "13.3.x-scala2.12")
-    assert isinstance(auto_reporter(), SimpleProgressReporter)
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    assert type(auto_reporter()) is RichNotebookProgressReporter
 
 
 def test_auto_reporter_simple_env_set(monkeypatch):
@@ -289,21 +891,23 @@ def test_auto_reporter_simple_env_zero_is_falsy(monkeypatch):
     monkeypatch.delenv("DATABRICKS_RUNTIME_VERSION", raising=False)
     monkeypatch.setenv("HOWSO_SIMPLE_PROGRESS", "0")
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-    assert isinstance(auto_reporter(), RichProgressReporter)
+    assert type(auto_reporter()) is RichProgressReporter
 
 
 def test_auto_reporter_non_tty_falls_back_to_simple(monkeypatch):
+    """Neither a tty nor a notebook — a pipe or CI log — still gets plain lines."""
     monkeypatch.delenv("DATABRICKS_RUNTIME_VERSION", raising=False)
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
-    assert isinstance(auto_reporter(), SimpleProgressReporter)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: False)
+    assert type(auto_reporter()) is SimpleProgressReporter
 
 
 def test_auto_reporter_tty_picks_rich(monkeypatch):
     monkeypatch.delenv("DATABRICKS_RUNTIME_VERSION", raising=False)
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-    assert isinstance(auto_reporter(), RichProgressReporter)
+    assert type(auto_reporter()) is RichProgressReporter
 
 
 @pytest.fixture(autouse=True)

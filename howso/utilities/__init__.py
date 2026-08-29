@@ -22,6 +22,8 @@ from howso.utilities.monitors import (
 from howso.utilities.progress import (
     ProgressEvent,
     ProgressReporter,
+    RichDisplayProgressReporter,
+    RichNotebookProgressReporter,
     RichProgressReporter,
     SimpleProgressReporter,
     auto_progress,
@@ -93,6 +95,8 @@ __all__ = [
     "ProgressEvent",
     "ProgressReporter",
     "ProgressTimer",
+    "RichDisplayProgressReporter",
+    "RichNotebookProgressReporter",
     "RichProgressReporter",
     "SimpleProgressReporter",
     "SingleTableFeatureAttributes",
