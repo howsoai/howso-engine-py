@@ -1380,6 +1380,36 @@ def test_stepped_bar_stays_red_until_the_session_ends(success, final_color):
     assert _bar_color(final) == [final_color]
 
 
+def test_nothing_looks_finished_while_the_session_runs():
+    """
+    Verify no column treats the engine's last step as the session ending.
+
+    rich keys three separate behaviours off ``completed >= total``: it freezes
+    the elapsed clock, switches the bar to its finished style, and blanks the
+    spinner. All three are wrong here — the engine reporting its final step
+    says nothing about when the call returns. Each was found and fixed
+    separately; this covers the property they share.
+    """
+    reporter = RichNotebookProgressReporter()
+    sink = io.StringIO()
+    reporter._console.file = sink
+    reporter.start("Analyze", sources=("engine",))
+    reporter.update(ProgressEvent(source="engine", step=1, total=1, details=""))
+    progress = _require_progress(reporter)
+    task = progress.tasks[0]
+    assert task.finished, "rich should consider the task done — that is the trap"
+    assert task.start_time is not None
+    task.start_time -= 20
+    progress.refresh()
+    row = _ANSI.sub("", [f for f in sink.getvalue().split("\r")
+                         if "\u2501" in f][-1]).split("\n")[0]
+    raw = [f for f in sink.getvalue().split("\r") if "\u2501" in f][-1]
+    assert row.strip()[:1] != "A", "spinner must still be turning"   # not the label
+    assert _bar_color(raw) == ["31"], "bar must still read as running"
+    assert "0:00:20" in row, "clock must still be counting"
+    reporter.finish(success=True, duration=timedelta(seconds=20))
+
+
 def test_elapsed_keeps_running_after_the_engine_reports_its_last_step():
     """
     Verify the clock tracks the session, not the engine's last step.

@@ -717,7 +717,12 @@ class _StateSpinnerColumn(SpinnerColumn):
         """
         if task.fields.get("done"):
             return self.finished_text
-        return super().render(task)
+        # Not ``super().render``: rich blanks its spinner on ``task.finished``,
+        # which is ``completed >= total``. The engine reporting its last step is
+        # not the call returning, so that stops the spinner while the work
+        # carries on — the same mistake that froze the elapsed clock and turned
+        # the bar green early. Only the session ending stops it.
+        return self.spinner.render(task.get_time())
 
 
 class _StateBarColumn(BarColumn):
