@@ -1599,12 +1599,12 @@ def _format_eta(eta: timedelta | None, *, long: bool = True) -> str:
     Returns
     -------
     str
-        ``"Est. Remaining: 0:01:23"``, ``"ETA 0:01:23"``, or ``""`` when there
+        ``"est. remaining: 0:01:23"``, ``"ETA 0:01:23"``, or ``""`` when there
         is no usable estimate.
     """
     if eta is None or eta.total_seconds() < 0:
         return ""
-    label = "Est. Remaining:" if long else "ETA"
+    label = "est. remaining:" if long else "ETA"
     return f"{label} {timedelta(seconds=int(eta.total_seconds()))}"
 
 
