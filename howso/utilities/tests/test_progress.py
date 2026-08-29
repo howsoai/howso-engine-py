@@ -38,8 +38,10 @@ from howso.utilities.monitors import ProgressTimer
 from howso.utilities.progress import (
     _auto_progress_enabled,  # pyright: ignore[reportPrivateUsage]
     _display_handle_available,  # pyright: ignore[reportPrivateUsage]
+    _experimental_notebook_reporter,  # pyright: ignore[reportPrivateUsage]
     _format_eta,  # pyright: ignore[reportPrivateUsage]
     _in_notebook,  # pyright: ignore[reportPrivateUsage]
+    _interactive_frontend,  # pyright: ignore[reportPrivateUsage]
     _notebook_console,  # pyright: ignore[reportPrivateUsage]
     _one_line,  # pyright: ignore[reportPrivateUsage]
     _OverwriteSafeWriter,  # pyright: ignore[reportPrivateUsage]
@@ -556,9 +558,11 @@ def test_one_line_truncates_with_ellipsis():
 
 
 def test_auto_reporter_notebook_picks_rich_notebook(monkeypatch):
+    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
     monkeypatch.delenv("DATABRICKS_RUNTIME_VERSION", raising=False)
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: True)
     monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
     assert type(auto_reporter()) is RichNotebookProgressReporter
 
@@ -620,6 +624,7 @@ def _rows(renderable) -> list[str]:
 @pytest.mark.parametrize("sources", [(), ("batch",), ("engine",)])
 def test_display_reporter_stays_inline_for_a_single_bar(monkeypatch, sources):
     """One bar needs no display slot, and claiming one would fragment the cell."""
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: True)
     handle = _fake_display(monkeypatch)
     reporter = RichDisplayProgressReporter()
     buf = io.StringIO()
@@ -630,6 +635,36 @@ def test_display_reporter_stays_inline_for_a_single_bar(monkeypatch, sources):
     reporter.finish(success=True, duration=timedelta(seconds=1))
     assert handle.frames == []
     assert "Train complete in" in _ANSI.sub("", buf.getvalue())
+
+
+def test_overwrite_writer_drops_cursor_visibility_codes():
+    """
+    Verify the cursor show/hide codes never reach the notebook stream.
+
+    rich emits them because this console forces ``is_terminal``, but a notebook
+    has no cursor to hide. Most front-ends drop them silently; nbconvert's HTML
+    export handles only SGR codes and renders the rest literally, so they show
+    up as a stray ``[?25l`` above the bars.
+    """
+    sink = io.StringIO()
+    writer = _OverwriteSafeWriter(sink)
+    writer.write("\x1b[?25l")
+    writer.write("\rframe")
+    writer.write("\x1b[?25h")
+    assert sink.getvalue() == "\rframe"
+
+
+def test_notebook_reporter_emits_no_cursor_codes():
+    """End-to-end: a full session leaks neither cursor code."""
+    reporter = RichNotebookProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch",))
+    reporter._progress.refresh()
+    reporter.update(ProgressEvent(source="batch", step=150, total=150, details="b"))
+    reporter._progress.refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert "\x1b[?25" not in buf.getvalue()
 
 
 def test_overwrite_writer_pads_before_an_embedded_newline():
@@ -863,7 +898,9 @@ def test_display_handle_available_requires_a_live_shell(monkeypatch):
 
 def test_auto_reporter_notebook_with_display_picks_display_reporter(monkeypatch):
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: True)
     monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
     monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: True)
     assert type(auto_reporter()) is RichDisplayProgressReporter
@@ -871,8 +908,10 @@ def test_auto_reporter_notebook_with_display_picks_display_reporter(monkeypatch)
 
 def test_auto_reporter_notebook_without_display_falls_back_to_ansi(monkeypatch):
     """A Databricks runtime that never imported IPython still gets a working bar."""
+    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: True)
     monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
     monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: False)
     assert type(auto_reporter()) is RichNotebookProgressReporter
@@ -881,7 +920,7 @@ def test_auto_reporter_notebook_without_display_falls_back_to_ansi(monkeypatch):
 def test_format_eta_drops_sub_second_precision():
     """A timedelta stringifies with microseconds, which is false precision here."""
     assert _format_eta(timedelta(seconds=83, microseconds=456789)) == (
-        "Est. Remaining: 0:01:23"
+        "est. remaining: 0:01:23"
     )
 
 
@@ -898,15 +937,15 @@ def test_format_eta_shortens_the_label_on_a_narrow_console():
     spelled-out form pushes the counter and elapsed time into ellipses, while
     the short form leaves them intact.
     """
-    assert _format_eta(timedelta(seconds=83), long=True) == "Est. Remaining: 0:01:23"
+    assert _format_eta(timedelta(seconds=83), long=True) == "est. remaining: 0:01:23"
     assert _format_eta(timedelta(seconds=83), long=False) == "ETA 0:01:23"
     # and a bar reporter picks between them from its console width
     assert RichProgressReporter(
         console=Console(width=ETA_LABEL_MIN_WIDTH)
-    )._eta_text(timedelta(seconds=83)).startswith("Est. Remaining:")
+    )._eta_text(timedelta(seconds=83)) == _format_eta(timedelta(seconds=83), long=True)
     assert RichProgressReporter(
         console=Console(width=ETA_LABEL_MIN_WIDTH - 1)
-    )._eta_text(timedelta(seconds=83)).startswith("ETA")
+    )._eta_text(timedelta(seconds=83)) == _format_eta(timedelta(seconds=83), long=False)
 
 
 def test_batch_callback_carries_an_estimate():
@@ -931,7 +970,7 @@ def test_batch_callback_withholds_the_estimate_at_tick_zero():
     class _FiresAtTickZero:
         id = "fake-trainee"
 
-        def __init__(self):
+        def __init__(self) -> None:
             self.client = _FakeClient()
 
         def cb_only(self, *, progress_callback=None):
@@ -956,7 +995,7 @@ def test_rich_reporter_renders_the_estimate():
         ProgressEvent(source="batch", step=5, total=10, details="batch 2",
                       eta=timedelta(seconds=83)),
     ])
-    assert "Est. Remaining: 0:01:23" in _ANSI.sub("", out)
+    assert _format_eta(timedelta(seconds=83)) in _ANSI.sub("", out)
 
 
 def test_simple_reporter_renders_the_estimate(capsys):
@@ -966,15 +1005,136 @@ def test_simple_reporter_renders_the_estimate(capsys):
                                   details="batch 3", eta=timedelta(seconds=83)))
     reporter.update(ProgressEvent(source="batch", step=2400, total=10000, details="batch 6"))
     out = capsys.readouterr().out
-    assert "batch 3 · Est. Remaining: 0:01:23" in out
+    assert f"batch 3 · {_format_eta(timedelta(seconds=83))}" in out
     assert "batch 6\n" in out          # no stray separator when there is no estimate
+
+
+def test_experimental_notebook_reporter_is_off_by_default(monkeypatch):
+    monkeypatch.delenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", raising=False)
+    assert _experimental_notebook_reporter() is False
+    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
+    assert _experimental_notebook_reporter() is True
+    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "0")
+    assert _experimental_notebook_reporter() is False
+
+
+def test_interactive_frontend_false_without_ipython(monkeypatch):
+    monkeypatch.delitem(sys.modules, "IPython", raising=False)
+    assert _interactive_frontend() is False
+
+
+@pytest.mark.parametrize(("shell", "expected"), [
+    (SimpleNamespace(kernel=SimpleNamespace(_allow_stdin=True)), True),
+    (SimpleNamespace(kernel=SimpleNamespace(_allow_stdin=False)), False),
+    (SimpleNamespace(kernel=SimpleNamespace()), False),   # field omitted
+    (SimpleNamespace(), False),                           # no kernel at all
+    (None, False),                                        # no shell
+])
+def test_interactive_frontend_reads_allow_stdin(monkeypatch, shell, expected):
+    """
+    Verify headless execution is distinguished from a live front-end.
+
+    ``nbclient`` — and so nbconvert and papermill — hard-codes
+    ``allow_stdin = False``, while JupyterLab's client defaults it to true.
+    A front-end that omits the field reads as False, which degrades to plain
+    lines rather than to corrupted output.
+    """
+    monkeypatch.setitem(sys.modules, "IPython",
+                        SimpleNamespace(get_ipython=lambda: shell))
+    assert _interactive_frontend() is expected
+
+
+def test_auto_reporter_headless_notebook_still_gets_the_display_slot(monkeypatch):
+    """
+    Verify an nbconvert/papermill run keeps the rich bars.
+
+    nbclient's ``_update_display_id`` replaces an output's data in place, so
+    every repaint overwrites the same output and the saved notebook keeps the
+    final frame as ordinary HTML — which exports faithfully.
+    """
+    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    assert type(auto_reporter()) is RichDisplayProgressReporter
+
+
+def test_auto_reporter_headless_without_display_uses_simple(monkeypatch):
+    """
+    Verify the carriage-return repaint is never chosen headlessly.
+
+    Nothing applies it there, so each frame is committed to the document as its
+    own line.
+    """
+    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    assert type(auto_reporter()) is SimpleProgressReporter
+
+
+def test_display_reporter_uses_a_slot_headlessly_even_for_one_bar(monkeypatch):
+    """A lone bar must not take the repaint path when nothing will apply it."""
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    handle = _fake_display(monkeypatch)
+    reporter = RichDisplayProgressReporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch",))
+    reporter.update(ProgressEvent(source="batch", step=5, total=5, details="b"))
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert reporter._inline is None
+    assert handle.frames
+
+
+def test_auto_reporter_notebook_with_display_but_flag_off_uses_simple(monkeypatch):
+    """
+    Verify the whole rich notebook branch is opt-in, not just the ANSI half.
+
+    Rich progress in a notebook rests on undocumented front-end behavior either
+    way — an in-place repaint, or the display-update protocol — so with the flag
+    unset a notebook takes the path it always did.
+    """
+    monkeypatch.delenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", raising=False)
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: True)
+    assert type(auto_reporter()) is SimpleProgressReporter
+
+
+def test_auto_reporter_tty_is_unaffected_by_the_flag(monkeypatch):
+    """A real terminal keeps the full reporter whether or not the flag is set."""
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+    for value in ("1", None):
+        if value is None:
+            monkeypatch.delenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", raising=False)
+        else:
+            monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", value)
+        assert type(auto_reporter()) is RichProgressReporter
+
+
+def test_auto_reporter_notebook_without_display_and_flag_off_uses_simple(monkeypatch):
+    """With no display slot and no opt-in, fall back to plain lines."""
+    monkeypatch.delenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", raising=False)
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: False)
+    assert type(auto_reporter()) is SimpleProgressReporter
 
 
 def test_auto_reporter_databricks_picks_rich_notebook(monkeypatch):
     """Databricks lost its carve-out and is now treated as an ordinary notebook."""
+    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
     monkeypatch.setenv("DATABRICKS_RUNTIME_VERSION", "13.3.x-scala2.12")
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: True)
     assert type(auto_reporter()) is RichNotebookProgressReporter
 
 

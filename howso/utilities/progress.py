@@ -575,6 +575,12 @@ class _OverwriteSafeWriter:
 
     _PAD = " "
 
+    # Cursor show/hide, which rich emits because we force ``is_terminal``.
+    # There is no cursor to hide in a notebook, so these are pure noise: most
+    # front-ends drop them, but nbconvert's HTML export handles only SGR codes
+    # and renders the rest as literal text — a stray ``[?25l`` above the bars.
+    _CURSOR_CODES = ("\x1b[?25l", "\x1b[?25h")
+
     def __init__(self, wrapped: Any) -> None:
         """Initialize the writer."""
         self._wrapped = wrapped
@@ -595,6 +601,10 @@ class _OverwriteSafeWriter:
         int
             Characters written by the underlying file.
         """
+        for code in self._CURSOR_CODES:
+            text = text.replace(code, "")
+        if not text:
+            return 0
         if "\r" in text:
             # Pad the current line only: what is on screen is the text after the
             # last carriage return, up to the newline that ends the region. A
@@ -812,6 +822,56 @@ class RichNotebookProgressReporter(RichProgressReporter):
                 setattr(sys, name, proxied)
 
 
+def _experimental_notebook_reporter() -> bool:
+    """
+    Report whether rich progress in a notebook is opted into.
+
+    Rich progress in a notebook rests on behavior no front-end documents — an
+    in-place carriage-return repaint, or the display-update protocol — so the
+    whole notebook branch is opt-in. With the flag unset a notebook takes the
+    same path it always did: :class:`SimpleProgressReporter`. A real terminal
+    is unaffected either way and keeps :class:`RichProgressReporter`.
+
+    Returns
+    -------
+    bool
+        True when the environment variable is set to a truthy value.
+    """
+    return _parse_tristate(os.environ.get("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER")) is True
+
+
+def _interactive_frontend() -> bool:
+    """
+    Report whether a live front-end is driving this kernel.
+
+    A notebook executed headlessly — ``nbconvert``, ``papermill``, anything
+    built on ``nbclient`` — runs a real kernel with a real IPython shell, so
+    every other notebook check passes, but nothing is rendering the output
+    interactively. Its HTML export handles only SGR escape codes and does not
+    implement carriage-return overwrite at all, so an in-place repaint is
+    committed to the document one frame per line.
+
+    The signal is the execute request's ``allow_stdin`` flag, which the kernel
+    records per request. ``nbclient`` hard-codes ``self.kc.allow_stdin = False``
+    while JupyterLab's client defaults it to ``true``. Anything that omits the
+    field reads as ``False`` (``kernelbase`` does ``content.get("allow_stdin",
+    False)``), so an unrecognized front-end degrades to plain lines rather than
+    to corrupted output — the safe direction.
+
+    Returns
+    -------
+    bool
+        True when the current execution can prompt for input, and therefore has
+        someone watching it.
+    """
+    ipython_mod = sys.modules.get("IPython")
+    if ipython_mod is None:
+        return False
+    get_ipython = getattr(ipython_mod, "get_ipython", None)
+    shell = get_ipython() if callable(get_ipython) else None
+    return bool(getattr(getattr(shell, "kernel", None), "_allow_stdin", False))
+
+
 def _display_handle_available() -> bool:
     """
     Report whether an updatable IPython display slot can be created.
@@ -985,7 +1045,10 @@ class RichDisplayProgressReporter(RichProgressReporter):
         self._label = label
         self._handle = None
         self._inline = None
-        if len(sources) < 2:
+        if not sources:
+            # Nothing to track: no slot, no delegate, just the completion line.
+            return
+        if len(sources) < 2 and _interactive_frontend():
             # A display slot buys exactly one thing: room for more than one
             # line. A single bar does not need it, and claiming one would split
             # the cell — a notebook merges consecutive stdout writes into a
@@ -1254,10 +1317,11 @@ def auto_reporter(*, console: Console | None = None) -> ProgressReporter:
        (``1``/``on``/``true``/``yes``) forces the line-printing reporter. This
        is the escape hatch from everything below.
     2. A tty gets :class:`RichProgressReporter` — the full nested layout.
-    3. A notebook kernel with a live IPython shell gets
-       :class:`RichDisplayProgressReporter`, which repaints a display slot and
-       so renders the full nested layout. Without one — a Databricks runtime
-       where ``IPython`` was never imported, for instance — it falls back to
+    3. A notebook kernel gets a rich reporter **only** when
+       ``HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER`` is set. With a live IPython
+       shell, :class:`RichDisplayProgressReporter`, which repaints a display
+       slot and so renders the full nested layout; without one — a Databricks
+       runtime where ``IPython`` was never imported, for instance —
        :class:`RichNotebookProgressReporter`, a single bar drawn with only the
        control codes those front-ends honor.
     4. Anything else — a pipe, a redirect, a CI log — gets
@@ -1283,10 +1347,16 @@ def auto_reporter(*, console: Console | None = None) -> ProgressReporter:
         return SimpleProgressReporter(console=console)
     if sys.stdout.isatty():
         return RichProgressReporter(console=console)
-    if _in_notebook():
+    if _in_notebook() and _experimental_notebook_reporter():
+        # The display slot survives headless execution: nbclient replaces the
+        # output's data in place for each update, so an nbconvert/papermill run
+        # stores the final frame as ordinary HTML and exports it faithfully.
         if _display_handle_available():
             return RichDisplayProgressReporter(console=console)
-        return RichNotebookProgressReporter(console=console)
+        # An in-place carriage-return repaint does not survive: nothing applies
+        # it, so every frame is committed to the document as its own line.
+        if _interactive_frontend():
+            return RichNotebookProgressReporter(console=console)
     return SimpleProgressReporter(console=console)
 
 
