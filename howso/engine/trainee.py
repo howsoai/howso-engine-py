@@ -66,10 +66,10 @@ from howso.utilities.progress import auto_progress, engine_polling_supported
 
 __all__ = [
     "Trainee",
+    "delete_trainee",
+    "get_trainee",
     "list_trainees",
     "load_trainee",
-    "get_trainee",
-    "delete_trainee",
     "query_trainees",
 ]
 
@@ -996,6 +996,7 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'set_auto_ablation_params' method.")
 
+    @auto_progress("Reduce data")
     def reduce_data(
         self,
         features: Collection[str] | None = None,
