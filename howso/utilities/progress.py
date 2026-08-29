@@ -739,6 +739,10 @@ class _StateBarColumn(BarColumn):
 
     PENDING_STYLE = "red"
     DONE_STYLE = "green"
+    # The unfilled track. rich's default is ``grey23``, a 256-cube index that no
+    # theme remaps — roughly #3a3a3a, which reads as *filled* on a light
+    # background. A named ANSI colour lands in the palette the front-end themes.
+    TRACK_STYLE = "bright_black"
 
     def render(self, task: Any) -> Any:
         """
@@ -754,12 +758,20 @@ class _StateBarColumn(BarColumn):
         ProgressBar or _SolidBar
             The bar to draw.
         """
+        succeeded = bool(task.fields.get("done") and task.fields.get("ok"))
+        style = self.DONE_STYLE if succeeded else self.PENDING_STYLE
         if task.total is None:
-            succeeded = task.fields.get("done") and task.fields.get("ok")
-            return _SolidBar(
-                self.DONE_STYLE if succeeded else self.PENDING_STYLE, self.bar_width
-            )
-        return super().render(task)
+            return _SolidBar(style, self.bar_width)
+        bar = super().render(task)
+        # Override rich's own styles rather than take them: it switches to
+        # ``finished_style`` as soon as ``completed >= total``, but the engine
+        # reporting its last step is not the call returning. A bar that goes
+        # green while the work carries on says the opposite of the elapsed time
+        # ticking beside it.
+        bar.complete_style = style
+        bar.finished_style = style
+        bar.style = self.TRACK_STYLE
+        return bar
 
 
 class _OverwriteSafeWriter(io.TextIOBase):
@@ -2040,7 +2052,14 @@ class _ElapsedColumn(TimeElapsedColumn):
         Text
             The elapsed time, or a placeholder before the task starts.
         """
-        elapsed = task.finished_time if task.finished else task.elapsed
+        # Deliberately not rich's ``finished_time if task.finished``: rich
+        # freezes that the instant ``completed >= total``, but the engine
+        # reporting its last step is not the call returning. An ``analyze``
+        # whose engine reported 1/1 after a second went on working for another
+        # seventeen, and the bar sat at 0:00:01 beside a completion line
+        # reading 0:00:18. ``elapsed`` keeps running until the Progress stops,
+        # which is the moment the session actually ends.
+        elapsed = task.elapsed
         if elapsed is None:
             return Text("-:--:--", style="progress.elapsed")
         return Text(_format_duration(timedelta(seconds=elapsed)), style="progress.elapsed")

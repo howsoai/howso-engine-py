@@ -40,6 +40,7 @@ from howso.utilities.progress import (
     _auto_progress_enabled,  # pyright: ignore[reportPrivateUsage]
     _display_handle_available,  # pyright: ignore[reportPrivateUsage]
     _experimental_notebook_reporter,  # pyright: ignore[reportPrivateUsage]
+    _format_duration,  # pyright: ignore[reportPrivateUsage]
     _format_eta,  # pyright: ignore[reportPrivateUsage]
     _in_notebook,  # pyright: ignore[reportPrivateUsage]
     _interactive_frontend,  # pyright: ignore[reportPrivateUsage]
@@ -297,6 +298,9 @@ def test_reporter_flushes_at_both_session_boundaries(reporter_cls, monkeypatch, 
 
 
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+
+# Every duration renders as H:MM:SS, hours running past a day.
+_DURATION = re.compile(r"\d+:\d\d:\d\d")
 
 
 def _require_progress(reporter: RichProgressReporter) -> Progress:
@@ -1330,6 +1334,81 @@ def test_spent_estimate_renders_as_nothing(eta):
     assert _format_eta(eta) == ""
 
 
+def test_every_color_is_theme_mappable():
+    """
+    Verify nothing is painted in a colour the notebook theme cannot remap.
+
+    Only ANSI palette indices 0-15 are themed. rich's stock track is
+    ``grey23`` — a 256-cube index around #3a3a3a, which no theme touches and
+    which reads as *filled* against a light background.
+    """
+    reporter = RichNotebookProgressReporter()
+    sink = io.StringIO()
+    reporter._console.file = sink
+    reporter.start("Train", sources=("batch",))
+    reporter.update(ProgressEvent(source="batch", step=40, total=120,
+                                  details="batch 2", eta=timedelta(seconds=83)))
+    _require_progress(reporter).refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=20))
+    fixed = {
+        code for code in re.findall(r"\x1b\[([0-9;]+)m", sink.getvalue())
+        if "38" in code.split(";") and {"2", "5"} & set(code.split(";"))
+    }
+    assert fixed == set(), f"not theme-mappable: {sorted(fixed)}"
+
+
+@pytest.mark.parametrize(("success", "final_color"), [(True, "32"), (False, "31")])
+def test_stepped_bar_stays_red_until_the_session_ends(success, final_color):
+    """
+    Verify a full bar does not turn green while the call is still running.
+
+    rich switches to its finished style as soon as ``completed >= total``, but
+    the engine reporting its last step is not the call returning — the same
+    mistake that froze the elapsed clock. A bar going green beside a still
+    ticking timer says the opposite of what the timer says.
+    """
+    reporter = RichNotebookProgressReporter()
+    sink = io.StringIO()
+    reporter._console.file = sink
+    reporter.start("Analyze", sources=("engine",))
+    reporter.update(ProgressEvent(source="engine", step=1, total=1, details=""))
+    _require_progress(reporter).refresh()
+    during = [f for f in sink.getvalue().split("\r") if "\u2501" in f][-1]
+    assert _bar_color(during) == ["31"], "a running session must not look finished"
+    reporter.finish(success=success, duration=timedelta(seconds=20))
+    final = [f for f in sink.getvalue().split("\r") if "\u2501" in f][-1]
+    assert _bar_color(final) == [final_color]
+
+
+def test_elapsed_keeps_running_after_the_engine_reports_its_last_step():
+    """
+    Verify the clock tracks the session, not the engine's last step.
+
+    rich sets ``finished_time`` the instant ``completed >= total`` and
+    ``TimeElapsedColumn`` freezes on it. But the engine reporting its final
+    step is not the call returning: an ``analyze`` whose engine reported 1/1
+    after a second went on working for another seventeen, and the bar sat at
+    ``0:00:01`` beside a completion line reading ``0:00:18``.
+    """
+    reporter = RichNotebookProgressReporter()
+    sink = io.StringIO()
+    reporter._console.file = sink
+    reporter.start("Analyze", sources=("engine",))
+    reporter.update(ProgressEvent(source="engine", step=1, total=1, details=""))
+    # Wind the start back rather than sleep: the task is now 20 seconds old
+    # while the engine has already reported everything it is going to.
+    task = _require_progress(reporter).tasks[0]
+    assert task.start_time is not None
+    task.start_time -= 20
+    _require_progress(reporter).refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=20))
+    # Only the bar row: the last chunk also carries the completion line, whose
+    # duration comes from finish() and would satisfy this assertion on its own.
+    bar_row = _ANSI.sub("", [f for f in sink.getvalue().split("\r")
+                             if "\u2501" in f][-1]).split("\n")[0]
+    assert "0:00:20" in bar_row, bar_row
+
+
 def test_engine_bar_completes_when_the_call_succeeds():
     """
     Verify a short-reporting engine still ends on a full bar.
@@ -1364,6 +1443,24 @@ def test_failed_engine_bar_stays_where_it_stopped():
     assert "2/3" in final
 
 
+@pytest.mark.parametrize(("seconds", "expected"), [
+    (0.987, "0:00:00"),
+    (9.5, "0:00:09"),
+    (83, "0:01:23"),
+    (3600, "1:00:00"),
+    (360000, "100:00:00"),
+])
+def test_durations_render_as_a_clock(seconds, expected):
+    """
+    Verify one duration format throughout, hours accumulating past a day.
+
+    ``str(timedelta)`` switches to ``"4 days, 4:00:00"`` past 24 hours, which
+    is 15 characters where the same value was 7 — enough to shift or clip a
+    pinned column on a run of the length these routinely reach.
+    """
+    assert _format_duration(timedelta(seconds=seconds)) == expected
+
+
 def test_completed_batch_drops_its_details_with_no_gap():
     """
     Verify the chunk index goes on completion, leaving exactly one space.
@@ -1382,7 +1479,7 @@ def test_completed_batch_drops_its_details_with_no_gap():
     final = _ANSI.sub("", [f for f in reporter._console.file.getvalue().split("\r")
                            if "\u2501" in f][-1])
     assert "batch 7" not in final
-    elapsed = re.search(r"\d+:\d\d:\d\d", final)
+    elapsed = _DURATION.search(final)
     assert elapsed
     before = final[:elapsed.start()]
     assert len(before) - len(before.rstrip()) == 1
@@ -1445,7 +1542,7 @@ def test_indeterminate_row_left_aligns_its_trailing_columns():
     finally:
         reporter.finish(success=True, duration=timedelta(seconds=1))
     bar_end = line.rindex("\u2501") + 1
-    elapsed = re.search(r"\d+:\d\d:\d\d", line)
+    elapsed = _DURATION.search(line)
     assert elapsed is not None
     # Exactly one space, the same as a batch row. An empty column still costs
     # its padding on both sides, so a details column that never has content
@@ -1508,7 +1605,7 @@ def test_activity_track_drops_the_counter_and_estimate():
     frames = _indeterminate_frames(RichProgressReporter(console=_notebook_console()))
     rendered = _ANSI.sub("", "".join(frames))
     assert "0/?" not in rendered
-    assert "0:00:0" in rendered      # elapsed is still shown
+    assert _DURATION.search(rendered)      # elapsed is still shown
 
 
 def test_notebook_reporter_renders_an_activity_session():
