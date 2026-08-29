@@ -284,7 +284,12 @@ class BaseProgressReporter:
             return ""
         marker = "[green]✓[/green]" if success else "[red]✗[/red]"
         status = "complete" if success else "failed"
-        return f"{marker} {self._label} {status} in {_format_duration(duration)}"
+        # Bold cyan to match the bar row above it, where the task name is
+        # already styled that way.
+        return (
+            f"{marker} [bold cyan]{self._label}[/bold cyan] "
+            f"{status} in {_format_duration(duration)}"
+        )
 
     def _flush_all(self) -> None:
         """
@@ -420,7 +425,9 @@ class RichProgressReporter(BaseProgressReporter):
             self._bar_column(),
             _CountColumn(),
             _ElapsedColumn(),
-            TextColumn("[dim]{task.fields[eta]}"),
+            # Green to tie it to the duration on the completion line, which is
+            # the figure this is predicting.
+            TextColumn("[green]{task.fields[eta]}"),
         )
 
     @staticmethod
@@ -2031,7 +2038,11 @@ class _CountColumn(MofNCompleteColumn):
         details = task.fields.get("details") or ""
         text = Text(counter, style="progress.download")
         if details:
-            text.append(f" {details}", style="progress.data.speed")
+            # The label's hue, unbolded: the details describe the same task, so
+            # they read as subordinate to it rather than as a separate signal.
+            # Not rich's ``progress.data.speed``, which resolves to plain red —
+            # the colour a pending bar uses, meaning something else entirely.
+            text.append(f" {details}", style="cyan")
         return text
 
 
