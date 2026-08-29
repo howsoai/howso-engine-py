@@ -129,6 +129,9 @@ class ProgressEvent:
     details: str = ""
     """Human-readable description, when available."""
 
+    eta: timedelta | None = None
+    """Estimated time until this source completes, when it can be estimated."""
+
     extras: dict[str, Any] = field(default_factory=dict)
     """Source-specific extras (e.g. batch response payload). Reserved for callers."""
 
@@ -176,6 +179,22 @@ class BaseProgressReporter:
 
     _label: str
     """Current session label. Set by each subclass in ``start``."""
+
+    def _eta_text(self, eta: timedelta | None) -> str:
+        """
+        Render an estimate, labelled to fit this reporter's console.
+
+        Parameters
+        ----------
+        eta : timedelta or None
+            The estimate to render.
+
+        Returns
+        -------
+        str
+            The rendered estimate, or ``""`` when there is none.
+        """
+        return _format_eta(eta, long=self._console.width >= ETA_LABEL_MIN_WIDTH)
 
     def _completion_markup(self, *, success: bool, duration: timedelta) -> str:
         """
@@ -306,6 +325,7 @@ class RichProgressReporter(BaseProgressReporter):
             MofNCompleteColumn(),
             TextColumn("[dim]{task.fields[details]}"),
             TimeElapsedColumn(),
+            TextColumn("[dim]{task.fields[eta]}"),
         )
 
     @staticmethod
@@ -370,6 +390,7 @@ class RichProgressReporter(BaseProgressReporter):
                 descriptions.get(source, fallback),
                 total=None,
                 details="",
+                eta="",
             )
 
     def update(self, event: ProgressEvent) -> None:
@@ -395,6 +416,7 @@ class RichProgressReporter(BaseProgressReporter):
             completed=event.step,
             total=event.total or None,
             details=event.details,
+            eta=self._eta_text(event.eta),
         )
 
     def finish(self, *, success: bool, duration: timedelta) -> None:
@@ -712,7 +734,7 @@ class RichNotebookProgressReporter(RichProgressReporter):
         self._unwrapped_file = self._console.file
         self._console.file = _OverwriteSafeWriter(self._unwrapped_file)
         self._progress.start()
-        task = self._progress.add_task(label or "Working", total=None, details="")
+        task = self._progress.add_task(label or "Working", total=None, details="", eta="")
         # Registering every declared source against the one track keeps the
         # inherited "an undeclared source is ignored" guard working unchanged.
         for source in sources:
@@ -747,6 +769,7 @@ class RichNotebookProgressReporter(RichProgressReporter):
             completed=event.step,
             total=event.total or None,
             details=self._compose_details(),
+            eta=self._eta_text(event.eta),
         )
 
     def finish(self, *, success: bool, duration: timedelta) -> None:
@@ -989,6 +1012,7 @@ class RichDisplayProgressReporter(RichProgressReporter):
                 descriptions.get(source, fallback),
                 total=None,
                 details="",
+                eta="",
             )
         self._flush_all()
         # Imported here rather than at module scope: IPython is not a
@@ -1099,6 +1123,25 @@ class SimpleProgressReporter(BaseProgressReporter):
         self._prefixes: dict[ProgressSource, str] = {}
         self._finished: bool = False
 
+    def _eta_text(self, eta: timedelta | None) -> str:
+        """
+        Render an estimate, always spelled out.
+
+        Unlike a bar, these lines have no columns competing for width — the
+        estimate cannot crowd anything out, so the label never needs shortening.
+
+        Parameters
+        ----------
+        eta : timedelta or None
+            The estimate to render.
+
+        Returns
+        -------
+        str
+            The rendered estimate, or ``""`` when there is none.
+        """
+        return _format_eta(eta)
+
     def start(self, label: str, *, sources: Sequence[ProgressSource]) -> None:
         """
         Begin a reporting session and print the session header.
@@ -1162,16 +1205,20 @@ class SimpleProgressReporter(BaseProgressReporter):
         prefix = self._prefixes.get(event.source, "")
         total = event.total or "?"
         width = len(str(total))
+        eta = self._eta_text(event.eta)
         if event.step != self._last_step.get(event.source, -1):
+            suffix = f" [dim]\u00b7 {eta}[/dim]" if eta else ""
             self._console.print(
-                f"{prefix}[dim]\\[{event.step:>{width}}/{total}][/dim] {event.details}"
+                f"{prefix}[dim]\\[{event.step:>{width}}/{total}][/dim] {event.details}{suffix}"
             )
             self._last_step[event.source] = event.step
             self._last_output[event.source] = now
         elif now - self._last_output.get(event.source, 0.0) >= HEARTBEAT_INTERVAL:
             elapsed = timedelta(seconds=int(now - self._start_time))
+            # A stalled step is exactly when a reader wants the estimate.
+            trailer = f" \u00b7 {eta}" if eta else ""
             self._console.print(
-                f"{prefix}[dim]\\[{event.step:>{width}}/{total}] · {elapsed} elapsed[/dim]"
+                f"{prefix}[dim]\\[{event.step:>{width}}/{total}] · {elapsed} elapsed{trailer}[/dim]"
             )
             self._last_output[event.source] = now
 
@@ -1418,11 +1465,20 @@ def with_progress(
 
     if has_batch_cb:
         def _batch_cb(progress: ProgressTimer, *_extra: Any, **__: Any) -> None:
+            # ``time_remaining`` divides by ``max(current_tick, 1)``, so before
+            # the first tick lands it reports roughly the whole run as still
+            # remaining. Withhold it until there is a real measurement, and
+            # tolerate the timer not having been started at all.
+            eta: timedelta | None = None
+            if progress.current_tick > 0:
+                with suppress(ValueError):
+                    eta = progress.time_remaining
             reporter.update(ProgressEvent(
                 source="batch",
                 step=progress.current_tick,
                 total=progress.total_ticks,
                 details=f"batch {progress.update_count}",
+                eta=eta,
             ))
         kwargs["progress_callback"] = _batch_cb
 
@@ -1513,6 +1569,43 @@ def _parse_tristate(value: Any) -> bool | None:
     if text in _FALSY:
         return False
     return None  # "auto", "", or anything else → fallthrough
+
+
+# Below this console width the spelled-out estimate label crowds the bar hard
+# enough to truncate real data. Measured against the longest label this module
+# generates ("React series stationary"): at 88 columns the counter and elapsed
+# time render as "12000/…" and "0:00:…", while at 96 nothing is cut and the bar
+# still holds 17 columns. 100 keeps a margin, and is what a notebook uses.
+ETA_LABEL_MIN_WIDTH = 100
+
+
+def _format_eta(eta: timedelta | None, *, long: bool = True) -> str:
+    """
+    Render an estimate, labelled to fit the space available.
+
+    Sub-second precision is dropped: a ``timedelta`` stringifies with
+    microseconds (``0:01:23.456789``), which is false precision on a figure
+    that is an estimate to begin with.
+
+    Parameters
+    ----------
+    eta : timedelta or None
+        The estimate to render.
+    long : bool, default True
+        Whether there is room to spell the label out. Callers competing for
+        horizontal space pass ``False`` when the console is narrow, so the bar
+        and counter keep their columns; see :data:`ETA_LABEL_MIN_WIDTH`.
+
+    Returns
+    -------
+    str
+        ``"Est. Remaining: 0:01:23"``, ``"ETA 0:01:23"``, or ``""`` when there
+        is no usable estimate.
+    """
+    if eta is None or eta.total_seconds() < 0:
+        return ""
+    label = "Est. Remaining:" if long else "ETA"
+    return f"{label} {timedelta(seconds=int(eta.total_seconds()))}"
 
 
 def _default_label(name: str) -> str:
