@@ -38,6 +38,7 @@ from howso.utilities import (
 from howso.utilities.monitors import ProgressTimer
 from howso.utilities.progress import (
     _auto_progress_enabled,  # pyright: ignore[reportPrivateUsage]
+    _config_auto_progress,  # pyright: ignore[reportPrivateUsage]
     _display_handle_available,  # pyright: ignore[reportPrivateUsage]
     _experimental_notebook_reporter,  # pyright: ignore[reportPrivateUsage]
     _format_duration,  # pyright: ignore[reportPrivateUsage]
@@ -48,6 +49,7 @@ from howso.utilities.progress import (
     _one_line,  # pyright: ignore[reportPrivateUsage]
     _OverwriteSafeWriter,  # pyright: ignore[reportPrivateUsage]
     _parse_tristate,  # pyright: ignore[reportPrivateUsage]
+    _resolve_owner,  # pyright: ignore[reportPrivateUsage]
     _SolidBar,  # pyright: ignore[reportPrivateUsage]
     BAR_WIDTH,
     ETA_LABEL_MIN_WIDTH,
@@ -815,9 +817,9 @@ def test_display_reporter_matches_the_stdout_reporter(monkeypatch):
     inline.finish(success=True, duration=timedelta(seconds=9))
 
     # ``_repr_mimebundle_`` renders through rich's *global* console, which this
-    # process leaves colourless and 80 wide. A kernel's is a Jupyter console, so
+    # process leaves colorless and 80 wide. A kernel's is a Jupyter console, so
     # pin an equivalent or the comparison measures the test rig, not the code.
-    import rich
+    import rich  # noqa: PLC0415
 
     monkeypatch.setattr(
         rich, "_console",
@@ -1391,7 +1393,7 @@ def test_nothing_looks_finished_while_the_session_runs():
     """
     Verify no column treats the engine's last step as the session ending.
 
-    rich keys three separate behaviours off ``completed >= total``: it freezes
+    rich keys three separate behaviors off ``completed >= total``: it freezes
     the elapsed clock, switches the bar to its finished style, and blanks the
     spinner. All three are wrong here — the engine reporting its final step
     says nothing about when the call returns. Each was found and fixed
@@ -2238,24 +2240,83 @@ def test_decorator_nested_calls_do_not_stack(capsys, monkeypatch):  # noqa: ARG0
     ("react", "React"),
     ("react_series", "React Series"),
     ("react_series_stationary", "React Series (stationary)"),
-    ("react_aggregate", "React aggregate"),
     ("react_group", "React group"),
     ("react_into_features", "React into features"),
     ("impute", "Impute"),
+    ("reduce_data", "Reduce data"),
 ])
-def test_trainee_methods_decorated_with_expected_labels(name, label):
-    from howso.engine import Trainee  # noqa: PLC0415
-    method = getattr(Trainee, name)
+def test_client_methods_decorated_with_expected_labels(name, label):
+    """
+    Verify the decorators sit on the client, which is where the work happens.
+
+    ``Trainee`` methods delegate straight through, so wrapping them as well
+    would only add a layer the re-entrancy guard has to suppress.
+    """
+    from howso.client.base import AbstractHowsoClient  # noqa: PLC0415
+    method = getattr(AbstractHowsoClient, name)
     assert getattr(method, "_auto_progress_label", None) == label
     # functools.wraps preserves original signature for with_progress's
     # signature introspection to still work.
     assert "self" in inspect.signature(method).parameters
 
 
-def test_predict_is_not_decorated():
-    """Verify ``predict`` is not wrapped — it has no progress hooks."""
+def test_trainee_methods_are_not_decorated():
+    """The Trainee facade must not double-wrap what the client already reports."""
     from howso.engine import Trainee  # noqa: PLC0415
-    assert not hasattr(Trainee.predict, "_auto_progress_label")
+    for name in ("train", "analyze", "react", "predict"):
+        method = getattr(Trainee, name)
+        assert not hasattr(method, "_auto_progress_label"), name
+
+
+class _OwnerClient:
+    """A client double: owns the runtime lookup, takes trainee_id per call."""
+
+    def get_trainee_runtime(self, trainee_id):  # noqa: ARG002
+        return {"library_type": "mt"}
+
+    def analyze(self, trainee_id, **kwargs):  # noqa: ANN003, ARG002
+        return "done"
+
+
+def test_resolve_owner_from_a_client_bound_method():
+    """
+    Verify the client and Trainee id are found when the owner is a client.
+
+    The decorators sit on client methods, where ``.client`` and ``.id`` do not
+    exist -- the client is itself the client, and the id arrives as a call
+    argument. Reading only the Trainee shape left both None, which silently
+    disabled engine polling for every session.
+    """
+    client = _OwnerClient()
+    for args, kwargs in (((("t-42"),), {}), ((), {"trainee_id": "t-42"})):
+        owner, resolved, trainee_id = _resolve_owner(client.analyze, args, kwargs)
+        assert owner is client
+        assert resolved is client
+        assert trainee_id == "t-42"
+
+
+def test_resolve_owner_from_a_trainee_bound_method():
+    """A facade that delegates still resolves through ``.client`` and ``.id``."""
+    client = _OwnerClient()
+    trainee = _FakeTrainee(client=client)
+    owner, resolved, trainee_id = _resolve_owner(trainee.cb_only, (), {})
+    assert owner is trainee
+    assert resolved is client
+    assert trainee_id == "fake-trainee"
+
+
+def test_config_reaches_a_client_bound_method():
+    """
+    Verify the ``auto_progress`` config is read when the owner is a client.
+
+    A ``Trainee`` reaches its configuration through ``.client``; a client holds
+    it directly. Reading only through ``.client`` made the config layer silently
+    inert once the decorators moved onto the client methods.
+    """
+    client = SimpleNamespace(configuration=SimpleNamespace(auto_progress="off"))
+    assert _config_auto_progress(client) is False
+    trainee = SimpleNamespace(client=client)
+    assert _config_auto_progress(trainee) is False
 
 
 def test_client_options_auto_progress_default():

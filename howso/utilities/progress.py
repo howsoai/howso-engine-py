@@ -1272,7 +1272,7 @@ class RichDisplayProgressReporter(RichNotebookProgressReporter):
     One caveat: the frame is turned into HTML by rich's ``JupyterMixin``, which
     renders through the *global* console rather than this reporter's. In a
     kernel that is a Jupyter console and the output matches the stdout reporter
-    exactly; a colourless or narrower global console would render the bar's
+    exactly; a colorless or narrower global console would render the bar's
     unfilled track as blanks instead.
 
     Colors are baked to literal hex on this path, since the frame is delivered
@@ -1795,6 +1795,56 @@ def _cached_polling_support(trainee: Any, client: Any, trainee_id: str | None) -
     return bool(supported)
 
 
+def _resolve_owner(
+    bound_func: Callable[..., Any], args: tuple[Any, ...], kwargs: Mapping[str, Any]
+) -> tuple[Any, Any, str | None]:
+    """
+    Work out who owns a decorated call, and which Trainee it concerns.
+
+    The decorators sit on client methods, but may also be applied to a facade
+    such as ``Trainee`` that delegates to one. The two differ in where the
+    information lives:
+
+    * a ``Trainee`` reaches its client through ``.client`` and knows its own
+      ``.id``;
+    * a client *is* the client, and takes ``trainee_id`` as a call argument.
+
+    Reading only the ``Trainee`` shape leaves both values ``None`` for a
+    client-bound method, which silently disables engine polling for every
+    session -- the gate cannot confirm a multi-threaded engine without them.
+
+    Parameters
+    ----------
+    bound_func : callable
+        The bound method being wrapped.
+    args : tuple
+        Positional arguments of the call.
+    kwargs : Mapping
+        Keyword arguments of the call.
+
+    Returns
+    -------
+    tuple
+        The owner, its client (or itself), and the Trainee id if known.
+    """
+    owner = getattr(bound_func, "__self__", None)
+    if owner is None:
+        return None, None, None
+    # ``get_trainee_runtime`` is the same duck-type ``engine_polling_supported``
+    # uses to interrogate a client, so anything it accepts is accepted here.
+    client = getattr(owner, "client", None)
+    if client is None and hasattr(owner, "get_trainee_runtime"):
+        client = owner
+    trainee_id = getattr(owner, "id", None)
+    if trainee_id is None:
+        # Read it from the call rather than guessing a position: these
+        # signatures take ``trainee_id`` first, but that is not ours to assume.
+        with suppress(TypeError, ValueError):
+            bound = inspect.signature(bound_func).bind_partial(*args, **kwargs)
+            trainee_id = bound.arguments.get("trainee_id")
+    return owner, client, trainee_id
+
+
 def with_progress(  # noqa: PLR0915
     label: str,
     bound_func: Callable[..., Any],
@@ -1857,9 +1907,7 @@ def with_progress(  # noqa: PLR0915
         and kwargs.get("task_id") is None
     )
 
-    trainee = getattr(bound_func, "__self__", None)
-    client = getattr(trainee, "client", None) if trainee is not None else None
-    trainee_id = getattr(trainee, "id", None) if trainee is not None else None
+    trainee, client, trainee_id = _resolve_owner(bound_func, args, kwargs)
 
     # Engine polling is only useful when we can actually reach get_progress,
     # and only safe when the engine behind it tolerates a concurrent poll. A
@@ -2085,7 +2133,7 @@ class _CountColumn(MofNCompleteColumn):
         details = task.fields.get("details") or ""
         text = Text(counter, style="progress.download")
         if details:
-            # The label's hue, unbolded: the details describe the same task, so
+            # The label's hue, un-bolded: the details describe the same task, so
             # they read as subordinate to it rather than as a separate signal.
             # Not rich's ``progress.data.speed``, which resolves to plain red —
             # the colour a pending bar uses, meaning something else entirely.
@@ -2199,9 +2247,29 @@ def _in_notebook() -> bool:
     return callable(get_ipython) and get_ipython() is not None
 
 
-def _config_auto_progress(trainee: Any) -> bool | None:
-    """Resolve the ``auto_progress`` setting from the trainee's client configuration."""
-    cfg = getattr(getattr(trainee, "client", None), "configuration", None)
+def _config_auto_progress(owner: Any) -> bool | None:
+    """
+    Resolve the ``auto_progress`` setting from the client configuration.
+
+    ``owner`` is whatever the decorated method is bound to, which may be either
+    a ``Trainee`` — reaching its client through ``.client`` — or a client
+    itself, which carries ``.configuration`` directly. Handling both matters:
+    when the decorators moved onto the client methods, reading only through
+    ``.client`` silently stopped consulting the configuration at all.
+
+    Parameters
+    ----------
+    owner : Any
+        The object the decorated method is bound to.
+
+    Returns
+    -------
+    bool or None
+        The configured value, or None to defer to the next precedence layer.
+    """
+    cfg = getattr(getattr(owner, "client", None), "configuration", None)
+    if cfg is None:
+        cfg = getattr(owner, "configuration", None)
     value = getattr(cfg, "auto_progress", None) if cfg is not None else None
     return _parse_tristate(value)
 
