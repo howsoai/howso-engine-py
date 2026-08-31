@@ -15,7 +15,7 @@ import warnings
 
 import pytest
 from rich.console import Console
-from rich.progress import BarColumn, Progress
+from rich.progress import Progress
 
 from howso.client.configuration import ClientOptions, HowsoConfiguration
 from howso.utilities import (
@@ -40,7 +40,6 @@ from howso.utilities.progress import (
     _auto_progress_enabled,  # pyright: ignore[reportPrivateUsage]
     _config_auto_progress,  # pyright: ignore[reportPrivateUsage]
     _display_handle_available,  # pyright: ignore[reportPrivateUsage]
-    _experimental_notebook_reporter,  # pyright: ignore[reportPrivateUsage]
     _format_duration,  # pyright: ignore[reportPrivateUsage]
     _format_eta,  # pyright: ignore[reportPrivateUsage]
     _in_notebook,  # pyright: ignore[reportPrivateUsage]
@@ -471,14 +470,291 @@ def test_notebook_reporter_frames_fit_the_console():
             assert visible[NOTEBOOK_COLUMNS:].strip() == ""
 
 
-def test_terminal_reporter_still_uses_cursor_up():
-    """Characterization: the terminal reporter keeps its nested layout, cursor codes and all."""
+def _notebook_view(raw: str) -> list[str]:
+    r"""
+    Replay a notebook front-end and return the non-blank lines a reader sees.
+
+    Front-ends render SGR color codes, treat ``\r`` as a rewind, and discard
+    every other CSI sequence — cursor motion and erase-line alike. That last
+    part is why the summary has to be repainted *into* the region rather than
+    printed beneath it and the region cleared.
+
+    The rewind is applied to the **raw** text, escapes included, matching
+    :func:`_overwrite_residue` and the contract ``_OverwriteSafeWriter`` pads
+    to. Stripping escapes first would model a front-end that indexes by visible
+    column, which is the more forgiving of the two — a frame that covers its
+    predecessor by raw length covers it either way, so asserting against raw is
+    what keeps this honest.
+    """
+    seen = []
+    for physical in raw.split("\n"):
+        line = ""
+        for chunk in physical.split("\r"):
+            line = chunk + line[len(chunk):]
+        visible = _ANSI.sub("", line).rstrip()
+        if visible:
+            seen.append(visible)
+    return seen
+
+
+def test_a_session_too_fast_to_repaint_still_covers_its_bar():
+    """
+    Verify a call that finishes inside one refresh interval leaves no bar behind.
+
+    rich emits its *first* frame with no cursor positioning — there is no
+    previous frame to rewind over — so that write carries neither a carriage
+    return nor a newline. The writer used to track a line's length only when it
+    saw a carriage return, so this first frame went uncounted, and a session
+    ending before the refresh thread painted a second one had nothing to pad
+    against: the summary rewound, overwrote the first 58 of 93 characters, and
+    left the rest of the bar sitting behind it.
+
+    Deliberately no ``refresh()`` here. Every other test in this file has one,
+    which is exactly why they all missed it.
+    """
+    reporter = RichNotebookProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch", "engine"))
+    reporter.finish(success=True, duration=timedelta(seconds=0))
+    assert _notebook_view(buf.getvalue()) == ["✓ Train complete in 0:00:00"]
+    residue = _overwrite_residue(buf.getvalue())
+    assert set(residue) <= {" "}, f"visible residue: {residue!r}"
+
+
+def test_notebook_summary_replaces_the_bar():
+    """
+    Verify a finished session leaves one line, and it is the summary.
+
+    The bar and the summary share a line: the bar owns it while the call runs,
+    and the summary takes it over at the end. Printing the summary instead
+    would leave two lines — and reclaiming the bar's line afterwards needs a
+    cursor-up this front-end discards, which is the trap this avoids.
+    """
+    reporter = RichNotebookProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch",))
+    _require_progress(reporter).refresh()
+    reporter.update(ProgressEvent(source="batch", step=120, total=120, details="batch 7"))
+    _require_progress(reporter).refresh()
+    reporter.finish(success=True, duration=timedelta(seconds=4))
+    seen = _notebook_view(buf.getvalue())
+    assert seen == ["✓ Train complete in 0:00:04"], f"reader sees {seen}"
+
+
+def test_terminal_summary_reuses_the_bar_line():
+    """
+    Verify the terminal reaches the same one line by clearing the region.
+
+    A terminal honors the codes a notebook drops, so it can take the bar's line
+    back the direct way — walk up into the region and erase it — and print the
+    summary there. Same single line, different mechanism, which is why
+    ``_transient`` is a class member rather than a constant.
+    """
     reporter = RichProgressReporter(console=_notebook_console())
-    out = _render(reporter, ("batch", "engine"), [
-        ProgressEvent(source="batch", step=1, total=10, details="b"),
-        ProgressEvent(source="engine", step=1, total=3, details="e"),
+    out = _render(reporter, ("batch",), [
+        ProgressEvent(source="batch", step=120, total=120, details="batch 7"),
     ])
-    assert "\x1b[1A" in out
+    assert reporter._transient is True
+    summary = out.index("complete in")
+    assert "\x1b[1A" in out[:summary]     # it reclaimed the bar's line
+    assert "\x1b[2K" in out[:summary]     # and blanked it before writing
+
+
+def _terminal_view(raw: str) -> list[str]:
+    r"""
+    Replay a real terminal and return the non-blank lines a reader sees.
+
+    Unlike :func:`_notebook_view`, this honors what a terminal honors: ``\r``
+    rewinds, ``ESC[2K`` blanks the line, ``ESC[<n>A`` moves up into the region.
+    Two different replays because the two front-ends genuinely differ — the
+    point of the tests below is that the *result* does not.
+    """
+    screen, row, col, i = [""], 0, 0, 0
+    while i < len(raw):
+        match = re.match(r"\x1b\[([0-9;?]*)([A-Za-z])", raw[i:])
+        if match:
+            params, code = match.group(1), match.group(2)
+            if code == "K" and params == "2":
+                screen[row] = ""
+            elif code == "A":
+                row = max(0, row - int(params or 1))
+            i += match.end()
+            continue
+        char = raw[i]
+        i += 1
+        if char == "\n":
+            row += 1
+            col = 0
+            while len(screen) <= row:
+                screen.append("")
+        elif char == "\r":
+            col = 0
+        else:
+            line = screen[row].ljust(col)
+            screen[row] = line[:col] + char + line[col + 1:]
+            col += 1
+    return [line.rstrip() for line in screen if line.strip()]
+
+
+def _closing_view(reporter, view, *, success: bool) -> list[str]:
+    """Run one labeled session to completion and return what the reader is left with."""
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch",))
+    _require_progress(reporter).refresh()
+    reporter.update(ProgressEvent(source="batch", step=70, total=120, details="batch 7"))
+    _require_progress(reporter).refresh()
+    reporter.finish(success=success, duration=timedelta(seconds=4))
+    return view(buf.getvalue())
+
+
+@pytest.mark.parametrize(("reporter_cls", "view"), [
+    (lambda: RichProgressReporter(console=_notebook_console()), _terminal_view),
+    (RichNotebookProgressReporter, _notebook_view),
+])
+def test_a_failed_session_keeps_its_bar(reporter_cls, view):
+    """
+    Verify a failure leaves the bar standing, with the summary beneath it.
+
+    The settled bar is the only record of how far the call got — ``batch 7``,
+    ``70/120`` — and the summary line has room for none of it. Handing the line
+    over on the one run where that matters most would be a poor trade for a
+    saved line. Both front-ends have to agree on this, or a failure would read
+    differently depending on where it happened.
+    """
+    seen = _closing_view(reporter_cls(), view, success=False)
+    assert len(seen) == 2, f"expected the bar and the summary, got {seen}"
+    assert "\u2501" in seen[0]          # the bar, still there
+    assert "batch 7" in seen[0]         # and still saying where it stopped
+    assert seen[1].startswith("✗ Train failed in")
+
+
+@pytest.mark.parametrize(("reporter_cls", "view"), [
+    (lambda: RichProgressReporter(console=_notebook_console()), _terminal_view),
+    (RichNotebookProgressReporter, _notebook_view),
+])
+def test_a_successful_session_hands_its_line_to_the_summary(reporter_cls, view):
+    """The success case: one line, and the bar is gone from it."""
+    seen = _closing_view(reporter_cls(), view, success=True)
+    assert seen == ["✓ Train complete in 0:00:04"], f"reader sees {seen}"
+
+
+@pytest.mark.parametrize("success", [True, False])
+def test_both_closing_routes_leave_the_same_thing(success):
+    """
+    Verify clearing and repainting are interchangeable, which is the whole point.
+
+    ``_transient`` picks between taking the bar's line back by clearing the
+    region (a terminal) and repainting the summary into it (a notebook). Those
+    are different code paths through rich, and they are only worth having as a
+    choice for as long as a reader cannot tell which one ran.
+    """
+    cleared = _closing_view(
+        RichProgressReporter(console=_notebook_console(), transient=True),
+        _terminal_view, success=success)
+    repainted = _closing_view(
+        RichProgressReporter(console=_notebook_console(), transient=False),
+        _terminal_view, success=success)
+    assert cleared == repainted, f"cleared {cleared} != repainted {repainted}"
+    assert cleared, "guard: neither route rendered anything"
+
+
+def test_the_label_column_hugs_its_label():
+    """
+    Verify the label column takes the width of the label it holds, and no more.
+
+    It used to be pinned to the widest label the decorator had ever registered,
+    so that stacked bars would line up. Nothing stacks any more — a successful
+    session hands its line to the summary — so a short label paid for a long
+    one's width with a run of blanks before its bar.
+    """
+    starts = {}
+    for label in ("Go", "Train", "React series stationary"):
+        reporter = RichNotebookProgressReporter()
+        buf = io.StringIO()
+        reporter._console.file = buf
+        reporter.start(label, sources=("batch",))
+        reporter.update(ProgressEvent(source="batch", step=3, total=10, details="b"))
+        _require_progress(reporter).refresh()
+        frame = _ANSI.sub("", [f for f in buf.getvalue().split("\r")
+                               if "\u2501" in f][-1]).split("\n")[0]
+        reporter.finish(success=True, duration=timedelta(seconds=1))
+        starts[label] = frame.index("\u2501")
+        # Spinner, space, label, space, bar — one column of padding, no filler.
+        assert frame[:starts[label]].endswith(f"{label} "), f"{frame[:starts[label]]!r}"
+    assert len(set(starts.values())) == 3, f"widths did not track the labels: {starts}"
+
+
+def test_the_bar_does_not_move_while_a_session_runs():
+    """
+    Verify a growing details string never shifts the bar.
+
+    This is what the pinned label column was really protecting, and it has to
+    keep holding without it. The details column sits *after* the bar and each
+    column takes only the width its own content needs, so the bar's left edge
+    is fixed by the label alone — which does not change mid-session.
+    """
+    reporter = RichNotebookProgressReporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch", "engine"))
+    starts = []
+    for step, detail in ((1, "b"), (4, "batch 44"), (9, "a considerably longer detail string")):
+        reporter.update(ProgressEvent(source="batch", step=step, total=10, details=detail))
+        reporter.update(ProgressEvent(source="engine", step=step, total=12, details=detail))
+        _require_progress(reporter).refresh()
+        frame = _ANSI.sub("", [f for f in buf.getvalue().split("\r")
+                               if "\u2501" in f][-1]).split("\n")[0]
+        starts.append(frame.index("\u2501"))
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert len(set(starts)) == 1, f"the bar moved: {starts}"
+
+
+def test_terminal_reporter_hides_the_cursor():
+    """
+    Verify the terminal path still hides the cursor for the live region.
+
+    A terminal has a real cursor, and leaving it parked in the middle of a
+    repainting bar makes the bar look like it is being typed. The notebook
+    path strips these codes instead, because nbconvert renders them literally.
+    """
+    out = _render(RichProgressReporter(console=_notebook_console()), ("batch",), [
+        ProgressEvent(source="batch", step=1, total=10, details="b"),
+    ])
+    assert "\x1b[?25l" in out
+    assert "\x1b[?25h" in out
+
+
+def test_terminal_reporter_never_wraps_its_stream():
+    """
+    Verify no overwrite-safe padding in a terminal.
+
+    A terminal honors the erase-line code rich emits, so a short frame already
+    covers its predecessor. Padding every frame out to the running maximum
+    would only cost bytes, and would defeat ``transient`` by leaving blanks
+    where the bar was.
+    """
+    reporter = RichProgressReporter(console=_notebook_console())
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch",))
+    installed = type(reporter._console.file).__name__
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert installed != "_OverwriteSafeWriter"
+
+
+def test_terminal_reporter_measures_its_console():
+    """
+    Verify the terminal path detects its environment rather than pinning it.
+
+    Width and legacy-Windows support are things a terminal can be asked about
+    and a kernel cannot, so only the notebook console hard-codes them.
+    """
+    stock = Console()
+    made = RichProgressReporter()._console
+    assert (made.width, made.is_jupyter, made.legacy_windows) == (
+        stock.width, stock.is_jupyter, stock.legacy_windows)
 
 
 def test_notebook_console_flags():
@@ -598,7 +874,6 @@ def test_one_line_truncates_with_ellipsis():
 
 
 def test_auto_reporter_notebook_picks_rich_notebook(monkeypatch):
-    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
     monkeypatch.delenv("DATABRICKS_RUNTIME_VERSION", raising=False)
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
@@ -653,6 +928,19 @@ def _fake_display(monkeypatch) -> _FakeDisplayHandle:
     monkeypatch.setitem(sys.modules, "IPython", SimpleNamespace(
         display=module, get_ipython=object))
     return handle
+
+
+def _slot_reporter(**kwargs: Any) -> RichDisplayProgressReporter:
+    """
+    Build a display reporter that claims a slot when it runs headlessly.
+
+    The class default writes the final state to stdout instead — no display
+    block, so no padding around it — which means a test about slot behavior has
+    to ask for one explicitly.
+    """
+    reporter = RichDisplayProgressReporter(**kwargs)
+    reporter._slot_when_headless = True
+    return reporter
 
 
 def _rows(renderable) -> list[str]:
@@ -731,6 +1019,36 @@ def test_overwrite_writer_pads_before_an_embedded_newline():
     assert not rest.startswith(" ")                # and nothing spilled over
 
 
+def test_overwrite_writer_tracks_a_frame_written_without_a_carriage_return():
+    """
+    Verify a write with no carriage return still counts toward the line.
+
+    rich's first frame has nothing to rewind over, so it carries no carriage
+    return. Ignoring it left the next frame with nothing to pad against.
+    """
+    sink = io.StringIO()
+    writer = _OverwriteSafeWriter(sink)
+    writer.write("THIS-FIRST-FRAME-IS-LONG")   # no \r: rich's opening frame
+    writer.write("\rshort")
+    assert sink.getvalue() == "THIS-FIRST-FRAME-IS-LONG\rshort" + " " * 19
+
+
+def test_overwrite_writer_starts_a_fresh_line_after_a_newline():
+    """
+    Verify a newline resets the width, so the next line is not over-padded.
+
+    A failed session prints its summary through this writer as a plain line —
+    no carriage return, trailing newline. Carrying the old line's width past
+    that newline would pad an unrelated line out with blanks.
+    """
+    sink = io.StringIO()
+    writer = _OverwriteSafeWriter(sink)
+    writer.write("A-VERY-LONG-FIRST-LINE-INDEED\nab")   # newline, then a short tail
+    writer.write("\rc")
+    # Padding is measured against "ab", the only thing on the current line.
+    assert sink.getvalue() == "A-VERY-LONG-FIRST-LINE-INDEED\nab\rc "
+
+
 def test_overwrite_writer_pads_only_when_the_frame_shrinks():
     """A frame at least as long as its predecessor needs no padding at all."""
     sink = io.StringIO()
@@ -791,30 +1109,44 @@ def test_notebook_reporter_bar_never_pulses():
     assert len(colors) <= 6, f"gradient detected, {len(colors)} colors"
 
 
-def test_display_reporter_matches_the_stdout_reporter(monkeypatch):
-    """
-    Verify a headless render looks like the interactive one.
+# One fixed session, replayed through every reporter by the parity test below.
+_PARITY_EVENTS = (
+    ProgressEvent(source="batch", step=2, total=4, details="batch 2"),
+    ProgressEvent(source="engine", step=1, total=3, details="reacting"),
+)
 
-    This reporter exists so notebooks rendered en masse by nbconvert or
-    papermill show what a person sees in the notebook. It therefore builds the
-    same single-bar model as the stdout reporter and differs only in delivery —
-    a display slot instead of a carriage-return repaint.
-    """
-    events = [
-        ProgressEvent(source="batch", step=2, total=4, details="batch 2"),
-        ProgressEvent(source="engine", step=1, total=3, details="reacting"),
-    ]
 
-    inline = RichNotebookProgressReporter()
+def _stdout_bar_row(reporter) -> str:
+    """Replay the parity session on a stdout-delivering reporter, returning its last bar row."""
     sink = io.StringIO()
-    inline._console.file = sink
-    inline.start("React", sources=("batch", "engine"))
-    for event in events:
-        inline.update(event)
-    _require_progress(inline).refresh()
-    expected = _ANSI.sub("", [f for f in sink.getvalue().split("\r")
-                              if "\u2501" in f][-1]).split("\n")[0].rstrip()
-    inline.finish(success=True, duration=timedelta(seconds=9))
+    reporter._console.file = sink
+    reporter.start("React", sources=("batch", "engine"))
+    for event in _PARITY_EVENTS:
+        reporter.update(event)
+    _require_progress(reporter).refresh()
+    frames = [f for f in sink.getvalue().split("\r") if "\u2501" in f]
+    reporter.finish(success=True, duration=timedelta(seconds=9))
+    assert frames, "no bar was ever painted"
+    return _ANSI.sub("", frames[-1]).split("\n")[0].rstrip()
+
+
+def test_every_reporter_renders_the_same_bar(monkeypatch):
+    """
+    Verify one session looks identical however it is delivered.
+
+    This is the guard that keeps the three reporters honest. They share a
+    lifecycle and a merged-bar model and differ only in delivery — a live
+    region over a terminal, the same over a notebook's stdout, or a display
+    slot for a headless render — so any divergence in what a reader actually
+    sees is a bug in one of them. The display reporter had already drifted to
+    a two-bar layout once, silently, for want of this.
+
+    The terminal reporter is given the notebook console so all three are
+    measuring the same width; that is the one thing they are *meant* to
+    disagree about.
+    """
+    terminal = _stdout_bar_row(RichProgressReporter(console=_notebook_console()))
+    notebook = _stdout_bar_row(RichNotebookProgressReporter())
 
     # ``_repr_mimebundle_`` renders through rich's *global* console, which this
     # process leaves colorless and 80 wide. A kernel's is a Jupyter console, so
@@ -828,17 +1160,81 @@ def test_display_reporter_matches_the_stdout_reporter(monkeypatch):
     )
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
     handle = _fake_display(monkeypatch)
-    display = RichDisplayProgressReporter()
+    display = _slot_reporter()
     display._console.file = io.StringIO()
     display.start("React", sources=("batch", "engine"))
-    for event in events:
+    for event in _PARITY_EVENTS:
         display.update(event)
     display._push(force=True)
-    rows = [_ANSI.sub("", row) for row in _rows(handle.frames[-1])]
+    rows = [_ANSI.sub("", row).rstrip() for row in _rows(handle.frames[-1])]
     display.finish(success=True, duration=timedelta(seconds=9))
 
-    assert len(rows) == 1, f"expected one merged bar, got {rows}"
-    assert rows[0].rstrip() == expected
+    assert notebook == terminal
+    assert rows == [terminal], f"expected one merged bar matching {terminal!r}, got {rows}"
+    # Guard against the whole comparison passing on three empty strings.
+    assert "2/4" in terminal            # the batch source drives the bar
+    assert "engine 1/3" in terminal     # and the engine is folded in beside it
+
+
+def _slot_closing_rows(monkeypatch, *, success: bool) -> list[str]:
+    """Run the parity session on the display slot and return the rows it is left holding."""
+    import rich  # noqa: PLC0415
+
+    # JupyterMixin renders through the *global* console; a kernel's is a Jupyter
+    # console, so pin an equivalent or this measures the test rig.
+    monkeypatch.setattr(
+        rich, "_console",
+        Console(force_terminal=True, color_system="truecolor", width=NOTEBOOK_COLUMNS),
+        raising=False,
+    )
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    handle = _fake_display(monkeypatch)
+    reporter = _slot_reporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("React", sources=("batch", "engine"))
+    for event in _PARITY_EVENTS:
+        reporter.update(event)
+    reporter.finish(success=success, duration=timedelta(seconds=9))
+    return [_ANSI.sub("", row).rstrip() for row in _rows(handle.frames[-1])]
+
+
+@pytest.mark.parametrize("success", [True, False])
+def test_every_reporter_closes_the_same_way(monkeypatch, success):
+    """
+    Verify all three routes leave the reader with the same thing.
+
+    The sibling test above compares a frame mid-session; this one compares what
+    survives the close, which is a separate code path per route — clearing the
+    region, repainting it, printing the final state once, or replacing a
+    display slot's contents.
+
+    That gap was not theoretical. The slot stacks a failed bar above its summary
+    in a ``Table.grid``, and a grid sizes its column to the child's *maximum*
+    measurement — narrower than a bar actually lays out — so the details wrapped
+    onto a third row that neither other route produced.
+    """
+    def close(reporter, view):
+        buf = io.StringIO()
+        reporter._console.file = buf
+        reporter.start("React", sources=("batch", "engine"))
+        for event in _PARITY_EVENTS:
+            reporter.update(event)
+        _require_progress(reporter).refresh()
+        reporter.finish(success=success, duration=timedelta(seconds=9))
+        return view(buf.getvalue())
+
+    terminal = close(RichProgressReporter(console=_notebook_console()), _terminal_view)
+    notebook = close(RichNotebookProgressReporter(), _notebook_view)
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    headless = close(RichDisplayProgressReporter(), _notebook_view)
+    slot = _slot_closing_rows(monkeypatch, success=success)
+
+    assert notebook == terminal, f"notebook {notebook} != terminal {terminal}"
+    assert headless == terminal, f"headless stdout {headless} != terminal {terminal}"
+    assert slot == terminal, f"slot {slot} != terminal {terminal}"
+    # Guard against all three agreeing on nothing.
+    expected = 1 if success else 2
+    assert len(terminal) == expected, f"expected {expected} line(s), got {terminal}"
 
 
 @pytest.mark.parametrize("sources", [("batch",), ("batch", "engine")])
@@ -846,14 +1242,17 @@ def test_display_reporter_uses_one_bar_whatever_the_sources(monkeypatch, sources
     """One merged bar, so the layout does not change with the engine's presence."""
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
     handle = _fake_display(monkeypatch)
-    reporter = RichDisplayProgressReporter()
+    reporter = _slot_reporter()
     reporter._console.file = io.StringIO()
     reporter.start("React", sources=sources)
     for source in sources:
         reporter.update(ProgressEvent(source=source, step=1, total=4, details="x"))
-    reporter.finish(success=True, duration=timedelta(seconds=9))
+    reporter._push(force=True)
+    # Mid-session: the closing frame is the summary, which is one row whatever
+    # the sources, so it could not tell a merged bar from a nested pair.
     rows = _rows(handle.frames[-1])
-    assert len(rows) == 2      # the bar, plus the folded-in completion line
+    reporter.finish(success=True, duration=timedelta(seconds=9))
+    assert len(rows) == 1, f"expected one merged bar, got {rows}"
 
 
 def test_display_reporter_puts_completion_line_in_the_same_block(monkeypatch):
@@ -865,7 +1264,7 @@ def test_display_reporter_puts_completion_line_in_the_same_block(monkeypatch):
     of folding it in leaves a conspicuous gap under the bars.
     """
     handle = _fake_display(monkeypatch)
-    reporter = RichDisplayProgressReporter()
+    reporter = _slot_reporter()
     buf = io.StringIO()
     reporter._console.file = buf
     reporter.start("Train", sources=("batch", "engine"))
@@ -876,10 +1275,34 @@ def test_display_reporter_puts_completion_line_in_the_same_block(monkeypatch):
     assert "complete in" not in buf.getvalue()  # and NOT printed to stdout
 
 
+def test_display_reporter_keeps_a_failed_bar_in_the_same_block(monkeypatch):
+    """
+    Verify a failure keeps its bar in the slot, with the summary stacked under.
+
+    Same rule as the other two routes — the settled bar is the only record of
+    where the call stopped. It has to stay in the *one* renderable, though:
+    printing the summary instead would put it in a separate output block, which
+    a notebook pads away from the bar.
+    """
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    handle = _fake_display(monkeypatch)
+    reporter = _slot_reporter()
+    buf = io.StringIO()
+    reporter._console.file = buf
+    reporter.start("Train", sources=("batch",))
+    reporter.update(ProgressEvent(source="batch", step=70, total=120, details="batch 7"))
+    reporter.finish(success=False, duration=timedelta(seconds=4))
+    rows = _rows(handle.frames[-1])
+    assert len(rows) == 2, f"expected the bar and the summary, got {rows}"
+    assert "batch 7" in rows[0]                    # still saying where it stopped
+    assert "Train failed in" in rows[1]
+    assert "failed in" not in buf.getvalue()       # and not in a second block
+
+
 def test_display_reporter_emits_no_control_codes(monkeypatch):
     """Nothing is repainted in place, so no cursor motion should appear at all."""
     handle = _fake_display(monkeypatch)
-    reporter = RichDisplayProgressReporter()
+    reporter = _slot_reporter()
     buf = io.StringIO()
     reporter._console.file = buf
     reporter.start("Train", sources=("batch", "engine"))
@@ -899,7 +1322,7 @@ def test_display_reporter_strips_the_pre_margin(monkeypatch):
     between groups and show up as a large gap.
     """
     handle = _fake_display(monkeypatch)
-    reporter = RichDisplayProgressReporter()
+    reporter = _slot_reporter()
     reporter._console.file = io.StringIO()
     reporter.start("Train", sources=("batch", "engine"))
     reporter.finish(success=True, duration=timedelta(seconds=1))
@@ -915,7 +1338,7 @@ def test_display_reporter_throttles_pushes(monkeypatch):
     handle = _fake_display(monkeypatch)
     clock = iter([0.0] + [0.01 * i for i in range(1, 60)])
     monkeypatch.setattr("howso.utilities.progress.monotonic", lambda: next(clock))
-    reporter = RichDisplayProgressReporter()
+    reporter = _slot_reporter()
     reporter._console.file = io.StringIO()
     reporter.start("Train", sources=("batch", "engine"))
     for i in range(1, 21):   # 20 events across ~0.2s, well under 1/4s apart
@@ -926,14 +1349,23 @@ def test_display_reporter_throttles_pushes(monkeypatch):
 
 
 def test_display_reporter_always_pushes_the_final_frame(monkeypatch):
-    """A last event inside the throttle window must not leave the bar short of 100%."""
+    """
+    Verify the closing frame lands even when the last event was throttled.
+
+    Updates are rate-limited because each costs an HTML payload over IOPub, so
+    a final event arriving inside that window is dropped. The close must not
+    be, or the slot would keep whatever stale bar it last showed instead of the
+    summary.
+    """
     handle = _fake_display(monkeypatch)
-    reporter = RichDisplayProgressReporter()
+    clock = iter([0.0] + [0.01 * i for i in range(1, 60)])
+    monkeypatch.setattr("howso.utilities.progress.monotonic", lambda: next(clock))
+    reporter = _slot_reporter()
     reporter._console.file = io.StringIO()
     reporter.start("Train", sources=("batch", "engine"))
     reporter.update(ProgressEvent(source="batch", step=20, total=20, details="done"))
     reporter.finish(success=True, duration=timedelta(seconds=1))
-    assert "20/20" in _rows(handle.frames[-1])[0]
+    assert "Train complete in" in _rows(handle.frames[-1])[0]
 
 
 def test_display_reporter_empty_sources_claims_no_slot(monkeypatch):
@@ -947,19 +1379,44 @@ def test_display_reporter_empty_sources_claims_no_slot(monkeypatch):
     assert "Train complete in" in _ANSI.sub("", buf.getvalue())
 
 
-def test_display_reporter_keeps_rich_stock_bar_palette():
+def test_display_reporter_bakes_the_same_palette_the_other_routes_emit(monkeypatch):
     """
-    Verify the bar keeps rich's stock styles.
+    Verify the HTML frame freezes the very colors the ANSI routes send.
 
-    The HTML path bakes literal hex, and rich's stock styles bake to exactly
-    the RGB a truecolor terminal shows. Restyling the bar would break that
-    match.
+    This route delivers HTML, so the palette cannot stay theme-mapped — rich
+    resolves every style at render time. What must hold is that it resolves to
+    the *same* palette entries the other routes emit as ANSI, so a headless
+    render and a live one differ in theming only, never in meaning: a pending
+    bar is red, a finished one green.
+
+    Asserted on the rendered HTML rather than on the column's attributes,
+    because ``_StateBarColumn`` picks its style per frame from the session's
+    state — the constructor defaults never reach the screen.
     """
-    bar = next(c for c in RichDisplayProgressReporter()._make_columns()
-               if isinstance(c, BarColumn))
-    assert (bar.style, bar.complete_style, bar.finished_style, bar.pulse_style) == (
-        "bar.back", "bar.complete", "bar.finished", "bar.pulse",
+    import rich  # noqa: PLC0415
+
+    # JupyterMixin renders through the *global* console; a kernel's is a Jupyter
+    # console, so pin an equivalent or this measures the test rig.
+    monkeypatch.setattr(
+        rich, "_console",
+        Console(force_terminal=True, color_system="truecolor", width=NOTEBOOK_COLUMNS),
+        raising=False,
     )
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    handle = _fake_display(monkeypatch)
+    reporter = _slot_reporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch",))
+    reporter.update(ProgressEvent(source="batch", step=5, total=10, details="b"))
+    reporter._push(force=True)
+    running = handle.frames[-1]._repr_mimebundle_([], [])["text/html"]
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+
+    baked = set(re.findall(r"color: (#[0-9a-f]{6})", running))
+    assert "#800000" in baked, f"pending bar is not ANSI red; got {sorted(baked)}"
+    assert "#808080" in baked, f"track is not ANSI gray; got {sorted(baked)}"
+    # Rich's own stock bar magenta must not be what got frozen.
+    assert "#f92672" not in baked
 
 
 def test_display_handle_available_requires_a_live_shell(monkeypatch):
@@ -971,7 +1428,6 @@ def test_display_handle_available_requires_a_live_shell(monkeypatch):
 
 def test_auto_reporter_notebook_with_display_picks_display_reporter(monkeypatch):
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
-    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: True)
     monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
@@ -981,7 +1437,6 @@ def test_auto_reporter_notebook_with_display_picks_display_reporter(monkeypatch)
 
 def test_auto_reporter_notebook_without_display_falls_back_to_ansi(monkeypatch):
     """A Databricks runtime that never imported IPython still gets a working bar."""
-    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: True)
@@ -1086,15 +1541,6 @@ def test_simple_reporter_renders_the_estimate(capsys):
     assert "batch 6\n" in out          # no stray separator when there is no estimate
 
 
-def test_experimental_notebook_reporter_is_off_by_default(monkeypatch):
-    monkeypatch.delenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", raising=False)
-    assert _experimental_notebook_reporter() is False
-    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
-    assert _experimental_notebook_reporter() is True
-    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "0")
-    assert _experimental_notebook_reporter() is False
-
-
 def test_interactive_frontend_false_without_ipython(monkeypatch):
     monkeypatch.delitem(sys.modules, "IPython", raising=False)
     assert _interactive_frontend() is False
@@ -1129,7 +1575,6 @@ def test_auto_reporter_headless_notebook_still_gets_the_display_slot(monkeypatch
     every repaint overwrites the same output and the saved notebook keeps the
     final frame as ordinary HTML — which exports faithfully.
     """
-    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
     monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
@@ -1145,63 +1590,91 @@ def test_auto_reporter_headless_without_display_uses_simple(monkeypatch):
     Nothing applies it there, so each frame is committed to the document as its
     own line.
     """
-    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
     monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
     monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: False)
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
     assert type(auto_reporter()) is SimpleProgressReporter
+
+
+def test_headless_render_writes_one_block_to_stdout(monkeypatch):
+    """
+    Verify a headless run claims no display slot and leaves adjacent lines.
+
+    Nobody watches a headless run and nbconvert cannot animate the frames a
+    slot would receive, so the intermediate ones buy nothing. What they cost is
+    visible: a notebook merges consecutive stdout writes into one output block
+    but gives every display block its own, with its own vertical padding, so a
+    cell of several calls rendered as a stack of padded panels.
+    """
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    handle = _fake_display(monkeypatch)
+    buf = io.StringIO()
+    for label, success in (("Train", True), ("React", False)):
+        reporter = RichDisplayProgressReporter()
+        reporter._console.file = buf
+        reporter.start(label, sources=("batch", "engine"))
+        reporter.update(ProgressEvent(source="batch", step=2, total=4, details="batch 2"))
+        reporter.finish(success=success, duration=timedelta(seconds=3))
+
+    assert handle.frames == [], "a slot was claimed despite the default"
+    seen = _notebook_view(buf.getvalue())
+    assert seen[0] == "✓ Train complete in 0:00:03"
+    assert "\u2501" in seen[1]                     # the failure kept its bar
+    assert seen[2] == "✗ React failed in 0:00:03"
+    assert len(seen) == 3, f"expected three lines, got {seen}"
+    # No repaint anywhere: nothing rewinds, so nothing can be left behind.
+    assert "\r" not in buf.getvalue()
+
+
+def test_headless_slot_is_available_by_class_member(monkeypatch):
+    """
+    Verify the slot is still reachable for a front-end that reads as headless.
+
+    The verdict rests on the execute request's ``allow_stdin`` flag, and a
+    front-end that omits the field reads as headless while someone watches it.
+    Turning the member on gets live repaints back.
+    """
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    handle = _fake_display(monkeypatch)
+    reporter = _slot_reporter()
+    reporter._console.file = io.StringIO()
+    reporter.start("Train", sources=("batch",))
+    reporter.update(ProgressEvent(source="batch", step=1, total=4, details="b"))
+    reporter._push(force=True)
+    reporter.finish(success=True, duration=timedelta(seconds=1))
+    assert handle.frames, "the class member did not re-enable the slot"
 
 
 def test_display_reporter_uses_a_slot_headlessly_even_for_one_bar(monkeypatch):
     """A lone bar must not take the repaint path when nothing will apply it."""
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
     handle = _fake_display(monkeypatch)
-    reporter = RichDisplayProgressReporter()
+    reporter = _slot_reporter()
     reporter._console.file = io.StringIO()
     reporter.start("Train", sources=("batch",))
     reporter.update(ProgressEvent(source="batch", step=5, total=5, details="b"))
     reporter.finish(success=True, duration=timedelta(seconds=1))
-    assert reporter._inline is None
+    assert reporter._inline is False
     assert handle.frames
+    assert "\r" not in reporter._console.file.getvalue()   # nothing was repainted
 
 
-def test_auto_reporter_notebook_with_display_but_flag_off_uses_simple(monkeypatch):
+def test_auto_reporter_notebook_failing_every_check_uses_simple(monkeypatch):
     """
-    Verify the whole rich notebook branch is opt-in, not just the ANSI half.
+    Verify a notebook that passes neither check still gets plain lines.
 
-    Rich progress in a notebook rests on undocumented front-end behavior either
-    way — an in-place repaint, or the display-update protocol — so with the flag
-    unset a notebook takes the path it always did.
+    Rich progress in a kernel rests on front-end behavior nothing documents —
+    an in-place repaint, or the display-update protocol. Both are probed for
+    rather than assumed, and a kernel offering neither must degrade to output
+    that cannot be corrupted rather than to output that might be.
     """
-    monkeypatch.delenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", raising=False)
-    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
-    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
-    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
-    monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: True)
-    assert type(auto_reporter()) is SimpleProgressReporter
-
-
-def test_auto_reporter_tty_is_unaffected_by_the_flag(monkeypatch):
-    """A real terminal keeps the full reporter whether or not the flag is set."""
-    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
-    monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-    for value in ("1", None):
-        if value is None:
-            monkeypatch.delenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", raising=False)
-        else:
-            monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", value)
-        assert type(auto_reporter()) is RichProgressReporter
-
-
-def test_auto_reporter_notebook_without_display_and_flag_off_uses_simple(monkeypatch):
-    """With no display slot and no opt-in, fall back to plain lines."""
-    monkeypatch.delenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", raising=False)
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
     monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
     monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
     assert type(auto_reporter()) is SimpleProgressReporter
 
 
@@ -1281,10 +1754,17 @@ def test_activity_ticker_does_not_outlive_the_call():
 
 
 def _indeterminate_frames(reporter, *, success: bool = True) -> list[str]:
-    """Render a source-less session and return its bar frames."""
+    """
+    Render a source-less session and return its bar frames.
+
+    Unlabeled, so the settled bar is the last frame. A labeled session ends by
+    taking the bar's line back for the summary — cleared and reprinted in a
+    terminal, repainted over in a notebook — so what the bar looks like once
+    the session ends is only observable when there is no summary to cover it.
+    """
     buf = io.StringIO()
     reporter._console.file = buf
-    reporter.start("Analyze", sources=("activity",))
+    reporter.start("", sources=("activity",))
     for _ in range(3):
         time.sleep(0.11)
         _require_progress(reporter).refresh()
@@ -1330,7 +1810,7 @@ def test_completed_indeterminate_session_stops_spinning():
     """
     frames = _indeterminate_frames(RichProgressReporter(console=_notebook_console()))
     assert _ANSI.sub("", frames[0]).strip()[:1] not in {"", "A"}   # spinning during
-    assert _ANSI.sub("", frames[-1]).lstrip().startswith("Analyze")  # blank after
+    assert _ANSI.sub("", frames[-1]).lstrip().startswith("Working")  # blank after
 
 
 @pytest.mark.parametrize("eta", [
@@ -1345,7 +1825,7 @@ def test_spent_estimate_renders_as_nothing(eta):
 
 def test_every_color_is_theme_mappable():
     """
-    Verify nothing is painted in a colour the notebook theme cannot remap.
+    Verify nothing is painted in a color the notebook theme cannot remap.
 
     Only ANSI palette indices 0-15 are themed. rich's stock track is
     ``grey23`` — a 256-cube index around #3a3a3a, which no theme touches and
@@ -1379,7 +1859,10 @@ def test_stepped_bar_stays_red_until_the_session_ends(success, final_color):
     reporter = RichNotebookProgressReporter()
     sink = io.StringIO()
     reporter._console.file = sink
-    reporter.start("Analyze", sources=("engine",))
+    # Unlabeled on purpose: that is the only session whose settled bar a reader
+    # ever sees, since a labeled one closes by repainting its summary over the
+    # bar's line — covering whatever _mark_done left there.
+    reporter.start("", sources=("engine",))
     reporter.update(ProgressEvent(source="engine", step=1, total=1, details=""))
     _require_progress(reporter).refresh()
     during = [f for f in sink.getvalue().split("\r") if "\u2501" in f][-1]
@@ -1459,7 +1942,10 @@ def test_engine_bar_completes_when_the_call_succeeds():
     """
     reporter = RichNotebookProgressReporter()
     reporter._console.file = io.StringIO()
-    reporter.start("Analyze", sources=("engine",))
+    # Unlabeled on purpose: that is the only session whose settled bar a reader
+    # ever sees, since a labeled one closes by repainting its summary over the
+    # bar's line — covering whatever _mark_done left there.
+    reporter.start("", sources=("engine",))
     reporter.update(ProgressEvent(source="engine", step=2, total=3, details=""))
     _require_progress(reporter).refresh()
     reporter.finish(success=True, duration=timedelta(seconds=1))
@@ -1511,7 +1997,10 @@ def test_completed_batch_drops_its_details_with_no_gap():
     """
     reporter = RichNotebookProgressReporter()
     reporter._console.file = io.StringIO()
-    reporter.start("Train", sources=("batch",))
+    # Unlabeled on purpose: that is the only session whose settled bar a reader
+    # ever sees, since a labeled one closes by repainting its summary over the
+    # bar's line — covering whatever _mark_done left there.
+    reporter.start("", sources=("batch",))
     reporter.update(ProgressEvent(source="batch", step=120, total=120, details="batch 7"))
     _require_progress(reporter).refresh()
     reporter.finish(success=True, duration=timedelta(seconds=8))
@@ -1686,7 +2175,6 @@ def test_simple_reporter_activity_line(capsys, monkeypatch):
 
 def test_auto_reporter_databricks_picks_rich_notebook(monkeypatch):
     """Databricks lost its carve-out and is now treated as an ordinary notebook."""
-    monkeypatch.setenv("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER", "1")
     monkeypatch.setenv("DATABRICKS_RUNTIME_VERSION", "13.3.x-scala2.12")
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)

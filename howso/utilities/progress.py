@@ -55,7 +55,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 from rich.segment import Segment
-from rich.table import Column, Table
+from rich.table import Table
 from rich.text import Text
 
 from howso.utilities.monitors import ProgressTimer
@@ -126,17 +126,6 @@ NOTEBOOK_DETAIL_LIMIT = 48
 # longest label, a comma-grouped 100,000,000-row counter (23 characters), the
 # details, elapsed and an estimate, all inside NOTEBOOK_COLUMNS.
 BAR_WIDTH = 24
-
-_AUTO_PROGRESS_LABELS: set[str] = set()
-"""
-Every label :func:`auto_progress` has registered, for sizing the label column.
-
-Populated at decoration time, so it grows as modules are imported — including
-downstream packages that decorate their own methods. Sizing from this rather
-than a hard-coded number means renaming or adding a method keeps the columns
-aligned without anyone remembering to update a constant.
-"""
-
 
 @dataclass
 class ProgressEvent:
@@ -249,7 +238,7 @@ class BaseProgressReporter:
 
     def _eta_text(self, eta: timedelta | None) -> str:
         """
-        Render an estimate, labelled to fit this reporter's console.
+        Render an estimate, labeled to fit this reporter's console.
 
         Parameters
         ----------
@@ -335,37 +324,85 @@ class BaseProgressReporter:
 
 
 class RichProgressReporter(BaseProgressReporter):
-    """
-    Rich-based reporter that renders one bar per progress source.
+    r"""
+    Rich-based reporter that renders every progress source as one merged bar.
 
-    When started with both the ``batch`` and ``engine`` sources, two bars are
-    rendered: the ``batch`` (outer) bar carries the session label, and the
-    ``engine`` (inner) bar is indented beneath it so the two read as nested.
-    Which sources are present is decided upstream by :func:`with_progress`
-    from the wrapped method's ``progress_callback`` / ``task_id`` hooks. With
-    no sources at all, nothing is rendered until the final completion line.
+    A session declares its sources upstream, in :func:`with_progress`, from the
+    wrapped method's ``progress_callback`` / ``task_id`` hooks. However many
+    there are, they share a single bar: ``batch`` owns it whenever it is live,
+    because it is the meaningful outer measure, and ``engine`` is folded into
+    the details column beside it::
+
+        React ---------------->  2/4  engine 1/3 - reacting        0:00:09
+
+    One bar rather than a nested pair is what lets this render identically in a
+    terminal and in a notebook. A notebook front-end renders SGR color codes
+    and treats ``\r`` as a real line rewind, but *discards* cursor-motion codes
+    rather than acting on them, so any layout taller than one line would append
+    a fresh copy of itself on every refresh instead of redrawing in place.
+    Rather than keep two layouts in step, there is one.
+
+    Subclasses vary only in **delivery** -- how a rendered frame reaches the
+    reader. The lifecycle around it (build the model, apply events, settle the
+    tracks, print the completion line) lives here and is not overridden;
+    :meth:`_make_console`, :meth:`_open_delivery`, :meth:`_deliver` and
+    :meth:`_close_delivery` are the seams.
+
+    With no sources at all, nothing is rendered until the final completion line.
 
     Parameters
     ----------
     console : Console, optional
-        Console to render into. Defaults to a fresh :class:`rich.console.Console`.
-    transient : bool, default True
-        When ``True``, the progress bars are cleared once the session
-        finishes, leaving only the final completion line.
+        Console to render into. Defaults to :meth:`_make_console`.
+    transient : bool, optional
+        Override :attr:`_transient` for this instance.
+    """
+
+    _refresh_hz: float = 10.0
+    """Frames per second for the live region. rich's own default."""
+
+    _transient: bool = True
+    """
+    Which route a *successful* session takes to hand its line to the summary.
+
+    Cleared, and the summary is printed where the region was; kept, and the
+    summary is repainted *into* the region as its last frame. The reader ends
+    up with the same single line either way — this only picks how. Clearing is
+    the natural fit for a terminal and is the default, but it costs a
+    cursor-up, so a front-end that discards those turns it off.
+
+    A failed session ignores this and keeps its bar, whichever route the
+    reporter would normally take. See :meth:`_close_delivery`.
     """
 
     def __init__(  # pyright: ignore[reportMissingSuperCall]
         self,
         *,
         console: Console | None = None,
-        transient: bool = True,
+        transient: bool | None = None,
     ) -> None:
         """Initialize the reporter."""
-        self._console = console or Console()
-        self._transient = transient
-        self._progress: Progress | None = None
+        self._console = console if console is not None else self._make_console()
+        if transient is not None:
+            self._transient = transient
+        self._progress: _SummarizingProgress | None = None
         self._tasks: dict[ProgressSource, TaskID] = {}
         self._label: str = ""
+        self._primary: ProgressSource | None = None
+        self._secondary: ProgressSource | None = None
+        self._detail: str = ""
+        self._engine: tuple[int, int, str] | None = None
+
+    def _make_console(self) -> Console:
+        """
+        Build the console to render into when the caller supplies none.
+
+        Returns
+        -------
+        Console
+            A stock console, which measures the attached terminal.
+        """
+        return Console()
 
     def _bar_column(self) -> BarColumn:
         """
@@ -374,25 +411,20 @@ class RichProgressReporter(BaseProgressReporter):
         Returns
         -------
         BarColumn
-            rich's stock bar.
+            A bar that colors itself from the session's state.
         """
         return _StateBarColumn(bar_width=BAR_WIDTH)
 
-    def _make_columns(
-        self, *, activity: bool = False, label_width: int | None = None
-    ) -> tuple[ProgressColumn, ...]:
+    def _make_columns(self, *, activity: bool = False) -> tuple[ProgressColumn, ...]:
         """
         Build the column layout shared by every bar this reporter renders.
 
-        Subclasses that lay tracks out differently reuse this so a bar reads
-        the same wherever it is rendered.
+        The label column sizes itself from the one label it holds. Nothing has
+        to line up across sessions: only one bar is ever on screen, since a
+        successful session hands its line to the summary on the way out.
 
         Parameters
         ----------
-        label_width : int, optional
-            Pin the label column to this width. Leaving it unset lets rich size
-            the column from its content, which makes labels and bars land in
-            different columns from one session to the next.
         activity : bool, default False
             Drop the counter, details and estimate columns. An activity track
             measures nothing, so they would render a meaningless ``0/?`` and
@@ -403,12 +435,7 @@ class RichProgressReporter(BaseProgressReporter):
         tuple of ProgressColumn
             The columns to hand to :class:`rich.progress.Progress`.
         """
-        label = (
-            TextColumn("[bold cyan]{task.description}")
-            if label_width is None
-            else TextColumn("[bold cyan]{task.description}",
-                            table_column=Column(width=label_width))
-        )
+        label = TextColumn("[bold cyan]{task.description}")
         if activity:
             # No details column either: an activity track carries none, and an
             # empty column still takes its padding on both sides, leaving a
@@ -430,81 +457,226 @@ class RichProgressReporter(BaseProgressReporter):
             TextColumn("[green]{task.fields[eta]}"),
         )
 
-    @staticmethod
-    def _track_descriptions(
-        label: str, sources: Sequence[ProgressSource]
-    ) -> dict[ProgressSource, str]:
+    def _compose_details(self) -> str:
         """
-        Name each track so the nesting reads visually.
+        Render the details column from whichever sources have reported.
 
-        When both sources are present the outer (batch) bar carries the method
-        name and the inner (engine) bar gets an indented hint. When engine is
-        the only source (e.g. ``analyze``), it uses the method label directly —
-        no orphan indent.
+        Returns
+        -------
+        str
+            The primary source's own details, with the secondary source's
+            progress prepended when it has reported any.
+        """
+        if self._engine is None:
+            return self._detail
+        step, total, detail = self._engine
+        note = f"engine {step}/{total or '?'}"
+        return _one_line(f"{note} · {detail}" if detail else note)
+
+    def _prepare_merged(self, label: str, sources: Sequence[ProgressSource]) -> bool:
+        """
+        Build the single-bar model, without delivering anything.
+
+        Splitting this from delivery is what lets every reporter share one
+        rendering: whether frames are repainted over stdout or pushed into a
+        display slot, they are frames of the same model.
 
         Parameters
         ----------
         label : str
             Session label.
         sources : sequence of ProgressSource
-            The declared progress sources.
+            Declared sources, all of which share one bar.
 
         Returns
         -------
-        dict
-            Description text keyed by source.
+        bool
+            False when there is nothing to track, so the caller can bail out
+            rather than open a live region or claim a display slot for nothing.
         """
-        both = "batch" in sources and "engine" in sources
-        fallback = label or "Working"
-        return {"batch": fallback, "engine": "  engine" if both else fallback}
+        self._label = label
+        self._detail = ""
+        self._engine = None
+        # ``batch`` is the outer measure when it is live, so it owns the bar and
+        # ``engine`` is demoted to the details text. Otherwise the first declared
+        # source owns it, which matters for ``activity``: it is neither, and
+        # would otherwise leave the session blank.
+        if "batch" in sources:
+            self._primary = "batch"
+        elif "engine" in sources:
+            self._primary = "engine"
+        else:
+            self._primary = sources[0] if sources else None
+        self._secondary = (
+            "engine" if (self._primary == "batch" and "engine" in sources) else None
+        )
+        if self._primary is None:
+            return False
+        self._progress = _SummarizingProgress(
+            *self._make_columns(activity=tuple(sources) == ("activity",)),
+            console=self._console,
+            transient=self._transient,
+            # Each column takes exactly the width its content needs. Letting
+            # rich expand to fill the console redistributes the slack between
+            # them, which moves the bar every time the details text changes
+            # length.
+            expand=False,
+            refresh_per_second=self._refresh_hz,
+        )
+        return True
 
-    def start(self, label: str, *, sources: Sequence[ProgressSource]) -> None:
+    def _add_merged_task(self, label: str, sources: Sequence[ProgressSource]) -> None:
         """
-        Begin a reporting session and add one bar per progress source.
+        Create the one shared track and point every declared source at it.
 
         Parameters
         ----------
         label : str
-            Short description shown on the batch (outer) bar.
+            Session label, shown on the bar.
         sources : sequence of ProgressSource
-            Which progress sources will emit events; one bar is created for
-            each, in the given order. May be empty, in which case no bars are
-            created.
+            Sources to register against the single track.
 
         Returns
         -------
         None
         """
-        self._label = label
-        self._progress = Progress(
-            *self._make_columns(
-                activity=tuple(sources) == ("activity",),
-                label_width=_label_column_width(label, *self._track_descriptions(label, sources).values()),
-            ),
-            console=self._console,
-            transient=self._transient,
+        if self._progress is None:
+            return
+        task = self._progress.add_task(
+            label or "Working", total=None, details="", eta="", done=False, ok=False
         )
-        # Flush both stderr and stdout
-        self._flush_all()
-
-        self._progress.start()
-        descriptions = self._track_descriptions(label, sources)
-        fallback = label or "Working"
+        # Registering every declared source against the one track is what makes
+        # the "an undeclared source is ignored" guard in update() work.
         for source in sources:
-            self._tasks[source] = self._progress.add_task(
-                descriptions.get(source, fallback),
-                total=None,
-                details="",
-                eta="",
-                done=False,
-                ok=False,
-            )
+            self._tasks[source] = task
+
+    def _open_delivery(self) -> None:
+        """
+        Begin delivering frames to the reader.
+
+        Called once per session, after the model and its track exist, so an
+        implementation is free to render a first frame immediately.
+
+        Returns
+        -------
+        None
+        """
+        if self._progress is not None:
+            self._progress.start()
+
+    def _deliver(self) -> None:
+        """
+        Push the current frame, if this delivery is not self-driving.
+
+        A no-op here: rich's ``Live`` runs its own refresh thread.
+
+        Returns
+        -------
+        None
+        """
+
+    def _close_delivery(self, line: str, *, success: bool) -> None:
+        """
+        Stop delivering frames and emit the completion line.
+
+        The summary takes the bar's line over, by whichever route this
+        reporter's front-end supports — see :attr:`_transient`. Two cases keep
+        the bar instead and put the summary beneath it:
+
+        * **A failed session.** The settled bar is the only record of how far
+          the call got — ``batch 7``, ``engine 2/5`` — and the summary has room
+          for none of that. Losing it on the one run where it matters most
+          would be a poor trade for a saved line.
+        * **An unlabeled session**, which has no summary to take the line over
+          with. Clearing there would leave nothing at all.
+
+        Both are decided here rather than per reporter, so the two routes agree
+        on what a reader ends up with.
+
+        Parameters
+        ----------
+        line : str
+            Console markup for the completion line, or ``""`` when there is
+            nothing worth printing.
+        success : bool
+            Whether the wrapped call completed without raising.
+
+        Returns
+        -------
+        None
+        """
+        # Clearing only makes sense when a summary is taking the line over.
+        clearing = success and self._transient and bool(line)
+        if self._progress is not None:
+            if success and line and not clearing:
+                # Repaint the region with the summary so it lands *on* the
+                # bar's line. Printing it instead would put it underneath, and
+                # reclaiming the bar's line needs a cursor-up that a notebook
+                # discards — which is what would split the two paths again.
+                self._progress.summary = Text.from_markup(line)
+            # rich reads this at stop time, so a failed session can withdraw
+            # the clearing its reporter would normally do.
+            self._progress.live.transient = clearing
+            self._progress.stop()
+        if line and not (success and not clearing):
+            # Either the region was cleared on the way out, taking the summary
+            # with it, or the bar is being kept and the summary goes below it.
+            self._console.print(line)
+        self._unwind_rich_proxies()
+
+    @staticmethod
+    def _unwind_rich_proxies() -> None:
+        """
+        Put ``sys.stdout``/``sys.stderr`` back if rich's ``Live`` left a proxy.
+
+        ``Live`` swaps both streams for a ``FileProxy`` so stray prints render
+        above the bar, and restores them in a ``finally``. A ``KeyboardInterrupt``
+        landing inside that teardown can still leak one, which in a notebook
+        kernel is sticky: every later cell would write into a dead console until
+        the user restarts it.
+
+        Returns
+        -------
+        None
+        """
+        for name in ("stdout", "stderr"):
+            stream = getattr(sys, name)
+            proxied = getattr(stream, "rich_proxied_file", None)
+            if proxied is not None and proxied is not stream:
+                setattr(sys, name, proxied)
+
+    def start(self, label: str, *, sources: Sequence[ProgressSource]) -> None:
+        """
+        Begin a reporting session, mapping every source onto a single bar.
+
+        Parameters
+        ----------
+        label : str
+            Short description shown on the bar.
+        sources : sequence of ProgressSource
+            Which progress sources will emit events. All of them share one
+            bar. May be empty, in which case nothing is rendered and no
+            delivery is opened.
+
+        Returns
+        -------
+        None
+        """
+        if not self._prepare_merged(label, sources):
+            return
+        self._add_merged_task(label, sources)
+        # Drain both stderr and stdout, so anything already buffered lands
+        # above the region about to be painted rather than through it.
+        self._flush_all()
+        self._open_delivery()
 
     def update(self, event: ProgressEvent) -> None:
         """
-        Apply a single progress event to its corresponding bar.
+        Apply an event to the shared bar, routing by source.
 
-        Events for an unknown source, or events arriving before
+        The primary source drives the bar's position; the secondary source
+        only contributes text, so it can never move a bar it does not own.
+        Events for an undeclared source, or events arriving before
         :meth:`start`, are ignored.
 
         Parameters
@@ -518,17 +690,24 @@ class RichProgressReporter(BaseProgressReporter):
         """
         if self._progress is None or event.source not in self._tasks:
             return
-        self._progress.update(
-            self._tasks[event.source],
-            completed=event.step,
-            total=event.total or None,
-            details=event.details,
-            eta=self._eta_text(event.eta),
-        )
+        task = self._tasks[event.source]
+        if event.source == self._secondary:
+            self._engine = (event.step, event.total, _one_line(event.details))
+            self._progress.update(task, details=self._compose_details())
+        else:
+            self._detail = _one_line(event.details)
+            self._progress.update(
+                task,
+                completed=event.step,
+                total=event.total or None,
+                details=self._compose_details(),
+                eta=self._eta_text(event.eta),
+            )
+        self._deliver()
 
     def finish(self, *, success: bool, duration: timedelta) -> None:
         """
-        Tear down the live renderer and print a final completion line.
+        Settle the bar, close delivery and emit a final completion line.
 
         Parameters
         ----------
@@ -541,14 +720,20 @@ class RichProgressReporter(BaseProgressReporter):
         -------
         None
         """
-        if self._progress is not None:
+        line = self._completion_markup(success=success, duration=duration)
+        if self._progress is None:
+            # No session was ever rendered, so there is nothing to close.
+            if line:
+                self._console.print(line)
+        else:
             self._mark_done(success=success)
-            self._progress.stop()
+            self._close_delivery(line, success=success)
             self._progress = None
             self._tasks.clear()
-        line = self._completion_markup(success=success, duration=duration)
-        if line:
-            self._console.print(line)
+        self._primary = None
+        self._secondary = None
+        self._engine = None
+        self._detail = ""
         self._flush_all()
 
 
@@ -753,7 +938,7 @@ class _StateBarColumn(BarColumn):
     DONE_STYLE = "green"
     # The unfilled track. rich's default is ``grey23``, a 256-cube index that no
     # theme remaps — roughly #3a3a3a, which reads as *filled* on a light
-    # background. A named ANSI colour lands in the palette the front-end themes.
+    # background. A named ANSI color lands in the palette the front-end themes.
     TRACK_STYLE = "bright_black"
 
     def render(self, task: Any) -> Any:
@@ -865,12 +1050,41 @@ class _OverwriteSafeWriter(io.TextIOBase):
             shortfall = self._written - len(line)
             if shortfall > 0:
                 line += self._PAD * shortfall
-            # The region ends at a newline; after that nothing is overwritten.
-            self._written = 0 if newline else len(line)
             text = f"{head}\r{line}{newline}{rest}"
-        elif "\n" in text:
-            self._written = 0
+            # A carriage return puts the cursor back at column zero, so only
+            # what follows the last one is on the line now.
+            self._written = self._line_length(f"{line}{newline}{rest}", 0)
+        else:
+            # No carriage return: this appends to whatever is already there.
+            # Tracking it matters — rich emits its *first* frame with no cursor
+            # positioning at all, since it has no previous frame to rewind over.
+            # Leaving that one untracked is what let a session ending before the
+            # second frame (a call fast enough to finish inside one refresh
+            # interval) leave the whole bar standing behind its own summary.
+            self._written = self._line_length(text, self._written)
         return self._wrapped.write(text)
+
+    @staticmethod
+    def _line_length(text: str, start: int) -> int:
+        """
+        Return how much is on the line once ``text`` is written from ``start``.
+
+        Parameters
+        ----------
+        text : str
+            The text being written, with no carriage returns before it matters.
+        start : int
+            Raw characters already on the line.
+
+        Returns
+        -------
+        int
+            Raw characters on the line the cursor ends up on. A newline starts
+            a fresh line, so only what follows the last one counts.
+        """
+        if "\n" in text:
+            return len(text.rpartition("\n")[2])
+        return start + len(text)
 
     def flush(self) -> None:
         """Flush the underlying file."""
@@ -881,32 +1095,55 @@ class _OverwriteSafeWriter(io.TextIOBase):
         return bool(getattr(self._wrapped, "isatty", bool)())
 
 
+class _SummarizingProgress(Progress):
+    """
+    A ``Progress`` whose live region can be handed a closing line to render.
+
+    Progress reporting ends with two things to say — the bar's final state and
+    a one-line summary — and only one line to say them on. Printing the summary
+    separately puts it *beneath* the bar, and reclaiming the bar's line then
+    needs a cursor-up, which a notebook front-end discards. Rendering the
+    summary as the region's own last frame repaints it exactly where the bar
+    was, using nothing but the carriage return every front-end honors.
+
+    ``get_renderable`` is rich's documented hook for exactly this.
+    """
+
+    summary: Text | None = None
+    """Renders in place of the bars once set. ``None`` while the session runs."""
+
+    def get_renderable(self) -> Any:
+        """
+        Return the summary once there is one, else the bars.
+
+        Returns
+        -------
+        Any
+            A rich renderable for the current frame.
+        """
+        if self.summary is not None:
+            return self.summary
+        return super().get_renderable()
+
+
 class RichNotebookProgressReporter(RichProgressReporter):
     r"""
-    Rich reporter for notebook front-ends, which render ANSI but not cursor motion.
+    Rich reporter delivering frames to a notebook front-end's stdout.
 
-    JupyterLab, VS Code, Databricks and Colab all render SGR color codes and
-    treat ``\r`` as a real line rewind, but they *discard* cursor-motion codes
-    rather than acting on them. :class:`RichProgressReporter` repaints an
-    ``H``-line region with ``\r`` + erase-line followed by ``H - 1``
-    cursor-ups, so its nested two-bar layout would append a fresh copy of the
-    bars on every refresh instead of redrawing them.
+    The layout is the parent's, unchanged — that is the point. What differs is
+    the two things a kernel demands of the stream underneath it:
 
-    This reporter therefore renders **one** bar and keeps it non-transient —
-    measured against rich 15.0.0, that is the only configuration emitting zero
-    cursor-up sequences. When both progress sources are live, ``batch`` owns
-    the bar (it is the meaningful outer measure) and ``engine`` is folded into
-    the details column::
+    * The console must be built to reach rich's plain-ANSI path from inside a
+      kernel, which :func:`_notebook_console` does; a stock ``Console()`` there
+      silently renders nothing.
+    * The repaint must survive a front-end that implements ``\r`` as a raw-index
+      overwrite and drops the erase-line code, so a frame shorter than its
+      predecessor would leave that predecessor's tail on screen.
+      :class:`_OverwriteSafeWriter` pads over it.
 
-        Train ---------------->        4/10 engine 2/5 - analyzing   0:00:04
-
-    Two consequences worth knowing:
-
-    * The finished bar stays in the cell output beneath the completion line,
-      rather than being cleared as in a terminal. That is deliberate, and is
-      what keeps the cursor-up count at zero.
-    * ``transient`` is not exposed. A caller who wants the terminal behavior
-      should construct :class:`RichProgressReporter` directly.
+    ``transient`` is not exposed. Clearing the finished bar needs the cursor
+    motion a notebook discards, so a caller who wants that should construct
+    :class:`RichProgressReporter` directly.
 
     Parameters
     ----------
@@ -914,238 +1151,74 @@ class RichNotebookProgressReporter(RichProgressReporter):
         Console to render into. Defaults to :func:`_notebook_console`. A
         console supplied here is used as-is, so it must already be built with
         ``force_jupyter=False`` and ``force_terminal=True`` — rich exposes no
-        way to retrofit those, and a stock ``Console()`` inside a kernel
-        silently renders nothing.
+        way to retrofit those.
+    """
+
+    _refresh_hz: float = NOTEBOOK_REFRESH_HZ
+    """Slower than a terminal: every frame is a message over the kernel's IOPub."""
+
+    _transient: bool = False
+    """
+    Never clear: rich clears a one-line region with ``\r ESC[1A ESC[2K``, and a
+    notebook honors only the first of those three. The bar would survive and the
+    summary would land beneath it, indented by the overwrite padding. Repainting
+    the region with the summary reaches the same place using only ``\r``.
     """
 
     def __init__(self, *, console: Console | None = None) -> None:
         """Initialize the reporter."""
-        super().__init__(console=console or _notebook_console(), transient=False)
-        self._primary: ProgressSource | None = None
-        self._secondary: ProgressSource | None = None
-        self._detail: str = ""
-        self._engine: tuple[int, int, str] | None = None
+        super().__init__(console=console)
         self._unwrapped_file: Any = None
 
-    def _bar_column(self) -> BarColumn:
+    def _make_console(self) -> Console:
         """
-        Build a bar that never pulses.
+        Build a console that renders ANSI from inside a kernel.
 
         Returns
         -------
-        BarColumn
-            A :class:`_QuietBarColumn`, whose narrow frame-length spread keeps
-            the carriage-return repaint's padding to a few characters.
+        Console
+            A console on rich's plain-ANSI path, pinned to a fixed width.
         """
-        return _StateBarColumn(bar_width=BAR_WIDTH)
+        return _notebook_console()
 
-    def _compose_details(self) -> str:
-        """Render the details column from whichever sources have reported."""
-        if self._engine is None:
-            return self._detail
-        step, total, detail = self._engine
-        note = f"engine {step}/{total or '?'}"
-        return _one_line(f"{note} \u00b7 {detail}" if detail else note)
-
-    def _prepare_merged(self, label: str, sources: Sequence[ProgressSource]) -> bool:
+    def _open_delivery(self) -> None:
         """
-        Build the single-bar model, without delivering anything.
-
-        The caller decides how frames reach the reader -- repainted over stdout,
-        or pushed into a display slot. Sharing this is what makes a notebook
-        rendered by nbconvert or papermill look like the interactive one.
-
-        Parameters
-        ----------
-        label : str
-            Session label.
-        sources : sequence of ProgressSource
-            Declared sources, all of which share one bar.
-
-        Returns
-        -------
-        bool
-            False when there is nothing to track, so the caller can bail out
-            rather than open a live region or claim a display slot for nothing.
-        """
-        self._label = label
-        self._detail = ""
-        self._engine = None
-        # ``batch`` is the outer measure when it is live, so it owns the bar and
-        # ``engine`` is demoted to the details text. Otherwise the first declared
-        # source owns it, which matters for ``activity``: it is neither, and
-        # would otherwise leave this reporter blank.
-        if "batch" in sources:
-            self._primary = "batch"
-        elif "engine" in sources:
-            self._primary = "engine"
-        else:
-            self._primary = sources[0] if sources else None
-        self._secondary = (
-            "engine" if (self._primary == "batch" and "engine" in sources) else None
-        )
-        if self._primary is None:
-            return False
-        self._progress = Progress(
-            *self._make_columns(
-                activity=tuple(sources) == ("activity",),
-                label_width=_label_column_width(
-                    label, *self._track_descriptions(label, sources).values()
-                ),
-            ),
-            console=self._console,
-            transient=self._transient,
-            # Columns are pinned instead: letting rich redistribute slack put
-            # labels and bars in different columns from one session to the next.
-            expand=False,
-            refresh_per_second=NOTEBOOK_REFRESH_HZ,
-        )
-        return True
-
-    def start(self, label: str, *, sources: Sequence[ProgressSource]) -> None:
-        """
-        Begin a reporting session, mapping every source onto a single bar.
-
-        Parameters
-        ----------
-        label : str
-            Short description shown on the bar.
-        sources : sequence of ProgressSource
-            Which progress sources will emit events. All of them share one
-            bar. May be empty, in which case no bar and no live region are
-            created at all.
+        Wrap the stream against short frames, then start the live region.
 
         Returns
         -------
         None
         """
-        if not self._prepare_merged(label, sources):
-            return
-        self._flush_all()
-        # Wrap for the repainting region only, so the completion line and
-        # anything the caller prints afterwards go straight to the real file.
         self._unwrapped_file = self._console.file
         self._console.file = _OverwriteSafeWriter(self._unwrapped_file)  # pyright: ignore[reportAttributeAccessIssue]
-        self._progress.start()
-        self._add_merged_task(label, sources)
+        super()._open_delivery()
 
-    def _add_merged_task(self, label: str, sources: Sequence[ProgressSource]) -> None:
+    def _close_delivery(self, line: str, *, success: bool) -> None:
         """
-        Create the one shared track and point every declared source at it.
+        Stop the live region, then put the plain stream back.
 
-        Split out so the display-slot reporter can build the same single-bar
-        model without the ANSI machinery around it -- a batch-rendered notebook
-        should look like the interactive one.
+        The wrapper must stay in place across the ``super()`` call, because
+        that is what calls ``Progress.stop()`` — which emits one final frame.
+        Restoring first left that frame un-padded against a much longer
+        predecessor, which was the whole visible bug.
 
         Parameters
         ----------
-        label : str
-            Session label, shown on the bar.
-        sources : sequence of ProgressSource
-            Sources to register against the single track.
-
-        Returns
-        -------
-        None
-        """
-        if self._progress is None:
-            return
-        task = self._progress.add_task(
-            label or "Working", total=None, details="", eta="", done=False, ok=False
-        )
-        # Registering every declared source against the one track keeps the
-        # inherited "an undeclared source is ignored" guard working unchanged.
-        for source in sources:
-            self._tasks[source] = task
-
-    def update(self, event: ProgressEvent) -> None:
-        """
-        Apply an event to the shared bar, routing by source.
-
-        The primary source drives the bar's position; the secondary source
-        only contributes text, so it can never move a bar it does not own.
-
-        Parameters
-        ----------
-        event : ProgressEvent
-            The progress update to render.
-
-        Returns
-        -------
-        None
-        """
-        if self._progress is None or event.source not in self._tasks:
-            return
-        task = self._tasks[event.source]
-        if event.source == self._secondary:
-            self._engine = (event.step, event.total, _one_line(event.details))
-            self._progress.update(task, details=self._compose_details())
-            return
-        self._detail = _one_line(event.details)
-        self._progress.update(
-            task,
-            completed=event.step,
-            total=event.total or None,
-            details=self._compose_details(),
-            eta=self._eta_text(event.eta),
-        )
-
-    def finish(self, *, success: bool, duration: timedelta) -> None:
-        """
-        End the session and make certain the kernel's stdio is back in place.
-
-        Parameters
-        ----------
+        line : str
+            Console markup for the completion line.
         success : bool
             Whether the wrapped call completed without raising.
-        duration : timedelta
-            Total elapsed time, shown in the completion line.
 
         Returns
         -------
         None
         """
         try:
-            # The wrapper must stay in place across super().finish(), because
-            # that is what calls Progress.stop() — which emits one final frame.
-            # Restoring first left that frame un-padded against a much longer
-            # predecessor, which was the whole visible bug.
-            super().finish(success=success, duration=duration)
+            super()._close_delivery(line, success=success)
         finally:
             if self._unwrapped_file is not None:
                 self._console.file = self._unwrapped_file
                 self._unwrapped_file = None
-        self._primary = None
-        self._secondary = None
-        self._engine = None
-        # rich's Live swaps sys.stdout/sys.stderr for a FileProxy so stray
-        # prints render above the bar, and restores them in a ``finally``. A
-        # KeyboardInterrupt landing inside that teardown can still leak one,
-        # which in a kernel is sticky: every later cell would write into a
-        # dead console until the user restarts it. Unwind defensively.
-        for name in ("stdout", "stderr"):
-            stream = getattr(sys, name)
-            proxied = getattr(stream, "rich_proxied_file", None)
-            if proxied is not None and proxied is not stream:
-                setattr(sys, name, proxied)
-
-
-def _experimental_notebook_reporter() -> bool:
-    """
-    Report whether rich progress in a notebook is opted into.
-
-    Rich progress in a notebook rests on behavior no front-end documents — an
-    in-place carriage-return repaint, or the display-update protocol — so the
-    whole notebook branch is opt-in. With the flag unset a notebook takes the
-    same path it always did: :class:`SimpleProgressReporter`. A real terminal
-    is unaffected either way and keeps :class:`RichProgressReporter`.
-
-    Returns
-    -------
-    bool
-        True when the environment variable is set to a truthy value.
-    """
-    return _parse_tristate(os.environ.get("HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER")) is True
 
 
 def _interactive_frontend() -> bool:
@@ -1256,46 +1329,69 @@ class RichDisplayProgressReporter(RichNotebookProgressReporter):
     """
     Rich reporter that repaints via IPython's display-update protocol.
 
-    Where :class:`RichNotebookProgressReporter` gives up the nested layout to
-    stay within the control codes a notebook honors, this reporter sidesteps
-    the problem entirely: it never starts rich's ``Live`` at all. Instead it
-    claims one display slot with ``display(..., display_id=True)`` and replaces
-    its contents wholesale on each refresh. Because the whole slot is
-    rewritten, a multi-line renderable needs no cursor motion, so the full
-    ``batch`` + ``engine`` pair renders exactly as it does in a terminal.
+    This exists for notebooks rendered *headlessly* — by ``nbconvert``,
+    ``papermill``, anything built on ``nbclient``. Those exports handle SGR
+    color codes but do not implement carriage-return overwrite at all, so the
+    parent's in-place repaint would be committed to the saved document one
+    frame per line. Here the reporter claims one display slot with
+    ``display(..., display_id=True)`` and replaces its contents wholesale, so
+    only the last frame survives into the notebook.
 
     This rides ``update_display_data``, part of the core Jupyter messaging
     spec since 5.1 — notably *not* ``ipywidgets``, which cannot work here: a
     kernel cannot learn whether its front-end renders widgets, and a front-end
     that does not leaves the cell showing the string ``Output()``.
 
-    One caveat: the frame is turned into HTML by rich's ``JupyterMixin``, which
-    renders through the *global* console rather than this reporter's. In a
-    kernel that is a Jupyter console and the output matches the stdout reporter
-    exactly; a colorless or narrower global console would render the bar's
-    unfilled track as blanks instead.
+    When something *is* watching, it stays on the parent's stdout delivery
+    instead. A notebook merges consecutive stdout writes into one block but
+    never merges display blocks, so a display slot is fenced off from the lines
+    around it — including the caller's own prints — by the notebook's padding.
+    The frame is identical either way; only the block it lands in differs.
 
-    Colors are baked to literal hex on this path, since the frame is delivered
-    as HTML rather than ANSI. That is not a loss for us: rich's stock styles
-    bake to exactly the RGB a truecolor terminal displays (``#f92672``
-    in-progress, ``#729c1f`` finished, ``#3a3a3a`` track), so the bar matches
-    the terminal. Do not restyle it.
+    Two things to know about the slot path. The frame is turned into HTML by
+    rich's ``JupyterMixin``, which renders through the *global* console rather
+    than this reporter's; in a kernel that is a Jupyter console and the output
+    matches the stdout path exactly, while a colorless or narrower global
+    console would render the bar's unfilled track as blanks instead. And colors
+    are baked to literal hex, since the frame is delivered as HTML rather than
+    ANSI. This is the one route whose palette is *not* theme-mapped: the others
+    emit ``red``/``green``/``bright_black`` as ANSI codes for the front-end to
+    resolve against its own theme, while here they freeze at render time to
+    that palette's values (``#800000``, ``#008000``, ``#808080``). There is no
+    back-channel from HTML to a theme, and this route only ever serves headless
+    renders, where there is no live theme to honor in the first place.
 
     Parameters
     ----------
     console : Console, optional
-        Console used for the completion line. Defaults to
-        :func:`_notebook_console`, so that line is written as ANSI to stdout
-        and collates with surrounding cell output.
+        Console used for the completion line, and for the whole render when a
+        front-end is watching. Defaults to :func:`_notebook_console`.
+    """
+
+    _slot_when_headless: bool = False
+    """
+    Whether a headless render claims an updatable display slot.
+
+    Off, the default: nothing is rendered until the session ends, and the final
+    state is written to stdout in one go. Nobody is watching a headless run and
+    nbconvert cannot animate the frames it would receive, so the intermediate
+    ones buy nothing — and a notebook merges consecutive stdout writes into a
+    single output block, where every display slot is its own block carrying its
+    own vertical padding. A cell of several calls reads as adjacent lines
+    instead of a stack of padded panels.
+
+    On: each session claims a slot and repaints it as events arrive. Worth
+    turning on when the headless verdict may be wrong — it rests on the
+    execute request's ``allow_stdin`` flag, and a front-end that leaves the
+    field out reads as headless while some person watches it repaint nothing.
     """
 
     def __init__(self, *, console: Console | None = None) -> None:
         """Initialize the reporter."""
-        # The parent already pins ``transient=False`` and the notebook console.
         super().__init__(console=console)
         self._handle: Any = None
         self._last_push: float = 0.0
-        self._inline: RichNotebookProgressReporter | None = None
+        self._inline: bool = False
 
     @staticmethod
     def _frame(progress: Progress) -> Any:
@@ -1341,52 +1437,28 @@ class RichDisplayProgressReporter(RichNotebookProgressReporter):
         with suppress(Exception):
             self._handle.update(_TightRenderable(self._frame(self._progress)))
 
-    def start(self, label: str, *, sources: Sequence[ProgressSource]) -> None:
+    def _open_delivery(self) -> None:
         """
-        Begin a session and claim a display slot, one bar per source.
-
-        Parameters
-        ----------
-        label : str
-            Short description shown on the outer bar.
-        sources : sequence of ProgressSource
-            Which progress sources will emit events; one bar per source. May
-            be empty, in which case no slot is claimed.
+        Claim a display slot, or fall back to the parent's stdout repaint.
 
         Returns
         -------
         None
         """
-        self._label = label
-        self._handle = None
-        self._inline = None
-        if not sources:
-            # Nothing to track: no slot, no delegate, just the completion line.
+        if self._progress is None:
             return
         if _interactive_frontend():
-            # Stay on stdout whenever something is watching. A notebook merges
-            # consecutive stdout writes into one block but never merges display
-            # blocks, so a display group is fenced off from the lines around it
-            # — including the caller's own prints — by the notebook's padding.
-            # That cost is not worth a second bar: the stdout reporter folds the
-            # engine into the outer bar's details instead, which keeps the whole
-            # cell in one block. The in-place repaint this needs is made safe by
-            # :class:`_OverwriteSafeWriter`.
-            #
-            # Headless runs still take the display slot below, where separate
-            # blocks are the only thing that survives into the saved notebook.
-            self._inline = RichNotebookProgressReporter(console=self._console)
-            self._inline.start(label, sources=sources)
+            # Someone is watching: stay in the caller's own output block.
+            self._inline = True
+            super()._open_delivery()
             return
-        # The same single-bar model the stdout reporter builds, so a notebook
-        # rendered by nbconvert or papermill looks like the interactive one.
+        if not self._slot_when_headless:
+            # Render nothing until the close, which writes the final state.
+            return
         # Deliberately no ``Progress.start()``: that would install rich's Live
-        # renderer and with it the cursor-up repaint this class exists to avoid.
-        # The Progress here is only a model that knows how to render.
-        if not self._prepare_merged(label, sources):
-            return
-        self._add_merged_task(label, sources)
-        self._flush_all()
+        # renderer and with it the repaint this path exists to avoid. The
+        # Progress here is only a model that knows how to render itself.
+        #
         # Imported here rather than at module scope: IPython is not a
         # dependency, and this class is only ever selected once
         # ``_display_handle_available()`` has confirmed a live shell.
@@ -1399,72 +1471,85 @@ class RichDisplayProgressReporter(RichNotebookProgressReporter):
             )
         self._last_push = monotonic()
 
-    def update(self, event: ProgressEvent) -> None:
+    def _deliver(self) -> None:
         """
-        Apply an event to its own bar, then repaint the slot.
-
-        Parameters
-        ----------
-        event : ProgressEvent
-            The progress update to render.
+        Repaint the slot, unless the parent's live region is driving this.
 
         Returns
         -------
         None
         """
-        if self._inline is not None:
-            self._inline.update(event)
+        if self._inline:
+            super()._deliver()
             return
-        super().update(event)
         self._push()
 
-    def finish(self, *, success: bool, duration: timedelta) -> None:
+    def _close_delivery(self, line: str, *, success: bool) -> None:
         """
-        Push the final frame, then print the completion line.
+        Leave the reader with what the other routes leave on the bar's line.
+
+        On success that is the summary alone, in place of the bar; on failure
+        the bar is kept with the summary under it. When a slot is in play both
+        go into the *same* renderable, because a notebook shows a stream block
+        and a display block as two outputs, each with its own vertical padding,
+        and printing the summary would open a conspicuous gap under the bar.
+        Writing to stdout has no such constraint — consecutive writes land in
+        one block — so that path simply prints them.
 
         Parameters
         ----------
+        line : str
+            Console markup for the completion line.
         success : bool
             Whether the wrapped call completed without raising.
-        duration : timedelta
-            Total elapsed time, shown in the completion line.
 
         Returns
         -------
         None
         """
-        if self._inline is not None:
-            self._inline.finish(success=success, duration=duration)
-            self._inline = None
+        if self._inline:
+            # The parent is delivering; it owns the close too.
+            self._inline = False
+            super()._close_delivery(line, success=success)
             return
-        line = self._completion_markup(success=success, duration=duration)
-        if self._handle is None or self._progress is None:
-            # No slot was ever claimed (no sources, or no shell to render
-            # into), so there is nothing to fold the line into.
-            super().finish(success=success, duration=duration)
+        if self._handle is None:
+            # No slot: write the final state to stdout in one go. Two prints
+            # rather than one stacked renderable — consecutive stdout writes
+            # merge into a single output block, which is the point of this
+            # path, so nothing has to hold them together.
+            if self._progress is not None and not (success and line):
+                self._console.print(self._frame(self._progress))
+            if line:
+                self._console.print(line)
             return
-        # Render the bars and the completion line as ONE renderable. Printing
-        # the line separately would send it to stdout, and a notebook shows a
-        # stream block and a display block as two outputs, each with its own
-        # vertical padding — leaving a conspicuous gap under the bars.
-        self._mark_done(success=success)
-        frame = self._frame(self._progress)
-        if line:
-            # ``Table.grid`` rather than ``Group``: only a JupyterMixin carries
-            # the ``_repr_mimebundle_`` that makes IPython render HTML, and
-            # Group is not one — it would reach the notebook as a bare repr.
-            stacked = Table.grid()
-            stacked.add_row(frame)
-            stacked.add_row(Text.from_markup(line))
-            frame = stacked
-        with suppress(Exception):
-            self._handle.update(_TightRenderable(frame))
+        frame: Any
+        if success and line:
+            frame = Text.from_markup(line)
+        elif self._progress is not None:
+            # A failed or unlabeled session keeps its bar.
+            frame = self._frame(self._progress)
+            if line:
+                # ``Table.grid`` rather than ``Group``: only a JupyterMixin
+                # carries the ``_repr_mimebundle_`` that makes IPython render
+                # HTML, and Group is not one — it would reach the notebook as
+                # a bare repr.
+                #
+                # ``expand`` is load-bearing. A grid sizes its column to the
+                # child's *maximum* measurement, and a bar measures narrower
+                # than it lays out — so the default sizing squeezed the frame
+                # and wrapped the details onto a second row, which no other
+                # route does. Expanding hands the frame the same width it gets
+                # when pushed on its own.
+                stacked = Table.grid(expand=True)
+                stacked.add_row(frame)
+                stacked.add_row(Text.from_markup(line))
+                frame = stacked
+        else:
+            frame = None
+        if frame is not None:
+            with suppress(Exception):
+                self._handle.update(_TightRenderable(frame))
         self._handle = None
-        # ``Progress.stop()`` would be a no-op here — Live.stop() returns early
-        # when it was never started — so tear down directly instead.
-        self._progress = None
-        self._tasks.clear()
-        self._flush_all()
 
 
 class SimpleProgressReporter(BaseProgressReporter):
@@ -1637,19 +1722,21 @@ def auto_reporter(*, console: Console | None = None) -> ProgressReporter:
     1. ``HOWSO_SIMPLE_PROGRESS`` set to a truthy value
        (``1``/``on``/``true``/``yes``) forces the line-printing reporter. This
        is the escape hatch from everything below.
-    2. A tty gets :class:`RichProgressReporter` — the full nested layout.
-    3. A notebook kernel gets a rich reporter **only** when
-       ``HOWSO_EXPERIMENTAL_NOTEBOOK_REPORTER`` is set. With a live IPython
-       shell, :class:`RichDisplayProgressReporter`, which repaints a display
-       slot and so renders the full nested layout; without one — a Databricks
-       runtime where ``IPython`` was never imported, for instance —
-       :class:`RichNotebookProgressReporter`, a single bar drawn with only the
-       control codes those front-ends honor.
-    4. Anything else — a pipe, a redirect, a CI log — gets
-       :class:`SimpleProgressReporter`.
+    2. A tty gets :class:`RichProgressReporter`, repainting a live region.
+    3. A notebook kernel gets a rich reporter when it passes the checks each
+       one needs. With a live IPython shell,
+       :class:`RichDisplayProgressReporter`, which repaints stdout while a
+       front-end is watching and falls back to a display slot for a headless
+       render; with an interactive front-end but no importable
+       ``IPython.display``, :class:`RichNotebookProgressReporter`, which
+       repaints stdout using only the control codes those front-ends honor.
+    4. Anything else — a notebook that passes neither check, a pipe, a
+       redirect, a CI log — gets :class:`SimpleProgressReporter`.
 
-    The tty check deliberately precedes the notebook check: ``_in_notebook()``
-    is also true for *terminal* IPython, which should keep the full layout.
+    All three rich reporters render the same merged bar and differ only in how
+    a frame reaches the reader. The tty check deliberately precedes the
+    notebook check: ``_in_notebook()`` is also true for *terminal* IPython,
+    which has a real terminal underneath it.
 
     Parameters
     ----------
@@ -1668,7 +1755,7 @@ def auto_reporter(*, console: Console | None = None) -> ProgressReporter:
         return SimpleProgressReporter(console=console)
     if sys.stdout.isatty():
         return RichProgressReporter(console=console)
-    if _in_notebook() and _experimental_notebook_reporter():
+    if _in_notebook():
         # The display slot survives headless execution: nbclient replaces the
         # output's data in place for each update, so an nbconvert/papermill run
         # stores the final frame as ordinary HTML and exports it faithfully.
@@ -2136,7 +2223,7 @@ class _CountColumn(MofNCompleteColumn):
             # The label's hue, un-bolded: the details describe the same task, so
             # they read as subordinate to it rather than as a separate signal.
             # Not rich's ``progress.data.speed``, which resolves to plain red —
-            # the colour a pending bar uses, meaning something else entirely.
+            # the color a pending bar uses, meaning something else entirely.
             text.append(f" {details}", style="cyan")
         return text
 
@@ -2171,38 +2258,9 @@ class _ElapsedColumn(TimeElapsedColumn):
         return Text(_format_duration(timedelta(seconds=elapsed)), style="progress.elapsed")
 
 
-def _label_column_width(*labels: str) -> int:
-    """
-    Width to pin the label column to, so every session lines up.
-
-    Sized from every label the decorator has registered, plus the one in hand —
-    a caller may pass a bespoke label straight to :func:`with_progress` without
-    ever going through the decorator, and that must not be clipped.
-
-    Without a pinned width, rich re-measures the column from its content each
-    frame and ``expand`` redistributes the slack, so labels and bars land in
-    different columns from one session to the next and shift again when the
-    content changes.
-
-    Parameters
-    ----------
-    *labels : str
-        Every description this session will actually render. Pass the derived
-        track descriptions, not just the session label: the nested engine track
-        renders as ``"  engine"``, which is wider than a short label like
-        ``"Train"`` and would otherwise be clipped to ``"en…"``.
-
-    Returns
-    -------
-    int
-        Column width in characters.
-    """
-    return max({len(name) for name in _AUTO_PROGRESS_LABELS} | {len(name) for name in labels})
-
-
 def _format_eta(eta: timedelta | None, *, long: bool = True) -> str:
     """
-    Render an estimate, labelled to fit the space available.
+    Render an estimate, labeled to fit the space available.
 
     Sub-second precision is dropped: a ``timedelta`` stringifies with
     microseconds (``0:01:23.456789``), which is false precision on a figure
@@ -2356,7 +2414,6 @@ def auto_progress(label_or_method: Any = None, /, *, indeterminate: bool = False
             finally:
                 _state.depth = depth
         wrapper._auto_progress_label = label  # type: ignore[attr-defined]
-        _AUTO_PROGRESS_LABELS.add(label)
         return wrapper
 
     if callable(label_or_method):
