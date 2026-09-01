@@ -189,6 +189,7 @@ jobs:
       config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
+      enable-utf8: true
 
   pytest-macos-3-12-mt-arm64:
     needs: ['metadata', 'build']
