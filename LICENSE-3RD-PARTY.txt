@@ -1,10 +1,10 @@
 Faker
-40.36.0
+40.37.0
 MIT License
 joke2k
 https://github.com/joke2k/faker
 Faker is a Python package that generates fake data for you.
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/faker-40.36.0.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/faker-40.37.0.dist-info/licenses/LICENSE.txt
 Copyright (c) 2012 Daniele Faraglia
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -90,12 +90,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 build
-1.5.0
+1.6.0
 MIT
 Filipe Laíns <lains@riseup.net>, Bernát Gábor <gaborjbernat@gmail.com>, layday <layday@protonmail.com>, Henry Schreiner <henryschreineriii@gmail.com>
 https://build.pypa.io
 A simple, correct Python build frontend
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/build-1.5.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/build-1.6.0.dist-info/licenses/LICENSE
 Copyright © 2019 Filipe Laíns <filipe.lains@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -178,12 +178,12 @@ SOFTWARE.
 
 
 click
-8.4.2
+8.5.0
 BSD-3-Clause
 UNKNOWN
 https://github.com/pallets/click/
 Composable command line interface toolkit
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/click-8.4.2.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/click-8.5.0.dist-info/licenses/LICENSE.txt
 Copyright 2014 Pallets
 
 Redistribution and use in source and binary forms, with or without
@@ -205,6 +205,47 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
 PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+cloudpickle
+3.1.2
+BSD License
+The cloudpickle developer team
+https://github.com/cloudpipe/cloudpickle
+Pickler class to extend the standard pickle.Pickler functionality
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/cloudpickle-3.1.2.dist-info/licenses/LICENSE
+This module was extracted from the `cloud` package, developed by
+PiCloud, Inc.
+
+Copyright (c) 2015, Cloudpickle contributors.
+Copyright (c) 2012, Regents of the University of California.
+Copyright (c) 2009 PiCloud, Inc. http://www.picloud.com.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the University of California, Berkeley nor the
+      names of its contributors may be used to endorse or promote
+      products derived from this software without specific prior written
+      permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
 HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
 SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
 TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -284,12 +325,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 joblib
-1.5.3
+1.6.0
 BSD-3-Clause
 Gael Varoquaux <gael.varoquaux@normalesup.org>
 https://joblib.readthedocs.io
 Lightweight pipelining with Python functions
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/joblib-1.5.3.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/joblib-1.6.0.dist-info/licenses/LICENSE.txt
 BSD 3-Clause License
 
 Copyright (c) 2008-2021, The joblib developers.
@@ -407,12 +448,12 @@ IN THE SOFTWARE.
 
 
 mmh3
-5.2.1
+5.3.0
 MIT License
 Hajime Senuma <hajime.senuma@gmail.com>
 https://pypi.org/project/mmh3/
 Python extension for MurmurHash (MurmurHash3), a set of fast and robust hash functions.
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/mmh3-5.2.1.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/mmh3-5.3.0.dist-info/licenses/LICENSE
 MIT License
 
 Copyright (c) 2011-2026 Hajime Senuma
@@ -2650,12 +2691,12 @@ third-party archives.
    limitations under the License.
 
 pip-tools
-7.5.0
+7.4.1
 BSD License
 Vincent Driessen <me@nvie.com>
 https://github.com/jazzband/pip-tools/
 pip-tools keeps your pinned dependencies fresh.
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/pip_tools-7.5.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/pip_tools-7.4.1.dist-info/LICENSE
 BSD 3-Clause License
 
 Copyright (c). All rights reserved.
@@ -2845,12 +2886,12 @@ DEALINGS IN THE SOFTWARE.
 
 
 regex
-2026.7.19
+2026.9.3
 Apache-2.0 AND CNRI-Python
 Matthew Barnett <regex@mrabarnett.plus.com>
 https://github.com/mrabarnett/mrab-regex
 Alternative regular expression module, to replace re.
-/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/regex-2026.7.19.dist-info/licenses/LICENSE.txt
+/home/runner/.pyenv/versions/3.14.7/lib/python3.14/site-packages/regex-2026.9.3.dist-info/licenses/LICENSE.txt
 This work was derived from the 're' module of CPython 2.6 and CPython 3.1,
 copyright (c) 1998-2001 by Secret Labs AB and licensed under CNRI's Python 1.6
 license.
