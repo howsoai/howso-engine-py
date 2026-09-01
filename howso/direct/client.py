@@ -43,6 +43,7 @@ from howso.client.schemas import (
 from howso.client.typing import LibraryType, Persistence
 from howso.direct.schemas import CombineTraineesResult, DirectTrainee
 from howso.utilities import HowsoTokenizer, internals, TokenizerProtocol
+from howso.utilities.progress import auto_progress
 from howso.utilities.random import get_random_seed
 
 # Client version
@@ -1899,6 +1900,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             trainee_path = list(trainee_path)
         return self.execute(trainee_id, "get_hierarchy", {"path_list": trainee_path})
 
+    @auto_progress("Merge trainees", indeterminate=True)
     def combine_trainee_with_subtrainees(
         self,
         trainee_id: str,

@@ -62,14 +62,14 @@ from howso.engine.client import get_client
 from howso.engine.project import Project
 from howso.engine.session import Session
 from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
-from howso.utilities.progress import auto_progress, engine_polling_supported
+from howso.utilities.progress import engine_polling_supported
 
 __all__ = [
     "Trainee",
+    "delete_trainee",
+    "get_trainee",
     "list_trainees",
     "load_trainee",
-    "get_trainee",
-    "delete_trainee",
     "query_trainees",
 ]
 
@@ -692,7 +692,6 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have 'set_random_seed' method")
 
-    @auto_progress("Train")
     def train(
         self,
         cases: TabularData2D | Generator[DataFrame, int],
@@ -1099,7 +1098,6 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'set_auto_analyze_params' method.")
 
-    @auto_progress("Analyze")
     def analyze(
         self,
         context_features: Collection[str] | None = None,
@@ -1332,7 +1330,6 @@ class Trainee(BaseTrainee):
 
         return results['action']
 
-    @auto_progress("React")
     def react(
         self,
         contexts: TabularData2D | None = None,
@@ -1862,7 +1859,7 @@ class Trainee(BaseTrainee):
 
                 - "goal": "min" or "max", will make a prediction while minimizing or
                   maximizing the value for the feature.
-                - "value" : somevalue, will make a prediction while approaching the
+                - "value" : some_value, will make a prediction while approaching the
                   specified value.
 
             .. NOTE::
@@ -2018,7 +2015,6 @@ class Trainee(BaseTrainee):
             weight_feature=weight_feature,
         )
 
-    @auto_progress("React Series")
     def react_series(
         self,
         *,
@@ -2329,7 +2325,6 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Trainee ID is needed for react_series.")
 
-    @auto_progress("React Series (stationary)")
     def react_series_stationary(
         self,
         action_features: Collection[str],
@@ -2483,7 +2478,6 @@ class Trainee(BaseTrainee):
         else:
             raise ValueError("Trainee ID is needed for react_series_stationary.")
 
-    @auto_progress("Impute")
     def impute(
         self,
         *,
@@ -3290,7 +3284,6 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_substitute_feature_values' method.")
 
-    @auto_progress("React group")
     def react_group(
         self,
         *,
@@ -3681,7 +3674,6 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the `get_value_masses` method.")
 
-    @auto_progress("React into features")
     def react_into_features(
         self,
         *,
@@ -3788,7 +3780,6 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'react_into_features' method.")
 
-    @auto_progress("React aggregate")
     def react_aggregate(
         self,
         *,
