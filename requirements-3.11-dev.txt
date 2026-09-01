@@ -32,7 +32,7 @@ dill==0.4.1
     #   pylint
 execnet==2.1.2
     # via pytest-xdist
-faker==40.37.0
+faker==40.38.0
     # via howso-engine (pyproject.toml)
 flake8==3.9.2
     # via

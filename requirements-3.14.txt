@@ -16,7 +16,7 @@ click==8.5.0
     # via sacremoses
 cloudpickle==3.1.2
     # via joblib
-faker==40.37.0
+faker==40.38.0
     # via howso-engine (pyproject.toml)
 humanize==4.16.0
     # via howso-engine (pyproject.toml)
