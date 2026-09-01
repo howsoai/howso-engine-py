@@ -169,7 +169,7 @@ def test_simple_reporter_single_source_no_indent(capsys):
     reporter.update(ProgressEvent(source="engine", step=1, total=6, details="Analyzing"))
     reporter.update(ProgressEvent(source="engine", step=2, total=6, details="Computing"))
     reporter.finish(success=True, duration=timedelta(seconds=1.5))
-    out = capsys.readouterr().out
+    out = _captured(capsys)
     assert "Analyze" in out
     assert "  [1/6] Analyzing" in out
     assert "  [2/6] Computing" in out
@@ -183,7 +183,7 @@ def test_simple_reporter_both_sources_engine_indented(capsys):
     reporter.update(ProgressEvent(source="batch", step=10, total=100, details="batch 1"))
     reporter.update(ProgressEvent(source="engine", step=1, total=3, details="step 1"))
     reporter.finish(success=True, duration=timedelta(seconds=2.0))
-    out = capsys.readouterr().out
+    out = _captured(capsys)
     assert "  [ 10/100] batch 1" in out      # batch: 2-space prefix
     assert "    [1/3] step 1" in out          # engine: 4-space prefix (nested)
 
@@ -194,7 +194,7 @@ def test_simple_reporter_numerator_padded_to_denominator_width(capsys):
     reporter.update(ProgressEvent(source="batch", step=0, total=1999, details="batch 0"))
     reporter.update(ProgressEvent(source="batch", step=100, total=1999, details="batch 1"))
     reporter.update(ProgressEvent(source="batch", step=1999, total=1999, details="batch 6"))
-    out = capsys.readouterr().out
+    out = _captured(capsys)
     assert "  [   0/1999] batch 0" in out
     assert "  [ 100/1999] batch 1" in out
     assert "  [1999/1999] batch 6" in out
@@ -204,7 +204,7 @@ def test_simple_reporter_failure_marker(capsys):
     reporter = SimpleProgressReporter()
     reporter.start("Train", sources=("batch",))
     reporter.finish(success=False, duration=timedelta(seconds=0.1))
-    out = capsys.readouterr().out
+    out = _captured(capsys)
     assert "Train failed in" in out
 
 
@@ -219,7 +219,7 @@ def test_simple_reporter_heartbeat_fires_when_step_stalls(capsys, monkeypatch):
     # Same step a second time → should print a heartbeat line containing 'elapsed'.
     reporter.update(ProgressEvent(source="engine", step=3, total=6, details="Computing"))
     reporter.finish(success=True, duration=timedelta(seconds=1.0))
-    out = capsys.readouterr().out
+    out = _captured(capsys)
     assert "elapsed" in out
 
 
@@ -227,7 +227,7 @@ def test_simple_reporter_unknown_total_renders_question_mark(capsys):
     reporter = SimpleProgressReporter()
     reporter.start("Analyze", sources=("engine",))
     reporter.update(ProgressEvent(source="engine", step=0, total=0, details=""))
-    out = capsys.readouterr().out
+    out = _captured(capsys)
     assert "[0/?]" in out
 
 
@@ -944,9 +944,28 @@ def _slot_reporter(**kwargs: Any) -> RichDisplayProgressReporter:
 
 
 def _rows(renderable) -> list[str]:
-    """Return the visible lines of one pushed frame."""
+    """
+    Return the visible lines of one pushed frame, without color.
+
+    ``text/plain`` is rendered through rich's *global* console, which decides
+    on its own whether to emit SGR codes — ``FORCE_COLOR`` in the environment
+    is enough to turn them on. Asserting on raw text therefore passes locally
+    and fails in CI, so strip them: every caller here is asking what a reader
+    sees, not how it was colored.
+    """
     plain = renderable._repr_mimebundle_([], [])["text/plain"]
-    return [line for line in plain.splitlines() if line.strip()]
+    return [_ANSI.sub("", line) for line in plain.splitlines() if line.strip()]
+
+
+def _captured(capsys) -> str:
+    """
+    Return captured stdout with any color stripped.
+
+    A reporter builds its own :class:`Console`, which picks up ``FORCE_COLOR``
+    from the environment like any other. Tests that assert on the *text* must
+    not depend on whether the run happened to be colored.
+    """
+    return _ANSI.sub("", capsys.readouterr().out)
 
 
 @pytest.mark.parametrize("sources", [(), ("batch",), ("engine",), ("batch", "engine")])
@@ -1116,6 +1135,45 @@ _PARITY_EVENTS = (
 )
 
 
+# rich draws a bar in box characters, falling back to ASCII when the console is
+# legacy-Windows or its encoding is not UTF-8 (``ascii = options.legacy_windows
+# or options.ascii_only``). The parity tests run in both.
+_BAR_GLYPHS = ("\u2501", "-")
+
+
+def _pinned_console(*, legacy: bool = False) -> Console:
+    """
+    Build a console whose rendering is fully determined, in the chosen glyph set.
+
+    Everything a machine could otherwise decide is pinned: width, color system,
+    and — via a ``StringIO``, which reports no encoding and so counts as UTF-8 —
+    the encoding. ``legacy`` is the one variable left, and it is the switch rich
+    uses to pick between box characters and ASCII.
+    """
+    return Console(
+        file=io.StringIO(), force_terminal=True, force_jupyter=False,
+        color_system="truecolor", legacy_windows=legacy, width=NOTEBOOK_COLUMNS,
+    )
+
+
+def _require_comparable_consoles(*consoles: Console) -> None:
+    """
+    Fail with a diagnosis of the rig rather than of the product.
+
+    Every route renders the same bar; whether it lands box-drawn or ASCII is a
+    property of the console it lands in, not of the delivery. Consoles that
+    disagree about that make a parity assertion compare consoles instead of
+    routes, and it then fails far from the cause — which is precisely how the
+    Windows runner reported it, as a bar of hyphens beside a bar of box
+    characters with nothing to say why.
+    """
+    flavors = {(c.options.ascii_only, c.options.legacy_windows) for c in consoles}
+    assert len(flavors) == 1, (
+        f"the consoles under test disagree on glyph set: {flavors}. This test "
+        "compares delivery routes, so they must all render the same way."
+    )
+
+
 def _stdout_bar_row(reporter) -> str:
     """Replay the parity session on a stdout-delivering reporter, returning its last bar row."""
     sink = io.StringIO()
@@ -1124,13 +1182,15 @@ def _stdout_bar_row(reporter) -> str:
     for event in _PARITY_EVENTS:
         reporter.update(event)
     _require_progress(reporter).refresh()
-    frames = [f for f in sink.getvalue().split("\r") if "\u2501" in f]
+    frames = [f for f in sink.getvalue().split("\r")
+              if any(glyph in f for glyph in _BAR_GLYPHS)]
     reporter.finish(success=True, duration=timedelta(seconds=9))
     assert frames, "no bar was ever painted"
     return _ANSI.sub("", frames[-1]).split("\n")[0].rstrip()
 
 
-def test_every_reporter_renders_the_same_bar(monkeypatch):
+@pytest.mark.parametrize("legacy", [False, True], ids=["box-drawing", "ascii"])
+def test_every_reporter_renders_the_same_bar(monkeypatch, legacy):
     """
     Verify one session looks identical however it is delivered.
 
@@ -1141,26 +1201,23 @@ def test_every_reporter_renders_the_same_bar(monkeypatch):
     sees is a bug in one of them. The display reporter had already drifted to
     a two-bar layout once, silently, for want of this.
 
-    The terminal reporter is given the notebook console so all three are
-    measuring the same width; that is the one thing they are *meant* to
-    disagree about.
+    All three are given the same console, since width and glyph set are
+    properties of where a frame lands rather than of how it got there. Run in
+    both glyph sets: rich draws ASCII bars on a legacy-Windows console, and the
+    routes have to agree there too.
     """
-    terminal = _stdout_bar_row(RichProgressReporter(console=_notebook_console()))
-    notebook = _stdout_bar_row(RichNotebookProgressReporter())
-
-    # ``_repr_mimebundle_`` renders through rich's *global* console, which this
-    # process leaves colorless and 80 wide. A kernel's is a Jupyter console, so
-    # pin an equivalent or the comparison measures the test rig, not the code.
     import rich  # noqa: PLC0415
 
-    monkeypatch.setattr(
-        rich, "_console",
-        Console(force_terminal=True, color_system="truecolor", width=NOTEBOOK_COLUMNS),
-        raising=False,
-    )
+    consoles = [_pinned_console(legacy=legacy) for _ in range(3)]
+    _require_comparable_consoles(*consoles)
+    terminal = _stdout_bar_row(RichProgressReporter(console=consoles[0]))
+    notebook = _stdout_bar_row(RichNotebookProgressReporter(console=consoles[1]))
+
+    # The slot renders through the *global* console, so pin that one to match.
+    monkeypatch.setattr(rich, "_console", _pinned_console(legacy=legacy), raising=False)
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
     handle = _fake_display(monkeypatch)
-    display = _slot_reporter()
+    display = _slot_reporter(console=consoles[2])
     display._console.file = io.StringIO()
     display.start("React", sources=("batch", "engine"))
     for event in _PARITY_EVENTS:
@@ -1174,22 +1231,20 @@ def test_every_reporter_renders_the_same_bar(monkeypatch):
     # Guard against the whole comparison passing on three empty strings.
     assert "2/4" in terminal            # the batch source drives the bar
     assert "engine 1/3" in terminal     # and the engine is folded in beside it
+    # And against the environment not actually differing between the two runs.
+    assert ("\u2501" in terminal) is not legacy, f"wrong glyph set for legacy={legacy}"
 
 
-def _slot_closing_rows(monkeypatch, *, success: bool) -> list[str]:
+def _slot_closing_rows(monkeypatch, *, success: bool, legacy: bool = False) -> list[str]:
     """Run the parity session on the display slot and return the rows it is left holding."""
     import rich  # noqa: PLC0415
 
-    # JupyterMixin renders through the *global* console; a kernel's is a Jupyter
-    # console, so pin an equivalent or this measures the test rig.
-    monkeypatch.setattr(
-        rich, "_console",
-        Console(force_terminal=True, color_system="truecolor", width=NOTEBOOK_COLUMNS),
-        raising=False,
-    )
+    # The slot renders through the *global* console, so that is the one whose
+    # glyph set has to match the streams it will be compared against.
+    monkeypatch.setattr(rich, "_console", _pinned_console(legacy=legacy), raising=False)
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
     handle = _fake_display(monkeypatch)
-    reporter = _slot_reporter()
+    reporter = _slot_reporter(console=_pinned_console(legacy=legacy))
     reporter._console.file = io.StringIO()
     reporter.start("React", sources=("batch", "engine"))
     for event in _PARITY_EVENTS:
@@ -1198,8 +1253,9 @@ def _slot_closing_rows(monkeypatch, *, success: bool) -> list[str]:
     return [_ANSI.sub("", row).rstrip() for row in _rows(handle.frames[-1])]
 
 
+@pytest.mark.parametrize("legacy", [False, True], ids=["box-drawing", "ascii"])
 @pytest.mark.parametrize("success", [True, False])
-def test_every_reporter_closes_the_same_way(monkeypatch, success):
+def test_every_reporter_closes_the_same_way(monkeypatch, success, legacy):
     """
     Verify all three routes leave the reader with the same thing.
 
@@ -1207,6 +1263,10 @@ def test_every_reporter_closes_the_same_way(monkeypatch, success):
     survives the close, which is a separate code path per route — clearing the
     region, repainting it, printing the final state once, or replacing a
     display slot's contents.
+
+    Run in both glyph sets. rich draws ASCII bars on a legacy-Windows console,
+    and the routes have to agree there too — the slot in particular reaches the
+    reader through a ``Table.grid``, whose sizing is measured, not fixed.
 
     That gap was not theoretical. The slot stacks a failed bar above its summary
     in a ``Table.grid``, and a grid sizes its column to the child's *maximum*
@@ -1223,11 +1283,13 @@ def test_every_reporter_closes_the_same_way(monkeypatch, success):
         reporter.finish(success=success, duration=timedelta(seconds=9))
         return view(buf.getvalue())
 
-    terminal = close(RichProgressReporter(console=_notebook_console()), _terminal_view)
-    notebook = close(RichNotebookProgressReporter(), _notebook_view)
+    consoles = [_pinned_console(legacy=legacy) for _ in range(3)]
+    _require_comparable_consoles(*consoles)
+    terminal = close(RichProgressReporter(console=consoles[0]), _terminal_view)
+    notebook = close(RichNotebookProgressReporter(console=consoles[1]), _notebook_view)
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
-    headless = close(RichDisplayProgressReporter(), _notebook_view)
-    slot = _slot_closing_rows(monkeypatch, success=success)
+    headless = close(RichDisplayProgressReporter(console=consoles[2]), _notebook_view)
+    slot = _slot_closing_rows(monkeypatch, success=success, legacy=legacy)
 
     assert notebook == terminal, f"notebook {notebook} != terminal {terminal}"
     assert headless == terminal, f"headless stdout {headless} != terminal {terminal}"
@@ -1235,6 +1297,9 @@ def test_every_reporter_closes_the_same_way(monkeypatch, success):
     # Guard against all three agreeing on nothing.
     expected = 1 if success else 2
     assert len(terminal) == expected, f"expected {expected} line(s), got {terminal}"
+    if not success:
+        # And against the environment not actually differing between the runs.
+        assert ("\u2501" in terminal[0]) is not legacy, f"wrong glyph set for legacy={legacy}"
 
 
 @pytest.mark.parametrize("sources", [("batch",), ("batch", "engine")])
@@ -1393,15 +1458,6 @@ def test_display_reporter_bakes_the_same_palette_the_other_routes_emit(monkeypat
     because ``_StateBarColumn`` picks its style per frame from the session's
     state — the constructor defaults never reach the screen.
     """
-    import rich  # noqa: PLC0415
-
-    # JupyterMixin renders through the *global* console; a kernel's is a Jupyter
-    # console, so pin an equivalent or this measures the test rig.
-    monkeypatch.setattr(
-        rich, "_console",
-        Console(force_terminal=True, color_system="truecolor", width=NOTEBOOK_COLUMNS),
-        raising=False,
-    )
     monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
     handle = _fake_display(monkeypatch)
     reporter = _slot_reporter()
@@ -1536,7 +1592,7 @@ def test_simple_reporter_renders_the_estimate(capsys):
     reporter.update(ProgressEvent(source="batch", step=1200, total=10000,
                                   details="batch 3", eta=timedelta(seconds=83)))
     reporter.update(ProgressEvent(source="batch", step=2400, total=10000, details="batch 6"))
-    out = capsys.readouterr().out
+    out = _captured(capsys)
     assert f"batch 3 · {_format_eta(timedelta(seconds=83))}" in out
     assert "batch 6\n" in out          # no stray separator when there is no estimate
 
@@ -2168,7 +2224,7 @@ def test_simple_reporter_activity_line(capsys, monkeypatch):
     reporter.start("Analyze", sources=("activity",))
     reporter.update(ProgressEvent(source="activity", step=0, total=0))
     reporter.finish(success=True, duration=timedelta(seconds=1))
-    out = capsys.readouterr().out
+    out = _captured(capsys)
     assert "elapsed" in out
     assert "0/?" not in out
 
@@ -2210,6 +2266,36 @@ def test_auto_reporter_tty_picks_rich(monkeypatch):
     monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
     assert type(auto_reporter()) is RichProgressReporter
+
+
+@pytest.fixture(autouse=True)
+def _pin_global_console(monkeypatch):
+    """
+    Pin rich's global console, which is what renders a display frame's mimebundle.
+
+    Three of its properties vary with the machine, and none of them is what
+    these tests are about: whether it emits color (``FORCE_COLOR`` alone turns
+    that on), how wide it is, and whether it draws bars in box characters or
+    falls back to ASCII. rich picks ASCII when ``legacy_windows`` is set or the
+    stream encoding is not UTF-8 — both true on the Windows CI runner, where a
+    slot frame arrived as ``------------`` beside the box-drawn stream frames it
+    is compared against. The streams render into a ``StringIO``, which reports
+    no encoding and so counts as UTF-8; the global console had the runner's real
+    stdout. Two different consoles, never going to agree.
+
+    This pins the rig, not the product. A Windows user still gets whatever their
+    console supports — rich adapting is correct, and the terminal reporter keeps
+    a stock ``Console`` so it detects that, per
+    ``test_terminal_reporter_measures_its_console``.
+    """
+    import rich  # noqa: PLC0415
+
+    monkeypatch.setattr(
+        rich, "_console",
+        Console(file=io.StringIO(), force_terminal=True, color_system="truecolor",
+                legacy_windows=False, width=NOTEBOOK_COLUMNS),
+        raising=False,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -2588,7 +2674,7 @@ def test_simple_reporter_empty_sources_prints_label_and_completion(capsys):
     reporter.start("Analyze", sources=())
     reporter.update(ProgressEvent(source="engine", step=1, total=6, details="Analyzing"))
     reporter.finish(success=True, duration=timedelta(seconds=1.5))
-    out = capsys.readouterr().out
+    out = _captured(capsys)
     assert "Analyze" in out
     assert "Analyze complete in 0:00:01" in out
     assert "[" not in out  # the undeclared source produced no track line
@@ -2599,7 +2685,7 @@ def test_rich_reporter_empty_sources_completes_lifecycle(capsys):
     reporter.start("Analyze", sources=())
     reporter.update(ProgressEvent(source="engine", step=1, total=6, details="Analyzing"))
     reporter.finish(success=True, duration=timedelta(seconds=1.5))
-    assert "Analyze complete in" in capsys.readouterr().out
+    assert "Analyze complete in" in _captured(capsys)
 
 
 def test_with_progress_neither_method_still_runs():
@@ -2716,7 +2802,7 @@ def test_decorator_nested_calls_do_not_stack(capsys, monkeypatch):  # noqa: ARG0
             return self.inner()  # nested decorated call
     t = T()
     assert t.outer() == "inner"
-    out = capsys.readouterr().out
+    out = _captured(capsys)
     # Outer label appears; Inner label must NOT (re-entrancy guard).
     assert "Outer" in out
     assert "Inner" not in out
