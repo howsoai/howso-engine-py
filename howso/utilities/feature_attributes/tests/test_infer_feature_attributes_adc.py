@@ -703,7 +703,7 @@ def test_dependent_features_uniques_warning(adc):
     ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
-def test_preserve_rare_values(adc, make_adc):
+def test_preserve_rare_values(adc, make_adc, capsys):
     """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
     # Manufacture some data
     n = 10_000
@@ -754,15 +754,17 @@ def test_preserve_rare_values(adc, make_adc):
     assert features["b"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == 2.4
     assert round(features["b"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
-    # Test that a suggestion is issued
-    with pytest.warns(UserWarning, match="You have one or more suggestions"):
+    # Test that a suggestion is issued, and summarized on the console rather than as a warning
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(adc, max_distilled_cases=1250)
-        for feat in features:
-            assert "preserve_rare_values" not in feat
-        # Test a suggestion application
-        features.apply_suggestion("preserve_rare_values")
-        assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
-        assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
+    assert "Feature attributes summary" in capsys.readouterr().out
+    for feat in features:
+        assert "preserve_rare_values" not in feat
+    # Test a suggestion application
+    features.apply_suggestion("preserve_rare_values")
+    assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
+    assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
 
     # Test data with unhashable values
     df["unhashable"] = [[1, 2]] * len(df)  # lists are unhashable; value_counts will raise TypeError
@@ -808,20 +810,26 @@ def test_sql_date_column(tmp_path):
     ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
-def test_infer_fanout_features(adc):
+def test_infer_fanout_features(adc, capsys):
     """Test that `infer_feature_attributes` correctly infers and issues suggestions about fan-out features."""
     convert_data(DataFrameData(joined_olist_df), adc)
-    # Test that a suggestion is issued
-    with pytest.warns(UserWarning, match="You have one or more suggestions"):
+    # Test that a suggestion is issued, and summarized on the console rather than as a warning
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
         features = infer_feature_attributes(adc, default_time_zone="UTC")
-        for feat in features:
-            assert "fanout_on" not in feat
-        # Test a suggestion application
-        features.apply_suggestion("fanout_features")
-        assert "customer_id" in features["customer_city"].get("fanout_on", [])
-        assert "product_id" in features["product_height_cm"].get("fanout_on", [])
+    # Suggestions are summarized on the console, not shouted about as a warning.
+    assert not [w for w in record if "suggestions" in str(w.message).lower()]
+    summary = capsys.readouterr().out
+    assert "Feature attributes summary" in summary
+    assert "fan-out feature" in summary
+    for feat in features:
+        assert "fanout_on" not in feat
+    # Test a suggestion application
+    features.apply_suggestion("fanout_features")
+    assert "customer_id" in features["customer_city"].get("fanout_on", [])
+    assert "product_id" in features["product_height_cm"].get("fanout_on", [])
 
-        fof_map = features.suggestions.fanout_features.get_fanout_feature_map()
+    fof_map = features.suggestions.fanout_features.get_fanout_feature_map()
 
     # Supplying the suggested fanout_feature_map to IFA
     features = infer_feature_attributes(adc, fanout_feature_map=fof_map, max_workers=2, default_time_zone="UTC")
@@ -836,7 +844,7 @@ def test_infer_fanout_features(adc):
     ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
-def test_infer_fanout_features_ignores_constant_columns(adc):
+def test_infer_fanout_features_ignores_constant_columns(adc, capsys):
     """Globally-constant columns must not produce fan-out suggestions or trip the strict-tree warning.
 
     A constant column is functionally determined by every key, so prior to the
@@ -851,6 +859,7 @@ def test_infer_fanout_features_ignores_constant_columns(adc):
     with warnings.catch_warnings(record=True) as record:
         warnings.simplefilter("always")
         features = infer_feature_attributes(adc)
+    summary = capsys.readouterr().out
 
     strict_tree = [w for w in record if "strict" in str(w.message).lower()]
     assert not strict_tree, (
@@ -858,12 +867,9 @@ def test_infer_fanout_features_ignores_constant_columns(adc):
     )
 
     # The constant column is the only fan-out candidate and is correctly excluded, so
-    # no fan-out suggestion should be produced, therefore producing no suggestion warning.
+    # no fan-out suggestion should be produced, therefore no summary is printed.
     assert "fanout_features" not in features.suggestions.suggestions
-    suggestion_warnings = [w for w in record if "one or more suggestions" in str(w.message)]
-    assert not suggestion_warnings, (
-        f"unexpected suggestion warning(s): {[str(w.message) for w in suggestion_warnings]}"
-    )
+    assert "Feature attributes summary" not in summary
 
     # No feature should be configured as a fan-out feature, least of all the constant column.
     for feat in fanout_constant_df.columns:

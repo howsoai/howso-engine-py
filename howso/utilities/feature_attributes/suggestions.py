@@ -9,6 +9,8 @@ import warnings
 from rich.console import Console
 from rich.table import Table
 
+from howso.utilities.progress import print_status
+
 if TYPE_CHECKING:
     from howso.client.typing import FullPreserveRareValuesConfig, PreserveRareValuesMap
 
@@ -24,6 +26,12 @@ def wrap_text(text: str, width: int) -> str:
         break_long_words=False,
         break_on_hyphens=False,
     )) or text
+
+
+def _count(value: int, singular: str, plural: str | None = None) -> str:
+    """Render ``value`` with the correctly pluralized noun, e.g. ``"1 key"`` or ``"3 keys"``."""
+    noun = singular if value == 1 else (plural or f"{singular}s")
+    return f"{value:,} {noun}"
 
 
 def wrap_paragraphs(text: str, width: int) -> str:
@@ -66,6 +74,16 @@ class IFASuggestion(ABC):
     def description(self) -> str:
         """A brief description of the suggestion."""
         ...
+
+    @property
+    def summary(self) -> str:
+        """
+        A one-line statement of what was found, for the summary printed when inference completes.
+
+        Should read as a finding rather than an instruction, e.g. ``"Found 3 fan-out features
+        across 1 key"``. Defaults to :attr:`description` for suggestions that do not override it.
+        """
+        return self.description
 
     @abstractmethod
     def apply(self, attributes: dict) -> None:
@@ -172,6 +190,13 @@ class FanoutFeaturesSuggestion(IFASuggestion):
     def description(self) -> str:
         """A brief description of this suggestion."""
         return "Configure fan-out features so that the Howso Engine can more accurately measure uncertainty."
+
+    @property
+    def summary(self) -> str:
+        """A one-line statement of the fan-out features found."""
+        num_features = sum(len(cols) for cols in self._fanout_features.values())
+        return (f"Found {_count(num_features, 'fan-out feature')} across "
+                f"{_count(len(self._fanout_features), 'column')}")
 
     def apply(self, attributes: dict) -> None:
         """Apply the computed fanout features config to the FeatureAttributesBase object."""
@@ -310,6 +335,13 @@ class PRVSuggestion(IFASuggestion):
         """A brief description of this suggestion."""
         return "Configure rare values to avoid losing their signal during data distillation."
 
+    @property
+    def summary(self) -> str:
+        """A one-line statement of the rare values found."""
+        num_values = sum(len(cfg["protected_values_multipliers"]) for cfg in self._prvc.values())
+        return (f"Found {_count(num_values, 'rare value')} across {_count(len(self._prvc), 'column')} "
+                "whose signal may be lost during data distillation workflows")
+
     def apply(self, attributes: dict) -> None:
         """Apply the computed rare values preservation config to the FeatureAttributesBase object."""
         if not self._user_set_mdc:
@@ -419,6 +451,46 @@ class IFASuggestionCollector:
     def suggestions(self) -> dict[str, IFASuggestion]:
         """Get all suggestions that belong to this collector."""
         return self._suggestions
+
+    def summary_lines(self, *, attributes_name: str = "your_attributes_object") -> list[str]:
+        """
+        Render the summary block as lines of console markup.
+
+        The block is styled to sit beside the progress output from
+        :mod:`howso.utilities.progress`: a bold cyan header, the way a progress
+        label is styled, one dim-bulleted finding per suggestion, indented the
+        way progress lines are, and a dim footer pointing at the suggestions.
+
+        Parameters
+        ----------
+        attributes_name : str, default "your_attributes_object"
+            How to refer to the returned feature attributes object in the footer.
+
+        Returns
+        -------
+        list of str
+            One entry per line, or an empty list when there are no suggestions.
+        """
+        if not self._suggestions:
+            return []
+        lines = ["[bold cyan]Feature Attributes Summary[/bold cyan]"]
+        lines.extend(f"  [dim]\u00b7[/dim] {suggestion.summary}" for suggestion in self._suggestions.values())
+        lines.append(f"  [dim]Inspect `{attributes_name}.suggestions` for details and how to apply them.[/dim]")
+        return lines
+
+    def print_summary(self, *, console: Console | None = None) -> None:
+        """
+        Print the summary of collected suggestions, when there are any.
+
+        Parameters
+        ----------
+        console : Console, optional
+            Console to print to. Defaults to the one :func:`howso.utilities.progress.status_console`
+            selects for the current environment.
+        """
+        lines = self.summary_lines()
+        if lines:
+            print_status(*lines, console=console)
 
     def append(self, suggestion: IFASuggestion) -> None:
         """Append a new IFASuggestion to this collector."""

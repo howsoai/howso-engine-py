@@ -91,9 +91,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if prod(self.data.shape) < 25_000_000 and max_workers is None:
             max_workers = 0
 
-        suggestion_warning = ("You have one or more suggestions to consider for your feature attributes "
-                              "configuration. Please view them by printing the `suggestions` property of your "
-                              "returned feature attributes object (`your_attributes_object.suggestions`).")
         if max_workers is None or max_workers >= 1:
             mp_context = mp.get_context("spawn")
             futures: dict[Future, str] = dict()
@@ -130,8 +127,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             for collector in processed_suggestions:
                 self.suggestions_collector.merge(collector)
 
-            if self.suggestions_collector.suggestions:
-                warnings.warn(suggestion_warning, UserWarning)
+            self._emit_summary()
 
             return SingleTableFeatureAttributes(
                 feature_attributes=feature_attributes, params=kwargs,
@@ -141,8 +137,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             feature_attributes = self._process(**kwargs)
             self.warnings_collector.emit_all()
-            if self.suggestions_collector.suggestions:
-                warnings.warn(suggestion_warning, UserWarning)
+            self._emit_summary()
             return SingleTableFeatureAttributes(
                 feature_attributes, params=kwargs,
                 unsupported=self.unsupported,

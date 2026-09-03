@@ -810,6 +810,26 @@ class InferFeatureAttributesBase(ABC):
     warnings_collector: IFAWarningCollector = IFAWarningCollector()
     suggestions_collector: IFASuggestionCollector = IFASuggestionCollector()
 
+    _summarize: bool = True
+    """
+    Whether :meth:`_emit_summary` prints anything.
+
+    An inferrer that delegates to another — time series wraps the DataFrame or
+    AbstractData inferrer — turns this off on the inner instance so the summary
+    is printed once, by the outermost call, after every suggestion has been
+    collected.
+    """
+
+    def _emit_summary(self) -> None:
+        """
+        Print the feature attributes summary, once inference has completed.
+
+        Nothing is printed when there are no suggestions, so a clean run stays
+        silent, and nothing is printed when :attr:`_summarize` is off.
+        """
+        if self._summarize and self.suggestions_collector.suggestions:
+            self.suggestions_collector.print_summary()
+
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,
                  max_distilled_cases: int | None = None,

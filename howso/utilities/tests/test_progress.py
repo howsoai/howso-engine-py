@@ -27,12 +27,14 @@ from howso.utilities import (
     disable_auto_progress,
     enable_auto_progress,
     engine_polling_supported,
+    print_status,
     ProgressEvent,
     reset_auto_progress,
     RichDisplayProgressReporter,
     RichNotebookProgressReporter,
     RichProgressReporter,
     SimpleProgressReporter,
+    status_console,
     with_progress,
 )
 from howso.utilities.monitors import ProgressTimer
@@ -2945,3 +2947,83 @@ def test_in_notebook_false_without_ipython(monkeypatch):
     monkeypatch.setitem(__import__("sys").modules, "IPython", None)
     # When sys.modules["IPython"] is None, get_ipython lookup short-circuits.
     assert _in_notebook() is False
+
+
+# ---------------------------------------------------------------------------
+# status_console / print_status
+# ---------------------------------------------------------------------------
+
+def test_status_console_returns_the_console_it_is_given():
+    console = Console(file=io.StringIO())
+    assert status_console(console) is console
+
+
+def test_status_console_on_a_tty_is_a_stock_console(monkeypatch):
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True, raising=False)
+    console = status_console()
+    # Nothing forced: the console measures the terminal it is attached to.
+    assert console._force_terminal is None  # pyright: ignore[reportPrivateUsage]
+    assert console.is_jupyter is False
+
+
+def test_status_console_in_a_notebook_matches_the_notebook_reporter(monkeypatch):
+    """A notebook that would get a rich reporter gets the same kernel-safe console for its status lines."""
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: False, raising=False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: True)
+    console = status_console()
+    reporter_console = RichNotebookProgressReporter()._console  # pyright: ignore[reportPrivateUsage]
+    assert (console.width, console.is_terminal, console.is_jupyter) == (
+        reporter_console.width, reporter_console.is_terminal, reporter_console.is_jupyter
+    )
+    assert console.is_terminal is True
+
+
+def test_status_console_in_a_headless_notebook_stays_on_plain_stdout(monkeypatch):
+    monkeypatch.delenv("HOWSO_SIMPLE_PROGRESS", raising=False)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: False, raising=False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: False)
+    monkeypatch.setattr("howso.utilities.progress._interactive_frontend", lambda: False)
+    console = status_console()
+    assert console.is_jupyter is False
+    assert console._force_terminal is None  # pyright: ignore[reportPrivateUsage]
+
+
+def test_status_console_honors_simple_progress_override(monkeypatch):
+    """HOWSO_SIMPLE_PROGRESS prints plain lines, so its status lines print plain too."""
+    monkeypatch.setenv("HOWSO_SIMPLE_PROGRESS", "1")
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: False, raising=False)
+    monkeypatch.setattr("howso.utilities.progress._in_notebook", lambda: True)
+    monkeypatch.setattr("howso.utilities.progress._display_handle_available", lambda: True)
+    console = status_console()
+    assert console.is_jupyter is False
+    assert console._force_terminal is None  # pyright: ignore[reportPrivateUsage]
+
+
+def test_print_status_prints_each_line_with_markup():
+    buffer = io.StringIO()
+    console = Console(file=buffer, force_terminal=True, color_system="standard", width=80)
+    print_status("[bold cyan]Header[/bold cyan]", "  detail", console=console)
+    out = buffer.getvalue()
+    assert "Header" in out
+    assert "  detail" in out
+    assert out.count("\n") == 2
+    assert "\x1b[" in out, "markup should be rendered as ANSI on a terminal console"
+
+
+def test_print_status_does_not_hard_wrap():
+    """A long status line is left to the terminal to wrap, never split by rich."""
+    buffer = io.StringIO()
+    print_status(("word " * 30).strip(), console=Console(file=buffer, width=20))
+    assert buffer.getvalue().count("\n") == 1
+
+
+def test_print_status_flushes_before_and_after(monkeypatch):
+    out, err = _RecordingStream(), _RecordingStream()
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(sys, "stderr", err)
+    print_status("line", console=Console(file=io.StringIO()))
+    assert (out.flushes, err.flushes) == (2, 2)

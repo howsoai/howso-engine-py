@@ -34,7 +34,9 @@ from howso.utilities.progress import (
     disable_auto_progress,
     enable_auto_progress,
     engine_polling_supported,
+    print_status,
     reset_auto_progress,
+    status_console,
     with_progress,
 )
 from howso.utilities.tokenizing import (
@@ -137,6 +139,7 @@ __all__ = [
     "lazy_map",
     "matrix_processing",
     "num_list_dimensions",
+    "print_status",
     "replace_doublemax_with_infinity",
     "replace_nan_with_none",
     "replace_none_with_nan",
@@ -145,6 +148,7 @@ __all__ = [
     "seconds_to_time",
     "serialize_cases",
     "serialize_datetimes",
+    "status_console",
     "stringify_json",
     "time_to_seconds",
     "validate_case_indices",

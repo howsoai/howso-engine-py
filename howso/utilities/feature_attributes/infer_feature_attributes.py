@@ -101,7 +101,8 @@ def infer_feature_attributes(
     of what was inferred and so that any inaccuracies can be corrected before data ingestion. This method makes a best
     guess at the feature attributes and in some cases may not automatically set certain attributes if there is
     ambiguity, instead providing suggestions for further consideration which can be reviewed by accessing the
-    :attr:`~howso.utilities.feature_attributes.base.FeatureAttributesBase.suggestions` attribute.
+    :attr:`~howso.utilities.feature_attributes.base.FeatureAttributesBase.suggestions` attribute. When any
+    suggestions were produced, a short summary of what was found is printed once inference completes.
 
     Parameters
     ----------

@@ -75,7 +75,9 @@ __all__ = [
     "disable_auto_progress",
     "enable_auto_progress",
     "engine_polling_supported",
+    "print_status",
     "reset_auto_progress",
+    "status_console",
     "with_progress",
 ]
 
@@ -306,21 +308,7 @@ class BaseProgressReporter:
         -------
         None
         """
-        streams = (
-            self._console.file,
-            sys.stdout,
-            sys.stderr,
-            sys.__stdout__,
-            sys.__stderr__,
-        )
-        seen: set[int] = set()
-        for stream in streams:
-            flush = getattr(stream, "flush", None)
-            if flush is None or id(stream) in seen:
-                continue
-            seen.add(id(stream))
-            with suppress(Exception):
-                flush()
+        _flush_streams(self._console.file)
 
 
 class RichProgressReporter(BaseProgressReporter):
@@ -1766,6 +1754,109 @@ def auto_reporter(*, console: Console | None = None) -> ProgressReporter:
         if _interactive_frontend():
             return RichNotebookProgressReporter(console=console)
     return SimpleProgressReporter(console=console)
+
+
+def status_console(console: Console | None = None) -> Console:
+    """
+    Build the console a one-off status line should print to.
+
+    A status line — a summary printed once a call has finished — has to land
+    where a progress bar would have, and look the way the bar's completion line
+    looks, whichever front-end is reading. So this follows the same selection
+    :func:`auto_reporter` makes, but stops at the console: a stock console for
+    a tty, the kernel-safe console of :func:`_notebook_console` for a notebook
+    that would get a rich reporter, and a stdout-only console for everything
+    else — including a forced ``HOWSO_SIMPLE_PROGRESS``, which prints plain
+    lines and so should have its summaries print plain too.
+
+    Parameters
+    ----------
+    console : Console, optional
+        A console to use instead. Returned as-is, so a caller who already
+        holds one — a reporter, a test — can route a status line through it.
+
+    Returns
+    -------
+    Console
+        The console to print the status line to.
+    """
+    if console is not None:
+        return console
+    if _parse_tristate(os.environ.get("HOWSO_SIMPLE_PROGRESS")) is True:
+        return Console(force_jupyter=False)
+    if sys.stdout.isatty():
+        return Console()
+    if _in_notebook() and (_display_handle_available() or _interactive_frontend()):
+        return _notebook_console()
+    # ``force_jupyter=False`` keeps the output on stdout rather than in a
+    # separate ``IPython.display`` block; see SimpleProgressReporter.
+    return Console(force_jupyter=False)
+
+
+def print_status(*lines: str, console: Console | None = None) -> None:
+    """
+    Print one or more lines of console markup as a status block.
+
+    This is the static counterpart of a reporter's completion line: the same
+    console selection as :func:`status_console`, and the same flush discipline
+    as a progress session. Every stream is drained before the block so that
+    anything already buffered — a warning on ``stderr``, a ``print`` from the
+    call that just returned — lands *above* it rather than through it, and
+    drained again afterwards so the block itself is out before whatever the
+    caller does next.
+
+    Parameters
+    ----------
+    *lines : str
+        Console markup, one entry per line. Empty entries print blank lines.
+        Lines are never hard-wrapped by rich: a line longer than the console
+        is left to the terminal, which wraps it without the bare, unindented
+        continuation rich would otherwise produce.
+    console : Console, optional
+        Console to print to. Defaults to :func:`status_console`.
+
+    Returns
+    -------
+    None
+    """
+    target = status_console(console)
+    _flush_streams(target.file)
+    for line in lines:
+        target.print(line, soft_wrap=True)
+    _flush_streams(target.file)
+
+
+def _flush_streams(*streams: Any) -> None:
+    """
+    Drain the given streams along with every standard stream.
+
+    Streams are deduplicated by identity (a console's file is normally
+    ``sys.stdout`` itself) and flushed newest-wrapper-first, so a stack such
+    as ipykernel's ``OutStream`` over the real ``stdout`` drains in order.
+    Every flush is individually guarded: a closed, detached, or replaced
+    stream — pytest's captured ``stdout``, a torn-down notebook kernel — must
+    not take down the caller.
+
+    Note that this reaches only Python-level buffers.
+
+    Parameters
+    ----------
+    *streams : Any
+        Streams to drain ahead of ``sys.stdout``, ``sys.stderr`` and their
+        originals.
+
+    Returns
+    -------
+    None
+    """
+    seen: set[int] = set()
+    for stream in (*streams, sys.stdout, sys.stderr, sys.__stdout__, sys.__stderr__):
+        flush = getattr(stream, "flush", None)
+        if flush is None or id(stream) in seen:
+            continue
+        seen.add(id(stream))
+        with suppress(Exception):
+            flush()
 
 
 def _supports_param(bound_func: Callable[..., Any], name: str) -> bool:

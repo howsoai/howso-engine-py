@@ -630,7 +630,7 @@ def test_preserve_rare_values_time_series():
     assert "preserve_rare_values" in features["cat"]
 
 
-def test_time_series_fanout_suggestions():
+def test_time_series_fanout_suggestions(capsys):
     """Fanout suggestions are accessible and applicable on the time series IFA path."""
     rng = np.random.default_rng(42)
     n_products, n_series_per_product, n_steps = 4, 5, 20
@@ -649,12 +649,19 @@ def test_time_series_fanout_suggestions():
                 })
     df = pd.DataFrame(rows)
 
-    with pytest.warns(UserWarning, match="You have one or more suggestions"):
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
         features = infer_feature_attributes(
             df,
             time_feature_name="date",
             id_feature_name="series_id",
         )
+    # Suggestions are summarized on the console, not shouted about as a warning, and the
+    # summary is printed exactly once: by the outer time-series call, not by the inner inferrer too.
+    assert not [w for w in record if "suggestions" in str(w.message).lower()]
+    summary = capsys.readouterr().out
+    assert summary.count("Feature attributes summary") == 1
+    assert "fan-out feature" in summary
 
     assert isinstance(features.suggestions, IFASuggestionCollector)
     assert "fanout_features" in features.suggestions.suggestions

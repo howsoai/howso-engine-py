@@ -1,12 +1,12 @@
 """Unit tests for IFASuggestion and IFASuggestionCollector."""
 import pytest
+from rich.console import Console
 
 from howso.utilities.feature_attributes.suggestions import (
     FanoutFeaturesSuggestion,
     IFASuggestionCollector,
     PRVSuggestion,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -167,3 +167,83 @@ class TestFanoutSuggestionMerge:
 
         result = fof1.get_fanout_feature_map()["key_a"]
         assert result.count("col2") == 1
+
+
+# ---------------------------------------------------------------------------
+# Summaries
+# ---------------------------------------------------------------------------
+
+def _prv_config(**features_to_num_values: int) -> dict:
+    return {
+        feature: {
+            "protected_values_multipliers": [{"value": i, "multiplier": 2.0} for i in range(num)],
+            "unprotected_multiplier": 0.9,
+        }
+        for feature, num in features_to_num_values.items()
+    }
+
+
+class TestSuggestionSummary:
+
+    def test_fanout_summary_counts_features_and_keys(self):
+        suggestion = make_fanout({"key_a": ["c1", "c2", "c3"], ("k1", "k2"): ["c4"]})
+        assert suggestion.summary == "Found 4 fan-out features across 2 keys"
+
+    def test_fanout_summary_singular(self):
+        assert make_fanout({"key_a": ["c1"]}).summary == "Found 1 fan-out feature across 1 key"
+
+    def test_prv_summary_counts_values_and_features(self):
+        suggestion = make_prv(_prv_config(a=3, b=1))
+        assert suggestion.summary == (
+            "Found 4 rare values across 2 features that may be lost during data distillation"
+        )
+
+    def test_prv_summary_singular(self):
+        assert make_prv(_prv_config(a=1)).summary == (
+            "Found 1 rare value across 1 feature that may be lost during data distillation"
+        )
+
+
+class TestCollectorSummary:
+
+    def test_empty_collector_has_no_summary_lines(self):
+        assert IFASuggestionCollector().summary_lines() == []
+
+    def test_empty_collector_prints_nothing(self, capsys):
+        IFASuggestionCollector().print_summary()
+        assert capsys.readouterr().out == ""
+
+    def test_summary_lines_have_header_one_finding_per_suggestion_and_footer(self):
+        collector = IFASuggestionCollector([make_fanout({"key_a": ["c1"]}), make_prv(_prv_config(a=2))])
+        lines = collector.summary_lines()
+        assert len(lines) == 4
+        assert "Feature attributes summary" in lines[0]
+        assert lines[1].endswith(make_fanout({"key_a": ["c1"]}).summary)
+        assert lines[2].endswith(make_prv(_prv_config(a=2)).summary)
+        assert "`your_attributes_object.suggestions`" in lines[3]
+
+    def test_summary_footer_names_the_attributes_object(self):
+        collector = IFASuggestionCollector([make_fanout({"key_a": ["c1"]})])
+        assert "`features.suggestions`" in collector.summary_lines(attributes_name="features")[-1]
+
+    def test_print_summary_renders_to_stdout(self, capsys):
+        collector = IFASuggestionCollector([make_fanout({"key_a": ["c1", "c2"]})])
+        collector.print_summary()
+        out = capsys.readouterr().out
+        assert out.splitlines() == [
+            "Feature attributes summary",
+            "  \u00b7 Found 2 fan-out features across 1 key",
+            "  Inspect `your_attributes_object.suggestions` for details and how to apply them.",
+        ]
+
+    def test_print_summary_does_not_hard_wrap_long_lines(self, capsys):
+        """A narrow console must not break a finding across lines; the terminal wraps it instead."""
+        collector = IFASuggestionCollector([make_prv(_prv_config(a=2, b=2))])
+        collector.print_summary(console=Console(width=20, force_jupyter=False))
+        lines = capsys.readouterr().out.splitlines()
+        assert len(lines) == 3
+        assert lines[1].endswith("that may be lost during data distillation")
+
+    def test_print_summary_is_not_a_warning(self, recwarn):
+        IFASuggestionCollector([make_fanout({"key_a": ["c1"]})]).print_summary(console=Console(file=None))
+        assert not recwarn.list
