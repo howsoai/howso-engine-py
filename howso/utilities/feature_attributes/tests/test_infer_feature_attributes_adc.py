@@ -758,7 +758,7 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(adc, max_distilled_cases=1250)
-    assert "Feature attributes summary" in capsys.readouterr().out
+    assert "Feature Attributes Summary" in capsys.readouterr().out
     for feat in features:
         assert "preserve_rare_values" not in feat
     # Test a suggestion application
@@ -820,7 +820,7 @@ def test_infer_fanout_features(adc, capsys):
     # Suggestions are summarized on the console, not shouted about as a warning.
     assert not [w for w in record if "suggestions" in str(w.message).lower()]
     summary = capsys.readouterr().out
-    assert "Feature attributes summary" in summary
+    assert "Feature Attributes Summary" in summary
     assert "fan-out feature" in summary
     for feat in features:
         assert "fanout_on" not in feat
@@ -869,7 +869,7 @@ def test_infer_fanout_features_ignores_constant_columns(adc, capsys):
     # The constant column is the only fan-out candidate and is correctly excluded, so
     # no fan-out suggestion should be produced, therefore no summary is printed.
     assert "fanout_features" not in features.suggestions.suggestions
-    assert "Feature attributes summary" not in summary
+    assert "Feature Attributes Summary" not in summary
 
     # No feature should be configured as a fan-out feature, least of all the constant column.
     for feat in fanout_constant_df.columns:

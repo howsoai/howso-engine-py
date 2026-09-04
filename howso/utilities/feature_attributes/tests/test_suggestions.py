@@ -187,20 +187,20 @@ class TestSuggestionSummary:
 
     def test_fanout_summary_counts_features_and_keys(self):
         suggestion = make_fanout({"key_a": ["c1", "c2", "c3"], ("k1", "k2"): ["c4"]})
-        assert suggestion.summary == "Found 4 fan-out features across 2 keys"
+        assert suggestion.summary == "Found 4 fan-out features across 2 columns"
 
     def test_fanout_summary_singular(self):
-        assert make_fanout({"key_a": ["c1"]}).summary == "Found 1 fan-out feature across 1 key"
+        assert make_fanout({"key_a": ["c1"]}).summary == "Found 1 fan-out feature across 1 column"
 
     def test_prv_summary_counts_values_and_features(self):
         suggestion = make_prv(_prv_config(a=3, b=1))
         assert suggestion.summary == (
-            "Found 4 rare values across 2 features that may be lost during data distillation"
+            "Found 4 rare values across 2 columns whose signal may be lost during data distillation workflows"
         )
 
     def test_prv_summary_singular(self):
         assert make_prv(_prv_config(a=1)).summary == (
-            "Found 1 rare value across 1 feature that may be lost during data distillation"
+            "Found 1 rare value across 1 column whose signal may be lost during data distillation workflows"
         )
 
 
@@ -217,7 +217,7 @@ class TestCollectorSummary:
         collector = IFASuggestionCollector([make_fanout({"key_a": ["c1"]}), make_prv(_prv_config(a=2))])
         lines = collector.summary_lines()
         assert len(lines) == 4
-        assert "Feature attributes summary" in lines[0]
+        assert "Feature Attributes Summary" in lines[0]
         assert lines[1].endswith(make_fanout({"key_a": ["c1"]}).summary)
         assert lines[2].endswith(make_prv(_prv_config(a=2)).summary)
         assert "`your_attributes_object.suggestions`" in lines[3]

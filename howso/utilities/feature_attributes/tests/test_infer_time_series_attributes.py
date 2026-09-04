@@ -660,7 +660,7 @@ def test_time_series_fanout_suggestions(capsys):
     # summary is printed exactly once: by the outer time-series call, not by the inner inferrer too.
     assert not [w for w in record if "suggestions" in str(w.message).lower()]
     summary = capsys.readouterr().out
-    assert summary.count("Feature attributes summary") == 1
+    assert summary.count("Feature Attributes Summary") == 1
     assert "fan-out feature" in summary
 
     assert isinstance(features.suggestions, IFASuggestionCollector)
