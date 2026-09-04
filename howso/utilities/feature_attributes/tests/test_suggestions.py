@@ -231,8 +231,8 @@ class TestCollectorSummary:
         collector.print_summary()
         out = capsys.readouterr().out
         assert out.splitlines() == [
-            "Feature attributes summary",
-            "  \u00b7 Found 2 fan-out features across 1 key",
+            "Feature Attributes Summary",
+            "  \u00b7 Found 2 fan-out features across 1 column",
             "  Inspect `your_attributes_object.suggestions` for details and how to apply them.",
         ]
 
@@ -242,7 +242,7 @@ class TestCollectorSummary:
         collector.print_summary(console=Console(width=20, force_jupyter=False))
         lines = capsys.readouterr().out.splitlines()
         assert len(lines) == 3
-        assert lines[1].endswith("that may be lost during data distillation")
+        assert lines[1].endswith("signal may be lost during data distillation workflows")
 
     def test_print_summary_is_not_a_warning(self, recwarn):
         IFASuggestionCollector([make_fanout({"key_a": ["c1"]})]).print_summary(console=Console(file=None))
