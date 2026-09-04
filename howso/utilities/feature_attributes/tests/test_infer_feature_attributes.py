@@ -1235,7 +1235,7 @@ def test_set_data():
         assert features["b"]["original_type"]["coercion"] == "set"
 
 
-def test_preserve_rare_values():
+def test_preserve_rare_values(capsys):
     """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
     # Manufacture some data
     n = 100_000
@@ -1273,18 +1273,20 @@ def test_preserve_rare_values():
     assert "preserve_rare_values" in features["a"]
     assert features["a"]["preserve_rare_values"]["protected_values"][0] is None
 
-    # Test that a suggestion is issued
-    with pytest.warns(UserWarning, match="You have one or more suggestions"):
+    # Test that a suggestion is issued, and summarized on the console rather than as a warning
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(df, max_distilled_cases=1563)
-        for feat in features:
-            assert "preserve_rare_values" not in feat
-        # Test a suggestion application
-        features.apply_suggestion("all")
-        assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
-        assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
+    assert "Feature Attributes Summary" in capsys.readouterr().out
+    for feat in features:
+        assert "preserve_rare_values" not in feat
+    # Test a suggestion application
+    features.apply_suggestion("all")
+    assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
+    assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
 
-        values_map = features.suggestions.preserve_rare_values.get_values_map()
-        config = features.suggestions.preserve_rare_values.get_config()
+    values_map = features.suggestions.preserve_rare_values.get_values_map()
+    config = features.suggestions.preserve_rare_values.get_config()
 
     # Supplying the suggested values_map and config to IFA should result in no warnings
     with warnings.catch_warnings():
@@ -1302,19 +1304,25 @@ def test_preserve_rare_values():
     with pytest.warns(UserWarning, match="Could not process some value counts"):
         infer_feature_attributes(df, types={"unhashable": "nominal"})
 
-def test_infer_fanout_features():
+def test_infer_fanout_features(capsys):
     """Test that `infer_feature_attributes` correctly infers and issues suggestions about fan-out features."""
-    # Test that a suggestion is issued
-    with pytest.warns(UserWarning, match="You have one or more suggestions"):
+    # Test that a suggestion is issued, and summarized on the console rather than as a warning
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
         features = infer_feature_attributes(joined_olist_df, default_time_zone="UTC")
-        for feat in features:
-            assert "fanout_on" not in feat
-        # Test a suggestion application
-        features.apply_suggestion("fanout_features")
-        assert "customer_id" in features["customer_city"].get("fanout_on", [])
-        assert "product_id" in features["product_height_cm"].get("fanout_on", [])
+    # Suggestions are summarized on the console, not shouted about as a warning.
+    assert not [w for w in record if "suggestions" in str(w.message).lower()]
+    summary = capsys.readouterr().out
+    assert "Feature Attributes Summary" in summary
+    assert "fan-out feature" in summary
+    for feat in features:
+        assert "fanout_on" not in feat
+    # Test a suggestion application
+    features.apply_suggestion("fanout_features")
+    assert "customer_id" in features["customer_city"].get("fanout_on", [])
+    assert "product_id" in features["product_height_cm"].get("fanout_on", [])
 
-        fof_map = features.suggestions.fanout_features.get_fanout_feature_map()
+    fof_map = features.suggestions.fanout_features.get_fanout_feature_map()
 
     # Supplying the suggested fanout_feature_map to IFA
     features = infer_feature_attributes(joined_olist_df, fanout_feature_map=fof_map, max_workers=2, default_time_zone="UTC")
@@ -1322,7 +1330,7 @@ def test_infer_fanout_features():
     assert "product_id" in features["product_length_cm"].get("fanout_on", [])
 
 
-def test_infer_fanout_features_ignores_constant_columns():
+def test_infer_fanout_features_ignores_constant_columns(capsys):
     """Globally-constant columns must not produce fan-out suggestions or trip the strict-tree warning.
 
     A constant column is functionally determined by every key, so prior to the
@@ -1330,12 +1338,13 @@ def test_infer_fanout_features_ignores_constant_columns():
     that violate the strict-subset-chain assumption (emitting a misleading
     "strict-tree" warning) and listing the constant itself as a fan-out feature.
     Once the constant column is correctly excluded, this data has no
-    fan-out structure, so no fan-out suggestion (and thus no suggestion warning)
+    fan-out structure, so no fan-out suggestion (and thus no printed summary)
     should be produced.
     """
     with warnings.catch_warnings(record=True) as record:
         warnings.simplefilter("always")
         features = infer_feature_attributes(fanout_constant_df)
+    summary = capsys.readouterr().out
 
     strict_tree = [w for w in record if "strict" in str(w.message).lower()]
     assert not strict_tree, (
@@ -1343,26 +1352,24 @@ def test_infer_fanout_features_ignores_constant_columns():
     )
 
     # The constant column is the only fan-out candidate and is correctly excluded, so
-    # no fan-out suggestion should be produced, therefore producing no suggestion warning.
+    # no fan-out suggestion should be produced, therefore no summary is printed.
     assert "fanout_features" not in features.suggestions.suggestions
-    suggestion_warnings = [w for w in record if "one or more suggestions" in str(w.message)]
-    assert not suggestion_warnings, (
-        f"unexpected suggestion warning(s): {[str(w.message) for w in suggestion_warnings]}"
-    )
+    assert "Feature Attributes Summary" not in summary
 
     # No feature should be configured as a fan-out feature, least of all the constant column.
     for feat in fanout_constant_df.columns:
         assert "fanout_on" not in features[feat]
 
 
-def test_enable_suggestions_false():
-    """enable_suggestions=False must skip fanout and PRV inference with no warning and empty suggestions."""
+def test_enable_suggestions_false(capsys):
+    """enable_suggestions=False must skip fanout and PRV inference with no summary and empty suggestions."""
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(joined_olist_df, enable_suggestions=False, default_time_zone="UTC")
 
     assert isinstance(features.suggestions, IFASuggestionCollector)
     assert len(features.suggestions.suggestions) == 0
+    assert "Feature Attributes Summary" not in capsys.readouterr().out
 
     # Explicit fanout_feature_map must still be applied even when suggestions are disabled
     fof_map = {"customer_id": ["customer_city", "customer_state"]}

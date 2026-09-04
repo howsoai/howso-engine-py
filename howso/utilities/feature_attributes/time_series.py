@@ -761,6 +761,9 @@ class InferFeatureAttributesTimeSeries(ABC):
                 time_invariant_features.append(id_feature)
 
         infer._time_invariant_features = time_invariant_features
+        # The summary is printed once, from this object's ``__call__``, after the
+        # inner suggestions have been propagated into this collector.
+        infer._summarize = False  # pyright: ignore[reportPrivateUsage]
 
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
@@ -901,6 +904,9 @@ class InferFeatureAttributesTimeSeries(ABC):
         """Process and return feature attributes."""
         feature_attributes = self._process(**kwargs)
         self.warnings_collector.emit_all()
+        # Print the summary once, from here, now that the inner inferrer's
+        # suggestions have been propagated into this collector.
+        self.suggestions_collector.print_summary()
         # Put the time_feature_name back into the kwargs dictionary.
         kwargs["time_feature_name"] = self.time_feature_name
         return SingleTableFeatureAttributes(

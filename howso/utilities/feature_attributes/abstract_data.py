@@ -91,11 +91,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         feature_attributes = self._process(**kwargs)
 
         self.warnings_collector.emit_all()
-
-        if self.suggestions_collector.suggestions:
-            warnings.warn("You have one or more suggestions to consider for your feature attributes "
-                          "configuration. Please view them by printing the `suggestions` property of your "
-                          "returned feature attributes object (`your_attributes_object.suggestions`).")
+        self._emit_summary()
 
         return SingleTableFeatureAttributes(
             feature_attributes, params=kwargs,
