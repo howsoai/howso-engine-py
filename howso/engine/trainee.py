@@ -3684,6 +3684,7 @@ class Trainee(BaseTrainee):
         familiarity_conviction_addition: str | bool = False,
         familiarity_conviction_removal: str | bool = False,
         features: Collection[str] | None = None,
+        filter_fanout_values: bool = False,
         influence_weight_entropy: str | bool = False,
         overwrite: bool = False,
         p_value_of_addition: str | bool = False,
@@ -3721,6 +3722,11 @@ class Trainee(BaseTrainee):
             '.familiarity_conviction_removal'.
         features : Collection of str, optional
             A list of features to calculate convictions.
+        filter_fanout_values : bool, default False
+            When true, predictions of features with fanned out values will be
+            made while holding out other cases that had the same values
+            duplicated. Only used within the computation of residual
+            contributions.
         influence_weight_entropy : bool or str, default False
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
@@ -3772,6 +3778,7 @@ class Trainee(BaseTrainee):
                 residual_contribution=residual_contribution,
                 similarity_conviction=similarity_conviction,
                 features=features,
+                filter_fanout_values=filter_fanout_values,
                 task_id=task_id,
                 use_case_weights=use_case_weights,
                 weight_feature=weight_feature,

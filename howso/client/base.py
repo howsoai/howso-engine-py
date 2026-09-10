@@ -3679,6 +3679,7 @@ class AbstractHowsoClient(ABC):
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
         features: Collection[str] | None = None,
+        filter_fanout_values: bool = False,
         influence_weight_entropy: bool | str = False,
         overwrite: bool = False,
         p_value_of_addition: bool | str = False,
@@ -3710,6 +3711,11 @@ class AbstractHowsoClient(ABC):
             feature '.distance_contribution'.
         features : iterable of str, optional
             An iterable of features to calculate convictions.
+        filter_fanout_values : bool, default False
+            When true, predictions of features with fanned out values will be
+            made while holding out other cases that had the same values
+            duplicated. Only used within the computation of residual
+            contributions.
         familiarity_conviction_addition : bool or str, default False
             The name of the feature to store conviction of addition
             values. If set to True the values will be stored to the feature
@@ -3765,6 +3771,7 @@ class AbstractHowsoClient(ABC):
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
             "features": features,
+            "filter_fanout_values": filter_fanout_values,
             "influence_weight_entropy": influence_weight_entropy,
             "overwrite": overwrite,
             "p_value_of_addition": p_value_of_addition,
