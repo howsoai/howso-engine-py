@@ -545,7 +545,7 @@ class HowsoEstimator(BaseEstimator):
             '.familiarity_conviction_removal'.
         filter_fanout_values : bool, default False
             When true, predictions of features with fanned out values will be
-            made while holding out other cases that had the same values
+            made while holding out other cases that have the same values
             duplicated. Only used within the computation of residual
             contributions.
         influence_weight_entropy : bool or str, default False

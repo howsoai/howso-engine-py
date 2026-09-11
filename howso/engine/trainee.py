@@ -1831,7 +1831,7 @@ class Trainee(BaseTrainee):
             feature values and previously generated action feature values.
         filter_fanout_values : bool, default False
             When true, predictions of features with fanned out values will be
-            made while holding out other cases that had the same values
+            made while holding out other cases that have the same values
             duplicated.
         generate_new_cases : {"always", "attempt", "no"}, default "no"
             This parameter takes in a string that may be one of the following:
@@ -2144,7 +2144,7 @@ class Trainee(BaseTrainee):
             previously generated time-steps.
         filter_fanout_values : bool, default False
             When true, predictions of features with fanned out values will be
-            made while holding out other cases that had the same values
+            made while holding out other cases that have the same values
             duplicated.
         final_time_steps: list of object, optional
             The time steps at which to end synthesis. Time-series only.
@@ -3724,7 +3724,7 @@ class Trainee(BaseTrainee):
             A list of features to calculate convictions.
         filter_fanout_values : bool, default False
             When true, predictions of features with fanned out values will be
-            made while holding out other cases that had the same values
+            made while holding out other cases that have the same values
             duplicated. Only used within the computation of residual
             contributions.
         influence_weight_entropy : bool or str, default False
@@ -4050,7 +4050,7 @@ class Trainee(BaseTrainee):
             return just the feature influences for the selected feature.
         filter_fanout_values : bool, default False
             When true, predictions of features with fanned out values will be
-            made while holding out other cases that had the same values
+            made while holding out other cases that have the same values
             duplicated.
         forecast_window_length : float, optional
             A value specifying a length of time over which to measure the accuracy of forecasts. When
