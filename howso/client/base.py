@@ -2242,7 +2242,7 @@ class AbstractHowsoClient(ABC):
             in the feature's encoded format.
         filter_fanout_values : bool, default False
             When true, predictions of features with fanned out values will be
-            made while holding out other cases that had the same values
+            made while holding out other cases that have the same values
             duplicated.
         generate_new_cases : {"always", "attempt", "no"}, default "no"
             (Optional) Whether to generate new cases.
@@ -2977,7 +2977,7 @@ class AbstractHowsoClient(ABC):
             previously generated timesteps.
         filter_fanout_values : bool, default False
             When true, predictions of features with fanned out values will be
-            made while holding out other cases that had the same values
+            made while holding out other cases that have the same values
             duplicated.
         final_time_steps : list of object, optional
             The time steps at which to end synthesis. Time-series
@@ -3679,6 +3679,7 @@ class AbstractHowsoClient(ABC):
         familiarity_conviction_addition: bool | str = False,
         familiarity_conviction_removal: bool | str = False,
         features: Collection[str] | None = None,
+        filter_fanout_values: bool = False,
         influence_weight_entropy: bool | str = False,
         overwrite: bool = False,
         p_value_of_addition: bool | str = False,
@@ -3710,6 +3711,11 @@ class AbstractHowsoClient(ABC):
             feature '.distance_contribution'.
         features : iterable of str, optional
             An iterable of features to calculate convictions.
+        filter_fanout_values : bool, default False
+            When true, predictions of features with fanned out values will be
+            made while holding out other cases that have the same values
+            duplicated. Only used within the computation of residual
+            contributions.
         familiarity_conviction_addition : bool or str, default False
             The name of the feature to store conviction of addition
             values. If set to True the values will be stored to the feature
@@ -3765,6 +3771,7 @@ class AbstractHowsoClient(ABC):
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
             "features": features,
+            "filter_fanout_values": filter_fanout_values,
             "influence_weight_entropy": influence_weight_entropy,
             "overwrite": overwrite,
             "p_value_of_addition": p_value_of_addition,
@@ -4041,7 +4048,7 @@ class AbstractHowsoClient(ABC):
             are interpolated rather than derived.
         filter_fanout_values : bool, default False
             When true, predictions of features with fanned out values will be
-            made while holding out other cases that had the same values
+            made while holding out other cases that have the same values
             duplicated.
         forecast_window_length : float, optional
             A value specifying a length of time over which to measure the accuracy of forecasts. When
