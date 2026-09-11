@@ -4,11 +4,11 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --no-index --output-file=requirements-3.12-dev.txt --pip-args=None
 #
-amalgam-lang==34.5.0
+amalgam-lang==35.0.0
     # via howso-engine (pyproject.toml)
 astroid==4.0.4
     # via pylint
-build==1.6.0
+build==1.6.1
     # via
     #   nab-project
     #   pip-tools
@@ -70,21 +70,33 @@ mongomock==4.3.0
     # via howso-engine (pyproject.toml)
 mypy-extensions==1.1.0
     # via isort
-nab-index==0.0.15
+nab==0.0.17
+    # via pipdeptree
+nab-index==0.0.17
     # via
+    #   nab
     #   nab-project
     #   pipdeptree
-nab-project==0.0.15
-    # via pipdeptree
-nab-provider==0.0.15
+nab-markersets==0.0.17
     # via
-    #   nab-index
-    #   nab-project
-nab-resolver==0.0.15
-    # via
+    #   nab
     #   nab-project
     #   nab-provider
-narwhals==2.25.0
+nab-project==0.0.17
+    # via
+    #   nab
+    #   pipdeptree
+nab-provider==0.0.17
+    # via
+    #   nab
+    #   nab-index
+    #   nab-project
+nab-resolver==0.0.17
+    # via
+    #   nab
+    #   nab-project
+    #   nab-provider
+narwhals==2.26.0
     # via scikit-learn
 numpy==2.4.6
     # via
@@ -98,15 +110,16 @@ packaging==26.3
     #   howso-engine (pyproject.toml)
     #   mongomock
     #   nab-index
+    #   nab-project
     #   pytest
     #   wheel
 pandas==2.3.3
     # via howso-engine (pyproject.toml)
 pip-tools==7.6.1
     # via howso-engine (pyproject.toml)
-pipdeptree==4.2.3
+pipdeptree==4.2.5
     # via howso-engine (pyproject.toml)
-platformdirs==4.11.7
+platformdirs==4.11.8
     # via pylint
 pluggy==1.6.0
     # via
@@ -156,7 +169,7 @@ pytz==2026.3.post1
     #   pandas
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
-regex==2026.9.3
+regex==2026.9.10
     # via sacremoses
 requests==2.34.2
     # via howso-engine (pyproject.toml)
@@ -166,7 +179,7 @@ ruff==0.11.13
     # via howso-engine (pyproject.toml)
 sacremoses==0.2.0
     # via howso-engine (pyproject.toml)
-scikit-learn==1.9.0
+scikit-learn==1.9.1
     # via howso-engine (pyproject.toml)
 scipy==1.18.1
     # via scikit-learn
@@ -181,18 +194,21 @@ snowballstemmer==3.1.1
 threadpoolctl==3.6.0
     # via scikit-learn
 tomli==2.4.1
-    # via nab-project
+    # via
+    #   nab
+    #   nab-project
 tomli-w==1.2.0
     # via nab-project
 tomlkit==0.15.1
     # via pylint
-tqdm==4.70.0
+tqdm==4.70.1
     # via sacremoses
 truststore==0.10.4
     # via nab-index
 typing-extensions==4.16.0
     # via
     #   howso-engine (pyproject.toml)
+    #   nab
     #   nab-index
     #   nab-project
     #   nab-provider
