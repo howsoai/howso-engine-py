@@ -117,7 +117,7 @@ NOTEBOOK_COLUMNS = int(_env_number("HOWSO_PROGRESS_COLUMNS", 120.0))
 # kernel's IOPub channel, so this stays well below rich's default of 10 and
 # under Jupyter's ``iopub_data_rate_limit``, while still emitting often enough
 # to satisfy the Databricks cell keepalive noted above.
-NOTEBOOK_REFRESH_HZ = _env_number("HOWSO_PROGRESS_FPS", 4.0)
+NOTEBOOK_REFRESH_HZ = _env_number("HOWSO_PROGRESS_FPS", 2.0)
 
 # Ceiling on the details column. Long text is truncated rather than wrapped:
 # a second rendered line would reintroduce the cursor-up codes that
