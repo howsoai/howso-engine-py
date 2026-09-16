@@ -1386,6 +1386,11 @@ def update_confusion_matrix(
         updated_matrix = fix_feature_value_keys(updated_matrix, feature_attributes, feature)
         return_feature_cm_map["matrix"] = updated_matrix
 
+        # Add in all other key-value pairs that are in the original cm dict
+        for k, v in feature_cm_map.items():
+            if k not in return_feature_cm_map:
+                return_feature_cm_map[k] = v
+
         updated_confusion_matrix_map[feature] = return_feature_cm_map
 
     return updated_confusion_matrix_map
