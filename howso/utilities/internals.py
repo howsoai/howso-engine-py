@@ -18,7 +18,7 @@ import logging
 from pathlib import Path
 import random
 import re
-from typing import Any, Protocol, TypeVar, overload
+from typing import Any, cast, Protocol, TypeVar, overload
 import unicodedata
 import uuid
 import warnings
@@ -1266,9 +1266,9 @@ def fix_feature_value_keys(
     input_dict: dict[str, Any],
     feature_attributes: Mapping[str, Mapping],
     feature_name: str
-) -> dict[str | float | int, Any]:
+) -> dict[str | float | int | bool | None, Any]:
     """
-    Cleans up misformatted keys for a dict with feature values as keys.
+    Clean up misformatted keys for a dict with feature values as keys.
 
     Non-string dictionary keys are converted to strings
     within the JSON-ification process in Amalgam.
@@ -1290,15 +1290,22 @@ def fix_feature_value_keys(
     output_dict = {}
     for k, v in input_dict.items():
         if k == ".null":
-            output_dict["null"] = v
-        else:
-            if feature_attributes[feature_name].get('data_type') == 'number':
-                if feature_attributes[feature_name].get('original_type', {}).get('data_type') == 'integer':
-                    output_dict[int(k)] = v
-                else:
-                    output_dict[float(k)] = v
+            output_dict[None] = v
+        elif k == ".true":
+            output_dict[True] = v
+        elif k == ".false":
+            output_dict[False] = v
+        elif k == ".infinity":
+            output_dict[float("inf")] = v
+        elif k == "-.infinity":
+            output_dict[float("-inf")] = v
+        elif feature_attributes[feature_name].get("data_type") == "number":
+            if feature_attributes[feature_name].get("original_type", {}).get("data_type") == "integer":
+                output_dict[int(k)] = v
             else:
-                output_dict[str(k)] = v
+                output_dict[float(k)] = v
+        else:
+            output_dict[str(k)] = v
     return output_dict
 
 
@@ -1307,7 +1314,7 @@ def update_caps_maps(
     feature_attributes: Mapping[str, Mapping]
 ) -> list[dict[str, dict[str | int | float, float]]]:
     """
-    Cleans up misformatted keys from non-string nominal feature's CAP maps.
+    Clean up misformatted keys from non-string nominal feature's CAP maps.
 
     Non-string dictionary keys are converted to strings
     within the JSON-ification process in Amalgam.
@@ -1342,9 +1349,9 @@ def update_caps_maps(
 def update_confusion_matrix(
     confusion_matrix: dict[str, dict[str, float | dict[str, Any]]],
     feature_attributes: Mapping[str, Mapping]
-) -> dict[str, Any]:
+) -> dict[str | float | int | bool | None, Any]:
     """
-    Cleans up misformatted keys from non-string nominal feature's confusion matrices.
+    Clean up misformatted keys from non-string nominal feature's confusion matrices.
 
     Non-string dictionary keys are converted to strings
     within the JSON-ification process in Amalgam.
@@ -1363,9 +1370,9 @@ def update_confusion_matrix(
     """
     updated_confusion_matrix_map = {}
     for feature, feature_cm_map in confusion_matrix.items():
-        updated_feature_cm_map = feature_cm_map.copy()
-        updated_feature_cm_map['other_counts'] = fix_feature_value_keys(
-            feature_cm_map['other_counts'],
+        return_feature_cm_map = {}
+        return_feature_cm_map["other_counts"] = fix_feature_value_keys(
+            cast(dict[str, float], feature_cm_map["other_counts"]),
             feature_attributes,
             feature
         )
@@ -1374,12 +1381,17 @@ def update_confusion_matrix(
         # So the inner keys must be fixed in addition to the outer keys.
         updated_matrix = {
             k: fix_feature_value_keys(v, feature_attributes, feature)
-            for k, v in feature_cm_map['matrix'].items()
+            for k, v in feature_cm_map["matrix"].items()
         }
         updated_matrix = fix_feature_value_keys(updated_matrix, feature_attributes, feature)
-        updated_feature_cm_map['matrix'] = updated_matrix
+        return_feature_cm_map["matrix"] = updated_matrix
 
-        updated_confusion_matrix_map[feature] = updated_feature_cm_map
+        # Add in all other key-value pairs that are in the original cm dict
+        for k, v in feature_cm_map.items():
+            if k not in return_feature_cm_map:
+                return_feature_cm_map[k] = v
+
+        updated_confusion_matrix_map[feature] = return_feature_cm_map
 
     return updated_confusion_matrix_map
 
