@@ -11,6 +11,8 @@ class IFAWarningEmitterType(Enum):
     UNKNOWN_DATETIME_FORMAT = "unknown_datetime_format"
     UTC_OFFSET = "utc_offset"
     VALUE_COUNTS_PROCESSING = "value_counts_processing"
+    EXCESSIVE_FLOAT_PRECISION = "excessive_float_precision"
+    POSSIBLE_EXCESSIVE_FLOAT_PRECISION = "possible_excessive_float_precision"
     SIMPLE = "simple"
 
 
@@ -95,6 +97,31 @@ class ValueCountsProcessing(IFAWarningEmitter):
                       "suggested or computed `preserve_rare_values` configurations`.", UserWarning)
 
 
+class FloatPrecisionWarningEmitter(IFAWarningEmitter):
+    """Base emitter for warnings about float features that exceed the precision the engine supports."""
+
+    #: How the warning relates the features to the precision limit.
+    _certainty: str
+
+    def emit(self):
+        """Emit the warning."""
+        warnings.warn(f"The following features {self._certainty} floating point values that exceed the "
+                      f"maximum supported precision of 64 bits: {self.features_list}"
+                      "\nThese features are trained without a `decimal_places` attribute.", UserWarning)
+
+
+class ExcessiveFloatPrecisionWarningEmitter(FloatPrecisionWarningEmitter):
+    """Emitter for a warning about float features whose dtype is wider than 64 bits."""
+
+    _certainty = "contain"
+
+
+class PossibleExcessiveFloatPrecisionWarningEmitter(FloatPrecisionWarningEmitter):
+    """Emitter for a warning about float features whose dtype does not report its size."""
+
+    _certainty = "may contain"
+
+
 class SimpleWarningEmitter(IFAWarningEmitter):
     """Emitter for simple warnings that are saved via the `features_list`."""
 
@@ -106,6 +133,18 @@ class SimpleWarningEmitter(IFAWarningEmitter):
 
 class IFAWarningCollector:
     """A collector for IFAWarningEmitters that can triage new feature entries."""
+
+    #: The emitter that serves each type of warning.
+    _EMITTERS: dict[IFAWarningEmitterType, type[IFAWarningEmitter]] = {
+        IFAWarningEmitterType.NEAR_UNIQUE_DEPENDENT_FEATURES: NearUniqueDependentFeaturesWarningEmitter,
+        IFAWarningEmitterType.MISSING_TZ_FEATURES: MissingTZFeaturesWarningEmitter,
+        IFAWarningEmitterType.UNKNOWN_DATETIME_FORMAT: UnknownDatetimeFormatWarningEmitter,
+        IFAWarningEmitterType.UTC_OFFSET: UTCOffsetFeaturesWarningEmitter,
+        IFAWarningEmitterType.VALUE_COUNTS_PROCESSING: ValueCountsProcessing,
+        IFAWarningEmitterType.EXCESSIVE_FLOAT_PRECISION: ExcessiveFloatPrecisionWarningEmitter,
+        IFAWarningEmitterType.POSSIBLE_EXCESSIVE_FLOAT_PRECISION: PossibleExcessiveFloatPrecisionWarningEmitter,
+        IFAWarningEmitterType.SIMPLE: SimpleWarningEmitter,
+    }
 
     def __init__(self, emitters: dict[str, IFAWarningEmitter] | None = None) -> None:
         self._emitters = emitters or {}
@@ -120,28 +159,18 @@ class IFAWarningCollector:
             The type of Warning Emitter this feature should be sorted to.
         feature_name : str
             The name of the feature applicable to the warning.
-        """
-        if emitter_type == IFAWarningEmitterType.NEAR_UNIQUE_DEPENDENT_FEATURES:
-            key = IFAWarningEmitterType.NEAR_UNIQUE_DEPENDENT_FEATURES.value
-            emitter = NearUniqueDependentFeaturesWarningEmitter
-        elif emitter_type == IFAWarningEmitterType.MISSING_TZ_FEATURES:
-            key = IFAWarningEmitterType.MISSING_TZ_FEATURES.value
-            emitter = MissingTZFeaturesWarningEmitter
-        elif emitter_type == IFAWarningEmitterType.UNKNOWN_DATETIME_FORMAT:
-            key = IFAWarningEmitterType.UNKNOWN_DATETIME_FORMAT.value
-            emitter = UnknownDatetimeFormatWarningEmitter
-        elif emitter_type == IFAWarningEmitterType.UTC_OFFSET:
-            key = IFAWarningEmitterType.UTC_OFFSET.value
-            emitter = UTCOffsetFeaturesWarningEmitter
-        elif emitter_type == IFAWarningEmitterType.SIMPLE:
-            key = IFAWarningEmitterType.SIMPLE.value
-            emitter = SimpleWarningEmitter
-        elif emitter_type == IFAWarningEmitterType.VALUE_COUNTS_PROCESSING:
-            key = IFAWarningEmitterType.VALUE_COUNTS_PROCESSING.value
-            emitter = ValueCountsProcessing
-        else:
-            raise ValueError("Unknown `emitter_type` provided.")
 
+        Raises
+        ------
+        ValueError
+            If `emitter_type` is not a known type of warning.
+        """
+        try:
+            emitter = self._EMITTERS[emitter_type]
+        except KeyError:
+            raise ValueError("Unknown `emitter_type` provided.") from None
+
+        key = emitter_type.value
         if key not in self._emitters:
             self._emitters[key] = emitter(features={feature_name})
         else:
