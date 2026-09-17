@@ -431,9 +431,9 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                     coerced_df[feature] = series
                 is_valid = True
             except Exception as err: # noqa: Intentionally broad
-                # Integer, nullable integer, and float columns all carry the same values to the
-                # engine, so a numeric feature is described faithfully by any numeric dtype, even
-                # one that cannot be cast losslessly. Such a column keeps its original dtype.
+                # Numeric dtypes differ only in representation here: validation does not alter the
+                # data unless `coerce` is set, so a numeric column is trained as it stands whichever
+                # dtype the attributes imply. A column that cannot be cast keeps its own dtype.
                 is_valid = self._is_numeric_dtype(expected_dtype) and self._is_numeric_dtype(actual_dtype)
                 coerce_err = str(err)
 
@@ -2037,7 +2037,7 @@ class InferFeatureAttributesBase(ABC):
             max_distilled_cases, _ = get_optimized_max_chunk_size(row_count=self._get_row_count(),
                                                                   max_chunk_size=max_distilled_cases)
         else:
-            # Set a small default
+            # Set a small default; keep consistent with Enterprise
             max_distilled_cases = 50_000
 
         # Workflow 1: User provided a config with protected multipliers; may need to compute unprotected multipliers
