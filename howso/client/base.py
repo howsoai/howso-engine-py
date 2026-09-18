@@ -25,7 +25,6 @@ from pandas import DataFrame
 
 from howso.client.exceptions import (
     HowsoError,
-    NoOngoingTaskError,
     UnsupportedArgumentWarning,
 )
 from howso.client.schemas import (
@@ -250,21 +249,34 @@ class AbstractHowsoClient(ABC):
         """
 
     @abstractmethod
-    def get_label(self, trainee_id: str, label: str) -> Any:
+    def get_progress(self, trainee_id: str, task_id: str) -> TaskProgress:
         """
-        Get the value at a label in Howso engine.
+        Get concurrent progress feedback for a long running task.
+
+        Given a ``task_id`` that matches the same provided at the start of a
+        long-running operation, for example: ``analyze()``. This method will
+        make a request to the Howso Engine about the progress.
 
         Parameters
         ----------
         trainee_id : str
-            The entity handle of the Trainee.
-        label : str
-            The label to retrieve.
+            The id of the trainee.
+        task_id : str
+            A unique identifier originally provided when starting a long-
+            running operation such as ``analyze()``.
 
         Returns
         -------
-        Any
-            The content of the label.
+        TaskProgress
+            A mapping of the current ``step``, the ``total`` number of steps,
+            and a ``details`` description, as reported by the Howso Engine.
+
+        Raises
+        ------
+        NoOngoingTaskError
+            When no task matching ``task_id`` is currently running (for
+            example, between batches or before the engine has registered the
+            task).
         """
 
     @abstractmethod
@@ -6128,39 +6140,3 @@ class AbstractHowsoClient(ABC):
             "impute_session": impute_session,
             "session": self.active_session.id,
         })
-
-    def get_progress(self, trainee_id: str, task_id: str) -> TaskProgress:
-        """
-        Get concurrent progress feedback for a long running task.
-
-        Given a ``task_id`` that matches the same provided at the start of a
-        long-running operation, for example: ``analyze()``. This method will
-        make a request to the Howso Engine about the progress.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The id of the trainee.
-        task_id : str
-            A unique identifier originally provided when starting a long-
-            running operation such as ``analyze()``.
-
-        Returns
-        -------
-        TaskProgress
-            A mapping of the current ``step``, the ``total`` number of steps,
-            and a ``details`` description, as reported by the Howso Engine.
-
-        Raises
-        ------
-        NoOngoingTaskError
-            When no task matching ``task_id`` is currently running (for
-            example, between batches or before the engine has registered the
-            task).
-        """
-        trainee_id = self._resolve_trainee(trainee_id).id
-        progress_map: dict = self.get_label(trainee_id, "progressMap")
-
-        if task_id not in progress_map:
-            raise NoOngoingTaskError(NoOngoingTaskError.MESSAGE)
-        return progress_map[task_id]
