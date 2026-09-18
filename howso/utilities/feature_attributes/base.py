@@ -376,12 +376,22 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                 f'"{feature}" had {additional_errors} additional values outside of bounds that were not displayed.')
         return errors
 
+    @staticmethod
+    def _is_numeric_dtype(dtype: str | np.dtype | pd.api.extensions.ExtensionDtype | pd.CategoricalDtype) -> bool:
+        """Return whether `dtype` holds numbers, i.e. an integer, nullable integer, or float dtype."""
+        try:
+            dtype = pd.api.types.pandas_dtype(dtype)
+        except TypeError:
+            return False
+        return pd.api.types.is_numeric_dtype(dtype) and not pd.api.types.is_bool_dtype(dtype)
+
     def _validate_dtype(self, data: pd.DataFrame, feature: str,
                         expected_dtype: str | pd.CategoricalDtype, coerced_df: pd.DataFrame,
                         coerce: bool = False, localize_datetimes: bool = True) -> list[str]:
         """Validate the data type of a feature and optionally attempt to coerce."""
         errors = []
         series = coerced_df[feature]
+        actual_dtype = data[feature].dtype
         is_valid = False
         coerce_err = ""
 
@@ -392,8 +402,8 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                 if coerce:
                     coerced_df[feature] = series
                 is_valid = True
-            except Exception: # noqa: Intentionally broad
-                pass
+            except Exception as err: # noqa: Intentionally broad
+                coerce_err = str(err)
         elif expected_dtype == "datetime64":
             try:
                 format = self[feature]["date_time_format"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
@@ -401,17 +411,17 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                     format = "ISO8601"
                 series = pd.to_datetime(coerced_df[feature], format=format)
                 if coerce:
-                    if localize_datetimes and not isinstance(series, pd.DatetimeTZDtype):
+                    if localize_datetimes and not isinstance(series.dtype, pd.DatetimeTZDtype):
                         coerced_df[feature] = series.dt.tz_localize(
                             "UTC", ambiguous="infer", nonexistent="NaT"
                         )
                     else:
                         coerced_df[feature] = series
                 is_valid = True
-            except Exception: # noqa: Intentionally broad
-                pass
+            except Exception as err: # noqa: Intentionally broad
+                coerce_err = str(err)
         # Else, compare the dtype directly
-        elif data[feature].dtype.name == expected_dtype:
+        elif actual_dtype.name == expected_dtype:
             is_valid = True
         # If the feature can be converted, consider it valid (slightly differing numeric types, etc.)
         else:
@@ -420,22 +430,22 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                 if coerce:
                     coerced_df[feature] = series
                 is_valid = True
-            except pd.errors.IntCastingNaNError:
-                # If this happens, there is a null value, thus a float dtype is OK
-                if pd.api.types.is_float_dtype(series):
-                    is_valid = True
             except Exception as err: # noqa: Intentionally broad
+                # Numeric dtypes differ only in representation here: validation does not alter the
+                # data unless `coerce` is set, so a numeric column is trained as it stands whichever
+                # dtype the attributes imply. A column that cannot be cast keeps its own dtype.
+                is_valid = self._is_numeric_dtype(expected_dtype) and self._is_numeric_dtype(actual_dtype)
                 coerce_err = str(err)
 
         # Raise warnings if the types do not match
         if not is_valid:
             if coerce:
                 errors.append(f"Expected dtype '{expected_dtype}' for feature '{feature}' "
-                              f"but could not coerce:\nActual dtype: {data[feature].dtype}"
+                              f"but could not coerce:\nActual dtype: {actual_dtype}"
                               f"\nError raised from Pandas.astype():\n\n{coerce_err}")
             else:
                 errors.append(f"Feature '{feature}' should be '{expected_dtype}' dtype, but found "
-                              f"'{data[feature].dtype}'")
+                              f"'{actual_dtype}'")
 
         return errors
 
@@ -482,9 +492,10 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                         errors.extend(self._validate_dtype(data, feature, "int64",
                                                            coerced_df, coerce=coerce))
                 elif attributes.get("data_type") == "boolean":
-                    # Check type (boolean)
-                    errors.extend(self._validate_dtype(data, feature, "bool",
-                                                       coerced_df, coerce=coerce))
+                    # Check type (boolean). A boolean column that also holds nulls stays an object
+                    # column, since casting it to `bool` would turn every null into `False`.
+                    errors.extend(self._validate_dtype(data, feature, "bool", coerced_df,
+                                                       coerce=coerce and not data[feature].isna().any()))
                 elif attributes.get("bounds") and attributes["bounds"].get("allowed"):  # pyright: ignore[reportTypedDictNotRequiredAccess]
                     # Check type (categorical)
                     schema_dtype = pd.CategoricalDtype(attributes["bounds"]["allowed"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
@@ -2026,8 +2037,8 @@ class InferFeatureAttributesBase(ABC):
             max_distilled_cases, _ = get_optimized_max_chunk_size(row_count=self._get_row_count(),
                                                                   max_chunk_size=max_distilled_cases)
         else:
-            # Set a small default
-            max_distilled_cases = 25_000
+            # Set a small default; keep consistent with Enterprise
+            max_distilled_cases = 50_000
 
         # Workflow 1: User provided a config with protected multipliers; may need to compute unprotected multipliers
         if preserve_rare_values_config is not None:
