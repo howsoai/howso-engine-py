@@ -671,12 +671,18 @@ class HowsoDirectClient(AbstractHowsoClient):
             When no task matching ``task_id`` is currently running (for
             example, between batches or before the engine has registered the
             task).
+
+        json.decoder.JSONDecodeError
+            When the value of the progress map in the Trainee cannot be decoded
+            into valid JSON.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         data = self.amlg.get_json_from_label(trainee_id, "progressMap")
+        if data == b"null":
+            raise HowsoError("The progress map could not be read from the Trainee.")
         progress_map = json.loads(data) if data else {}
 
-        if task_id not in progress_map:
+        if not isinstance(progress_map, Mapping) or task_id not in progress_map:
             raise NoOngoingTaskError(NoOngoingTaskError.MESSAGE)
         return progress_map[task_id]
 
