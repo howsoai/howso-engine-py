@@ -250,6 +250,24 @@ class AbstractHowsoClient(ABC):
         """
 
     @abstractmethod
+    def get_label(self, trainee_id: str, label: str) -> Any:
+        """
+        Get the value at a label in Howso engine.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The entity handle of the Trainee.
+        label : str
+            The label to retrieve.
+
+        Returns
+        -------
+        Any
+            The content of the label.
+        """
+
+    @abstractmethod
     def execute(self, trainee_id: str, label: str, payload: Any, **kwargs) -> Any:
         """
         Execute a label in Howso engine.
@@ -6140,13 +6158,9 @@ class AbstractHowsoClient(ABC):
             example, between batches or before the engine has registered the
             task).
         """
-        try:
-            trainee_id = self._resolve_trainee(trainee_id).id
-            return self.execute(trainee_id, "get_progress", {"task_id": task_id})
-        except HowsoError as err:
-            # The engine signals a missing task with a generic error message;
-            # promote it to a typed exception so callers can catch it directly
-            # instead of string-matching (see howso.utilities.with_progress).
-            if NoOngoingTaskError.MESSAGE in (err.message or ""):
-                raise NoOngoingTaskError(err.message or "", code=err.code) from err
-            raise
+        trainee_id = self._resolve_trainee(trainee_id).id
+        progress_map: dict = self.get_label(trainee_id, "progressMap")
+
+        if task_id not in progress_map:
+            raise NoOngoingTaskError(NoOngoingTaskError.MESSAGE)
+        return progress_map[task_id]

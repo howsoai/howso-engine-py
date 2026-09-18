@@ -637,6 +637,33 @@ class HowsoDirectClient(AbstractHowsoClient):
             return None
         return path.stat().st_size
 
+    def get_label(
+        self,
+        trainee_id: str,
+        label: str,
+    ) -> t.Any:
+        """
+        Get the value at a label in Howso engine.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The entity handle of the Trainee.
+        label : str
+            The label to retrieve.
+
+        Returns
+        -------
+        Any
+            The content of the label.
+        """
+        try:
+            data = self.amlg.get_json_from_label(trainee_id, label)
+            return json.loads(data)
+        except ValueError as err:
+            raise HowsoError('Label value could not be deserialized') from err
+
+
     def execute(
         self,
         trainee_id: str,
