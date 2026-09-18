@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --no-index --output-file=requirements-3.13.txt --pip-args=None
 #
-amalgam-lang==34.5.0
+amalgam-lang==35.0.0
     # via howso-engine (pyproject.toml)
 certifi==2026.7.22
     # via
@@ -50,7 +50,7 @@ pytz==2026.3.post1
     # via pandas
 pyyaml==6.0.3
     # via howso-engine (pyproject.toml)
-regex==2026.9.3
+regex==2026.9.10
     # via sacremoses
 requests==2.34.2
     # via howso-engine (pyproject.toml)
@@ -62,7 +62,7 @@ semantic-version==2.10.0
     # via howso-engine (pyproject.toml)
 six==1.17.0
     # via python-dateutil
-tqdm==4.70.0
+tqdm==4.70.1
     # via sacremoses
 typing-extensions==4.16.0
     # via howso-engine (pyproject.toml)

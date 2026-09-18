@@ -512,6 +512,7 @@ class HowsoEstimator(BaseEstimator):
         distance_contribution=False,
         familiarity_conviction_addition=False,
         familiarity_conviction_removal=False,
+        filter_fanout_values=False,
         influence_weight_entropy=False,
         overwrite=False,
         p_value_of_addition=False,
@@ -542,6 +543,11 @@ class HowsoEstimator(BaseEstimator):
             The name of the feature to store conviction of removal values. If
             set to True the values will be stored to the feature
             '.familiarity_conviction_removal'.
+        filter_fanout_values : bool, default False
+            When true, predictions of features with fanned out values will be
+            made while holding out other cases that have the same values
+            duplicated. Only used within the computation of residual
+            contributions.
         influence_weight_entropy : bool or str, default False
             The name of the feature to store influence weight entropy values in.
             If set to True, the values will be stored in the feature
@@ -583,6 +589,7 @@ class HowsoEstimator(BaseEstimator):
             distance_contribution=distance_contribution,
             familiarity_conviction_addition=familiarity_conviction_addition,
             familiarity_conviction_removal=familiarity_conviction_removal,
+            filter_fanout_values=filter_fanout_values,
             influence_weight_entropy=influence_weight_entropy,
             overwrite=overwrite,
             p_value_of_addition=p_value_of_addition,
