@@ -25,7 +25,6 @@ from pandas import DataFrame
 
 from howso.client.exceptions import (
     HowsoError,
-    NoOngoingTaskError,
     UnsupportedArgumentWarning,
 )
 from howso.client.schemas import (
@@ -247,6 +246,37 @@ class AbstractHowsoClient(ABC):
         -------
         int
             The allocated number of cpu threads for a Trainee.
+        """
+
+    @abstractmethod
+    def get_progress(self, trainee_id: str, task_id: str) -> TaskProgress:
+        """
+        Get concurrent progress feedback for a long running task.
+
+        Given a ``task_id`` that matches the same provided at the start of a
+        long-running operation, for example: ``analyze()``. This method will
+        make a request to the Howso Engine about the progress.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee.
+        task_id : str
+            A unique identifier originally provided when starting a long-
+            running operation such as ``analyze()``.
+
+        Returns
+        -------
+        TaskProgress
+            A mapping of the current ``step``, the ``total`` number of steps,
+            and a ``details`` description, as reported by the Howso Engine.
+
+        Raises
+        ------
+        NoOngoingTaskError
+            When no task matching ``task_id`` is currently running (for
+            example, between batches or before the engine has registered the
+            task).
         """
 
     @abstractmethod
@@ -6110,43 +6140,3 @@ class AbstractHowsoClient(ABC):
             "impute_session": impute_session,
             "session": self.active_session.id,
         })
-
-    def get_progress(self, trainee_id: str, task_id: str) -> TaskProgress:
-        """
-        Get concurrent progress feedback for a long running task.
-
-        Given a ``task_id`` that matches the same provided at the start of a
-        long-running operation, for example: ``analyze()``. This method will
-        make a request to the Howso Engine about the progress.
-
-        Parameters
-        ----------
-        trainee_id : str
-            The id of the trainee.
-        task_id : str
-            A unique identifier originally provided when starting a long-
-            running operation such as ``analyze()``.
-
-        Returns
-        -------
-        TaskProgress
-            A mapping of the current ``step``, the ``total`` number of steps,
-            and a ``details`` description, as reported by the Howso Engine.
-
-        Raises
-        ------
-        NoOngoingTaskError
-            When no task matching ``task_id`` is currently running (for
-            example, between batches or before the engine has registered the
-            task).
-        """
-        try:
-            trainee_id = self._resolve_trainee(trainee_id).id
-            return self.execute(trainee_id, "get_progress", {"task_id": task_id})
-        except HowsoError as err:
-            # The engine signals a missing task with a generic error message;
-            # promote it to a typed exception so callers can catch it directly
-            # instead of string-matching (see howso.utilities.with_progress).
-            if NoOngoingTaskError.MESSAGE in (err.message or ""):
-                raise NoOngoingTaskError(err.message or "", code=err.code) from err
-            raise
