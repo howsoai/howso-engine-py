@@ -30,7 +30,13 @@ from howso.client.api import DEFAULT_ENGINE_PATH
 from howso.client.base import AbstractHowsoClient
 from howso.client.cache import TraineeCache
 from howso.client.configuration import HowsoConfiguration
-from howso.client.exceptions import HowsoError, HowsoValidationError, HowsoWarning, UnsupportedArgumentWarning
+from howso.client.exceptions import (
+    HowsoError,
+    HowsoValidationError,
+    HowsoWarning,
+    NoOngoingTaskError,
+    UnsupportedArgumentWarning,
+)
 from howso.client.schemas import (
     HowsoVersion,
     Project,
@@ -40,7 +46,7 @@ from howso.client.schemas import (
     TraineeRuntimeOptions,
     TraineeVersion,
 )
-from howso.client.typing import LibraryType, Persistence
+from howso.client.typing import LibraryType, Persistence, TaskProgress
 from howso.direct.schemas import CombineTraineesResult, DirectTrainee
 from howso.utilities import HowsoTokenizer, internals, TokenizerProtocol
 from howso.utilities.progress import auto_progress
@@ -636,6 +642,49 @@ class HowsoDirectClient(AbstractHowsoClient):
         if not path.exists():
             return None
         return path.stat().st_size
+
+    def get_progress(self, trainee_id: str, task_id: str) -> TaskProgress:
+        """
+        Get concurrent progress feedback for a long running task.
+
+        Given a ``task_id`` that matches the same provided at the start of a
+        long-running operation, for example: ``analyze()``. This method will
+        make a request to the Howso Engine about the progress.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee.
+        task_id : str
+            A unique identifier originally provided when starting a long-
+            running operation such as ``analyze()``.
+
+        Returns
+        -------
+        TaskProgress
+            A mapping of the current ``step``, the ``total`` number of steps,
+            and a ``details`` description, as reported by the Howso Engine.
+
+        Raises
+        ------
+        NoOngoingTaskError
+            When no task matching ``task_id`` is currently running (for
+            example, between batches or before the engine has registered the
+            task).
+
+        json.decoder.JSONDecodeError
+            When the value of the progress map in the Trainee cannot be decoded
+            into valid JSON.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        data = self.amlg.get_json_from_label(trainee_id, "progressMap")
+        if data == b"null":
+            raise HowsoError("The progress map could not be read from the Trainee.")
+        progress_map = json.loads(data) if data else {}
+
+        if not isinstance(progress_map, Mapping) or task_id not in progress_map:
+            raise NoOngoingTaskError(NoOngoingTaskError.MESSAGE)
+        return progress_map[task_id]
 
     def execute(
         self,
