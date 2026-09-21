@@ -1,6 +1,32 @@
 from abc import ABC
 from enum import Enum
+import inspect
+from pathlib import Path
 import warnings
+
+#: The root of the `howso` package, used to find the frame a warning should be attributed to.
+_PACKAGE_ROOT = str(Path(__file__).resolve().parents[2])
+
+
+def _user_stacklevel() -> int:
+    """
+    Return the `stacklevel` of the nearest frame outside of the `howso` package.
+
+    Emitters run several frames below the public entry point, and that depth differs between
+    inferrers, so the frame to attribute a warning to is found by walking out of the package
+    rather than by counting. Falls back to the outermost frame available.
+    """
+    frame = inspect.currentframe()
+    if frame is None or frame.f_back is None:
+        # Frame introspection is unavailable on this interpreter
+        return 1
+    # Level 1 is the caller of this helper, i.e. the frame that emits the warning
+    frame = frame.f_back
+    level = 1
+    while frame.f_back is not None and frame.f_code.co_filename.startswith(_PACKAGE_ROOT):
+        frame = frame.f_back
+        level += 1
+    return level
 
 
 class IFAWarningEmitterType(Enum):
@@ -51,7 +77,7 @@ class NearUniqueDependentFeaturesWarningEmitter(IFAWarningEmitter):
         warnings.warn("The following provided `dependent_features` have a large share of values that are unique: "
                       f"{self.features_list}"
                       "Dependent features with many unique values can severely impact the quality of results.",
-                      UserWarning)
+                      UserWarning, stacklevel=_user_stacklevel())
 
 
 class MissingTZFeaturesWarningEmitter(IFAWarningEmitter):
@@ -62,7 +88,7 @@ class MissingTZFeaturesWarningEmitter(IFAWarningEmitter):
         warnings.warn("The provided or inferred `date_time_formats` for the following "
                       f"features do not include a time zone and will default to UTC: {self.features_list}"
                       "\nTo change the default time zone, please specify the `default_time_zone` "
-                      "argument to `infer_feature_attributes`.", UserWarning)
+                      "argument to `infer_feature_attributes`.", UserWarning, stacklevel=_user_stacklevel())
 
 
 class UnknownDatetimeFormatWarningEmitter(IFAWarningEmitter):
@@ -73,7 +99,7 @@ class UnknownDatetimeFormatWarningEmitter(IFAWarningEmitter):
         warnings.warn("The following features were detected as possible datetimes, but we cannot assume "
                       "their formats. Please provide them using `datetime_feature_formats` if desired. "
                       f"Otherwise, these features will be treated as nominal strings: {self.features_list}",
-                      UserWarning)
+                      UserWarning, stacklevel=_user_stacklevel())
 
 
 class UTCOffsetFeaturesWarningEmitter(IFAWarningEmitter):
@@ -84,7 +110,7 @@ class UTCOffsetFeaturesWarningEmitter(IFAWarningEmitter):
         warnings.warn(f"The following features are using UTC offsets (%z) for their time zones: {self.features_list}"
                       "\nThis could lead to unexpected results due to daylight savings time. We recommend "
                       "using explicit time zone strings, e.g., \"GMT\", which are represented by the \"%Z\" "
-                      "identifier.", UserWarning)
+                      "identifier.", UserWarning, stacklevel=_user_stacklevel())
 
 
 class ValueCountsProcessing(IFAWarningEmitter):
@@ -94,7 +120,8 @@ class ValueCountsProcessing(IFAWarningEmitter):
         """Emit the warning."""
         warnings.warn("Could not process some value counts for the following features, likely due to the presence of "
                       f"unhashable values: {self.features_list}\nThis may affect the accuracy and completeness of "
-                      "suggested or computed `preserve_rare_values` configurations`.", UserWarning)
+                      "suggested or computed `preserve_rare_values` configurations`.", UserWarning,
+                      stacklevel=_user_stacklevel())
 
 
 class FloatPrecisionWarningEmitter(IFAWarningEmitter):
@@ -107,7 +134,8 @@ class FloatPrecisionWarningEmitter(IFAWarningEmitter):
         """Emit the warning."""
         warnings.warn(f"The following features {self._certainty} floating point values that exceed the "
                       f"maximum supported precision of 64 bits: {self.features_list}"
-                      "\nThese features are trained without a `decimal_places` attribute.", UserWarning)
+                      "\nThese features are trained without a `decimal_places` attribute.", UserWarning,
+                      stacklevel=_user_stacklevel())
 
 
 class ExcessiveFloatPrecisionWarningEmitter(FloatPrecisionWarningEmitter):
@@ -127,8 +155,9 @@ class SimpleWarningEmitter(IFAWarningEmitter):
 
     def emit(self):
         """Emit the warning."""
+        stacklevel = _user_stacklevel()
         for msg in self.features:
-            warnings.warn(msg, UserWarning)
+            warnings.warn(msg, UserWarning, stacklevel=stacklevel)
 
 
 class IFAWarningCollector:

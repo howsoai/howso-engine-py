@@ -786,11 +786,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             # Specify decimal places for features the engine can represent exactly. Features beyond
             # that precision are trained without the attribute and reported in a single warning.
             if pd.api.types.is_float_dtype(col.dtype):
-                itemsize = getattr(col.dtype, 'itemsize', None)
-                if itemsize is None:
+                item_size = getattr(col.dtype, 'itemsize', None)
+                if item_size is None:
                     self.warnings_collector.triage(
                         IFAWarningEmitterType.POSSIBLE_EXCESSIVE_FLOAT_PRECISION, feature_name)
-                elif itemsize <= 8:
+                elif item_size <= 8:
                     attributes['decimal_places'] = decimals
                 else:
                     self.warnings_collector.triage(

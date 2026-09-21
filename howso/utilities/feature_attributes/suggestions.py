@@ -342,7 +342,7 @@ class PRVSuggestion(IFASuggestion):
         return (f"Found {_count(num_values, 'rare value')} across {_count(len(self._prvc), 'column')} "
                 "whose signal may be lost during data distillation workflows")
 
-    def _warn_default_max_distilled_cases(self, addendum: str = "") -> None:
+    def _warn_default_max_distilled_cases(self, addendum: str = "", stack_level: int = 4) -> None:
         """
         Warn that the case weight multipliers were computed from a default ``max_distilled_cases``.
 
@@ -351,6 +351,8 @@ class PRVSuggestion(IFASuggestion):
         addendum : str, default ""
             An additional sentence appended to the warning, describing the consequence for the
             calling method.
+        stack_level : int, default 4
+            The stack level value to pass into `warn` via `stacklevel`.
         """
         warnings.warn(
             "The computed case weights for rare value multipliers are likely inaccurate as "
@@ -362,7 +364,7 @@ class PRVSuggestion(IFASuggestion):
             "remaining after distillation." + addendum,
             UserWarning,
             # Point past this helper at the caller of the public method that invoked it.
-            stacklevel=4,
+            stacklevel=stack_level,
         )
 
     def apply(self, attributes: Mapping[str, Any]) -> None:
