@@ -308,6 +308,36 @@ def test_get_feature_type_raises(data, data_type):
         infer_feature_attributes(df)
 
 
+def test_excessive_float_precision_warning():
+    """Test that features exceeding 64-bit float precision are reported in a single warning."""
+    # Place this here to avoid circular import
+    from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
+    if not hasattr(np, "float128"):
+        pytest.skip("Unsupported platform")
+
+    df = pd.DataFrame({
+        "a": np.arange(20, dtype=np.float128) + 0.5,
+        "b": np.arange(20, dtype=np.float128) * 1.5,
+        "c": np.arange(20, dtype="float64") + 0.25,
+    })
+    ifa = InferFeatureAttributesDataFrame(df)
+    ifa.attributes = {}
+    attributes = {feature: ifa._infer_floating_point_attributes(feature) for feature in df.columns}
+
+    # Features beyond the supported precision get no `decimal_places`
+    assert "decimal_places" not in attributes["a"]
+    assert "decimal_places" not in attributes["b"]
+    assert attributes["c"]["decimal_places"] == 2
+
+    with pytest.warns(UserWarning, match="exceed the maximum supported precision") as record:
+        ifa.warnings_collector.emit_all()
+
+    assert len(record) == 1
+    message = str(record[0].message)
+    assert "- a" in message and "- b" in message
+    assert "- c" not in message
+
+
 @pytest.mark.parametrize("should_fail, data", [
     (True, [[1]]),
     (True, {3: [1]}),
