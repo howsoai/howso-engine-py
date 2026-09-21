@@ -352,7 +352,8 @@ class PRVSuggestion(IFASuggestion):
             An additional sentence appended to the warning, describing the consequence for the
             calling method.
         stack_level : int, default 4
-            The stack level value to pass into `warn` via `stacklevel`.
+            The stack level value to pass into `warn` via `stacklevel`. The default attributes the
+            warning to the caller of `apply_suggestion()`; methods a user calls directly pass 3.
         """
         warnings.warn(
             "The computed case weights for rare value multipliers are likely inaccurate as "
@@ -363,7 +364,6 @@ class PRVSuggestion(IFASuggestion):
             "values in the data, since the weighting is calibrated proportionally to the number of cases "
             "remaining after distillation." + addendum,
             UserWarning,
-            # Point past this helper at the caller of the public method that invoked it.
             stacklevel=stack_level,
         )
 
@@ -381,13 +381,13 @@ class PRVSuggestion(IFASuggestion):
     def get_config(self, enable_warnings: bool = True) -> FullPreserveRareValuesConfig:
         """Get the `preserve_rare_values_config` for use in future calls to `infer_feature_attributes`."""
         if not self._user_set_mdc and enable_warnings:
-            self._warn_default_max_distilled_cases()
+            self._warn_default_max_distilled_cases(stack_level=3)
         return self._prvc
 
     def get_values_map(self) -> PreserveRareValuesMap:
         """Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes."""
         if not self._user_set_mdc:
-            self._warn_default_max_distilled_cases()
+            self._warn_default_max_distilled_cases(stack_level=3)
         values_map = {}
         for feature, config in self._prvc.items():
             multipliers = config["protected_values_multipliers"]
