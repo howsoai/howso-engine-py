@@ -56,7 +56,7 @@ try:
     from howso.synthesizer import Synthesizer  # noqa: might not be available # type: ignore[reportMissingImports]
 except ImportError:
     Synthesizer = None
-from howso.utilities import StopExecution, Timer
+from howso.utilities import auto_progress_scope, StopExecution, Timer
 from howso.utilities.locale import get_default_locale
 from howso.utilities.posix import PlatformError, sysctl_by_name
 
@@ -376,7 +376,9 @@ class InstallationCheckRegistry:
         try:
             versions = get_versions()
             self._print_versions(versions)
-            with progress:
+            # The checks drive client operations that render progress of their
+            # own; nesting that inside this one's live display garbles both.
+            with auto_progress_scope(enabled=False), progress:
                 for check in progress.track(self._checks):
                     if check.client_required and (
                         self._client is None or
@@ -730,9 +732,11 @@ def _low_priority_probe(
         return
     try:
         psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
-        # Read affinity after lowering priority, which is what may change it.
-        result_queue.put(
-            (_measure_effective_parallelism(workers), _cpu_affinity()))
+        # As above, a spawned process starts with its own progress setting.
+        with auto_progress_scope(enabled=False):
+            # Read affinity after lowering priority, which may change it.
+            result_queue.put(
+                (_measure_effective_parallelism(workers), _cpu_affinity()))
     except Exception:  # noqa: BLE001, S110
         # The parent reports an absent result as "could not be measured".
         pass
@@ -1527,18 +1531,23 @@ def _attempt_train_date_feature(result_queue: multiprocessing.Queue[int]) -> Non
     result_queue : A multiprocessing queue instance
         A queue to put the results.
     """
-    client = HowsoClient()
-    features = {"date": {"type": "continuous", "date_time_format": "%Y-%m-%d"}}
-    trainee = client.create_trainee(
-        name=f"installation_verification check_tzdata_installed ({get_nonce()})",
-        features=features,
-        persistence="allow" if _is_platform_client(client) else "never"
-    )
-    try:
-        client.train(trainee_id=trainee.id, cases=[["2001-01-01"]], features=["date"])
-        result_queue.put(client.get_num_training_cases(trainee.id))
-    finally:
-        client.delete_trainee(trainee.id)
+    # A spawned process does not inherit the caller's thread-local progress
+    # setting, so disable it here too. This trains a Trainee, and its progress
+    # would otherwise render into the parent's live display.
+    with auto_progress_scope(enabled=False):
+        client = HowsoClient()
+        features = {"date": {"type": "continuous", "date_time_format": "%Y-%m-%d"}}
+        trainee = client.create_trainee(
+            name=f"installation_verification check_tzdata_installed ({get_nonce()})",
+            features=features,
+            persistence="allow" if _is_platform_client(client) else "never"
+        )
+        try:
+            client.train(trainee_id=trainee.id, cases=[["2001-01-01"]],
+                         features=["date"])
+            result_queue.put(client.get_num_training_cases(trainee.id))
+        finally:
+            client.delete_trainee(trainee.id)
 
 
 def _is_platform_client(client: type[AbstractHowsoClient] | AbstractHowsoClient) -> bool:
