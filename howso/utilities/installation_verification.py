@@ -93,8 +93,12 @@ CPU_PROBE_MAX_WORKERS = 16
 #: does not, so checking the clock every iteration would serialize the workers
 #: and understate the parallelism actually available.
 CPU_PROBE_BATCH = 8
-#: Fraction of ideal parallel throughput below which compute is judged limited.
-CPU_PROBE_MIN_EFFICIENCY = 0.6
+#: Fraction of the normal-priority result the lower-priority process must reach
+#: before core parking is suspected.
+CORE_PARKING_MIN_RATIO = 0.75
+#: Seconds to wait on the lower-priority probe process before giving up. It has
+#: to spawn a fresh interpreter and import this module before it can measure.
+CORE_PARKING_TIMEOUT = 120
 
 
 class Status(IntEnum):
@@ -148,10 +152,10 @@ class InstallationCheckRegistry:
             name="Python: Running correctly (not under emulation)",
             fn=check_not_emulated
         )
-        # Windows may park CPU cores rather than waking them for this process
+        # Windows may park CPU cores for lower-than-normal priority processes
         self.add_check(
-            name="Python: CPU availability",
-            fn=check_cpu_availability
+            name="Python: Core parking",
+            fn=check_core_parking
         )
         # And the next check which builds a howso client
         self.add_check(
@@ -689,20 +693,80 @@ def _measure_throughput(workers: int, duration: float, buffer: bytes) -> int:
     return sum(counts)
 
 
-def check_cpu_availability(*, registry: InstallationCheckRegistry) -> tuple[Status, str]:
+def _measure_effective_parallelism(workers: int) -> float:
+    """Return how many workers' worth of throughput `workers` actually achieve."""
+    buffer = b"\xa5" * (1 << 20)
+    baseline = _measure_throughput(1, CPU_PROBE_SECONDS, buffer)
+    parallel = _measure_throughput(workers, CPU_PROBE_SECONDS, buffer)
+    if not baseline:
+        raise HowsoError("Unable to measure CPU throughput.")
+    return parallel / baseline
+
+
+def _cpu_affinity() -> list[int] | None:
+    """Return the CPUs this process may be scheduled on, or None if unknown."""
+    if sys.platform != "win32":
+        # `cpu_affinity` is not implemented on every platform.
+        return None
+    try:
+        return sorted(psutil.Process().cpu_affinity())
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _low_priority_probe(
+    result_queue: multiprocessing.Queue[tuple[float, list[int] | None]],
+    workers: int
+) -> None:
+    """Re-run the probe from a process deliberately set below Normal priority.
+
+    Runs in a spawned child, which lowers its own priority before measuring.
+    Lowering is always permitted; nothing needs to be restored because the
+    process exits immediately afterwards. Reports the CPUs it was allowed to
+    use alongside the throughput it achieved.
     """
-    Check that this process can actually use the CPU cores it appears to have.
+    if sys.platform != "win32":
+        # The priority class used below is defined only on Windows.
+        return
+    try:
+        psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+        # Read affinity after lowering priority, which is what may change it.
+        result_queue.put(
+            (_measure_effective_parallelism(workers), _cpu_affinity()))
+    except Exception:  # noqa: BLE001, S110
+        # The parent reports an absent result as "could not be measured".
+        pass
+
+
+def _is_below_normal_priority() -> str | None:
+    """Name this process's priority class when it is below Normal, else None."""
+    if sys.platform != "win32":
+        # The priority classes used below are defined only on Windows.
+        return None
+    # These priority classes are flags whose numeric values do not follow their
+    # ordering, so match the named constants rather than compare magnitudes.
+    reduced = {
+        psutil.IDLE_PRIORITY_CLASS: "Low/Idle",
+        psutil.BELOW_NORMAL_PRIORITY_CLASS: "Below Normal",
+    }
+    return reduced.get(psutil.Process().nice())
+
+
+def check_core_parking(*, registry: InstallationCheckRegistry) -> tuple[Status, str]:
+    """
+    Check whether Windows parks CPU cores for lower-priority processes.
 
     Some Windows power configurations park CPU cores rather than waking them
-    for a process, notably when that process runs below Normal priority. The
-    cores still show up in the CPU count, so the only outward symptom is that
-    the Engine runs several times slower than the hardware suggests it should.
+    for a process running below Normal priority. The cores still show up in the
+    CPU count, so the only symptom is that the Engine runs several times slower
+    than the hardware suggests, which is very hard to attribute after the fact.
 
-    Rather than inspect the configuration, this measures the effect: it
-    compares the throughput of one busy worker against that of many running at
-    once. The result is a ratio, so competing load on the machine slows both
-    phases and largely cancels out. This simply passes on other operating
-    systems.
+    The probe measures achieved parallelism here, then again from a child
+    process deliberately set below Normal priority, and compares the two. That
+    requires this process to be at Normal priority or better; started any lower
+    there is nothing to compare against, and the check says so instead of
+    reporting a result it cannot stand behind. This simply passes on other
+    operating systems.
 
     Parameters
     ----------
@@ -717,8 +781,8 @@ def check_cpu_availability(*, registry: InstallationCheckRegistry) -> tuple[Stat
         str
             A message to display about the WARNING, ERROR or CRITICAL result.
     """
-    if sys.platform != "win32":
-        return (Status.OK, "")
+    if (early := _core_parking_precheck(registry)) is not None:
+        return early
 
     try:
         cores = psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1
@@ -726,56 +790,109 @@ def check_cpu_availability(*, registry: InstallationCheckRegistry) -> tuple[Stat
         if workers < 2:
             # Nothing to measure on a single-core machine.
             return (Status.OK, "")
-
-        buffer = b"\xa5" * (1 << 20)
-        baseline = _measure_throughput(1, CPU_PROBE_SECONDS, buffer)
-        parallel = _measure_throughput(workers, CPU_PROBE_SECONDS, buffer)
-        if not baseline:
-            return (Status.WARNING, "Unable to measure available CPU throughput.")
+        normal = _measure_effective_parallelism(workers)
+        normal_affinity = _cpu_affinity()
     except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
         return (Status.WARNING, "Unable to measure available CPU throughput.")
 
-    effective = parallel / baseline
-    if effective >= workers * CPU_PROBE_MIN_EFFICIENCY:
-        return (Status.OK, "")
+    result = _run_low_priority_probe(registry, workers)
+    if result is None:
+        return (
+            Status.WARNING,
+            ("Unable to measure CPU throughput from a lower-priority process, "
+             "so core parking was not checked.")
+        )
+    lowered, low_affinity = result
 
+    measured = (f"A Normal priority process reached {normal:,.1f}x the "
+                f"throughput of a single worker; a lower-priority one reached "
+                f"{lowered:,.1f}x")
+    affinity_note = _affinity_note(normal_affinity, low_affinity)
+    parked = lowered < normal * CORE_PARKING_MIN_RATIO
+
+    if not parked and not affinity_note:
+        return (Status.OK, f"{measured}.")
+
+    parking_note = ""
+    if parked:
+        parking_note = (
+            " Core parking appears to be enabled for lower-than-normal "
+            "priority processes on this machine, so the Engine will run "
+            "slower whenever it is started that way, such as from a "
+            "scheduled task."
+        )
     return (
         Status.WARNING,
         (
-            f"Running {workers} busy workers produced only {effective:,.1f}x "
-            f"the throughput of a single worker, on a machine reporting "
-            f"{cores:,d} physical cores. The Engine will run correspondingly "
-            "slower than this hardware suggests. Windows power plans can park "
-            "CPU cores instead of waking them for a process, especially one "
-            "running below Normal priority."
-            + _priority_note(registry)
-            + ' Review "Processor performance core parking" in the active '
-            "power plan with `powercfg /q SCHEME_CURRENT SUB_PROCESSOR`."
+            f"{measured}.{affinity_note}{parking_note} Review "
+            '"Processor performance core parking" in the active power plan '
+            "with `powercfg /q SCHEME_CURRENT SUB_PROCESSOR`."
         )
     )
 
 
-def _priority_note(registry: InstallationCheckRegistry) -> str:
-    """Describe the process priority when it is below Normal, else return ''."""
-    if sys.platform != "win32":
-        # The priority classes used below are defined only on Windows.
+def _affinity_note(normal_affinity: list[int] | None,
+                   low_affinity: list[int] | None) -> str:
+    """Describe a CPU affinity that shrank with priority, else return ''."""
+    if not normal_affinity or not low_affinity:
+        # Unavailable on this platform, so there is nothing to compare.
         return ""
+    if set(normal_affinity) == set(low_affinity):
+        return ""
+    return (f" A lower-priority process was allowed only "
+            f"{len(low_affinity):,d} of the {len(normal_affinity):,d} CPUs "
+            "this one may use, so Windows is restricting it directly.")
+
+
+def _core_parking_precheck(
+    registry: InstallationCheckRegistry
+) -> tuple[Status, str] | None:
+    """Return an early result when core parking cannot be measured from here."""
+    if sys.platform != "win32":
+        return (Status.OK, "")
+
     try:
-        priority = psutil.Process().nice()
+        reduced_name = _is_below_normal_priority()
     except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
-        return ""
-    # These priority classes are flags whose numeric values do not follow their
-    # ordering, so match the named constants rather than compare magnitudes.
-    reduced = {
-        psutil.IDLE_PRIORITY_CLASS: "Low/Idle",
-        psutil.BELOW_NORMAL_PRIORITY_CLASS: "Below Normal",
-    }
-    if (name := reduced.get(priority)) is not None:
-        return (f' This process is running at "{name}" priority, which is the '
-                "usual trigger.")
-    return ""
+        return (
+            Status.WARNING,
+            ("Unable to determine this process's priority, so core parking "
+             "was not checked.")
+        )
+
+    if reduced_name is not None:
+        return (
+            Status.WARNING,
+            (
+                f'This process was started at "{reduced_name}" priority, so '
+                "core parking cannot be tested from here. Re-run the "
+                "verification at Normal priority or higher to check it."
+            )
+        )
+    return None
+
+
+def _run_low_priority_probe(
+    registry: InstallationCheckRegistry, workers: int
+) -> tuple[float, list[int] | None] | None:
+    """Measure parallelism and CPU affinity in a lower-priority child, or None."""
+    try:
+        ctx = multiprocessing.get_context("spawn")
+        result_queue = ctx.Queue(maxsize=-1)
+        proc = ctx.Process(target=_low_priority_probe,
+                           args=(result_queue, workers))
+        proc.start()
+        proc.join(timeout=CORE_PARKING_TIMEOUT)
+        if proc.is_alive():
+            proc.kill()
+            proc.join()
+            return None
+        return result_queue.get(block=False)
+    except Exception:  # noqa: BLE001
+        traceback.print_exc(file=registry.logger)
+        return None
 
 
 def check_visible_cores(*, registry: InstallationCheckRegistry) -> tuple[Status, str]:
