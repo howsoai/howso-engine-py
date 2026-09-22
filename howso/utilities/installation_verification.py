@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import IntEnum
 from functools import cached_property, partial
 import importlib.metadata
@@ -16,44 +16,41 @@ from pathlib import Path
 import random
 import re
 import sys
+import time
 import traceback
-import typing as t
+from typing import Any, IO, Protocol, TypeAlias
 import warnings
 
 from faker.config import AVAILABLE_LOCALES
 import pandas as pd
-try:
-    from requests.exceptions import ConnectionError
-except ImportError:
-    ConnectionError = None
+from requests.exceptions import ConnectionError as RequestsConnectionError
 from rich import print as rich_print
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
-from typing_extensions import TypeAlias
 
 try:
     from howso import engine
 except ImportError:
     engine = None
-from howso.client import (
-    AbstractHowsoClient, HowsoClient
-)
+from howso.client import AbstractHowsoClient, HowsoClient
 from howso.client.client import get_howso_client_class
 from howso.client.exceptions import HowsoConfigurationError, HowsoError
 from howso.client.schemas import Trainee
 from howso.direct.client import HowsoDirectClient
+
 try:
-    from howso.platform import HowsoPlatformClient  # noqa: might not be available # type: ignore
+    from howso.platform import HowsoPlatformClient  # noqa: might not be available # type: ignore[reportMissingImports]
 except ImportError:
     HowsoPlatformClient = None
 try:
-    from howso.validator import Validator  # noqa: might not be available # type: ignore
+    from howso.validator import Validator  # noqa: might not be available # type: ignore[reportMissingImports]
 except OSError as e:
     Validator = e
 except ImportError:
     Validator = None
 from howso.utilities import infer_feature_attributes
+
 try:
-    from howso.synthesizer import Synthesizer  # noqa: might not be available # type: ignore
+    from howso.synthesizer import Synthesizer  # noqa: might not be available # type: ignore[reportMissingImports]
 except ImportError:
     Synthesizer = None
 from howso.utilities import StopExecution, Timer
@@ -63,12 +60,12 @@ from howso.utilities.posix import PlatformError, sysctl_by_name
 logger = logging.getLogger(__name__)
 
 
-def is_databricks():
+def is_databricks() -> bool:
     """Check environment is on Databricks."""
-    return bool(os.environ.get('DATABRICKS_RUNTIME_VERSION', None))
+    return bool(os.environ.get("DATABRICKS_RUNTIME_VERSION", None))
 
 
-def iv_print(*args, **kwargs):
+def iv_print(*args: Any, **kwargs: Any) -> None:
     """Print wrapper for handling prints in different environments."""
     if is_databricks():
         # strip out rich formatting before printing
@@ -82,6 +79,9 @@ def iv_print(*args, **kwargs):
 
 LOG_FILE = "howso_stacktrace.txt"
 
+#: Seconds to wait on the isolated date/time support check before giving up.
+DATE_FEATURE_TIMEOUT = 60
+
 
 class Status(IntEnum):
     """Status Enum."""
@@ -93,7 +93,16 @@ class Status(IntEnum):
     OK = 4
 
 
-Requirements: TypeAlias = t.Iterable[t.Union[type, object]]
+#: Classes or objects whose truthiness indicates an optional dependency is available.
+Requirements: TypeAlias = Iterable[object]
+
+
+class CheckFunction(Protocol):
+    """The call signature that every registered check implements."""
+
+    def __call__(self, *, registry: InstallationCheckRegistry) -> tuple[Status, str]:
+        """Run the check and return its status and an optional message."""
+        ...
 
 
 @dataclass
@@ -101,24 +110,24 @@ class Check:
     """Store the specification of a single check."""
 
     name: str
-    fn: Callable
-    client_required: t.Optional[str] = None
-    other_requirements: t.Optional[Requirements] = None
+    fn: CheckFunction
+    client_required: str | None = None
+    other_requirements: Requirements | None = None
 
 
 class InstallationCheckRegistry:
     """Simple registry and executor of verification tests."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize CheckRegistry."""
-        self._checks = []
+        self._checks: list[Check] = []
 
         # Storage for property caches
-        self._client = None
-        self._client_classes = []
+        self._client: AbstractHowsoClient | None = None
+        self._client_classes: list[str] = []
 
         # This is where we'll write any stack traces.
-        self.logger = StringIO()
+        self.logger: StringIO | None = StringIO()
 
         # Adds the first check for Python
         self.add_check(
@@ -132,10 +141,10 @@ class InstallationCheckRegistry:
         )
 
     def add_check(self, name: str,
-                  fn: Callable,
-                  client_required: t.Optional[str] = None,
-                  other_requirements: t.Optional[Requirements] = None
-                  ):
+                  fn: CheckFunction,
+                  client_required: str | None = None,
+                  other_requirements: Requirements | object | None = None
+                  ) -> None:
         """
         Add a check for this installation.
 
@@ -153,14 +162,16 @@ class InstallationCheckRegistry:
             required. They should have been imported in a try/catch and sent
             to something falsy if not imported.
         """
-        if (
-            other_requirements and
-            not isinstance(other_requirements, Iterable)
-        ):
-            other_requirements = [other_requirements]
+        requirements: Requirements | None
+        if other_requirements is None:
+            requirements = None
+        elif isinstance(other_requirements, Iterable):
+            requirements = other_requirements
+        else:
+            requirements = [other_requirements]
         self._checks.append(
             Check(name=name, fn=fn, client_required=client_required,
-                  other_requirements=other_requirements))
+                  other_requirements=requirements))
 
     @cached_property
     def _name_length(self) -> int:
@@ -173,9 +184,8 @@ class InstallationCheckRegistry:
             The maximum length of names of checks.
         """
         if len(self._checks):
-            return max((len(c.name) for c in self._checks))
-        else:
-            return 1
+            return max(len(c.name) for c in self._checks)
+        return 1
 
     @property
     def client(self) -> AbstractHowsoClient:
@@ -210,7 +220,7 @@ class InstallationCheckRegistry:
         return self._client_classes
 
     @staticmethod
-    def _check_client_configuration(registry):
+    def _check_client_configuration(registry: InstallationCheckRegistry) -> tuple[Status, str]:  # noqa: PLR0911
         """
         Check that the Howso client can be instantiated.
 
@@ -235,71 +245,82 @@ class InstallationCheckRegistry:
             traceback.print_exc(file=registry.logger)
             return (
                 Status.CRITICAL,
-                "The howso configuration file was not found in the "
-                "location that was specified in the `HOWSO_CONFIG` environment "
-                "variable. Please see the Howso Client installation "
-                "documentation for further details."
+                (
+                    "The howso configuration file was not found in the "
+                    "location that was specified in the `HOWSO_CONFIG` environment "
+                    "variable. Please see the Howso Client installation "
+                    "documentation for further details."
+                )
             )
         except PermissionError:
             traceback.print_exc(file=registry.logger)
             return (
                 Status.CRITICAL,
-                "Howso Client could not be started due to file "
-                "permissions. Please see the Howso Client installation "
-                "documentation for further details."
+                (
+                    "Howso Client could not be started due to file "
+                    "permissions. Please see the Howso Client installation "
+                    "documentation for further details."
+                )
             )
         except (ModuleNotFoundError, StopExecution):
             traceback.print_exc(file=registry.logger)
             return (
-                Status.CRITICAL,
-                "Unable to connect to a Howso Platform. Please ensure "
-                "that you have a valid `howso.yml` file in the correct "
-                "location. Please see the Howso Client installation "
-                "documentation for further details."
+                Status.CRITICAL, (
+                    "Unable to connect to a Howso Platform. Please ensure "
+                    "that you have a valid `howso.yml` file in the correct "
+                    "location. Please see the Howso Client installation "
+                    "documentation for further details."
+                )
             )
         except ValueError:
             traceback.print_exc(file=registry.logger)
-            return (Status.CRITICAL,
+            return (
+                Status.CRITICAL, (
                     "The client was unable to find Howso core binaries. "
                     "Please see the Howso Client installation "
-                    "documentation for further details.")
-        except Exception as e:  # noqa: Deliberately broad
-            if ConnectionError is not None and isinstance(e, ConnectionError):
-                traceback.print_exc(file=registry.logger)
-                return (
-                    Status.CRITICAL,
+                    "documentation for further details."
+                )
+            )
+        except RequestsConnectionError:
+            traceback.print_exc(file=registry.logger)
+            return (
+                Status.CRITICAL,
+                (
                     "Unable to connect to the Howso Platform "
                     "configured in your `howso.yml` file. Please check for "
                     "configuration errors and/or network connectivity to the "
                     "platform host."
                 )
-            else:
-                traceback.print_exc(file=registry.logger)
-                return (
-                    Status.CRITICAL,
+            )
+        except Exception:  # noqa: BLE001
+            traceback.print_exc(file=registry.logger)
+            return (
+                Status.CRITICAL,
+                (
                     "There was a problem instantiating the Howso client. "
                     "Please see the Howso Client installation documentation "
                     "for further details."
                 )
+            )
 
         return (Status.OK, "")
 
-    def _print_versions(self, versions: dict, *, file=None):
+    def _print_versions(self, versions: Mapping[str, str], *, file: IO[str] | None = None) -> None:
         """Output version information."""
         if not versions:
             return
-        if 'python' in versions:
+        if "python" in versions:
             iv_print(f"Python version: {versions['python']}", file=file)
-        if 'client_type' in versions:
+        if "client_type" in versions:
             iv_print(f"Client type: {versions['client_type']}", file=file)
-        if 'client' in versions:
+        if "client" in versions:
             iv_print(f"Client version: {versions['client']}", file=file)
-        if 'client_base' in versions:
+        if "client_base" in versions:
             iv_print(f"API client version: {versions['client_base']}", file=file)
-        if 'platform' in versions:
+        if "platform" in versions:
             iv_print(f"Platform version: {versions['platform']}", file=file)
 
-    def run_checks(self) -> int:  # noqa: C901
+    def run_checks(self) -> int:  # noqa: PLR0912, PLR0915
         """
         Run each of the registered checks and output their status.
 
@@ -321,7 +342,7 @@ class InstallationCheckRegistry:
 
         if not self.logger:
             self.logger = StringIO()
-        start_time = datetime.now()
+        start_time = datetime.now().astimezone()
 
         versions = {
             "python": "Could not get Python version.",
@@ -334,15 +355,13 @@ class InstallationCheckRegistry:
             self._print_versions(versions)
             with progress:
                 for check in progress.track(self._checks):
-                    if check.client_required:
-                        if (
-                            self._client is None or
-                            check.client_required not in self.client_classes
-                        ):
-                            continue
-                    if check.other_requirements:
-                        if not all(check.other_requirements):
-                            continue
+                    if check.client_required and (
+                        self._client is None or
+                        check.client_required not in self.client_classes
+                    ):
+                        continue
+                    if check.other_requirements and not all(check.other_requirements):
+                        continue
 
                     progress.tasks[0].description = (
                         f"{check.name:{self._name_length}s}")
@@ -373,8 +392,8 @@ class InstallationCheckRegistry:
                         critical_issues += 1
 
                     # Force UTF-8 encoding for stdout on Windows
-                    if sys.platform == 'win32':
-                        sys.stdout.reconfigure(encoding='utf-8')
+                    if sys.platform == "win32":
+                        sys.stdout.reconfigure(encoding="utf-8")
 
                     if msg:
                         progress.console.print(
@@ -393,11 +412,11 @@ class InstallationCheckRegistry:
                 logs = self.logger.getvalue()
                 self.logger.close()
                 self.logger = None
-                end_time = datetime.now()
+                end_time = datetime.now().astimezone()
                 log_file = Path(".", LOG_FILE)
                 if len(logs):
                     all_issues += 1
-                    with open(log_file, mode="w+") as log:
+                    with log_file.open(mode="w+") as log:
                         iv_print(f"Installation verification run: "
                                  f"{start_time.isoformat()}\n",
                                  file=log)
@@ -422,13 +441,12 @@ class InstallationCheckRegistry:
         # This is largely for automated systems.
         if critical_issues:
             return 255
-        else:
-            return 0
+        return 0
 
 
-def get_versions():
+def get_versions() -> dict[str, str]:
     """
-    Gets the Python, client, and platform versions of the environment.
+    Get the Python, client, and platform versions of the environment.
 
     Returns
     -------
@@ -439,8 +457,8 @@ def get_versions():
     # python version
     try:
         py_version = sys.version_info
-        py_version_string = f'{py_version.major}.{py_version.minor}.{py_version.micro}'
-    except Exception:
+        py_version_string = f"{py_version.major}.{py_version.minor}.{py_version.micro}"
+    except Exception:  # noqa: BLE001
         py_version_string = "Could not get Python version."
 
     versions = {
@@ -454,14 +472,14 @@ def get_versions():
         # Instantiating the client is often the point of failure, this won't trigger that
         client_class, _ = get_howso_client_class()
         versions["client_type"] = client_class.__name__
-        engine_version = importlib.metadata.version('howso-engine')
+        engine_version = importlib.metadata.version("howso-engine")
         if issubclass(client_class, HowsoDirectClient):
             versions["client"] = engine_version
         else:
             versions["client_base"] = engine_version
             if _is_platform_client(client_class):
-                versions["client"] = importlib.metadata.version('howso-platform-client')
-    except Exception:
+                versions["client"] = importlib.metadata.version("howso-platform-client")
+    except Exception:  # noqa: BLE001, S110
         # Failed to get version, leave default message
         pass
 
@@ -470,14 +488,14 @@ def get_versions():
         client = HowsoClient(debug=0)
         client_version_info = client.get_version()
         if "platform" in client_version_info:
-            versions["platform"] = client_version_info['platform']
-    except Exception:
+            versions["platform"] = client_version_info["platform"]
+    except Exception:  # noqa: BLE001, S110
         pass
 
     return versions
 
 
-def get_nonce(length=8) -> str:
+def get_nonce(length: int = 8) -> str:
     """
     Return a string of `length` random hexadecimal digits.
 
@@ -491,12 +509,12 @@ def get_nonce(length=8) -> str:
     str
         A string representing a hexadecimal number of length `length`.
     """
-    return f"{random.randint(0, 16 ** length):0{length}x}"
+    return f"{random.randint(0, 16 ** length):0{length}x}"  # noqa: S311
 
 
 def generate_dataframe(*, client: AbstractHowsoClient,
                        num_samples: int = 150,
-                       timeout: t.Optional[int] = None
+                       timeout: int | None = None
                        ) -> tuple[pd.DataFrame, float | int]:
     """
     Use HowsoClient to create a dataframe of random data.
@@ -545,42 +563,39 @@ def generate_dataframe(*, client: AbstractHowsoClient,
         persistence="allow" if _is_platform_client(client) else "never"
     )
     if not isinstance(trainee, Trainee):
-        raise HowsoError('Unable to create trainee.')
+        raise HowsoError("Unable to create trainee.")
     try:
         client.set_feature_attributes(trainee.id, features)
         client.acquire_trainee_resources(trainee.id, max_wait_time=0)
+        action: pd.DataFrame | list[list[Any]]
         if timeout:
             # Generate 1 case at a time until `timeout` has passed.
-            end_time = datetime.now() + timedelta(seconds=timeout)
-            cases = {"action": []}
-            while datetime.now() < end_time:
+            deadline = time.monotonic() + timeout
+            action = []
+            while time.monotonic() < deadline:
                 if reaction := client.react(
                     trainee.id, action_features=feature_names,
                     num_cases_to_generate=1, desired_conviction=1.0,
                     generate_new_cases="no", suppress_warning=True
                 ):
-                    new_cases = reaction.get("action", [])
-                    if isinstance(new_cases, pd.DataFrame):
-                        new_case = new_cases.iloc[0].tolist()
-                    else:
-                        new_case = new_cases[0]
-                    cases["action"].append(new_case)
+                    action.append(reaction["action"].iloc[0].tolist())
             elapsed_time = timeout
         else:
             with Timer() as timer:
-                cases = client.react(
+                reaction = client.react(
                     trainee.id, action_features=feature_names,
                     num_cases_to_generate=num_samples, desired_conviction=1.0,
                     generate_new_cases="no", suppress_warning=True
-                ) or {"action": []}
+                )
+            action = reaction["action"] if reaction else []
             elapsed_time = timer.seconds or math.nan
     finally:
         client.delete_trainee(trainee.id)
-    df = pd.DataFrame(cases["action"], columns=feature_names)
+    df = pd.DataFrame(action, columns=feature_names)
     return df, elapsed_time
 
 
-def check_not_emulated(*, registry: InstallationCheckRegistry):
+def check_not_emulated(*, registry: InstallationCheckRegistry) -> tuple[Status, str]:  # noqa: ARG001
     """
     Check that the installation is not running under emulation on MacOS.
 
@@ -601,26 +616,29 @@ def check_not_emulated(*, registry: InstallationCheckRegistry):
     """
     if sys.platform == "darwin":
         try:
-            proc_translated = sysctl_by_name('sysctl.proc_translated', 'int')
+            proc_translated = sysctl_by_name("sysctl.proc_translated", "int")
         except PlatformError:
             return (Status.OK, "")
-        except Exception:  # Deliberatey broad
+        except Exception:  # noqa: BLE001
             return (Status.WARNING, "Unable to check if running under emulation.")
         if proc_translated == 1:
             # Python is running under Rosetta. Advise the user install the
             # correct Python.
             return (
                 Status.WARNING,
-                "Python is running under emulation on this system. This might "
-                "happen if the wrong installer was used to install Python. It "
-                "is **strongly** advised that Python is reinstalled using a "
-                "\"Universal Installer\" before proceeding.")
+                (
+                    "Python is running under emulation on this system. This might "
+                    "happen if the wrong installer was used to install Python. It "
+                    "is **strongly** advised that Python is reinstalled using a "
+                    '"Universal Installer" before proceeding.'
+                )
+            )
 
     return (Status.OK, "")
 
 
 def check_generate_dataframe(*, registry: InstallationCheckRegistry,
-                             threshold: t.Optional[float] = None):
+                             threshold: float | None = None) -> tuple[Status, str]:
     """
     Rate the speed in which a dataframe was able to be generated.
 
@@ -645,22 +663,29 @@ def check_generate_dataframe(*, registry: InstallationCheckRegistry,
                                          num_samples=150)
     except ValueError:
         traceback.print_exc(file=registry.logger)
-        return (Status.CRITICAL,
+        return (
+            Status.CRITICAL,
+            (
                 "The client was unable to find Howso core binaries. "
                 "Please see the Howso Client installation documentation "
-                "for further details.")
+                "for further details."
+            )
+        )
     if threshold is not None and duration > threshold:
-        return (Status.WARNING,
+        return (
+            Status.WARNING,
+            (
                 f"The client required a duration of {duration:,.1f} to "
                 f"synthesize a DataFrame, this should require no more than "
                 f"{threshold:,.1f} seconds. This warning may be expected in "
-                f"auto-scaling installations.")
-    else:
-        return (Status.OK, "")
+                f"auto-scaling installations."
+            )
+        )
+    return (Status.OK, "")
 
 
 def check_basic_synthesis(*, registry: InstallationCheckRegistry,
-                          source_df=None):
+                          source_df: pd.DataFrame | None = None) -> tuple[Status, str]:
     """
     Validate that Synthesizer can perform a basic synthesis.
 
@@ -686,13 +711,13 @@ def check_basic_synthesis(*, registry: InstallationCheckRegistry,
 
         features = infer_feature_attributes(source_df)
         if not Synthesizer:
-            raise AssertionError("Howso Synthesizer™ is not installed.")
+            raise AssertionError("Howso Synthesizer™ is not installed.")  # noqa: TRY301
         with Synthesizer(client=registry.client, privacy_override=True) as s:
             s.train(source_df, features)
-            source_df = s.synthesize_cases(n_samples=100)
-        if source_df.shape != (100, 4):
+            synthesized_df = s.synthesize_cases(n_samples=100)
+        if synthesized_df.shape != (100, 4):
             return (Status.CRITICAL, "Synthetic dataframe is the wrong shape.")
-    except Exception:  # noqa: Deliberately broad
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
                 "Could not complete check. Check installation.")
@@ -700,7 +725,7 @@ def check_basic_synthesis(*, registry: InstallationCheckRegistry,
         return (Status.OK, "")
 
 
-def check_locales_available(*, registry: InstallationCheckRegistry):
+def check_locales_available(*, registry: InstallationCheckRegistry) -> tuple[Status, str]:
     """
     Check that default locale is available in faker.
 
@@ -721,11 +746,13 @@ def check_locales_available(*, registry: InstallationCheckRegistry):
         if (default_locale := get_default_locale()[0]) not in AVAILABLE_LOCALES:
             return (
                 Status.WARNING,
-                f"Current locale, {default_locale} is not available in Faker "
-                f"(https://faker.readthedocs.io/en/master/locales.html). "
-                f"The locale for Faker will be set to 'en_US'."
+                (
+                    f"Current locale, {default_locale} is not available in Faker "
+                    f"(https://faker.readthedocs.io/en/master/locales.html). "
+                    f"The locale for Faker will be set to 'en_US'."
+                )
             )
-    except Exception:  # noqa: Deliberately broad
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
                 "Could not complete check. Check installation.")
@@ -734,7 +761,7 @@ def check_locales_available(*, registry: InstallationCheckRegistry):
 
 
 def check_save(*, registry: InstallationCheckRegistry,
-               source_df: t.Optional[pd.DataFrame] = None):
+               source_df: pd.DataFrame | None = None) -> tuple[Status, str]:
     """
     Ensure that a Trainee can can be saved.
 
@@ -767,8 +794,8 @@ def check_save(*, registry: InstallationCheckRegistry,
             client.train(trainee.id, source_df, features=feature_names)
             client.persist_trainee(trainee.id)
         else:
-            raise HowsoError("Could not create a trainee.")
-    except Exception:  # noqa: Deliberately broad
+            raise HowsoError("Could not create a trainee.")  # noqa: TRY301
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
                 "Could not save Trainee. Please check file permissions.")
@@ -778,12 +805,13 @@ def check_save(*, registry: InstallationCheckRegistry,
         try:
             if client and trainee:
                 client.delete_trainee(trainee.id)
-        except Exception:  # noqa: Deliberately broad
+        except Exception:  # noqa: BLE001, S110
             pass
 
 
 def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
-                                    source_df: t.Optional[pd.DataFrame] = None):
+                                    source_df: pd.DataFrame | None = None
+                                    ) -> tuple[Status, str]:
     """
     Ensure that a Trainee can can be created and deleted.
 
@@ -808,38 +836,46 @@ def check_synthesizer_create_delete(*, registry: InstallationCheckRegistry,
 
         features = infer_feature_attributes(source_df)
         if not Synthesizer:
-            raise AssertionError('Howso Synthesizer™ is not installed.')
+            raise AssertionError("Howso Synthesizer™ is not installed.")  # noqa: TRY301
         s = Synthesizer(client=registry.client, privacy_override=True)
 
         s.train(source_df[:50], features)
         n = s.cl.get_num_training_cases(s.trainee.id)
         if n != 50:
-            return (Status.ERROR,
+            return (
+                Status.ERROR,
+                (
                     f"Training did not produce the correct number of "
                     f"training cases ({n}). Howso Synthesizer might not be "
                     "installed correctly. "
-                    "Try: `pip install --upgrade howso-synthesizer`.")
+                    "Try: `pip install --upgrade howso-synthesizer`."
+                )
+            )
 
         s.cl.delete_trainee(s.trainee.id)
-    except Exception:  # noqa: Deliberately broad
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
-        return (Status.CRITICAL,
+        return (
+            Status.CRITICAL,
+            (
                 "Could not complete check. Check installation. "
-                "Try: `pip install --upgrade howso-synthesizer`.")
+                "Try: `pip install --upgrade howso-synthesizer`."
+            )
+        )
     else:
         return (Status.OK, "")
     finally:
         try:
             if s:
                 s.cl.delete_trainee(s.trainee.id)
-        except Exception:  # noqa: Deliberately broad
+        except Exception:  # noqa: BLE001, S110
             pass
 
 
 def check_latency(*, registry: InstallationCheckRegistry,
-                  source_df: t.Optional[pd.DataFrame] = None,
-                  notice_threshold: int = 10, warning_threshold: int = 20,
-                  timeout: int = 10):
+                  source_df: pd.DataFrame | None = None,
+                  notice_threshold: int = 25, warning_threshold: int = 20,
+                  timeout: int = 10) -> tuple[Status, str]:
     """
     Ensure creation of `sample_threshold` requests within `timeout` seconds.
 
@@ -852,7 +888,7 @@ def check_latency(*, registry: InstallationCheckRegistry,
         The registry used to run this check.
     source_df : pd.DataFrame or None, default None
         Optional. If not provided a new dataframe will be synthesized.
-    notice_threshold : int, default 10
+    notice_threshold : int, default 25
         The number of samples that should be generated within `timeout`
         seconds. If it cannot generate this number within the timeout, then the
         resulting Status will be NOTICE.
@@ -877,21 +913,29 @@ def check_latency(*, registry: InstallationCheckRegistry,
                                               timeout=timeout)
         num_rows = source_df.shape[0]
         if num_rows < warning_threshold:
-            return (Status.WARNING,
+            return (
+                Status.WARNING,
+                (
                     f"{num_rows} records synthesized in {timeout:,d} seconds. "
                     f"A minimum of {warning_threshold:,d} samples expected. "
                     "Ensure a good network connection and that Howso "
                     "Platform is installed on sufficient cluster hardware. "
                     "In auto-scaling installations this may be due to slow node "
-                    "start-ups.")
-        elif num_rows < notice_threshold:
-            return (Status.NOTICE,
+                    "start-ups."
+                )
+            )
+        if num_rows < notice_threshold:
+            return (
+                Status.NOTICE,
+                (
                     f"{num_rows} records synthesized in {timeout:,d} seconds. "
                     f"Less than {notice_threshold:,d} may indicate "
                     "a poor network connection or slow/oversubscribed "
                     "cluster hardware. This notice is expected in auto-scaling "
-                    "installations.")
-    except Exception:  # noqa: Deliberately broad
+                    "installations."
+                )
+            )
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
                 "Could not complete check. Check installation.")
@@ -901,7 +945,7 @@ def check_latency(*, registry: InstallationCheckRegistry,
 
 def check_performance(*, registry: InstallationCheckRegistry,
                       num_samples: int = 5_000, notice_threshold: float = 10.0,
-                      warning_threshold: float = 20.0):
+                      warning_threshold: float = 20.0) -> tuple[Status, str]:
     """
     Ensure can generate `num_samples` records with `time_threshold` seconds.
 
@@ -933,31 +977,40 @@ def check_performance(*, registry: InstallationCheckRegistry,
                                             num_samples=num_samples)
         msg = (
             f"{num_samples:,d} records were synthesized in "
-            f"{num_seconds:,.1f} seconds. ")
+            f"{num_seconds:,.1f} seconds. "
+        )
         if num_seconds > warning_threshold:
             return (
                 Status.WARNING,
-                msg + f" This should require fewer than {warning_threshold:,.1f} "
-                "seconds. Ensure the installation is on equipment that meets "
-                "Howso's recommended hardware specifications. "
-                "In auto-scaling installations this may be due to slow node "
-                "start-ups.")
-        elif num_seconds > notice_threshold:
+                (
+                    msg + f" This should require fewer than {warning_threshold:,.1f} "
+                    "seconds. Ensure the installation is on equipment that meets "
+                    "Howso's recommended hardware specifications. "
+                    "In auto-scaling installations this may be due to slow node "
+                    "start-ups."
+                )
+            )
+        if num_seconds > notice_threshold:
             return (
                 Status.NOTICE,
-                msg + f" Greater than {notice_threshold:,.1f} seconds may indicate "
-                "slow or underpowered hardware. Ensure the installation is on "
-                "equipment that meets Howso's recommended specifications. "
-                "This notice is expected in auto-scaling installations.")
-    except Exception:  # noqa: Deliberately broad
+                (
+                    msg + f" Greater than {notice_threshold:,.1f} seconds may indicate "
+                    "slow or underpowered hardware. Ensure the installation is on "
+                    "equipment that meets Howso's recommended specifications. "
+                    "This notice is expected in auto-scaling installations."
+                )
+            )
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
-        return (Status.CRITICAL,
-                "Could not complete operation. Check installation.")
+        return (
+            Status.CRITICAL,
+            "Could not complete operation. Check installation."
+        )
     else:
         return (Status.OK, "")
 
 
-def overridable_resources(*, registry: InstallationCheckRegistry):
+def overridable_resources(*, registry: InstallationCheckRegistry) -> tuple[Status, str]:
     """
     Ensure that resources are overridable for Platform workers.
 
@@ -982,8 +1035,9 @@ def overridable_resources(*, registry: InstallationCheckRegistry):
             ) as trainee:
                 runtime = trainee.get_runtime()
                 try:
-                    if runtime["scaling"]["resources"]["cpu"]["minimum"] != 1_500:  # type: ignore
-                        raise AssertionError("Incorrect value returned")
+                    cpu_limits = runtime["scaling"]["resources"]["cpu"]  # type: ignore[reportOptionalSubscript]
+                    if cpu_limits["minimum"] != 1_500:  # type: ignore[reportOptionalSubscript]
+                        raise AssertionError("Incorrect value returned")  # noqa: TRY301
                 except (KeyError, TypeError, ValueError):
                     traceback.print_exc(file=registry.logger)
                     return (Status.CRITICAL, "get_runtime() returned an unexpected response.")
@@ -992,16 +1046,19 @@ def overridable_resources(*, registry: InstallationCheckRegistry):
                     return (Status.CRITICAL, "get_runtime() returned an unexpected value for minimum CPU cores.")
                 else:
                     return (Status.OK, "")
-    except Exception:
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL, "Could not create a trainee.")
+
+    # Reached only if `engine` could not be imported.
+    return (Status.CRITICAL, "Howso Engine™ is not installed.")
 
 
 def check_engine_operation(
     *,
     registry: InstallationCheckRegistry,
-    source_df: t.Optional[pd.DataFrame] = None
-):
+    source_df: pd.DataFrame | None = None
+) -> tuple[Status, str]:
     """
     Ensure that Howso Engine operates as it should.
 
@@ -1029,31 +1086,35 @@ def check_engine_operation(
         features = infer_feature_attributes(source_df)
 
         train_idx = source_df.sample(frac=0.8).index
-        df_train = source_df[source_df.index.isin(train_idx)]
-        df_test = source_df[~source_df.index.isin(train_idx)]
-        X_train = df_train.drop("class", axis=1)
+        df_train = source_df.loc[source_df.index.isin(train_idx)]
+        df_test = source_df.loc[~source_df.index.isin(train_idx)]
+        x_train = df_train.drop("class", axis=1)
         y_train = df_train["class"]
-        X_test = df_test.drop("class", axis=1)
+        x_test = df_test.drop("class", axis=1)
 
         action_features = ["class"]
-        context_features = X_train.columns.tolist()
+        context_features = x_train.columns.tolist()
         if not engine:
-            raise AssertionError("Howso Engine™ is not installed.")
+            raise AssertionError("Howso Engine™ is not installed.")  # noqa: TRY301
         trainee = engine.Trainee(
             name=(f"installation_verification "
                   f"check engine operations ({get_nonce()})"),
             features=features, overwrite_existing=True
         )
-        trainee.train(X_train.join(y_train))
+        trainee.train(x_train.join(y_train))
         trainee.analyze()
-        response = trainee.react(X_test, context_features=context_features,
+        response = trainee.react(x_test, context_features=context_features,
                                  action_features=action_features)
-        results = response['action'][action_features]
-        if results.shape[0] != X_test.shape[0]:
-            return (Status.ERROR,
+        results = response["action"][action_features]
+        if results.shape[0] != x_test.shape[0]:
+            return (
+                Status.ERROR,
+                (
                     "Results do not have the same number of samples as the "
-                    "input data.")
-    except Exception:  # noqa: Deliberately broad
+                    "input data."
+                )
+            )
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
                 "Could not complete operation. Check installation.")
@@ -1063,14 +1124,14 @@ def check_engine_operation(
         try:
             if engine and trainee:
                 engine.delete_trainee(trainee.id)
-        except Exception:  # noqa: Deliberately broad
+        except Exception:  # noqa: BLE001, S110
             pass
 
 
 def check_validator_operation(
     *, registry: InstallationCheckRegistry,
-    source_df: t.Optional[pd.DataFrame] = None,
-):
+    source_df: pd.DataFrame | None = None,
+) -> tuple[Status, str]:
     """
     Ensure that Validator-Enterprise operates as it should.
 
@@ -1091,9 +1152,13 @@ def check_validator_operation(
     """
     if isinstance(Validator, Exception):
         iv_print(Validator, file=registry.logger)
-        return (Status.CRITICAL,
+        return (
+            Status.CRITICAL,
+            (
                 "Howso Validator™ was not installed correctly. "
-                "Please check installation.")
+                "Please check installation."
+            )
+        )
     try:
         if source_df is None:
             source_df, _ = generate_dataframe(client=registry.client, num_samples=150)
@@ -1102,7 +1167,7 @@ def check_validator_operation(
         gen_df = source_df[~source_df.index.isin(orig_df.index)]
         features = infer_feature_attributes(orig_df)
         if not Validator:
-            raise AssertionError('Howso Validator™ is not installed.')
+            raise AssertionError("Howso Validator™ is not installed.")  # noqa: TRY301
 
         with Validator(orig_df, gen_df, features=features, verbose=-1) as v:
             result = v.run_metric("DescriptiveStatistics")
@@ -1110,7 +1175,7 @@ def check_validator_operation(
         if result.desirability == 0 or len(result.errors):
             return (Status.CRITICAL, "Validator encountered one or more errors.")
 
-    except Exception:
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
         return (Status.CRITICAL,
                 "Could not complete operation. Check installation.")
@@ -1118,7 +1183,7 @@ def check_validator_operation(
         return (Status.OK, "")
 
 
-def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
+def _attempt_train_date_feature(result_queue: multiprocessing.Queue[int]) -> None:
     """
     Attempt to train a date feature to check for proper time zone support.
 
@@ -1128,14 +1193,14 @@ def _attempt_train_date_feature(result_queue: multiprocessing.Queue):
         A queue to put the results.
     """
     client = HowsoClient()
-    features = {'date': {'type': 'continuous', 'date_time_format': '%Y-%m-%d'}}
+    features = {"date": {"type": "continuous", "date_time_format": "%Y-%m-%d"}}
     trainee = client.create_trainee(
         name=f"installation_verification check_tzdata_installed ({get_nonce()})",
         features=features,
         persistence="allow" if _is_platform_client(client) else "never"
     )
     try:
-        client.train(trainee_id=trainee.id, cases=[["2001-01-01"]], features=['date'])
+        client.train(trainee_id=trainee.id, cases=[["2001-01-01"]], features=["date"])
         result_queue.put(client.get_num_training_cases(trainee.id))
     finally:
         client.delete_trainee(trainee.id)
@@ -1150,7 +1215,7 @@ def _is_platform_client(client: type[AbstractHowsoClient] | AbstractHowsoClient)
     return isinstance(client, HowsoPlatformClient)
 
 
-def check_tzdata_installed(*, registry: InstallationCheckRegistry):
+def check_tzdata_installed(*, registry: InstallationCheckRegistry) -> tuple[Status, str]:
     """
     Check for timezone support in host OS.
 
@@ -1166,6 +1231,14 @@ def check_tzdata_installed(*, registry: InstallationCheckRegistry):
     ----------
     registry : InstallationCheckRegistry
         The InstallationCheckRegistry instance.
+
+    Returns
+    -------
+    tuple
+        Status
+            The status of the check as OK, WARNING, ERROR or CRITICAL.
+        str
+            A message to display about the WARNING, ERROR or CRITICAL result.
     """
     try:
         # If the host OS does not have timezone support, simply creating and
@@ -1176,23 +1249,38 @@ def check_tzdata_installed(*, registry: InstallationCheckRegistry):
         proc = ctx.Process(target=_attempt_train_date_feature,
                            args=(result_queue, ))
         proc.start()
-        proc.join()
-        result = result_queue.get(block=False)
-
-        if result is None:
-            # Nothing was put into the queue...
-            raise Exception(
-                "The check process failed before it could return a result.")
-    except Exception:  # noqa: Deliberately broad
+        proc.join(timeout=DATE_FEATURE_TIMEOUT)
+        if proc.is_alive():
+            # The child neither finished nor crashed, so don't let it block the
+            # rest of the verification run.
+            proc.kill()
+            proc.join()
+            return (
+                Status.CRITICAL,
+                (
+                    f"Timed out after {DATE_FEATURE_TIMEOUT} seconds checking "
+                    "date/time support. Please ensure that the host OS has "
+                    "timezone support."
+                )
+            )
+        # The child enqueues its result only once training succeeds. If it died
+        # instead (e.g. SegFault), the queue is empty and this raises
+        # `queue.Empty`, which the handler below reports.
+        result_queue.get(block=False)
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=registry.logger)
-        return (Status.CRITICAL,
+        return (
+            Status.CRITICAL,
+            (
                 "Unable to work with date/times. Please ensure that the host "
-                "OS has timezone support.")
+                "OS has timezone support."
+            )
+        )
     else:
         return (Status.OK, "")
 
 
-def configure(registry: InstallationCheckRegistry):
+def configure(registry: InstallationCheckRegistry) -> None:
     """
     Register the correct checks for the install environment.
 
@@ -1288,7 +1376,7 @@ def configure(registry: InstallationCheckRegistry):
     )
 
 
-def main():
+def main() -> None:
     """Primary entry point."""
     iv_print("[bold]Validating Howso™ Installation")
     registry = InstallationCheckRegistry()
@@ -1299,8 +1387,7 @@ def main():
         result = registry.run_checks()
         if is_databricks():
             return
-        else:
-            sys.exit(result)
+        sys.exit(result)
 
 
 if __name__ == "__main__":
