@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
 from functools import cached_property, partial
+import hashlib
 import importlib.metadata
 import inspect
 from io import StringIO
@@ -16,6 +17,7 @@ from pathlib import Path
 import random
 import re
 import sys
+import threading
 import time
 import traceback
 from typing import Any, IO, Protocol, TypeAlias
@@ -23,6 +25,7 @@ import warnings
 
 from faker.config import AVAILABLE_LOCALES
 import pandas as pd
+import psutil
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from rich import print as rich_print
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
@@ -82,6 +85,17 @@ LOG_FILE = "howso_stacktrace.txt"
 #: Seconds to wait on the isolated date/time support check before giving up.
 DATE_FEATURE_TIMEOUT = 60
 
+#: Seconds each phase of the CPU availability probe runs for.
+CPU_PROBE_SECONDS = 0.5
+#: Most workers the CPU availability probe will run at once.
+CPU_PROBE_MAX_WORKERS = 16
+#: Hashes per clock check. `hashlib` releases the GIL but the loop around it
+#: does not, so checking the clock every iteration would serialize the workers
+#: and understate the parallelism actually available.
+CPU_PROBE_BATCH = 8
+#: Fraction of ideal parallel throughput below which compute is judged limited.
+CPU_PROBE_MIN_EFFICIENCY = 0.6
+
 
 class Status(IntEnum):
     """Status Enum."""
@@ -133,6 +147,11 @@ class InstallationCheckRegistry:
         self.add_check(
             name="Python: Running correctly (not under emulation)",
             fn=check_not_emulated
+        )
+        # Windows may park CPU cores rather than waking them for this process
+        self.add_check(
+            name="Python: CPU availability",
+            fn=check_cpu_availability
         )
         # And the next check which builds a howso client
         self.add_check(
@@ -635,6 +654,205 @@ def check_not_emulated(*, registry: InstallationCheckRegistry) -> tuple[Status, 
             )
 
     return (Status.OK, "")
+
+
+def _cpu_burn(duration: float, buffer: bytes, barrier: threading.Barrier,
+              counts: list[int], index: int) -> None:
+    """Hash `buffer` repeatedly for `duration` seconds, recording the count."""
+    try:
+        barrier.wait(timeout=duration + 5.0)
+    except threading.BrokenBarrierError:
+        return
+    end = time.monotonic() + duration
+    count = 0
+    while time.monotonic() < end:
+        for _ in range(CPU_PROBE_BATCH):
+            hashlib.sha256(buffer).digest()
+        count += CPU_PROBE_BATCH
+    counts[index] = count
+
+
+def _measure_throughput(workers: int, duration: float, buffer: bytes) -> int:
+    """Run `workers` burners simultaneously and return their total iterations."""
+    counts = [0] * workers
+    barrier = threading.Barrier(workers)
+    threads = [
+        threading.Thread(target=_cpu_burn,
+                         args=(duration, buffer, barrier, counts, i),
+                         daemon=True)
+        for i in range(workers)
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=duration + 10.0)
+    return sum(counts)
+
+
+def check_cpu_availability(*, registry: InstallationCheckRegistry) -> tuple[Status, str]:
+    """
+    Check that this process can actually use the CPU cores it appears to have.
+
+    Some Windows power configurations park CPU cores rather than waking them
+    for a process, notably when that process runs below Normal priority. The
+    cores still show up in the CPU count, so the only outward symptom is that
+    the Engine runs several times slower than the hardware suggests it should.
+
+    Rather than inspect the configuration, this measures the effect: it
+    compares the throughput of one busy worker against that of many running at
+    once. The result is a ratio, so competing load on the machine slows both
+    phases and largely cancels out. This simply passes on other operating
+    systems.
+
+    Parameters
+    ----------
+    registry : The InstallationCheckRegistry
+        The registry used to run this check.
+
+    Returns
+    -------
+    tuple
+        Status
+            The status of the check as OK, WARNING, ERROR or CRITICAL.
+        str
+            A message to display about the WARNING, ERROR or CRITICAL result.
+    """
+    if sys.platform != "win32":
+        return (Status.OK, "")
+
+    try:
+        cores = psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1
+        workers = min(cores, CPU_PROBE_MAX_WORKERS)
+        if workers < 2:
+            # Nothing to measure on a single-core machine.
+            return (Status.OK, "")
+
+        buffer = b"\xa5" * (1 << 20)
+        baseline = _measure_throughput(1, CPU_PROBE_SECONDS, buffer)
+        parallel = _measure_throughput(workers, CPU_PROBE_SECONDS, buffer)
+        if not baseline:
+            return (Status.WARNING, "Unable to measure available CPU throughput.")
+    except Exception:  # noqa: BLE001
+        traceback.print_exc(file=registry.logger)
+        return (Status.WARNING, "Unable to measure available CPU throughput.")
+
+    effective = parallel / baseline
+    if effective >= workers * CPU_PROBE_MIN_EFFICIENCY:
+        return (Status.OK, "")
+
+    return (
+        Status.WARNING,
+        (
+            f"Running {workers} busy workers produced only {effective:,.1f}x "
+            f"the throughput of a single worker, on a machine reporting "
+            f"{cores:,d} physical cores. The Engine will run correspondingly "
+            "slower than this hardware suggests. Windows power plans can park "
+            "CPU cores instead of waking them for a process, especially one "
+            "running below Normal priority."
+            + _priority_note(registry)
+            + ' Review "Processor performance core parking" in the active '
+            "power plan with `powercfg /q SCHEME_CURRENT SUB_PROCESSOR`."
+        )
+    )
+
+
+def _priority_note(registry: InstallationCheckRegistry) -> str:
+    """Describe the process priority when it is below Normal, else return ''."""
+    if sys.platform != "win32":
+        # The priority classes used below are defined only on Windows.
+        return ""
+    try:
+        priority = psutil.Process().nice()
+    except Exception:  # noqa: BLE001
+        traceback.print_exc(file=registry.logger)
+        return ""
+    # These priority classes are flags whose numeric values do not follow their
+    # ordering, so match the named constants rather than compare magnitudes.
+    reduced = {
+        psutil.IDLE_PRIORITY_CLASS: "Low/Idle",
+        psutil.BELOW_NORMAL_PRIORITY_CLASS: "Below Normal",
+    }
+    if (name := reduced.get(priority)) is not None:
+        return (f' This process is running at "{name}" priority, which is the '
+                "usual trigger.")
+    return ""
+
+
+def check_visible_cores(*, registry: InstallationCheckRegistry) -> tuple[Status, str]:
+    """
+    Report how many CPUs Python and the Howso Engine each believe they have.
+
+    The two counts are read independently, so a disagreement points at
+    something between them misreporting the host, which is worth knowing
+    before trusting any of the performance numbers this tool reports. The
+    counts are only comparable when the Engine runs in-process; a Howso
+    Platform client runs it on another machine entirely.
+
+    Parameters
+    ----------
+    registry : The InstallationCheckRegistry
+        The registry used to run this check.
+
+    Returns
+    -------
+    tuple
+        Status
+            The status of the check as OK, WARNING, ERROR or CRITICAL.
+        str
+            A message to display about the WARNING, ERROR or CRITICAL result.
+    """
+    try:
+        logical = psutil.cpu_count(logical=True)
+        physical = psutil.cpu_count(logical=False)
+    except Exception:  # noqa: BLE001
+        traceback.print_exc(file=registry.logger)
+        logical = physical = None
+
+    if not logical:
+        return (Status.WARNING, "Unable to determine the number of visible CPUs.")
+
+    seen = f"Python sees {logical:,d} logical CPUs"
+    if physical and physical != logical:
+        seen += f" on {physical:,d} physical cores"
+
+    # Only an in-process Engine shares this machine's CPUs with us.
+    try:
+        amlg = getattr(registry.client, "amlg", None)
+    except Exception:  # noqa: BLE001
+        traceback.print_exc(file=registry.logger)
+        amlg = None
+    if amlg is None:
+        return (
+            Status.OK,
+            f"{seen}. The Engine runs remotely, so its thread count is not compared."
+        )
+
+    try:
+        engine_threads = amlg.get_max_num_threads()
+    except Exception:  # noqa: BLE001
+        traceback.print_exc(file=registry.logger)
+        return (Status.OK, f"{seen}. Unable to read the Engine thread count.")
+
+    if not engine_threads:
+        # Amalgam treats zero as automatic, so there is nothing to compare.
+        return (
+            Status.OK,
+            f"{seen}. The Engine selects its thread count automatically."
+        )
+
+    if engine_threads != logical:
+        return (
+            Status.WARNING,
+            (
+                f"{seen}, but Howso Engine reports {engine_threads:,d} "
+                "threads. The Engine will size its work from its own count, "
+                "so the two disagreeing may mean the host is misreporting "
+                "its CPUs, as over-provisioned virtual machines often do, or "
+                "that a thread count was set explicitly in configuration."
+            )
+        )
+
+    return (Status.OK, f"{seen}, and Howso Engine agrees.")
 
 
 def check_generate_dataframe(*, registry: InstallationCheckRegistry,
@@ -1289,6 +1507,12 @@ def configure(registry: InstallationCheckRegistry) -> None:
     registry : InstallationCheckRegistry
         The InstallationCheckRegistry instance.
     """
+    registry.add_check(
+        name="Howso Client: Visible CPUs",
+        fn=check_visible_cores,
+        client_required="AbstractHowsoClient",
+    )
+
     registry.add_check(
         name="Howso Local: Timezone support",
         fn=check_tzdata_installed,
