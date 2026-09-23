@@ -52,14 +52,14 @@ class Timer:
     def start(self) -> "Timer":
         """Start the timer."""
         self.reset()
-        self.start_time = datetime.now()
+        self.start_time = datetime.now().astimezone()
         return self
 
     def end(self) -> None:
         """End the timer."""
         if self.message:
             print(f"{self.message} : {self.duration}")
-        self.end_time = datetime.now()
+        self.end_time = datetime.now().astimezone()
 
     def reset(self) -> None:
         """Reset the timer."""
@@ -91,7 +91,7 @@ class Timer:
         if self.start_time is None:
             return None
         if self.end_time is None:
-            return datetime.now() - self.start_time
+            return datetime.now().astimezone() - self.start_time
         return self.end_time - self.start_time
 
     @property
@@ -158,7 +158,7 @@ class ProgressTimer(Timer):
         if not self.has_started:
             raise ValueError("Progress timer not started")
         if self.start_time:
-            elapsed_time = datetime.now() - self.start_time
+            elapsed_time = datetime.now().astimezone() - self.start_time
         else:
             elapsed_time = timedelta(0)
         return ((self.total_ticks * elapsed_time /
@@ -176,7 +176,7 @@ class ProgressTimer(Timer):
         """
         if not self.last_tick_time:
             return None
-        return datetime.now() - self.last_tick_time
+        return datetime.now().astimezone() - self.last_tick_time
 
     @property
     def is_complete(self) -> bool:
@@ -202,7 +202,7 @@ class ProgressTimer(Timer):
             self.current_tick = self.total_ticks
         elif self.current_tick < 0:
             self.current_tick = 0
-        self.last_tick_time = datetime.now()
+        self.last_tick_time = datetime.now().astimezone()
         self.update_count += 1
 
     def reset(self) -> None:
