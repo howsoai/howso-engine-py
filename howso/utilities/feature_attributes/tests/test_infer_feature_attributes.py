@@ -762,8 +762,6 @@ def test_validate_df_semi_structured(data, expected_data_type: str, expected_ori
 @pytest.mark.parametrize("coerce", (False, True))
 def test_validate_df_nullable_boolean(values, dtype, coerce):
     """Test validate_df accepts boolean columns whose nulls are `pd.NA`, keeping their nulls."""
-    if dtype == "bool[pyarrow]":
-        pytest.importorskip("pyarrow")
     df = pd.DataFrame({
         "id": [1, 2, 3, 4],
         "flag": pd.array(values, dtype=dtype),
@@ -785,8 +783,6 @@ def test_validate_df_nullable_boolean(values, dtype, coerce):
 @pytest.mark.parametrize("dtype", ("datetime64[ns]", "timestamp[ns][pyarrow]"))
 def test_validate_df_coerce_localizes_datetimes(dtype):
     """Test validate_df coercion localizes naive numpy and pyarrow datetimes to UTC."""
-    if "pyarrow" in dtype:
-        pytest.importorskip("pyarrow")
     df = pd.DataFrame({
         "id": [1, 2, 3, 4],
         "date": pd.array(pd.to_datetime(["2020-01-01", None, "2020-03-08", "2021-11-07"]), dtype=dtype),
