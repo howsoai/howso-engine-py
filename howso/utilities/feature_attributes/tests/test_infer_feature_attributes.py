@@ -782,7 +782,12 @@ def test_validate_df_nullable_boolean(values, dtype, coerce):
 
 @pytest.mark.parametrize("dtype", ("datetime64[ns]", "timestamp[ns][pyarrow]"))
 def test_validate_df_coerce_localizes_datetimes(dtype):
-    """Test validate_df coercion localizes naive numpy and pyarrow datetimes to UTC."""
+    """
+    Test validate_df coercion localizes naive numpy and pyarrow datetimes to UTC.
+
+    The result is a numpy datetime, whose UTC localization does not depend on pyarrow finding a
+    timezone database (which it looks for in the user's Downloads folder on Windows).
+    """
     df = pd.DataFrame({
         "id": [1, 2, 3, 4],
         "date": pd.array(pd.to_datetime(["2020-01-01", None, "2020-03-08", "2021-11-07"]), dtype=dtype),
@@ -793,6 +798,7 @@ def test_validate_df_coerce_localizes_datetimes(dtype):
         warnings.simplefilter("error")
         result = feature_attributes.validate(df, coerce=True, raise_errors=True)
 
+    assert isinstance(result["date"].dtype, pd.DatetimeTZDtype)
     assert str(result["date"].dt.tz) == "UTC"
     assert result["date"].isna().sum() == 1
 

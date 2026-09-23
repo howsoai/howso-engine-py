@@ -414,9 +414,13 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                     format = "ISO8601"
                 series = pd.to_datetime(coerced_df[feature], format=format)
                 if coerce:
-                    # `series.dt.tz` covers both numpy and pyarrow timestamps. UTC has no DST
+                    # `series.dt.tz` covers both numpy and pyarrow timestamps. Naive pyarrow
+                    # timestamps become numpy datetimes before localizing, because pyarrow's time
+                    # zone support needs a separate timezone database on Windows. UTC has no DST
                     # transitions, so localizing to it is never ambiguous or nonexistent.
                     if localize_datetimes and series.dt.tz is None:
+                        if isinstance(series.dtype, pd.ArrowDtype):
+                            series = series.astype(series.dtype.numpy_dtype)
                         coerced_df[feature] = series.dt.tz_localize("UTC")
                     else:
                         coerced_df[feature] = series
