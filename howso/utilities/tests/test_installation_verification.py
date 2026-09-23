@@ -59,13 +59,16 @@ AFFINITY_SHRANK = "was allowed only"
 
 #: The product name carries a trademark sign, which the rest of this module
 #: already prints and which `run_checks` reconfigures stdout to handle on
-#: Windows. Nothing else non-ASCII belongs in a message.
+#: Windows. `_console_safe` downgrades these two marks at output time; nothing
+#: else non-ASCII belongs in a message.
 TRADEMARK = "™"
+REGISTERED = "®"
 
 
 def _assert_console_safe(msg):
     """Assert a message survives a Windows console and rich's markup parser."""
-    assert msg.replace(TRADEMARK, "").isascii(), msg
+    stripped = msg.replace(TRADEMARK, "").replace(REGISTERED, "")
+    assert stripped.isascii(), msg
     assert "[" not in msg, msg
     assert "]" not in msg, msg
 
@@ -123,32 +126,50 @@ def _patch_console(monkeypatch, encoding, *, legacy=False):
 
 
 @pytest.mark.parametrize("encoding", ["utf-8", "cp1252"])
-def test_trademark_kept_where_console_supports_it(monkeypatch, encoding):
+@pytest.mark.parametrize("mark", [TRADEMARK, REGISTERED])
+def test_mark_kept_where_console_supports_it(monkeypatch, encoding, mark):
     """A capable console shows the real sign."""
     _patch_console(monkeypatch, encoding)
-    assert _output._console_safe(f"Howso Engine{TRADEMARK}") == f"Howso Engine{TRADEMARK}"
+    assert _output._console_safe(f"Howso Engine{mark}") == f"Howso Engine{mark}"
 
 
+@pytest.mark.parametrize("mark, downgrade", [(TRADEMARK, "(tm)"), (REGISTERED, "(R)")])
 @pytest.mark.parametrize("encoding", ["cp437", "ascii", "cp932"])
-def test_trademark_downgraded_where_encoding_cannot_hold_it(monkeypatch, encoding):
-    """cp437 is a common Windows console code page and cannot encode it."""
+def test_mark_downgraded_where_encoding_cannot_hold_it(monkeypatch, encoding, mark, downgrade):
+    """cp437 is a common Windows console code page and cannot encode either."""
     _patch_console(monkeypatch, encoding)
-    assert _output._console_safe(f"Howso Engine{TRADEMARK}") == "Howso Engine(tm)"
+    assert _output._console_safe(f"Howso Engine{mark}") == f"Howso Engine{downgrade}"
 
 
-def test_trademark_downgraded_on_legacy_windows_console(monkeypatch):
+def test_marks_downgraded_independently(monkeypatch):
+    """latin-1 carries the registered sign but not the trademark sign."""
+    _patch_console(monkeypatch, "iso-8859-1")
+    assert _output._console_safe(
+        f"Howso Engine{TRADEMARK} {REGISTERED}") == f"Howso Engine(tm) {REGISTERED}"
+
+
+@pytest.mark.parametrize("mark, downgrade", [(TRADEMARK, "(tm)"), (REGISTERED, "(R)")])
+def test_mark_downgraded_on_legacy_windows_console(monkeypatch, mark, downgrade):
     """The old console renders it badly even when the encoding accepts it."""
     _patch_console(monkeypatch, "utf-8", legacy=True)
-    assert _output._console_safe(f"Howso{TRADEMARK}") == "Howso(tm)"
+    assert _output._console_safe(f"Howso{mark}") == f"Howso{downgrade}"
 
 
-def test_trademark_downgraded_when_console_cannot_be_read(monkeypatch):
+@pytest.mark.parametrize("mark, downgrade", [(TRADEMARK, "(tm)"), (REGISTERED, "(R)")])
+def test_mark_downgraded_when_console_cannot_be_read(monkeypatch, mark, downgrade):
     """An unreadable console falls back rather than raising."""
     def boom():
         raise RuntimeError("no console")
 
     _patch_iv(monkeypatch, "get_console", boom)
-    assert _output._console_safe(f"Howso{TRADEMARK}") == "Howso(tm)"
+    assert _output._console_safe(f"Howso{mark}") == f"Howso{downgrade}"
+
+
+def test_mark_downgraded_when_encoding_name_is_unusable(monkeypatch):
+    """An unknown codec raises LookupError, not UnicodeEncodeError."""
+    _patch_console(monkeypatch, "not-a-real-codec")
+    assert _output._console_safe(
+        f"Howso Engine{TRADEMARK}{REGISTERED}") == "Howso Engine(tm)(R)"
 
 
 def test_console_safe_leaves_other_text_alone(monkeypatch):

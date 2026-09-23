@@ -140,7 +140,7 @@ def configure(registry: InstallationCheckRegistry) -> None:
 
 def main() -> None:
     """Primary entry point."""
-    iv_print("[bold]Validating Howso™ Installation")
+    iv_print("[bold]Validating Howso® Installation")
     registry = InstallationCheckRegistry()
 
     with warnings.catch_warnings():

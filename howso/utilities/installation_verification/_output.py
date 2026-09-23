@@ -6,6 +6,12 @@ from typing import Any
 
 from rich import get_console, print as rich_print
 
+#: Non-ASCII marks that appear in messages, with their ASCII downgrades.
+CHAR_MAP = {
+    "™": "(tm)",
+    "®": "(R)",
+}
+
 
 def is_databricks() -> bool:
     """Check environment is on Databricks."""
@@ -13,22 +19,36 @@ def is_databricks() -> bool:
 
 
 def _console_safe(text: str) -> str:
-    """Swap the trademark sign for "(tm)" where the console cannot show it.
+    """Downgrade the trademark marks where the console cannot show them.
 
-    Messages are written with the real sign; this downgrades it at output time
-    so every one of them is covered without each having to think about it. The
-    legacy Windows console renders it badly even where the encoding accepts
-    it, and cp437 -- a common console code page -- cannot encode it at all.
+    Messages are written with the real signs; this downgrades them at output
+    time so every one of them is covered without each having to think about
+    it. The two checks cover different failures: an encoding that cannot hold
+    a mark, and the legacy Windows console, which reports utf-8 even under a
+    code page whose font cannot draw the glyph. Each mark is probed on its own
+    because they are not carried by the same set of codecs -- latin-1 holds
+    "(R)" but not "(tm)".
     """
-    if "™" not in text:
+    def downgrade(value: str) -> str:
+        """Replace every mark with its ASCII stand-in."""
+        for char, fallback in CHAR_MAP.items():
+            value = value.replace(char, fallback)
+        return value
+
+    if not any(char in text for char in CHAR_MAP):
         return text
     try:
         console = get_console()
         if console.legacy_windows:
-            return text.replace("™", "(tm)")
-        "™".encode(console.encoding or "ascii")
+            return downgrade(text)
+        for char, fallback in CHAR_MAP.items():
+            if char in text:
+                try:
+                    char.encode(console.encoding)
+                except UnicodeEncodeError:
+                    text = text.replace(char, fallback)
     except Exception:  # noqa: BLE001
-        return text.replace("™", "(tm)")
+        return downgrade(text)
     return text
 
 

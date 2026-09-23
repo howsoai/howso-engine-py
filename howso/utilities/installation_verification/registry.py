@@ -358,13 +358,13 @@ class InstallationCheckRegistry:
                                  file=log)
 
         if not all_issues:
-            iv_print("[bold green]You are ready to use Howso™!")
+            iv_print("[bold green]You are ready to use Howso®!")
         else:
             iv_print("[bold yellow]There were one or more issues. Please review "
                      "the messages emitted during the installation verification "
                      "process to identify next steps. If you cannot resolve "
                      "these issues please do not hesitate to contact your "
-                     "Howso™ representative.")
+                     "Howso® representative.")
             iv_print(f'[bold yellow]Any CRITICAL issues are logged in the file '
                      f'"{LOG_FILE}" in the current directory.')
 
