@@ -307,6 +307,9 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
 
         # Gather some data to use for validation
         series = data[feature]
+        if pd.api.types.is_timedelta64_dtype(series.dtype):
+            # Timedelta bounds are inferred, and timedeltas serialized, as total seconds
+            series = series.dt.total_seconds()
         bounds = attributes["bounds"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
         min_bound = bounds.get("min")
         max_bound = bounds.get("max")
@@ -411,10 +414,10 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                     format = "ISO8601"
                 series = pd.to_datetime(coerced_df[feature], format=format)
                 if coerce:
-                    if localize_datetimes and not isinstance(series.dtype, pd.DatetimeTZDtype):
-                        coerced_df[feature] = series.dt.tz_localize(
-                            "UTC", ambiguous="infer", nonexistent="NaT"
-                        )
+                    # `series.dt.tz` covers both numpy and pyarrow timestamps. UTC has no DST
+                    # transitions, so localizing to it is never ambiguous or nonexistent.
+                    if localize_datetimes and series.dt.tz is None:
+                        coerced_df[feature] = series.dt.tz_localize("UTC")
                     else:
                         coerced_df[feature] = series
                 is_valid = True
@@ -492,10 +495,16 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                         errors.extend(self._validate_dtype(data, feature, "int64",
                                                            coerced_df, coerce=coerce))
                 elif attributes.get("data_type") == "boolean":
-                    # Check type (boolean). A boolean column that also holds nulls stays an object
-                    # column, since casting it to `bool` would turn every null into `False`.
-                    errors.extend(self._validate_dtype(data, feature, "bool", coerced_df,
-                                                       coerce=coerce and not data[feature].isna().any()))
+                    # Check type (boolean). A boolean column that also holds nulls keeps its dtype,
+                    # since casting it to `bool` would turn every null into `False`. Only its
+                    # non-null values are checked, so null markers `bool()` rejects (`pd.NA` in the
+                    # nullable `boolean`, `bool[pyarrow]`, or object dtypes) do not fail the check.
+                    if data[feature].isna().any():
+                        non_null = data[[feature]].dropna()
+                        errors.extend(self._validate_dtype(non_null, feature, "bool", non_null.copy()))
+                    else:
+                        errors.extend(self._validate_dtype(data, feature, "bool", coerced_df,
+                                                           coerce=coerce))
                 elif attributes.get("bounds") and attributes["bounds"].get("allowed"):  # pyright: ignore[reportTypedDictNotRequiredAccess]
                     # Check type (categorical)
                     schema_dtype = pd.CategoricalDtype(attributes["bounds"]["allowed"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
@@ -527,6 +536,11 @@ class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
                 else:
                     errors.extend(self._validate_dtype(data, feature, "int64",
                                                        coerced_df, coerce=coerce))
+
+            # A timedelta column is already in its native form. It is serialized as total seconds,
+            # so the numeric dtype checks below do not apply.
+            elif pd.api.types.is_timedelta64_dtype(data[feature].dtype):
+                pass
 
             # Check continuous types
             elif "date_time_format" in attributes:

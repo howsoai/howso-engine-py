@@ -754,6 +754,76 @@ def test_validate_df_semi_structured(data, expected_data_type: str, expected_ori
         feature_attributes.validate(df, raise_errors=True)
 
 
+@pytest.mark.parametrize("values", (
+    [True, False, pd.NA, True],
+    [True, False, False, True],
+))
+@pytest.mark.parametrize("dtype", ("boolean", "bool[pyarrow]", object))
+@pytest.mark.parametrize("coerce", (False, True))
+def test_validate_df_nullable_boolean(values, dtype, coerce):
+    """Test validate_df accepts boolean columns whose nulls are `pd.NA`, keeping their nulls."""
+    if dtype == "bool[pyarrow]":
+        pytest.importorskip("pyarrow")
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4],
+        "flag": pd.array(values, dtype=dtype),
+    })
+    feature_attributes = infer_feature_attributes(df, enable_suggestions=False)
+    assert feature_attributes["flag"]["data_type"] == "boolean"
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = feature_attributes.validate(df, coerce=coerce, raise_errors=True)
+
+    if coerce:
+        has_nulls = any(value is pd.NA for value in values)
+        if not has_nulls:
+            assert result["flag"].dtype.name == "bool"
+        assert result["flag"].isna().sum() == int(has_nulls)
+
+
+@pytest.mark.parametrize("dtype", ("datetime64[ns]", "timestamp[ns][pyarrow]"))
+def test_validate_df_coerce_localizes_datetimes(dtype):
+    """Test validate_df coercion localizes naive numpy and pyarrow datetimes to UTC."""
+    if "pyarrow" in dtype:
+        pytest.importorskip("pyarrow")
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4],
+        "date": pd.array(pd.to_datetime(["2020-01-01", None, "2020-03-08", "2021-11-07"]), dtype=dtype),
+    })
+    feature_attributes = infer_feature_attributes(df, enable_suggestions=False)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = feature_attributes.validate(df, coerce=True, raise_errors=True)
+
+    assert str(result["date"].dt.tz) == "UTC"
+    assert result["date"].isna().sum() == 1
+
+
+def test_validate_df_timedelta():
+    """Test validate_df accepts timedelta columns and checks them against bounds in seconds."""
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4],
+        "duration": pd.to_timedelta(["1D", "2D", None, "1D"]),
+    })
+    feature_attributes = infer_feature_attributes(df, enable_suggestions=False)
+    bounds = feature_attributes["duration"]["bounds"]
+    assert (bounds["observed_min"], bounds["observed_max"]) == (86400.0, 172800.0)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = feature_attributes.validate(df, coerce=True, raise_errors=True)
+        assert pd.api.types.is_timedelta64_dtype(result["duration"].dtype)
+
+        del feature_attributes["duration"]["original_type"]
+        feature_attributes.validate(df, raise_errors=True)
+
+    feature_attributes["duration"]["bounds"]["max"] = 90000.0
+    with pytest.raises(ValueError, match="outside of bounds"):
+        feature_attributes.validate(df, raise_errors=True)
+
+
 @pytest.mark.parametrize("extra_attrs, success", (
     ({}, False),
     ({"auto_derive_on_train": False}, False),
