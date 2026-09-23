@@ -746,7 +746,7 @@ def infer_fanout_feature_config(
         convergence. Default ``2``.
     verbose : bool, optional
         If ``True``, print per-discovery progress lines and a final summary.
-        Default ``True``.
+        Default ``False``.
 
     Returns
     -------
