@@ -14,6 +14,7 @@ from howso.utilities.feature_attributes.protocols import (
     TableNameProtocol,
 )
 from howso.utilities.feature_attributes.relational import InferFeatureAttributesSQLDatastore
+from howso.utilities.feature_attributes.suggestions import FanoutFeaturesInput
 from howso.utilities.feature_attributes.time_series import IFATimeSeriesADC, IFATimeSeriesPandas
 
 if TYPE_CHECKING:
@@ -32,7 +33,7 @@ class InferOptions(TypedDict, total=False):
     default_time_zone: str | None
     dependent_features: dict[str, list[str]]
     enable_suggestions: bool
-    fanout_feature_map: dict[tuple[str, ...] | str, list[str]]
+    fanout_feature_map: FanoutFeaturesInput
     id_feature_name: str | Sequence[str] | None
     include_extended_nominal_probabilities: bool
     include_sample: bool
@@ -199,10 +200,12 @@ def infer_feature_attributes(
         to 2 will synthesize the 3rd order derivative value, and then use
         that synthed value to derive the 2nd and 1st order.
 
-    fanout_feature_map : dict of str or tuple of str to list of str, optional
+    fanout_feature_map : dict of str or tuple of str to list of str, or list of dict, optional
         (Optional) Dict mapping "key" feature names or tuples of "key" feature names to list of "fanout" feature names.
         Fanout features are features with values fanned out across multiple cases. Key features are features
         whose values can be used to select groups of cases that have the same duplicated fanout values.
+        May also be a list of dicts, each with a ``key_features`` list and a ``fanout_features`` list, as
+        found under ``parameters`` in the output of ``suggestions.to_dict()``.
 
     id_feature_name : str or list of str, default None
         (Optional) The name(s) of the ID feature(s).

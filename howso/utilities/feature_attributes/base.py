@@ -22,10 +22,11 @@ import yaml
 from howso.utilities.fanout_features import infer_fanout_feature_config
 from howso.utilities.feature_attributes.serializers import feature_attributes_pairs_hook, FeatureAttributesEncoder
 from howso.utilities.feature_attributes.suggestions import (
-    FanoutFeaturesMap,
+    FanoutFeaturesInput,
     FanoutFeaturesSuggestion,
     IFASuggestion,
     IFASuggestionCollector,
+    normalize_fanout_feature_map,
     PRVSuggestion,
 )
 from howso.utilities.feature_attributes.warnings import IFAWarningCollector, IFAWarningEmitterType
@@ -866,7 +867,7 @@ class InferFeatureAttributesBase(ABC):
                  default_time_zone: str | None = None,
                  dependent_features: dict[str, list[str]] | None = None,
                  enable_suggestions: bool = True,
-                 fanout_feature_map: FanoutFeaturesMap | None = None,
+                 fanout_feature_map: FanoutFeaturesInput | None = None,
                  id_feature_name: str | Iterable[str] | None = None,
                  include_extended_nominal_probabilities: bool = False,
                  include_sample: bool = False,
@@ -1213,7 +1214,7 @@ class InferFeatureAttributesBase(ABC):
 
         # Configure the fanout feature attributes according to the input if given.
         if fanout_feature_map:
-            for key_features, fanout_features in fanout_feature_map.items():
+            for key_features, fanout_features in normalize_fanout_feature_map(fanout_feature_map).items():
                 if isinstance(key_features, str):
                     key_features = [key_features]
                 for f in fanout_features:

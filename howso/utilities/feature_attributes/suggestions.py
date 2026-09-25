@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
+import datetime
+import json
 import textwrap
-from typing import Any, Self, TYPE_CHECKING
+from typing import Any, Self, TYPE_CHECKING, TypedDict
 import warnings
 
+import numpy as np
 from rich.console import Console
 from rich.table import Table
 
@@ -17,6 +20,103 @@ if TYPE_CHECKING:
 # Fanout features parameters
 # --------------------------
 FanoutFeaturesMap = dict[tuple[str, ...] | str, list[str]]
+
+_MAX_EXAMPLE_KEYS = 4
+"""The number of key features listed as examples when printing a fan-out suggestion."""
+
+_MAX_EXAMPLE_COLUMNS = 3
+"""The number of fan-out features listed per key when printing a fan-out suggestion."""
+
+
+class FanoutFeatureGroup(TypedDict):
+    """A JSON-friendly fan-out configuration for compound fanout keys."""
+
+    key_features: list[str]
+    """The key features whose values select groups of cases sharing the fanned-out values."""
+
+    fanout_features: list[str]
+    """The features whose values are fanned out across the cases of each group."""
+
+
+FanoutFeaturesInput = FanoutFeaturesMap | Sequence[FanoutFeatureGroup]
+"""A ``fanout_feature_map``, as a mapping or as a list of :class:`FanoutFeatureGroup`."""
+
+
+def normalize_fanout_feature_map(fanout_feature_map: FanoutFeaturesInput) -> FanoutFeaturesMap:
+    """
+    Normalize either accepted form of ``fanout_feature_map`` into a :data:`FanoutFeaturesMap`.
+
+    Parameters
+    ----------
+    fanout_feature_map : FanoutFeaturesMap or Sequence of FanoutFeatureGroup
+        A mapping of key feature name(s) to fan-out feature names, or a list of groups each
+        holding ``key_features`` and ``fanout_features`` lists (the form produced by
+        :meth:`IFASuggestionCollector.to_dict`).
+
+    Returns
+    -------
+    FanoutFeaturesMap
+        The equivalent mapping. A group with a single key feature is keyed by that name;
+        a group with several key features is keyed by a tuple of names.
+
+    Raises
+    ------
+    TypeError
+        If the value is neither a mapping nor a sequence of groups.
+    ValueError
+        If a group is missing ``key_features`` or ``fanout_features``, or has no key features.
+    """
+    if isinstance(fanout_feature_map, Mapping):
+        return dict(fanout_feature_map)
+    if isinstance(fanout_feature_map, (str, bytes)) or not isinstance(fanout_feature_map, Sequence):
+        raise TypeError("`fanout_feature_map` must be a mapping or a list of groups with `key_features` and "
+                        f"`fanout_features`; got {type(fanout_feature_map).__name__}.")
+    normalized: FanoutFeaturesMap = {}
+    for group in fanout_feature_map:
+        if not isinstance(group, Mapping) or "key_features" not in group or "fanout_features" not in group:
+            raise ValueError("Each group in a list-form `fanout_feature_map` must be a mapping with "
+                             "`key_features` and `fanout_features`.")
+        key_features = group["key_features"]
+        if isinstance(key_features, str):
+            key_features = [key_features]
+        key_features = list(key_features)
+        if not key_features:
+            raise ValueError("Each group in a list-form `fanout_feature_map` needs at least one key feature.")
+        key: tuple[str, ...] | str = key_features[0] if len(key_features) == 1 else tuple(key_features)
+        existing = normalized.setdefault(key, [])
+        existing.extend(f for f in group["fanout_features"] if f not in existing)
+    return normalized
+
+
+# Machine-readable output
+# -----------------------
+SUGGESTIONS_SCHEMA_VERSION = 1
+"""Version of the structure returned by :meth:`IFASuggestionCollector.to_dict`."""
+
+
+class SuggestionCaveat(TypedDict):
+    """A condition that limits how far a suggestion can be trusted or applied."""
+
+    code: str
+    """A stable identifier for the condition."""
+
+    message: str
+    """A human-readable explanation of the condition."""
+
+
+def _json_default(obj: Any) -> Any:
+    """Convert values the standard JSON encoder cannot handle, such as numpy scalars and datetimes."""
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (datetime.date, datetime.time)):
+        return obj.isoformat()
+    return str(obj)
 
 
 def wrap_text(text: str, width: int) -> str:
@@ -85,6 +185,55 @@ class IFASuggestion(ABC):
         """
         return self.description
 
+    @property
+    def can_apply(self) -> bool:
+        """Whether :meth:`apply` changes the feature attributes, rather than declining with a warning."""
+        return True
+
+    @property
+    def caveats(self) -> list[SuggestionCaveat]:
+        """Conditions that limit how far this suggestion can be trusted or applied."""
+        return []
+
+    @property
+    @abstractmethod
+    def details(self) -> dict[str, Any]:
+        """Structured findings behind this suggestion, specific to the suggestion type."""
+        ...
+
+    @property
+    @abstractmethod
+    def parameters(self) -> dict[str, Any]:
+        """
+        Keyword arguments to ``infer_feature_attributes`` that act on this suggestion.
+
+        Each value can be edited and passed back to ``infer_feature_attributes`` under its key.
+        """
+        ...
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Get a machine-readable representation of this suggestion.
+
+        This never prints or warns; caveats that other methods raise as warnings are
+        reported under ``caveats``.
+
+        Returns
+        -------
+        dict
+            A dict with the keys ``name``, ``summary``, ``description``, ``can_apply``,
+            ``caveats``, ``details`` and ``parameters``.
+        """
+        return {
+            "name": self.name,
+            "summary": self.summary,
+            "description": self.description,
+            "can_apply": self.can_apply,
+            "caveats": self.caveats,
+            "details": self.details,
+            "parameters": self.parameters,
+        }
+
     @abstractmethod
     def apply(self, attributes: dict) -> None:
         """Apply this suggestion to the FeatureAttributesBase object."""
@@ -111,10 +260,10 @@ class FanoutFeaturesSuggestion(IFASuggestion):
 
     def __repr__(self) -> str:
         """Print a helpful description of this IFASuggestion."""
-        # TODO
         header = "Fan-out Features"
 
-        num =  len(self._fanout_features.keys())
+        details = self.details
+        num = details["num_key_features"]
 
         body = (
             f"We have detected {num} key(s) that should be considered as fan-out features. Fan-out "
@@ -127,16 +276,19 @@ class FanoutFeaturesSuggestion(IFASuggestion):
             "----------------------\n"
         )
 
-        count = 0
-        for key, values in self._fanout_features.items():
-            if count > 3:
-                break
-            fofs = values[:3]
-            num_not_shown = len(values) - len(fofs)
+        groups = details["groups"]
+        for group in groups[:_MAX_EXAMPLE_KEYS]:
+            fofs = group["fanout_features"][:_MAX_EXAMPLE_COLUMNS]
+            num_not_shown = len(group["fanout_features"]) - len(fofs)
             _start = f"Columns `{'`, `'.join(fofs)}`"
             if num_not_shown > 0:
                 _start += f", and {num_not_shown} more"
+            key_features = group["key_features"]
+            key = key_features[0] if len(key_features) == 1 else tuple(key_features)
             body += f"  - {_start} have repeated values derived from observations in `{key}`\n"
+        num_keys_not_shown = len(groups) - _MAX_EXAMPLE_KEYS
+        if num_keys_not_shown > 0:
+            body += f"  - ...and {_count(num_keys_not_shown, 'more key')}\n"
         body += "\n"
 
         # Pick a target total width and divvy it up
@@ -194,9 +346,39 @@ class FanoutFeaturesSuggestion(IFASuggestion):
     @property
     def summary(self) -> str:
         """A one-line statement of the fan-out features found."""
-        num_features = sum(len(cols) for cols in self._fanout_features.values())
-        return (f"Found {_count(num_features, 'fan-out feature')} across "
-                f"{_count(len(self._fanout_features), 'column')}")
+        details = self.details
+        return (f"Found {_count(details['num_fanout_features'], 'fan-out feature')} across "
+                f"{_count(details['num_key_features'], 'column')}")
+
+    @property
+    def details(self) -> dict[str, Any]:
+        """
+        The fan-out features found.
+
+        Contains ``num_key_features`` (the number of key feature groups), ``num_fanout_features``
+        and ``groups``, a list of :class:`FanoutFeatureGroup`.
+        """
+        groups = self._groups()
+        return {
+            "num_key_features": len(groups),
+            "num_fanout_features": sum(len(g["fanout_features"]) for g in groups),
+            "groups": groups,
+        }
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        """The suggested ``fanout_feature_map``, in its list-of-groups form."""
+        return {"fanout_feature_map": self._groups()}
+
+    def _groups(self) -> list[FanoutFeatureGroup]:
+        """Get the fan-out configuration as a list of groups with list-valued key features."""
+        return [
+            {
+                "key_features": [key] if isinstance(key, str) else list(key),
+                "fanout_features": list(cols),
+            }
+            for key, cols in self._fanout_features.items()
+        ]
 
     def apply(self, attributes: dict) -> None:
         """Apply the computed fanout features config to the FeatureAttributesBase object."""
@@ -223,6 +405,23 @@ class FanoutFeaturesSuggestion(IFASuggestion):
             else:
                 self._fanout_features[key] = cols
 
+
+DEFAULT_MAX_DISTILLED_CASES_CAVEAT = "default_max_distilled_cases"
+"""Caveat code for rare value multipliers computed from a default ``max_distilled_cases``."""
+
+_DEFAULT_MAX_DISTILLED_CASES_MESSAGE = (
+    "The computed case weights for rare value multipliers are likely inaccurate as "
+    "`max_distilled_cases` was not provided to `infer_feature_attributes`. Please provide "
+    "this parameter or be aware that the case weight multipliers were computed based on a "
+    "default `max_distilled_cases` value of 50,000. "
+    "An accurate `max_distilled_cases` enables Howso to correctly weight the influence of rare "
+    "values in the data, since the weighting is calibrated proportionally to the number of cases "
+    "remaining after distillation."
+)
+
+_MAX_RANKED_VALUES = 5
+
+
 class PRVSuggestion(IFASuggestion):
     """A suggestion to configure preservation for rare values."""
 
@@ -246,16 +445,13 @@ class PRVSuggestion(IFASuggestion):
 
     def __repr__(self) -> str:
         """Print a helpful description of this IFASuggestion."""
-        num_candidates = sum(
-            len(cfg["protected_values_multipliers"])
-            for cfg in self._prvc.values()
-        )
+        details = self.details
         candidates_explanation = ""
-        for candidate in self._ranking:
+        for candidate in details["top_values"]:
             candidates_explanation += f"\n    - Column name: {candidate['feature']}, value: {candidate['value']}"
-        if self._user_set_mdc:
-            candidates_explanation += (f"\n\nIn total, we identified {num_candidates} values that may be lost "
-                                       "during data distillation.")
+        if self.can_apply:
+            candidates_explanation += (f"\n\nIn total, we identified {details['num_values']} values that may be "
+                                       "lost during data distillation.")
         header = "Rare Value Preservation"
         body = (
             "Here are some values in your data that may be good candidates for Rare Value Preservation:\n"
@@ -284,7 +480,7 @@ class PRVSuggestion(IFASuggestion):
         # Only suggest this option if the user actually set the `max_distilled_cases` value,
         # otherwise the computed multipliers may be very incorrect and should only be used
         # as examples.
-        if self._user_set_mdc:
+        if self.can_apply:
             rows.append((
                 "Apply suggestion to this feature attributes object",
                 "Save the suggested candidate `preserve_rare_values_config` "
@@ -338,9 +534,44 @@ class PRVSuggestion(IFASuggestion):
     @property
     def summary(self) -> str:
         """A one-line statement of the rare values found."""
-        num_values = sum(len(cfg["protected_values_multipliers"]) for cfg in self._prvc.values())
-        return (f"Found {_count(num_values, 'rare value')} across {_count(len(self._prvc), 'column')} "
+        details = self.details
+        return (f"Found {_count(details['num_values'], 'rare value')} across "
+                f"{_count(details['num_features'], 'column')} "
                 "whose signal may be lost during data distillation workflows")
+
+    @property
+    def can_apply(self) -> bool:
+        """Whether the multipliers can be applied, which requires a user-provided ``max_distilled_cases``."""
+        return self._user_set_mdc
+
+    @property
+    def caveats(self) -> list[SuggestionCaveat]:
+        """A caveat when the multipliers were computed from a default ``max_distilled_cases``."""
+        if self._user_set_mdc:
+            return []
+        return [{"code": DEFAULT_MAX_DISTILLED_CASES_CAVEAT, "message": _DEFAULT_MAX_DISTILLED_CASES_MESSAGE}]
+
+    @property
+    def details(self) -> dict[str, Any]:
+        """
+        The rare values found.
+
+        Contains ``num_values``, ``num_features`` and ``top_values``, the most frequent
+        candidates as dicts of ``feature``, ``value`` and ``count``, most frequent first.
+        """
+        return {
+            "num_values": sum(len(cfg["protected_values_multipliers"]) for cfg in self._prvc.values()),
+            "num_features": len(self._prvc),
+            "top_values": [dict(candidate) for candidate in self._ranking],
+        }
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        """The suggested ``preserve_rare_values_config`` and the matching ``preserve_rare_values_map``."""
+        return {
+            "preserve_rare_values_config": self._prvc,
+            "preserve_rare_values_map": self._values_map(),
+        }
 
     def _warn_default_max_distilled_cases(self, addendum: str = "", stack_level: int = 4) -> None:
         """
@@ -356,13 +587,7 @@ class PRVSuggestion(IFASuggestion):
             warning to the caller of `apply_suggestion()`; methods a user calls directly pass 3.
         """
         warnings.warn(
-            "The computed case weights for rare value multipliers are likely inaccurate as "
-            "`max_distilled_cases` was not provided to `infer_feature_attributes`. Please provide "
-            "this parameter or be aware that the case weight multipliers were computed based on a "
-            "default `max_distilled_cases` value of 50,000. "
-            "An accurate `max_distilled_cases` enables Howso to correctly weight the influence of rare "
-            "values in the data, since the weighting is calibrated proportionally to the number of cases "
-            "remaining after distillation." + addendum,
+            _DEFAULT_MAX_DISTILLED_CASES_MESSAGE + addendum,
             UserWarning,
             stacklevel=stack_level,
         )
@@ -388,11 +613,14 @@ class PRVSuggestion(IFASuggestion):
         """Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes."""
         if not self._user_set_mdc:
             self._warn_default_max_distilled_cases(stack_level=3)
-        values_map = {}
-        for feature, config in self._prvc.items():
-            multipliers = config["protected_values_multipliers"]
-            values_map[feature] = [value_config["value"] for value_config in multipliers]
-        return values_map
+        return self._values_map()
+
+    def _values_map(self) -> PreserveRareValuesMap:
+        """Get the protected values of each feature, without warning."""
+        return {
+            feature: [value_config["value"] for value_config in config["protected_values_multipliers"]]
+            for feature, config in self._prvc.items()
+        }
 
     def merge(self, other: IFASuggestion) -> None:
         """Merge another PRVSuggestion into this one if there are no conflicts."""
@@ -404,6 +632,11 @@ class PRVSuggestion(IFASuggestion):
             elif self._prvc[feature] != config:
                 raise ValueError("Cannot merge `preserve_rare_value_config` objects as they share features with "
                                     "differing configurations.")
+        ranking = list(self._ranking)
+        for candidate in other._ranking:
+            if not any(c["feature"] == candidate["feature"] and c["value"] == candidate["value"] for c in ranking):
+                ranking.append(candidate)
+        self._ranking = sorted(ranking, key=lambda c: c["count"], reverse=True)[:_MAX_RANKED_VALUES]
 
 
 class IFASuggestionCollector:
@@ -488,6 +721,44 @@ class IFASuggestionCollector:
         lines = self.summary_lines()
         if lines:
             print_status(*lines, console=console)
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Get a machine-readable representation of all collected suggestions.
+
+        This never prints or warns. Values are Python objects, e.g., rare values keep their
+        original type; use :meth:`to_json` for a JSON string.
+
+        Returns
+        -------
+        dict
+            A dict with ``schema_version`` (:data:`SUGGESTIONS_SCHEMA_VERSION`) and
+            ``suggestions``, a list of :meth:`IFASuggestion.to_dict` results.
+        """
+        return {
+            "schema_version": SUGGESTIONS_SCHEMA_VERSION,
+            "suggestions": [suggestion.to_dict() for suggestion in self._suggestions.values()],
+        }
+
+    def to_json(self, **kwargs: Any) -> str:
+        """
+        Get a JSON string of :meth:`to_dict`.
+
+        Numpy scalars and arrays become native JSON values, dates and times become ISO 8601
+        strings, and any other value JSON cannot represent becomes its ``str()``.
+
+        Parameters
+        ----------
+        **kwargs
+            Keyword arguments passed through to :func:`json.dumps`, such as ``indent``.
+
+        Returns
+        -------
+        str
+            The JSON representation of the collected suggestions.
+        """
+        kwargs.setdefault("default", _json_default)
+        return json.dumps(self.to_dict(), **kwargs)
 
     def append(self, suggestion: IFASuggestion) -> None:
         """Append a new IFASuggestion to this collector."""
