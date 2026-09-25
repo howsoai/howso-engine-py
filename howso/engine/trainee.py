@@ -689,12 +689,12 @@ class Trainee(BaseTrainee):
         Returns
         -------
         str
-            The string reresentation of the random state in base64.
+            The string representation of the random state in base64.
         """
         if isinstance(self.client, AbstractHowsoClient):
             return self.client.get_random_state(trainee_id=self.id)
         else:
-            raise AssertionError("Client must have 'get_random_seed' method")
+            raise AssertionError("Client must have 'get_random_state' method")
 
     def set_random_seed(self, seed: float | str) -> None:
         """
