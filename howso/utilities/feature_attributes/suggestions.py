@@ -29,7 +29,7 @@ _MAX_EXAMPLE_COLUMNS = 3
 
 
 class FanoutFeatureGroup(TypedDict):
-    """A JSON-friendly fan-out configuration for one set of key features."""
+    """A JSON-friendly fan-out configuration for compound fanout keys."""
 
     key_features: list[str]
     """The key features whose values select groups of cases sharing the fanned-out values."""
