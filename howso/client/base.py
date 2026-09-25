@@ -550,7 +550,7 @@ class AbstractHowsoClient(ABC):
         ret = self.execute(trainee_id, "get_random_state", "")
 
         if isinstance(ret, dict):
-            return ret.get("state", 0)
+            return ret.get("state", "")
         return ""
 
     @auto_progress("Train")
