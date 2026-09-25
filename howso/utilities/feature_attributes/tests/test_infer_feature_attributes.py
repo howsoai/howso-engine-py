@@ -1390,6 +1390,16 @@ def test_preserve_rare_values(capsys):
     values_map = features.suggestions.preserve_rare_values.get_values_map()
     config = features.suggestions.preserve_rare_values.get_config()
 
+    # The machine-readable parameters match the getters and survive a JSON round trip
+    payload = json.loads(features.suggestions.to_json())
+    prv = next(sug for sug in payload["suggestions"] if sug["name"] == "preserve_rare_values")
+    assert prv["can_apply"] is True
+    assert prv["caveats"] == []
+    assert prv["parameters"]["preserve_rare_values_map"] == values_map
+    assert set(prv["parameters"]["preserve_rare_values_config"]) == set(config)
+    assert prv["details"]["num_features"] == len(config)
+    assert 0 < len(prv["details"]["top_values"]) <= 5
+
     # Supplying the suggested values_map and config to IFA should result in no warnings
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -1425,11 +1435,20 @@ def test_infer_fanout_features(capsys):
     assert "product_id" in features["product_height_cm"].get("fanout_on", [])
 
     fof_map = features.suggestions.fanout_features.get_fanout_feature_map()
+    suggestions_json = features.suggestions.to_json()
 
     # Supplying the suggested fanout_feature_map to IFA
     features = infer_feature_attributes(joined_olist_df, fanout_feature_map=fof_map, max_workers=2, default_time_zone="UTC")
     assert "customer_id" in features["customer_state"].get("fanout_on", [])
     assert "product_id" in features["product_length_cm"].get("fanout_on", [])
+
+    # The JSON form of the suggested map is accepted by IFA and yields the same configuration
+    fanout = next(sug for sug in json.loads(suggestions_json)["suggestions"] if sug["name"] == "fanout_features")
+    list_form = fanout["parameters"]["fanout_feature_map"]
+    list_features = infer_feature_attributes(joined_olist_df, fanout_feature_map=list_form, max_workers=2,
+                                             default_time_zone="UTC")
+    for feature, attributes in features.items():
+        assert list_features[feature].get("fanout_on") == attributes.get("fanout_on")
 
 
 def test_infer_fanout_features_ignores_constant_columns(capsys):

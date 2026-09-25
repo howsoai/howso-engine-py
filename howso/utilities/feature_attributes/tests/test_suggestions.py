@@ -1,10 +1,16 @@
 """Unit tests for IFASuggestion and IFASuggestionCollector."""
+import datetime
+import json
+from pathlib import Path
+
+import numpy as np
 import pytest
 from rich.console import Console
 
 from howso.utilities.feature_attributes.suggestions import (
     FanoutFeaturesSuggestion,
     IFASuggestionCollector,
+    normalize_fanout_feature_map,
     PRVSuggestion,
 )
 
@@ -247,3 +253,193 @@ class TestCollectorSummary:
     def test_print_summary_is_not_a_warning(self, recwarn):
         IFASuggestionCollector([make_fanout({"key_a": ["c1"]})]).print_summary(console=Console(file=None))
         assert not recwarn.list
+
+
+class TestSuggestionToDict:
+
+    def test_fanout_to_dict(self):
+        suggestion = make_fanout({"key_a": ["c1", "c2"], ("k1", "k2"): ["c3"]})
+        result = suggestion.to_dict()
+        groups = [
+            {"key_features": ["key_a"], "fanout_features": ["c1", "c2"]},
+            {"key_features": ["k1", "k2"], "fanout_features": ["c3"]},
+        ]
+        assert result == {
+            "name": "fanout_features",
+            "summary": suggestion.summary,
+            "description": suggestion.description,
+            "can_apply": True,
+            "caveats": [],
+            "details": {"num_key_features": 2, "num_fanout_features": 3, "groups": groups},
+            "parameters": {"fanout_feature_map": groups},
+        }
+
+    def test_prv_to_dict_with_user_set_max_distilled_cases(self):
+        config = _prv_config(a=2, b=1)
+        ranking = [{"feature": "a", "value": "v0", "count": 40}]
+        result = PRVSuggestion(config, ranking, user_set_max_distilled_cases=True).to_dict()
+        assert result["name"] == "preserve_rare_values"
+        assert result["can_apply"] is True
+        assert result["caveats"] == []
+        assert result["details"] == {"num_values": 3, "num_features": 2, "top_values": ranking}
+        assert result["parameters"] == {
+            "preserve_rare_values_config": config,
+            "preserve_rare_values_map": {"a": [0, 1], "b": [0]},
+        }
+
+    def test_prv_to_dict_with_default_max_distilled_cases_reports_caveat_without_warning(self, recwarn):
+        result = PRVSuggestion(_prv_config(a=1), [], user_set_max_distilled_cases=False).to_dict()
+        assert not recwarn.list
+        assert result["can_apply"] is False
+        assert [c["code"] for c in result["caveats"]] == ["default_max_distilled_cases"]
+        assert "max_distilled_cases" in result["caveats"][0]["message"]
+        # The config is still offered so it can be edited and passed back
+        assert result["parameters"]["preserve_rare_values_map"] == {"a": [0]}
+
+    def test_prv_caveat_message_matches_warning(self):
+        suggestion = PRVSuggestion(_prv_config(a=1), [], user_set_max_distilled_cases=False)
+        with pytest.warns(UserWarning) as record:
+            suggestion.get_config()
+        assert str(record[0].message) == suggestion.caveats[0]["message"]
+
+
+class TestPRVRankingMerge:
+
+    def test_merge_combines_rankings_by_count(self):
+        first = PRVSuggestion(_prv_config(a=1), [{"feature": "a", "value": "v0", "count": 10}], True)
+        second = PRVSuggestion(
+            {"b": _prv_config(b=1)["b"]},
+            [{"feature": "b", "value": "v0", "count": 30}],
+            True,
+        )
+        first.merge(second)
+        assert [(c["feature"], c["count"]) for c in first.details["top_values"]] == [("b", 30), ("a", 10)]
+
+    def test_merge_keeps_top_five_without_duplicates(self):
+        ranking = [{"feature": "a", "value": f"v{i}", "count": i} for i in range(4)]
+        first = PRVSuggestion(_prv_config(a=4), list(ranking), True)
+        other_ranking = [{"feature": "b", "value": f"v{i}", "count": 10 + i} for i in range(3)]
+        second = PRVSuggestion({"b": _prv_config(b=3)["b"]}, ranking[:1] + other_ranking, True)
+        first.merge(second)
+        top = first.details["top_values"]
+        assert [c["count"] for c in top] == [12, 11, 10, 3, 2]
+
+
+class TestCollectorToDict:
+
+    def test_empty_collector(self):
+        assert IFASuggestionCollector().to_dict() == {"schema_version": 1, "suggestions": []}
+
+    def test_suggestions_in_insertion_order(self):
+        collector = IFASuggestionCollector([make_prv(_prv_config(a=1)), make_fanout({"key_a": ["c1"]})])
+        names = [s["name"] for s in collector.to_dict()["suggestions"]]
+        assert names == ["preserve_rare_values", "fanout_features"]
+
+    def test_to_json_handles_numpy_and_datetime_values(self):
+        config = {"a": {
+            "protected_values_multipliers": [
+                {"value": np.int64(3), "multiplier": np.float64(1.5)},
+                {"value": datetime.date(2026, 1, 2), "multiplier": 2.0},
+            ],
+            "unprotected_multiplier": 0.9,
+        }}
+        ranking = [{"feature": "a", "value": np.int64(3), "count": np.int64(12)}]
+        collector = IFASuggestionCollector([PRVSuggestion(config, ranking, True)])
+        payload = json.loads(collector.to_json())
+        prv = payload["suggestions"][0]
+        assert prv["parameters"]["preserve_rare_values_map"] == {"a": [3, "2026-01-02"]}
+        assert prv["details"]["top_values"] == [{"feature": "a", "value": 3, "count": 12}]
+
+    def test_to_json_passes_kwargs(self):
+        collector = IFASuggestionCollector([make_fanout({"key_a": ["c1"]})])
+        assert "\n  " in collector.to_json(indent=2)
+
+    def test_to_dict_does_not_print(self, capsys):
+        IFASuggestionCollector([make_fanout({"key_a": ["c1"]})]).to_dict()
+        assert capsys.readouterr().out == ""
+
+
+class TestNormalizeFanoutFeatureMap:
+
+    def test_mapping_passes_through(self):
+        fof_map = {"key_a": ["c1"], ("k1", "k2"): ["c2"]}
+        assert normalize_fanout_feature_map(fof_map) == fof_map
+
+    def test_list_form(self):
+        groups = [
+            {"key_features": ["key_a"], "fanout_features": ["c1"]},
+            {"key_features": ["k1", "k2"], "fanout_features": ["c2", "c3"]},
+        ]
+        assert normalize_fanout_feature_map(groups) == {"key_a": ["c1"], ("k1", "k2"): ["c2", "c3"]}
+
+    def test_list_form_round_trips_through_json(self):
+        fof_map = {"key_a": ["c1", "c2"], ("k1", "k2"): ["c3"]}
+        payload = json.loads(IFASuggestionCollector([make_fanout(fof_map)]).to_json())
+        groups = payload["suggestions"][0]["parameters"]["fanout_feature_map"]
+        assert normalize_fanout_feature_map(groups) == fof_map
+
+    def test_list_form_merges_repeated_keys(self):
+        groups = [
+            {"key_features": ["key_a"], "fanout_features": ["c1"]},
+            {"key_features": "key_a", "fanout_features": ["c1", "c2"]},
+        ]
+        assert normalize_fanout_feature_map(groups) == {"key_a": ["c1", "c2"]}
+
+    @pytest.mark.parametrize("value, error", [
+        ("key_a", TypeError),
+        (5, TypeError),
+        ([{"key_features": ["key_a"]}], ValueError),
+        ([{"key_features": [], "fanout_features": ["c1"]}], ValueError),
+        (["key_a"], ValueError),
+    ])
+    def test_invalid_input(self, value, error):
+        with pytest.raises(error):
+            normalize_fanout_feature_map(value)
+
+
+# ---------------------------------------------------------------------------
+# Rendered output snapshots
+# ---------------------------------------------------------------------------
+
+SNAPSHOT_DIR = Path(__file__).parent / "snapshots" / "suggestions"
+
+
+def _snapshot_prv_config(**features_to_num_values: int) -> dict:
+    return {
+        feature: {
+            "protected_values_multipliers": [
+                {"value": f"{feature}_v{i}", "multiplier": 2.0} for i in range(num)
+            ],
+            "unprotected_multiplier": 0.9,
+        }
+        for feature, num in features_to_num_values.items()
+    }
+
+
+_SNAPSHOT_RANKING = [
+    {"feature": "color", "value": "teal", "count": 812},
+    {"feature": "size", "value": None, "count": 400},
+    {"feature": "color", "value": "mauve", "count": 95},
+]
+
+SNAPSHOT_CASES = {
+    "fanout_single_and_tuple_keys": lambda: FanoutFeaturesSuggestion({
+        "order_id": ["ship_date", "region", "carrier", "warehouse", "zone"],
+        ("store_id", "day"): ["weather"],
+    }),
+    "fanout_many_keys": lambda: FanoutFeaturesSuggestion({f"key_{i}": [f"col_{i}"] for i in range(6)}),
+    "prv_user_set_mdc": lambda: PRVSuggestion(
+        _snapshot_prv_config(color=2, size=1), list(_SNAPSHOT_RANKING), user_set_max_distilled_cases=True),
+    "prv_default_mdc": lambda: PRVSuggestion(
+        _snapshot_prv_config(color=2, size=1), list(_SNAPSHOT_RANKING), user_set_max_distilled_cases=False),
+}
+
+
+@pytest.mark.parametrize("case", SNAPSHOT_CASES)
+@pytest.mark.parametrize("rendering", ["repr", "summary"])
+def test_rendered_output_matches_snapshot(case, rendering):
+    """The console renderings of each suggestion match the stored snapshots exactly."""
+    suggestion = SNAPSHOT_CASES[case]()
+    rendered = repr(suggestion) if rendering == "repr" else suggestion.summary
+    expected = (SNAPSHOT_DIR / f"{case}.{rendering}.txt").read_text()
+    assert rendered + "\n" == expected
