@@ -1,7 +1,6 @@
 """Unit tests for IFASuggestion and IFASuggestionCollector."""
 import datetime
 import json
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -398,13 +397,10 @@ class TestNormalizeFanoutFeatureMap:
 
 
 # ---------------------------------------------------------------------------
-# Rendered output snapshots
+# Rendered output
 # ---------------------------------------------------------------------------
 
-SNAPSHOT_DIR = Path(__file__).parent / "snapshots" / "suggestions"
-
-
-def _snapshot_prv_config(**features_to_num_values: int) -> dict:
+def _rendering_prv_config(**features_to_num_values: int) -> dict:
     return {
         feature: {
             "protected_values_multipliers": [
@@ -416,30 +412,194 @@ def _snapshot_prv_config(**features_to_num_values: int) -> dict:
     }
 
 
-_SNAPSHOT_RANKING = [
+_RENDERING_RANKING = [
     {"feature": "color", "value": "teal", "count": 812},
     {"feature": "size", "value": None, "count": 400},
     {"feature": "color", "value": "mauve", "count": 95},
 ]
 
-SNAPSHOT_CASES = {
+RENDERING_CASES = {
     "fanout_single_and_tuple_keys": lambda: FanoutFeaturesSuggestion({
         "order_id": ["ship_date", "region", "carrier", "warehouse", "zone"],
         ("store_id", "day"): ["weather"],
     }),
     "fanout_many_keys": lambda: FanoutFeaturesSuggestion({f"key_{i}": [f"col_{i}"] for i in range(6)}),
     "prv_user_set_mdc": lambda: PRVSuggestion(
-        _snapshot_prv_config(color=2, size=1), list(_SNAPSHOT_RANKING), user_set_max_distilled_cases=True),
+        _rendering_prv_config(color=2, size=1), list(_RENDERING_RANKING), user_set_max_distilled_cases=True),
     "prv_default_mdc": lambda: PRVSuggestion(
-        _snapshot_prv_config(color=2, size=1), list(_SNAPSHOT_RANKING), user_set_max_distilled_cases=False),
+        _rendering_prv_config(color=2, size=1), list(_RENDERING_RANKING), user_set_max_distilled_cases=False),
 }
 
 
-@pytest.mark.parametrize("case", SNAPSHOT_CASES)
-@pytest.mark.parametrize("rendering", ["repr", "summary"])
-def test_rendered_output_matches_snapshot(case, rendering):
-    """The console renderings of each suggestion match the stored snapshots exactly."""
-    suggestion = SNAPSHOT_CASES[case]()
-    rendered = repr(suggestion) if rendering == "repr" else suggestion.summary
-    expected = (SNAPSHOT_DIR / f"{case}.{rendering}.txt").read_text()
-    assert rendered + "\n" == expected
+# Trailing whitespace is omitted; rendered lines are compared with it stripped.
+EXPECTED_REPR = {
+    "fanout_single_and_tuple_keys": """\
+Fan-out Features
+
+We have detected 2 key(s) that should be considered as fan-out features. Fan-out features are columns that have repeated
+values across multiple rows based on a single observation. Informing the Howso Engine of fan-out features via your
+feature attributes will help it measure uncertainty more accurately.
+
+        To read more about fan-out features, please see:
+\thttps://docs.howso.com/en/latest/user_guide/advanced_capabilities/fanout_features.html
+
+Examples In Your Data:
+----------------------
+  - Columns `ship_date`, `region`, `carrier`, and 2 more have repeated values derived from observations in `order_id`
+  - Columns `weather` have repeated values derived from observations in `('store_id', 'day')`
+
+
+                                              Summary of Available Options
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Action                     ┃ Details                                    ┃ Relevant Code                              ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Get a reusable             │ You may provide `fanout_feature_map` as    │ From this suggestion object call:          │
+│ `fanout_feature_map`       │ a parameter to                             │ `get_fanout_feature_map()`                 │
+│                            │ `infer_feature_attributes` if you wish     │                                            │
+│                            │ to adjust the fan-out feature              │                                            │
+│                            │ configuration. Our detected fan-out        │                                            │
+│                            │ feature configuration may be a good        │                                            │
+│                            │ starting point.                            │                                            │
+├────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────────┤
+│ Apply suggestion to this   │ Save the suggested candidate               │ Call `apply_suggestion()` on the feature   │
+│ feature attributes         │ `fanout_feature_map` to this feature       │ attributes object:                         │
+│ object                     │ attributes object.                         │ `apply_suggestion("fanout_features")`      │
+└────────────────────────────┴────────────────────────────────────────────┴────────────────────────────────────────────┘
+""",
+    "fanout_many_keys": """\
+Fan-out Features
+
+We have detected 6 key(s) that should be considered as fan-out features. Fan-out features are columns that have repeated
+values across multiple rows based on a single observation. Informing the Howso Engine of fan-out features via your
+feature attributes will help it measure uncertainty more accurately.
+
+        To read more about fan-out features, please see:
+\thttps://docs.howso.com/en/latest/user_guide/advanced_capabilities/fanout_features.html
+
+Examples In Your Data:
+----------------------
+  - Columns `col_0` have repeated values derived from observations in `key_0`
+  - Columns `col_1` have repeated values derived from observations in `key_1`
+  - Columns `col_2` have repeated values derived from observations in `key_2`
+  - Columns `col_3` have repeated values derived from observations in `key_3`
+  - ...and 2 more keys
+
+
+                                              Summary of Available Options
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Action                     ┃ Details                                    ┃ Relevant Code                              ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Get a reusable             │ You may provide `fanout_feature_map` as    │ From this suggestion object call:          │
+│ `fanout_feature_map`       │ a parameter to                             │ `get_fanout_feature_map()`                 │
+│                            │ `infer_feature_attributes` if you wish     │                                            │
+│                            │ to adjust the fan-out feature              │                                            │
+│                            │ configuration. Our detected fan-out        │                                            │
+│                            │ feature configuration may be a good        │                                            │
+│                            │ starting point.                            │                                            │
+├────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────────┤
+│ Apply suggestion to this   │ Save the suggested candidate               │ Call `apply_suggestion()` on the feature   │
+│ feature attributes         │ `fanout_feature_map` to this feature       │ attributes object:                         │
+│ object                     │ attributes object.                         │ `apply_suggestion("fanout_features")`      │
+└────────────────────────────┴────────────────────────────────────────────┴────────────────────────────────────────────┘
+""",
+    "prv_user_set_mdc": """\
+Rare Value Preservation
+
+Here are some values in your data that may be good candidates for Rare Value Preservation:
+
+    - Column name: color, value: teal
+    - Column name: size, value: None
+    - Column name: color, value: mauve
+
+In total, we identified 3 values that may be lost during data distillation.
+
+During data distillation workflows, nominal values with weak but detectable signals may be filtered out. To account for
+this, you may provide to `infer_feature_attributes` a `preserve_rare_values_map` detailing rare values to protect
+automatically, or a full `preserve_rare_values_config` with fine-grained case weight adjustments. Additionally, you may
+apply our suggested configuration for all detected possible rare values to this feature attributes object. Applying Rare
+Value Preservation may increase the influence of rare values on the aggregate signal of the dataset. This is the
+intended effect to help preserve the signal of rare values that would otherwise be lost during distillation.
+
+                                              Summary of Available Options
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Action                        ┃ Details                                  ┃ Relevant Code                             ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Apply suggestion to this      │ Save the suggested candidate             │ Call `apply_suggestion()` on the feature  │
+│ feature attributes            │ `preserve_rare_values_config` to this    │ attributes object:                        │
+│ object                        │ feature attributes object.               │ `apply_suggestion("preserve_rare_values"… │
+├───────────────────────────────┼──────────────────────────────────────────┼───────────────────────────────────────────┤
+│ Get a reusable                │ You may provide a pre-computed           │ From this suggestion object call:         │
+│ `preserve_rare_values_config` │ `preserve_rare_values_config` as a       │ `get_config()`                            │
+│                               │ parameter to `infer_feature_attributes`  │                                           │
+│                               │ if you wish to make adjustments to the   │                                           │
+│                               │ case weight multipliers.                 │                                           │
+├───────────────────────────────┼──────────────────────────────────────────┼───────────────────────────────────────────┤
+│ Edit the preserved rare       │ The rare values to be preserved can be   │ From this suggestion object call:         │
+│ values with a                 │ detailed via the                         │ `get_values_map()`                        │
+│ `preserve_rare_values_map`    │ `preserve_rare_values_map` parameter to  │                                           │
+│                               │ `infer_feature_attributes`. A good       │                                           │
+│                               │ starting point may be the "full" map of  │                                           │
+│                               │ all candidate values. All case weight    │                                           │
+│                               │ multipliers will be automatically        │                                           │
+│                               │ configured for the provided values.      │                                           │
+└───────────────────────────────┴──────────────────────────────────────────┴───────────────────────────────────────────┘
+""",
+    "prv_default_mdc": """\
+Rare Value Preservation
+
+Here are some values in your data that may be good candidates for Rare Value Preservation:
+
+    - Column name: color, value: teal
+    - Column name: size, value: None
+    - Column name: color, value: mauve
+
+During data distillation workflows, nominal values with weak but detectable signals may be filtered out. To account for
+this, you may provide to `infer_feature_attributes` a `preserve_rare_values_map` detailing rare values to protect
+automatically, or a full `preserve_rare_values_config` with fine-grained case weight adjustments. Additionally, you may
+apply our suggested configuration for all detected possible rare values to this feature attributes object. Applying Rare
+Value Preservation may increase the influence of rare values on the aggregate signal of the dataset. This is the
+intended effect to help preserve the signal of rare values that would otherwise be lost during distillation.
+
+                                              Summary of Available Options
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Action                        ┃ Details                                  ┃ Relevant Code                             ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Get a reusable                │ You may provide a pre-computed           │ From this suggestion object call:         │
+│ `preserve_rare_values_config` │ `preserve_rare_values_config` as a       │ `get_config()`                            │
+│                               │ parameter to `infer_feature_attributes`  │                                           │
+│                               │ if you wish to make adjustments to the   │                                           │
+│                               │ case weight multipliers.                 │                                           │
+├───────────────────────────────┼──────────────────────────────────────────┼───────────────────────────────────────────┤
+│ Edit the preserved rare       │ The rare values to be preserved can be   │ From this suggestion object call:         │
+│ values with a                 │ detailed via the                         │ `get_values_map()`                        │
+│ `preserve_rare_values_map`    │ `preserve_rare_values_map` parameter to  │                                           │
+│                               │ `infer_feature_attributes`. A good       │                                           │
+│                               │ starting point may be the "full" map of  │                                           │
+│                               │ all candidate values. All case weight    │                                           │
+│                               │ multipliers will be automatically        │                                           │
+│                               │ configured for the provided values.      │                                           │
+└───────────────────────────────┴──────────────────────────────────────────┴───────────────────────────────────────────┘
+""",
+}
+
+_PRV_SUMMARY = "Found 3 rare values across 2 columns whose signal may be lost during data distillation workflows"
+
+EXPECTED_SUMMARY = {
+    "fanout_single_and_tuple_keys": "Found 6 fan-out features across 2 columns",
+    "fanout_many_keys": "Found 6 fan-out features across 6 columns",
+    "prv_user_set_mdc": _PRV_SUMMARY,
+    "prv_default_mdc": _PRV_SUMMARY,
+}
+
+
+@pytest.mark.parametrize("case", RENDERING_CASES)
+def test_repr_matches_expected(case):
+    """The console rendering of each suggestion matches the expected text line for line."""
+    rendered = [line.rstrip() for line in repr(RENDERING_CASES[case]()).splitlines()]
+    assert rendered == EXPECTED_REPR[case].splitlines()
+
+
+@pytest.mark.parametrize("case", RENDERING_CASES)
+def test_summary_matches_expected(case):
+    """The one-line summary of each suggestion matches the expected text exactly."""
+    assert RENDERING_CASES[case]().summary == EXPECTED_SUMMARY[case]
