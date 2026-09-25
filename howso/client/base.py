@@ -4314,6 +4314,7 @@ class AbstractHowsoClient(ABC):
         familiarity_conviction_addition: bool = False,
         familiarity_conviction_removal: bool = False,
         features: Collection[str] | None = None,
+        filter_fanout_values: bool = False,
         group_id_features: Collection[str] | None = None,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
@@ -4391,6 +4392,10 @@ class AbstractHowsoClient(ABC):
             the specified cases.
         features : Collection of str, optional
             The feature names to consider while calculating convictions.
+        filter_fanout_values : bool, default False
+            When true, predictions of fanout features will be made while
+            holding out other cases that have the same fanned out values
+            duplicated. Only used when predicting the given ``action_features``.
         group_id_features : Collection of str, optional
             List of feature names whose values in the specified cases identify
             trained cases that should be held out of queries. This parameter is ignored if
@@ -4467,6 +4472,7 @@ class AbstractHowsoClient(ABC):
             "familiarity_conviction_addition": familiarity_conviction_addition,
             "familiarity_conviction_removal": familiarity_conviction_removal,
             "features": features,
+            "filter_fanout_values": filter_fanout_values,
             "group_id_features": group_id_features,
             "kl_divergence_addition": kl_divergence_addition,
             "kl_divergence_removal": kl_divergence_removal,
