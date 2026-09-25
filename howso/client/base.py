@@ -356,6 +356,7 @@ class AbstractHowsoClient(ABC):
         overwrite_trainee: bool = False,
         persistence: Persistence = "allow",
         project: str | Project | None = None,
+        random_seed: str | float | None = None,
         resources: Mapping[str, Any] | None = None,
         runtime: TraineeRuntimeOptions | None = None
     ) -> Trainee:
@@ -400,6 +401,8 @@ class AbstractHowsoClient(ABC):
         project : str or Project, optional
             The project to create this Trainee under, if the client
             implementation supports this project.
+        random_seed : str | float, optional
+            The initial random seed to set on the Trainee.
         resources : Mapping, optional
             Customize the resources provisioned for the Trainee instance.
 
@@ -531,6 +534,27 @@ class AbstractHowsoClient(ABC):
             print(f"Setting random seed for Trainee with id: {trainee_id}")
         self.execute(trainee_id, "set_random_seed", {"seed": seed})
         self._auto_persist_trainee(trainee_id)
+
+    def get_random_state(self, trainee_id: str) -> str:
+        """
+        Set the random seed for the Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to set the random seed for.
+        seed : str
+            The random state in base64.
+            Ex: ``"utXR1pU6YQUAAAAAAAAAAP8="``
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        if self.configuration.verbose:
+            print(f"Getting random state for Trainee with id: {trainee_id}")
+        ret = self.execute(trainee_id, "get_random_state", "")
+
+        if isinstance(ret, dict):
+            return ret.get("state", 0)
+        return ""
 
     @auto_progress("Train")
     def train(  # noqa: C901
