@@ -537,15 +537,12 @@ class AbstractHowsoClient(ABC):
 
     def get_random_state(self, trainee_id: str) -> str:
         """
-        Set the random seed for the Trainee.
+        Get the random state for the Trainee.
 
         Parameters
         ----------
         trainee_id : str
-            The ID of the Trainee to set the random seed for.
-        seed : str
-            The random state in base64.
-            Ex: ``"utXR1pU6YQUAAAAAAAAAAP8="``
+            The ID of the Trainee to get the random state for.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
