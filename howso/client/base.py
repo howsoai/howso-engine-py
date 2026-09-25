@@ -543,6 +543,11 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to get the random state for.
+
+        Returns
+        -------
+        str
+            The string representation of the random state in base64.
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
