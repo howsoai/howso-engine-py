@@ -356,6 +356,7 @@ class AbstractHowsoClient(ABC):
         overwrite_trainee: bool = False,
         persistence: Persistence = "allow",
         project: str | Project | None = None,
+        random_seed: str | int | None = None,
         resources: Mapping[str, Any] | None = None,
         runtime: TraineeRuntimeOptions | None = None
     ) -> Trainee:
@@ -400,6 +401,8 @@ class AbstractHowsoClient(ABC):
         project : str or Project, optional
             The project to create this Trainee under, if the client
             implementation supports this project.
+        random_seed : str | int, optional
+            The initial random seed to set on the Trainee.
         resources : Mapping, optional
             Customize the resources provisioned for the Trainee instance.
 
@@ -514,7 +517,7 @@ class AbstractHowsoClient(ABC):
     def update_session(self, session_id: str, *, metadata: Mapping | None = None) -> Session:
         """Update a session."""
 
-    def set_random_seed(self, trainee_id: str, seed: int | float | str):
+    def set_random_seed(self, trainee_id: str, seed: str | int):
         """
         Set the random seed for the Trainee.
 
@@ -522,7 +525,7 @@ class AbstractHowsoClient(ABC):
         ----------
         trainee_id : str
             The ID of the Trainee to set the random seed for.
-        seed : int or float or str
+        seed : str or int
             The random seed.
             Ex: ``7998``, ``"myrandomseed"``
         """
@@ -531,6 +534,29 @@ class AbstractHowsoClient(ABC):
             print(f"Setting random seed for Trainee with id: {trainee_id}")
         self.execute(trainee_id, "set_random_seed", {"seed": seed})
         self._auto_persist_trainee(trainee_id)
+
+    def get_random_state(self, trainee_id: str) -> str:
+        """
+        Get the random state for the Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The ID of the Trainee to get the random state for.
+
+        Returns
+        -------
+        str
+            The string representation of the random state in base64.
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        if self.configuration.verbose:
+            print(f"Getting random state for Trainee with id: {trainee_id}")
+        ret = self.execute(trainee_id, "get_random_state", "")
+
+        if isinstance(ret, dict):
+            return ret.get("state", "")
+        return ""
 
     @auto_progress("Train")
     def train(  # noqa: C901
