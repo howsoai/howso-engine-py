@@ -113,7 +113,7 @@ class Trainee(BaseTrainee):
         The instance or id of the project to use for the trainee.
     metadata : dict, optional
         Any key-value pair to store as custom metadata for the trainee.
-    random_seed : str or float, optional
+    random_seed : str or int, optional
         The initial random seed to set on the Trainee.
     resources : map, optional
         Customize the resources provisioned for the Trainee instance.
@@ -141,7 +141,7 @@ class Trainee(BaseTrainee):
         overwrite_existing: bool = False,
         persistence: Persistence = "allow",
         project: str | BaseProject | None = None,
-        random_seed: str | float | None = None,
+        random_seed: str | int | None = None,
         resources: Mapping[str, Any] | None = None,
         runtime: TraineeRuntimeOptions | None = None,
     ):
@@ -696,13 +696,13 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have 'get_random_state' method")
 
-    def set_random_seed(self, seed: float | str) -> None:
+    def set_random_seed(self, seed: str | int) -> None:
         """
         Set the random seed for the trainee.
 
         Parameters
         ----------
-        seed : int or float or str
+        seed : str or int
             The random seed.
         """
         if isinstance(self.client, AbstractHowsoClient):
@@ -4609,7 +4609,7 @@ class Trainee(BaseTrainee):
         self, *,
         library_type: LibraryType | None = None,
         max_wait_time: int | float | None = None,
-        random_seed: float | str | None = None,
+        random_seed: str | int | None = None,
         resources: Mapping[str, Any] | None = None,
         overwrite: bool = False,
         runtime: TraineeRuntimeOptions | None = None
@@ -4623,7 +4623,7 @@ class Trainee(BaseTrainee):
             The library type of the Trainee.
         max_wait_time : int or float, optional
             The maximum time to wait for the trainee to be created.
-        random_seed : str | float, optional
+        random_seed : str or int, optional
             The initial random seed to set on the Trainee.
         resources : map of str -> any, optional
             The resources to provision for the trainee.

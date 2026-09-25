@@ -884,7 +884,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The requested persistence state of the Trainee.
         project : str or dict, optional
             (Not implemented in this client)
-        random_seed : str or float, optional
+        random_seed : str or int, optional
             The initial random seed to set on the Trainee.
         resources : dict, optional
             (Not implemented in this client)
