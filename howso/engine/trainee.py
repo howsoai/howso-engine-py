@@ -3295,6 +3295,7 @@ class Trainee(BaseTrainee):
         familiarity_conviction_addition: bool = False,
         familiarity_conviction_removal: bool = False,
         features: Collection[str] | None = None,
+        filter_fanout_values: bool = False,
         group_id_features: Collection[str] | None = None,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
@@ -3372,6 +3373,10 @@ class Trainee(BaseTrainee):
             the specified cases.
         features : Collection of str, optional
             A list of feature names to consider while calculating convictions.
+        filter_fanout_values : bool, default False
+            When true, predictions of fanout features will be made while
+            holding out other cases that have the same fanned out values
+            duplicated. Only used when predicting the given ``action_features``.
         group_id_features : Collection of str, optional
             List of feature names whose values in the specified cases identify
             trained cases that should be held out of queries. This parameter is ignored if
@@ -3432,6 +3437,7 @@ class Trainee(BaseTrainee):
                 conditions=conditions,
                 details=details,
                 features=features,
+                filter_fanout_values=filter_fanout_values,
                 group_id_features=group_id_features,
                 distance_contributions=distance_contributions,
                 familiarity_conviction_addition=familiarity_conviction_addition,
