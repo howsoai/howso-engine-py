@@ -506,9 +506,6 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
 
-        # Reset the random seed; make sure we don't reuse a value embedded in howso.caml.
-        self.execute(trainee_id, "set_random_seed", {"seed": get_random_seed()})
-
         self.execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,
             "filepath": str(self._howso_dir) + '/',
@@ -853,6 +850,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         overwrite_trainee: bool = False,
         persistence: Persistence = "allow",
         project: t.Optional[str | Project] = None,
+        random_seed: str | float | None = None,
         resources: t.Optional[Mapping[str, t.Any]] = None,
         runtime: t.Optional[TraineeRuntimeOptions] = None,
     ) -> Trainee:
@@ -886,6 +884,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             The requested persistence state of the Trainee.
         project : str or dict, optional
             (Not implemented in this client)
+        random_seed : str or int, optional
+            The initial random seed to set on the Trainee.
         resources : dict, optional
             (Not implemented in this client)
 
@@ -964,6 +964,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             self._initialize_transactional_trainee(trainee_id)
         else:
             self._initialize_trainee(trainee_id)
+
+        # Set the random seed; make sure we don't reuse a value embedded in howso.caml.
+        self.execute(trainee_id, "set_random_seed", {"seed": random_seed or get_random_seed()})
 
         # Store the metadata
         trainee_metadata = dict(

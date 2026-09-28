@@ -23,7 +23,7 @@ from howso.utilities.feature_attributes.base import (
 )
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
 from howso.utilities.feature_attributes.protocols import IFACompatibleADCProtocol
-from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
+from howso.utilities.feature_attributes.suggestions import FanoutFeaturesInput, IFASuggestionCollector
 from howso.utilities.feature_attributes.warnings import IFAWarningCollector
 from howso.utilities.utilities import (
     date_to_epoch,
@@ -371,7 +371,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         dependent_features: t.Optional[dict] = None,
         derived_orders: t.Optional[dict] = None,
         enable_suggestions: bool = True,
-        fanout_feature_map: t.Optional[dict[str | tuple[str], list[str]]] = None,
+        fanout_feature_map: t.Optional[FanoutFeaturesInput] = None,
         id_feature_name: t.Optional[str | Iterable[str]] = None,
         include_extended_nominal_probabilities: t.Optional[bool] = False,
         include_sample: bool = False,
@@ -499,10 +499,12 @@ class InferFeatureAttributesTimeSeries(ABC):
             to 2 will synthesize the 3rd order derivative value, and then use
             that synthed value to derive the 2nd and 1st order.
 
-        fanout_feature_map : dict of str or tuple of str to list of str, optional
+        fanout_feature_map : dict of str or tuple of str to list of str, or list of dict, optional
             (Optional) Dict mapping "key" feature names or tuples of "key" feature names to list of "fanout" feature
             names. Fanout features are features with values fanned out across multiple cases. Key features are features
             whose values can be used to select groups of cases that have the same duplicated fanout values.
+            May also be a list of dicts, each with a ``key_features`` list and a ``fanout_features`` list, as
+            found under ``parameters`` in the output of ``suggestions.to_dict()``.
 
         id_feature_name : str or list of str default None
             (Optional) The name(s) of the ID feature(s).
