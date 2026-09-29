@@ -912,6 +912,7 @@ class Trainee(BaseTrainee):
         exact_prediction_features: Collection[str] | None = None,
         influence_weight_entropy_sample_size: int = 2_000,
         max_num_cases: int = 200_000,
+        min_case_weight: float = 0.05,
         min_num_cases: int = 10_000,
         reduce_max_cases: int = 50_000,
         rel_threshold_map: AblationThresholdMap | None = None,
@@ -964,6 +965,9 @@ class Trainee(BaseTrainee):
             For each of the features specified, will ablate a case if the prediction matches exactly.
         max_num_cases: int, default 200,000
             The threshold of the maximum number of cases at which the model should auto-reduce
+        min_case_weight : float, default 0.05
+            The minimum weight a case must hold to be kept in the Trainee. Cases with a weight
+            less than this threshold will be removed when data reduction is triggered.
         min_num_cases : int, default 10,000
             The threshold ofr the minimum number of cases at which the model should auto-ablate. This is also
             the minimum number of cases that may remain after data reduction.
@@ -1003,6 +1007,7 @@ class Trainee(BaseTrainee):
                 exact_prediction_features=exact_prediction_features,
                 influence_weight_entropy_sample_size=influence_weight_entropy_sample_size,
                 max_num_cases=max_num_cases,
+                min_case_weight=min_case_weight,
                 min_num_cases=min_num_cases,
                 reduce_max_cases=reduce_max_cases,
                 rel_threshold_map=rel_threshold_map,
@@ -2722,6 +2727,64 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'edit_cases' method.")
 
+    def adjust_case_weights(
+        self,
+        factor: float,
+        *,
+        case_indices: CaseIndices | None = None,
+        condition: Mapping[str, Any] | None = None,
+        weight_feature: str | None = None,
+    ) -> None:
+        """
+        Multiply the weights of the specified cases by a factor.
+
+        If neither ``case_indices`` nor ``condition`` is specified, the weights
+        of all cases are adjusted. Cases without a value for the weight feature
+        are initialized with a weight of 1 before being adjusted.
+
+        Parameters
+        ----------
+        factor : float
+            The factor to multiply the specified cases' weights by.
+        case_indices : CaseIndices or Sequence of (str, int), optional
+            An iterable of Sequences containing the session id and index, where
+            index is the original 0-based index of the case as it was trained
+            into the session. This explicitly specifies the cases to adjust.
+            May not be specified with ``condition``.
+        condition : map of str -> object, optional
+            A condition map to select which cases to adjust. May not be
+            specified with ``case_indices``.
+
+            .. NOTE::
+                The dictionary keys are feature names and values are one of:
+
+                    - None, must be missing a value
+                    - A value, must match exactly.
+                    - An array of two numeric values (or formatted datetimes),
+                      specifying an inclusive range. Only applicable to
+                      continuous and numeric ordinal features. Either the lower
+                      bound or upper bound can be None to express an open bound.
+                      If both bounds are None, then all cases with non-missing
+                      values are selected.
+                    - An array of string values, must match any of these values
+                      exactly. Only applicable to nominal and string ordinal
+                      features.
+
+        weight_feature : str, optional
+            The name of the weight feature whose values should be adjusted.
+            Defaults to ".case_weight".
+        """
+        if isinstance(self.client, AbstractHowsoClient) and hasattr(self.client, "adjust_case_weights"):
+            self.client.adjust_case_weights(
+                trainee_id=self.id,
+                factor=factor,
+                case_indices=case_indices,
+                condition=condition,
+                weight_feature=weight_feature,
+            )
+        else:
+            raise AssertionError("Client must have the 'adjust_case_weights' method.")
+
     def get_sessions(self) -> list[dict[str, str]]:
         """
         Get all session ids of the trainee.
@@ -3313,6 +3376,7 @@ class Trainee(BaseTrainee):
         familiarity_conviction_addition: bool = False,
         familiarity_conviction_removal: bool = False,
         features: Collection[str] | None = None,
+        filter_fanout_values: bool = False,
         group_id_features: Collection[str] | None = None,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
@@ -3390,6 +3454,10 @@ class Trainee(BaseTrainee):
             the specified cases.
         features : Collection of str, optional
             A list of feature names to consider while calculating convictions.
+        filter_fanout_values : bool, default False
+            When true, predictions of fanout features will be made while
+            holding out other cases that have the same fanned out values
+            duplicated. Only used when predicting the given ``action_features``.
         group_id_features : Collection of str, optional
             List of feature names whose values in the specified cases identify
             trained cases that should be held out of queries. This parameter is ignored if
@@ -3450,6 +3518,7 @@ class Trainee(BaseTrainee):
                 conditions=conditions,
                 details=details,
                 features=features,
+                filter_fanout_values=filter_fanout_values,
                 group_id_features=group_id_features,
                 distance_contributions=distance_contributions,
                 familiarity_conviction_addition=familiarity_conviction_addition,
