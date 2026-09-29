@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import MutableMapping, Mapping, Sequence, Iterator
+from itertools import chain, pairwise
 from pprint import pformat
 from typing import Any, cast, Literal, Optional, overload, TypeAlias, TypedDict
 
+import numpy as np
 import pandas as pd
 
 from howso.utilities import deserialize_cases, format_column, format_dataframe, HowsoTokenizer, TokenizerProtocol
@@ -381,11 +383,42 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         """
         formatted_details = {}
 
-        def _convert(detail_name, detail: Any) -> Any:
+        def _format_case_lists(cases: list[list[dict]]) -> list[pd.DataFrame] | None:
+            """
+            Format a list of per-case lists of dicts into a list of DataFrames using a single formatting pass.
+
+            All cases are concatenated into one DataFrame, formatted once, then sliced back into one
+            DataFrame per case. This also guarantees consistent column dtypes across cases, which per-case
+            inference does not. Returns None if the cases cannot be batched (i.e., their dicts do not all
+            share the same keys), in which case the caller should fall back to per-case formatting.
+            """
+            flat = list(chain.from_iterable(cases))
+            if not flat:
+                return [pd.DataFrame() for _ in cases]
+            if not all(isinstance(row, dict) for row in flat):
+                return None
+            first_keys = flat[0].keys()
+            if not all(row.keys() == first_keys for row in flat):
+                return None
+            df = format_dataframe(pd.DataFrame(flat), features=feature_attributes, tokenizer=tokenizer)
+            bounds = np.cumsum([0, *(len(case) for case in cases)])
+            return [
+                df.iloc[start:stop].reset_index(drop=True) if stop > start else pd.DataFrame()
+                for start, stop in pairwise(bounds)
+            ]
+
+        def _convert(detail_name, detail: Any) -> Any:  # noqa: PLR0911
             """Recursively format and deserialize details."""
             # If the detail is not a list, return as-is
             if not isinstance(detail, list):
                 return detail
+            # Special case: a list of per-case lists of dicts that need deserializing. Format all cases at
+            # once in a single DataFrame rather than one tiny DataFrame per case; the per-DataFrame overhead
+            # of pandas dominates otherwise.
+            elif detail_name in DETAILS_WITH_CASE_DATA and detail and all(isinstance(v, list) for v in detail):
+                batched = _format_case_lists(detail)
+                if batched is not None:
+                    return batched
             # List of dict --> DataFrame
             elif all(isinstance(v, dict) for v in detail):
                 # Special case: categorical action probabilities
