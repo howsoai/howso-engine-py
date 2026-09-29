@@ -580,7 +580,12 @@ FeatureAttributesIndex: TypeAlias = MutableMapping[str, FeatureAttributes]
 """Feature name to feature attribute configuration."""
 
 CaseIndices: TypeAlias = Sequence[tuple[str, int]]
-"""Sequence of ``case_indices`` tuples."""
+"""
+Sequence of ``case_indices`` tuples.
+
+Where each tuple holds the session ID as a string and
+the integer training index of the case being identified.
+"""
 
 GenerateNewCases: TypeAlias = Literal["always", "attempt", "no"]
 """Valid values for ``generate_new_cases`` parameters."""
