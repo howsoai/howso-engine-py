@@ -2774,7 +2774,7 @@ class Trainee(BaseTrainee):
             The name of the weight feature whose values should be adjusted.
             Defaults to ".case_weight".
         """
-        if hasattr(self.client, "adjust_case_weights"):
+        if isinstance(self.client, AbstractHowsoClient) and hasattr(self.client, "adjust_case_weights"):
             self.client.adjust_case_weights(
                 trainee_id=self.id,
                 factor=factor,
