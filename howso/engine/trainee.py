@@ -2746,7 +2746,7 @@ class Trainee(BaseTrainee):
         ----------
         factor : float
             The factor to multiply the specified cases' weights by.
-        case_indices : Sequence of (str, int), optional
+        case_indices : CaseIndices or Sequence of (str, int), optional
             An iterable of Sequences containing the session id and index, where
             index is the original 0-based index of the case as it was trained
             into the session. This explicitly specifies the cases to adjust.
@@ -2774,7 +2774,7 @@ class Trainee(BaseTrainee):
             The name of the weight feature whose values should be adjusted.
             Defaults to ".case_weight".
         """
-        if isinstance(self.client, AbstractHowsoClient):
+        if hasattr(self.client, "adjust_case_weights"):
             self.client.adjust_case_weights(
                 trainee_id=self.id,
                 factor=factor,

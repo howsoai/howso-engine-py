@@ -1296,7 +1296,7 @@ class AbstractHowsoClient(ABC):
             The ID of the Trainee to adjust the case weights of.
         factor : float
             The factor to multiply the specified cases' weights by.
-        case_indices : Sequence of tuple of {str, int}, optional
+        case_indices : CaseIndices or Sequence of tuple of {str, int}, optional
             Sequence of tuples containing the session id and index, where index
             is the original 0-based index of the case as it was trained into
             the session. This explicitly specifies the cases to adjust. May
