@@ -85,6 +85,7 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
+        self._validate_preserve_rare_values_map(kwargs.get("preserve_rare_values_map"))
         max_workers = kwargs.pop("max_workers", None)
         # The default with be to not use multiprocessing if the product of rows
         # and columns is less than 25M.

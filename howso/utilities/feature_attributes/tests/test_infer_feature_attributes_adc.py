@@ -729,7 +729,8 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     convert_data(df, adc)
 
     # Test auto-apply with all values
-    with pytest.warns(UserWarning, match="only one feature per dataset is supported"):
+    with (pytest.warns(DeprecationWarning, match='preserve_rare_values_map="all"'),
+          pytest.warns(UserWarning, match="only one feature per dataset is supported")):
         features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]

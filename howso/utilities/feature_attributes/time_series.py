@@ -385,7 +385,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
         ordinal_feature_values: t.Optional[dict[str, list[t.Any]]] = None,
-        preserve_rare_values_map: t.Optional[PreserveRareValuesMap | t.Literal["all", "off"]] = None,
+        preserve_rare_values_map: t.Optional[PreserveRareValuesMap | str] = None,
         preserve_rare_values_config: t.Optional[PreserveRareValuesConfig | FullPreserveRareValuesConfig] = None,
         rate_boundaries: t.Optional[dict] = None,
         significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
@@ -631,15 +631,17 @@ class InferFeatureAttributesTimeSeries(ABC):
             Unprotected values with fewer cases than the significance threshold are listed with
             a multiplier of 1 and left out of the normalization. A "full" config is used as-is.
 
-        preserve_rare_values_map : dict or "all" or "off", default None
+        preserve_rare_values_map : dict or str, default None
             (Optional) A map of feature name to list of values that should be protected during data
-            distillation. If set to "all", will infer and attempt to preserve all detected rare
-            values. If set to "off", rare value preservation is disabled entirely, including its
-            automatic suggestion.
+            distillation, or the name of a single nominal feature to infer and attempt to preserve
+            all of its detected rare values. Naming a feature requires `max_distilled_cases`. If set
+            to "off", rare value preservation is disabled entirely, including its automatic
+            suggestion; "off" is never read as a feature name.
 
-            .. note ::
-                Rare value preservation supports a single feature per dataset; a warning is
-                issued when rare values are configured for more than one feature.
+        .. note ::
+            "all", which infers and attempts to preserve the detected rare values of every
+            feature, is experimental. We recommend naming a single feature instead, of which all
+            rare values will be preserved.
 
         rate_boundaries : dict, default None
             (Optional) For time series, specify the rate boundaries in the form

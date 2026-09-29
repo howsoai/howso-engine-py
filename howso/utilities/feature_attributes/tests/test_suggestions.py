@@ -280,6 +280,15 @@ class TestPRVProtectedValues:
 
 class TestPRVSingleFeature:
 
+    def test_recommended_feature_has_the_most_candidates(self):
+        assert make_prv(_prv_config(a=1, b=3)).recommended_feature == "b"
+
+    def test_recommended_feature_ties_go_to_the_first_name(self):
+        assert make_prv(_prv_config(b=2, a=2)).recommended_feature == "a"
+
+    def test_recommended_feature_without_candidates(self):
+        assert make_prv({}).recommended_feature is None
+
     def test_apply_to_multiple_features_warns(self):
         attributes = {"a": {"type": "nominal"}, "b": {"type": "nominal"}}
         with pytest.warns(UserWarning, match="only one feature per dataset is supported"):
@@ -319,7 +328,8 @@ class TestSuggestionToDict:
         assert result["name"] == "preserve_rare_values"
         assert result["can_apply"] is True
         assert result["caveats"] == []
-        assert result["details"] == {"num_values": 3, "num_features": 2, "top_values": ranking}
+        assert result["details"] == {"num_values": 3, "num_features": 2, "recommended_feature": "a",
+                                     "top_values": ranking}
         assert result["parameters"] == {
             "preserve_rare_values_config": config,
             "preserve_rare_values_map": {"a": [0, 1], "b": [0]},

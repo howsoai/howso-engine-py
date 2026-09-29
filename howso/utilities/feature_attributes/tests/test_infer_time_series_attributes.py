@@ -604,14 +604,13 @@ def test_preserve_rare_values_time_series():
             })
     df = pd.DataFrame(rows)
 
-    # preserve_rare_values_map="all" with max_distilled_cases computes multipliers.
-    # Previously these params raised a TypeError on the time series path.
+    # Naming a feature with max_distilled_cases computes multipliers for its rare values.
     features = infer_feature_attributes(
         df,
         time_feature_name="date",
         id_feature_name="ID",
         max_distilled_cases=500,
-        preserve_rare_values_map="all",
+        preserve_rare_values_map="cat",
         significance_threshold=25,
         enable_suggestions=False,
     )

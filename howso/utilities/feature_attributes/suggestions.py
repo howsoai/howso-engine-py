@@ -496,6 +496,14 @@ class PRVSuggestion(IFASuggestion):
             "Rare value preservation supports a single feature per dataset, so pick the one feature "
             "whose rare values matter most and preserve rare values from that feature only."
         )
+        recommended = details["recommended_feature"]
+        single_feature_note = ""
+        if details["num_features"] > 1:
+            single_feature_note = (
+                f" It lists {details['num_features']} features with rare values, but we recommend only "
+                "providing one one feature as preserving rare values across multiple features is "
+                "experimental and may not function as intended."
+            )
 
         # Pick a target total width and divvy it up
         total_width = 120
@@ -511,11 +519,24 @@ class PRVSuggestion(IFASuggestion):
         # Only suggest this option if the user actually set the `max_distilled_cases` value,
         # otherwise the computed multipliers may be very incorrect and should only be used
         # as examples.
+        rows.append((
+            "Preserve all rare values of one feature",
+            "Pass the name of a single feature as the `preserve_rare_values_map` to preserve every "
+            f"rare value candidate of that feature. `{recommended}` has the most candidates. "
+            "Requires `max_distilled_cases`.",
+            "Call `infer_feature_attributes` with: "
+            f'`preserve_rare_values_map="{recommended}"` and `max_distilled_cases`'
+        ))
+
         if self.can_apply:
             rows.append((
                 "Apply suggestion to this feature attributes object",
                 "Save the suggested candidate `preserve_rare_values_config` "
-                "to this feature attributes object.",
+                "to this feature attributes object." + (
+                    f" This configures all {details['num_features']} features, but only one feature per "
+                    "dataset is recommended."
+                    if details["num_features"] > 1 else ""
+                ),
                 "Call `apply_suggestion()` on the feature attributes object: "
                 '`apply_suggestion("preserve_rare_values")`'
             ))
@@ -525,7 +546,7 @@ class PRVSuggestion(IFASuggestion):
                 "Get a reusable `preserve_rare_values_config`",
                 "You may provide a pre-computed `preserve_rare_values_config` as a parameter to "
                 "`infer_feature_attributes` if you wish to make adjustments to the case weight "
-                "multipliers.",
+                "multipliers." + single_feature_note,
                 "From this suggestion object call: "
                 "`get_config()`"
             ),
@@ -534,7 +555,7 @@ class PRVSuggestion(IFASuggestion):
                 "The rare values to be preserved can be detailed via the `preserve_rare_values_map` "
                 'parameter to `infer_feature_attributes`. A good starting point may be the "full" '
                 "map of all candidate values. All case weight multipliers will be automatically "
-                "configured for the provided values.",
+                "configured for the provided values." + single_feature_note,
                 "From this suggestion object call: "
                 "`get_values_map()`"
             ),
@@ -587,14 +608,28 @@ class PRVSuggestion(IFASuggestion):
         """
         The rare values found.
 
-        Contains ``num_values``, ``num_features`` and ``top_values``, the most frequent
-        candidates as dicts of ``feature``, ``value`` and ``count``, most frequent first.
+        Contains ``num_values``, ``num_features``, ``recommended_feature`` (see
+        :attr:`recommended_feature`) and ``top_values``, the most frequent candidates as dicts
+        of ``feature``, ``value`` and ``count``, most frequent first.
         """
         return {
             "num_values": sum(len(values) for values in self._protected_values.values()),
             "num_features": len(self._prvc),
+            "recommended_feature": self.recommended_feature,
             "top_values": [dict(candidate) for candidate in self._ranking],
         }
+
+    @property
+    def recommended_feature(self) -> str | None:
+        """
+        The feature with the most rare value candidates, or None when there are none.
+
+        Ties go to the feature whose name sorts first. Passing this name as the
+        ``preserve_rare_values_map`` preserves every rare value candidate of the feature.
+        """
+        if not self._protected_values:
+            return None
+        return max(sorted(self._protected_values), key=lambda feature: len(self._protected_values[feature]))
 
     @property
     def parameters(self) -> dict[str, Any]:
@@ -642,13 +677,23 @@ class PRVSuggestion(IFASuggestion):
             warnings.warn(multiple_rare_value_features_message(protected_features), UserWarning, stacklevel=3)
 
     def get_config(self, enable_warnings: bool = True) -> FullPreserveRareValuesConfig:
-        """Get the `preserve_rare_values_config` for use in future calls to `infer_feature_attributes`."""
+        """
+        Get the `preserve_rare_values_config` for use in future calls to `infer_feature_attributes`.
+
+        The config covers every feature with rare value candidates, but only one feature per dataset
+        is supported: keep a single feature before passing it to `infer_feature_attributes`.
+        """
         if not self._user_set_mdc and enable_warnings:
             self._warn_default_max_distilled_cases(stack_level=3)
         return self._prvc
 
     def get_values_map(self) -> PreserveRareValuesMap:
-        """Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes."""
+        """
+        Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes`.
+
+        The map covers every feature with rare value candidates, but only one feature per dataset
+        is supported: keep a single feature before passing it to `infer_feature_attributes`.
+        """
         if not self._user_set_mdc:
             self._warn_default_max_distilled_cases(stack_level=3)
         return self._values_map()

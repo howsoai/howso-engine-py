@@ -1363,7 +1363,8 @@ def test_preserve_rare_values(capsys):
     df = pd.DataFrame(data, columns=features)
 
     # Test auto-apply with all values
-    with pytest.warns(UserWarning, match="only one feature per dataset is supported"):
+    with (pytest.warns(DeprecationWarning, match='preserve_rare_values_map="all"'),
+          pytest.warns(UserWarning, match="only one feature per dataset is supported")):
         features = infer_feature_attributes(df, max_distilled_cases=1563, preserve_rare_values_map="all",
                                             max_workers=2)
     assert "preserve_rare_values" in features["a"]
@@ -1452,7 +1453,7 @@ def _total_weight(df: pd.DataFrame, config: dict) -> float:
 def test_preserve_rare_values_normalized(max_workers, max_distilled_cases):
     """Test that rare value multipliers are normalized so the total case weight is unchanged."""
     df = _rare_values_df()
-    features = infer_feature_attributes(df, max_distilled_cases=max_distilled_cases, preserve_rare_values_map="all",
+    features = infer_feature_attributes(df, max_distilled_cases=max_distilled_cases, preserve_rare_values_map="a",
                                         max_workers=max_workers)
     config = features["a"]["preserve_rare_values"]
     multipliers = {cfg["value"]: cfg["multiplier"] for cfg in config["protected_values_multipliers"]}
@@ -1468,6 +1469,69 @@ def test_preserve_rare_values_normalized(max_workers, max_distilled_cases):
     scale = (len(df) - 20) / (98_980 + 5 * 200 * rare_multiplier)
     assert config["unprotected_multiplier"] == pytest.approx(scale)
     assert multipliers["rare0"] == pytest.approx(rare_multiplier * scale)
+
+
+def _two_rare_features_df() -> pd.DataFrame:
+    """Rare values in features `a`, `b` and the non-nominal `n`, with a column named `off`."""
+    df = _rare_values_df()
+    df["b"] = ["common"] * (len(df) - 200) + ["rare"] * 200
+    df["off"] = df["b"]
+    df["n"] = np.arange(len(df)) % 7 * 0.5
+    return df
+
+
+@pytest.mark.parametrize("max_workers", [0, 2])
+def test_preserve_rare_values_map_feature_name(max_workers):
+    """Test that naming a feature preserves all of its rare value candidates and no other feature's."""
+    df = _two_rare_features_df()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_map="b",
+                                            max_workers=max_workers, types={"n": "continuous"})
+    assert "preserve_rare_values" not in features["a"]
+    assert "preserve_rare_values" not in features["off"]
+    multipliers = features["b"]["preserve_rare_values"]["protected_values_multipliers"]
+    assert [cfg["value"] for cfg in multipliers] == ["rare"]
+
+
+def test_preserve_rare_values_map_feature_name_errors():
+    """Test the errors for a `preserve_rare_values_map` naming an unusable feature."""
+    df = _two_rare_features_df()
+    with pytest.raises(ValueError, match="not in the data"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_map="missing")
+    with pytest.raises(ValueError, match="inferred to be continuous; rare values can only be set for nominal"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_map="n",
+                                 types={"n": "continuous"})
+    with pytest.raises(ValueError, match="must also provide `max_distilled_cases`"):
+        infer_feature_attributes(df, preserve_rare_values_map="a")
+
+
+def test_preserve_rare_values_map_off_with_feature_named_off(capsys):
+    """Test that "off" disables rare value preservation even when a feature is named `off`."""
+    df = _two_rare_features_df()
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_map="off")
+    assert not any("preserve_rare_values" in attrs for attrs in features.values())
+    assert "preserve_rare_values" not in features.suggestions.suggestions
+
+
+def test_preserve_rare_values_map_all_is_deprecated():
+    """Test that "all" still configures every feature, with a deprecation warning."""
+    df = _two_rare_features_df()
+    with pytest.warns(DeprecationWarning, match='preserve_rare_values_map="all"'), \
+            pytest.warns(UserWarning, match="only one feature per dataset is supported"):
+        features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_map="all",
+                                            types={"n": "continuous"})
+    assert {f for f, attrs in features.items() if "preserve_rare_values" in attrs} == {"a", "b", "off"}
+
+
+def test_preserve_rare_values_suggestion_recommends_feature():
+    """Test that the suggestion offers the feature with the most rare value candidates."""
+    df = _two_rare_features_df()
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, types={"n": "continuous"})
+    suggestion = features.suggestions.preserve_rare_values
+    assert suggestion.recommended_feature == "a"
+    assert suggestion.details["recommended_feature"] == "a"
+    assert 'preserve_rare_values_map="a"' in repr(suggestion)
 
 
 def test_preserve_rare_values_suggestion_excludes_small_values():

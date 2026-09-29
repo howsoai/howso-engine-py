@@ -10,7 +10,7 @@ import logging
 import math
 from pathlib import Path
 import platform
-from typing import Any, cast, Literal, Self, TYPE_CHECKING
+from typing import Any, cast, Self, TYPE_CHECKING
 import warnings
 from zoneinfo import ZoneInfo
 
@@ -30,7 +30,11 @@ from howso.utilities.feature_attributes.suggestions import (
     normalize_fanout_feature_map,
     PRVSuggestion,
 )
-from howso.utilities.feature_attributes.warnings import IFAWarningCollector, IFAWarningEmitterType
+from howso.utilities.feature_attributes.warnings import (
+    _user_stacklevel,
+    IFAWarningCollector,
+    IFAWarningEmitterType,
+)
 from howso.utilities.features import FeatureType
 from howso.utilities.utilities import (
     determine_iso_format,
@@ -66,8 +70,34 @@ SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
 
 def _is_null(value: Any) -> bool:
     """Whether a single feature value is null, such as None or NaN; containers are never null."""
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, (float, np.floating)):
+        return math.isnan(value)
+    if isinstance(value, (str, bytes, bool, int, np.integer)):
+        return False
     result = pd.isna(value)
     return not hasattr(result, "__len__") and bool(result)
+
+
+def _bucket_protected_values(protected_values: Iterable[Any]) -> tuple[bool, set[Any], list[Any]]:
+    """
+    Split protected values into whether any is null, the hashable values, and the unhashable values.
+
+    Hashable values can be looked up by hash; the unhashable ones are compared one by one.
+    """
+    null_protected = False
+    hashable: set[Any] = set()
+    unhashable: list[Any] = []
+    for value in protected_values:
+        if _is_null(value):
+            null_protected = True
+            continue
+        try:
+            hashable.add(value)
+        except TypeError:
+            unhashable.append(value)
+    return null_protected, hashable, unhashable
 
 
 class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
@@ -867,6 +897,36 @@ class InferFeatureAttributesBase(ABC):
         if self._summarize and self.suggestions_collector.suggestions:
             self.suggestions_collector.print_summary()
 
+    def _validate_preserve_rare_values_map(
+        self,
+        preserve_rare_values_map: PreserveRareValuesMap | str | None,
+    ) -> None:
+        """
+        Check a `preserve_rare_values_map` naming a feature.
+
+        Called once, before features are processed in separate processes, so the error or warning
+        is raised once.
+
+        Raises
+        ------
+        ValueError
+            If `preserve_rare_values_map` names a feature that is not in the data.
+        """
+        if preserve_rare_values_map == "all":
+            warnings.warn(
+                'Setting rare values across multiple features for preservation (via `preserve_rare_values_map="all") '
+                "is experimental and may not function as intended. "
+                "Rare value preservation currently only supports a single feature per dataset; to "
+                "preserve all rare values of that feature, pass its name instead, e.g. "
+                '`preserve_rare_values_map="feature_name"`.',
+                UserWarning,
+                stacklevel=_user_stacklevel(),
+            )
+        elif (isinstance(preserve_rare_values_map, str) and preserve_rare_values_map != "off"
+              and preserve_rare_values_map not in self._get_feature_names()):
+            raise ValueError(f"`preserve_rare_values_map` names the feature `{preserve_rare_values_map}`, "
+                             "which is not in the data.")
+
     def _check_rare_value_features(self, feature_attributes: Mapping[str, Any]) -> None:
         """
         Warn when rare value preservation is configured for more than one feature.
@@ -898,7 +958,7 @@ class InferFeatureAttributesBase(ABC):
                  num_series: int = 1,
                  nominal_substitution_config: dict[str, dict] | None = None,
                  ordinal_feature_values: dict[str, list[Any]] | None = None,
-                 preserve_rare_values_map: PreserveRareValuesMap | Literal["all", "off"] | None = None,
+                 preserve_rare_values_map: PreserveRareValuesMap | str | None = None,
                  preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None = None,
                  significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
                  tight_bounds: Iterable[str] | None = None,
@@ -1894,8 +1954,13 @@ class InferFeatureAttributesBase(ABC):
     def _get_value_count(self, feature_name: str, value: Any) -> int:
         """Get the number of occurrences of the provided value of the provided feature."""
 
-    def _find_protected_value_candidates(self, max_distilled_cases: int,
-                                         significance_threshold: int) -> tuple[PreserveRareValuesMap, list[dict]]:
+    def _find_protected_value_candidates(
+        self,
+        max_distilled_cases: int,
+        significance_threshold: int,
+        *,
+        features: Container[str] | None = None,
+    ) -> tuple[PreserveRareValuesMap, list[dict]]:
         """
         Analyze the data to determine if any values might be good candidates for signal preservation techniques.
 
@@ -1906,6 +1971,8 @@ class InferFeatureAttributesBase(ABC):
         significance_threshold : int
             The number of cases that are expected to result in a maintained signal for a particular
             value post-distillation.
+        features : Container of str, optional
+            The features to search. Defaults to every nominal feature.
 
         Returns
         -------
@@ -1917,7 +1984,7 @@ class InferFeatureAttributesBase(ABC):
         pvm: PreserveRareValuesMap = {}
         value_counts = []
         for feature, attributes in self.attributes.items():
-            if attributes["type"] != "nominal":
+            if attributes["type"] != "nominal" or (features is not None and feature not in features):
                 continue
             total_cases = self._get_row_count()
             if self._get_unique_count(feature) == total_cases:
@@ -1987,7 +2054,7 @@ class InferFeatureAttributesBase(ABC):
 
         data_type = self.attributes[feature].get("data_type")
         # All null values are counted together, so they are treated as a single value
-        null_protected = any(_is_null(value) for value in protected_values)
+        null_protected, hashable_protected, unhashable_protected = _bucket_protected_values(protected_values)
         null_seen = False
         small_values: list[ProtectedValueMultiplier] = []
         small_count = 0
@@ -2000,7 +2067,11 @@ class InferFeatureAttributesBase(ABC):
                     value = None
                 else:
                     value = float(unique_value) if data_type == "number" else unique_value
-                    if any(value == protected for protected in protected_values if not _is_null(protected)):
+                    try:
+                        is_protected = value in hashable_protected
+                    except TypeError:
+                        is_protected = False
+                    if is_protected or any(value == protected for protected in unhashable_protected):
                         continue
                 count = self._get_value_count(feature, value)
             except (TypeError, ValueError):
@@ -2024,7 +2095,7 @@ class InferFeatureAttributesBase(ABC):
     def _compute_preserve_rare_values_config(
         self,
         max_distilled_cases: int,
-        preserve_rare_values_map: PreserveRareValuesMap | Literal["all"],
+        preserve_rare_values_map: PreserveRareValuesMap,
         significance_threshold: int
     ) -> tuple[FullPreserveRareValuesConfig, PreserveRareValuesMap]:
         """
@@ -2038,9 +2109,8 @@ class InferFeatureAttributesBase(ABC):
         ----------
         max_distilled_cases : int
             The maximum number of cases in the resultant data following distillation.
-        preserve_rare_values_map : PreserveRareValuesmap or "all"
+        preserve_rare_values_map : PreserveRareValuesMap
             A mapping of feature name to list of rare values to compute multipliers for.
-            Use "all" to find rare value candidates and compute multipliers for them all.
         significance_threshold : int
             The number of cases that are expected to result in a maintained signal for a
             particular value post-distillation.
@@ -2056,9 +2126,6 @@ class InferFeatureAttributesBase(ABC):
         """
         prvc: FullPreserveRareValuesConfig = {}
         protected_map: PreserveRareValuesMap = {}
-        if preserve_rare_values_map == "all":
-            preserve_rare_values_map, _ = self._find_protected_value_candidates(max_distilled_cases,
-                                                                                significance_threshold)
         total_cases = self._get_row_count()
         for feature, values in preserve_rare_values_map.items():
             if feature not in self.attributes:
@@ -2091,7 +2158,7 @@ class InferFeatureAttributesBase(ABC):
 
     def _process_rare_values(  # noqa: PLR0912, PLR0915
         self,
-        preserve_rare_values_map: PreserveRareValuesMap | Literal["all", "off"] | None,
+        preserve_rare_values_map: PreserveRareValuesMap | str | None,
         preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None,
         max_distilled_cases: int | None,
         significance_threshold: int,
@@ -2157,20 +2224,31 @@ class InferFeatureAttributesBase(ABC):
                     _prvc[feature] = feature_full_config
         # Workflow 2: User provided a map of rare values to protect, but no multipliers
         elif preserve_rare_values_map is not None:
+            # A string selects the rare value candidates of one feature ("all" selects every feature)
+            if isinstance(preserve_rare_values_map, str):
+                if not user_set_mdc:
+                    raise ValueError("If not explicitly providing rare values to preserve, you must also provide "
+                                     "`max_distilled_cases` to accurately determine rare value candidates.")
+                search_feature = None if preserve_rare_values_map == "all" else preserve_rare_values_map
+                if search_feature is not None and search_feature in self.attributes:
+                    actual_type = self.attributes[search_feature]["type"]
+                    if actual_type != "nominal":
+                        raise ValueError(f"`preserve_rare_values_map` names the feature `{search_feature}`, which "
+                                         f"was inferred to be {actual_type}; rare values can only be set for "
+                                         "nominal features. If this feature is actually nominal, please override "
+                                         "the inference with the `types` parameter.")
+                preserve_rare_values_map, _ = self._find_protected_value_candidates(
+                    max_distilled_cases, significance_threshold,
+                    features=None if search_feature is None else [search_feature],
+                )
             # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here
             if user_set_mdc:
-                if preserve_rare_values_map == "all":
-                    preserve_rare_values_map, _ = self._find_protected_value_candidates(max_distilled_cases,
-                                                                                        significance_threshold)
                 _prvc, _ = self._compute_preserve_rare_values_config(max_distilled_cases,
                                                                      preserve_rare_values_map,
                                                                      significance_threshold)
             # Workflow 2B: User did not set max_distilled_cases, so we cannot guarantee accurate multipliers.
             # Let another part of the stack figure it out; set only the protected values in the attributes.
             else:
-                if preserve_rare_values_map == "all":
-                    raise ValueError('If `preserve_rare_values_map` is set to "all," you must also provide '
-                                     '`max_distilled_cases` to accurately determine rare value candidates.')
                 for feature, values in preserve_rare_values_map.items():
                     if feature not in self.attributes:
                         # Multiprocessing is enabled, and this feature will be handled in another process
