@@ -437,8 +437,8 @@ def multiple_rare_value_features_message(features: Sequence[str]) -> str:
         A warning message recommending a single feature.
     """
     names = ", ".join(f"`{feature}`" for feature in features)
-    return (f"Rare value preservation is configured for {len(features)} features ({names}), but only one "
-            "feature per dataset is supported. Choose a single feature to preserve rare values from.")
+    return (f"Rare value preservation is configured for {len(features)} features ({names}), but we "
+            "recommend preserving rare values for only one feature.")
 
 
 class PRVSuggestion(IFASuggestion):
