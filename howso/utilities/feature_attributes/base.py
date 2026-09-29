@@ -26,6 +26,7 @@ from howso.utilities.feature_attributes.suggestions import (
     FanoutFeaturesSuggestion,
     IFASuggestion,
     IFASuggestionCollector,
+    multiple_rare_value_features_message,
     normalize_fanout_feature_map,
     PRVSuggestion,
 )
@@ -61,6 +62,12 @@ LINUX_DT_MAX = "2262-04-11"
 WIN_DT_MAX = "6053-01-24"
 
 SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
+
+
+def _is_null(value: Any) -> bool:
+    """Whether a single feature value is null, such as None or NaN; containers are never null."""
+    result = pd.isna(value)
+    return not hasattr(result, "__len__") and bool(result)
 
 
 class FeatureAttributesBase(dict[str, "FeatureAttributes"]):
@@ -859,6 +866,18 @@ class InferFeatureAttributesBase(ABC):
         """
         if self._summarize and self.suggestions_collector.suggestions:
             self.suggestions_collector.print_summary()
+
+    def _check_rare_value_features(self, feature_attributes: Mapping[str, Any]) -> None:
+        """
+        Warn when rare value preservation is configured for more than one feature.
+
+        Called once every feature has been processed, so the check sees features from all shards.
+        """
+        protected_features = [feature for feature, attrs in feature_attributes.items()
+                              if "preserve_rare_values" in attrs]
+        if len(protected_features) > 1:
+            self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE,
+                                           multiple_rare_value_features_message(protected_features))
 
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,
@@ -1924,53 +1943,96 @@ class InferFeatureAttributesBase(ABC):
         top_five = sorted(value_counts, key=lambda d: d["count"], reverse=True)[:5]
         return pvm, top_five
 
-    def _compute_unprotected_multiplier(self, feature: str,
-                                        protected_values_multipliers: Sequence[ProtectedValueMultiplier],
-                                        *, row_count: int | None = None) -> float:
+    def _normalize_rare_value_multipliers(
+        self,
+        feature: str,
+        protected_values_multipliers: Sequence[ProtectedValueMultiplier],
+        significance_threshold: int,
+    ) -> FeatureRareValueConfig | None:
         """
-        Compute the unprotected multiplier for the provided feature given a list of rare values with multipliers.
+        Normalize the case weight multipliers of a feature so its total case weight equals the row count.
+
+        Every value of the feature that is not protected and occurs fewer than
+        `significance_threshold` times is listed with a multiplier of 1 and left out of the
+        normalization. The protected values keep their given multipliers and all remaining values
+        start at 1; each of these multipliers is then scaled by the same factor, which becomes the
+        unprotected multiplier, so the relative weights between them are unchanged.
 
         Parameters
         ----------
         feature : str
-            The name of the feature to compute the unprotected multiplier for.
-        protected_values : Sequence of dict of str to Any
-            A list of dicts with information about the protected values and their multipliers.
-            This is of the same type as the list under the `protected_values_multipliers` key
-            in the final feature attributes object.
-
-            Example::
-
-                [
-                    {"value": "X", "multiplier": 2},
-                    {"value": "Y", "multiplier": 3}
-                ]
-        row_count : int, default none
-            (Optional) The row count of the feature. If not provided, will compute.
+            The name of the feature.
+        protected_values_multipliers : Sequence of ProtectedValueMultiplier
+            The protected values of the feature and their multipliers before normalization. Each
+            multiplier must be positive.
+        significance_threshold : int
+            The number of cases below which an unprotected value keeps a multiplier of 1.
 
         Returns
         -------
-        float
-            The unprotected multiplier.
+        FeatureRareValueConfig or None
+            The normalized configuration, or None when every case holds a protected value.
         """
-        total_cases = row_count or self._get_row_count()
-        orig_unprotected_mass = 0
-        new_protected_mass = 0
+        total_cases = self._get_row_count()
+        protected_values = [value_cfg["value"] for value_cfg in protected_values_multipliers]
+        protected_count = 0
+        protected_mass = 0.0
         for value_cfg in protected_values_multipliers:
             count = self._get_value_count(feature, value_cfg["value"])
-            orig_unprotected_mass += count
-            new_protected_mass += count * value_cfg["multiplier"]
-        orig_unprotected_mass = total_cases - orig_unprotected_mass
-        return min(float((total_cases - new_protected_mass) / orig_unprotected_mass), 1)
+            protected_count += count
+            protected_mass += count * value_cfg["multiplier"]
+        if protected_count >= total_cases:
+            # No case weight is left to redistribute to the protected values
+            return None
+
+        data_type = self.attributes[feature].get("data_type")
+        # All null values are counted together, so they are treated as a single value
+        null_protected = any(_is_null(value) for value in protected_values)
+        null_seen = False
+        small_values: list[ProtectedValueMultiplier] = []
+        small_count = 0
+        for unique_value in self._get_unique_values(feature):
+            try:
+                if _is_null(unique_value):
+                    if null_protected or null_seen:
+                        continue
+                    null_seen = True
+                    value = None
+                else:
+                    value = float(unique_value) if data_type == "number" else unique_value
+                    if any(value == protected for protected in protected_values if not _is_null(protected)):
+                        continue
+                count = self._get_value_count(feature, value)
+            except (TypeError, ValueError):
+                self.warnings_collector.triage(IFAWarningEmitterType.VALUE_COUNTS_PROCESSING, feature)
+                continue
+            if count < significance_threshold:
+                small_values.append({"value": value, "multiplier": 1.0})
+                small_count += count
+
+        # Both the original and the adjusted sums leave out the small values
+        unprotected_count = total_cases - protected_count - small_count
+        scale = float((total_cases - small_count) / (protected_mass + unprotected_count))
+        return {
+            "protected_values_multipliers": [
+                {"value": value_cfg["value"], "multiplier": value_cfg["multiplier"] * scale}
+                for value_cfg in protected_values_multipliers
+            ] + small_values,
+            "unprotected_multiplier": scale,
+        }
 
     def _compute_preserve_rare_values_config(
         self,
         max_distilled_cases: int,
         preserve_rare_values_map: PreserveRareValuesMap | Literal["all"],
         significance_threshold: int
-    ) -> FullPreserveRareValuesConfig:
+    ) -> tuple[FullPreserveRareValuesConfig, PreserveRareValuesMap]:
         """
         Determine the case weight multipliers for the provided protected values and the unprotected values.
+
+        Each protected value is weighted so that it would keep `significance_threshold` cases after
+        distillation, then the multipliers are normalized with
+        :meth:`_normalize_rare_value_multipliers`.
 
         Parameters
         ----------
@@ -1988,13 +2050,20 @@ class InferFeatureAttributesBase(ABC):
         FullPreserveRareValuesConfig
             A full `preserve_rare_values` configuration with all multipliers ready for
             application to the feature attributes.
+        PreserveRareValuesMap
+            The values of each configured feature that were weighted up, without the values
+            listed only to keep a multiplier of 1.
         """
         prvc: FullPreserveRareValuesConfig = {}
+        protected_map: PreserveRareValuesMap = {}
         if preserve_rare_values_map == "all":
             preserve_rare_values_map, _ = self._find_protected_value_candidates(max_distilled_cases,
                                                                                 significance_threshold)
+        total_cases = self._get_row_count()
         for feature, values in preserve_rare_values_map.items():
-            total_cases = self._get_row_count()
+            if feature not in self.attributes:
+                # Multiprocessing is enabled, and this feature will be handled in another process
+                continue
             data_type = self.attributes[feature]["data_type"] # pyright: ignore[reportTypedDictNotRequiredAccess]
             protected_values_multipliers: list[ProtectedValueMultiplier] = []
             for value in values:
@@ -2009,16 +2078,16 @@ class InferFeatureAttributesBase(ABC):
                     continue
                 protected_values_multipliers.append(
                     {"value": float(value) if data_type == "number" else value,
-                    "multiplier": max(float(multiplier), 1)}
+                    "multiplier": float(multiplier)}
                 )
-            # Now that all protected value multipliers have been computed, determine the unprotected value multiplier
-            prvc[feature] = {
-                "protected_values_multipliers": protected_values_multipliers,
-                "unprotected_multiplier": self._compute_unprotected_multiplier(
-                    feature, protected_values_multipliers, row_count=total_cases
-                ),
-            }
-        return prvc
+            if not protected_values_multipliers:
+                continue
+            feature_config = self._normalize_rare_value_multipliers(feature, protected_values_multipliers,
+                                                                    significance_threshold)
+            if feature_config is not None:
+                prvc[feature] = feature_config
+                protected_map[feature] = [value_cfg["value"] for value_cfg in protected_values_multipliers]
+        return prvc, protected_map
 
     def _process_rare_values(  # noqa: PLR0912, PLR0915
         self,
@@ -2067,23 +2136,25 @@ class InferFeatureAttributesBase(ABC):
                                                "will be ignored.")
             # Config provided; check if unprotected multipliers need computation
             for feature, cfg in preserve_rare_values_config.items():
-                feature_full_config: FeatureRareValueConfig
-                if not isinstance(cfg, Mapping):
-                    # Workflow 1A: User provided a "simple" config (feature name to list of protected values)
-                    protected_values_multipliers = deepcopy(cfg)
-                    feature_full_config = {
-                        "protected_values_multipliers": protected_values_multipliers,
-                        "unprotected_multiplier": self._compute_unprotected_multiplier(
-                            feature, protected_values_multipliers),
-                    }
-                else:
-                    # Workflow 1B: User provided a "full" config with sub-keys (likely through the suggestion loop)
-                    feature_full_config = deepcopy(cfg)
-                    # Ensure the unprotected multiplier is present
-                    if "unprotected_multiplier" not in feature_full_config:
-                        feature_full_config["unprotected_multiplier"] = self._compute_unprotected_multiplier(
-                            feature, feature_full_config["protected_values_multipliers"])
-                _prvc[feature] = feature_full_config
+                if feature not in self.attributes:
+                    # Multiprocessing is enabled, and this feature will be handled in another process
+                    continue
+                if isinstance(cfg, Mapping) and "unprotected_multiplier" in cfg:
+                    # Workflow 1B: User provided a "full" config (likely through the suggestion loop); use as-is
+                    _prvc[feature] = deepcopy(cfg)
+                    continue
+                # Workflow 1A: User provided protected values with multipliers, which are normalized
+                protected_values_multipliers = deepcopy(
+                    cfg["protected_values_multipliers"] if isinstance(cfg, Mapping) else cfg
+                )
+                for value_cfg in protected_values_multipliers:
+                    if value_cfg["multiplier"] <= 0:
+                        raise ValueError(f"The multiplier for protected value `{value_cfg['value']}` of feature "
+                                         f"`{feature}` must be positive; got {value_cfg['multiplier']}.")
+                feature_full_config = self._normalize_rare_value_multipliers(
+                    feature, protected_values_multipliers, significance_threshold)
+                if feature_full_config is not None:
+                    _prvc[feature] = feature_full_config
         # Workflow 2: User provided a map of rare values to protect, but no multipliers
         elif preserve_rare_values_map is not None:
             # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here
@@ -2091,9 +2162,9 @@ class InferFeatureAttributesBase(ABC):
                 if preserve_rare_values_map == "all":
                     preserve_rare_values_map, _ = self._find_protected_value_candidates(max_distilled_cases,
                                                                                         significance_threshold)
-                _prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
-                                                                  preserve_rare_values_map,
-                                                                  significance_threshold)
+                _prvc, _ = self._compute_preserve_rare_values_config(max_distilled_cases,
+                                                                     preserve_rare_values_map,
+                                                                     significance_threshold)
             # Workflow 2B: User did not set max_distilled_cases, so we cannot guarantee accurate multipliers.
             # Let another part of the stack figure it out; set only the protected values in the attributes.
             else:
@@ -2116,11 +2187,12 @@ class InferFeatureAttributesBase(ABC):
             preserve_rare_values_map, values_ranking = self._find_protected_value_candidates(max_distilled_cases,
                                                                                              significance_threshold)
             if preserve_rare_values_map:
-                candidate_prvc = self._compute_preserve_rare_values_config(max_distilled_cases,
-                                                                           preserve_rare_values_map,
-                                                                           significance_threshold)
-                prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc)
-                self.suggestions_collector.append(prvc_suggestion)
+                candidate_prvc, protected_map = self._compute_preserve_rare_values_config(
+                    max_distilled_cases, preserve_rare_values_map, significance_threshold)
+                if candidate_prvc:
+                    prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc,
+                                                    protected_values=protected_map)
+                    self.suggestions_collector.append(prvc_suggestion)
 
         # Apply rare values multipliers to feature attributes if applicable (workflows 1, 2A)
         if _prvc:

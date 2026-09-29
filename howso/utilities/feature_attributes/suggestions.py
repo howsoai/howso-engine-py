@@ -422,11 +422,31 @@ _DEFAULT_MAX_DISTILLED_CASES_MESSAGE = (
 _MAX_RANKED_VALUES = 5
 
 
+def multiple_rare_value_features_message(features: Sequence[str]) -> str:
+    """
+    Describe rare value preservation configured on more than one feature.
+
+    Parameters
+    ----------
+    features : Sequence of str
+        The names of the features configured to preserve rare values.
+
+    Returns
+    -------
+    str
+        A warning message recommending a single feature.
+    """
+    names = ", ".join(f"`{feature}`" for feature in features)
+    return (f"Rare value preservation is configured for {len(features)} features ({names}), but only one "
+            "feature per dataset is supported. Choose a single feature to preserve rare values from.")
+
+
 class PRVSuggestion(IFASuggestion):
     """A suggestion to configure preservation for rare values."""
 
     def __init__(self, prvc: FullPreserveRareValuesConfig, values_ranking: Sequence[Mapping[str, Any]],
-                 user_set_max_distilled_cases: bool) -> None:
+                 user_set_max_distilled_cases: bool, *,
+                 protected_values: PreserveRareValuesMap | None = None) -> None:
         """
         Instantiate this Preserve Rare Values Suggestion.
 
@@ -438,10 +458,19 @@ class PRVSuggestion(IFASuggestion):
             An ordered list of the top five most significant rare values found in the data.
         user_set_max_distilled_cases : bool
             Whether the user specified the max_distilled_cases value, or `prvc` was approximated with a default.
+        protected_values : PreserveRareValuesMap, optional
+            The rare values of each feature in `prvc` that are weighted up. `prvc` may also list
+            values that only keep a multiplier of 1. Defaults to every value listed in `prvc`.
         """
         self._prvc = prvc
         self._ranking = values_ranking
         self._user_set_mdc = user_set_max_distilled_cases
+        if protected_values is None:
+            protected_values = {
+                feature: [value_config["value"] for value_config in config["protected_values_multipliers"]]
+                for feature, config in prvc.items()
+            }
+        self._protected_values = protected_values
 
     def __repr__(self) -> str:
         """Print a helpful description of this IFASuggestion."""
@@ -464,6 +493,8 @@ class PRVSuggestion(IFASuggestion):
             "feature attributes object. Applying Rare Value Preservation may increase the influence "
             "of rare values on the aggregate signal of the dataset. This is the intended effect to help "
             "preserve the signal of rare values that would otherwise be lost during distillation. "
+            "Rare value preservation supports a single feature per dataset, so pick the one feature "
+            "whose rare values matter most and preserve rare values from that feature only."
         )
 
         # Pick a target total width and divvy it up
@@ -560,7 +591,7 @@ class PRVSuggestion(IFASuggestion):
         candidates as dicts of ``feature``, ``value`` and ``count``, most frequent first.
         """
         return {
-            "num_values": sum(len(cfg["protected_values_multipliers"]) for cfg in self._prvc.values()),
+            "num_values": sum(len(values) for values in self._protected_values.values()),
             "num_features": len(self._prvc),
             "top_values": [dict(candidate) for candidate in self._ranking],
         }
@@ -593,7 +624,11 @@ class PRVSuggestion(IFASuggestion):
         )
 
     def apply(self, attributes: Mapping[str, Any]) -> None:
-        """Apply the computed rare values preservation config to the FeatureAttributesBase object."""
+        """
+        Apply the computed rare values preservation config to the FeatureAttributesBase object.
+
+        Warns when rare values end up configured for more than one feature.
+        """
         if not self._user_set_mdc:
             self._warn_default_max_distilled_cases(
                 " Since an inaccurate value may result in rare values being under-weighted or "
@@ -602,6 +637,9 @@ class PRVSuggestion(IFASuggestion):
             return
         for feature, config in self._prvc.items():
             attributes[feature]["preserve_rare_values"] = config
+        protected_features = [feature for feature, attrs in attributes.items() if "preserve_rare_values" in attrs]
+        if len(protected_features) > 1:
+            warnings.warn(multiple_rare_value_features_message(protected_features), UserWarning, stacklevel=3)
 
     def get_config(self, enable_warnings: bool = True) -> FullPreserveRareValuesConfig:
         """Get the `preserve_rare_values_config` for use in future calls to `infer_feature_attributes`."""
@@ -617,10 +655,7 @@ class PRVSuggestion(IFASuggestion):
 
     def _values_map(self) -> PreserveRareValuesMap:
         """Get the protected values of each feature, without warning."""
-        return {
-            feature: [value_config["value"] for value_config in config["protected_values_multipliers"]]
-            for feature, config in self._prvc.items()
-        }
+        return {feature: list(values) for feature, values in self._protected_values.items()}
 
     def merge(self, other: IFASuggestion) -> None:
         """Merge another PRVSuggestion into this one if there are no conflicts."""
@@ -629,6 +664,7 @@ class PRVSuggestion(IFASuggestion):
         for feature, config in other.get_config(enable_warnings=False).items():
             if feature not in self._prvc:
                 self._prvc[feature] = config
+                self._protected_values[feature] = other._protected_values[feature]
             elif self._prvc[feature] != config:
                 raise ValueError("Cannot merge `preserve_rare_value_config` objects as they share features with "
                                     "differing configurations.")

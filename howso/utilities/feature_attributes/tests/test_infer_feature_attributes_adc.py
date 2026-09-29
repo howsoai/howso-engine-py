@@ -729,11 +729,14 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     convert_data(df, adc)
 
     # Test auto-apply with all values
-    features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map="all")
+    with pytest.warns(UserWarning, match="only one feature per dataset is supported"):
+        features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
     assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["value"] == '2'
-    assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == 2.4
+    # A multiplier of 2.4, normalized over 9,900 unprotected cases and 100 cases weighted by 2.4
+    assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == pytest.approx(
+        2.4 * 10_000 / (9_900 + 240))
     assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
     # Multipliers should be deferred if `max_distilled_cases` not provided.
@@ -751,7 +754,8 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     assert "preserve_rare_values" not in features["a"]
     assert "preserve_rare_values" in features["b"]
     assert len(features["b"]["preserve_rare_values"]["protected_values_multipliers"]) == 1
-    assert features["b"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == 2.4
+    assert features["b"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == pytest.approx(
+        2.4 * 10_000 / (9_900 + 240))
     assert round(features["b"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
     # Test that a suggestion is issued, and summarized on the console rather than as a warning
@@ -762,7 +766,8 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     for feat in features:
         assert "preserve_rare_values" not in feat
     # Test a suggestion application
-    features.apply_suggestion("preserve_rare_values")
+    with pytest.warns(UserWarning, match="only one feature per dataset is supported"):
+        features.apply_suggestion("preserve_rare_values")
     assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
     assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
 
