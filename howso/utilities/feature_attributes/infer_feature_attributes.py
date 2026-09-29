@@ -331,11 +331,21 @@ def infer_feature_attributes(
         the format that can be expected if your `preserve_rare_values_config` comes from a
         suggestion after calling `infer_feature_attributes`.
 
+        When no "unprotected_multiplier" is given, the multipliers are normalized: every
+        multiplier, and an "unprotected_multiplier" of 1, is scaled by the same factor so the
+        total case weight of the feature is unchanged, keeping the ratios between them.
+        Unprotected values with fewer cases than the significance threshold are listed with
+        a multiplier of 1 and left out of the normalization. A "full" config is used as-is.
+
     preserve_rare_values_map : dict or "all" or "off", optional
         (Optional) A map of feature name to list of values that should be protected during data
         distillation. If set to "all", will infer and attempt to preserve all detected rare
         values. If set to "off", rare value preservation is disabled entirely, including its
         automatic suggestion.
+
+        .. note ::
+            Rare value preservation supports a single feature per dataset; a warning is
+            issued when rare values are configured for more than one feature.
 
     rate_boundaries : dict, optional
         (Optional) For time series, specify the rate boundaries in the form

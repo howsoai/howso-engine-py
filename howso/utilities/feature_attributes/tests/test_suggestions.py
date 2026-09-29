@@ -254,6 +254,45 @@ class TestCollectorSummary:
         assert not recwarn.list
 
 
+class TestPRVProtectedValues:
+
+    _CONFIG = {"a": {"protected_values_multipliers": [{"value": "rare", "multiplier": 4.0},
+                                                      {"value": "small", "multiplier": 1.0}],
+                     "unprotected_multiplier": 0.9}}
+
+    def test_values_map_lists_only_protected_values(self):
+        suggestion = PRVSuggestion(self._CONFIG, [], user_set_max_distilled_cases=True,
+                                   protected_values={"a": ["rare"]})
+        assert suggestion.get_values_map() == {"a": ["rare"]}
+        assert suggestion.details["num_values"] == 1
+        assert suggestion.parameters["preserve_rare_values_map"] == {"a": ["rare"]}
+
+    def test_values_map_defaults_to_every_listed_value(self):
+        assert make_prv(self._CONFIG).get_values_map() == {"a": ["rare", "small"]}
+
+    def test_merge_combines_protected_values(self):
+        target = PRVSuggestion(self._CONFIG, [], user_set_max_distilled_cases=True,
+                               protected_values={"a": ["rare"]})
+        target.merge(PRVSuggestion(_prv_config(b=1), [], user_set_max_distilled_cases=True,
+                                   protected_values={"b": [0]}))
+        assert target.get_values_map() == {"a": ["rare"], "b": [0]}
+
+
+class TestPRVSingleFeature:
+
+    def test_apply_to_multiple_features_warns(self):
+        attributes = {"a": {"type": "nominal"}, "b": {"type": "nominal"}}
+        with pytest.warns(UserWarning, match="only one feature per dataset is supported"):
+            make_prv(_prv_config(a=1, b=1)).apply(attributes)
+
+    def test_apply_to_one_feature_does_not_warn(self, recwarn):
+        make_prv(_prv_config(a=1)).apply({"a": {"type": "nominal"}, "b": {"type": "nominal"}})
+        assert not recwarn.list
+
+    def test_description_recommends_a_single_feature(self):
+        assert "single feature per dataset" in " ".join(repr(make_prv(_prv_config(a=1, b=1))).split())
+
+
 class TestSuggestionToDict:
 
     def test_fanout_to_dict(self):
