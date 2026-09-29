@@ -46,7 +46,7 @@ class InferOptions(TypedDict, total=False):
     nominal_substitution_config: dict[str, dict[str, Any]]
     ordinal_feature_values: dict[str, list[Any] | tuple[str]]
     preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig
-    preserve_rare_values_map: PreserveRareValuesMap | Literal["all", "off"]
+    preserve_rare_values_map: PreserveRareValuesMap | str
     significance_threshold: int
     tight_bounds: Iterable[str]
     types: dict[str, FeatureType] | dict[FeatureType, list[str]]
@@ -337,15 +337,17 @@ def infer_feature_attributes(
         Unprotected values with fewer cases than the significance threshold are listed with
         a multiplier of 1 and left out of the normalization. A "full" config is used as-is.
 
-    preserve_rare_values_map : dict or "all" or "off", optional
+    preserve_rare_values_map : dict or str, optional
         (Optional) A map of feature name to list of values that should be protected during data
-        distillation. If set to "all", will infer and attempt to preserve all detected rare
-        values. If set to "off", rare value preservation is disabled entirely, including its
-        automatic suggestion.
+        distillation, or the name of a single nominal feature to infer and attempt to preserve
+        all of its detected rare values. Naming a feature requires `max_distilled_cases`. If set
+        to "off", rare value preservation is disabled entirely, including its automatic
+        suggestion; "off" is never read as a feature name.
 
-        .. note ::
-            Rare value preservation supports a single feature per dataset; a warning is
-            issued when rare values are configured for more than one feature.
+    .. note ::
+        "all", which infers and attempts to preserve the detected rare values of every
+        feature, is experimental. We recommend naming a single feature instead, of which all
+        rare values will be preserved.
 
     rate_boundaries : dict, optional
         (Optional) For time series, specify the rate boundaries in the form
