@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any, Literal, overload, TYPE_CHECKING, TypeAlias, TypedDict, Unpack
 
 import pandas as pd
@@ -45,6 +45,7 @@ class InferOptions(TypedDict, total=False):
     mode_bound_features: Iterable[str]
     nominal_substitution_config: dict[str, dict[str, Any]]
     ordinal_feature_values: dict[str, list[Any] | tuple[str]]
+    preserve_rare_values_caps: Sequence[str] | Mapping[str, float]
     preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig
     preserve_rare_values_map: PreserveRareValuesMap | str
     significance_threshold: int
@@ -311,6 +312,16 @@ def infer_feature_attributes(
                 "size" : [ "small", "medium", "large", "huge" ]
             }
 
+    preserve_rare_values_caps : list of str or dict of str to float, optional
+        (Optional) Features whose significant values give up only part of their case weight to
+        fund rare value preservation. Given as a list of feature names, each keeps at least half
+        of its weight; given as a dict, the value for each feature is the largest share of its
+        weight a significant value of that feature may give up, greater than 0 and at most 1.
+        Features not listed give up as much as preserving every rare value requires, which draws
+        the weights of their significant values toward the floor that keeps the significance
+        threshold after distillation. When a cap leaves too little weight, the rare values with
+        the most cases are preserved and a warning reports how many.
+
     preserve_rare_values_config : dict, optional
         (Optional) A map of feature name to a list of dict specifying a protected value and
         a case weight multiplier. Enables case weight rebalancing for data distillation workflows
@@ -331,11 +342,14 @@ def infer_feature_attributes(
         the format that can be expected if your `preserve_rare_values_config` comes from a
         suggestion after calling `infer_feature_attributes`.
 
-        When no "unprotected_multiplier" is given, the multipliers are normalized: every
-        multiplier, and an "unprotected_multiplier" of 1, is scaled by the same factor so the
-        total case weight of the feature is unchanged, keeping the ratios between them.
-        Unprotected values with fewer cases than the significance threshold are listed with
-        a multiplier of 1 and left out of the normalization. A "full" config is used as-is.
+        When no "unprotected_multiplier" is given, the feature's other values are reweighted to
+        fund the protected values so the total case weight is unchanged: values with fewer cases
+        than the significance threshold keep a weight of 1, and every other value is scaled by
+        one common factor, the "unprotected_multiplier", except that no value is scaled below the
+        number of cases that keeps the threshold after distillation. See
+        `preserve_rare_values_caps` to limit how much weight those values give up. If they
+        cannot fund the multipliers, each multiplier's increase over 1 is scaled down and a
+        warning is issued. A "full" config is used as-is.
 
     preserve_rare_values_map : dict or str, optional
         (Optional) A map of feature name to list of values that should be protected during data
@@ -343,6 +357,11 @@ def infer_feature_attributes(
         all of its detected rare values. Naming a feature requires `max_distilled_cases`. If set
         to "off", rare value preservation is disabled entirely, including its automatic
         suggestion; "off" is never read as a feature name.
+
+        Each rare value is weighted to keep exactly the significance threshold after distillation,
+        funded by the feature's other values as described under `preserve_rare_values_config`.
+        When not every rare value fits, those with the most cases are preserved, and a warning
+        reports how many along with the `max_distilled_cases` that would fit all of them.
 
     .. note ::
         "all", which infers and attempts to preserve the detected rare values of every

@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 import datetime
 import json
 import textwrap
-from typing import Any, Self, TYPE_CHECKING, TypedDict
+from typing import Any, NotRequired, Self, TYPE_CHECKING, TypedDict
 import warnings
 
 import numpy as np
@@ -421,6 +421,51 @@ _DEFAULT_MAX_DISTILLED_CASES_MESSAGE = (
 
 _MAX_RANKED_VALUES = 5
 
+PARTIAL_RARE_VALUE_PRESERVATION_CAVEAT = "partial_rare_value_preservation"
+"""Caveat code for a feature whose rare values could not all be preserved."""
+
+
+class RareValuePreservationLimit(TypedDict):
+    """How the preservation of a feature's rare values was limited by the case weight available to fund it."""
+
+    feature: str
+    """The name of the feature."""
+
+    preserved: int
+    """The number of rare values that received their full multiplier."""
+
+    candidates: int
+    """The number of rare values that were to be preserved."""
+
+    min_max_distilled_cases: int | None
+    """The smallest `max_distilled_cases` at which every candidate fits, or None when not applicable."""
+
+    multiplier_scale: NotRequired[float]
+    """The factor applied to each multiplier's increase over 1 when every value was kept but scaled down."""
+
+
+def partial_rare_value_preservation_message(limit: RareValuePreservationLimit) -> str:
+    """
+    Describe a :class:`RareValuePreservationLimit` in a sentence.
+
+    Parameters
+    ----------
+    limit : RareValuePreservationLimit
+        The limited feature.
+
+    Returns
+    -------
+    str
+        A plain-text description of what was preserved and how to preserve more.
+    """
+    message = (f"Preserved {limit['preserved']:,} of the {limit['candidates']:,} rare values of feature "
+               f"`{limit['feature']}`; the other values of the feature cannot give up enough case weight for the "
+               "rest without losing their own significance.")
+    if limit["min_max_distilled_cases"] is not None:
+        message += (f" Preserving all of them needs a `max_distilled_cases` of at least "
+                    f"{limit['min_max_distilled_cases']:,}, or a `preserve_rare_values_map` naming fewer values.")
+    return message
+
 
 def multiple_rare_value_features_message(features: Sequence[str]) -> str:
     """
@@ -446,7 +491,8 @@ class PRVSuggestion(IFASuggestion):
 
     def __init__(self, prvc: FullPreserveRareValuesConfig, values_ranking: Sequence[Mapping[str, Any]],
                  user_set_max_distilled_cases: bool, *,
-                 protected_values: PreserveRareValuesMap | None = None) -> None:
+                 protected_values: PreserveRareValuesMap | None = None,
+                 limits: Sequence[RareValuePreservationLimit] | None = None) -> None:
         """
         Instantiate this Preserve Rare Values Suggestion.
 
@@ -460,7 +506,10 @@ class PRVSuggestion(IFASuggestion):
             Whether the user specified the max_distilled_cases value, or `prvc` was approximated with a default.
         protected_values : PreserveRareValuesMap, optional
             The rare values of each feature in `prvc` that are weighted up. `prvc` may also list
-            values that only keep a multiplier of 1. Defaults to every value listed in `prvc`.
+            values held at the significance floor and small values kept at 1. Defaults to every
+            value listed in `prvc`.
+        limits : Sequence of RareValuePreservationLimit, optional
+            The features in `prvc` whose rare values could not all be preserved.
         """
         self._prvc = prvc
         self._ranking = values_ranking
@@ -471,6 +520,7 @@ class PRVSuggestion(IFASuggestion):
                 for feature, config in prvc.items()
             }
         self._protected_values = protected_values
+        self._limits = list(limits or [])
 
     def __repr__(self) -> str:
         """Print a helpful description of this IFASuggestion."""
@@ -493,15 +543,15 @@ class PRVSuggestion(IFASuggestion):
             "feature attributes object. Applying Rare Value Preservation may increase the influence "
             "of rare values on the aggregate signal of the dataset. This is the intended effect to help "
             "preserve the signal of rare values that would otherwise be lost during distillation. "
-            "Rare value preservation supports a single feature per dataset, so pick the one feature "
-            "whose rare values matter most and preserve rare values from that feature only."
+            "Preserving rare values is currently recommended for a single feature, so consider picking "
+            "the one feature whose rare values matter most."
         )
         recommended = details["recommended_feature"]
         single_feature_note = ""
         if details["num_features"] > 1:
             single_feature_note = (
                 f" It lists {details['num_features']} features with rare values, but we recommend only "
-                "providing one one feature as preserving rare values across multiple features is "
+                "providing one feature as preserving rare values across multiple features is "
                 "experimental and may not function as intended."
             )
 
@@ -598,24 +648,39 @@ class PRVSuggestion(IFASuggestion):
 
     @property
     def caveats(self) -> list[SuggestionCaveat]:
-        """A caveat when the multipliers were computed from a default ``max_distilled_cases``."""
-        if self._user_set_mdc:
-            return []
-        return [{"code": DEFAULT_MAX_DISTILLED_CASES_CAVEAT, "message": _DEFAULT_MAX_DISTILLED_CASES_MESSAGE}]
+        """
+        Caveats on the suggested multipliers.
+
+        Reports when the multipliers were computed from a default ``max_distilled_cases``, and each
+        feature whose rare values could not all be preserved.
+        """
+        caveats: list[SuggestionCaveat] = []
+        if not self._user_set_mdc:
+            caveats.append({"code": DEFAULT_MAX_DISTILLED_CASES_CAVEAT,
+                            "message": _DEFAULT_MAX_DISTILLED_CASES_MESSAGE})
+        caveats.extend({"code": PARTIAL_RARE_VALUE_PRESERVATION_CAVEAT,
+                        "message": partial_rare_value_preservation_message(limit)} for limit in self._limits)
+        return caveats
 
     @property
     def details(self) -> dict[str, Any]:
         """
         The rare values found.
 
-        Contains ``num_values``, ``num_features``, ``recommended_feature`` (see
-        :attr:`recommended_feature`) and ``top_values``, the most frequent candidates as dicts
-        of ``feature``, ``value`` and ``count``, most frequent first.
+        Contains ``num_values``, the rare values found; ``num_preserved``, those the suggested
+        multipliers preserve; ``num_features``; ``recommended_feature`` (see
+        :attr:`recommended_feature`); ``limits``, one entry per feature whose rare values could
+        not all be preserved; and ``top_values``, the most frequent candidates as dicts of
+        ``feature``, ``value`` and ``count``, most frequent first.
         """
+        num_preserved = sum(len(values) for values in self._protected_values.values())
+        not_preserved = sum(limit["candidates"] - limit["preserved"] for limit in self._limits)
         return {
-            "num_values": sum(len(values) for values in self._protected_values.values()),
+            "num_values": num_preserved + not_preserved,
+            "num_preserved": num_preserved,
             "num_features": len(self._prvc),
             "recommended_feature": self.recommended_feature,
+            "limits": [dict(limit) for limit in self._limits],
             "top_values": [dict(candidate) for candidate in self._ranking],
         }
 
@@ -680,8 +745,8 @@ class PRVSuggestion(IFASuggestion):
         """
         Get the `preserve_rare_values_config` for use in future calls to `infer_feature_attributes`.
 
-        The config covers every feature with rare value candidates, but only one feature per dataset
-        is supported: keep a single feature before passing it to `infer_feature_attributes`.
+        The config covers every feature with rare value candidates; preserving rare values is currently
+        recommended for a single feature.
         """
         if not self._user_set_mdc and enable_warnings:
             self._warn_default_max_distilled_cases(stack_level=3)
@@ -691,8 +756,8 @@ class PRVSuggestion(IFASuggestion):
         """
         Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes`.
 
-        The map covers every feature with rare value candidates, but only one feature per dataset
-        is supported: keep a single feature before passing it to `infer_feature_attributes`.
+        The map covers every feature with rare value candidates; preserving rare values is currently
+        recommended for a single feature.
         """
         if not self._user_set_mdc:
             self._warn_default_max_distilled_cases(stack_level=3)
@@ -706,6 +771,8 @@ class PRVSuggestion(IFASuggestion):
         """Merge another PRVSuggestion into this one if there are no conflicts."""
         if not isinstance(other, PRVSuggestion):
             raise TypeError(f"Cannot merge {type(other).__name__} into PRVSuggestion.")
+        limited_features = {limit["feature"] for limit in self._limits}
+        self._limits.extend(limit for limit in other._limits if limit["feature"] not in limited_features)
         for feature, config in other.get_config(enable_warnings=False).items():
             if feature not in self._prvc:
                 self._prvc[feature] = config

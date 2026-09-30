@@ -10,7 +10,7 @@ import logging
 import math
 from pathlib import Path
 import platform
-from typing import Any, cast, Self, TYPE_CHECKING
+from typing import Any, cast, Literal, Self, TYPE_CHECKING
 import warnings
 from zoneinfo import ZoneInfo
 
@@ -28,7 +28,9 @@ from howso.utilities.feature_attributes.suggestions import (
     IFASuggestionCollector,
     multiple_rare_value_features_message,
     normalize_fanout_feature_map,
+    partial_rare_value_preservation_message,
     PRVSuggestion,
+    RareValuePreservationLimit,
 )
 from howso.utilities.feature_attributes.warnings import (
     _user_stacklevel,
@@ -53,6 +55,18 @@ if TYPE_CHECKING:
         ProtectedValueMultiplier,
     )
 
+    RareValueReweighting = tuple[
+        FeatureRareValueConfig | None, list[ProtectedValueMultiplier], RareValuePreservationLimit | None
+    ]
+    """
+    A feature's rare value configuration, the kept rare values alone, and how preservation was limited.
+
+    The configuration is None when nothing could be preserved.
+    """
+
+    RareValueCaps = Sequence[str] | Mapping[str, float]
+    """Features whose significant values keep part of their weight: names (default cap) or name to cap."""
+
 logger = logging.getLogger(__name__)
 
 # Format string tokens for datetime and time-only features
@@ -66,6 +80,58 @@ LINUX_DT_MAX = "2262-04-11"
 WIN_DT_MAX = "6053-01-24"
 
 SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
+
+DEFAULT_RARE_VALUE_CAP: float = 0.5
+"""
+The largest share of its case weight a significant value gives up to fund rare value preservation.
+
+Applies to a feature listed in ``preserve_rare_values_caps`` without a cap of its own. A feature
+that is not listed has no cap: its significant values give up as much as preserving every rare
+value requires.
+"""
+
+
+def _normalize_rare_value_caps(caps: RareValueCaps | None, feature_names: Container[str] | None = None
+                               ) -> dict[str, float]:
+    """
+    Turn either accepted form of ``preserve_rare_values_caps`` into a mapping of feature name to cap.
+
+    Parameters
+    ----------
+    caps : Sequence of str or Mapping of str to float, optional
+        Feature names, each given :data:`DEFAULT_RARE_VALUE_CAP`, or a mapping of feature name
+        to the largest share of its weight a significant value of the feature may give up.
+    feature_names : Container of str, optional
+        The features in the data; when given, every capped feature must be among them.
+
+    Returns
+    -------
+    dict of str to float
+        The cap of each listed feature.
+
+    Raises
+    ------
+    TypeError
+        If `caps` is neither a sequence of names nor a mapping.
+    ValueError
+        If a cap is not between 0 (exclusive) and 1 (inclusive), or names a feature not in the data.
+    """
+    if caps is None:
+        return {}
+    if isinstance(caps, Mapping):
+        normalized = {str(feature): float(cap) for feature, cap in caps.items()}
+    elif isinstance(caps, (str, bytes)) or not isinstance(caps, Iterable):
+        raise TypeError("`preserve_rare_values_caps` must be a list of feature names or a mapping of feature "
+                        f"name to cap; got {type(caps).__name__}.")
+    else:
+        normalized = {str(feature): DEFAULT_RARE_VALUE_CAP for feature in caps}
+    for feature, cap in normalized.items():
+        if not 0 < cap <= 1:
+            raise ValueError(f"The `preserve_rare_values_caps` value for feature `{feature}` must be greater than 0 "
+                             f"and at most 1; got {cap}.")
+        if feature_names is not None and feature not in feature_names:
+            raise ValueError(f"`preserve_rare_values_caps` names the feature `{feature}`, which is not in the data.")
+    return normalized
 
 
 def _is_null(value: Any) -> bool:
@@ -897,12 +963,13 @@ class InferFeatureAttributesBase(ABC):
         if self._summarize and self.suggestions_collector.suggestions:
             self.suggestions_collector.print_summary()
 
-    def _validate_preserve_rare_values_map(
+    def _validate_rare_value_parameters(
         self,
         preserve_rare_values_map: PreserveRareValuesMap | str | None,
+        preserve_rare_values_caps: RareValueCaps | None = None,
     ) -> None:
         """
-        Check a `preserve_rare_values_map` naming a feature.
+        Check a `preserve_rare_values_map` naming a feature and the features named by `preserve_rare_values_caps`.
 
         Called once, before features are processed in separate processes, so the error or warning
         is raised once.
@@ -910,15 +977,15 @@ class InferFeatureAttributesBase(ABC):
         Raises
         ------
         ValueError
-            If `preserve_rare_values_map` names a feature that is not in the data.
+            If either parameter names a feature that is not in the data, or a cap is out of range.
         """
+        _normalize_rare_value_caps(preserve_rare_values_caps, self._get_feature_names())
         if preserve_rare_values_map == "all":
             warnings.warn(
-                'Setting rare values across multiple features for preservation (via `preserve_rare_values_map="all") '
-                "is experimental and may not function as intended. "
-                "Rare value preservation currently only supports a single feature per dataset; to "
-                "preserve all rare values of that feature, pass its name instead, e.g. "
-                '`preserve_rare_values_map="feature_name"`.',
+                'Preserving rare values across multiple features (via `preserve_rare_values_map="all"`) '
+                "is experimental and may not function as intended. We currently recommend preserving "
+                "rare values for a single feature; to preserve all rare values of that feature, pass "
+                'its name instead, e.g. `preserve_rare_values_map="feature_name"`.',
                 UserWarning,
                 stacklevel=_user_stacklevel(),
             )
@@ -958,6 +1025,7 @@ class InferFeatureAttributesBase(ABC):
                  num_series: int = 1,
                  nominal_substitution_config: dict[str, dict] | None = None,
                  ordinal_feature_values: dict[str, list[Any]] | None = None,
+                 preserve_rare_values_caps: RareValueCaps | None = None,
                  preserve_rare_values_map: PreserveRareValuesMap | str | None = None,
                  preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None = None,
                  significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
@@ -1307,7 +1375,8 @@ class InferFeatureAttributesBase(ABC):
 
         # Compute or suggest `preserve_rare_values` configuration
         self._process_rare_values(preserve_rare_values_map, preserve_rare_values_config, max_distilled_cases,
-                                  significance_threshold, enable_suggestions)
+                                  significance_threshold, enable_suggestions,
+                                  caps=_normalize_rare_value_caps(preserve_rare_values_caps))
 
         # Re-order the keys like the original dataframe
         ordered_attributes = {}
@@ -2010,100 +2079,227 @@ class InferFeatureAttributesBase(ABC):
         top_five = sorted(value_counts, key=lambda d: d["count"], reverse=True)[:5]
         return pvm, top_five
 
-    def _normalize_rare_value_multipliers(
+    def _reweight_rare_values(  # noqa: PLR0912, PLR0915
         self,
         feature: str,
-        protected_values_multipliers: Sequence[ProtectedValueMultiplier],
+        targets: Sequence[ProtectedValueMultiplier],
         significance_threshold: int,
-    ) -> FeatureRareValueConfig | None:
+        floor: float,
+        *,
+        fit: Literal["largest_first", "scale"],
+        cap: float | None = None,
+    ) -> RareValueReweighting:
         """
-        Normalize the case weight multipliers of a feature so its total case weight equals the row count.
+        Compute the case weight multipliers of a feature that fund the preservation of its rare values.
 
-        Every value of the feature that is not protected and occurs fewer than
-        `significance_threshold` times is listed with a multiplier of 1 and left out of the
-        normalization. The protected values keep their given multipliers and all remaining values
-        start at 1; each of these multipliers is then scaled by the same factor, which becomes the
-        unprotected multiplier, so the relative weights between them are unchanged.
+        The `targets` are the rare values to weight up, each to its given multiplier. Values with
+        at least `floor` cases are significant: these are all scaled by one common factor, the
+        feature's unprotected multiplier, except that none is scaled below `floor` cases, so a
+        value that is significant before distillation stays significant after it. With a `cap`,
+        the factor is no smaller than ``1 - cap``. The factor is chosen so the total case weight
+        of the feature is unchanged. Every other value, whether it has fewer than
+        `significance_threshold` cases or falls between that and the floor, keeps a multiplier
+        of 1.
+
+        When the significant values cannot fund every target within those limits, `fit` decides
+        what happens: ``"largest_first"`` keeps the targets with the most cases and leaves the
+        rest at a multiplier of 1, while ``"scale"`` keeps every target and shrinks each one's
+        increase over 1 by a common factor.
 
         Parameters
         ----------
         feature : str
             The name of the feature.
-        protected_values_multipliers : Sequence of ProtectedValueMultiplier
-            The protected values of the feature and their multipliers before normalization. Each
-            multiplier must be positive.
+        targets : Sequence of ProtectedValueMultiplier
+            The rare values and the multipliers they should receive, each at least 1. Values of a
+            numeric feature must already be floats.
         significance_threshold : int
-            The number of cases below which an unprotected value keeps a multiplier of 1.
+            The number of cases below which a value is small.
+        floor : float
+            The number of cases a significant value must keep, ``significance_threshold`` divided
+            by the reduction ratio of distillation, or 0 when no distillation target is known.
+        fit : {"largest_first", "scale"}
+            How to reconcile the targets with the available case weight when they do not fit.
+        cap : float, optional
+            The largest share of its weight a significant value may give up. Without a cap, the
+            significant values give up as much as the targets require, down to the floor.
 
         Returns
         -------
         FeatureRareValueConfig or None
-            The normalized configuration, or None when every case holds a protected value.
+            The feature's configuration: under ``protected_values_multipliers``, the kept targets,
+            the significant values held at the floor, and every value that keeps a multiplier of 1,
+            with the common factor as ``unprotected_multiplier``. None when the feature has no
+            significant values to take case weight from, or no target could be funded.
+        list of ProtectedValueMultiplier
+            The kept targets alone.
+        RareValuePreservationLimit or None
+            How the targets were limited, or None when every target received its multiplier.
         """
         total_cases = self._get_row_count()
-        protected_values = [value_cfg["value"] for value_cfg in protected_values_multipliers]
-        protected_count = 0
-        protected_mass = 0.0
-        for value_cfg in protected_values_multipliers:
-            count = self._get_value_count(feature, value_cfg["value"])
-            protected_count += count
-            protected_mass += count * value_cfg["multiplier"]
-        if protected_count >= total_cases:
-            # No case weight is left to redistribute to the protected values
-            return None
-
         data_type = self.attributes[feature].get("data_type")
-        # All null values are counted together, so they are treated as a single value
-        null_protected, hashable_protected, unhashable_protected = _bucket_protected_values(protected_values)
+        target_values = [target["value"] for target in targets]
+        null_target, hashable_targets, unhashable_targets = _bucket_protected_values(target_values)
+        target_counts = [self._get_value_count(feature, value) for value in target_values]
+        min_multiplier = 1 - cap if cap is not None else 0.0
+
+        # Classify the other values: those below the floor keep their weight, the rest can give some up
         null_seen = False
-        small_values: list[ProtectedValueMultiplier] = []
-        small_count = 0
+        unchanged: list[Any] = []
+        significant: list[tuple[Any, int]] = []
         for unique_value in self._get_unique_values(feature):
             try:
                 if _is_null(unique_value):
-                    if null_protected or null_seen:
+                    if null_target or null_seen:
                         continue
                     null_seen = True
                     value = None
                 else:
                     value = float(unique_value) if data_type == "number" else unique_value
                     try:
-                        is_protected = value in hashable_protected
+                        is_target = value in hashable_targets
                     except TypeError:
-                        is_protected = False
-                    if is_protected or any(value == protected for protected in unhashable_protected):
+                        is_target = False
+                    if is_target or any(value == target for target in unhashable_targets):
                         continue
                 count = self._get_value_count(feature, value)
             except (TypeError, ValueError):
                 self.warnings_collector.triage(IFAWarningEmitterType.VALUE_COUNTS_PROCESSING, feature)
                 continue
-            if count < significance_threshold:
-                small_values.append({"value": value, "multiplier": 1.0})
-                small_count += count
+            if count < significance_threshold or count < floor:
+                unchanged.append(value)
+            else:
+                significant.append((value, count))
+        if not significant:
+            return None, [], None
+        significant.sort(key=lambda item: item[1])
+        counts = np.array([count for _, count in significant], dtype=float)
 
-        # Both the original and the adjusted sums leave out the small values
-        unprotected_count = total_cases - protected_count - small_count
-        scale = float((total_cases - small_count) / (protected_mass + unprotected_count))
-        return {
-            "protected_values_multipliers": [
-                {"value": value_cfg["value"], "multiplier": value_cfg["multiplier"] * scale}
-                for value_cfg in protected_values_multipliers
-            ] + small_values,
-            "unprotected_multiplier": scale,
-        }
+        # Case weight each significant value can give up
+        budgets = counts - np.maximum(floor, min_multiplier * counts)
+        budget = float(budgets.sum())
+        deficits = [count * (target["multiplier"] - 1) for count, target in zip(target_counts, targets, strict=True)]
+        needed = sum(deficits)
+        kept: list[ProtectedValueMultiplier] = []
+        kept_indices: set[int] = set()
+        limit: RareValuePreservationLimit | None = None
+        if needed <= budget:
+            kept = [dict(target) for target in targets]
+            kept_indices = set(range(len(targets)))
+            used = needed
+        elif fit == "largest_first":
+            order = sorted(range(len(targets)), key=lambda i: target_counts[i], reverse=True)
+            used = 0.0
+            for i in order:
+                if used + deficits[i] <= budget:
+                    kept.append(dict(targets[i]))
+                    kept_indices.add(i)
+                    used += deficits[i]
+            limit = {
+                "feature": feature,
+                "preserved": len(kept),
+                "candidates": len(targets),
+                "min_max_distilled_cases": self._min_distilled_cases_to_fit(
+                    np.array(target_counts, dtype=float), counts, total_cases, significance_threshold,
+                    min_multiplier),
+            }
+        else:
+            scale_targets = budget / needed
+            kept = [{"value": target["value"], "multiplier": 1 + (target["multiplier"] - 1) * scale_targets}
+                    for target in targets]
+            kept_indices = set(range(len(targets)))
+            used = budget
+            limit = {"feature": feature, "preserved": len(kept), "candidates": len(targets),
+                     "min_max_distilled_cases": None, "multiplier_scale": scale_targets}
+        if used <= 0:
+            return None, [], limit
+
+        # Water-filling: one factor for the significant values, each held at the floor. The values
+        # held at the floor are the smallest, so they form a prefix of the sorted counts.
+        remaining = float(counts.sum()) - used
+        suffix_mass = np.concatenate([np.cumsum(counts[::-1])[::-1], [0.0]])
+        factor = 1.0
+        for k in range(len(counts) + 1):
+            free_mass = suffix_mass[k]
+            if free_mass == 0:
+                # Every significant value is held at the floor, so the factor applies to no case
+                break
+            candidate = (remaining - k * floor) / free_mass
+            if (k == 0 or candidate * counts[k - 1] <= floor) and candidate * counts[k] >= floor:
+                factor = candidate
+                break
+        # Significant values the factor would take under the floor are listed at the floor instead
+        edge = [{"value": value, "multiplier": float(floor / count)}
+                for (value, count) in significant if factor * count < floor]
+        # Targets that were not kept, and every value below the floor, keep their weight
+        not_kept = [target["value"] for index, target in enumerate(targets) if index not in kept_indices]
+        entries = kept + edge + [{"value": value, "multiplier": 1.0} for value in not_kept + unchanged]
+        config: FeatureRareValueConfig = {"protected_values_multipliers": entries,
+                                          "unprotected_multiplier": float(factor)}
+        return config, kept, limit
+
+    @staticmethod
+    def _min_distilled_cases_to_fit(target_counts: np.ndarray, other_counts: np.ndarray, total_cases: int,
+                                    significance_threshold: int, min_multiplier: float) -> int:
+        """
+        Find the smallest `max_distilled_cases` at which every rare value of a feature can be preserved.
+
+        Parameters
+        ----------
+        target_counts : np.ndarray
+            The case counts of the rare values to preserve.
+        other_counts : np.ndarray
+            The case counts of the feature's other values with at least `significance_threshold` cases.
+        total_cases : int
+            The number of cases in the data.
+        significance_threshold : int
+            The number of cases each value should keep after distillation.
+        min_multiplier : float
+            The smallest multiplier the feature's significant values may receive.
+
+        Returns
+        -------
+        int
+            The smallest distillation target whose floor lets the significant values fund every
+            rare value, at most `total_cases`. The floor is computed from the target as
+            :func:`get_optimized_max_chunk_size` rounds it, the same way `infer_feature_attributes`
+            treats a `max_distilled_cases` argument.
+        """
+        counts = np.concatenate([target_counts, other_counts])
+
+        def fits(max_distilled_cases: int) -> bool:
+            max_distilled_cases, _ = get_optimized_max_chunk_size(row_count=total_cases,
+                                                                  max_chunk_size=max_distilled_cases)
+            floor = significance_threshold * total_cases / max_distilled_cases
+            # Targets below the floor need funding; any value at or above it can give some up
+            needed = float((floor - target_counts[target_counts < floor]).sum())
+            significant = counts[counts >= floor]
+            budget = float((significant - np.maximum(floor, min_multiplier * significant)).sum())
+            return needed <= budget
+
+        low, high = 1, total_cases
+        while low < high:
+            mid = (low + high) // 2
+            if fits(mid):
+                high = mid
+            else:
+                low = mid + 1
+        return low
 
     def _compute_preserve_rare_values_config(
         self,
         max_distilled_cases: int,
         preserve_rare_values_map: PreserveRareValuesMap,
-        significance_threshold: int
-    ) -> tuple[FullPreserveRareValuesConfig, PreserveRareValuesMap]:
+        significance_threshold: int,
+        caps: Mapping[str, float] | None = None,
+    ) -> tuple[FullPreserveRareValuesConfig, PreserveRareValuesMap, list[RareValuePreservationLimit]]:
         """
-        Determine the case weight multipliers for the provided protected values and the unprotected values.
+        Determine the case weight multipliers for the provided rare values and the other values of their features.
 
-        Each protected value is weighted so that it would keep `significance_threshold` cases after
-        distillation, then the multipliers are normalized with
-        :meth:`_normalize_rare_value_multipliers`.
+        Each rare value is weighted so that it keeps `significance_threshold` cases after
+        distillation, funded by the feature's significant values as described in
+        :meth:`_reweight_rare_values`. When not every rare value fits, those with the most cases
+        are preserved.
 
         Parameters
         ----------
@@ -2114,47 +2310,52 @@ class InferFeatureAttributesBase(ABC):
         significance_threshold : int
             The number of cases that are expected to result in a maintained signal for a
             particular value post-distillation.
+        caps : Mapping of str to float, optional
+            The largest share of its weight a significant value of each listed feature may give up.
 
         Returns
         -------
         FullPreserveRareValuesConfig
-            A full `preserve_rare_values` configuration with all multipliers ready for
-            application to the feature attributes.
+            A `preserve_rare_values` configuration per feature, ready for application to the
+            feature attributes.
         PreserveRareValuesMap
-            The values of each configured feature that were weighted up, without the values
-            listed only to keep a multiplier of 1.
+            The rare values of each configured feature that were weighted up.
+        list of RareValuePreservationLimit
+            The features whose rare values could not all be preserved.
         """
         prvc: FullPreserveRareValuesConfig = {}
         protected_map: PreserveRareValuesMap = {}
+        limits: list[RareValuePreservationLimit] = []
+        caps = caps or {}
         total_cases = self._get_row_count()
+        floor = significance_threshold * total_cases / max_distilled_cases
         for feature, values in preserve_rare_values_map.items():
             if feature not in self.attributes:
                 # Multiprocessing is enabled, and this feature will be handled in another process
                 continue
             data_type = self.attributes[feature]["data_type"] # pyright: ignore[reportTypedDictNotRequiredAccess]
-            protected_values_multipliers: list[ProtectedValueMultiplier] = []
+            targets: list[ProtectedValueMultiplier] = []
             for value in values:
                 count = self._get_value_count(feature, value)
                 if count == 0:
                     raise ValueError(f"Specified protected value `{value}` not found in column `{feature}`. "
                                      "Please verify the value and type.")
-                expected_freq_at_target_size = (max_distilled_cases / total_cases) * count
-                multiplier = significance_threshold / expected_freq_at_target_size
-                # If a value has a computed multiplier of < 1, it does not need signal preservation
-                if multiplier < 1:
+                multiplier = floor / count
+                # A value that keeps the threshold on its own does not need signal preservation
+                if multiplier <= 1:
                     continue
-                protected_values_multipliers.append(
-                    {"value": float(value) if data_type == "number" else value,
-                    "multiplier": float(multiplier)}
-                )
-            if not protected_values_multipliers:
+                targets.append({"value": float(value) if data_type == "number" else value,
+                                "multiplier": float(multiplier)})
+            if not targets:
                 continue
-            feature_config = self._normalize_rare_value_multipliers(feature, protected_values_multipliers,
-                                                                    significance_threshold)
-            if feature_config is not None:
-                prvc[feature] = feature_config
-                protected_map[feature] = [value_cfg["value"] for value_cfg in protected_values_multipliers]
-        return prvc, protected_map
+            config, kept, limit = self._reweight_rare_values(feature, targets, significance_threshold, floor,
+                                                             fit="largest_first", cap=caps.get(feature))
+            if limit is not None:
+                limits.append(limit)
+            if config is not None:
+                prvc[feature] = config
+                protected_map[feature] = [entry["value"] for entry in kept]
+        return prvc, protected_map, limits
 
     def _process_rare_values(  # noqa: PLR0912, PLR0915
         self,
@@ -2163,8 +2364,11 @@ class InferFeatureAttributesBase(ABC):
         max_distilled_cases: int | None,
         significance_threshold: int,
         enable_suggestions: bool = True,
+        *,
+        caps: Mapping[str, float] | None = None,
     ) -> None:
         """Procesess `preserve_rare_values` configuration or make recommendation."""
+        caps = caps or {}
         _prvc: FullPreserveRareValuesConfig = {}
         # Did the user specify max_distilled_cases? Save this information for later.
         user_set_mdc = False
@@ -2210,18 +2414,40 @@ class InferFeatureAttributesBase(ABC):
                     # Workflow 1B: User provided a "full" config (likely through the suggestion loop); use as-is
                     _prvc[feature] = deepcopy(cfg)
                     continue
-                # Workflow 1A: User provided protected values with multipliers, which are normalized
-                protected_values_multipliers = deepcopy(
-                    cfg["protected_values_multipliers"] if isinstance(cfg, Mapping) else cfg
-                )
-                for value_cfg in protected_values_multipliers:
-                    if value_cfg["multiplier"] <= 0:
+                # Workflow 1A: User provided protected values with multipliers; the other values of the
+                # feature are reweighted to fund them
+                data_type = self.attributes[feature].get("data_type")
+                targets: list[ProtectedValueMultiplier] = []
+                for value_cfg in (cfg["protected_values_multipliers"] if isinstance(cfg, Mapping) else cfg):
+                    if value_cfg["multiplier"] < 1:
                         raise ValueError(f"The multiplier for protected value `{value_cfg['value']}` of feature "
-                                         f"`{feature}` must be positive; got {value_cfg['multiplier']}.")
-                feature_full_config = self._normalize_rare_value_multipliers(
-                    feature, protected_values_multipliers, significance_threshold)
-                if feature_full_config is not None:
-                    _prvc[feature] = feature_full_config
+                                         f"`{feature}` must be at least 1; got {value_cfg['multiplier']}.")
+                    if self._get_value_count(feature, value_cfg["value"]) == 0:
+                        raise ValueError(f"Specified protected value `{value_cfg['value']}` not found in column "
+                                         f"`{feature}`. Please verify the value and type.")
+                    targets.append({
+                        "value": float(value_cfg["value"]) if data_type == "number" else value_cfg["value"],
+                        "multiplier": float(value_cfg["multiplier"]),
+                    })
+                # Without a distillation target there is no floor, so the default cap protects the other values
+                if user_set_mdc:
+                    floor = significance_threshold * self._get_row_count() / max_distilled_cases
+                    cap = caps.get(feature)
+                else:
+                    floor = 0.0
+                    cap = caps.get(feature, DEFAULT_RARE_VALUE_CAP)
+                config, _, limit = self._reweight_rare_values(feature, targets, significance_threshold, floor,
+                                                              fit="scale", cap=cap)
+                if config is None:
+                    continue
+                if limit is not None:
+                    self.warnings_collector.triage(
+                        IFAWarningEmitterType.SIMPLE,
+                        f"The multipliers provided for feature `{feature}` need more case weight than its other "
+                        f"values can give up, so each multiplier's increase over 1 was scaled by "
+                        f"{limit['multiplier_scale']:.3g}. Reduce the multipliers or protect fewer values."
+                    )
+                _prvc[feature] = config
         # Workflow 2: User provided a map of rare values to protect, but no multipliers
         elif preserve_rare_values_map is not None:
             # A string selects the rare value candidates of one feature ("all" selects every feature)
@@ -2243,9 +2469,12 @@ class InferFeatureAttributesBase(ABC):
                 )
             # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here
             if user_set_mdc:
-                _prvc, _ = self._compute_preserve_rare_values_config(max_distilled_cases,
-                                                                     preserve_rare_values_map,
-                                                                     significance_threshold)
+                _prvc, _, limits = self._compute_preserve_rare_values_config(max_distilled_cases,
+                                                                             preserve_rare_values_map,
+                                                                             significance_threshold, caps)
+                for limit in limits:
+                    self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE,
+                                                   partial_rare_value_preservation_message(limit))
             # Workflow 2B: User did not set max_distilled_cases, so we cannot guarantee accurate multipliers.
             # Let another part of the stack figure it out; set only the protected values in the attributes.
             else:
@@ -2265,11 +2494,11 @@ class InferFeatureAttributesBase(ABC):
             preserve_rare_values_map, values_ranking = self._find_protected_value_candidates(max_distilled_cases,
                                                                                              significance_threshold)
             if preserve_rare_values_map:
-                candidate_prvc, protected_map = self._compute_preserve_rare_values_config(
-                    max_distilled_cases, preserve_rare_values_map, significance_threshold)
+                candidate_prvc, protected_map, limits = self._compute_preserve_rare_values_config(
+                    max_distilled_cases, preserve_rare_values_map, significance_threshold, caps)
                 if candidate_prvc:
                     prvc_suggestion = PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc,
-                                                    protected_values=protected_map)
+                                                    protected_values=protected_map, limits=limits)
                     self.suggestions_collector.append(prvc_suggestion)
 
         # Apply rare values multipliers to feature attributes if applicable (workflows 1, 2A)

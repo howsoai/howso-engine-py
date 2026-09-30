@@ -729,15 +729,15 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     convert_data(df, adc)
 
     # Test auto-apply with all values
-    with (pytest.warns(DeprecationWarning, match='preserve_rare_values_map="all"'),
-          pytest.warns(UserWarning, match="only one feature per dataset is supported")):
+    with (pytest.warns(UserWarning, match='preserve_rare_values_map="all".*is experimental'),
+          pytest.warns(UserWarning, match="preserving rare values for only one feature")):
         features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
-    assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["value"] == '2'
-    # A multiplier of 2.4, normalized over 9,900 unprotected cases and 100 cases weighted by 2.4
-    assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == pytest.approx(
-        2.4 * 10_000 / (9_900 + 240))
+    multipliers = {cfg["value"]: cfg["multiplier"]
+                   for cfg in features["a"]["preserve_rare_values"]["protected_values_multipliers"]}
+    # The rare value keeps the threshold exactly: 30 * 10,000 / (1,250 * 100); the common value funds it
+    assert multipliers == {'2': pytest.approx(2.4)}
     assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
     # Multipliers should be deferred if `max_distilled_cases` not provided.
@@ -754,9 +754,10 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map={"b": ['y', 'z']})
     assert "preserve_rare_values" not in features["a"]
     assert "preserve_rare_values" in features["b"]
-    assert len(features["b"]["preserve_rare_values"]["protected_values_multipliers"]) == 1
-    assert features["b"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == pytest.approx(
-        2.4 * 10_000 / (9_900 + 240))
+    multipliers = {cfg["value"]: cfg["multiplier"]
+                   for cfg in features["b"]["preserve_rare_values"]["protected_values_multipliers"]}
+    # Only 'z' needs preserving; 'y' keeps the threshold on its own, so it shares the unprotected multiplier with 'x'
+    assert multipliers == {'z': pytest.approx(2.4)}
     assert round(features["b"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
     # Test that a suggestion is issued, and summarized on the console rather than as a warning
@@ -767,7 +768,7 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     for feat in features:
         assert "preserve_rare_values" not in feat
     # Test a suggestion application
-    with pytest.warns(UserWarning, match="only one feature per dataset is supported"):
+    with pytest.warns(UserWarning, match="preserving rare values for only one feature"):
         features.apply_suggestion("preserve_rare_values")
     assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
     assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
