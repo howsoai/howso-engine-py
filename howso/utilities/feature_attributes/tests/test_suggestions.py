@@ -291,7 +291,7 @@ class TestPRVSingleFeature:
 
     def test_apply_to_multiple_features_warns(self):
         attributes = {"a": {"type": "nominal"}, "b": {"type": "nominal"}}
-        with pytest.warns(UserWarning, match="only one feature per dataset is supported"):
+        with pytest.warns(UserWarning, match="preserving rare values for only one feature"):
             make_prv(_prv_config(a=1, b=1)).apply(attributes)
 
     def test_apply_to_one_feature_does_not_warn(self, recwarn):
@@ -299,7 +299,7 @@ class TestPRVSingleFeature:
         assert not recwarn.list
 
     def test_description_recommends_a_single_feature(self):
-        assert "single feature per dataset" in " ".join(repr(make_prv(_prv_config(a=1, b=1))).split())
+        assert "recommended for a single feature" in " ".join(repr(make_prv(_prv_config(a=1, b=1))).split())
 
 
 class TestSuggestionToDict:
@@ -328,8 +328,8 @@ class TestSuggestionToDict:
         assert result["name"] == "preserve_rare_values"
         assert result["can_apply"] is True
         assert result["caveats"] == []
-        assert result["details"] == {"num_values": 3, "num_features": 2, "recommended_feature": "a",
-                                     "top_values": ranking}
+        assert result["details"] == {"num_values": 3, "num_preserved": 3, "num_features": 2,
+                                     "recommended_feature": "a", "limits": [], "top_values": ranking}
         assert result["parameters"] == {
             "preserve_rare_values_config": config,
             "preserve_rare_values_map": {"a": [0, 1], "b": [0]},
