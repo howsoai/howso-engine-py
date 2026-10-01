@@ -645,22 +645,17 @@ class InferFeatureAttributesTimeSeries(ABC):
             cannot fund the multipliers, each multiplier's increase over 1 is scaled down and a
             warning is issued. A "full" config is used as-is.
 
-        preserve_rare_values_map : dict or str, default None
+        preserve_rare_values_map : dict or str, optional
             (Optional) A map of feature name to list of values that should be protected during data
-            distillation, or the name of a single nominal feature to infer and attempt to preserve
-            all of its detected rare values. Naming a feature requires `max_distilled_cases`. If set
-            to "off", rare value preservation is disabled entirely, including its automatic
-            suggestion; "off" is never read as a feature name.
+            distillation, the name of a nominal feature to preserve all of its detected
+            rare values, or "all" to do so for every nominal feature. Naming a feature or passing
+            "all" requires `max_distilled_cases`. If set to "off", rare value preservation is
+            disabled entirely, including its automatic suggestion; "off" is never read as a
+            feature name.
 
-            Each rare value is weighted to keep exactly the significance threshold after distillation,
-            funded by the feature's other values as described under `preserve_rare_values_config`.
-            When not every rare value fits, those with the most cases are preserved, and a warning
-            reports how many along with the `max_distilled_cases` that would fit all of them.
-
-        .. note ::
-            "all", which infers and attempts to preserve the detected rare values of every
-            feature, is experimental. We recommend naming a single feature instead, of which all
-            rare values will be preserved.
+            Each rare value is weighted to keep approximately `significance_threshold` number of cases
+            after distillation, funded by the feature's other values. When not every rare value fits,
+            those with the most instances are given priority.
 
         rate_boundaries : dict, default None
             (Optional) For time series, specify the rate boundaries in the form

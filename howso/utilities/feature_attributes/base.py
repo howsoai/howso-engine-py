@@ -26,17 +26,12 @@ from howso.utilities.feature_attributes.suggestions import (
     FanoutFeaturesSuggestion,
     IFASuggestion,
     IFASuggestionCollector,
-    multiple_rare_value_features_message,
     normalize_fanout_feature_map,
     partial_rare_value_preservation_message,
     PRVSuggestion,
     RareValuePreservationLimit,
 )
-from howso.utilities.feature_attributes.warnings import (
-    _user_stacklevel,
-    IFAWarningCollector,
-    IFAWarningEmitterType,
-)
+from howso.utilities.feature_attributes.warnings import IFAWarningCollector, IFAWarningEmitterType
 from howso.utilities.features import FeatureType
 from howso.utilities.utilities import (
     determine_iso_format,
@@ -969,10 +964,9 @@ class InferFeatureAttributesBase(ABC):
         preserve_rare_values_caps: RareValueCaps | None = None,
     ) -> None:
         """
-        Check a `preserve_rare_values_map` naming a feature and the features named by `preserve_rare_values_caps`.
+        Check the features named by `preserve_rare_values_map` and `preserve_rare_values_caps`.
 
-        Called once, before features are processed in separate processes, so the error or warning
-        is raised once.
+        Called once, before features are processed in separate processes, so an error is raised once.
 
         Raises
         ------
@@ -980,31 +974,10 @@ class InferFeatureAttributesBase(ABC):
             If either parameter names a feature that is not in the data, or a cap is out of range.
         """
         _normalize_rare_value_caps(preserve_rare_values_caps, self._get_feature_names())
-        if preserve_rare_values_map == "all":
-            warnings.warn(
-                'Preserving rare values across multiple features (via `preserve_rare_values_map="all"`) '
-                "is experimental and may not function as intended. We currently recommend preserving "
-                "rare values for a single feature; to preserve all rare values of that feature, pass "
-                'its name instead, e.g. `preserve_rare_values_map="feature_name"`.',
-                UserWarning,
-                stacklevel=_user_stacklevel(),
-            )
-        elif (isinstance(preserve_rare_values_map, str) and preserve_rare_values_map != "off"
-              and preserve_rare_values_map not in self._get_feature_names()):
+        if (isinstance(preserve_rare_values_map, str) and preserve_rare_values_map not in ("all", "off")
+                and preserve_rare_values_map not in self._get_feature_names()):
             raise ValueError(f"`preserve_rare_values_map` names the feature `{preserve_rare_values_map}`, "
                              "which is not in the data.")
-
-    def _check_rare_value_features(self, feature_attributes: Mapping[str, Any]) -> None:
-        """
-        Warn when rare value preservation is configured for more than one feature.
-
-        Called once every feature has been processed, so the check sees features from all shards.
-        """
-        protected_features = [feature for feature, attrs in feature_attributes.items()
-                              if "preserve_rare_values" in attrs]
-        if len(protected_features) > 1:
-            self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE,
-                                           multiple_rare_value_features_message(protected_features))
 
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,

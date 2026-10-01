@@ -729,8 +729,8 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     convert_data(df, adc)
 
     # Test auto-apply with all values
-    with (pytest.warns(UserWarning, match='preserve_rare_values_map="all".*is experimental'),
-          pytest.warns(UserWarning, match="preserving rare values for only one feature")):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
@@ -768,7 +768,8 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     for feat in features:
         assert "preserve_rare_values" not in feat
     # Test a suggestion application
-    with pytest.warns(UserWarning, match="preserving rare values for only one feature"):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
         features.apply_suggestion("preserve_rare_values")
     assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
     assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
