@@ -357,7 +357,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         tokenizer: TokenizerProtocol
     ) -> ReactDetails:
         """
-        Convert any valid details from a react call to a DataFrame and deserializes them.
+        Convert any valid details from a react call to a DataFrame and deserialize them.
 
         Note that some details may not be suitable for a DataFrame and will remain unchanged.
 
