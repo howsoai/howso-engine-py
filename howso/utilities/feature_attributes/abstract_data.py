@@ -92,7 +92,6 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             kwargs["max_workers"] = 1
         feature_attributes = self._process(**kwargs)
 
-        self._check_rare_value_features(feature_attributes)
         self.warnings_collector.emit_all()
         self._emit_summary()
 

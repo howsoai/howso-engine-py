@@ -123,7 +123,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             for collector in processed_warnings:
                 self.warnings_collector.merge(collector)
 
-            self._check_rare_value_features(feature_attributes)
             self.warnings_collector.emit_all()
 
             # Merge suggestions that originated from subprocesses
@@ -139,7 +138,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
 
         else:
             feature_attributes = self._process(**kwargs)
-            self._check_rare_value_features(feature_attributes)
             self.warnings_collector.emit_all()
             self._emit_summary()
             return SingleTableFeatureAttributes(

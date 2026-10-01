@@ -1363,8 +1363,8 @@ def test_preserve_rare_values(capsys):
     df = pd.DataFrame(data, columns=features)
 
     # Test auto-apply with all values
-    with (pytest.warns(UserWarning, match='preserve_rare_values_map="all".*is experimental'),
-          pytest.warns(UserWarning, match="preserving rare values for only one feature")):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(df, max_distilled_cases=1563, preserve_rare_values_map="all",
                                             max_workers=2)
     assert "preserve_rare_values" in features["a"]
@@ -1390,7 +1390,8 @@ def test_preserve_rare_values(capsys):
     for feat in features:
         assert "preserve_rare_values" not in feat
     # Test a suggestion application
-    with pytest.warns(UserWarning, match="preserving rare values for only one feature"):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
         features.apply_suggestion("all")
     assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
     assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
@@ -1408,23 +1409,15 @@ def test_preserve_rare_values(capsys):
     assert prv["details"]["num_features"] == len(config)
     assert 0 < len(prv["details"]["top_values"]) <= 5
 
-    # Supplying one feature of the suggested values_map and config to IFA should result in no warnings
+    # Supplying the suggested values_map and config to IFA should result in no warnings
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        features = infer_feature_attributes(df, preserve_rare_values_config={"a": config["a"]},
-                                            enable_suggestions=False)
+        features = infer_feature_attributes(df, preserve_rare_values_config=config, enable_suggestions=False)
         assert features["a"]["preserve_rare_values"] == config["a"]
-        assert "preserve_rare_values" not in features["b"]
-        features = infer_feature_attributes(df, preserve_rare_values_map={"a": values_map["a"]},
-                                            enable_suggestions=False)
+        assert features["b"]["preserve_rare_values"] == config["b"]
+        features = infer_feature_attributes(df, preserve_rare_values_map=values_map, enable_suggestions=False)
         assert "protected_values" in features["a"].get("preserve_rare_values", {})
-        assert "preserve_rare_values" not in features["b"]
-
-    # Preserving rare values across several features is allowed but warns
-    with pytest.warns(UserWarning, match="preserving rare values for only one feature"):
-        infer_feature_attributes(df, preserve_rare_values_config=config, enable_suggestions=False)
-    with pytest.warns(UserWarning, match="preserving rare values for only one feature"):
-        infer_feature_attributes(df, preserve_rare_values_map=values_map, enable_suggestions=False)
+        assert "protected_values" in features["b"].get("preserve_rare_values", {})
 
     # Test data with unhashable values
     df["unhashable"] = [[1, 2]] * len(df)  # lists are unhashable; value_counts will raise TypeError
@@ -1563,24 +1556,16 @@ def test_preserve_rare_values_map_off_with_feature_named_off(capsys):
     assert "preserve_rare_values" not in features.suggestions.suggestions
 
 
-def test_preserve_rare_values_map_all_is_experimental():
-    """Test that "all" configures every feature, with a warning that it is experimental."""
+def test_preserve_rare_values_map_all():
+    """Test that "all" configures every feature with rare value candidates, without warnings."""
     df = _two_rare_features_df()
-    with pytest.warns(UserWarning, match='preserve_rare_values_map="all".*is experimental'), \
-            pytest.warns(UserWarning, match="preserving rare values for only one feature"):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_map="all",
                                             types={"n": "continuous"})
     assert {f for f, attrs in features.items() if "preserve_rare_values" in attrs} == {"a", "b", "off"}
-
-
-def test_preserve_rare_values_suggestion_recommends_feature():
-    """Test that the suggestion offers the feature with the most rare value candidates."""
-    df = _two_rare_features_df()
-    features = infer_feature_attributes(df, max_distilled_cases=1_000, types={"n": "continuous"})
-    suggestion = features.suggestions.preserve_rare_values
-    assert suggestion.recommended_feature == "a"
-    assert suggestion.details["recommended_feature"] == "a"
-    assert 'preserve_rare_values_map="a"' in repr(suggestion)
+    assert 'preserve_rare_values_map="all"' in repr(infer_feature_attributes(
+        df, max_distilled_cases=1_000, types={"n": "continuous"}).suggestions.preserve_rare_values)
 
 
 def test_preserve_rare_values_suggestion_config_format():
