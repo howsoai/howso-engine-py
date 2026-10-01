@@ -347,9 +347,10 @@ def infer_feature_attributes(
         than the significance threshold keep a weight of 1, and every other value is scaled by
         one common factor, the "unprotected_multiplier", except that no value is scaled below the
         number of cases that keeps the threshold after distillation. See
-        `preserve_rare_values_caps` to limit how much weight those values give up. If they
-        cannot fund the multipliers, each multiplier's increase over 1 is scaled down and a
-        warning is issued. A "full" config is used as-is.
+        `preserve_rare_values_caps` to limit how much weight those values give up. Without
+        `max_distilled_cases`, the floor is computed for a target of 50,000 cases. If those
+        values cannot fund the multipliers, each multiplier's increase over 1 is scaled down
+        and a warning is issued. A "full" config is used as-is.
 
     preserve_rare_values_map : dict or str, optional
         (Optional) A map of feature name to list of values that should be protected during data

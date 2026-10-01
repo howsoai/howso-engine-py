@@ -76,6 +76,9 @@ WIN_DT_MAX = "6053-01-24"
 
 SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
 
+DEFAULT_MAX_DISTILLED_CASES: int = 50_000
+"""The distillation target assumed for rare value weighting when `max_distilled_cases` is not given."""
+
 DEFAULT_RARE_VALUE_CAP: float = 0.5
 """
 The largest share of its case weight a significant value gives up to fund rare value preservation.
@@ -2114,9 +2117,23 @@ class InferFeatureAttributesBase(ABC):
         target_values = [target["value"] for target in targets]
         null_target, hashable_targets, unhashable_targets = _bucket_protected_values(target_values)
         target_counts = [self._get_value_count(feature, value) for value in target_values]
+        # The smallest factor a significant value may be scaled by; without a cap, only the floor limits it
         min_multiplier = 1 - cap if cap is not None else 0.0
 
-        # Classify the other values: those below the floor keep their weight, the rest can give some up
+        # The algorithm, in four steps:
+        #   1. Sort every non-target value into "unchanged" (keeps weight 1) or "significant" (can give
+        #      weight up). A significant value has at least `floor` cases, so it can lose some and still
+        #      keep `significance_threshold` after distillation.
+        #   2. Compare what the targets need ("deficits") with what the significant values can give
+        #      ("budgets"), and decide which targets are funded.
+        #   3. Find the one factor that scales the significant values so their total loss equals the
+        #      funded deficits, holding any value that the factor would push under the floor at the floor.
+        #   4. List every value whose multiplier differs from the factor; the factor itself becomes the
+        #      feature's unprotected multiplier.
+
+        # Step 1: classify the other values. A value is unchanged when it is small (fewer than
+        # `significance_threshold` cases) or already below the floor, since it has no weight to spare and
+        # is not a target to lift. Nulls are counted together as the single value None.
         null_seen = False
         unchanged: list[Any] = []
         significant: list[tuple[Any, int]] = []
@@ -2144,11 +2161,15 @@ class InferFeatureAttributesBase(ABC):
             else:
                 significant.append((value, count))
         if not significant:
+            # Nothing can give up weight, so nothing can be preserved
             return None, [], None
+        # Ascending by count: step 3 relies on the values held at the floor being the smallest ones
         significant.sort(key=lambda item: item[1])
         counts = np.array([count for _, count in significant], dtype=float)
 
-        # Case weight each significant value can give up
+        # Step 2: budgets and deficits, both in cases of weight. A significant value can drop to the
+        # floor, or to `min_multiplier` times its count, whichever is higher. A target's deficit is the
+        # weight its multiplier adds on top of its own count.
         budgets = counts - np.maximum(floor, min_multiplier * counts)
         budget = float(budgets.sum())
         deficits = [count * (target["multiplier"] - 1) for count, target in zip(target_counts, targets, strict=True)]
@@ -2157,15 +2178,19 @@ class InferFeatureAttributesBase(ABC):
         kept_indices: set[int] = set()
         limit: RareValuePreservationLimit | None = None
         if needed <= budget:
-            kept = [dict(target) for target in targets]
+            # Everything fits: every target gets its multiplier
+            kept = [{"value": target["value"], "multiplier": target["multiplier"]} for target in targets]
             kept_indices = set(range(len(targets)))
             used = needed
         elif fit == "largest_first":
+            # Fund targets in order of their counts until the next one would exceed the budget; the
+            # rest stay at weight 1. The limit records what was dropped and the distillation target
+            # at which everything would have fit.
             order = sorted(range(len(targets)), key=lambda i: target_counts[i], reverse=True)
             used = 0.0
             for i in order:
                 if used + deficits[i] <= budget:
-                    kept.append(dict(targets[i]))
+                    kept.append({"value": targets[i]["value"], "multiplier": targets[i]["multiplier"]})
                     kept_indices.add(i)
                     used += deficits[i]
             limit = {
@@ -2177,6 +2202,8 @@ class InferFeatureAttributesBase(ABC):
                     min_multiplier),
             }
         else:
+            # Keep every target but shrink each multiplier's increase over 1 by the same factor, so the
+            # targets together use exactly the budget and keep their proportions to one another
             scale_targets = budget / needed
             kept = [{"value": target["value"], "multiplier": 1 + (target["multiplier"] - 1) * scale_targets}
                     for target in targets]
@@ -2185,11 +2212,19 @@ class InferFeatureAttributesBase(ABC):
             limit = {"feature": feature, "preserved": len(kept), "candidates": len(targets),
                      "min_max_distilled_cases": None, "multiplier_scale": scale_targets}
         if used <= 0:
+            # No target could be funded; the limit, if any, still tells the caller what was dropped
             return None, [], limit
 
-        # Water-filling: one factor for the significant values, each held at the floor. The values
-        # held at the floor are the smallest, so they form a prefix of the sorted counts.
+        # Step 3: the significant values must end with `remaining` cases of weight in total. Scaling
+        # all of them by one factor `s` would give sum(s * count), but any value with s * count below
+        # the floor is held at the floor instead, so the total is
+        #     k * floor + s * (sum of the counts above the floor)
+        # where k is the number of values held at the floor. Because the counts are sorted, those k
+        # values are the first k. For each candidate k, solve that equation for s and accept the
+        # first k whose s is consistent: the k-th value would fall under the floor (or k is 0) and
+        # the (k+1)-th would not.
         remaining = float(counts.sum()) - used
+        # suffix_mass[k] is the summed count of the values from index k onward; the last entry is 0
         suffix_mass = np.concatenate([np.cumsum(counts[::-1])[::-1], [0.0]])
         factor = 1.0
         for k in range(len(counts) + 1):
@@ -2201,10 +2236,13 @@ class InferFeatureAttributesBase(ABC):
             if (k == 0 or candidate * counts[k - 1] <= floor) and candidate * counts[k] >= floor:
                 factor = candidate
                 break
-        # Significant values the factor would take under the floor are listed at the floor instead
+
+        # Step 4: assemble the configuration. The Engine applies `unprotected_multiplier` to every case
+        # whose value is not listed, so only values that keep the factor stay unlisted. Listed are the
+        # funded targets, the significant values held at the floor (at floor / count, which is above
+        # the factor), and, at 1.0, the targets that were not funded and the unchanged values.
         edge = [{"value": value, "multiplier": float(floor / count)}
                 for (value, count) in significant if factor * count < floor]
-        # Targets that were not kept, and every value below the floor, keep their weight
         not_kept = [target["value"] for index, target in enumerate(targets) if index not in kept_indices]
         entries = kept + edge + [{"value": value, "multiplier": 1.0} for value in not_kept + unchanged]
         config: FeatureRareValueConfig = {"protected_values_multipliers": entries,
@@ -2365,12 +2403,13 @@ class InferFeatureAttributesBase(ABC):
                 self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE, unprocessed_msg)
         if max_distilled_cases is not None:
             user_set_mdc = True
-            # Compute the optimized max_distilled_cases value if available
-            max_distilled_cases, _ = get_optimized_max_chunk_size(row_count=self._get_row_count(),
-                                                                  max_chunk_size=max_distilled_cases)
         else:
-            # Set a small default; keep consistent with Enterprise
-            max_distilled_cases = 50_000
+            # Consistent with Enterprise; the suggestion reports that it was assumed
+            max_distilled_cases = DEFAULT_MAX_DISTILLED_CASES
+        requested_max_distilled_cases = max_distilled_cases
+        # The target as distillation will apply it
+        max_distilled_cases, _ = get_optimized_max_chunk_size(row_count=self._get_row_count(),
+                                                              max_chunk_size=max_distilled_cases)
 
         # Workflow 1: User provided a config with protected multipliers; may need to compute unprotected multipliers
         if preserve_rare_values_config is not None:
@@ -2379,6 +2418,7 @@ class InferFeatureAttributesBase(ABC):
                                                "provided with a full `preserve_rare_values_config`; the former "
                                                "will be ignored.")
             # Config provided; check if unprotected multipliers need computation
+            assumed_target_features: list[str] = []
             for feature, cfg in preserve_rare_values_config.items():
                 if feature not in self.attributes:
                     # Multiprocessing is enabled, and this feature will be handled in another process
@@ -2402,15 +2442,9 @@ class InferFeatureAttributesBase(ABC):
                         "value": float(value_cfg["value"]) if data_type == "number" else value_cfg["value"],
                         "multiplier": float(value_cfg["multiplier"]),
                     })
-                # Without a distillation target there is no floor, so the default cap protects the other values
-                if user_set_mdc:
-                    floor = significance_threshold * self._get_row_count() / max_distilled_cases
-                    cap = caps.get(feature)
-                else:
-                    floor = 0.0
-                    cap = caps.get(feature, DEFAULT_RARE_VALUE_CAP)
+                floor = significance_threshold * self._get_row_count() / max_distilled_cases
                 config, _, limit = self._reweight_rare_values(feature, targets, significance_threshold, floor,
-                                                              fit="scale", cap=cap)
+                                                              fit="scale", cap=caps.get(feature))
                 if config is None:
                     continue
                 if limit is not None:
@@ -2420,7 +2454,17 @@ class InferFeatureAttributesBase(ABC):
                         f"values can give up, so each multiplier's increase over 1 was scaled by "
                         f"{limit['multiplier_scale']:.3g}. Reduce the multipliers or protect fewer values."
                     )
+                if not user_set_mdc:
+                    assumed_target_features.append(feature)
                 _prvc[feature] = config
+            if assumed_target_features:
+                names = ", ".join(f"`{feature}`" for feature in assumed_target_features)
+                self.warnings_collector.triage(
+                    IFAWarningEmitterType.SIMPLE,
+                    f"`max_distilled_cases` was not provided, so the unprotected multiplier for {names} assumes "
+                    f"a distillation target of {DEFAULT_MAX_DISTILLED_CASES:,} cases. Provide `max_distilled_cases` "
+                    "if you will distill your data to a different size."
+                )
         # Workflow 2: User provided a map of rare values to protect, but no multipliers
         elif preserve_rare_values_map is not None:
             # A string selects the rare value candidates of one feature ("all" selects every feature)
@@ -2459,9 +2503,9 @@ class InferFeatureAttributesBase(ABC):
 
         # Workflow 3: User provided no value specifications; determine candidates and make a suggestion
         elif enable_suggestions:
-            # Skip this if data is smaller than the default (true for many test cases);
-            # probably indicates that data distillation happening is unlikely
-            if self._get_row_count() < max_distilled_cases:
+            # Skip this if the data is smaller than the distillation target (true for many test cases);
+            # distillation would not reduce it
+            if self._get_row_count() < requested_max_distilled_cases:
                 return
             # Compute but don't automatically apply
             preserve_rare_values_map, values_ranking = self._find_protected_value_candidates(max_distilled_cases,
