@@ -69,6 +69,21 @@ def test_action_and_context_features():
     assert cwd["details"].get("context_features") == ["c", "a"]
 
 
+def test_accumulate_does_not_mutate_source_reactions():
+    """Tests that `accumulate` does not extend list details owned by the accumulated reactions."""
+    df = pd.DataFrame({"num": [1.5, 2.5]})
+    attributes = infer_feature_attributes(df)
+    target = Reaction(df, {"action_features": ["num"]}, attributes)
+    first = Reaction(df, {"action_features": ["num"], "distance_contribution": [0.1, 0.2]}, attributes)
+    second = Reaction(df, {"action_features": ["num"], "distance_contribution": [0.3, 0.4]}, attributes)
+
+    target.accumulate([first, second])
+
+    assert target["details"]["distance_contribution"] == [0.1, 0.2, 0.3, 0.4]
+    assert first["details"]["distance_contribution"] == [0.1, 0.2]
+    assert second["details"]["distance_contribution"] == [0.3, 0.4]
+
+
 def test_cases_with_details_instantiate():
     """Tests that `Reaction` can be instantiated with different data types."""
     df = pd.DataFrame({
