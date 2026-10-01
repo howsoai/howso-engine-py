@@ -1619,8 +1619,8 @@ def test_preserve_rare_values_config_reweighted():
     # These fit: 5 values gaining 9 * 200 cases each is well within half of the common value's weight
     fitting = [{"value": f"rare{i}", "multiplier": 10.0} for i in range(5)]
     for user_config in (fitting, {"protected_values_multipliers": fitting}):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", UserWarning)
+        # Without `max_distilled_cases`, the floor comes from the default target, and the user is told so
+        with pytest.warns(UserWarning, match="assumes a distillation target of 50,000 cases"):
             features = infer_feature_attributes(df, preserve_rare_values_config={"a": user_config})
         multipliers = _multipliers(features["a"])
         assert all(multipliers[f"rare{i}"] == 10.0 for i in range(5))
@@ -1629,25 +1629,35 @@ def test_preserve_rare_values_config_reweighted():
         assert config["unprotected_multiplier"] == pytest.approx((98_980 - 5 * 9 * 200) / 98_980)
         assert _total_weight(df, features["a"]) == pytest.approx(len(df))
 
-    # These do not: without a distillation target the default cap applies, so the increases are
-    # scaled down together and the common value keeps half its weight
+    # These do not: without `max_distilled_cases` the floor comes from the default target of 50,000,
+    # so the common value keeps 30 * 100,000 / 50,000 = 60 cases and the increases are scaled down
+    # together to use the rest of its weight
     too_high = [{"value": f"rare{i}", "multiplier": 200.0} for i in range(5)]
     with pytest.warns(UserWarning, match="each multiplier's increase over 1 was scaled by"):
         features = infer_feature_attributes(df, preserve_rare_values_config={"a": too_high})
     multipliers = _multipliers(features["a"])
-    scale = (0.5 * 98_980) / (5 * 199 * 200)
+    scale = (98_980 - 60) / (5 * 199 * 200)
     assert all(multipliers[f"rare{i}"] == pytest.approx(1 + 199 * scale) for i in range(5))
-    assert features["a"]["preserve_rare_values"]["unprotected_multiplier"] == pytest.approx(0.5)
+    assert features["a"]["preserve_rare_values"]["unprotected_multiplier"] == pytest.approx(60 / 98_980)
     assert _total_weight(df, features["a"]) == pytest.approx(len(df))
-    # An explicit cap replaces the default
+    # A cap limits what the common value gives up
     with pytest.warns(UserWarning, match="scaled by"):
         features = infer_feature_attributes(df, preserve_rare_values_config={"a": too_high},
                                             preserve_rare_values_caps={"a": 0.8})
     assert features["a"]["preserve_rare_values"]["unprotected_multiplier"] == pytest.approx(0.2)
 
-    # A full config is used as-is
+    # With `max_distilled_cases`, nothing is assumed and nothing is reported
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=50_000,
+                                            preserve_rare_values_config={"a": fitting})
+    assert _multipliers(features["a"])["rare0"] == 10.0
+
+    # A full config is used as-is, without computing anything, so nothing is assumed either
     full = {"protected_values_multipliers": too_high, "unprotected_multiplier": 0.25}
-    features = infer_feature_attributes(df, preserve_rare_values_config={"a": full})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, preserve_rare_values_config={"a": full})
     assert features["a"]["preserve_rare_values"] == full
 
     # Multipliers must be at least 1, and values must exist
