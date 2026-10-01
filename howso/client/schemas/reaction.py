@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from collections.abc import MutableMapping, Mapping, Sequence, Iterator
+from collections.abc import Iterator, Mapping, MutableMapping, Sequence
 from itertools import chain, pairwise
 from pprint import pformat
-from typing import Any, cast, Literal, Optional, overload, TypeAlias, TypedDict
+from typing import Any, cast, Literal, overload, TypeAlias, TypedDict
 
 import numpy as np
 import pandas as pd
 
 from howso.utilities import deserialize_cases, format_column, format_dataframe, HowsoTokenizer, TokenizerProtocol
 from howso.utilities.internals import update_caps_maps
-
 
 __all__ = [
     "ReactDetails",
@@ -87,13 +86,13 @@ class ReactDetails(TypedDict, total=False):
     """A DataFrame of the parts that are used to compute the distance ratio for each case."""
 
     feature_density_convictions: pd.DataFrame
-    """A DataFrame of the feature density convictions for the local data around this case. Computed as the average weighted mean absolute deviation of local values / weighted mean absolute deviation of local values"""
+    """A DataFrame of the feature density convictions for the local data around this case. Computed as the average weighted mean absolute deviation of local values / weighted mean absolute deviation of local values"""  # noqa: E501
 
     feature_average_local_mad: pd.DataFrame
-    """A DataFrame of the average weighted mean absolute deviation of all local cases for a specific case, using each case's local data for computation."""
+    """A DataFrame of the average weighted mean absolute deviation of all local cases for a specific case, using each case's local data for computation."""  # noqa: E501
 
     feature_local_mad: pd.DataFrame
-    """A DataFrame of the weighted mean absolute deviation of all local cases for a specific case, using each case's local data for computation."""
+    """A DataFrame of the weighted mean absolute deviation of all local cases for a specific case, using each case's local data for computation."""  # noqa: E501
 
     feature_deviations: pd.DataFrame
     """
@@ -283,8 +282,8 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         feature_attributes: Mapping[str, Any],
         *,
         process_details: bool = True,
-        tokenizer: Optional[TokenizerProtocol] = None,
-    ):
+        tokenizer: TokenizerProtocol | None = None,
+    ) -> None:
         """Initialize the dictionary with the allowed keys."""
         tokenizer = tokenizer or HowsoTokenizer()
         if isinstance(action, pd.DataFrame):
@@ -295,36 +294,32 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
             self._action = deserialize_cases(action, details["action_features"], feature_attributes,
                                              tokenizer=tokenizer)
         if process_details:
-            self._details = self.format_react_details(details, feature_attributes, tokenizer=tokenizer)
+            self._details = self.format_react_details(dict(details), feature_attributes, tokenizer=tokenizer)
         else:
             self._details = cast(ReactDetails, details)
 
     @overload
     def __getitem__(self, key: Literal["action"]) -> pd.DataFrame:
-        """Get the action values from the Reaction."""
         ...
 
     @overload
     def __getitem__(self, key: Literal["details"]) -> ReactDetails:
-        """Get the details from the Reaction."""
         ...
 
     def __getitem__(self, key: ReactionKey) -> pd.DataFrame | ReactDetails:
         """Get an item by key if the key is allowed."""
         if key == "action":
             return self._action
-        elif key == "details":
+        if key == "details":
             return self._details
         raise ValueError(f"Invalid key: {key}. Valid keys are 'action' or 'details'.")
 
     @overload
-    def __setitem__(self, key: Literal["action"], value: pd.DataFrame):
-        """Set the action value."""
+    def __setitem__(self, key: Literal["action"], value: pd.DataFrame) -> None:
         ...
 
     @overload
-    def __setitem__(self, key: Literal["details"], value: ReactDetails):
-        """Set the details value."""
+    def __setitem__(self, key: Literal["details"], value: ReactDetails) -> None:
         ...
 
     def __setitem__(self, key: ReactionKey, value: pd.DataFrame | ReactDetails):
@@ -337,7 +332,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                 raise ValueError("Value being set for `action` must be a Pandas DataFrame.")
         elif key == "details":
             if isinstance(value, Mapping):
-                self._details = cast(ReactDetails, value)
+                self._details = value
             else:
                 raise ValueError("Value being set for `details` must be a Mapping.")
         else:
@@ -353,14 +348,16 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
 
     def __repr__(self) -> str:
         """Return a printable representation of this Reaction."""
-        return f"{repr(self._action)}\n{pformat(self._details)}"
+        return f"{self._action!r}\n{pformat(self._details)}"
 
     @staticmethod
-    def format_react_details(details: MutableMapping[str, Any],  # noqa: C901
-                             feature_attributes: Mapping[str, Any],
-                             tokenizer: TokenizerProtocol) -> ReactDetails:
+    def format_react_details(
+        details: MutableMapping[str, Any],
+        feature_attributes: Mapping[str, Any],
+        tokenizer: TokenizerProtocol
+    ) -> ReactDetails:
         """
-        Converts any valid details from a react call to a DataFrame and deserializes them.
+        Convert any valid details from a react call to a DataFrame and deserializes them.
 
         Note that some details may not be suitable for a DataFrame and will remain unchanged.
 
@@ -383,7 +380,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         """
         formatted_details = {}
 
-        def _format_case_lists(cases: list[list[dict]]) -> list[pd.DataFrame] | None:
+        def _format_case_lists(cases: list[list[dict[str, Any]]]) -> list[pd.DataFrame] | None:
             """
             Format a list of per-case lists of dicts into a list of DataFrames using a single formatting pass.
 
@@ -407,7 +404,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                 for start, stop in pairwise(bounds)
             ]
 
-        def _convert(detail_name, detail: Any) -> Any:  # noqa: PLR0911
+        def _convert(detail_name: str, detail: Any) -> Any:  # noqa: PLR0911
             """Recursively format and deserialize details."""
             # If the detail is not a list, return as-is
             if not isinstance(detail, list):
@@ -415,7 +412,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
             # Special case: a list of per-case lists of dicts that need deserializing. Format all cases at
             # once in a single DataFrame rather than one tiny DataFrame per case; the per-DataFrame overhead
             # of pandas dominates otherwise.
-            elif detail_name in DETAILS_WITH_CASE_DATA and detail and all(isinstance(v, list) for v in detail):
+            if detail_name in DETAILS_WITH_CASE_DATA and detail and all(isinstance(v, list) for v in detail):
                 batched = _format_case_lists(detail)
                 if batched is not None:
                     return batched
@@ -425,10 +422,10 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                 if detail_name == "categorical_action_probabilities":
                     return update_caps_maps(detail, feature_attributes)
                 # Special case: prediction stats
-                elif detail_name == "prediction_stats":
+                if detail_name == "prediction_stats":
                     pred_stats_groups = []
                     for group in detail:
-                        if "confusion_matrix" in group.keys():
+                        if "confusion_matrix" in group:
                             group["confusion_matrix"].update({
                                 k: {**v, "matrix": pd.DataFrame(v["matrix"])}
                                 if isinstance(v, Mapping) and "matrix" in v
@@ -438,15 +435,14 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                         pred_stats_groups.append(pd.DataFrame(group).T)
                     return pred_stats_groups
                 # Special case: details to be deserialized
-                elif detail_name in DETAILS_WITH_CASE_DATA:
+                if detail_name in DETAILS_WITH_CASE_DATA:
                     return format_dataframe(
                         pd.DataFrame(detail),
                         features=feature_attributes,
                         tokenizer=tokenizer
                     )
                 # All other details
-                else:
-                    return pd.DataFrame(detail)
+                return pd.DataFrame(detail)
 
             # Recurse
             return [_convert(detail_name, v) for v in detail]
@@ -454,7 +450,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         for detail_name, detail in details.items():
             # Special case: context_values
             if detail_name == "context_values":
-                context_columns = details.get('context_features')
+                context_columns = details.get("context_features")
                 formatted_details.update({detail_name: deserialize_cases(detail, context_columns, feature_attributes)})
             # Special case: relevant_values
             elif detail_name == "relevant_values":
@@ -474,7 +470,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
             }:
                 formatted_details.update({detail_name: detail})
             # Other valid details
-            elif detail_name in ReactDetails.__annotations__.keys():
+            elif detail_name in ReactDetails.__annotations__:
                 formatted_details.update({detail_name: _convert(detail_name, detail)})
             # Unknown detail
             else:
@@ -482,7 +478,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
 
         return ReactDetails(**formatted_details)
 
-    def accumulate(self, reactions: Reaction | Sequence[Reaction]):
+    def accumulate(self, reactions: Reaction | Sequence[Reaction]) -> None:
         """
         Merge one or more other Reaction objects into this Reaction.
 
@@ -496,28 +492,25 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         for reaction in reactions:
             if not isinstance(reaction, Reaction):
                 raise TypeError(f"All items in `reactions` must be of type `Reaction` (found type: {type(reaction)}).")
-            if reaction["action"] is not None:
-                if self._action is not None:
-                    self._action = pd.concat([self._action, reaction["action"]])
-                else:
-                    self._action = reaction["action"]
+            self._action = pd.concat([self._action, reaction["action"]])
 
-            if reaction["details"] is not None:
-                for key, detail in reaction["details"].items():
-                    if detail is None:
-                        continue
-                    elif key not in self._details:
-                        self._details[key] = detail
-                    elif key in ["action_features", "context_features"]:
+            for key, detail in reaction["details"].items():
+                if detail is None:
+                    continue
+                existing = self._details.get(key)
+                if existing is None:
+                    # Copy lists so later `extend` calls don't mutate the source reaction's details
+                    self._details[key] = detail.copy() if isinstance(detail, list) else detail
+                elif isinstance(existing, list) and isinstance(detail, list):
+                    if key in ("action_features", "context_features"):
                         # Special case: avoid duplicate entries in feature name lists
-                        self._details[key] = list(dict.fromkeys(self._details[key] + detail))
-                    elif hasattr(detail, "extend") and callable(detail.extend):
-                        self._details[key].extend(detail)
-                    elif isinstance(detail, pd.DataFrame):
-                        self._details[key] = pd.concat([self._details[key], detail])
+                        self._details[key] = list(dict.fromkeys(existing + detail))
                     else:
-                        raise TypeError(
-                            f"The value under the key {key} was expected to be a list (or another "
-                            f"MutableSequence) or DataFrame but it is of type "
-                            f"{type(self._details[key])} instead."
-                        )
+                        existing.extend(detail)
+                elif isinstance(existing, pd.DataFrame) and isinstance(detail, pd.DataFrame):
+                    self._details[key] = pd.concat([existing, detail])
+                else:
+                    raise TypeError(
+                        f"The values under the key {key} were expected to both be lists or both be "
+                        f"DataFrames, but they are of types {type(existing)} and {type(detail)}."
+                    )
