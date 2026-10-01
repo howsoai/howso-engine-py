@@ -288,10 +288,12 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
 
     @overload
     def __getitem__(self, key: Literal["action"]) -> pd.DataFrame:
+        """Get the action values from the Reaction."""
         ...
 
     @overload
     def __getitem__(self, key: Literal["details"]) -> ReactDetails:
+        """Get the details from the Reaction."""
         ...
 
     def __getitem__(self, key: ReactionKey) -> pd.DataFrame | ReactDetails:
@@ -304,10 +306,12 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
 
     @overload
     def __setitem__(self, key: Literal["action"], value: pd.DataFrame) -> None:
+        """Set the action value."""
         ...
 
     @overload
     def __setitem__(self, key: Literal["details"], value: ReactDetails) -> None:
+        """Set the details value."""
         ...
 
     def __setitem__(self, key: ReactionKey, value: pd.DataFrame | ReactDetails):
@@ -339,7 +343,7 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         return f"{self._action!r}\n{pformat(self._details)}"
 
     @staticmethod
-    def format_react_details(
+    def format_react_details(  # noqa: C901
         details: MutableMapping[str, Any],
         feature_attributes: Mapping[str, Any],
         tokenizer: TokenizerProtocol
