@@ -10,6 +10,8 @@ from typing_extensions import NotRequired
 if t.TYPE_CHECKING:
     from howso.client.schemas import Trainee
 
+_T = t.TypeVar("_T")
+
 
 class TraineeCacheItem(t.TypedDict):
     """Type definition for trainee cache items."""
@@ -90,7 +92,13 @@ class TraineeCache(Collection):
                     raise
                 return default
 
-    def get_item(self, trainee_id: str, default=__marker) -> TraineeCacheItem:
+    @t.overload
+    def get_item(self, trainee_id: str) -> TraineeCacheItem: ...
+
+    @t.overload
+    def get_item(self, trainee_id: str, default: _T) -> TraineeCacheItem | _T: ...
+
+    def get_item(self, trainee_id: str, default: object = __marker) -> TraineeCacheItem | object:
         """
         Get the cache entry for a trainee, by id.
 
@@ -111,7 +119,7 @@ class TraineeCache(Collection):
 
         Returns
         -------
-        TraineeCacheItem
+        TraineeCacheItem or the type of ``default``
             The trainee's live cache entry, or ``default``.
 
         Raises
