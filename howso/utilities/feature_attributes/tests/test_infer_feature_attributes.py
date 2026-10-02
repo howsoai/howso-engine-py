@@ -1667,6 +1667,41 @@ def test_preserve_rare_values_config_reweighted():
         infer_feature_attributes(df, preserve_rare_values_config={"a": [{"value": "missing", "multiplier": 2}]})
 
 
+def test_preserve_rare_values_significant_values_exactly_at_floor():
+    """Test the multipliers when funding the targets puts every significant value exactly at the floor."""
+    # With a target equal to the data size, the floor is the threshold itself: 29 cases. v1 and v2
+    # can give up 71 each, and `rare` asks for 5 * 29 = 145, so its multiplier is scaled to fit and
+    # both v1 and v2 end with exactly 29 cases, a factor of 0.29 that floating point cannot represent
+    df = pd.DataFrame({"a": ["v1"] * 100 + ["v2"] * 100 + ["rare"] * 5})
+    with pytest.warns(UserWarning, match="scaled by 0.979"):
+        features = infer_feature_attributes(df, max_distilled_cases=205, significance_threshold=29,
+                                            preserve_rare_values_config={
+                                                "a": [{"value": "rare", "multiplier": 30.0}]},
+                                            enable_suggestions=False)
+    config = features["a"]["preserve_rare_values"]
+    multipliers = _multipliers(features["a"])
+    assert multipliers["rare"] == pytest.approx(1 + 29 * 142 / 145)
+    assert config["unprotected_multiplier"] == pytest.approx(0.29)
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+
+    # Significant values of different sizes: the smaller one is held at the floor, the larger one is
+    # scaled, and together they give up exactly what the target needs
+    df = pd.DataFrame({"a": ["v1"] * 100 + ["v2"] * 50 + ["rare"] * 5})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=155, significance_threshold=29,
+                                            preserve_rare_values_config={
+                                                "a": [{"value": "rare", "multiplier": 19.0}]},
+                                            enable_suggestions=False)
+    config = features["a"]["preserve_rare_values"]
+    multipliers = _multipliers(features["a"])
+    # v1 and v2 must end with 150 - 5 * 18 = 60 cases: v2 at the floor of 29, v1 with the other 31
+    assert multipliers["v2"] == pytest.approx(29 / 50)
+    assert "v1" not in multipliers
+    assert config["unprotected_multiplier"] == pytest.approx(0.31)
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+
+
 def test_preserve_rare_values_all_cases_protected():
     """Test that a feature is skipped when every one of its cases holds a protected value."""
     df = pd.DataFrame({"a": ["x"] * 50 + ["y"] * 50, "i": range(100)})

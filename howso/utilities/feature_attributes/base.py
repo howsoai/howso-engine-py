@@ -2136,6 +2136,7 @@ class InferFeatureAttributesBase(ABC):
         # is not a target to lift. Nulls are counted together as the single value None.
         null_seen = False
         unchanged: list[Any] = []
+        unchanged_mass = 0
         significant: list[tuple[Any, int]] = []
         for unique_value in self._get_unique_values(feature):
             try:
@@ -2158,6 +2159,7 @@ class InferFeatureAttributesBase(ABC):
                 continue
             if count < significance_threshold or count < floor:
                 unchanged.append(value)
+                unchanged_mass += count
             else:
                 significant.append((value, count))
         if not significant:
@@ -2220,32 +2222,36 @@ class InferFeatureAttributesBase(ABC):
         # the floor is held at the floor instead, so the total is
         #     k * floor + s * (sum of the counts above the floor)
         # where k is the number of values held at the floor. Because the counts are sorted, those k
-        # values are the first k. For each candidate k, solve that equation for s and accept the
-        # first k whose s is consistent: the k-th value would fall under the floor (or k is 0) and
-        # the (k+1)-th would not.
+        # values are the first k. Walk k upward: solve the equation for s assuming the first k values
+        # are held at the floor, and stop at the first k whose next value keeps at least the floor
+        # under that s. If it falls short, it is held at the floor too, and the walk continues. The
+        # budget guarantees `remaining` covers the floors, so the walk ends with a consistent s unless
+        # every value is held at the floor, in which case s is applied to no case.
         remaining = float(counts.sum()) - used
-        # suffix_mass[k] is the summed count of the values from index k onward; the last entry is 0
-        suffix_mass = np.concatenate([np.cumsum(counts[::-1])[::-1], [0.0]])
+        # suffix_mass[k] is the summed count of the values from index k onward
+        suffix_mass = np.cumsum(counts[::-1])[::-1]
+        tolerance = 1e-9 * max(floor, 1.0)
+        held = len(counts)
         factor = 1.0
-        for k in range(len(counts) + 1):
-            free_mass = suffix_mass[k]
-            if free_mass == 0:
-                # Every significant value is held at the floor, so the factor applies to no case
-                break
-            candidate = (remaining - k * floor) / free_mass
-            if (k == 0 or candidate * counts[k - 1] <= floor) and candidate * counts[k] >= floor:
-                factor = candidate
+        for k in range(len(counts)):
+            candidate = (remaining - k * floor) / suffix_mass[k]
+            if candidate * counts[k] >= floor - tolerance:
+                held = k
+                factor = float(candidate)
                 break
 
         # Step 4: assemble the configuration. The Engine applies `unprotected_multiplier` to every case
         # whose value is not listed, so only values that keep the factor stay unlisted. Listed are the
         # funded targets, the significant values held at the floor (at floor / count, which is above
         # the factor), and, at 1.0, the targets that were not funded and the unchanged values.
-        edge = [{"value": value, "multiplier": float(floor / count)}
-                for (value, count) in significant if factor * count < floor]
+        edge: list[ProtectedValueMultiplier] = [
+            {"value": value, "multiplier": float(floor / count)} for (value, count) in significant[:held]
+        ]
         not_kept = [target["value"] for index, target in enumerate(targets) if index not in kept_indices]
-        entries = kept + edge + [{"value": value, "multiplier": 1.0} for value in not_kept + unchanged]
-        config: FeatureRareValueConfig = {"protected_values_multipliers": entries,
+        at_one: list[ProtectedValueMultiplier] = [
+            {"value": value, "multiplier": 1.0} for value in not_kept + unchanged
+        ]
+        config: FeatureRareValueConfig = {"protected_values_multipliers": kept + edge + at_one,
                                           "unprotected_multiplier": float(factor)}
         return config, kept, limit
 
