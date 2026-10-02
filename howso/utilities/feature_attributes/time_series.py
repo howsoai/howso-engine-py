@@ -34,8 +34,9 @@ from howso.utilities.utilities import (
 if t.TYPE_CHECKING:
     from howso.client.typing import (
         FullPreserveRareValuesConfig,
+        PreserveRareValuesCaps,
         PreserveRareValuesConfig,
-        PreserveRareValuesMap,
+        PreserveRareValuesSelection,
     )
 
 logger = logging.getLogger(__name__)
@@ -385,8 +386,8 @@ class InferFeatureAttributesTimeSeries(ABC):
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
         ordinal_feature_values: t.Optional[dict[str, list[t.Any]]] = None,
-        preserve_rare_values_caps: t.Optional[t.Sequence[str] | t.Mapping[str, float]] = None,
-        preserve_rare_values_map: t.Optional[PreserveRareValuesMap | str] = None,
+        preserve_rare_values_caps: t.Optional[PreserveRareValuesCaps] = None,
+        preserve_rare_values_map: t.Optional[PreserveRareValuesSelection] = None,
         preserve_rare_values_config: t.Optional[PreserveRareValuesConfig | FullPreserveRareValuesConfig] = None,
         rate_boundaries: t.Optional[dict] = None,
         significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
@@ -646,13 +647,12 @@ class InferFeatureAttributesTimeSeries(ABC):
             values cannot fund the multipliers, each multiplier's increase over 1 is scaled down
             and a warning is issued. A "full" config is used as-is.
 
-        preserve_rare_values_map : dict or str, optional
+        preserve_rare_values_map : dict or list of str or "all" or "off", optional
             (Optional) A map of feature name to list of values that should be protected during data
-            distillation, the name of a nominal feature to preserve all of its detected
-            rare values, or "all" to do so for every nominal feature. Naming a feature or passing
-            "all" requires `max_distilled_cases`. If set to "off", rare value preservation is
-            disabled entirely, including its automatic suggestion; "off" is never read as a
-            feature name.
+            distillation, a list of nominal feature names to preserve all of their detected rare
+            values, or "all" to do so for every nominal feature. Listing features or passing "all"
+            requires `max_distilled_cases`. If set to "off", rare value preservation is disabled
+            entirely, including its automatic suggestion.
 
             Each rare value is weighted to keep approximately `significance_threshold` number of cases
             after distillation, funded by the feature's other values. When not every rare value fits,

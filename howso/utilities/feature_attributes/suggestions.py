@@ -544,10 +544,10 @@ class PRVSuggestion(IFASuggestion):
         rows.append((
             "Preserve every rare value candidate",
             'Pass "all" as the `preserve_rare_values_map` to preserve every rare value candidate of '
-            "every feature, or the name of one feature to preserve its candidates only. Requires "
-            "`max_distilled_cases`.",
+            "every feature, or a list of feature names to preserve the candidates of those features "
+            "only. Requires `max_distilled_cases`.",
             "Call `infer_feature_attributes` with: "
-            '`preserve_rare_values_map="all"` (or a feature name) and `max_distilled_cases`'
+            '`preserve_rare_values_map="all"` (or a list of feature names) and `max_distilled_cases`'
         ))
 
         if self.can_apply:

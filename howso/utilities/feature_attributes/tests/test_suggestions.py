@@ -1,6 +1,7 @@
 """Unit tests for IFASuggestion and IFASuggestionCollector."""
 import datetime
 import json
+from typing import ClassVar
 
 import numpy as np
 import pytest
@@ -255,12 +256,14 @@ class TestCollectorSummary:
 
 
 class TestPRVProtectedValues:
+    """The values map of a PRVSuggestion names the rare values, not every listed value."""
 
-    _CONFIG = {"a": {"protected_values_multipliers": [{"value": "rare", "multiplier": 4.0},
-                                                      {"value": "small", "multiplier": 1.0}],
-                     "unprotected_multiplier": 0.9}}
+    _CONFIG: ClassVar[dict] = {"a": {"protected_values_multipliers": [{"value": "rare", "multiplier": 4.0},
+                                                                      {"value": "small", "multiplier": 1.0}],
+                                     "unprotected_multiplier": 0.9}}
 
     def test_values_map_lists_only_protected_values(self):
+        """Only the values given as protected appear in the map, the details and the parameters."""
         suggestion = PRVSuggestion(self._CONFIG, [], user_set_max_distilled_cases=True,
                                    protected_values={"a": ["rare"]})
         assert suggestion.get_values_map() == {"a": ["rare"]}
@@ -268,9 +271,11 @@ class TestPRVProtectedValues:
         assert suggestion.parameters["preserve_rare_values_map"] == {"a": ["rare"]}
 
     def test_values_map_defaults_to_every_listed_value(self):
+        """Without an explicit set of protected values, every listed value is in the map."""
         assert make_prv(self._CONFIG).get_values_map() == {"a": ["rare", "small"]}
 
     def test_merge_combines_protected_values(self):
+        """Merging keeps each suggestion's protected values under its own features."""
         target = PRVSuggestion(self._CONFIG, [], user_set_max_distilled_cases=True,
                                protected_values={"a": ["rare"]})
         target.merge(PRVSuggestion(_prv_config(b=1), [], user_set_max_distilled_cases=True,
