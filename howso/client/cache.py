@@ -46,9 +46,7 @@ class TraineeCache(Collection):
 
     def __init__(self) -> None:
         """Initialize an empty cache."""
-        # Entries hold the TraineeCacheItem keys plus any extra keys callers
-        # pass to ``set`` (for example a platform ``revision``).
-        self._items: dict[str, dict[str, t.Any]] = {}
+        self._items: dict[str, TraineeCacheItem] = {}
         self._lock = threading.Lock()
 
     def set(self, trainee: Trainee, **kwargs) -> None:
@@ -69,8 +67,13 @@ class TraineeCache(Collection):
         """
         if trainee.id:
             with self._lock:
-                item = self._items.setdefault(trainee.id, {"feature_attributes": None})
-                item.update({"trainee": trainee, **kwargs})
+                item = self._items.setdefault(trainee.id, {"trainee": trainee, "feature_attributes": None})
+                item["trainee"] = trainee
+                # kwargs may carry keys TraineeCacheItem does not declare
+                # (for example a platform ``revision``), so they are assigned
+                # one at a time.
+                for key, value in kwargs.items():
+                    item[key] = value
 
     def get(self, trainee_id: str, default=__marker) -> Trainee:
         """Get trainee instance by id."""
@@ -86,10 +89,7 @@ class TraineeCache(Collection):
         """Get trainee cache item by id."""
         with self._lock:
             try:
-                # Entries always carry the TraineeCacheItem keys because ``set``
-                # creates them; extra caller-supplied keys are why storage is
-                # typed as a plain dict.
-                return t.cast(TraineeCacheItem, self._items[trainee_id])
+                return self._items[trainee_id]
             except KeyError:
                 if default is self.__marker:
                     raise
@@ -108,8 +108,7 @@ class TraineeCache(Collection):
     def items(self) -> list[tuple[str, TraineeCacheItem]]:
         """Return a snapshot list of the ``(id, item)`` pairs in the cache."""
         with self._lock:
-            # See ``get_item`` for why entries are cast to TraineeCacheItem.
-            return [(key, t.cast(TraineeCacheItem, item)) for key, item in self._items.items()]
+            return list(self._items.items())
 
     def trainees(self) -> Iterator[tuple[str, Trainee]]:
         """Return an iterator over a snapshot of the ``(id, trainee)`` pairs in the cache."""
