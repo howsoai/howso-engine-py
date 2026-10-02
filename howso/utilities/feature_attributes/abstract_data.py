@@ -78,6 +78,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
 
     def __call__(self, **kwargs) -> SingleTableFeatureAttributes:
         """Process and return feature attributes."""
+        self._validate_rare_value_parameters(kwargs.get("preserve_rare_values_map"),
+                                             kwargs.get("preserve_rare_values_caps"))
         # For Spark compute types, multiprocessing is less-performant.
         # If we're working with the SparkDataFrameData ADC, unless the user
         # specifically sets `max_workers`, we want "sharding" disabled.

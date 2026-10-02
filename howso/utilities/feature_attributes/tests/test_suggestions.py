@@ -1,6 +1,7 @@
 """Unit tests for IFASuggestion and IFASuggestionCollector."""
 import datetime
 import json
+from typing import ClassVar
 
 import numpy as np
 import pytest
@@ -254,6 +255,34 @@ class TestCollectorSummary:
         assert not recwarn.list
 
 
+class TestPRVProtectedValues:
+    """The values map of a PRVSuggestion names the rare values, not every listed value."""
+
+    _CONFIG: ClassVar[dict] = {"a": {"protected_values_multipliers": [{"value": "rare", "multiplier": 4.0},
+                                                                      {"value": "small", "multiplier": 1.0}],
+                                     "unprotected_multiplier": 0.9}}
+
+    def test_values_map_lists_only_protected_values(self):
+        """Only the values given as protected appear in the map, the details and the parameters."""
+        suggestion = PRVSuggestion(self._CONFIG, [], user_set_max_distilled_cases=True,
+                                   protected_values={"a": ["rare"]})
+        assert suggestion.get_values_map() == {"a": ["rare"]}
+        assert suggestion.details["num_values"] == 1
+        assert suggestion.parameters["preserve_rare_values_map"] == {"a": ["rare"]}
+
+    def test_values_map_defaults_to_every_listed_value(self):
+        """Without an explicit set of protected values, every listed value is in the map."""
+        assert make_prv(self._CONFIG).get_values_map() == {"a": ["rare", "small"]}
+
+    def test_merge_combines_protected_values(self):
+        """Merging keeps each suggestion's protected values under its own features."""
+        target = PRVSuggestion(self._CONFIG, [], user_set_max_distilled_cases=True,
+                               protected_values={"a": ["rare"]})
+        target.merge(PRVSuggestion(_prv_config(b=1), [], user_set_max_distilled_cases=True,
+                                   protected_values={"b": [0]}))
+        assert target.get_values_map() == {"a": ["rare"], "b": [0]}
+
+
 class TestSuggestionToDict:
 
     def test_fanout_to_dict(self):
@@ -280,7 +309,8 @@ class TestSuggestionToDict:
         assert result["name"] == "preserve_rare_values"
         assert result["can_apply"] is True
         assert result["caveats"] == []
-        assert result["details"] == {"num_values": 3, "num_features": 2, "top_values": ranking}
+        assert result["details"] == {"num_values": 3, "num_preserved": 3, "num_features": 2,
+                                     "limits": [], "top_values": ranking}
         assert result["parameters"] == {
             "preserve_rare_values_config": config,
             "preserve_rare_values_map": {"a": [0, 1], "b": [0]},

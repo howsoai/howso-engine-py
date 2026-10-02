@@ -3,6 +3,7 @@ from datetime import date
 from pathlib import Path
 import warnings
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -696,6 +697,22 @@ def test_dependent_features_uniques_warning(adc):
         infer_feature_attributes(adc, dependent_features={"a": ["b", "c", "d"]})
 
 
+def _percentile_df(n: int = 10_000) -> pd.DataFrame:
+    """
+    Build cases whose nominal values depend on their position within each block of 100.
+
+    Feature `a` is "1" except for the last percentile, which is "2"; feature `b` is "x" for the
+    first 95 percentiles, "y" for the next 4 and "z" for the last.
+    """
+    percentile = np.arange(n) % 100
+    return pd.DataFrame({
+        "a": np.where(percentile < 99, "1", "2"),
+        "b": np.select([percentile < 95, percentile < 99], ["x", "y"], default="z"),
+        "i": np.arange(1, n + 1),
+        "mass": 1,
+    })
+
+
 @pytest.mark.parametrize("adc", [
     ("SQLTableData", pd.DataFrame()),
     ("ParquetDataFile", pd.DataFrame()),
@@ -705,35 +722,19 @@ def test_dependent_features_uniques_warning(adc):
 ], indirect=True)
 def test_preserve_rare_values(adc, make_adc, capsys):
     """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
-    # Manufacture some data
-    n = 10_000
-    features = ['a', 'b', 'i', 'mass']
-    data = []
-    for i in range(n):
-        mass = 1
-        percentile = i % 100
-        if percentile < 99:
-            a_val = '1'
-        else:
-            a_val = '2'
-        if percentile < 95:
-            b_val = 'x'
-        elif percentile < 99:
-            b_val = 'y'
-        else:
-            b_val = 'z'
-        case = [a_val, b_val, i + 1, mass]
-        data.append(case)
-
-    df = pd.DataFrame(data, columns=features)
+    df = _percentile_df()
     convert_data(df, adc)
 
     # Test auto-apply with all values
-    features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map="all")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
-    assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["value"] == '2'
-    assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == 2.4
+    multipliers = {cfg["value"]: cfg["multiplier"]
+                   for cfg in features["a"]["preserve_rare_values"]["protected_values_multipliers"]}
+    # The rare value keeps the threshold exactly: 30 * 10,000 / (1,250 * 100); the common value funds it
+    assert multipliers == {"2": pytest.approx(2.4)}
     assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
     # Multipliers should be deferred if `max_distilled_cases` not provided.
@@ -750,8 +751,10 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map={"b": ['y', 'z']})
     assert "preserve_rare_values" not in features["a"]
     assert "preserve_rare_values" in features["b"]
-    assert len(features["b"]["preserve_rare_values"]["protected_values_multipliers"]) == 1
-    assert features["b"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"] == 2.4
+    multipliers = {cfg["value"]: cfg["multiplier"]
+                   for cfg in features["b"]["preserve_rare_values"]["protected_values_multipliers"]}
+    # Only 'z' needs preserving; 'y' keeps the threshold on its own, so it shares the unprotected multiplier with 'x'
+    assert multipliers == {"z": pytest.approx(2.4)}
     assert round(features["b"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
 
     # Test that a suggestion is issued, and summarized on the console rather than as a warning
@@ -762,7 +765,9 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     for feat in features:
         assert "preserve_rare_values" not in feat
     # Test a suggestion application
-    features.apply_suggestion("preserve_rare_values")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features.apply_suggestion("preserve_rare_values")
     assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
     assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
 

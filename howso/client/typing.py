@@ -611,6 +611,23 @@ Persistence: TypeAlias = Literal["allow", "always", "never"]
 PreserveRareValuesMap: TypeAlias = dict[str, list[Any]]
 """Map of feature name to a list of values to protect during data distillation."""
 
+PreserveRareValuesSelection: TypeAlias = Union[PreserveRareValuesMap, Sequence[str], Literal["all", "off"]]
+"""
+The accepted forms of ``preserve_rare_values_map``.
+
+A mapping names the values to protect per feature; a sequence of feature names protects every
+rare value candidate of those features; "all" does so for every nominal feature; "off" disables
+rare value preservation, including its suggestion.
+"""
+
+PreserveRareValuesCaps: TypeAlias = Union[Sequence[str], Mapping[str, float]]
+"""
+Features whose significant values keep part of their case weight when funding rare value preservation.
+
+A sequence of feature names applies the default cap to each; a mapping gives each feature the largest
+share of its weight a significant value may give up.
+"""
+
 PreserveRareValuesConfig: TypeAlias = dict[str, list[ProtectedValueMultiplier]]
 """Map of feature name to a list of protected values with case-weight multipliers."""
 

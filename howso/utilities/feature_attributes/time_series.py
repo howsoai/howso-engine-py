@@ -34,8 +34,9 @@ from howso.utilities.utilities import (
 if t.TYPE_CHECKING:
     from howso.client.typing import (
         FullPreserveRareValuesConfig,
+        PreserveRareValuesCaps,
         PreserveRareValuesConfig,
-        PreserveRareValuesMap,
+        PreserveRareValuesSelection,
     )
 
 logger = logging.getLogger(__name__)
@@ -385,7 +386,8 @@ class InferFeatureAttributesTimeSeries(ABC):
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
         ordinal_feature_values: t.Optional[dict[str, list[t.Any]]] = None,
-        preserve_rare_values_map: t.Optional[PreserveRareValuesMap | t.Literal["all", "off"]] = None,
+        preserve_rare_values_caps: t.Optional[PreserveRareValuesCaps] = None,
+        preserve_rare_values_map: t.Optional[PreserveRareValuesSelection] = None,
         preserve_rare_values_config: t.Optional[PreserveRareValuesConfig | FullPreserveRareValuesConfig] = None,
         rate_boundaries: t.Optional[dict] = None,
         significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
@@ -605,6 +607,16 @@ class InferFeatureAttributesTimeSeries(ABC):
                     "size" : [ "small", "medium", "large", "huge" ]
                 }
 
+        preserve_rare_values_caps : list of str or dict of str to float, default None
+            (Optional) Features whose significant values give up only part of their case weight to
+            fund rare value preservation. Given as a list of feature names, each keeps at least half
+            of its weight; given as a dict, the value for each feature is the largest share of its
+            weight a significant value of that feature may give up, greater than 0 and at most 1.
+            Features not listed give up as much as preserving every rare value requires, which draws
+            the weights of their significant values toward the floor that keeps the significance
+            threshold after distillation. When a cap leaves too little weight, the rare values with
+            the most cases are preserved and a warning reports how many.
+
         preserve_rare_values_config : dict, default None
             (Optional) A map of feature name to a list of dict specifying a protected value and
             a case weight multiplier. Enables case weight rebalancing for data distillation workflows
@@ -625,11 +637,26 @@ class InferFeatureAttributesTimeSeries(ABC):
             the format that can be expected if your `preserve_rare_values_config` comes from a
             suggestion after calling `infer_feature_attributes`.
 
-        preserve_rare_values_map : dict or "all" or "off", default None
+            When no "unprotected_multiplier" is given, the feature's other values are reweighted to
+            fund the protected values so the total case weight is unchanged: values with fewer cases
+            than the significance threshold keep a weight of 1, and every other value is scaled by
+            one common factor, the "unprotected_multiplier", except that no value is scaled below the
+            number of cases that keeps the threshold after distillation. See
+            `preserve_rare_values_caps` to limit how much weight those values give up. Without
+            `max_distilled_cases`, the floor is computed for a target of 50,000 cases. If those
+            values cannot fund the multipliers, each multiplier's increase over 1 is scaled down
+            and a warning is issued. A "full" config is used as-is.
+
+        preserve_rare_values_map : dict or list of str or "all" or "off", optional
             (Optional) A map of feature name to list of values that should be protected during data
-            distillation. If set to "all", will infer and attempt to preserve all detected rare
-            values. If set to "off", rare value preservation is disabled entirely, including its
-            automatic suggestion.
+            distillation, a list of nominal feature names to preserve all of their detected rare
+            values, or "all" to do so for every nominal feature. Listing features or passing "all"
+            requires `max_distilled_cases`. If set to "off", rare value preservation is disabled
+            entirely, including its automatic suggestion.
+
+            Each rare value is weighted to keep approximately `significance_threshold` number of cases
+            after distillation, funded by the feature's other values. When not every rare value fits,
+            those with the most instances are given priority.
 
         rate_boundaries : dict, default None
             (Optional) For time series, specify the rate boundaries in the form
@@ -786,6 +813,7 @@ class InferFeatureAttributesTimeSeries(ABC):
             nominal_substitution_config=nominal_substitution_config,
             num_series=num_series,
             ordinal_feature_values=ordinal_feature_values,
+            preserve_rare_values_caps=preserve_rare_values_caps,
             preserve_rare_values_map=preserve_rare_values_map,
             preserve_rare_values_config=preserve_rare_values_config,
             significance_threshold=significance_threshold,
