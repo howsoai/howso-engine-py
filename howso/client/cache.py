@@ -29,15 +29,20 @@ class TraineeCache(Collection):
     Thread-safe cache of trainee related information, keyed by trainee id.
 
     A single cache may be shared by clients running on several threads. All
-    access to the stored entries is serialized by a lock owned by the cache.
-    The enumeration methods (``ids``, ``items``, ``trainees`` and iteration
-    over the cache) return snapshots taken under that lock, so concurrent
-    ``set``, ``discard`` and ``clear`` calls never disturb an enumeration in
-    progress.
+    access to the cache's set of entries is serialized by a lock owned by the
+    cache.
 
-    The ``TraineeCacheItem`` dictionaries returned by ``get_item`` and
-    ``items`` are the cache's own entries, not copies; changes made to them
-    are visible to every holder of the cache.
+    The enumeration methods (``ids``, ``items``, ``trainees`` and iteration
+    over the cache) snapshot *which* entries exist, under that lock.
+    Concurrent ``set``, ``discard`` and ``clear`` calls never disturb an
+    enumeration in progress, and an enumeration does not reflect entries
+    added or removed after it was taken.
+
+    The entries themselves are not snapshotted. Each ``TraineeCacheItem``
+    returned by ``get_item`` or ``items`` is the cache's own live entry:
+    assigning to one of its keys updates the cache for every holder, and a
+    later ``set`` for the same trainee id updates a dictionary already handed
+    out. The lock does not cover reads or writes made through an entry.
     """
 
     __slots__ = ("_items", "_lock")
@@ -86,7 +91,34 @@ class TraineeCache(Collection):
                 return default
 
     def get_item(self, trainee_id: str, default=__marker) -> TraineeCacheItem:
-        """Get trainee cache item by id."""
+        """
+        Get the cache entry for a trainee, by id.
+
+        The returned dictionary is the cache's own live entry, not a copy.
+        Assigning to its keys (for example ``feature_attributes``) changes
+        what the cache holds for this trainee, and a later ``set`` call for
+        the same id changes this dictionary. Once the trainee is discarded,
+        the dictionary is detached from the cache: it keeps its contents, and
+        a subsequent ``set`` for that id creates a new entry.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The id of the trainee.
+        default : optional
+            The value to return if the trainee is not in the cache. If not
+            provided, a missing trainee raises ``KeyError``.
+
+        Returns
+        -------
+        TraineeCacheItem
+            The trainee's live cache entry, or ``default``.
+
+        Raises
+        ------
+        KeyError
+            If the trainee is not in the cache and no ``default`` is given.
+        """
         with self._lock:
             try:
                 return self._items[trainee_id]
@@ -106,7 +138,12 @@ class TraineeCache(Collection):
             return list(self._items)
 
     def items(self) -> list[tuple[str, TraineeCacheItem]]:
-        """Return a snapshot list of the ``(id, item)`` pairs in the cache."""
+        """
+        Return a list of the ``(id, item)`` pairs in the cache.
+
+        The list is a snapshot of which trainees are cached, but each
+        ``item`` is the cache's own live entry, as returned by ``get_item``.
+        """
         with self._lock:
             return list(self._items.items())
 
