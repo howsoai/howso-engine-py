@@ -1,4 +1,7 @@
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
+import sys
+import threading
 
 import pytest
 
@@ -166,3 +169,67 @@ def test_str_lists_entries(cache: TraineeCache) -> None:
     rendered = str(cache)
     assert ID_A in rendered
     assert ID_B in rendered
+
+
+WRITER_COUNT = 4
+READER_COUNT = 4
+WRITER_ROUNDS = 2000
+
+
+@pytest.fixture
+def fast_thread_switching() -> Iterator[None]:
+    """Shorten the interpreter thread switch interval for the duration of a test."""
+    original = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)
+    try:
+        yield
+    finally:
+        sys.setswitchinterval(original)
+
+
+@pytest.mark.usefixtures("fast_thread_switching")
+def test_concurrent_enumeration_and_mutation() -> None:
+    """Readers enumerating the cache never fail while writers mutate it."""
+    trainee_cache = TraineeCache()
+    writers_done = threading.Event()
+    start = threading.Barrier(WRITER_COUNT + READER_COUNT, timeout=30)
+
+    def writer(index: int) -> None:
+        """Repeatedly add this writer's own trainees, discarding every other one."""
+        start.wait()
+        for round_number in range(WRITER_ROUNDS):
+            trainee_id = f"{index:08x}-0000-0000-0000-{round_number:012x}"
+            trainee = Trainee(name=f"w{index}-{round_number}", id=trainee_id)
+            trainee_cache.set(trainee)
+            trainee_cache.set(trainee, revision=round_number)
+            trainee_cache.get_item(trainee_id, None)
+            if round_number % 2:
+                trainee_cache.discard(trainee_id)
+
+    def reader() -> None:
+        """Enumerate the cache in every supported way until the writers finish."""
+        start.wait()
+        while not writers_done.is_set():
+            for _, instance in trainee_cache.trainees():
+                assert instance.name is not None
+            for trainee_id in trainee_cache.ids():
+                trainee_cache.get(trainee_id, None)
+            for item_id, item in trainee_cache.items():
+                assert item["trainee"].id == item_id
+            list(trainee_cache)
+            len(trainee_cache)
+            str(trainee_cache)
+
+    with ThreadPoolExecutor(max_workers=WRITER_COUNT + READER_COUNT) as executor:
+        writer_futures = [executor.submit(writer, index) for index in range(WRITER_COUNT)]
+        reader_futures = [executor.submit(reader) for _ in range(READER_COUNT)]
+        try:
+            for future in writer_futures:
+                future.result(timeout=60)
+        finally:
+            writers_done.set()
+        for future in reader_futures:
+            future.result(timeout=60)
+
+    # Each writer keeps its even-numbered rounds.
+    assert len(trainee_cache) == WRITER_COUNT * (WRITER_ROUNDS // 2)
