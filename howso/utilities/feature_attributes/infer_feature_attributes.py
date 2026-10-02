@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from typing import Any, Literal, overload, TYPE_CHECKING, TypeAlias, TypedDict, Unpack
 
 import pandas as pd
@@ -21,8 +21,9 @@ if TYPE_CHECKING:
     from howso.client.typing import (
         FeatureType,
         FullPreserveRareValuesConfig,
+        PreserveRareValuesCaps,
         PreserveRareValuesConfig,
-        PreserveRareValuesMap,
+        PreserveRareValuesSelection,
     )
 
 class InferOptions(TypedDict, total=False):
@@ -45,9 +46,9 @@ class InferOptions(TypedDict, total=False):
     mode_bound_features: Iterable[str]
     nominal_substitution_config: dict[str, dict[str, Any]]
     ordinal_feature_values: dict[str, list[Any] | tuple[str]]
-    preserve_rare_values_caps: Sequence[str] | Mapping[str, float]
+    preserve_rare_values_caps: PreserveRareValuesCaps
     preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig
-    preserve_rare_values_map: PreserveRareValuesMap | str
+    preserve_rare_values_map: PreserveRareValuesSelection
     significance_threshold: int
     tight_bounds: Iterable[str]
     types: dict[str, FeatureType] | dict[FeatureType, list[str]]
@@ -352,13 +353,12 @@ def infer_feature_attributes(
         values cannot fund the multipliers, each multiplier's increase over 1 is scaled down
         and a warning is issued. A "full" config is used as-is.
 
-    preserve_rare_values_map : dict or str, optional
+    preserve_rare_values_map : dict or list of str or "all" or "off", optional
         (Optional) A map of feature name to list of values that should be protected during data
-        distillation, the name of a nominal feature to preserve all of its detected
-        rare values, or "all" to do so for every nominal feature. Naming a feature or passing
-        "all" requires `max_distilled_cases`. If set to "off", rare value preservation is
-        disabled entirely, including its automatic suggestion; "off" is never read as a
-        feature name.
+        distillation, a list of nominal feature names to preserve all of their detected rare
+        values, or "all" to do so for every nominal feature. Listing features or passing "all"
+        requires `max_distilled_cases`. If set to "off", rare value preservation is disabled
+        entirely, including its automatic suggestion.
 
         Each rare value is weighted to keep approximately `significance_threshold` number of cases
         after distillation, funded by the feature's other values. When not every rare value fits,

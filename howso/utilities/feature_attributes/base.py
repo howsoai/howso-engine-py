@@ -45,8 +45,10 @@ if TYPE_CHECKING:
         FeatureAttributes,
         FeatureRareValueConfig,
         FullPreserveRareValuesConfig,
+        PreserveRareValuesCaps,
         PreserveRareValuesConfig,
         PreserveRareValuesMap,
+        PreserveRareValuesSelection,
         ProtectedValueMultiplier,
     )
 
@@ -59,8 +61,6 @@ if TYPE_CHECKING:
     The configuration is None when nothing could be preserved.
     """
 
-    RareValueCaps = Sequence[str] | Mapping[str, float]
-    """Features whose significant values keep part of their weight: names (default cap) or name to cap."""
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,42 @@ value requires.
 """
 
 
-def _normalize_rare_value_caps(caps: RareValueCaps | None, feature_names: Container[str] | None = None
+def _rare_value_features(preserve_rare_values_map: PreserveRareValuesSelection | None) -> list[str]:
+    """
+    Get the feature names that a ``preserve_rare_values_map`` given as a sequence of names selects.
+
+    Parameters
+    ----------
+    preserve_rare_values_map : PreserveRareValuesSelection, optional
+        Any accepted form of ``preserve_rare_values_map``.
+
+    Returns
+    -------
+    list of str
+        The named features, or an empty list for a mapping, "all", "off" or None.
+
+    Raises
+    ------
+    ValueError
+        If `preserve_rare_values_map` is a string other than "all" or "off".
+    TypeError
+        If `preserve_rare_values_map` is neither a mapping, a sequence of names, nor one of those strings.
+    """
+    if preserve_rare_values_map is None or isinstance(preserve_rare_values_map, Mapping):
+        return []
+    if isinstance(preserve_rare_values_map, str):
+        if preserve_rare_values_map in ("all", "off"):
+            return []
+        raise ValueError('`preserve_rare_values_map` must be a mapping of feature name to values, a list of '
+                         f'feature names, "all" or "off"; got the string "{preserve_rare_values_map}". To '
+                         "preserve every rare value of one feature, pass its name in a list.")
+    if not isinstance(preserve_rare_values_map, Sequence):
+        raise TypeError("`preserve_rare_values_map` must be a mapping of feature name to values, a list of "
+                        f'feature names, "all" or "off"; got {type(preserve_rare_values_map).__name__}.')
+    return [str(feature) for feature in preserve_rare_values_map]
+
+
+def _normalize_rare_value_caps(caps: PreserveRareValuesCaps | None, feature_names: Container[str] | None = None
                                ) -> dict[str, float]:
     """
     Turn either accepted form of ``preserve_rare_values_caps`` into a mapping of feature name to cap.
@@ -963,8 +998,8 @@ class InferFeatureAttributesBase(ABC):
 
     def _validate_rare_value_parameters(
         self,
-        preserve_rare_values_map: PreserveRareValuesMap | str | None,
-        preserve_rare_values_caps: RareValueCaps | None = None,
+        preserve_rare_values_map: PreserveRareValuesSelection | None,
+        preserve_rare_values_caps: PreserveRareValuesCaps | None = None,
     ) -> None:
         """
         Check the features named by `preserve_rare_values_map` and `preserve_rare_values_caps`.
@@ -977,10 +1012,10 @@ class InferFeatureAttributesBase(ABC):
             If either parameter names a feature that is not in the data, or a cap is out of range.
         """
         _normalize_rare_value_caps(preserve_rare_values_caps, self._get_feature_names())
-        if (isinstance(preserve_rare_values_map, str) and preserve_rare_values_map not in ("all", "off")
-                and preserve_rare_values_map not in self._get_feature_names()):
-            raise ValueError(f"`preserve_rare_values_map` names the feature `{preserve_rare_values_map}`, "
-                             "which is not in the data.")
+        for feature in _rare_value_features(preserve_rare_values_map):
+            if feature not in self._get_feature_names():
+                raise ValueError(f"`preserve_rare_values_map` names the feature `{feature}`, which is not in the "
+                                 "data.")
 
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,
@@ -1001,8 +1036,8 @@ class InferFeatureAttributesBase(ABC):
                  num_series: int = 1,
                  nominal_substitution_config: dict[str, dict] | None = None,
                  ordinal_feature_values: dict[str, list[Any]] | None = None,
-                 preserve_rare_values_caps: RareValueCaps | None = None,
-                 preserve_rare_values_map: PreserveRareValuesMap | str | None = None,
+                 preserve_rare_values_caps: PreserveRareValuesCaps | None = None,
+                 preserve_rare_values_map: PreserveRareValuesSelection | None = None,
                  preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None = None,
                  significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
                  tight_bounds: Iterable[str] | None = None,
@@ -2376,7 +2411,7 @@ class InferFeatureAttributesBase(ABC):
 
     def _process_rare_values(  # noqa: PLR0912, PLR0915
         self,
-        preserve_rare_values_map: PreserveRareValuesMap | str | None,
+        preserve_rare_values_map: PreserveRareValuesSelection | None,
         preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None,
         max_distilled_cases: int | None,
         significance_threshold: int,
@@ -2473,23 +2508,22 @@ class InferFeatureAttributesBase(ABC):
                 )
         # Workflow 2: User provided a map of rare values to protect, but no multipliers
         elif preserve_rare_values_map is not None:
-            # A string selects the rare value candidates of one feature ("all" selects every feature)
-            if isinstance(preserve_rare_values_map, str):
+            # "all" or a list of feature names selects the rare value candidates of those features
+            if not isinstance(preserve_rare_values_map, Mapping):
                 if not user_set_mdc:
                     raise ValueError("If not explicitly providing rare values to preserve, you must also provide "
                                      "`max_distilled_cases` to accurately determine rare value candidates.")
-                search_feature = None if preserve_rare_values_map == "all" else preserve_rare_values_map
-                if search_feature is not None and search_feature in self.attributes:
-                    actual_type = self.attributes[search_feature]["type"]
-                    if actual_type != "nominal":
+                search_features = None if preserve_rare_values_map == "all" else _rare_value_features(
+                    preserve_rare_values_map)
+                for search_feature in search_features or []:
+                    if search_feature in self.attributes and self.attributes[search_feature]["type"] != "nominal":
+                        actual_type = self.attributes[search_feature]["type"]
                         raise ValueError(f"`preserve_rare_values_map` names the feature `{search_feature}`, which "
                                          f"was inferred to be {actual_type}; rare values can only be set for "
                                          "nominal features. If this feature is actually nominal, please override "
                                          "the inference with the `types` parameter.")
                 preserve_rare_values_map, _ = self._find_protected_value_candidates(
-                    max_distilled_cases, significance_threshold,
-                    features=None if search_feature is None else [search_feature],
-                )
+                    max_distilled_cases, significance_threshold, features=search_features)
             # Workflow 2A: User set the max_distilled_cases, so we can compute multipliers here
             if user_set_mdc:
                 _prvc, _, limits = self._compute_preserve_rare_values_config(max_distilled_cases,

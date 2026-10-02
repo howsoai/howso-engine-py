@@ -610,7 +610,7 @@ def test_preserve_rare_values_time_series():
         time_feature_name="date",
         id_feature_name="ID",
         max_distilled_cases=500,
-        preserve_rare_values_map="cat",
+        preserve_rare_values_map=["cat"],
         significance_threshold=25,
         enable_suggestions=False,
     )
