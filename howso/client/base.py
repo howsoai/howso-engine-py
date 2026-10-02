@@ -164,7 +164,7 @@ class AbstractHowsoClient(ABC):
             The Trainee feature attributes.
         """
         cached = self.trainee_cache.get_item(trainee_id, None)
-        if cached:
+        if cached is None:
             # Trainee not yet cached, resolve it first
             trainee_id = self._resolve_trainee(trainee_id).id
             cached = self.trainee_cache.get_item(trainee_id)
