@@ -36,6 +36,7 @@ from howso.utilities.features import FeatureType
 from howso.utilities.utilities import (
     determine_iso_format,
     get_optimized_max_chunk_size,
+    is_null_value,
     is_valid_datetime_format,
     time_to_seconds,
 )
@@ -124,8 +125,7 @@ def _rare_value_features(preserve_rare_values_map: PreserveRareValuesSelection |
     return [str(feature) for feature in preserve_rare_values_map]
 
 
-def _normalize_rare_value_caps(caps: PreserveRareValuesCaps | None, feature_names: Container[str] | None = None
-                               ) -> dict[str, float]:
+def _normalize_rare_value_caps(caps: PreserveRareValuesCaps | None) -> dict[str, float]:
     """
     Turn either accepted form of ``preserve_rare_values_caps`` into a mapping of feature name to cap.
 
@@ -134,8 +134,6 @@ def _normalize_rare_value_caps(caps: PreserveRareValuesCaps | None, feature_name
     caps : Sequence of str or Mapping of str to float, optional
         Feature names, each given :data:`DEFAULT_RARE_VALUE_CAP`, or a mapping of feature name
         to the largest share of its weight a significant value of the feature may give up.
-    feature_names : Container of str, optional
-        The features in the data; when given, every capped feature must be among them.
 
     Returns
     -------
@@ -147,7 +145,7 @@ def _normalize_rare_value_caps(caps: PreserveRareValuesCaps | None, feature_name
     TypeError
         If `caps` is neither a sequence of names nor a mapping.
     ValueError
-        If a cap is not between 0 (exclusive) and 1 (inclusive), or names a feature not in the data.
+        If a cap is not between 0 (exclusive) and 1 (inclusive).
     """
     if caps is None:
         return {}
@@ -162,21 +160,36 @@ def _normalize_rare_value_caps(caps: PreserveRareValuesCaps | None, feature_name
         if not 0 < cap <= 1:
             raise ValueError(f"The `preserve_rare_values_caps` value for feature `{feature}` must be greater than 0 "
                              f"and at most 1; got {cap}.")
-        if feature_names is not None and feature not in feature_names:
-            raise ValueError(f"`preserve_rare_values_caps` names the feature `{feature}`, which is not in the data.")
     return normalized
 
 
-def _is_null(value: Any) -> bool:
-    """Whether a single feature value is null, such as None or NaN; containers are never null."""
-    if value is None or value is pd.NA or value is pd.NaT:
-        return True
-    if isinstance(value, (float, np.floating)):
-        return math.isnan(value)
-    if isinstance(value, (str, bytes, bool, int, np.integer)):
-        return False
-    result = pd.isna(value)
-    return not hasattr(result, "__len__") and bool(result)
+def _as_feature_value(value: Any) -> Any:
+    """
+    Convert a feature value to the form stored in the feature attributes.
+
+    Nulls are stored as None whatever the feature's type, numpy scalars as the equivalent Python
+    type, and every other value as given, so an integer stays an integer.
+    """
+    if is_null_value(value):
+        return None
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
+def _dedupe_nulls(values: Iterable[Any]) -> list[Any]:
+    """Return `values` with every null form collapsed into a single None, keeping the order otherwise."""
+    result: list[Any] = []
+    null_seen = False
+    for value in values:
+        if is_null_value(value):
+            if null_seen:
+                continue
+            null_seen = True
+            result.append(None)
+        else:
+            result.append(value)
+    return result
 
 
 def _bucket_protected_values(protected_values: Iterable[Any]) -> tuple[bool, set[Any], list[Any]]:
@@ -189,7 +202,7 @@ def _bucket_protected_values(protected_values: Iterable[Any]) -> tuple[bool, set
     hashable: set[Any] = set()
     unhashable: list[Any] = []
     for value in protected_values:
-        if _is_null(value):
+        if is_null_value(value):
             null_protected = True
             continue
         try:
@@ -1000,22 +1013,34 @@ class InferFeatureAttributesBase(ABC):
         self,
         preserve_rare_values_map: PreserveRareValuesSelection | None,
         preserve_rare_values_caps: PreserveRareValuesCaps | None = None,
+        preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None = None,
     ) -> None:
         """
-        Check the features named by `preserve_rare_values_map` and `preserve_rare_values_caps`.
+        Check the rare value parameters against the features in the data.
 
-        Called once, before features are processed in separate processes, so an error is raised once.
+        Called once, before features are processed in separate processes, so an error is raised once
+        and a feature missing from a process's share of the columns is never mistaken for a typo.
 
         Raises
         ------
         ValueError
-            If either parameter names a feature that is not in the data, or a cap is out of range.
+            If any parameter names a feature that is not in the data, or a cap is out of range.
         """
-        _normalize_rare_value_caps(preserve_rare_values_caps, self._get_feature_names())
-        for feature in _rare_value_features(preserve_rare_values_map):
-            if feature not in self._get_feature_names():
-                raise ValueError(f"`preserve_rare_values_map` names the feature `{feature}`, which is not in the "
-                                 "data.")
+        feature_names = self._get_feature_names()
+        if isinstance(preserve_rare_values_map, Mapping):
+            map_features: Iterable[str] = preserve_rare_values_map
+        else:
+            map_features = _rare_value_features(preserve_rare_values_map)
+        named_features: dict[str, Iterable[str]] = {
+            "preserve_rare_values_caps": _normalize_rare_value_caps(preserve_rare_values_caps),
+            "preserve_rare_values_map": map_features,
+            "preserve_rare_values_config": preserve_rare_values_config or {},
+        }
+        for parameter, features in named_features.items():
+            unknown = [feature for feature in features if feature not in feature_names]
+            if unknown:
+                names = ", ".join(f"`{feature}`" for feature in unknown)
+                raise ValueError(f"`{parameter}` names features that are not in the data: {names}.")
 
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,
@@ -2070,10 +2095,17 @@ class InferFeatureAttributesBase(ABC):
             if self._get_unique_count(feature) == total_cases:
                 # Don't make a suggestion for a completely unique feature
                 continue
-            uniques = self._get_unique_values(feature)
-            for unique_value in uniques:
+            # Every null form (None, NaN, NA) is counted together, so it is one candidate, None
+            null_seen = False
+            for unique_value in self._get_unique_values(feature):
+                value = unique_value
+                if is_null_value(unique_value):
+                    if null_seen:
+                        continue
+                    null_seen = True
+                    value = None
                 try:
-                    count = self._get_value_count(feature, unique_value)
+                    count = self._get_value_count(feature, value)
                 except TypeError:
                     self.warnings_collector.triage(IFAWarningEmitterType.VALUE_COUNTS_PROCESSING, feature)
                     continue
@@ -2082,11 +2114,11 @@ class InferFeatureAttributesBase(ABC):
                     continue
                 expected_freq_at_target_size = (max_distilled_cases / total_cases) * count
                 if expected_freq_at_target_size < significance_threshold:
-                    value_counts.append({"feature": feature, "value": unique_value, "count": count})
+                    value_counts.append({"feature": feature, "value": value, "count": count})
                     if feature not in pvm:
-                        pvm[feature] = [unique_value]
+                        pvm[feature] = [value]
                     else:
-                        pvm[feature].append(unique_value)
+                        pvm[feature].append(value)
         top_five = sorted(value_counts, key=lambda d: d["count"], reverse=True)[:5]
         return pvm, top_five
 
@@ -2122,8 +2154,9 @@ class InferFeatureAttributesBase(ABC):
         feature : str
             The name of the feature.
         targets : Sequence of ProtectedValueMultiplier
-            The rare values and the multipliers they should receive, each at least 1. Values of a
-            numeric feature must already be floats.
+            The rare values and the multipliers they should receive, each at least 1. Values must
+            already be in stored form, as :func:`_as_feature_value` gives them: nulls as None and
+            numpy scalars as Python types.
         significance_threshold : int
             The number of cases below which a value is small.
         floor : float
@@ -2148,7 +2181,6 @@ class InferFeatureAttributesBase(ABC):
             How the targets were limited, or None when every target received its multiplier.
         """
         total_cases = self._get_row_count()
-        data_type = self.attributes[feature].get("data_type")
         target_values = [target["value"] for target in targets]
         null_target, hashable_targets, unhashable_targets = _bucket_protected_values(target_values)
         target_counts = [self._get_value_count(feature, value) for value in target_values]
@@ -2175,13 +2207,13 @@ class InferFeatureAttributesBase(ABC):
         significant: list[tuple[Any, int]] = []
         for unique_value in self._get_unique_values(feature):
             try:
-                if _is_null(unique_value):
+                if is_null_value(unique_value):
                     if null_target or null_seen:
                         continue
                     null_seen = True
                     value = None
                 else:
-                    value = float(unique_value) if data_type == "number" else unique_value
+                    value = _as_feature_value(unique_value)
                     try:
                         is_target = value in hashable_targets
                     except TypeError:
@@ -2237,6 +2269,7 @@ class InferFeatureAttributesBase(ABC):
                 "min_max_distilled_cases": self._min_distilled_cases_to_fit(
                     np.array(target_counts, dtype=float), counts, total_cases, significance_threshold,
                     min_multiplier),
+                "multiplier_scale": None,
             }
         else:
             # Keep every target but shrink each multiplier's increase over 1 by the same factor, so the
@@ -2385,9 +2418,8 @@ class InferFeatureAttributesBase(ABC):
             if feature not in self.attributes:
                 # Multiprocessing is enabled, and this feature will be handled in another process
                 continue
-            data_type = self.attributes[feature]["data_type"] # pyright: ignore[reportTypedDictNotRequiredAccess]
             targets: list[ProtectedValueMultiplier] = []
-            for value in values:
+            for value in _dedupe_nulls(values):
                 count = self._get_value_count(feature, value)
                 if count == 0:
                     raise ValueError(f"Specified protected value `{value}` not found in column `{feature}`. "
@@ -2396,8 +2428,7 @@ class InferFeatureAttributesBase(ABC):
                 # A value that keeps the threshold on its own does not need signal preservation
                 if multiplier <= 1:
                     continue
-                targets.append({"value": float(value) if data_type == "number" else value,
-                                "multiplier": float(multiplier)})
+                targets.append({"value": _as_feature_value(value), "multiplier": float(multiplier)})
             if not targets:
                 continue
             config, kept, limit = self._reweight_rare_values(feature, targets, significance_threshold, floor,
@@ -2470,19 +2501,23 @@ class InferFeatureAttributesBase(ABC):
                     continue
                 # Workflow 1A: User provided protected values with multipliers; the other values of the
                 # feature are reweighted to fund them
-                data_type = self.attributes[feature].get("data_type")
                 targets: list[ProtectedValueMultiplier] = []
-                for value_cfg in (cfg["protected_values_multipliers"] if isinstance(cfg, Mapping) else cfg):
+                value_cfgs = cfg["protected_values_multipliers"] if isinstance(cfg, Mapping) else cfg
+                null_seen = False
+                for value_cfg in value_cfgs:
+                    if is_null_value(value_cfg["value"]):
+                        # Every null form is one value, so one multiplier covers them all
+                        if null_seen:
+                            continue
+                        null_seen = True
                     if value_cfg["multiplier"] < 1:
                         raise ValueError(f"The multiplier for protected value `{value_cfg['value']}` of feature "
                                          f"`{feature}` must be at least 1; got {value_cfg['multiplier']}.")
                     if self._get_value_count(feature, value_cfg["value"]) == 0:
                         raise ValueError(f"Specified protected value `{value_cfg['value']}` not found in column "
                                          f"`{feature}`. Please verify the value and type.")
-                    targets.append({
-                        "value": float(value_cfg["value"]) if data_type == "number" else value_cfg["value"],
-                        "multiplier": float(value_cfg["multiplier"]),
-                    })
+                    targets.append({"value": _as_feature_value(value_cfg["value"]),
+                                    "multiplier": float(value_cfg["multiplier"])})
                 floor = significance_threshold * self._get_row_count() / max_distilled_cases
                 config, _, limit = self._reweight_rare_values(feature, targets, significance_threshold, floor,
                                                               fit="scale", cap=caps.get(feature))

@@ -283,6 +283,17 @@ class TestPRVProtectedValues:
         assert target.get_values_map() == {"a": ["rare"], "b": [0]}
 
 
+class TestPRVApplyWithoutTarget:
+    """Applying a suggestion computed from the default `max_distilled_cases` declines, and says so first."""
+
+    def test_apply_warns_with_consequence_first(self):
+        """The warning opens with the consequence, so it is read before the long explanation."""
+        attributes = {"a": {"type": "nominal"}}
+        with pytest.warns(UserWarning, match="^This suggestion was not applied"):
+            PRVSuggestion(_prv_config(a=1), [], user_set_max_distilled_cases=False).apply(attributes)
+        assert "preserve_rare_values" not in attributes["a"]
+
+
 class TestSuggestionToDict:
 
     def test_fanout_to_dict(self):

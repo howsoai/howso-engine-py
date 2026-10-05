@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 import datetime
 import json
 import textwrap
-from typing import Any, NotRequired, Self, TYPE_CHECKING, TypedDict
+from typing import Any, Self, TYPE_CHECKING, TypedDict
 import warnings
 
 import numpy as np
@@ -441,8 +441,8 @@ class RareValuePreservationLimit(TypedDict):
     min_max_distilled_cases: int | None
     """The smallest `max_distilled_cases` at which every candidate fits, or None when not applicable."""
 
-    multiplier_scale: NotRequired[float]
-    """The factor applied to each multiplier's increase over 1 when every value was kept but scaled down."""
+    multiplier_scale: float | None
+    """The factor applied to each multiplier's increase over 1 when every value was kept but scaled down, else None."""
 
 
 def partial_rare_value_preservation_message(limit: RareValuePreservationLimit) -> str:
@@ -658,21 +658,21 @@ class PRVSuggestion(IFASuggestion):
             "preserve_rare_values_map": self._values_map(),
         }
 
-    def _warn_default_max_distilled_cases(self, addendum: str = "", stack_level: int = 4) -> None:
+    def _warn_default_max_distilled_cases(self, lead: str = "", stack_level: int = 4) -> None:
         """
         Warn that the case weight multipliers were computed from a default ``max_distilled_cases``.
 
         Parameters
         ----------
-        addendum : str, default ""
-            An additional sentence appended to the warning, describing the consequence for the
-            calling method.
+        lead : str, default ""
+            A sentence placed before the explanation, stating the consequence for the calling
+            method, so it is read first.
         stack_level : int, default 4
             The stack level value to pass into `warn` via `stacklevel`. The default attributes the
             warning to the caller of `apply_suggestion()`; methods a user calls directly pass 3.
         """
         warnings.warn(
-            _DEFAULT_MAX_DISTILLED_CASES_MESSAGE + addendum,
+            lead + _DEFAULT_MAX_DISTILLED_CASES_MESSAGE,
             UserWarning,
             stacklevel=stack_level,
         )
@@ -681,8 +681,8 @@ class PRVSuggestion(IFASuggestion):
         """Apply the computed rare values preservation config to the FeatureAttributesBase object."""
         if not self._user_set_mdc:
             self._warn_default_max_distilled_cases(
-                " Since an inaccurate value may result in rare values being under-weighted or "
-                "over-weighted, this suggestion was not applied."
+                "This suggestion was not applied, since an inaccurate `max_distilled_cases` may leave rare "
+                "values under-weighted or over-weighted. "
             )
             return
         for feature, config in self._prvc.items():

@@ -46,9 +46,9 @@ class InferOptions(TypedDict, total=False):
     mode_bound_features: Iterable[str]
     nominal_substitution_config: dict[str, dict[str, Any]]
     ordinal_feature_values: dict[str, list[Any] | tuple[str]]
-    preserve_rare_values_caps: PreserveRareValuesCaps
-    preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig
-    preserve_rare_values_map: PreserveRareValuesSelection
+    preserve_rare_values_caps: PreserveRareValuesCaps | None
+    preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None
+    preserve_rare_values_map: PreserveRareValuesSelection | None
     significance_threshold: int
     tight_bounds: Iterable[str]
     types: dict[str, FeatureType] | dict[FeatureType, list[str]]
