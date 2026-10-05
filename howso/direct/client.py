@@ -66,6 +66,18 @@ VERSION_CHECK_HOST = "https://version-check.howso.com"
 SUBTRAINEE_CONTAINER = ".trainee_container"
 """The name of the Amalgam entity that contains sub-Trainees in hierarchy."""
 
+GARBAGE_COLLECTION_KEY = "garbage_collection"
+"""The key within the Amalgam options that holds garbage-collection parameters."""
+
+GARBAGE_COLLECTION_PARAMS = frozenset({
+    "min_gc_nodes_threshold",
+    "max_gc_nodes_threshold",
+    "extra_memory_capacity_factor",
+    "min_memory_retention_factor",
+    "alloc_expansion_factor",
+})
+"""The garbage-collection parameters recognized by the Amalgam library."""
+
 # Cache of trainee information shared across client instances
 _trainee_cache = TraineeCache()
 
@@ -91,7 +103,11 @@ class HowsoDirectClient(AbstractHowsoClient):
     Parameters
     ----------
     amalgam : Mapping, optional
-        Keyword-argument overrides to the underlying Amalgam instance.
+        Keyword-argument overrides to the underlying Amalgam instance. The
+        optional ``garbage_collection`` key is not passed to the Amalgam
+        constructor; its value is a mapping of native garbage-collection
+        parameters applied via :meth:`set_garbage_collection_params` once
+        the Amalgam library is loaded.
     config_path : str or Path or None, optional
         A configuration file in yaml format that specifies Howso engine
         settings.
@@ -217,6 +233,10 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def __init_amalgam(self, options: t.Optional[Mapping[str, t.Any]] = None):
         """Initialize the Amalgam instance."""
+        gc_params = None
+        if options and GARBAGE_COLLECTION_KEY in options:
+            options = dict(options)
+            gc_params = options.pop(GARBAGE_COLLECTION_KEY)
         # The parameters to pass to the Amalgam instance
         amlg_params = {
             'library_path': None,
@@ -243,6 +263,8 @@ class HowsoDirectClient(AbstractHowsoClient):
                 UnsupportedArgumentWarning)
         amlg_params = {k: v for k, v in amlg_params.items() if k in allowed_amlg_params}
         self.amlg = Amalgam(**amlg_params)
+        if gc_params:
+            self.set_garbage_collection_params(gc_params)
 
     def check_version(self) -> str | None:
         """Check if there is a more recent version."""
@@ -769,6 +791,72 @@ class HowsoDirectClient(AbstractHowsoClient):
             True, if tracing is enabled for provided Trainee.
         """
         return self._trace_enabled
+
+    def get_num_active_threads(self) -> int:
+        """
+        Return the number of threads the Amalgam library is actively executing.
+
+        This is an instantaneous measurement that may change very rapidly as
+        tasks are dispatched and decomposed, so it is most useful when many
+        samples are aggregated over a time period. OpenMP threads are not
+        included in the count.
+
+        Returns
+        -------
+        int
+            The current number of active threads.
+        """
+        return self.amlg.get_num_active_threads()
+
+    def get_garbage_collection_params(self) -> dict[str, t.Any]:
+        """
+        Get the native garbage-collection parameters of the Amalgam library.
+
+        These parameters are global to the loaded Amalgam library and are
+        therefore shared by every client and Trainee in the process.
+
+        Returns
+        -------
+        dict
+            A mapping of each garbage-collection parameter name to its
+            current value.
+        """
+        return json.loads(self.amlg.get_garbage_collection_params())
+
+    def set_garbage_collection_params(self, params: Mapping[str, t.Any]) -> None:
+        """
+        Update the native garbage-collection parameters of the Amalgam library.
+
+        These parameters are global to the loaded Amalgam library and are
+        therefore shared by every client and Trainee in the process. Omitted
+        parameters keep their current values. A value outside its allowed
+        range resets that parameter to its default.
+
+        Parameters
+        ----------
+        params : Mapping
+            Any subset of the following parameters:
+
+            - min_gc_nodes_threshold
+            - max_gc_nodes_threshold
+            - extra_memory_capacity_factor
+            - min_memory_retention_factor
+            - alloc_expansion_factor
+
+            Unrecognized parameters are ignored with a warning.
+        """
+        if not isinstance(params, Mapping):
+            raise TypeError(
+                "Garbage-collection parameters must be a mapping of parameter "
+                f"names to values, got: {type(params).__name__}"
+            )
+        if unknown_params := set(params) - GARBAGE_COLLECTION_PARAMS:
+            warnings.warn(
+                f"Unknown garbage-collection parameters were specified and ignored: {unknown_params}",
+                UnsupportedArgumentWarning)
+        known_params = {k: v for k, v in params.items() if k in GARBAGE_COLLECTION_PARAMS}
+        if known_params:
+            self.amlg.set_garbage_collection_params(json.dumps(known_params))
 
     def get_version(self) -> HowsoVersion:
         """

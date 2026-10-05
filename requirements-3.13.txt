@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --no-index --output-file=requirements-3.13.txt --pip-args=None
 #
-amalgam-lang==35.0.1
+amalgam-lang==35.1.0
     # via howso-engine (pyproject.toml)
 certifi==2026.7.22
     # via
