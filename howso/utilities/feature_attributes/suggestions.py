@@ -417,7 +417,7 @@ _DEFAULT_MAX_DISTILLED_CASES_MESSAGE = (
     "An accurate `max_distilled_cases` enables Howso to correctly weight the influence of rare "
     "values in the data, since the weighting is calibrated proportionally to the number of cases "
     "remaining after distillation: distilling to a different size than the one the weights were "
-    "computed for will under- or over-weight the rare values."
+    "computed for will under-weight or over-weight the rare values."
 )
 
 _MAX_RANKED_VALUES = 5
