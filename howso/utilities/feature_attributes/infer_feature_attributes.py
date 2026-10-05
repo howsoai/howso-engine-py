@@ -49,7 +49,7 @@ class InferOptions(TypedDict, total=False):
     preserve_rare_values_caps: PreserveRareValuesCaps | None
     preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None
     preserve_rare_values_map: PreserveRareValuesSelection | None
-    significance_threshold: int
+    significance_threshold: int | None
     tight_bounds: Iterable[str]
     types: dict[str, FeatureType] | dict[FeatureType, list[str]]
 
@@ -382,9 +382,12 @@ def infer_feature_attributes(
                 }
             }
 
-    significance_threshold : int, default 30
+    significance_threshold : int, optional
         (Optional) After data distillation, the number of cases that are expected to result in a
-        signal for preserved rare values.
+        signal for preserved rare values. When not given, it is computed per feature as the larger
+        of the compression ratio (the number of cases per distilled case) and the feature's average
+        number of cases per value, the latter capped at 30, rounded down. A given value applies to
+        every feature.
 
     tables : Iterable of TableNameProtocol
         (Optional, required for datastores) An Iterable of table names to

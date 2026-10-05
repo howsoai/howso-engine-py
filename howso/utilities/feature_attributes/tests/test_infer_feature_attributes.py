@@ -6,6 +6,7 @@ import datetime
 import json
 from pathlib import Path
 import platform
+import re
 from tempfile import TemporaryDirectory
 from typing import Any
 import warnings
@@ -1364,7 +1365,7 @@ def test_preserve_rare_values(capsys: pytest.CaptureFixture[str]) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(df, max_distilled_cases=1563, preserve_rare_values_map="all",
-                                            max_workers=2)
+                                            significance_threshold=30, max_workers=2)
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
     # The protected value we're looking here is actually "none"
@@ -1383,7 +1384,7 @@ def test_preserve_rare_values(capsys: pytest.CaptureFixture[str]) -> None:
     # Test that a suggestion is issued, and summarized on the console rather than as a warning
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
-        features = infer_feature_attributes(df, max_distilled_cases=1563)
+        features = infer_feature_attributes(df, max_distilled_cases=1563, significance_threshold=30)
     assert "Feature Attributes Summary" in capsys.readouterr().out
     for feat in features:
         assert "preserve_rare_values" not in feat
@@ -1477,7 +1478,7 @@ def test_preserve_rare_values_reweighted(max_workers: int, caps: list[str] | dic
     with context:
         if expected_kept == 5:
             warnings.simplefilter("error", UserWarning)
-        features = infer_feature_attributes(df, max_distilled_cases=max_distilled_cases,
+        features = infer_feature_attributes(df, max_distilled_cases=max_distilled_cases, significance_threshold=30,
                                             preserve_rare_values_map=["a"], preserve_rare_values_caps=caps,
                                             max_workers=max_workers)
     if expected_kept == 0:
@@ -1609,7 +1610,7 @@ def test_preserve_rare_values_suggestion_reports_limit(capsys: pytest.CaptureFix
     """Test that a suggestion whose rare values do not all fit reports the limit, and still applies."""
     df = _rare_values_df()
     # Uncapped, the common value can fund two of the five rare values at this target
-    features = infer_feature_attributes(df, max_distilled_cases=100)
+    features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30)
     capsys.readouterr()
     suggestion = features.suggestions.preserve_rare_values
     assert suggestion.details["num_values"] == 5
@@ -1629,7 +1630,7 @@ def test_preserve_rare_values_suggestion_reports_limit(capsys: pytest.CaptureFix
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         refit = infer_feature_attributes(df, max_distilled_cases=limit["min_max_distilled_cases"],
-                                         preserve_rare_values_map=["a"])
+                                         significance_threshold=30, preserve_rare_values_map=["a"])
     assert len({v for v, m in _multipliers(refit["a"]).items() if m > 1}) == 5
 
 
@@ -1784,6 +1785,61 @@ def test_preserve_rare_values_mixed_nulls_are_one_value():
     total = null_count * config["protected_values_multipliers"][0]["multiplier"]
     total += (len(df) - null_count) * config["unprotected_multiplier"]
     assert total == pytest.approx(len(df))
+
+
+def test_preserve_rare_values_dynamic_significance_threshold():
+    """Test the threshold computed per feature: the compression ratio, or the average cases per value up to 30."""
+    n = 100_000
+    # `h` has 19,004 distinct values, about 5 cases each, plus a common value to fund from; `c` has three values
+    h = [f"v{i}" for i in range(19_000) for _ in range(5)] + ["twelve"] * 12 + ["eight"] * 8 + ["thirty"] * 30
+    h += ["common"] * (n - len(h))
+    c = ["a"] * (n - 50) + ["b"] * 35 + ["d"] * 15
+    df = pd.DataFrame({"h": h, "c": c})
+    # 100,000 -> 12,500 is a compression ratio of 8, so `h` gets max(8, 5) = 8 and `c` gets min(33,333, 30) = 30
+    features = infer_feature_attributes(df, max_distilled_cases=12_500, preserve_rare_values_map=["h", "c"])
+    h_multipliers = _multipliers(features["h"])
+    assert h_multipliers["eight"] == pytest.approx(8 * 8 / 8)       # floor of 8 * 8 = 64 cases
+    assert h_multipliers["twelve"] == pytest.approx(64 / 12)
+    assert h_multipliers["thirty"] == pytest.approx(64 / 30)
+    assert h_multipliers["v0"] == 1.0                                # 5 cases: below the threshold of 8
+    c_multipliers = _multipliers(features["c"])
+    assert c_multipliers["b"] == pytest.approx(30 * 8 / 35)         # floor of 30 * 8 = 240 cases
+    assert c_multipliers["d"] == 1.0                                 # 15 cases: below the threshold of 30
+
+    # A given threshold applies to every feature
+    features = infer_feature_attributes(df, max_distilled_cases=12_500, preserve_rare_values_map=["h", "c"],
+                                        significance_threshold=30)
+    h_multipliers = _multipliers(features["h"])
+    assert h_multipliers["thirty"] == pytest.approx(240 / 30)
+    assert h_multipliers["eight"] == h_multipliers["twelve"] == 1.0
+
+    # A hard distillation makes the compression ratio dominate: 100,000 -> 782 is 127.9, so 127
+    e = ["x"] * (n - 200) + ["y"] * 150 + ["z"] * 50
+    df = pd.DataFrame({"e": e})
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_map=["e"])
+    target, _ = get_optimized_max_chunk_size(row_count=n, max_chunk_size=1_000)
+    e_multipliers = _multipliers(features["e"])
+    assert e_multipliers["y"] == pytest.approx(127 * n / target / 150)
+    assert e_multipliers["z"] == 1.0
+
+
+def test_preserve_rare_values_dynamic_threshold_limit_refits():
+    """Test that the target reported for fitting every rare value accounts for the threshold changing with it."""
+    # 90 rare values of 1,000 cases each and a common value of 10,000: at 100,000 -> 1,563 the threshold is
+    # 64 and each rare value needs 4,095 cases, so the common value can fund only one of them
+    values = ["common"] * 10_000 + [f"rare{i}" for i in range(90) for _ in range(1_000)]
+    df = pd.DataFrame({"a": values})
+    with pytest.warns(UserWarning, match="Preserved 1 of the 90 rare values") as record:
+        features = infer_feature_attributes(df, max_distilled_cases=2_000, preserve_rare_values_map=["a"])
+    assert len({v for v, m in _multipliers(features["a"]).items() if m > 1}) == 1
+    (message,) = [str(w.message) for w in record if "Preserved" in str(w.message)]
+    match = re.search(r"at least ([\d,]+)", message)
+    assert match is not None, message
+    needed = int(match.group(1).replace(",", ""))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        refit = infer_feature_attributes(df, max_distilled_cases=needed, preserve_rare_values_map=["a"])
+    assert len({v for v, m in _multipliers(refit["a"]).items() if m > 1}) == 90
 
 
 def test_preserve_rare_values_all_cases_protected():
