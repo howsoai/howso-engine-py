@@ -7,7 +7,7 @@ from amalgam.api import Amalgam
 from howso.engine import Trainee
 from howso.client.exceptions import HowsoError, UnsupportedArgumentWarning
 from howso.direct import HowsoDirectClient
-from howso.direct.client import GARBAGE_COLLECTION_KEY, GARBAGE_COLLECTION_PARAMS
+from howso.direct.client import GARBAGE_COLLECTION_KEY
 from howso.utilities.testing import get_configurationless_test_client
 
 
@@ -167,7 +167,7 @@ def test_get_num_active_threads(client: HowsoDirectClient):
 def test_garbage_collection_params(client: HowsoDirectClient):
     """Test getting and partially updating garbage-collection parameters."""
     original_params = client.get_garbage_collection_params()
-    assert set(original_params) == GARBAGE_COLLECTION_PARAMS
+    assert "min_gc_nodes_threshold" in original_params
 
     updated_threshold = original_params["min_gc_nodes_threshold"] + 1
     try:

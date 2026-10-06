@@ -69,15 +69,6 @@ SUBTRAINEE_CONTAINER = ".trainee_container"
 GARBAGE_COLLECTION_KEY = "garbage_collection"
 """The key within the Amalgam options that holds garbage-collection parameters."""
 
-GARBAGE_COLLECTION_PARAMS = frozenset({
-    "min_gc_nodes_threshold",
-    "max_gc_nodes_threshold",
-    "extra_memory_capacity_factor",
-    "min_memory_retention_factor",
-    "alloc_expansion_factor",
-})
-"""The garbage-collection parameters recognized by the Amalgam library."""
-
 # Cache of trainee information shared across client instances
 _trainee_cache = TraineeCache()
 
@@ -835,26 +826,23 @@ class HowsoDirectClient(AbstractHowsoClient):
         Parameters
         ----------
         params : Mapping
-            Any subset of the following parameters:
-
-            - min_gc_nodes_threshold
-            - max_gc_nodes_threshold
-            - extra_memory_capacity_factor
-            - min_memory_retention_factor
-            - alloc_expansion_factor
-
-            Unrecognized parameters are ignored with a warning.
+            Any subset of the parameters returned by
+            :meth:`get_garbage_collection_params`. Unrecognized parameters
+            are ignored with a warning.
         """
         if not isinstance(params, Mapping):
             raise TypeError(
                 "Garbage-collection parameters must be a mapping of parameter "
                 f"names to values, got: {type(params).__name__}"
             )
-        if unknown_params := set(params) - GARBAGE_COLLECTION_PARAMS:
+        # The library reports every parameter it supports, so its current
+        # parameters define the set of recognized names.
+        supported_params = self.get_garbage_collection_params().keys()
+        if unknown_params := params.keys() - supported_params:
             warnings.warn(
                 f"Unknown garbage-collection parameters were specified and ignored: {unknown_params}",
                 UnsupportedArgumentWarning)
-        known_params = {k: v for k, v in params.items() if k in GARBAGE_COLLECTION_PARAMS}
+        known_params = {k: v for k, v in params.items() if k in supported_params}
         if known_params:
             self.amlg.set_garbage_collection_params(json.dumps(known_params))
 
