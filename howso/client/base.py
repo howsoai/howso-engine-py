@@ -169,10 +169,12 @@ class AbstractHowsoClient(ABC):
             trainee_id = self._resolve_trainee(trainee_id).id
             cached = self.trainee_cache.get_item(trainee_id)
 
-        if cached["feature_attributes"] is None:
+        feature_attributes = cached.get("feature_attributes")
+        if feature_attributes is None:
             # Feature attributes not yet cached, get them
-            cached["feature_attributes"] = self.get_feature_attributes(trainee_id)
-        return cached["feature_attributes"]
+            feature_attributes = self.get_feature_attributes(trainee_id)
+            cached["feature_attributes"] = feature_attributes
+        return feature_attributes
 
     @abstractmethod
     def _resolve_trainee(self, trainee_id: str, **kwargs) -> Trainee:
