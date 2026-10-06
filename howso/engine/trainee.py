@@ -1413,6 +1413,10 @@ class Trainee(BaseTrainee):
         react. Provided a list of ``contexts``, the trainee reacts to the data
         and produces predictions for the specified actions.
 
+        Large requests are split into batches (see ``batch_size``). When the
+        client runs batches concurrently, they do not report engine progress
+        under ``task_id``; ``progress_callback`` reports overall progress.
+
         Parameters
         ----------
         contexts : DataFrame or 2-dimensional list of object, optional
@@ -2099,6 +2103,10 @@ class Trainee(BaseTrainee):
         corresponding "action" where "action" is the completed 'matrix' for
         the corresponding action_features and derived_action_features.
 
+        Large requests are split into batches (see ``batch_size``). When the
+        client runs batches concurrently, they do not report engine progress
+        under ``task_id``; ``progress_callback`` reports overall progress.
+
         Parameters
         ----------
         action_features : list of str, optional
@@ -2378,6 +2386,10 @@ class Trainee(BaseTrainee):
     ) -> Reaction:
         r"""
         React to series data predicting stationary feature values.
+
+        Large requests are split into batches (see ``batch_size``). When the
+        client runs batches concurrently, they do not report engine progress
+        under ``task_id``; ``progress_callback`` reports overall progress.
 
         Parameters
         ----------
