@@ -3388,6 +3388,7 @@ class Trainee(BaseTrainee):
         action_features: Collection[str] | None = None,
         case_indices: Collection[CaseIndices] | None = None,
         conditions: list[Mapping] | None = None,
+        context_features: Collection[str] | None = None,
         details: Mapping[str, bool] | None = None,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = False,
@@ -3445,6 +3446,10 @@ class Trainee(BaseTrainee):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
+        context_features : Collection of str, optional
+            List of features names to use as contexts in queries. If unspecified,
+            the default is all trained features for existing cases and
+            all given features and their derived features when using new_cases.
         details : dict of str to bool, optional
             Ignored if action features are not specified.
             If details are specified, the response will contain the requested
@@ -3495,6 +3500,10 @@ class Trainee(BaseTrainee):
             parameter. Only one of ``case_indices``, ``conditions``, or
             ``new_cases`` may be specified.
 
+            When using a time-series Trainee, derived feature values will be
+            computed for the given data for each group if no derived feature
+            values are given.
+
             Example::
 
                 new_cases = [
@@ -3533,6 +3542,7 @@ class Trainee(BaseTrainee):
                 action_features=action_features,
                 case_indices=case_indices,
                 conditions=conditions,
+                context_features=context_features,
                 details=details,
                 features=features,
                 filter_fanout_values=filter_fanout_values,
