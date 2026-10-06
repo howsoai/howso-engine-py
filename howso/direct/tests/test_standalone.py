@@ -124,6 +124,20 @@ def test_load_subtrainee_from_memory(client: HowsoDirectClient, tmp_path: Path) 
         client.delete_trainee("test")
 
 
+def test_resolve_feature_attributes_uncached(client: HowsoDirectClient) -> None:
+    """Test resolving feature attributes of a Trainee that is not in the cache."""
+    features = {"x": {"type": "continuous"}}
+    trainee = client.create_trainee(features=features)
+    try:
+        client.release_trainee_resources(trainee.id)
+        assert trainee.id not in client.trainee_cache
+
+        assert client.resolve_feature_attributes(trainee.id)["x"]["type"] == "continuous"
+        assert trainee.id in client.trainee_cache
+    finally:
+        client.delete_trainee(trainee.id)
+
+
 def test_persistence_fails(mocker: MockFixture, client: HowsoDirectClient) -> None:
     """Test persist raises when unable to write file."""
     features = {"x": {"type": "continuous"}}
