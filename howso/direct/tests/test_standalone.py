@@ -5,8 +5,9 @@ from pytest_mock import MockFixture
 
 from amalgam.api import Amalgam
 from howso.engine import Trainee
-from howso.client.exceptions import HowsoError
+from howso.client.exceptions import HowsoError, UnsupportedArgumentWarning
 from howso.direct import HowsoDirectClient
+from howso.direct.client import GARBAGE_COLLECTION_KEY
 from howso.utilities.testing import get_configurationless_test_client
 
 
@@ -168,3 +169,58 @@ def test_persistence_fails(mocker: MockFixture, client: HowsoDirectClient) -> No
     with pytest.raises(HowsoError) as error_info:
         client.update_trainee(t1_new)
     assert error_info.value.code == "persist_failed"
+
+
+def test_get_num_active_threads(client: HowsoDirectClient):
+    """Test the active thread count is reported from the Amalgam library."""
+    active_threads = client.get_num_active_threads()
+    assert isinstance(active_threads, int)
+    assert active_threads >= 1
+
+
+def test_garbage_collection_params(client: HowsoDirectClient):
+    """Test getting and partially updating garbage-collection parameters."""
+    original_params = client.get_garbage_collection_params()
+    assert "min_gc_nodes_threshold" in original_params
+    assert client._garbage_collection_param_names == set(original_params)
+
+    updated_threshold = original_params["min_gc_nodes_threshold"] + 1
+    try:
+        with pytest.warns(UnsupportedArgumentWarning, match="banana"):
+            client.set_garbage_collection_params({
+                "min_gc_nodes_threshold": updated_threshold,
+                "banana": 1,
+            })
+        assert client.get_garbage_collection_params() == {
+            **original_params,
+            "min_gc_nodes_threshold": updated_threshold,
+        }
+    finally:
+        client.set_garbage_collection_params(original_params)
+    assert client.get_garbage_collection_params() == original_params
+
+
+def test_garbage_collection_params_invalid_type(client: HowsoDirectClient):
+    """Test that non-mapping garbage-collection parameters are rejected."""
+    with pytest.raises(TypeError):
+        client.set_garbage_collection_params([("min_gc_nodes_threshold", 1)])  # type: ignore
+
+
+def test_garbage_collection_params_from_config(client: HowsoDirectClient, tmp_path: Path):
+    """Test garbage-collection parameters in the Amalgam options are applied on init."""
+    original_params = client.get_garbage_collection_params()
+    updated_threshold = original_params["min_gc_nodes_threshold"] + 1
+    try:
+        # Reuse the fixture's library: loading a second Amalgam library variant
+        # into the same process is unsupported.
+        configured_client = HowsoDirectClient(
+            version_check=False,
+            default_persist_path=tmp_path,
+            amalgam={
+                "library_path": client.amlg.library_path,
+                GARBAGE_COLLECTION_KEY: {"min_gc_nodes_threshold": updated_threshold},
+            },
+        )
+        assert configured_client.get_garbage_collection_params()["min_gc_nodes_threshold"] == updated_threshold
+    finally:
+        client.set_garbage_collection_params(original_params)
