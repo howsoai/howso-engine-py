@@ -164,15 +164,17 @@ class AbstractHowsoClient(ABC):
             The Trainee feature attributes.
         """
         cached = self.trainee_cache.get_item(trainee_id, None)
-        if cached:
+        if cached is None:
             # Trainee not yet cached, resolve it first
             trainee_id = self._resolve_trainee(trainee_id).id
             cached = self.trainee_cache.get_item(trainee_id)
 
-        if cached["feature_attributes"] is None:
+        feature_attributes = cached.get("feature_attributes")
+        if feature_attributes is None:
             # Feature attributes not yet cached, get them
-            cached["feature_attributes"] = self.get_feature_attributes(trainee_id)
-        return cached["feature_attributes"]
+            feature_attributes = self.get_feature_attributes(trainee_id)
+            cached["feature_attributes"] = feature_attributes
+        return feature_attributes
 
     @abstractmethod
     def _resolve_trainee(self, trainee_id: str, **kwargs) -> Trainee:
@@ -4655,6 +4657,7 @@ class AbstractHowsoClient(ABC):
         num_deviation_samples: int | None = None,
         num_feature_probability_samples: int | None = None,
         p_values: Collection[float] | None = None,
+        rand_seed: int | str | None = None,
         rebalance_features: Collection[str] | None = None,
         reduce_only: bool = False,
         targeted_model: TargetedModel | None = None,
@@ -4721,6 +4724,9 @@ class AbstractHowsoClient(ABC):
             multiplied by :math:`10000 \\cdot \\left(1 - \\frac{1}{e}\\right)`.
         p_values : Collection of float, optional
             The p value data parameters to analyze with.
+        rand_seed : int or str, optional
+            A random seed to use for analysis, making the results reproducible.
+            When unspecified, the Trainee's current random state is used.
         rebalance_features : Collection[str], optional
             The list of features whose values to use to rebalance case
             weighting of the data and to store into weight_feature.
@@ -4790,6 +4796,7 @@ class AbstractHowsoClient(ABC):
             num_deviation_samples=num_deviation_samples,
             num_feature_probability_samples=num_feature_probability_samples,
             p_values=p_values,
+            rand_seed=rand_seed,
             rebalance_features=rebalance_features,
             reduce_only=reduce_only,
             targeted_model=targeted_model,
