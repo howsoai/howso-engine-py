@@ -1,4 +1,6 @@
 import datetime
+import threading
+from typing import Any
 import warnings
 
 import pandas as pd
@@ -464,3 +466,89 @@ def test_coerce_date_time_formats_missing_date_time_format():
     _, _, invalid, _ = internals.coerce_date_time_formats(["2024-01-15"], feature_attributes)
     assert len(invalid) == 1
     assert invalid[0] == "2024-01-15"
+
+
+class _RecordingReact:
+    """React function that records the parameters of every batch it receives."""
+
+    def __init__(self) -> None:
+        self.batch_params: list[dict[str, Any]] = []
+        self._lock = threading.Lock()
+
+    def __call__(self, _trainee_id: str, params: dict[str, Any]) -> tuple[dict[str, Any], int, int]:
+        """Record ``params`` and echo the batch's context values as its action values."""
+        with self._lock:
+            self.batch_params.append(params)
+        values = params["context_values"]
+        if values is None:
+            values = [[0]] * params["num_cases_to_generate"]
+        return {"action_features": ["y"], "action_values": list(values)}, 0, 0
+
+
+def _run_react_in_batches(
+    params: dict[str, Any],
+    *,
+    total_size: int,
+    concurrency: int | None,
+    react: _RecordingReact,
+    num_to_generate_param: str | None = None,
+) -> dict[str, Any]:
+    """Run ``ReactInBatches`` over ``params`` in fixed batches of 2."""
+    return internals.ReactInBatches.run(
+        trainee_id="trainee",
+        params=params,
+        total_size=total_size,
+        batch_size=2,
+        initial_batch_size=None,
+        get_thread_count=lambda _trainee_id: 1,
+        get_concurrency=lambda _trainee_id: concurrency,
+        params_for_batch=internals.ParamsForBatch({"context_values"}, num_to_generate_param=num_to_generate_param),
+        react_function=react,
+    )
+
+
+@pytest.mark.parametrize("concurrency", [1, 3])
+def test_react_in_batches_parallel_omits_task_id(concurrency: int) -> None:
+    """Batches submitted concurrently carry no task_id, and the caller's params keep theirs."""
+    params: dict[str, Any] = {"context_values": [[i] for i in range(6)], "task_id": "shared", "details": None}
+    react = _RecordingReact()
+
+    result = _run_react_in_batches(params, total_size=6, concurrency=concurrency, react=react)
+
+    assert len(react.batch_params) == 3
+    assert all("task_id" not in batch for batch in react.batch_params)
+    assert all("details" in batch for batch in react.batch_params)
+    assert result["action_values"] == [[i] for i in range(6)]
+    assert params["task_id"] == "shared"
+
+
+def test_react_in_batches_parallel_generative_omits_task_id() -> None:
+    """Generative batches get their own case count and no task_id."""
+    params: dict[str, Any] = {
+        "context_values": None,
+        "desired_conviction": 5.0,
+        "num_cases_to_generate": 5,
+        "task_id": "shared",
+    }
+    react = _RecordingReact()
+
+    result = _run_react_in_batches(
+        params, total_size=5, concurrency=2, react=react, num_to_generate_param="num_cases_to_generate"
+    )
+
+    assert sorted(batch["num_cases_to_generate"] for batch in react.batch_params) == [1, 2, 2]
+    assert all("task_id" not in batch for batch in react.batch_params)
+    assert len(result["action_values"]) == 5
+    assert params["task_id"] == "shared"
+    assert params["num_cases_to_generate"] == 5
+
+
+def test_react_in_batches_serial_keeps_task_id() -> None:
+    """Batches run one at a time all carry the caller's task_id."""
+    params: dict[str, Any] = {"context_values": [[i] for i in range(6)], "task_id": "shared"}
+    react = _RecordingReact()
+
+    result = _run_react_in_batches(params, total_size=6, concurrency=None, react=react)
+
+    assert [batch["task_id"] for batch in react.batch_params] == ["shared", "shared", "shared"]
+    assert result["action_values"] == [[i] for i in range(6)]
