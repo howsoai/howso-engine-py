@@ -4581,9 +4581,26 @@ class AbstractHowsoClient(ABC):
             serialized_cases = []
             for group in new_cases:
                 if features is None:
-                    features = internals.get_features_from_data(group)
+                    features = internals.get_features_from_data(group, data_parameter="new_cases")
                 serialized_cases.append(serialize_cases(group, features, feature_attributes,
                                                         tokenizer=self._tokenizer))  # pyright: ignore[reportAttributeAccessIssue]
+
+            if (
+                features is None
+                or not isinstance(serialized_cases[0][0], Sized)
+                or len(features) != len(serialized_cases[0][0])
+            ):
+                raise HowsoError(
+                    "The number of provided values in `new_cases` "
+                    "does not match the number of features in "
+                    "`features`."
+                )
+
+            if context_features is not None:  # noqa: SIM102
+                if not set(context_features).issubset(set(features)):
+                    raise ValueError(
+                        "When using `new_cases` and `features`, specified `context_features` must be a subset of "
+                        "`features`.")
 
         if self.configuration.verbose:
             print(f"Reacting to a set of cases on Trainee with id: {trainee_id}")
