@@ -1865,6 +1865,10 @@ class AbstractHowsoClient(ABC):
         produces action_values for the specified action_features conditioned
         on the optionally provided contexts.
 
+        Large requests are split into batches (see ``batch_size``). When the
+        client runs batches concurrently, they do not report engine progress
+        under ``task_id``; ``progress_callback`` reports overall progress.
+
         Parameters
         ----------
         trainee_id : str
@@ -3024,6 +3028,10 @@ class AbstractHowsoClient(ABC):
         corresponding "action" where "action" is the completed 'matrix' for the
         corresponding `action_features` and `derived_action_features`.
 
+        Large requests are split into batches (see ``batch_size``). When the
+        client runs batches concurrently, they do not report engine progress
+        under ``task_id``; ``progress_callback`` reports overall progress.
+
         Parameters
         ----------
         trainee_id : str
@@ -3557,6 +3565,10 @@ class AbstractHowsoClient(ABC):
     ) -> Reaction:
         r"""
         React to series data predicting stationary feature values.
+
+        Large requests are split into batches (see ``batch_size``). When the
+        client runs batches concurrently, they do not report engine progress
+        under ``task_id``; ``progress_callback`` reports overall progress.
 
         Parameters
         ----------

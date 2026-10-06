@@ -1139,7 +1139,13 @@ class ReactInBatches:
         self._consume_ready_futures()
 
     def parallel(self) -> None:
-        """Run the operation using parallel threads."""
+        """
+        Run the operation using parallel threads.
+
+        Batch requests omit ``task_id``, since one task identifier cannot
+        describe several in-flight requests.  Overall progress is reported
+        through the progress callback.
+        """
         logger.debug("starting parallel batch react")
         batch_start = 0
         self._send_progress(None)
@@ -1151,6 +1157,10 @@ class ReactInBatches:
                     # Submit a new batch of cases
                     batch_end = min(batch_start + self._batch_scaler.batch_size, self._progress.total_ticks)
                     batch_params = self._params_for_batch(self._params, batch_start, batch_end)
+                    # One task_id cannot describe several in-flight requests: the engine
+                    # would merge their progress into a single entry that the first
+                    # finished batch clears.
+                    batch_params.pop("task_id", None)
                     future = executor.submit(self._react_function, self._trainee_id, batch_params)
                     self._futures.append((batch_end - batch_start, future))
                     self._running.add(future)

@@ -18,6 +18,7 @@ from rich.console import Console
 from rich.progress import Progress
 
 from howso.client.configuration import ClientOptions, HowsoConfiguration
+from howso.client.exceptions import NoOngoingTaskError
 from howso.utilities import (
     auto_progress,
     auto_progress_enabled,
@@ -67,14 +68,18 @@ class _FakeClient:
         ])
         # Defaults to the multi-threaded library so that engine polling is
         # permitted; single-threaded cases opt in explicitly. Pass an
-        # ``Exception`` instance to make the lookup raise.
+        # ``Exception`` instance to make the lookup raise. A progress payload
+        # that is an ``Exception`` instance is raised from ``get_progress``.
         self._library_type = library_type
         self.poll_count = 0
 
     def get_progress(self, trainee_id, task_id):  # noqa: ARG002
         self.poll_count += 1
         idx = min(self.poll_count - 1, len(self._payloads) - 1)
-        return self._payloads[idx]
+        payload = self._payloads[idx]
+        if isinstance(payload, Exception):
+            raise payload
+        return payload
 
     def get_trainee_runtime(self, trainee_id):  # noqa: ARG002
         if isinstance(self._library_type, Exception):
@@ -2505,6 +2510,23 @@ def test_with_progress_both_method_wires_both_sources():
     assert set(r.started_sources or ()) == {"batch", "engine"}
     sources_seen = {e.source for e in r.events}
     assert "batch" in sources_seen
+
+
+def test_with_progress_engine_polling_continues_past_no_ongoing_task() -> None:
+    """Polling a task_id that no request is running skips the tick and keeps polling."""
+    client = _FakeClient(progress_payloads=[
+        NoOngoingTaskError(NoOngoingTaskError.MESSAGE),
+        {"step": 2, "total": 4, "details": "running"},
+    ])
+    t = _FakeTrainee(client)
+    r = _RecordingReporter()
+
+    result = with_progress("Task", t.task_only, reporter=r, polling_interval=0.01)
+
+    assert result == "task_only-done"
+    assert client.poll_count >= 2
+    assert any(e.source == "engine" and e.step == 2 and e.total == 4 for e in r.events)
+    assert r.finished_success is True
 
 
 @pytest.mark.parametrize(("library_type", "expected"), [
