@@ -2320,16 +2320,28 @@ class InferFeatureAttributesBase(ABC):
         # weight its multiplier adds on top of its own count.
         budgets = counts - np.maximum(floor, min_multiplier * counts)
         budget = float(budgets.sum())
+        # Every comparison against a budget or the floor below allows `tolerance` amount of slack. The
+        # quantities compared are computed along different  paths that are equal in exact arithmetic but not
+        # in floating point: a target's deficit is `count * (floor / count - 1)`, while the budget it is
+        # compared with is `count - floor` of some other value, and a value scaled by the factor is
+        # `(remaining / mass) * count`, while the floor it must reach is `floor` itself. At an
+        # exact boundary, such as a deficit that uses the whole budget, the two sides can differ by a few
+        # ulps in either direction, and a strict comparison would then drop a target that fits or fail
+        # to find a factor. The slack is relative to the floor, the natural unit of weight here, and
+        # is far below one case, so it never admits a target that truly does not fit.
+        tolerance = 1e-9 * max(floor, 1.0)
         deficits = [count * (target["multiplier"] - 1) for count, target in zip(target_counts, targets, strict=True)]
         needed = sum(deficits)
         kept: list[ProtectedValueMultiplier] = []
         kept_indices: set[int] = set()
         limit: RareValuePreservationLimit | None = None
-        if needed <= budget:
-            # Everything fits: every target gets its multiplier
+        if needed <= budget + tolerance:
+            # Everything fits: every target gets its multiplier. `used` is clamped to the budget so that,
+            # when `needed` exceeds it only by rounding, the significant values are still left with at
+            # least their floors in step 3
             kept = [{"value": target["value"], "multiplier": target["multiplier"]} for target in targets]
             kept_indices = set(range(len(targets)))
-            used = needed
+            used = min(needed, budget)
         elif fit == "largest_first":
             # Fund targets in order of their counts until the next one would exceed the budget; the
             # rest stay at weight 1. The limit records what was dropped and the distillation target
@@ -2337,10 +2349,13 @@ class InferFeatureAttributesBase(ABC):
             order = sorted(range(len(targets)), key=lambda i: target_counts[i], reverse=True)
             used = 0.0
             for i in order:
-                if used + deficits[i] <= budget:
+                if used + deficits[i] <= budget + tolerance:
                     kept.append({"value": targets[i]["value"], "multiplier": targets[i]["multiplier"]})
                     kept_indices.add(i)
                     used += deficits[i]
+            # The last funded target may have overshot the budget by rounding; see the step 3 note on
+            # the clamp above
+            used = min(used, budget)
             limit = {
                 "feature": feature,
                 "preserved": len(kept),
@@ -2377,11 +2392,13 @@ class InferFeatureAttributesBase(ABC):
         remaining = float(counts.sum()) - used
         # suffix_mass[k] is the summed count of the values from index k onward
         suffix_mass = np.cumsum(counts[::-1])[::-1]
-        tolerance = 1e-9 * max(floor, 1.0)
         held = len(counts)
         factor = 1.0
         for k in range(len(counts)):
             candidate = (remaining - k * floor) / suffix_mass[k]
+            # When the budget is used up exactly, this value lands on the floor, and the quotient times
+            # its count can come out a few ulps under it; without the slack the walk would hold it at
+            # the floor too, and so on for every value, ending with no factor applied to any case
             if candidate * counts[k] >= floor - tolerance:
                 held = k
                 factor = float(candidate)

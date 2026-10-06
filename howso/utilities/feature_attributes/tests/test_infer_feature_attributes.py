@@ -1378,8 +1378,7 @@ def test_preserve_rare_values(capsys: pytest.CaptureFixture[str]) -> None:
 
     # All values, but multipliers should be deferred if `max_distilled_cases` not provided
     features = infer_feature_attributes(df, preserve_rare_values_map={"a": [None]}, max_workers=2)
-    assert "preserve_rare_values" in features["a"]
-    assert _prv(features["a"])["protected_values"][0] is None
+    assert features["a"]["preserve_rare_values"] == {"protected_values": [None]}
 
     # Test that a suggestion is issued, and summarized on the console rather than as a warning
     with warnings.catch_warnings():
@@ -1683,6 +1682,23 @@ def test_preserve_rare_values_config_reweighted():
         infer_feature_attributes(df, preserve_rare_values_config={"a": [{"value": "rare0", "multiplier": 0.5}]})
     with pytest.raises(ValueError, match="not found in column"):
         infer_feature_attributes(df, preserve_rare_values_config={"a": [{"value": "missing", "multiplier": 2}]})
+
+
+def test_preserve_rare_values_deficit_exactly_exhausts_budget():
+    """Test that a rare value whose deficit equals the available weight exactly is preserved."""
+    # At 252 -> 63 the floor is 120: the common value can give up 146 - 120 = 26 cases and the rare value
+    # needs 120 - 94 = 26, computed as 94 * (120 / 94 - 1), which floating point puts a few ulps above 26
+    df = pd.DataFrame({"a": ["common"] * 146 + ["rare"] * 94 + ["small"] * 12})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=63, significance_threshold=30,
+                                            preserve_rare_values_map={"a": ["common", "rare"]},
+                                            enable_suggestions=False)
+    multipliers = _multipliers(features["a"])
+    assert set(multipliers) == {"common", "rare"}
+    assert multipliers["rare"] == pytest.approx(120 / 94)
+    assert multipliers["common"] == pytest.approx(120 / 146)
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
 
 
 def test_preserve_rare_values_significant_values_exactly_at_floor():
