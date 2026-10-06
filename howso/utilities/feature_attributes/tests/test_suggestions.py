@@ -79,7 +79,7 @@ class TestCollectorMerge:
         target.append(make_fanout({"key_a": ["col1"]}))
 
         other = IFASuggestionCollector()
-        other.append(make_prv({"feat_x": {"protected_values_multipliers": [], "unprotected_multiplier": 1.0}}))
+        other.append(make_prv({"feat_x": {"multipliers": []}}))
 
         target.merge(other)
 
@@ -116,10 +116,10 @@ class TestCollectorMerge:
 
 class TestPRVSuggestionMerge:
     def test_merge_non_overlapping_features(self):
-        prv1 = make_prv({"feat_a": {"protected_values_multipliers": [{"value": "rare", "multiplier": 2.0}],
-                                    "unprotected_multiplier": 0.9}})
-        prv2 = make_prv({"feat_b": {"protected_values_multipliers": [{"value": "uncommon", "multiplier": 3.0}],
-                                    "unprotected_multiplier": 0.8}})
+        prv1 = make_prv({"feat_a": {"multipliers": [{"value": "rare", "multiplier": 2.0},
+                                                    {"value": "common", "multiplier": 0.9}]}})
+        prv2 = make_prv({"feat_b": {"multipliers": [{"value": "uncommon", "multiplier": 3.0},
+                                                    {"value": "common", "multiplier": 0.8}]}})
         prv1.merge(prv2)
 
         config = prv1.get_config()
@@ -127,17 +127,16 @@ class TestPRVSuggestionMerge:
         assert "feat_b" in config
 
     def test_merge_identical_feature_config_is_allowed(self):
-        cfg = {"protected_values_multipliers": [{"value": "rare", "multiplier": 2.0}],
-               "unprotected_multiplier": 0.9}
+        cfg = {"multipliers": [{"value": "rare", "multiplier": 2.0}, {"value": "common", "multiplier": 0.9}]}
         prv1 = make_prv({"feat_a": cfg})
         prv2 = make_prv({"feat_a": cfg})
         prv1.merge(prv2)  # must not raise
 
     def test_merge_conflicting_feature_raises(self):
-        prv1 = make_prv({"feat_a": {"protected_values_multipliers": [{"value": "rare", "multiplier": 2.0}],
-                                    "unprotected_multiplier": 0.9}})
-        prv2 = make_prv({"feat_a": {"protected_values_multipliers": [{"value": "rare", "multiplier": 5.0}],
-                                    "unprotected_multiplier": 0.5}})
+        prv1 = make_prv({"feat_a": {"multipliers": [{"value": "rare", "multiplier": 2.0},
+                                                    {"value": "common", "multiplier": 0.9}]}})
+        prv2 = make_prv({"feat_a": {"multipliers": [{"value": "rare", "multiplier": 5.0},
+                                                    {"value": "common", "multiplier": 0.5}]}})
         with pytest.raises(ValueError, match="differing configurations"):
             prv1.merge(prv2)
 
@@ -182,8 +181,8 @@ class TestFanoutSuggestionMerge:
 def _prv_config(**features_to_num_values: int) -> dict:
     return {
         feature: {
-            "protected_values_multipliers": [{"value": i, "multiplier": 2.0} for i in range(num)],
-            "unprotected_multiplier": 0.9,
+            "multipliers": [{"value": i, "multiplier": 2.0} for i in range(num)]
+            + [{"value": "common", "multiplier": 0.9}],
         }
         for feature, num in features_to_num_values.items()
     }
@@ -256,11 +255,10 @@ class TestCollectorSummary:
 
 
 class TestPRVProtectedValues:
-    """The values map of a PRVSuggestion names the rare values, not every listed value."""
+    """The values map of a PRVSuggestion names the rare values, not the values that fund them."""
 
-    _CONFIG: ClassVar[dict] = {"a": {"protected_values_multipliers": [{"value": "rare", "multiplier": 4.0},
-                                                                      {"value": "small", "multiplier": 1.0}],
-                                     "unprotected_multiplier": 0.9}}
+    _CONFIG: ClassVar[dict] = {"a": {"multipliers": [{"value": "rare", "multiplier": 4.0},
+                                                     {"value": "common", "multiplier": 0.9}]}}
 
     def test_values_map_lists_only_protected_values(self):
         """Only the values given as protected appear in the map, the details and the parameters."""
@@ -270,9 +268,9 @@ class TestPRVProtectedValues:
         assert suggestion.details["num_values"] == 1
         assert suggestion.parameters["preserve_rare_values_map"] == {"a": ["rare"]}
 
-    def test_values_map_defaults_to_every_listed_value(self):
-        """Without an explicit set of protected values, every listed value is in the map."""
-        assert make_prv(self._CONFIG).get_values_map() == {"a": ["rare", "small"]}
+    def test_values_map_defaults_to_weighted_up_values(self):
+        """Without an explicit set of protected values, the values with multipliers above 1 are in the map."""
+        assert make_prv(self._CONFIG).get_values_map() == {"a": ["rare"]}
 
     def test_merge_combines_protected_values(self):
         """Merging keeps each suggestion's protected values under its own features."""
@@ -377,11 +375,11 @@ class TestCollectorToDict:
 
     def test_to_json_handles_numpy_and_datetime_values(self):
         config = {"a": {
-            "protected_values_multipliers": [
+            "multipliers": [
                 {"value": np.int64(3), "multiplier": np.float64(1.5)},
                 {"value": datetime.date(2026, 1, 2), "multiplier": 2.0},
+                {"value": "common", "multiplier": 0.9},
             ],
-            "unprotected_multiplier": 0.9,
         }}
         ranking = [{"feature": "a", "value": np.int64(3), "count": np.int64(12)}]
         collector = IFASuggestionCollector([PRVSuggestion(config, ranking, True)])

@@ -631,20 +631,19 @@ class InferFeatureAttributesTimeSeries(ABC):
                     ]
                 }
 
-            Alternatively, you may provide a "full" `preserve_rare_values_config` that specifies both
-            the "unprotected_multiplier" and "protected_values_multipliers" for each feature. This is
-            the format that can be expected if your `preserve_rare_values_config` comes from a
-            suggestion after calling `infer_feature_attributes`.
-
-            When no "unprotected_multiplier" is given, the feature's other values are reweighted to
-            fund the protected values so the total case weight is unchanged: values with fewer cases
-            than the significance threshold keep a weight of 1, and every other value is scaled by
-            one common factor, the "unprotected_multiplier", except that no value is scaled below the
-            number of cases that keeps the threshold after distillation. See
+            The feature's other values are reweighted to fund the listed values so the total case
+            weight is unchanged: values with fewer cases than the significance threshold keep a
+            weight of 1, and every other value is scaled by one common factor, except that no value
+            is scaled below the number of cases that keeps the threshold after distillation. See
             `preserve_rare_values_caps` to limit how much weight those values give up. Without
             `max_distilled_cases`, the floor is computed for a target of 50,000 cases. If those
             values cannot fund the multipliers, each multiplier's increase over 1 is scaled down
-            and a warning is issued. A "full" config is used as-is.
+            and a warning is issued.
+
+            Alternatively, you may provide a "full" `preserve_rare_values_config` that maps each
+            feature to a dict with a "multipliers" list, giving the multiplier of every value whose
+            case weight changes; values not listed keep a multiplier of 1. This is the format of the
+            suggestion `infer_feature_attributes` makes, and it is used as-is.
 
         preserve_rare_values_map : dict or list of str or "all" or "off", optional
             (Optional) A map of feature name to list of values that should be protected during data

@@ -481,15 +481,15 @@ class PRVSuggestion(IFASuggestion):
         Parameters
         ----------
         prvc : FullPreserveRareValuesConfig
-            A full rare values preservation config with protected and unprotected multipliers.
+            A full rare values preservation config, with the multipliers of every reweighted value.
         values_ranking : Sequence of Mapping
             An ordered list of the top five most significant rare values found in the data.
         user_set_max_distilled_cases : bool
             Whether the user specified the max_distilled_cases value, or `prvc` was approximated with a default.
         protected_values : PreserveRareValuesMap, optional
-            The rare values of each feature in `prvc` that are weighted up. `prvc` may also list
-            values held at the significance floor and small values kept at 1. Defaults to every
-            value listed in `prvc`.
+            The rare values of each feature in `prvc` that are weighted up. `prvc` also lists the
+            values that fund them, at multipliers below 1. Defaults to every value listed in `prvc`
+            with a multiplier above 1.
         limits : Sequence of RareValuePreservationLimit, optional
             The features in `prvc` whose rare values could not all be preserved.
         """
@@ -498,7 +498,7 @@ class PRVSuggestion(IFASuggestion):
         self._user_set_mdc = user_set_max_distilled_cases
         if protected_values is None:
             protected_values = {
-                feature: [value_config["value"] for value_config in config["protected_values_multipliers"]]
+                feature: [entry["value"] for entry in config["multipliers"] if entry["multiplier"] > 1]
                 for feature, config in prvc.items()
             }
         self._protected_values = protected_values

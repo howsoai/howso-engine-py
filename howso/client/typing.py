@@ -246,10 +246,10 @@ class FeatureTimeSeries(TypedDict, total=False):
     """
 
 class ProtectedValueMultiplier(TypedDict):
-    """A single protected value paired with its case-weight multiplier."""
+    """A single feature value paired with its case-weight multiplier."""
 
     value: Any
-    """The feature value to protect during data distillation."""
+    """The feature value whose cases are reweighted during data distillation."""
 
     multiplier: float
     """The case-weight multiplier applied to cases holding this value."""
@@ -258,11 +258,13 @@ class ProtectedValueMultiplier(TypedDict):
 class FeatureRareValueConfig(TypedDict):
     """A rare-value preservation configuration for a single feature."""
 
-    protected_values_multipliers: list[ProtectedValueMultiplier]
-    """The protected values and their individual case-weight multipliers."""
+    multipliers: list[ProtectedValueMultiplier]
+    """
+    The case-weight multipliers of the feature's values.
 
-    unprotected_multiplier: NotRequired[float]
-    """The case-weight multiplier applied to all non-protected values of the feature."""
+    Rare values are listed with multipliers above 1 and the values that fund them with
+    multipliers below 1. A value that is not listed keeps a multiplier of 1.
+    """
 
 
 class DeferredFeatureValueConfig(TypedDict):
@@ -629,10 +631,10 @@ share of its weight a significant value may give up.
 """
 
 PreserveRareValuesConfig: TypeAlias = dict[str, list[ProtectedValueMultiplier]]
-"""Map of feature name to a list of protected values with case-weight multipliers."""
+"""Map of feature name to a list of rare values with the case-weight multipliers they should receive."""
 
 FullPreserveRareValuesConfig: TypeAlias = dict[str, FeatureRareValueConfig]
-"""Map of feature name to a complete rare-value configuration (protected and unprotected multipliers)."""
+"""Map of feature name to a complete rare-value configuration, with every multiplier computed."""
 
 Precision: TypeAlias = Literal["exact", "similar"]
 """Valid values for ``precision`` parameters."""

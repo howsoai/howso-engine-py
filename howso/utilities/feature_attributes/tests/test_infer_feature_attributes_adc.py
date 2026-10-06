@@ -731,11 +731,9 @@ def test_preserve_rare_values(adc, make_adc, capsys):
         features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map="all")
     assert "preserve_rare_values" in features["a"]
     assert "preserve_rare_values" in features["b"]
-    multipliers = {cfg["value"]: cfg["multiplier"]
-                   for cfg in features["a"]["preserve_rare_values"]["protected_values_multipliers"]}
+    multipliers = {cfg["value"]: cfg["multiplier"] for cfg in features["a"]["preserve_rare_values"]["multipliers"]}
     # The rare value keeps the threshold exactly: 30 * 10,000 / (1,250 * 100); the common value funds it
-    assert multipliers == {"2": pytest.approx(2.4)}
-    assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
+    assert multipliers == {"2": pytest.approx(2.4), "1": pytest.approx(0.99, abs=0.005)}
 
     # Multipliers should be deferred if `max_distilled_cases` not provided.
     # This needs a second connector of the same type as `adc`: writing the
@@ -751,11 +749,10 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map={"b": ['y', 'z']})
     assert "preserve_rare_values" not in features["a"]
     assert "preserve_rare_values" in features["b"]
-    multipliers = {cfg["value"]: cfg["multiplier"]
-                   for cfg in features["b"]["preserve_rare_values"]["protected_values_multipliers"]}
-    # Only 'z' needs preserving; 'y' keeps the threshold on its own, so it shares the unprotected multiplier with 'x'
-    assert multipliers == {"z": pytest.approx(2.4)}
-    assert round(features["b"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
+    multipliers = {cfg["value"]: cfg["multiplier"] for cfg in features["b"]["preserve_rare_values"]["multipliers"]}
+    # Only 'z' needs preserving; 'y' keeps the threshold on its own, so it funds 'z' alongside 'x'
+    assert multipliers == {"z": pytest.approx(2.4), "x": pytest.approx(0.99, abs=0.005),
+                           "y": pytest.approx(0.99, abs=0.005)}
 
     # Test that a suggestion is issued, and summarized on the console rather than as a warning
     with warnings.catch_warnings():
@@ -768,8 +765,8 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         features.apply_suggestion("preserve_rare_values")
-    assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
-    assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
+    assert "multipliers" in features["a"].get("preserve_rare_values", {})
+    assert "multipliers" in features["b"].get("preserve_rare_values", {})
 
     # Test data with unhashable values
     df["unhashable"] = [[1, 2]] * len(df)  # lists are unhashable; value_counts will raise TypeError

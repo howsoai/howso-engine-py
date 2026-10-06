@@ -615,7 +615,7 @@ def test_preserve_rare_values_time_series():
         enable_suggestions=False,
     )
     assert "preserve_rare_values" in features["cat"]
-    assert "protected_values_multipliers" in features["cat"]["preserve_rare_values"]
+    assert "multipliers" in features["cat"]["preserve_rare_values"]
 
     # A pre-computed preserve_rare_values_config is applied as-is.
     config = {"cat": [{"value": "rare", "multiplier": 5}]}
