@@ -4485,7 +4485,7 @@ class AbstractHowsoClient(ABC):
                       features.
         context_features : Collection of str, optional
             List of features names to use as contexts in queries. If unspecified,
-            the default is all trained features for existing cases and
+            the default is all trained features when using trained cases and
             all given features and their derived features when using new_cases.
         details : dict of str to bool, optional
             Ignored if action features are not specified.
