@@ -168,6 +168,7 @@ def test_garbage_collection_params(client: HowsoDirectClient):
     """Test getting and partially updating garbage-collection parameters."""
     original_params = client.get_garbage_collection_params()
     assert "min_gc_nodes_threshold" in original_params
+    assert client.garbage_collection_param_names == set(original_params)
 
     updated_threshold = original_params["min_gc_nodes_threshold"] + 1
     try:
@@ -191,17 +192,21 @@ def test_garbage_collection_params_invalid_type(client: HowsoDirectClient):
         client.set_garbage_collection_params([("min_gc_nodes_threshold", 1)])  # type: ignore
 
 
-def test_garbage_collection_params_from_config(tmp_path: Path):
+def test_garbage_collection_params_from_config(client: HowsoDirectClient, tmp_path: Path):
     """Test garbage-collection parameters in the Amalgam options are applied on init."""
-    probe = HowsoDirectClient(version_check=False, default_persist_path=tmp_path)
-    original_params = probe.get_garbage_collection_params()
+    original_params = client.get_garbage_collection_params()
     updated_threshold = original_params["min_gc_nodes_threshold"] + 1
     try:
-        client = HowsoDirectClient(
+        # Reuse the fixture's library: loading a second Amalgam library variant
+        # into the same process is unsupported.
+        configured_client = HowsoDirectClient(
             version_check=False,
             default_persist_path=tmp_path,
-            amalgam={GARBAGE_COLLECTION_KEY: {"min_gc_nodes_threshold": updated_threshold}},
+            amalgam={
+                "library_path": client.amlg.library_path,
+                GARBAGE_COLLECTION_KEY: {"min_gc_nodes_threshold": updated_threshold},
+            },
         )
-        assert client.get_garbage_collection_params()["min_gc_nodes_threshold"] == updated_threshold
+        assert configured_client.get_garbage_collection_params()["min_gc_nodes_threshold"] == updated_threshold
     finally:
-        probe.set_garbage_collection_params(original_params)
+        client.set_garbage_collection_params(original_params)

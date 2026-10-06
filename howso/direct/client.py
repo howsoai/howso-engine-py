@@ -5,6 +5,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
+from functools import cached_property
 from http import HTTPStatus
 import importlib.metadata
 import inspect
@@ -799,6 +800,22 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return self.amlg.get_num_active_threads()
 
+    @cached_property
+    def garbage_collection_param_names(self) -> frozenset[str]:
+        """
+        The names of the garbage-collection parameters the Amalgam library supports.
+
+        The library reports every parameter it supports, so these are the
+        names returned by :meth:`get_garbage_collection_params`. They are
+        fixed for the loaded library and read from it once per client.
+
+        Returns
+        -------
+        frozenset of str
+            The supported garbage-collection parameter names.
+        """
+        return frozenset(self.get_garbage_collection_params())
+
     def get_garbage_collection_params(self) -> dict[str, t.Any]:
         """
         Get the native garbage-collection parameters of the Amalgam library.
@@ -826,8 +843,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         Parameters
         ----------
         params : Mapping
-            Any subset of the parameters returned by
-            :meth:`get_garbage_collection_params`. Unrecognized parameters
+            Any subset of the parameters named by
+            :attr:`garbage_collection_param_names`. Unrecognized parameters
             are ignored with a warning.
         """
         if not isinstance(params, Mapping):
@@ -835,9 +852,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "Garbage-collection parameters must be a mapping of parameter "
                 f"names to values, got: {type(params).__name__}"
             )
-        # The library reports every parameter it supports, so its current
-        # parameters define the set of recognized names.
-        supported_params = self.get_garbage_collection_params().keys()
+        supported_params = self.garbage_collection_param_names
         if unknown_params := params.keys() - supported_params:
             warnings.warn(
                 f"Unknown garbage-collection parameters were specified and ignored: {unknown_params}",
