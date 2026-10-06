@@ -168,7 +168,7 @@ def test_garbage_collection_params(client: HowsoDirectClient):
     """Test getting and partially updating garbage-collection parameters."""
     original_params = client.get_garbage_collection_params()
     assert "min_gc_nodes_threshold" in original_params
-    assert client.garbage_collection_param_names == set(original_params)
+    assert client._garbage_collection_param_names == set(original_params)
 
     updated_threshold = original_params["min_gc_nodes_threshold"] + 1
     try:

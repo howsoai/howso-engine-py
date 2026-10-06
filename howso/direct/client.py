@@ -801,7 +801,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         return self.amlg.get_num_active_threads()
 
     @cached_property
-    def garbage_collection_param_names(self) -> frozenset[str]:
+    def _garbage_collection_param_names(self) -> frozenset[str]:
         """
         The names of the garbage-collection parameters the Amalgam library supports.
 
@@ -844,7 +844,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         ----------
         params : Mapping
             Any subset of the parameters named by
-            :attr:`garbage_collection_param_names`. Unrecognized parameters
+            :attr:`_garbage_collection_param_names`. Unrecognized parameters
             are ignored with a warning.
         """
         if not isinstance(params, Mapping):
@@ -852,7 +852,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "Garbage-collection parameters must be a mapping of parameter "
                 f"names to values, got: {type(params).__name__}"
             )
-        supported_params = self.garbage_collection_param_names
+        supported_params = self._garbage_collection_param_names
         if unknown_params := params.keys() - supported_params:
             warnings.warn(
                 f"Unknown garbage-collection parameters were specified and ignored: {unknown_params}",
