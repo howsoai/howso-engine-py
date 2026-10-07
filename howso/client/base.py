@@ -4596,12 +4596,6 @@ class AbstractHowsoClient(ABC):
                     "`features`."
                 )
 
-            if context_features is not None:  # noqa: SIM102
-                if not set(context_features).issubset(set(features)):
-                    raise ValueError(
-                        "When using `new_cases` and `features`, specified `context_features` must be a subset of "
-                        "`features`.")
-
         if self.configuration.verbose:
             print(f"Reacting to a set of cases on Trainee with id: {trainee_id}")
         result = self.execute(trainee_id, "react_group", {
