@@ -591,12 +591,12 @@ class _QueueDrainRace:
     batch 1 finishes after ``wait()`` has reported only batch 0, and before
     ``ReactInBatches`` looks at the head of its queue again.  After batch 1
     finishes, ``get_concurrency`` reports ``drained_concurrency`` until
-    ``unstick`` is set, and 2 otherwise.
+    ``release()`` is called, and 2 otherwise.
     """
 
     def __init__(self, *, drained_concurrency: int) -> None:
         self.react_in_batches: internals.ReactInBatches | None = None
-        self.unstick = threading.Event()
+        self._unstick = threading.Event()
         self._drained_concurrency = drained_concurrency
         self._batch_1_gate = threading.Event()
         self._batch_1_done = threading.Event()
@@ -620,9 +620,14 @@ class _QueueDrainRace:
 
     def get_concurrency(self, _trainee_id: str) -> int:
         """Report 2 concurrent requests, or ``drained_concurrency`` once batch 1 is done."""
-        if self._batch_1_done.is_set() and not self.unstick.is_set():
+        if self._batch_1_done.is_set() and not self._unstick.is_set():
             return self._drained_concurrency
         return 2
+
+    def release(self) -> None:
+        """Open batch 1's gate and restore concurrency to 2, so a stuck run can finish."""
+        self._batch_1_gate.set()
+        self._unstick.set()
 
 
 @pytest.mark.parametrize("drained_concurrency", [2, 1])
@@ -653,9 +658,9 @@ def test_react_in_batches_parallel_batch_finishing_during_drain(drained_concurre
             try:
                 running.result(timeout=10)
             except TimeoutError:
-                # Restore concurrency so a stuck submit loop can finish and the
-                # worker exits before the executor shuts down.
-                scenario.unstick.set()
+                # Unblock every gated state so the worker exits before the
+                # executor shuts down.
+                scenario.release()
                 running.result(timeout=10)
                 pytest.fail("ReactInBatches.parallel() did not finish")
 
