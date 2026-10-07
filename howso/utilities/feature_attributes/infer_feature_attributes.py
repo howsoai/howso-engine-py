@@ -314,15 +314,15 @@ def infer_feature_attributes(
         (Optional) The rare values to preserve during data distillation, so that their signal is
         not lost. Case weight multipliers are written to each feature's "value_weight_multipliers"
         attribute, a list of dicts of "value" and "multiplier" naming every value whose case weight
-        changes; values not listed keep a multiplier of 1.
+        changes. For accurate computation, please also specify `max_distilled_cases`.
 
         A dict maps each feature name to one of three forms:
 
         - A list of values to protect. Each is weighted to keep approximately
           `significance_threshold` cases after distillation, funded by the feature's other values.
-          When not every value fits, those with the most cases are given priority. Without
-          `max_distilled_cases`, the values are written to the feature's "preserve_rare_values"
-          attribute instead, for the multipliers to be computed later.
+          When not every value fits, those with the most cases are given priority. The values are
+          written to the feature's "preserve_rare_values" attribute, and the multiplier computation
+          will be deferred to other Howso software, if possible.
         - A list of dicts of "value" and "multiplier", giving the multiplier each value should
           receive, at least 1. The feature's other values are reweighted to fund them so the total
           case weight is unchanged: values with fewer cases than the significance threshold keep a
@@ -339,10 +339,10 @@ def infer_feature_attributes(
         Example::
 
             {
-                "feature_a": ["x", "y"],
+                "feature_a": ["x", "y"],  # All multipliers to be computed automatically
                 "feature_b": [
-                    {"value": "x", "multiplier": 3},
-                    {"value": "y", "multiplier": 150}
+                    {"value": "x", "multiplier": 3},   # Some multipliers specified; weights will
+                    {"value": "y", "multiplier": 150}  # be balanced automatically
                 ]
             }
 

@@ -603,39 +603,39 @@ class InferFeatureAttributesTimeSeries(ABC):
                     "size" : [ "small", "medium", "large", "huge" ]
                 }
 
-        preserve_rare_values : dict or list of str or "all" or "off", default None
+        preserve_rare_values : dict or list of str or "all" or "off", optional
             (Optional) The rare values to preserve during data distillation, so that their signal is
             not lost. Case weight multipliers are written to each feature's "value_weight_multipliers"
             attribute, a list of dicts of "value" and "multiplier" naming every value whose case weight
-            changes; values not listed keep a multiplier of 1.
+            changes. For accurate computation, please also specify `max_distilled_cases`.
 
             A dict maps each feature name to one of three forms:
 
             - A list of values to protect. Each is weighted to keep approximately
-              `significance_threshold` cases after distillation, funded by the feature's other values.
-              When not every value fits, those with the most cases are given priority. Without
-              `max_distilled_cases`, the values are written to the feature's "preserve_rare_values"
-              attribute instead, for the multipliers to be computed later.
+            `significance_threshold` cases after distillation, funded by the feature's other values.
+            When not every value fits, those with the most cases are given priority. The values are
+            written to the feature's "preserve_rare_values" attribute, and the multiplier computation
+            will be deferred to other Howso software, if possible.
             - A list of dicts of "value" and "multiplier", giving the multiplier each value should
-              receive, at least 1. The feature's other values are reweighted to fund them so the total
-              case weight is unchanged: values with fewer cases than the significance threshold keep a
-              weight of 1, and every other value is scaled by one common factor, except that no value is
-              scaled below the number of cases that keeps the threshold after distillation. See
-              `preserve_rare_values_caps` to limit how much weight those values give up. Without
-              `max_distilled_cases`, the floor is computed for a target of 50,000 cases. If the other
-              values cannot fund the multipliers, each multiplier's increase over 1 is scaled down and a
-              warning is issued.
+            receive, at least 1. The feature's other values are reweighted to fund them so the total
+            case weight is unchanged: values with fewer cases than the significance threshold keep a
+            weight of 1, and every other value is scaled by one common factor, except that no value is
+            scaled below the number of cases that keeps the threshold after distillation. See
+            `preserve_rare_values_caps` to limit how much weight those values give up. Without
+            `max_distilled_cases`, the floor is computed for a target of 50,000 cases. If the other
+            values cannot fund the multipliers, each multiplier's increase over 1 is scaled down and a
+            warning is issued.
             - A dict with a "value_weight_multipliers" list, the complete configuration in the form
-              written to the feature attributes, used as-is. This is the form a suggestion's
-              `get_config()` returns.
+            written to the feature attributes, used as-is. This is the form a suggestion's
+            `get_config()` returns.
 
             Example::
 
                 {
-                    "feature_a": ["x", "y"],
+                    "feature_a": ["x", "y"],  # All multipliers to be computed automatically
                     "feature_b": [
-                        {"value": "x", "multiplier": 3},
-                        {"value": "y", "multiplier": 150}
+                        {"value": "x", "multiplier": 3},   # Some multipliers specified; weights will
+                        {"value": "y", "multiplier": 150}  # be balanced automatically
                     ]
                 }
 

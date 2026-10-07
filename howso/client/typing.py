@@ -513,7 +513,8 @@ class FeatureAttributes(TypedDict):
     """
     Rare values to protect during data distillation whose case-weight multipliers are not yet computed.
 
-    Once the multipliers are computed, they are written to ``value_weight_multipliers`` instead.
+    Once the multipliers are computed, they are written to ``value_weight_multipliers`` under the attributes
+    of each relevant feature.
     """
 
     recursive_matching: NotRequired[bool]
