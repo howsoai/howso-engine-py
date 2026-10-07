@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import datetime
 import threading
 from typing import Any
@@ -8,6 +9,7 @@ import pytest
 from semantic_version import Version
 
 from howso.utilities import internals
+from howso.utilities.monitors import ProgressTimer
 
 
 @pytest.mark.parametrize(('features', 'result'), (
@@ -552,3 +554,136 @@ def test_react_in_batches_serial_keeps_task_id() -> None:
 
     assert [batch["task_id"] for batch in react.batch_params] == ["shared", "shared", "shared"]
     assert result["action_values"] == [[i] for i in range(6)]
+
+
+class _RecordingProgressTimer(ProgressTimer):
+    """Progress timer that records the tick count of every update."""
+
+    def __init__(self, total_ticks: int) -> None:
+        super().__init__(total_ticks)
+        self.updates: list[int] = []
+
+    def update(self, ticks: int = 1) -> None:
+        """Record ``ticks`` and advance the timer."""
+        self.updates.append(ticks)
+        super().update(ticks)
+
+
+class _RecordingBatchScaler(internals.FixedBatchScalingManager):
+    """Fixed-size batch scaler that counts its timing updates."""
+
+    def __init__(self, batch_size: int) -> None:
+        super().__init__(batch_size)
+        self.update_count = 0
+
+    def update(self, batch_duration: datetime.timedelta, memory_sizes: tuple[int, int] | None) -> int:
+        """Count the update and return the fixed batch size."""
+        self.update_count += 1
+        return super().update(batch_duration, memory_sizes)
+
+
+class _QueueDrainRace:
+    """
+    Gated batch react that finishes batch 1 while batch 0 is being consumed.
+
+    Batch 1 blocks until the progress callback for batch 0's result releases
+    it, and that callback returns only once batch 1's future is done.  So
+    batch 1 finishes after ``wait()`` has reported only batch 0, and before
+    ``ReactInBatches`` looks at the head of its queue again.  After batch 1
+    finishes, ``get_concurrency`` reports ``drained_concurrency`` until
+    ``unstick`` is set, and 2 otherwise.
+    """
+
+    def __init__(self, *, drained_concurrency: int) -> None:
+        self.react_in_batches: internals.ReactInBatches | None = None
+        self.unstick = threading.Event()
+        self._drained_concurrency = drained_concurrency
+        self._batch_1_gate = threading.Event()
+        self._batch_1_done = threading.Event()
+
+    def react(self, _trainee_id: str, params: dict[str, Any]) -> tuple[dict[str, Any], int, int]:
+        """Echo the batch's context values, holding batch 1 until its gate opens."""
+        values = params["context_values"]
+        if values[0][0] == 1:
+            self._batch_1_gate.wait()
+        return {"action_features": ["y"], "action_values": list(values)}, 0, 0
+
+    def progress_callback(self, _progress: ProgressTimer, results: dict[str, Any] | None) -> None:
+        """On batch 0's result, release batch 1 and block until its future is done."""
+        if results is None or results["action_values"] != [[0]]:
+            return
+        assert self.react_in_batches is not None
+        self._batch_1_gate.set()
+        # Batch 0 has already left the queue, so batch 1's future is at its head.
+        self.react_in_batches._futures[0][1].result()
+        self._batch_1_done.set()
+
+    def get_concurrency(self, _trainee_id: str) -> int:
+        """Report 2 concurrent requests, or ``drained_concurrency`` once batch 1 is done."""
+        if self._batch_1_done.is_set() and not self.unstick.is_set():
+            return self._drained_concurrency
+        return 2
+
+
+@pytest.mark.parametrize("drained_concurrency", [2, 1])
+def test_react_in_batches_parallel_batch_finishing_during_drain(drained_concurrency: int) -> None:
+    """A batch that finishes while earlier results are consumed is counted, freed, and timed once."""
+    total = 3
+    scenario = _QueueDrainRace(drained_concurrency=drained_concurrency)
+    scaler = _RecordingBatchScaler(1)
+    progress = _RecordingProgressTimer(total)
+    with progress:
+        react_in_batches = internals.ReactInBatches(
+            trainee_id="trainee",
+            params={"context_values": [[i] for i in range(total)]},
+            progress=progress,
+            batch_scaler=scaler,
+            get_thread_count=lambda _trainee_id: 1,
+            get_concurrency=scenario.get_concurrency,
+            params_for_batch=internals.ParamsForBatch({"context_values"}),
+            react_function=scenario.react,
+            progress_callback=scenario.progress_callback,
+        )
+        scenario.react_in_batches = react_in_batches
+
+        # parallel() runs on a worker thread so that a livelock fails this test
+        # rather than hanging it.  result() re-raises anything parallel() raises.
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            running = pool.submit(react_in_batches.parallel)
+            try:
+                running.result(timeout=10)
+            except TimeoutError:
+                # Restore concurrency so a stuck submit loop can finish and the
+                # worker exits before the executor shuts down.
+                scenario.unstick.set()
+                running.result(timeout=10)
+                pytest.fail("ReactInBatches.parallel() did not finish")
+
+    assert react_in_batches.result["action_values"] == [[0], [1], [2]]
+    assert progress.updates == [1, 1, 1]
+    assert react_in_batches._running == set()
+    assert scaler.update_count == 2
+
+
+def test_react_in_batches_parallel_batch_error_propagates() -> None:
+    """An exception from one parallel batch propagates out of ``run``."""
+
+    def react(_trainee_id: str, params: dict[str, Any]) -> tuple[dict[str, Any], int, int]:
+        """Fail batch 1 and echo every other batch's context values."""
+        values = params["context_values"]
+        if values[0][0] == 1:
+            raise RuntimeError("batch failed")
+        return {"action_features": ["y"], "action_values": list(values)}, 0, 0
+
+    with pytest.raises(RuntimeError, match="batch failed"):
+        internals.ReactInBatches.run(
+            trainee_id="trainee",
+            params={"context_values": [[i] for i in range(4)]},
+            total_size=4,
+            batch_size=1,
+            initial_batch_size=None,
+            get_thread_count=lambda _trainee_id: 1,
+            get_concurrency=lambda _trainee_id: 2,
+            params_for_batch=internals.ParamsForBatch({"context_values"}),
+            react_function=react,
+        )
