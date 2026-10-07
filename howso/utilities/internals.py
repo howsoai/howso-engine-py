@@ -991,7 +991,7 @@ class ReactInBatches:
         """
 
         self._running: set[Future[tuple[dict[str, Any], int, int]]] = set()
-        """A set of incomplete futures."""
+        """Futures in ``_futures`` whose completion has not yet been recorded."""
 
         self._progress = progress
         """The progress timer monitoring this execution."""
@@ -1108,12 +1108,28 @@ class ReactInBatches:
         accumulate_react_result(self.result, temp_result)
 
     def _consume_ready_futures(self) -> None:
-        """Consume any completed futures as the oldest end of the queue."""
-        while len(self._futures) > 0 and self._futures[0][1].done():
+        """
+        Consume recorded futures from the oldest end of the queue.
+
+        A future is ready to consume once `_wait_for_future` has recorded its
+        completion and removed it from ``_running``.  Consumption stops at the
+        first future still in ``_running``, even if it has finished since the
+        last ``wait()``; the next ``wait()`` reports it, so its progress and
+        batch-scaling updates happen exactly once.
+        """
+        while len(self._futures) > 0 and self._futures[0][1] not in self._running:
             self._consume_future()
 
     def _wait_for_future(self) -> None:
-        """Wait for (at least) one future to finish and process its results."""
+        """
+        Wait for at least one future to finish, then record and consume completed futures.
+
+        Each future reported done has its completion recorded: it leaves
+        ``_running``, its batch size is added to the progress monitor, and,
+        if it is the batch-scaling future, the batch scaler is updated.
+        Recorded futures at the head of the queue are then consumed in
+        submission order.
+        """
         done, _not_done = wait(self._running, return_when=FIRST_COMPLETED)
         logger.debug("finished %d batches", len(done))
         for (batch_size, future) in self._futures:
