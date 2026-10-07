@@ -321,8 +321,9 @@ def infer_feature_attributes(
         - A list of values to protect. Each is weighted to keep approximately
           `significance_threshold` cases after distillation, funded by the feature's other values.
           When not every value fits, those with the most cases are given priority. The values are
-          written to the feature's "preserve_rare_values" attribute, and the multiplier computation
-          will be deferred to other Howso software, if possible.
+          written to the feature's "preserve_rare_values" attribute. If no `max_distilled_cases`
+          is provided, the multiplier computation will be deferred to other Howso software, if
+          possible.
         - A list of dicts of "value" and "multiplier", giving the multiplier each value should
           receive, at least 1. The feature's other values are reweighted to fund them so the total
           case weight is unchanged: values with fewer cases than the significance threshold keep a
