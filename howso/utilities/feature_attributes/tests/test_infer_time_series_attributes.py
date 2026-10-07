@@ -610,23 +610,22 @@ def test_preserve_rare_values_time_series():
         time_feature_name="date",
         id_feature_name="ID",
         max_distilled_cases=500,
-        preserve_rare_values_map=["cat"],
+        preserve_rare_values=["cat"],
         significance_threshold=25,
         enable_suggestions=False,
     )
-    assert "preserve_rare_values" in features["cat"]
-    assert "multipliers" in features["cat"]["preserve_rare_values"]
+    assert "value_weight_multipliers" in features["cat"]
 
-    # A pre-computed preserve_rare_values_config is applied as-is.
+    # Rare values given with multipliers are funded by the other values of the feature.
     config = {"cat": [{"value": "rare", "multiplier": 5}]}
     features = infer_feature_attributes(
         df,
         time_feature_name="date",
         id_feature_name="ID",
-        preserve_rare_values_config=config,
+        preserve_rare_values=config,
         enable_suggestions=False,
     )
-    assert "preserve_rare_values" in features["cat"]
+    assert "value_weight_multipliers" in features["cat"]
 
 
 def test_time_series_fanout_suggestions(capsys):

@@ -728,10 +728,10 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     # Test auto-apply with all values
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
-        features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map="all")
-    assert "preserve_rare_values" in features["a"]
-    assert "preserve_rare_values" in features["b"]
-    multipliers = {cfg["value"]: cfg["multiplier"] for cfg in features["a"]["preserve_rare_values"]["multipliers"]}
+        features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values="all")
+    assert "value_weight_multipliers" in features["a"]
+    assert "value_weight_multipliers" in features["b"]
+    multipliers = {cfg["value"]: cfg["multiplier"] for cfg in features["a"]["value_weight_multipliers"]}
     # The rare value keeps the threshold exactly: 30 * 10,000 / (1,250 * 100); the common value funds it
     assert multipliers == {"2": pytest.approx(2.4), "1": pytest.approx(0.99, abs=0.005)}
 
@@ -741,15 +741,15 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     # rather than replace it.
     df_large = pd.concat([df] * 3)
     adc_large = make_adc(df_large)
-    features = infer_feature_attributes(adc_large, preserve_rare_values_map={"a": ['2']})
+    features = infer_feature_attributes(adc_large, preserve_rare_values={"a": ["2"]})
     assert "preserve_rare_values" in features["a"]
     assert features["a"]["preserve_rare_values"]["protected_values"][0] == '2'
 
     # Test auto-apply with selected values
-    features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values_map={"b": ['y', 'z']})
-    assert "preserve_rare_values" not in features["a"]
-    assert "preserve_rare_values" in features["b"]
-    multipliers = {cfg["value"]: cfg["multiplier"] for cfg in features["b"]["preserve_rare_values"]["multipliers"]}
+    features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values={"b": ["y", "z"]})
+    assert "value_weight_multipliers" not in features["a"]
+    assert "value_weight_multipliers" in features["b"]
+    multipliers = {cfg["value"]: cfg["multiplier"] for cfg in features["b"]["value_weight_multipliers"]}
     # Only 'z' needs preserving; 'y' keeps the threshold on its own, so it funds 'z' alongside 'x'
     assert multipliers == {"z": pytest.approx(2.4), "x": pytest.approx(0.99, abs=0.005),
                            "y": pytest.approx(0.99, abs=0.005)}
@@ -759,14 +759,13 @@ def test_preserve_rare_values(adc, make_adc, capsys):
         warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(adc, max_distilled_cases=1250)
     assert "Feature Attributes Summary" in capsys.readouterr().out
-    for feat in features:
-        assert "preserve_rare_values" not in feat
+    assert not any("value_weight_multipliers" in attrs for attrs in features.values())
     # Test a suggestion application
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         features.apply_suggestion("preserve_rare_values")
-    assert "multipliers" in features["a"].get("preserve_rare_values", {})
-    assert "multipliers" in features["b"].get("preserve_rare_values", {})
+    assert "value_weight_multipliers" in features["a"]
+    assert "value_weight_multipliers" in features["b"]
 
     # Test data with unhashable values
     df["unhashable"] = [[1, 2]] * len(df)  # lists are unhashable; value_counts will raise TypeError

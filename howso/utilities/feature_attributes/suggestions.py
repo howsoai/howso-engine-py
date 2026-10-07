@@ -464,7 +464,7 @@ def partial_rare_value_preservation_message(limit: RareValuePreservationLimit) -
                "rest without losing their own significance.")
     if limit["min_max_distilled_cases"] is not None:
         message += (f" Preserving all of them needs a `max_distilled_cases` of at least "
-                    f"{limit['min_max_distilled_cases']:,}, or a `preserve_rare_values_map` naming fewer values.")
+                    f"{limit['min_max_distilled_cases']:,}, or a `preserve_rare_values` naming fewer values.")
     return message
 
 
@@ -498,7 +498,7 @@ class PRVSuggestion(IFASuggestion):
         self._user_set_mdc = user_set_max_distilled_cases
         if protected_values is None:
             protected_values = {
-                feature: [entry["value"] for entry in config["multipliers"] if entry["multiplier"] > 1]
+                feature: [entry["value"] for entry in config["value_weight_multipliers"] if entry["multiplier"] > 1]
                 for feature, config in prvc.items()
             }
         self._protected_values = protected_values
@@ -519,8 +519,8 @@ class PRVSuggestion(IFASuggestion):
             f"{candidates_explanation}\n\n"
             "During data distillation workflows, nominal values with weak but detectable signals may "
             "be filtered out. To account for this, you may provide to `infer_feature_attributes` a "
-            "`preserve_rare_values_map` detailing rare values to protect automatically, or a full "
-            "`preserve_rare_values_config` with fine-grained case weight adjustments. Additionally, "
+            "`preserve_rare_values` mapping detailing the rare values to protect, with the case weight "
+            "multipliers computed automatically or given for fine-grained adjustments. Additionally, "
             "you may apply our suggested configuration for all detected possible rare values to this "
             "feature attributes object. Applying Rare Value Preservation may increase the influence "
             "of rare values on the aggregate signal of the dataset. This is the intended effect to help "
@@ -543,34 +543,33 @@ class PRVSuggestion(IFASuggestion):
         # as examples.
         rows.append((
             "Preserve every rare value candidate",
-            'Pass "all" as the `preserve_rare_values_map` to preserve every rare value candidate of '
-            "every feature, or a list of feature names to preserve the candidates of those features "
-            "only. Requires `max_distilled_cases`.",
+            'Pass "all" as `preserve_rare_values` to preserve every rare value candidate of every '
+            "feature, or a list of feature names to preserve the candidates of those features only. "
+            "Requires `max_distilled_cases`.",
             "Call `infer_feature_attributes` with: "
-            '`preserve_rare_values_map="all"` (or a list of feature names) and `max_distilled_cases`'
+            '`preserve_rare_values="all"` (or a list of feature names) and `max_distilled_cases`'
         ))
 
         if self.can_apply:
             rows.append((
                 "Apply suggestion to this feature attributes object",
-                "Save the suggested candidate `preserve_rare_values_config` "
-                "to this feature attributes object.",
+                "Save the suggested value weight multipliers to this feature attributes object.",
                 "Call `apply_suggestion()` on the feature attributes object: "
                 '`apply_suggestion("preserve_rare_values")`'
             ))
 
         rows.extend([
             (
-                "Get a reusable `preserve_rare_values_config`",
-                "You may provide a pre-computed `preserve_rare_values_config` as a parameter to "
+                "Get a reusable configuration",
+                "You may pass the complete configuration as `preserve_rare_values` to "
                 "`infer_feature_attributes` if you wish to make adjustments to the case weight "
                 "multipliers.",
                 "From this suggestion object call: "
                 "`get_config()`"
             ),
             (
-                "Edit the preserved rare values with a `preserve_rare_values_map`",
-                "The rare values to be preserved can be detailed via the `preserve_rare_values_map` "
+                "Edit the preserved rare values",
+                "The rare values to be preserved can be detailed via the `preserve_rare_values` "
                 'parameter to `infer_feature_attributes`. A good starting point may be the "full" '
                 "map of all candidate values. All case weight multipliers will be automatically "
                 "configured for the provided values.",
@@ -637,8 +636,10 @@ class PRVSuggestion(IFASuggestion):
 
         Contains ``num_values``, the rare values found; ``num_preserved``, those the suggested
         multipliers preserve; ``num_features``; ``limits``, one entry per feature whose rare
-        values could not all be preserved; and ``top_values``, the most frequent candidates as
-        dicts of ``feature``, ``value`` and ``count``, most frequent first.
+        values could not all be preserved; ``top_values``, the most frequent candidates as dicts
+        of ``feature``, ``value`` and ``count``, most frequent first; and
+        ``value_weight_multipliers``, the suggested multipliers of each feature, as ``apply``
+        writes them to the feature attributes.
         """
         num_preserved = sum(len(values) for values in self._protected_values.values())
         not_preserved = sum(limit["candidates"] - limit["preserved"] for limit in self._limits)
@@ -648,15 +649,21 @@ class PRVSuggestion(IFASuggestion):
             "num_features": len(self._prvc),
             "limits": [dict(limit) for limit in self._limits],
             "top_values": [dict(candidate) for candidate in self._ranking],
+            "value_weight_multipliers": {
+                feature: [dict(entry) for entry in config["value_weight_multipliers"]]
+                for feature, config in self._prvc.items()
+            },
         }
 
     @property
     def parameters(self) -> dict[str, Any]:
-        """The suggested ``preserve_rare_values_config`` and the matching ``preserve_rare_values_map``."""
-        return {
-            "preserve_rare_values_config": self._prvc,
-            "preserve_rare_values_map": self._values_map(),
-        }
+        """
+        The rare values of each feature, as the ``preserve_rare_values`` argument that recomputes this suggestion.
+
+        The complete configuration is under ``details``; it can be passed as ``preserve_rare_values``
+        too, and is then used as-is.
+        """
+        return {"preserve_rare_values": self._values_map()}
 
     def _warn_default_max_distilled_cases(self, lead: str = "", stack_level: int = 4) -> None:
         """
@@ -686,16 +693,16 @@ class PRVSuggestion(IFASuggestion):
             )
             return
         for feature, config in self._prvc.items():
-            attributes[feature]["preserve_rare_values"] = config
+            attributes[feature]["value_weight_multipliers"] = config["value_weight_multipliers"]
 
     def get_config(self, enable_warnings: bool = True) -> FullPreserveRareValuesConfig:
-        """Get the `preserve_rare_values_config` for use in future calls to `infer_feature_attributes`."""
+        """Get the complete configuration, to pass as `preserve_rare_values` to `infer_feature_attributes`."""
         if not self._user_set_mdc and enable_warnings:
             self._warn_default_max_distilled_cases(stack_level=3)
         return self._prvc
 
     def get_values_map(self) -> PreserveRareValuesMap:
-        """Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes`."""
+        """Get the rare values of each feature, to pass as `preserve_rare_values` to `infer_feature_attributes`."""
         if not self._user_set_mdc:
             self._warn_default_max_distilled_cases(stack_level=3)
         return self._values_map()

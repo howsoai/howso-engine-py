@@ -79,7 +79,7 @@ class TestCollectorMerge:
         target.append(make_fanout({"key_a": ["col1"]}))
 
         other = IFASuggestionCollector()
-        other.append(make_prv({"feat_x": {"multipliers": []}}))
+        other.append(make_prv({"feat_x": {"value_weight_multipliers": []}}))
 
         target.merge(other)
 
@@ -116,9 +116,9 @@ class TestCollectorMerge:
 
 class TestPRVSuggestionMerge:
     def test_merge_non_overlapping_features(self):
-        prv1 = make_prv({"feat_a": {"multipliers": [{"value": "rare", "multiplier": 2.0},
+        prv1 = make_prv({"feat_a": {"value_weight_multipliers": [{"value": "rare", "multiplier": 2.0},
                                                     {"value": "common", "multiplier": 0.9}]}})
-        prv2 = make_prv({"feat_b": {"multipliers": [{"value": "uncommon", "multiplier": 3.0},
+        prv2 = make_prv({"feat_b": {"value_weight_multipliers": [{"value": "uncommon", "multiplier": 3.0},
                                                     {"value": "common", "multiplier": 0.8}]}})
         prv1.merge(prv2)
 
@@ -127,15 +127,16 @@ class TestPRVSuggestionMerge:
         assert "feat_b" in config
 
     def test_merge_identical_feature_config_is_allowed(self):
-        cfg = {"multipliers": [{"value": "rare", "multiplier": 2.0}, {"value": "common", "multiplier": 0.9}]}
+        cfg = {"value_weight_multipliers": [{"value": "rare", "multiplier": 2.0},
+                                            {"value": "common", "multiplier": 0.9}]}
         prv1 = make_prv({"feat_a": cfg})
         prv2 = make_prv({"feat_a": cfg})
         prv1.merge(prv2)  # must not raise
 
     def test_merge_conflicting_feature_raises(self):
-        prv1 = make_prv({"feat_a": {"multipliers": [{"value": "rare", "multiplier": 2.0},
+        prv1 = make_prv({"feat_a": {"value_weight_multipliers": [{"value": "rare", "multiplier": 2.0},
                                                     {"value": "common", "multiplier": 0.9}]}})
-        prv2 = make_prv({"feat_a": {"multipliers": [{"value": "rare", "multiplier": 5.0},
+        prv2 = make_prv({"feat_a": {"value_weight_multipliers": [{"value": "rare", "multiplier": 5.0},
                                                     {"value": "common", "multiplier": 0.5}]}})
         with pytest.raises(ValueError, match="differing configurations"):
             prv1.merge(prv2)
@@ -181,7 +182,7 @@ class TestFanoutSuggestionMerge:
 def _prv_config(**features_to_num_values: int) -> dict:
     return {
         feature: {
-            "multipliers": [{"value": i, "multiplier": 2.0} for i in range(num)]
+            "value_weight_multipliers": [{"value": i, "multiplier": 2.0} for i in range(num)]
             + [{"value": "common", "multiplier": 0.9}],
         }
         for feature, num in features_to_num_values.items()
@@ -257,7 +258,7 @@ class TestCollectorSummary:
 class TestPRVProtectedValues:
     """The values map of a PRVSuggestion names the rare values, not the values that fund them."""
 
-    _CONFIG: ClassVar[dict] = {"a": {"multipliers": [{"value": "rare", "multiplier": 4.0},
+    _CONFIG: ClassVar[dict] = {"a": {"value_weight_multipliers": [{"value": "rare", "multiplier": 4.0},
                                                      {"value": "common", "multiplier": 0.9}]}}
 
     def test_values_map_lists_only_protected_values(self):
@@ -266,7 +267,7 @@ class TestPRVProtectedValues:
                                    protected_values={"a": ["rare"]})
         assert suggestion.get_values_map() == {"a": ["rare"]}
         assert suggestion.details["num_values"] == 1
-        assert suggestion.parameters["preserve_rare_values_map"] == {"a": ["rare"]}
+        assert suggestion.parameters["preserve_rare_values"] == {"a": ["rare"]}
 
     def test_values_map_defaults_to_weighted_up_values(self):
         """Without an explicit set of protected values, the values with multipliers above 1 are in the map."""
@@ -289,7 +290,7 @@ class TestPRVApplyWithoutTarget:
         attributes = {"a": {"type": "nominal"}}
         with pytest.warns(UserWarning, match="^This suggestion was not applied"):
             PRVSuggestion(_prv_config(a=1), [], user_set_max_distilled_cases=False).apply(attributes)
-        assert "preserve_rare_values" not in attributes["a"]
+        assert "value_weight_multipliers" not in attributes["a"]
 
 
 class TestSuggestionToDict:
@@ -318,12 +319,11 @@ class TestSuggestionToDict:
         assert result["name"] == "preserve_rare_values"
         assert result["can_apply"] is True
         assert result["caveats"] == []
-        assert result["details"] == {"num_values": 3, "num_preserved": 3, "num_features": 2,
-                                     "limits": [], "top_values": ranking}
-        assert result["parameters"] == {
-            "preserve_rare_values_config": config,
-            "preserve_rare_values_map": {"a": [0, 1], "b": [0]},
+        assert result["details"] == {
+            "num_values": 3, "num_preserved": 3, "num_features": 2, "limits": [], "top_values": ranking,
+            "value_weight_multipliers": {feature: cfg["value_weight_multipliers"] for feature, cfg in config.items()},
         }
+        assert result["parameters"] == {"preserve_rare_values": {"a": [0, 1], "b": [0]}}
 
     def test_prv_to_dict_with_default_max_distilled_cases_reports_caveat_without_warning(self, recwarn):
         result = PRVSuggestion(_prv_config(a=1), [], user_set_max_distilled_cases=False).to_dict()
@@ -331,8 +331,8 @@ class TestSuggestionToDict:
         assert result["can_apply"] is False
         assert [c["code"] for c in result["caveats"]] == ["default_max_distilled_cases"]
         assert "max_distilled_cases" in result["caveats"][0]["message"]
-        # The config is still offered so it can be edited and passed back
-        assert result["parameters"]["preserve_rare_values_map"] == {"a": [0]}
+        # The rare values are still offered so they can be edited and passed back
+        assert result["parameters"]["preserve_rare_values"] == {"a": [0]}
 
     def test_prv_caveat_message_matches_warning(self):
         suggestion = PRVSuggestion(_prv_config(a=1), [], user_set_max_distilled_cases=False)
@@ -375,7 +375,7 @@ class TestCollectorToDict:
 
     def test_to_json_handles_numpy_and_datetime_values(self):
         config = {"a": {
-            "multipliers": [
+            "value_weight_multipliers": [
                 {"value": np.int64(3), "multiplier": np.float64(1.5)},
                 {"value": datetime.date(2026, 1, 2), "multiplier": 2.0},
                 {"value": "common", "multiplier": 0.9},
@@ -385,7 +385,8 @@ class TestCollectorToDict:
         collector = IFASuggestionCollector([PRVSuggestion(config, ranking, True)])
         payload = json.loads(collector.to_json())
         prv = payload["suggestions"][0]
-        assert prv["parameters"]["preserve_rare_values_map"] == {"a": [3, "2026-01-02"]}
+        assert prv["parameters"]["preserve_rare_values"] == {"a": [3, "2026-01-02"]}
+        assert prv["details"]["value_weight_multipliers"]["a"][0] == {"value": 3, "multiplier": 1.5}
         assert prv["details"]["top_values"] == [{"feature": "a", "value": 3, "count": 12}]
 
     def test_to_json_passes_kwargs(self):

@@ -20,10 +20,8 @@ from howso.utilities.feature_attributes.time_series import IFATimeSeriesADC, IFA
 if TYPE_CHECKING:
     from howso.client.typing import (
         FeatureType,
-        FullPreserveRareValuesConfig,
+        PreserveRareValues,
         PreserveRareValuesCaps,
-        PreserveRareValuesConfig,
-        PreserveRareValuesSelection,
     )
 
 class InferOptions(TypedDict, total=False):
@@ -46,9 +44,8 @@ class InferOptions(TypedDict, total=False):
     mode_bound_features: Iterable[str]
     nominal_substitution_config: dict[str, dict[str, Any]]
     ordinal_feature_values: dict[str, list[Any] | tuple[str]]
+    preserve_rare_values: PreserveRareValues | None
     preserve_rare_values_caps: PreserveRareValuesCaps | None
-    preserve_rare_values_config: PreserveRareValuesConfig | FullPreserveRareValuesConfig | None
-    preserve_rare_values_map: PreserveRareValuesSelection | None
     significance_threshold: int | None
     tight_bounds: Iterable[str]
     types: dict[str, FeatureType] | dict[FeatureType, list[str]]
@@ -245,10 +242,10 @@ def infer_feature_attributes(
 
     max_distilled_cases : int, default None
         (Optional) The maximum target size of the data after distillation. If provided, allows for
-        a potentially more accurate suggestion of a `preserve_rare_values_map` configuration.
+        a potentially more accurate suggestion of a `preserve_rare_values` configuration.
 
         .. note ::
-            See also: `preserve_rare_values_map`.
+            See also: `preserve_rare_values`.
 
     max_rows_to_eval : int, default 10M
         (Optional) If using a data source with streaming capabilities, sets the maximum number of
@@ -313,6 +310,46 @@ def infer_feature_attributes(
                 "size" : [ "small", "medium", "large", "huge" ]
             }
 
+    preserve_rare_values : dict or list of str or "all" or "off", optional
+        (Optional) The rare values to preserve during data distillation, so that their signal is
+        not lost. Case weight multipliers are written to each feature's "value_weight_multipliers"
+        attribute, a list of dicts of "value" and "multiplier" naming every value whose case weight
+        changes; values not listed keep a multiplier of 1.
+
+        A dict maps each feature name to one of three forms:
+
+        - A list of values to protect. Each is weighted to keep approximately
+          `significance_threshold` cases after distillation, funded by the feature's other values.
+          When not every value fits, those with the most cases are given priority. Without
+          `max_distilled_cases`, the values are written to the feature's "preserve_rare_values"
+          attribute instead, for the multipliers to be computed later.
+        - A list of dicts of "value" and "multiplier", giving the multiplier each value should
+          receive, at least 1. The feature's other values are reweighted to fund them so the total
+          case weight is unchanged: values with fewer cases than the significance threshold keep a
+          weight of 1, and every other value is scaled by one common factor, except that no value is
+          scaled below the number of cases that keeps the threshold after distillation. See
+          `preserve_rare_values_caps` to limit how much weight those values give up. Without
+          `max_distilled_cases`, the floor is computed for a target of 50,000 cases. If the other
+          values cannot fund the multipliers, each multiplier's increase over 1 is scaled down and a
+          warning is issued.
+        - A dict with a "value_weight_multipliers" list, the complete configuration in the form
+          written to the feature attributes, used as-is. This is the form a suggestion's
+          `get_config()` returns.
+
+        Example::
+
+            {
+                "feature_a": ["x", "y"],
+                "feature_b": [
+                    {"value": "x", "multiplier": 3},
+                    {"value": "y", "multiplier": 150}
+                ]
+            }
+
+        A list of nominal feature names preserves all of the detected rare values of those features,
+        and "all" does so for every nominal feature; both require `max_distilled_cases`. "off"
+        disables rare value preservation entirely, including its automatic suggestion.
+
     preserve_rare_values_caps : list of str or dict of str to float, optional
         (Optional) Features whose significant values give up only part of their case weight to
         fund rare value preservation. Given as a list of feature names, each keeps at least half
@@ -322,46 +359,6 @@ def infer_feature_attributes(
         the weights of their significant values toward the floor that keeps the significance
         threshold after distillation. When a cap leaves too little weight, the rare values with
         the most cases are preserved and a warning reports how many.
-
-    preserve_rare_values_config : dict, optional
-        (Optional) A map of feature name to a list of dict specifying a protected value and
-        a case weight multiplier. Enables case weight rebalancing for data distillation workflows
-        such that protected values do not lose signal. Compute automatically by providing
-        a `preserve_rare_values_map` for a fine-grained selection of protected values.
-
-        Example::
-
-            {
-                "feature_a": [
-                    {"value": "x", "multiplier": 3},
-                    {"value": "y", "multiplier": 150}
-                ]
-            }
-
-        The feature's other values are reweighted to fund the listed values so the total case
-        weight is unchanged: values with fewer cases than the significance threshold keep a
-        weight of 1, and every other value is scaled by one common factor, except that no value
-        is scaled below the number of cases that keeps the threshold after distillation. See
-        `preserve_rare_values_caps` to limit how much weight those values give up. Without
-        `max_distilled_cases`, the floor is computed for a target of 50,000 cases. If those
-        values cannot fund the multipliers, each multiplier's increase over 1 is scaled down
-        and a warning is issued.
-
-        Alternatively, you may provide a "full" `preserve_rare_values_config` that maps each
-        feature to a dict with a "multipliers" list, giving the multiplier of every value whose
-        case weight changes; values not listed keep a multiplier of 1. This is the format of the
-        suggestion `infer_feature_attributes` makes, and it is used as-is.
-
-    preserve_rare_values_map : dict or list of str or "all" or "off", optional
-        (Optional) A map of feature name to list of values that should be protected during data
-        distillation, a list of nominal feature names to preserve all of their detected rare
-        values, or "all" to do so for every nominal feature. Listing features or passing "all"
-        requires `max_distilled_cases`. If set to "off", rare value preservation is disabled
-        entirely, including its automatic suggestion.
-
-        Each rare value is weighted to keep approximately `significance_threshold` number of cases
-        after distillation, funded by the feature's other values. When not every rare value fits,
-        those with the most instances are given priority.
 
     rate_boundaries : dict, optional
         (Optional) For time series, specify the rate boundaries in the form
