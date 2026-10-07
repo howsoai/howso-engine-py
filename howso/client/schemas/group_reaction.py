@@ -16,6 +16,7 @@ _VT = TypeVar("_VT")
 
 GroupDetail: TypeAlias = Literal[
     "categorical_action_probabilities",  # A dict of feature name to dict of class to probability for each group
+    "context_features",  # a list of the context feature names
     "influential_cases", # a list of dicts for each group
     "feature_full_residuals", # a map of residuals for each action feature for each group
 ]
@@ -41,6 +42,9 @@ class GroupDetails(TypedDict, total=False):
     """The details supported for react_group."""
     categorical_action_probabilities: list[dict[str, dict[Any, float]]]
     """The categorical action probabilities for each nominal action feature for each group."""
+
+    context_features: list[str]
+    """The list of context features used in the GroupReaction."""
 
     influential_cases: list[pd.DataFrame]
     """The collection of influential cases to each group."""
@@ -109,6 +113,10 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
                 elif computed_detail == "categorical_action_probabilities":
                     self._details.update(
                         {"categorical_action_probabilities": internals.update_caps_maps(data[computed_detail], attributes)}
+                    )
+                elif computed_detail == "context_features":
+                    self._details.update(
+                        {"context_features": data["context_features"]}
                     )
                 else:
                     # Currently the only possible detail here is feature_full_residuals

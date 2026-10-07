@@ -4425,6 +4425,7 @@ class AbstractHowsoClient(ABC):
         action_features: Collection[str] | None = None,
         case_indices: Collection[CaseIndices] | None = None,
         conditions: list[Mapping] | None = None,
+        context_features: Collection[str] | None = None,
         details: Mapping[str, bool] | None = None,
         distance_contributions: bool = False,
         familiarity_conviction_addition: bool = False,
@@ -4482,6 +4483,10 @@ class AbstractHowsoClient(ABC):
                     - An array of string values, must match any of these values
                       exactly. Only applicable to nominal and string ordinal
                       features.
+        context_features : Collection of str, optional
+            List of features names to use as contexts in queries. If unspecified,
+            the default is all trained features when using trained cases and
+            all given features and their derived features when using new_cases.
         details : dict of str to bool, optional
             Ignored if action features are not specified.
             If details are specified, the response will contain the requested
@@ -4532,6 +4537,10 @@ class AbstractHowsoClient(ABC):
             parameter. Only one of ``case_indices``, ``conditions``, or
             ``new_cases`` may be specified.
 
+            When using a time-series Trainee, derived feature values will be
+            computed for the given data for each group if no derived feature
+            values are given.
+
             >>> [ [[1, 2, 3], [4, 5, 6], [7, 8, 9]], # Group 1
             >>>   [[1, 2, 3]] ] # Group 2
         p_value_of_addition : bool, default False
@@ -4572,9 +4581,20 @@ class AbstractHowsoClient(ABC):
             serialized_cases = []
             for group in new_cases:
                 if features is None:
-                    features = internals.get_features_from_data(group)
+                    features = internals.get_features_from_data(group, data_parameter="new_cases")
                 serialized_cases.append(serialize_cases(group, features, feature_attributes,
                                                         tokenizer=self._tokenizer))  # pyright: ignore[reportAttributeAccessIssue]
+
+            if (
+                features is None
+                or not isinstance(serialized_cases[0][0], Sized)
+                or len(features) != len(serialized_cases[0][0])
+            ):
+                raise HowsoError(
+                    "The number of provided values in `new_cases` "
+                    "does not match the number of features in "
+                    "`features`."
+                )
 
         if self.configuration.verbose:
             print(f"Reacting to a set of cases on Trainee with id: {trainee_id}")
@@ -4582,6 +4602,7 @@ class AbstractHowsoClient(ABC):
             "action_features": action_features,
             "case_indices": case_indices,
             "conditions": conditions,
+            "context_features": context_features,
             "details": details,
             "distance_contributions": distance_contributions,
             "residual_contributions": residual_contributions,
