@@ -6,7 +6,6 @@ import datetime
 import json
 from pathlib import Path
 import platform
-import re
 from tempfile import TemporaryDirectory
 from typing import Any
 import warnings
@@ -22,7 +21,7 @@ from howso.utilities.feature_attributes.base import FeatureAttributesBase, FLOAT
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
 from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
 from howso.utilities.features import FeatureType
-from howso.utilities.utilities import get_optimized_max_chunk_size
+from howso.utilities.utilities import get_optimized_partition_size
 
 if platform.system().lower() == "windows":
     DT_MAX = "6053-01-24"
@@ -1468,7 +1467,7 @@ def test_preserve_rare_values_reweighted(max_workers: int, caps: list[str] | dic
                                          max_distilled_cases: int) -> None:
     """Test that rare values are lifted to the threshold, largest-first within what the common value can give."""
     df = _rare_values_df()
-    target, _ = get_optimized_max_chunk_size(row_count=len(df), max_chunk_size=max_distilled_cases)
+    target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=max_distilled_cases)
     floor = 30 * len(df) / target
     # Uncapped, the common value can go down to the floor; capped, it keeps the capped share of its weight
     cap = None if caps is None else (0.5 if isinstance(caps, list) else caps["a"])
@@ -1820,7 +1819,7 @@ def test_preserve_rare_values_nullable_numeric():
                                         types={"x": "nominal"})
     multipliers = _multipliers(features["x"])
     assert set(multipliers) == {None, 2.0, 1.0}
-    target, _ = get_optimized_max_chunk_size(row_count=len(df), max_chunk_size=1_000)
+    target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)
     assert multipliers[None] == pytest.approx(30 * len(df) / target / 100)
     with pytest.warns(UserWarning, match="assumed distillation target"):
         features = infer_feature_attributes(df, preserve_rare_values={"x": [{"value": None, "multiplier": 2}]},
@@ -1854,67 +1853,11 @@ def test_preserve_rare_values_mixed_nulls_are_one_value():
     features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values="all")
     multipliers = _multipliers(features["a"])
     assert set(multipliers) == {None, "common"}
-    target, _ = get_optimized_max_chunk_size(row_count=len(df), max_chunk_size=1_000)
+    target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)
     assert multipliers[None] == pytest.approx(30 * len(df) / target / 120)
     null_count = int(df["a"].isna().sum())
     total = null_count * multipliers[None] + (len(df) - null_count) * multipliers["common"]
     assert total == pytest.approx(len(df))
-
-
-def test_preserve_rare_values_dynamic_significance_threshold():
-    """Test the threshold computed per feature: the compression ratio, or the average cases per value up to 30."""
-    n = 100_000
-    # `h` has 19,004 distinct values, about 5 cases each, plus a common value to fund from; `c` has three values
-    h = [f"v{i}" for i in range(19_000) for _ in range(5)] + ["twelve"] * 12 + ["eight"] * 8 + ["thirty"] * 30
-    h += ["common"] * (n - len(h))
-    c = ["a"] * (n - 50) + ["b"] * 35 + ["d"] * 15
-    df = pd.DataFrame({"h": h, "c": c})
-    # 100,000 -> 12,500 is a compression ratio of 8, so `h` gets max(8, 5) = 8 and `c` gets min(33,333, 30) = 30
-    features = infer_feature_attributes(df, max_distilled_cases=12_500, preserve_rare_values=["h", "c"])
-    h_multipliers = _multipliers(features["h"])
-    assert h_multipliers["eight"] == pytest.approx(8 * 8 / 8)       # floor of 8 * 8 = 64 cases
-    assert h_multipliers["twelve"] == pytest.approx(64 / 12)
-    assert h_multipliers["thirty"] == pytest.approx(64 / 30)
-    assert "v0" not in h_multipliers                                 # 5 cases: below the threshold of 8
-    c_multipliers = _multipliers(features["c"])
-    assert c_multipliers["b"] == pytest.approx(30 * 8 / 35)         # floor of 30 * 8 = 240 cases
-    assert "d" not in c_multipliers                                  # 15 cases: below the threshold of 30
-
-    # A given threshold applies to every feature
-    features = infer_feature_attributes(df, max_distilled_cases=12_500, preserve_rare_values=["h", "c"],
-                                        significance_threshold=30)
-    h_multipliers = _multipliers(features["h"])
-    assert h_multipliers["thirty"] == pytest.approx(240 / 30)
-    assert "eight" not in h_multipliers
-    assert "twelve" not in h_multipliers
-
-    # A hard distillation makes the compression ratio dominate: 100,000 -> 782 is 127.9, so 127
-    e = ["x"] * (n - 200) + ["y"] * 150 + ["z"] * 50
-    df = pd.DataFrame({"e": e})
-    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["e"])
-    target, _ = get_optimized_max_chunk_size(row_count=n, max_chunk_size=1_000)
-    e_multipliers = _multipliers(features["e"])
-    assert e_multipliers["y"] == pytest.approx(127 * n / target / 150)
-    assert "z" not in e_multipliers
-
-
-def test_preserve_rare_values_dynamic_threshold_limit_refits():
-    """Test that the target reported for fitting every rare value accounts for the threshold changing with it."""
-    # 90 rare values of 1,000 cases each and a common value of 10,000: at 100,000 -> 1,563 the threshold is
-    # 64 and each rare value needs 4,095 cases, so the common value can fund only one of them
-    values = ["common"] * 10_000 + [f"rare{i}" for i in range(90) for _ in range(1_000)]
-    df = pd.DataFrame({"a": values})
-    with pytest.warns(UserWarning, match="Preserved 1 of the 90 rare values") as record:
-        features = infer_feature_attributes(df, max_distilled_cases=2_000, preserve_rare_values=["a"])
-    assert len({v for v, m in _multipliers(features["a"]).items() if m > 1}) == 1
-    (message,) = [str(w.message) for w in record if "Preserved" in str(w.message)]
-    match = re.search(r"at least ([\d,]+)", message)
-    assert match is not None, message
-    needed = int(match.group(1).replace(",", ""))
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", UserWarning)
-        refit = infer_feature_attributes(df, max_distilled_cases=needed, preserve_rare_values=["a"])
-    assert len({v for v, m in _multipliers(refit["a"]).items() if m > 1}) == 90
 
 
 def test_preserve_rare_values_limit_target_counts_future_donors():
@@ -1982,7 +1925,7 @@ def test_preserve_rare_values_suggestion_with_nothing_funded(capsys: pytest.Capt
     assert "Preserved 0 of the 11 rare values of feature `a`" in caveat["message"]
     assert "at least 500" in caveat["message"]
     assert suggestion.get_values_map() == {}
-    with pytest.warns(UserWarning, match="^This suggestion was not applied, since none of the rare values found"):
+    with pytest.warns(UserWarning, match="^This suggestion was not applied: none of the rare values found"):
         features.apply_suggestion("preserve_rare_values")
     assert "value_weight_multipliers" not in features["a"]
 
@@ -2034,6 +1977,15 @@ def test_preserve_rare_values_multiplier_of_one_is_omitted():
     assert multipliers["rare"] == 2.0
     assert multipliers["common"] == pytest.approx((900 - 60) / 900)
     assert _total_weight(pinned, features["a"]) == pytest.approx(len(pinned))
+    # A pinned value is not a rare value to fund: when the pin is the only value that could have donated,
+    # the report counts and the suggested target consider the lifted value alone
+    pinned_donor = pd.DataFrame({"a": ["fixed"] * 900 + ["rare"] * 60})
+    with pytest.warns(UserWarning, match="Preserved 0 of the 1 rare values of feature `a`.*at least 480,"):
+        features = infer_feature_attributes(pinned_donor, max_distilled_cases=400, significance_threshold=30,
+                                            preserve_rare_values={"a": [{"value": "rare", "multiplier": 2},
+                                                                        {"value": "fixed", "multiplier": 1}]},
+                                            enable_suggestions=False)
+    assert "value_weight_multipliers" not in features["a"]
     # A pinned value is validated like any other
     with pytest.raises(ValueError, match="not found in column"):
         infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
@@ -2063,7 +2015,7 @@ def test_preserve_rare_values_huge_multiplier_conserves_weight(max_workers: int)
     # 900 common and 100 rare cases at 1,000 -> 63: the floor is 476.19, so the common value can give up
     # 423.81 cases, and that is what the rare value receives whatever multiplier was asked for
     df = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 100, "i": range(1_000)})
-    target, _ = get_optimized_max_chunk_size(row_count=len(df), max_chunk_size=100)
+    target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=100)
     floor = 30 * len(df) / target
     with pytest.warns(UserWarning, match="scaled by"):
         features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30,
@@ -2117,7 +2069,7 @@ def test_preserve_rare_values_null_values():
     features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"a": [None]})
     multipliers = _multipliers(features["a"])
     assert set(multipliers) == {None, "common"}
-    target, _ = get_optimized_max_chunk_size(row_count=len(df), max_chunk_size=1_000)
+    target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)
     assert multipliers[None] == pytest.approx(30 * len(df) / target / 20)
 
 

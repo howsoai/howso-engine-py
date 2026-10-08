@@ -18,6 +18,7 @@ import psutil
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
 from howso.utilities.feature_attributes.base import (
     InferFeatureAttributesBase,
+    SIGNIFICANT_THRESHOLD_DEFAULT,
     SingleTableFeatureAttributes,
 )
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
@@ -386,7 +387,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         preserve_rare_values: t.Optional[PreserveRareValues] = None,
         preserve_rare_values_caps: t.Optional[PreserveRareValuesCaps] = None,
         rate_boundaries: t.Optional[dict] = None,
-        significance_threshold: int | None = None,
+        significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
         time_invariant_features: t.Optional[Iterable[str]] = None,
         tight_bounds: t.Optional[Iterable[str]] = None,
         time_feature_is_universal: t.Optional[bool] = None,
@@ -670,12 +671,9 @@ class InferFeatureAttributesTimeSeries(ABC):
                     }
                 }
 
-        significance_threshold : int, optional
+        significance_threshold : int, default 30
             (Optional) After data distillation, the number of cases that are expected to result in a
-            signal for preserved rare values. When not given, it is computed per feature as the larger
-            of the compression ratio (the number of cases per distilled case) and the feature's average
-            number of cases per value, the latter capped at 30, rounded down. A given value applies to
-            every feature.
+            signal for preserved rare values.
 
         tight_bounds: Iterable of str, default None
             (Optional) Set tight min and max bounds for the features

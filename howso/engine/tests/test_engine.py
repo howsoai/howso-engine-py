@@ -462,7 +462,7 @@ def test_value_weight_multipliers_applied_at_train():
     import pandas as pd
 
     from howso.utilities import infer_feature_attributes
-    from howso.utilities.utilities import get_optimized_max_chunk_size
+    from howso.utilities.utilities import get_optimized_partition_size
 
     # Distilling 1,000 cases to the rounded target gives a floor of 30 * 1,000 / target cases: `rare`
     # (40 cases) is lifted to it, `common` funds the lift, and `small` (10 cases, below the threshold) is
@@ -479,7 +479,7 @@ def test_value_weight_multipliers_applied_at_train():
         feature: {entry["value"]: entry["multiplier"] for entry in features[feature]["value_weight_multipliers"]}
         for feature in ("a", "b")
     }
-    target, _ = get_optimized_max_chunk_size(row_count=n, max_chunk_size=100)
+    target, _ = get_optimized_partition_size(row_count=n, max_partition_size=100)
     floor = 30 * n / target
     assert multipliers["a"]["rare"] == pytest.approx(floor / 40)
     assert multipliers["a"]["common"] == pytest.approx((950 - (floor - 40)) / 950)

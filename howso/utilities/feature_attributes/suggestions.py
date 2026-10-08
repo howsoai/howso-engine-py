@@ -410,14 +410,10 @@ DEFAULT_MAX_DISTILLED_CASES_CAVEAT = "default_max_distilled_cases"
 """Caveat code for rare value multipliers computed from a default ``max_distilled_cases``."""
 
 _DEFAULT_MAX_DISTILLED_CASES_MESSAGE = (
-    "The computed case weights for rare value multipliers are likely inaccurate as "
-    "`max_distilled_cases` was not provided to `infer_feature_attributes`. Please provide "
-    "this parameter or be aware that the case weight multipliers were computed based on a "
-    "default `max_distilled_cases` value of 50,000. "
-    "An accurate `max_distilled_cases` enables Howso to correctly weight the influence of rare "
-    "values in the data, since the weighting is calibrated proportionally to the number of cases "
-    "remaining after distillation: distilling to a different size than the one the weights were "
-    "computed for will under-weight or over-weight the rare values."
+    "`max_distilled_cases` was not provided to `infer_feature_attributes`, so the rare value multipliers "
+    "were computed for a default target of 50,000 cases.\n"
+    "Distilling to a different size will under-weight or over-weight the rare values. Provide "
+    "`max_distilled_cases` for accurate weights."
 )
 
 _MAX_RANKED_VALUES = 5
@@ -460,12 +456,14 @@ def partial_rare_value_preservation_message(limit: RareValuePreservationLimit) -
         A plain-text description of what was preserved and how to preserve more.
     """
     message = (f"Preserved {limit['preserved']:,} of the {limit['candidates']:,} rare values of feature "
-               f"`{limit['feature']}`; the other values of the feature cannot give up enough case weight for the "
-               "rest without losing their own significance.")
+               f"`{limit['feature']}`")
     if limit["min_max_distilled_cases"] is not None:
-        message += (f" Preserving all of them needs a `max_distilled_cases` of at least "
-                    f"{limit['min_max_distilled_cases']:,}, or a `preserve_rare_values` naming fewer values.")
-    return message
+        message += (f"; preserving all of them needs a `max_distilled_cases` of at least "
+                    f"{limit['min_max_distilled_cases']:,}, or fewer named values.")
+    else:
+        message += "."
+    return message + ("\nIts other values cannot give up enough case weight for the rest without losing their own "
+                      "significance.")
 
 
 class PRVSuggestion(IFASuggestion):
@@ -715,13 +713,13 @@ class PRVSuggestion(IFASuggestion):
         if not self._user_set_mdc:
             self._warn_default_max_distilled_cases(
                 "This suggestion was not applied, since an inaccurate `max_distilled_cases` may leave rare "
-                "values under-weighted or over-weighted. "
+                "values under-weighted or over-weighted.\n"
             )
             return
         if not self._prvc:
-            reasons = " ".join(partial_rare_value_preservation_message(limit) for limit in self._limits)
-            warnings.warn("This suggestion was not applied, since none of the rare values found could be funded "
-                          f"at this `max_distilled_cases`. {reasons}", UserWarning, stacklevel=4)
+            reasons = "\n".join(partial_rare_value_preservation_message(limit) for limit in self._limits)
+            warnings.warn("This suggestion was not applied: none of the rare values found can be preserved at this "
+                          f"`max_distilled_cases`.\n{reasons}", UserWarning, stacklevel=4)
             return
         for feature, config in self._prvc.items():
             attributes[feature]["value_weight_multipliers"] = config["value_weight_multipliers"]

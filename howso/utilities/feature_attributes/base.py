@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Collection, Container, Iterable, Mapping, MutableSequence, Sequence, Set
+from collections.abc import Collection, Container, Iterable, Mapping, MutableSequence, Sequence, Set
 from copy import deepcopy
 import datetime
 from functools import singledispatchmethod
@@ -36,7 +36,7 @@ from howso.utilities.feature_attributes.warnings import IFAWarningCollector, IFA
 from howso.utilities.features import FeatureType
 from howso.utilities.utilities import (
     determine_iso_format,
-    get_optimized_max_chunk_size,
+    get_optimized_partition_size,
     is_null_value,
     is_valid_datetime_format,
     time_to_seconds,
@@ -78,34 +78,7 @@ LINUX_DT_MAX = "2262-04-11"
 WIN_DT_MAX = "6053-01-24"
 
 SIGNIFICANT_THRESHOLD_DEFAULT: int = 30
-"""The ceiling of the significance threshold computed for a feature when `significance_threshold` is not given."""
-
-
-def _dynamic_significance_threshold(total_cases: int, max_distilled_cases: int, distinct_values: int) -> int:
-    """
-    Compute how many cases a value of a feature needs to keep a signal through distillation.
-
-    The threshold is the compression ratio, the number of cases per distilled case, below which a
-    value is not expected to keep even one case; a feature whose average number of cases per value
-    is higher uses that average instead, up to :data:`SIGNIFICANT_THRESHOLD_DEFAULT`.
-
-    Parameters
-    ----------
-    total_cases : int
-        The number of cases in the data.
-    max_distilled_cases : int
-        The distillation target, as :func:`get_optimized_max_chunk_size` rounds it.
-    distinct_values : int
-        The number of distinct values of the feature, counting every null form as one value.
-
-    Returns
-    -------
-    int
-        The threshold, rounded down and at least 1.
-    """
-    compression_ratio = total_cases / max_distilled_cases
-    average_cases_per_value = total_cases / max(distinct_values, 1)
-    return max(1, int(max(compression_ratio, min(average_cases_per_value, SIGNIFICANT_THRESHOLD_DEFAULT))))
+"""The default number of cases a preserved rare value is expected to keep after distillation."""
 
 DEFAULT_MAX_DISTILLED_CASES: int = 50_000
 """The distillation target assumed for rare value weighting when `max_distilled_cases` is not given."""
@@ -1235,7 +1208,7 @@ class InferFeatureAttributesBase(ABC):
                  ordinal_feature_values: dict[str, list[Any]] | None = None,
                  preserve_rare_values: PreserveRareValues | None = None,
                  preserve_rare_values_caps: PreserveRareValuesCaps | None = None,
-                 significance_threshold: int | None = None,
+                 significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
                  tight_bounds: Iterable[str] | None = None,
                  types: dict[str, str] | dict[str, MutableSequence[str]] | None = None,
                  ) -> dict:
@@ -2229,43 +2202,10 @@ class InferFeatureAttributesBase(ABC):
     def _get_value_count(self, feature_name: str, value: Any) -> int:
         """Get the number of occurrences of the provided value of the provided feature."""
 
-    def _get_distinct_value_count(self, feature_name: str) -> int:
-        """Get the number of distinct values of a feature, counting every null form as one value."""
-        return self._get_unique_count(feature_name) + (1 if self._contains_nulls(feature_name) else 0)
-
-    def _significance_threshold(self, feature: str, max_distilled_cases: int,
-                                significance_threshold: int | None) -> tuple[int, Callable[[int], int]]:
-        """
-        Resolve the significance threshold of a feature for a distillation target.
-
-        Parameters
-        ----------
-        feature : str
-            The name of the feature.
-        max_distilled_cases : int
-            The distillation target, as :func:`get_optimized_max_chunk_size` rounds it.
-        significance_threshold : int, optional
-            A threshold given by the user, which applies to every feature at every target.
-
-        Returns
-        -------
-        int
-            The threshold for `max_distilled_cases`.
-        Callable of int to int
-            The threshold for any other distillation target, for the search for a target at which
-            every rare value fits.
-        """
-        if significance_threshold is not None:
-            return significance_threshold, lambda _: significance_threshold
-        total_cases = self._get_row_count()
-        distinct_values = self._get_distinct_value_count(feature)
-        return (_dynamic_significance_threshold(total_cases, max_distilled_cases, distinct_values),
-                lambda target: _dynamic_significance_threshold(total_cases, target, distinct_values))
-
     def _find_protected_value_candidates(
         self,
         max_distilled_cases: int,
-        significance_threshold: int | None,
+        significance_threshold: int,
         *,
         features: Container[str] | None = None,
     ) -> tuple[PreserveRareValuesMap, list[dict]]:
@@ -2276,9 +2216,9 @@ class InferFeatureAttributesBase(ABC):
         ----------
         max_distilled_cases : int
             The maximum number of cases in the resultant data following distillation.
-        significance_threshold : int, optional
+        significance_threshold : int
             The number of cases that are expected to result in a maintained signal for a particular
-            value post-distillation. Computed per feature when not given.
+            value post-distillation.
         features : Container of str, optional
             The features to search. Defaults to every nominal feature.
 
@@ -2298,7 +2238,7 @@ class InferFeatureAttributesBase(ABC):
             if self._get_unique_count(feature) == total_cases:
                 # Don't make a suggestion for a completely unique feature
                 continue
-            threshold, _ = self._significance_threshold(feature, max_distilled_cases, significance_threshold)
+            threshold = significance_threshold
             # Every null form (None, NaN, NA) is counted together, so it is one candidate, None
             null_seen = False
             for unique_value in self._get_unique_values(feature):
@@ -2335,7 +2275,6 @@ class InferFeatureAttributesBase(ABC):
         *,
         fit: Literal["largest_first", "scale"],
         cap: float | None = None,
-        threshold_at: Callable[[int], int] | None = None,
     ) -> RareValueReweighting:
         """
         Compute the case weight multipliers of a feature that fund the preservation of its rare values.
@@ -2371,9 +2310,6 @@ class InferFeatureAttributesBase(ABC):
         cap : float, optional
             The largest share of its weight a significant value may give up. Without a cap, the
             significant values give up as much as the targets require, down to the floor.
-        threshold_at : Callable of int to int, optional
-            The significance threshold at any distillation target, for reporting the target at
-            which every rare value would fit. Defaults to `significance_threshold` at every target.
 
         Returns
         -------
@@ -2394,6 +2330,10 @@ class InferFeatureAttributesBase(ABC):
         target_values = [target["value"] for target in targets]
         null_target, hashable_targets, unhashable_targets = _bucket_protected_values(target_values)
         target_counts = [self._get_value_count(feature, value) for value in target_values]
+        # A target with a multiplier of 1 is pinned: it holds its weight and stays out of the donors, but it
+        # is not a rare value to fund, so the reported counts and the search for a fitting target leave it out
+        lifted_counts = np.array([count for count, target in zip(target_counts, targets, strict=True)
+                                  if target["multiplier"] > 1], dtype=float)
         # The smallest factor a significant value may be scaled by; without a cap, only the floor limits it
         min_multiplier = 1 - cap if cap is not None else 0.0
 
@@ -2446,12 +2386,12 @@ class InferFeatureAttributesBase(ABC):
             limit: RareValuePreservationLimit = {
                 "feature": feature,
                 "preserved": 0,
-                "candidates": len(targets),
+                "candidates": len(lifted_counts),
                 "min_max_distilled_cases": self._min_distilled_cases_to_fit(
-                    target_counts=np.array(target_counts, dtype=float),
+                    target_counts=lifted_counts,
                     other_counts=all_other_counts,
                     total_cases=total_cases,
-                    threshold_at=threshold_at or (lambda _: significance_threshold),
+                    significance_threshold=significance_threshold,
                     min_multiplier=min_multiplier,
                 ),
                 "multiplier_scale": None,
@@ -2501,13 +2441,13 @@ class InferFeatureAttributesBase(ABC):
                     used += deficits[i]
             limit = {
                 "feature": feature,
-                "preserved": len(kept),
-                "candidates": len(targets),
+                "preserved": sum(1 for entry in kept if entry["multiplier"] > 1),
+                "candidates": len(lifted_counts),
                 "min_max_distilled_cases": self._min_distilled_cases_to_fit(
-                    target_counts=np.array(target_counts, dtype=float),
+                    target_counts=lifted_counts,
                     other_counts=all_other_counts,
                     total_cases=total_cases,
-                    threshold_at=threshold_at or (lambda _: significance_threshold),
+                    significance_threshold=significance_threshold,
                     min_multiplier=min_multiplier,
                 ),
                 "multiplier_scale": None,
@@ -2528,7 +2468,8 @@ class InferFeatureAttributesBase(ABC):
                     for target, relative in zip(targets, relative_increases, strict=True)]
             kept_indices = set(range(len(targets)))
             used = budget
-            limit = {"feature": feature, "preserved": len(kept), "candidates": len(targets),
+            limit = {"feature": feature, "preserved": sum(1 for entry in kept if entry["multiplier"] > 1),
+                     "candidates": len(lifted_counts),
                      "min_max_distilled_cases": None,
                      "multiplier_scale": budget / relative_needed / largest_increase}
         if used <= 0:
@@ -2583,7 +2524,7 @@ class InferFeatureAttributesBase(ABC):
 
     @staticmethod
     def _min_distilled_cases_to_fit(target_counts: np.ndarray, other_counts: np.ndarray, total_cases: int,
-                                    threshold_at: Callable[[int], int], min_multiplier: float) -> int | None:
+                                    significance_threshold: int, min_multiplier: float) -> int | None:
         """
         Find the smallest `max_distilled_cases` at which every rare value of a feature can be preserved.
 
@@ -2596,9 +2537,8 @@ class InferFeatureAttributesBase(ABC):
             at each searched target, since the floor falls as the target grows.
         total_cases : int
             The number of cases in the data.
-        threshold_at : Callable of int to int
-            The number of cases each value should keep after distillation, for a distillation target
-            as :func:`get_optimized_max_chunk_size` rounds it.
+        significance_threshold : int
+            The number of cases each value should keep after distillation.
         min_multiplier : float
             The smallest multiplier the feature's significant values may receive.
 
@@ -2607,15 +2547,15 @@ class InferFeatureAttributesBase(ABC):
         int or None
             The smallest distillation target whose floor lets the other values fund every rare
             value, at most `total_cases`, or None when no target does. The floor is computed from
-            the target as :func:`get_optimized_max_chunk_size` rounds it, the same way
+            the target as :func:`get_optimized_partition_size` rounds it, the same way
             `infer_feature_attributes` treats a `max_distilled_cases` argument.
         """
         counts = np.concatenate([target_counts, other_counts])
 
         def fits(max_distilled_cases: int) -> bool:
-            max_distilled_cases, _ = get_optimized_max_chunk_size(row_count=total_cases,
-                                                                  max_chunk_size=max_distilled_cases)
-            floor = threshold_at(max_distilled_cases) * total_cases / max_distilled_cases
+            max_distilled_cases, _ = get_optimized_partition_size(row_count=total_cases,
+                                                                  max_partition_size=max_distilled_cases)
+            floor = significance_threshold * total_cases / max_distilled_cases
             # Targets below the floor need funding; any value at or above it can give some up
             needed = float((floor - target_counts[target_counts < floor]).sum())
             significant = counts[counts >= floor]
@@ -2637,7 +2577,7 @@ class InferFeatureAttributesBase(ABC):
         self,
         max_distilled_cases: int,
         values_map: PreserveRareValuesMap,
-        significance_threshold: int | None,
+        significance_threshold: int,
         caps: Mapping[str, float] | None = None,
     ) -> tuple[FullPreserveRareValuesConfig, PreserveRareValuesMap, list[RareValuePreservationLimit]]:
         """
@@ -2654,9 +2594,9 @@ class InferFeatureAttributesBase(ABC):
             The maximum number of cases in the resultant data following distillation.
         values_map : PreserveRareValuesMap
             A mapping of feature name to list of rare values to compute multipliers for.
-        significance_threshold : int, optional
+        significance_threshold : int
             The number of cases that are expected to result in a maintained signal for a
-            particular value post-distillation. Computed per feature when not given.
+            particular value post-distillation.
         caps : Mapping of str to float, optional
             The largest share of its weight a significant value of each listed feature may give up.
 
@@ -2679,9 +2619,7 @@ class InferFeatureAttributesBase(ABC):
             if feature not in self.attributes:
                 # Multiprocessing is enabled, and this feature will be handled in another process
                 continue
-            threshold, threshold_at = self._significance_threshold(feature, max_distilled_cases,
-                                                                   significance_threshold)
-            floor = threshold * total_cases / max_distilled_cases
+            floor = significance_threshold * total_cases / max_distilled_cases
             targets: list[ProtectedValueMultiplier] = []
             for value in _dedupe_values(values):
                 count = self._get_value_count(feature, value)
@@ -2698,11 +2636,10 @@ class InferFeatureAttributesBase(ABC):
             config, kept, limit = self._reweight_rare_values(
                 feature=feature,
                 targets=targets,
-                significance_threshold=threshold,
+                significance_threshold=significance_threshold,
                 floor=floor,
                 fit="largest_first",
                 cap=caps.get(feature),
-                threshold_at=threshold_at,
             )
             if limit is not None:
                 limits.append(limit)
@@ -2715,7 +2652,7 @@ class InferFeatureAttributesBase(ABC):
         self,
         preserve_rare_values: PreserveRareValues | None,
         max_distilled_cases: int | None,
-        significance_threshold: int | None,
+        significance_threshold: int,
         enable_suggestions: bool = True,
         *,
         caps: Mapping[str, float] | None = None,
@@ -2756,8 +2693,8 @@ class InferFeatureAttributesBase(ABC):
             max_distilled_cases = DEFAULT_MAX_DISTILLED_CASES
         requested_max_distilled_cases = max_distilled_cases
         # The target as distillation will apply it
-        max_distilled_cases, _ = get_optimized_max_chunk_size(row_count=self._get_row_count(),
-                                                              max_chunk_size=max_distilled_cases)
+        max_distilled_cases, _ = get_optimized_partition_size(row_count=self._get_row_count(),
+                                                              max_partition_size=max_distilled_cases)
 
         if preserve_rare_values is None:
             # Nothing was asked for: find candidates and offer them as a suggestion, applying nothing.
@@ -2838,8 +2775,8 @@ class InferFeatureAttributesBase(ABC):
                 self.warnings_collector.triage(
                     IFAWarningEmitterType.SIMPLE,
                     f"`max_distilled_cases` was not provided, so the rare values of {names} were weighted for an "
-                    f"assumed distillation target of {DEFAULT_MAX_DISTILLED_CASES:,} cases. Provide "
-                    "`max_distilled_cases` if you will distill your data to a different size."
+                    f"assumed distillation target of {DEFAULT_MAX_DISTILLED_CASES:,} cases.\n"
+                    "Provide `max_distilled_cases` if you will distill your data to a different size."
                 )
 
         for feature, config in prvc.items():
@@ -2851,7 +2788,7 @@ class InferFeatureAttributesBase(ABC):
         self,
         given: PreserveRareValuesConfig,
         max_distilled_cases: int,
-        significance_threshold: int | None,
+        significance_threshold: int,
         caps: Mapping[str, float],
     ) -> FullPreserveRareValuesConfig:
         """
@@ -2863,9 +2800,9 @@ class InferFeatureAttributesBase(ABC):
             The rare values of each feature with the multipliers they should receive, as
             :func:`_split_rare_values` validates and deduplicates them.
         max_distilled_cases : int
-            The distillation target, as :func:`get_optimized_max_chunk_size` rounds it.
-        significance_threshold : int, optional
-            The threshold given by the user, or None to compute one per feature.
+            The distillation target, as :func:`get_optimized_partition_size` rounds it.
+        significance_threshold : int
+            The number of cases below which a value is small.
         caps : Mapping of str to float
             The largest share of its weight a significant value of each listed feature may give up.
 
@@ -2896,17 +2833,14 @@ class InferFeatureAttributesBase(ABC):
                 # Every pair asked to hold its weight, so there is nothing to fund and no value to reweight;
                 # an unlisted value holds its weight already
                 continue
-            threshold, threshold_at = self._significance_threshold(feature, max_distilled_cases,
-                                                                   significance_threshold)
-            floor = threshold * total_cases / max_distilled_cases
+            floor = significance_threshold * total_cases / max_distilled_cases
             config, _, limit = self._reweight_rare_values(
                 feature=feature,
                 targets=targets,
-                significance_threshold=threshold,
+                significance_threshold=significance_threshold,
                 floor=floor,
                 fit="scale",
                 cap=caps.get(feature),
-                threshold_at=threshold_at,
             )
             if limit is not None and limit["multiplier_scale"] is None:
                 # No value could donate, so the request was not applied at all
@@ -2915,9 +2849,9 @@ class InferFeatureAttributesBase(ABC):
             elif limit is not None:
                 self.warnings_collector.triage(
                     IFAWarningEmitterType.SIMPLE,
-                    f"The multipliers provided for feature `{feature}` need more case weight than its other "
-                    f"values can give up, so each multiplier's increase over 1 was scaled by "
-                    f"{limit['multiplier_scale']:.3g}. Reduce the multipliers or protect fewer values."
+                    f"The multipliers for feature `{feature}` need more case weight than its other values can give "
+                    f"up, so each multiplier's increase over 1 was scaled by {limit['multiplier_scale']:.3g}.\n"
+                    "Reduce the multipliers or protect fewer values."
                 )
             if config is None:
                 continue
