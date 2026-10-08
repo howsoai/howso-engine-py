@@ -10,6 +10,7 @@ import logging
 import math
 from pathlib import Path
 import platform
+from numbers import Real
 from typing import Any, cast, Literal, Self, TYPE_CHECKING
 import warnings
 from zoneinfo import ZoneInfo
@@ -174,11 +175,17 @@ def _split_rare_values(
     FullPreserveRareValuesConfig
         The features given as a complete configuration.
 
+    Repeated values are listed once, every null form counting as the one value None. Multipliers
+    must be finite numbers: at least 1 when paired with a value to fund, and positive in a complete
+    configuration.
+
     Raises
     ------
     ValueError
         If a feature's specification is a mapping without ``value_weight_multipliers``, a sequence
-        that mixes plain values with value and multiplier pairs, or a pair without a multiplier.
+        that mixes plain values with value and multiplier pairs, a pair without a multiplier, a
+        multiplier that is not a finite number in range, or one value paired with two different
+        multipliers.
     TypeError
         If a feature's specification is neither a mapping nor a sequence.
     """
@@ -192,6 +199,11 @@ def _split_rare_values(
             if "value_weight_multipliers" not in spec:
                 raise ValueError(f"The `preserve_rare_values` entry for feature `{feature}` must be {forms}; got a "
                                  f"dict with the keys {sorted(spec)}.")
+            for entry in spec["value_weight_multipliers"]:
+                _validate_multiplier(feature, entry["value"], entry["multiplier"], minimum=0.0)
+                if entry["multiplier"] == 0:
+                    raise ValueError(f"The multiplier for value `{entry['value']}` of feature `{feature}` must be "
+                                     "positive; got 0.")
             full[feature] = spec  # pyright: ignore[reportArgumentType]
             continue
         if isinstance(spec, (str, bytes)) or not isinstance(spec, Iterable):
@@ -200,19 +212,53 @@ def _split_rare_values(
         entries = list(spec)
         paired = [isinstance(entry, Mapping) and "value" in entry for entry in entries]
         if entries and all(paired):
-            for entry in entries:
-                if "multiplier" not in entry:
-                    raise ValueError(f"The `preserve_rare_values` entry for feature `{feature}` pairs value "
-                                     f"`{entry['value']}` with no multiplier. Give each value a multiplier, or list "
-                                     "the values alone to have the multipliers computed.")
-            config[feature] = entries
+            config[feature] = _dedupe_pairs(feature, entries)
         elif any(paired):
             raise ValueError(f"The `preserve_rare_values` entry for feature `{feature}` mixes plain values with "
                              'dicts of "value" and "multiplier". List the values alone to have every multiplier '
                              "computed, or give every value a multiplier.")
         else:
-            values_map[feature] = entries
+            values_map[feature] = _dedupe_values(entries)
     return values_map, config, full
+
+
+def _dedupe_pairs(feature: str, entries: Sequence[Mapping[str, Any]]) -> list[ProtectedValueMultiplier]:
+    """
+    Validate value and multiplier pairs and list each distinct value once.
+
+    Parameters
+    ----------
+    feature : str
+        The name of the feature, for error messages.
+    entries : Sequence of Mapping
+        Dicts with a "value" key and, for each to be valid, a "multiplier" key.
+
+    Returns
+    -------
+    list of ProtectedValueMultiplier
+        One entry per distinct value, in order of first appearance, with every null form as None.
+
+    Raises
+    ------
+    ValueError
+        If an entry has no multiplier, a multiplier is not a finite number of at least 1, or one
+        value is given two different multipliers.
+    """
+    multipliers: dict[int, float] = {}
+    values = [None if is_null_value(entry["value"]) else entry["value"] for entry in entries]
+    distinct = _dedupe_values(values)
+    for value, entry in zip(values, entries, strict=True):
+        if "multiplier" not in entry:
+            raise ValueError(f"The `preserve_rare_values` entry for feature `{feature}` pairs value `{value}` with "
+                             "no multiplier. Give each value a multiplier, or list the values alone to have the "
+                             "multipliers computed.")
+        multiplier = _validate_multiplier(feature, value, entry["multiplier"], minimum=1.0)
+        index = next(i for i, seen in enumerate(distinct) if seen is value or seen == value)
+        if index in multipliers and multipliers[index] != multiplier:
+            raise ValueError(f"The `preserve_rare_values` entry for feature `{feature}` gives value `{value}` two "
+                             f"different multipliers, {multipliers[index]:g} and {multiplier:g}.")
+        multipliers[index] = multiplier
+    return [{"value": value, "multiplier": multipliers[i]} for i, value in enumerate(distinct)]
 
 
 def _normalize_rare_value_caps(caps: PreserveRareValuesCaps | None) -> dict[str, float]:
@@ -267,19 +313,53 @@ def _as_feature_value(value: Any) -> Any:
     return value
 
 
-def _dedupe_nulls(values: Iterable[Any]) -> list[Any]:
-    """Return `values` with every null form collapsed into a single None, keeping the order otherwise."""
+def _dedupe_values(values: Iterable[Any]) -> list[Any]:
+    """
+    Return the distinct values of `values`, in order of first appearance.
+
+    Every null form counts as the single value None. Unhashable values are compared by equality.
+    """
     result: list[Any] = []
     null_seen = False
+    seen_hashable: set[Any] = set()
+    seen_unhashable: list[Any] = []
     for value in values:
         if is_null_value(value):
             if null_seen:
                 continue
             null_seen = True
             result.append(None)
-        else:
-            result.append(value)
+            continue
+        try:
+            if value in seen_hashable:
+                continue
+            seen_hashable.add(value)
+        except TypeError:
+            if any(value == seen for seen in seen_unhashable):
+                continue
+            seen_unhashable.append(value)
+        result.append(value)
     return result
+
+
+def _validate_multiplier(feature: str, value: Any, multiplier: Any, minimum: float) -> float:
+    """
+    Check that a user-given case weight multiplier is a finite number no smaller than `minimum`.
+
+    Returns
+    -------
+    float
+        The multiplier as a float.
+
+    Raises
+    ------
+    ValueError
+        If the multiplier is not a number, is NaN or infinite, or is below `minimum`.
+    """
+    if not isinstance(multiplier, Real) or not math.isfinite(multiplier) or multiplier < minimum:
+        raise ValueError(f"The multiplier for value `{value}` of feature `{feature}` must be a finite number of at "
+                         f"least {minimum:g}; got {multiplier!r}.")
+    return float(multiplier)
 
 
 def _bucket_protected_values(protected_values: Iterable[Any]) -> tuple[bool, set[Any], list[Any]]:
@@ -2583,7 +2663,7 @@ class InferFeatureAttributesBase(ABC):
                                                                    significance_threshold)
             floor = threshold * total_cases / max_distilled_cases
             targets: list[ProtectedValueMultiplier] = []
-            for value in _dedupe_nulls(values):
+            for value in _dedupe_values(values):
                 count = self._get_value_count(feature, value)
                 if count == 0:
                     raise ValueError(f"Specified protected value `{value}` not found in column `{feature}`. "
@@ -2662,7 +2742,8 @@ class InferFeatureAttributesBase(ABC):
             if candidates:
                 candidate_prvc, protected_map, limits = self._compute_preserve_rare_values_config(
                     max_distilled_cases, candidates, significance_threshold, caps)
-                if candidate_prvc:
+                if candidate_prvc or limits:
+                    # A suggestion is made even when nothing could be funded, so that its caveats report why
                     self.suggestions_collector.append(PRVSuggestion(candidate_prvc, values_ranking, user_set_mdc,
                                                                     protected_values=protected_map, limits=limits))
             return
@@ -2730,7 +2811,8 @@ class InferFeatureAttributesBase(ABC):
         Parameters
         ----------
         given : PreserveRareValuesConfig
-            The rare values of each feature with the multipliers they should receive, each at least 1.
+            The rare values of each feature with the multipliers they should receive, as
+            :func:`_split_rare_values` validates and deduplicates them.
         max_distilled_cases : int
             The distillation target, as :func:`get_optimized_max_chunk_size` rounds it.
         significance_threshold : int, optional
@@ -2749,7 +2831,7 @@ class InferFeatureAttributesBase(ABC):
         Raises
         ------
         ValueError
-            If a multiplier is below 1, or a value is not in the data.
+            If a value is not in the data.
         """
         prvc: FullPreserveRareValuesConfig = {}
         assumed_target_features: list[str] = []
@@ -2759,16 +2841,7 @@ class InferFeatureAttributesBase(ABC):
                 # Multiprocessing is enabled, and this feature will be handled in another process
                 continue
             targets: list[ProtectedValueMultiplier] = []
-            null_seen = False
             for value_cfg in value_cfgs:
-                if is_null_value(value_cfg["value"]):
-                    # Every null form is one value, so one multiplier covers them all
-                    if null_seen:
-                        continue
-                    null_seen = True
-                if value_cfg["multiplier"] < 1:
-                    raise ValueError(f"The multiplier for protected value `{value_cfg['value']}` of feature "
-                                     f"`{feature}` must be at least 1; got {value_cfg['multiplier']}.")
                 if self._get_value_count(feature, value_cfg["value"]) == 0:
                     raise ValueError(f"Specified protected value `{value_cfg['value']}` not found in column "
                                      f"`{feature}`. Please verify the value and type.")

@@ -610,8 +610,13 @@ class PRVSuggestion(IFASuggestion):
 
     @property
     def can_apply(self) -> bool:
-        """Whether the multipliers can be applied, which requires a user-provided ``max_distilled_cases``."""
-        return self._user_set_mdc
+        """
+        Whether the multipliers can be applied.
+
+        Requires a user-provided ``max_distilled_cases`` and at least one feature whose rare values
+        could be funded.
+        """
+        return self._user_set_mdc and bool(self._prvc)
 
     @property
     def caveats(self) -> list[SuggestionCaveat]:
@@ -643,10 +648,11 @@ class PRVSuggestion(IFASuggestion):
         """
         num_preserved = sum(len(values) for values in self._protected_values.values())
         not_preserved = sum(limit["candidates"] - limit["preserved"] for limit in self._limits)
+        features = set(self._prvc) | {limit["feature"] for limit in self._limits}
         return {
             "num_values": num_preserved + not_preserved,
             "num_preserved": num_preserved,
-            "num_features": len(self._prvc),
+            "num_features": len(features),
             "limits": [dict(limit) for limit in self._limits],
             "top_values": [dict(candidate) for candidate in self._ranking],
             "value_weight_multipliers": {
@@ -691,6 +697,11 @@ class PRVSuggestion(IFASuggestion):
                 "This suggestion was not applied, since an inaccurate `max_distilled_cases` may leave rare "
                 "values under-weighted or over-weighted. "
             )
+            return
+        if not self._prvc:
+            reasons = " ".join(partial_rare_value_preservation_message(limit) for limit in self._limits)
+            warnings.warn("This suggestion was not applied, since none of the rare values found could be funded "
+                          f"at this `max_distilled_cases`. {reasons}", UserWarning, stacklevel=4)
             return
         for feature, config in self._prvc.items():
             attributes[feature]["value_weight_multipliers"] = config["value_weight_multipliers"]

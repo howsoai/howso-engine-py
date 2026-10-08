@@ -1678,7 +1678,7 @@ def test_preserve_rare_values_given_multipliers():
         infer_feature_attributes(df, preserve_rare_values={"a": {"protected_values_multipliers": fitting}})
 
     # Multipliers must be at least 1, and values must exist
-    with pytest.raises(ValueError, match="must be at least 1"):
+    with pytest.raises(ValueError, match="must be a finite number of at least 1"):
         infer_feature_attributes(df, preserve_rare_values={"a": [{"value": "rare0", "multiplier": 0.5}]})
     with pytest.raises(ValueError, match="not found in column"):
         infer_feature_attributes(df, preserve_rare_values={"a": [{"value": "missing", "multiplier": 2}]})
@@ -1945,6 +1945,71 @@ def test_preserve_rare_values_no_donor_is_reported():
         refit = infer_feature_attributes(df, max_distilled_cases=500, significance_threshold=30,
                                          preserve_rare_values={"a": rare_values})
     assert "value_weight_multipliers" not in refit["a"]
+
+
+def test_preserve_rare_values_suggestion_with_nothing_funded(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that the automatic suggestion still reports candidates none of which can be funded."""
+    # As above, no value can donate at 1,000 -> 63; the common value is itself a candidate there
+    values = ["common"] * 400 + [f"rare{i}" for i in range(10) for _ in range(60)]
+    df = pd.DataFrame({"a": values})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30)
+    capsys.readouterr()
+    suggestion = features.suggestions.preserve_rare_values
+    assert suggestion.can_apply is False
+    assert suggestion.details["num_preserved"] == 0
+    assert suggestion.details["num_values"] == suggestion.details["limits"][0]["candidates"] == 11
+    assert suggestion.details["num_features"] == 1
+    assert suggestion.details["value_weight_multipliers"] == {}
+    (caveat,) = suggestion.caveats
+    assert caveat["code"] == "partial_rare_value_preservation"
+    assert "Preserved 0 of the 11 rare values of feature `a`" in caveat["message"]
+    assert "at least 500" in caveat["message"]
+    assert suggestion.get_values_map() == {}
+    with pytest.warns(UserWarning, match="^This suggestion was not applied, since none of the rare values found"):
+        features.apply_suggestion("preserve_rare_values")
+    assert "value_weight_multipliers" not in features["a"]
+
+
+def test_preserve_rare_values_duplicate_values():
+    """Test that a value listed twice is weighted once, in both the plain and the paired form."""
+    df = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 60 + ["small"] * 10})
+    for spec in (["rare", "rare"], [{"value": "rare", "multiplier": 3.0}, {"value": "rare", "multiplier": 3.0}]):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            features = infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                                preserve_rare_values={"a": spec}, enable_suggestions=False)
+        entries = _prv(features["a"])
+        assert [entry["value"] for entry in entries] == ["rare", "common"]
+        assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+    # Null forms are one value too
+    nullable = pd.DataFrame({"a": ["common"] * 900 + [None] * 60 + [np.nan] * 30 + ["small"] * 10})
+    features = infer_feature_attributes(nullable, max_distilled_cases=200, significance_threshold=30,
+                                        preserve_rare_values={"a": [None, np.nan]}, enable_suggestions=False)
+    assert [entry["value"] for entry in _prv(features["a"])] == [None, "common"]
+    # The same value with two different multipliers is a contradiction
+    with pytest.raises(ValueError, match="gives value `rare` two different multipliers, 3 and 4"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": [{"value": "rare", "multiplier": 3.0},
+                                                             {"value": "rare", "multiplier": 4.0}]})
+
+
+@pytest.mark.parametrize("multiplier", [float("nan"), float("inf"), -float("inf"), "2", None])
+def test_preserve_rare_values_multiplier_must_be_finite(multiplier) -> None:
+    """Test that a given multiplier must be a finite number, both when funded and in a complete configuration."""
+    df = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 60 + ["small"] * 10})
+    with pytest.raises(ValueError, match="must be a finite number of at least 1"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": [{"value": "rare", "multiplier": multiplier}]})
+    with pytest.raises(ValueError, match="must be a finite number of at least 0"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": {"value_weight_multipliers": [
+                                     {"value": "rare", "multiplier": multiplier}]}})
+    with pytest.raises(ValueError, match="must be positive; got 0"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": {"value_weight_multipliers": [
+                                     {"value": "rare", "multiplier": 0}]}})
 
 
 def test_preserve_rare_values_all_cases_protected():
