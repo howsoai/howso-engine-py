@@ -2504,14 +2504,23 @@ class InferFeatureAttributesBase(ABC):
             }
         else:
             # Keep every target but shrink each multiplier's increase over 1 by the same factor, so the
-            # targets together use exactly the budget and keep their proportions to one another
-            scale_targets = budget / needed
-            kept = [{"value": target["value"], "multiplier": 1 + (target["multiplier"] - 1) * scale_targets}
-                    for target in targets]
+            # targets together use exactly the budget and keep their proportions to one another. The
+            # factor is `budget / needed`, but a multiplier near the float limit makes `needed` overflow
+            # to infinity, so the increases are measured relative to the largest one: those ratios and
+            # their weighted sum are finite, and each target's share of the budget follows from them
+            # without forming `needed` itself.
+            increases = [target["multiplier"] - 1 for target in targets]
+            largest_increase = max(increases)
+            relative_increases = [increase / largest_increase for increase in increases]
+            relative_needed = sum(count * relative for count, relative in zip(target_counts, relative_increases,
+                                                                               strict=True))
+            kept = [{"value": target["value"], "multiplier": 1 + relative * budget / relative_needed}
+                    for target, relative in zip(targets, relative_increases, strict=True)]
             kept_indices = set(range(len(targets)))
             used = budget
             limit = {"feature": feature, "preserved": len(kept), "candidates": len(targets),
-                     "min_max_distilled_cases": None, "multiplier_scale": scale_targets}
+                     "min_max_distilled_cases": None,
+                     "multiplier_scale": budget / relative_needed / largest_increase}
         if used <= 0:
             # No target could be funded; the limit, if any, still tells the caller what was dropped
             return None, [], limit
@@ -2698,11 +2707,11 @@ class InferFeatureAttributesBase(ABC):
 
         Each feature's specification is handled by its form: a complete configuration is written as
         given; values paired with multipliers are funded by the feature's other values; plain values
-        get their multipliers computed when `max_distilled_cases` is known, and are otherwise written
-        to the feature's ``preserve_rare_values`` attribute for the multipliers to be computed later
-        in the stack. "all" and a list of feature names select the rare value candidates of the
-        features and treat them as plain values. Without a specification, candidates are found and
-        offered as a suggestion. "off" does nothing at all.
+        get their multipliers computed. Without `max_distilled_cases`, the multipliers are computed
+        for :data:`DEFAULT_MAX_DISTILLED_CASES` and a warning says so. "all" and a list of feature
+        names select the rare value candidates of the features and treat them as plain values; both
+        require `max_distilled_cases`. Without a specification, candidates are found and offered as a
+        suggestion. "off" does nothing at all.
         """
         caps = caps or {}
         # User wants to do nothing; exit silently
@@ -2775,22 +2784,26 @@ class InferFeatureAttributesBase(ABC):
                 prvc[feature] = deepcopy(cfg)
         # Values paired with multipliers are funded by the other values of their features
         if given:
-            prvc.update(self._fund_given_multipliers(given, max_distilled_cases, significance_threshold, caps,
-                                                     user_set_mdc))
-        if user_set_mdc:
-            # The target is known, so the multipliers of plain values are computed here
-            computed, _, limits = self._compute_preserve_rare_values_config(max_distilled_cases, values_map,
-                                                                            significance_threshold, caps)
-            prvc.update(computed)
-            for limit in limits:
-                self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE,
-                                               partial_rare_value_preservation_message(limit))
-        else:
-            # Without a target the multipliers of plain values cannot be computed accurately; another part
-            # of the stack computes them from the protected values
-            for feature, values in values_map.items():
-                if feature in self.attributes:
-                    self.attributes[feature]["preserve_rare_values"] = {"protected_values": values}
+            prvc.update(self._fund_given_multipliers(given, max_distilled_cases, significance_threshold, caps))
+        # Plain values get their multipliers computed
+        computed, _, limits = self._compute_preserve_rare_values_config(max_distilled_cases, values_map,
+                                                                        significance_threshold, caps)
+        prvc.update(computed)
+        for limit in limits:
+            self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE,
+                                           partial_rare_value_preservation_message(limit))
+        if not user_set_mdc:
+            # Whether a value needs preservation, and by how much, depends on the target, so every feature
+            # weighted against the assumed one is named, including those that needed nothing at it
+            assumed = [feature for feature in (*values_map, *given) if feature in self.attributes]
+            if assumed:
+                names = ", ".join(f"`{feature}`" for feature in assumed)
+                self.warnings_collector.triage(
+                    IFAWarningEmitterType.SIMPLE,
+                    f"`max_distilled_cases` was not provided, so the rare values of {names} were weighted for an "
+                    f"assumed distillation target of {DEFAULT_MAX_DISTILLED_CASES:,} cases. Provide "
+                    "`max_distilled_cases` if you will distill your data to a different size."
+                )
 
         for feature, config in prvc.items():
             # A feature missing here is handled in another process when multiprocessing is enabled
@@ -2803,7 +2816,6 @@ class InferFeatureAttributesBase(ABC):
         max_distilled_cases: int,
         significance_threshold: int | None,
         caps: Mapping[str, float],
-        user_set_mdc: bool,
     ) -> FullPreserveRareValuesConfig:
         """
         Fund the multipliers a user gave for rare values with the other values of their features.
@@ -2819,9 +2831,6 @@ class InferFeatureAttributesBase(ABC):
             The threshold given by the user, or None to compute one per feature.
         caps : Mapping of str to float
             The largest share of its weight a significant value of each listed feature may give up.
-        user_set_mdc : bool
-            Whether `max_distilled_cases` was given rather than assumed. When assumed, a warning
-            names the features whose multipliers depend on it.
 
         Returns
         -------
@@ -2834,7 +2843,6 @@ class InferFeatureAttributesBase(ABC):
             If a value is not in the data.
         """
         prvc: FullPreserveRareValuesConfig = {}
-        assumed_target_features: list[str] = []
         total_cases = self._get_row_count()
         for feature, value_cfgs in given.items():
             if feature not in self.attributes:
@@ -2865,15 +2873,5 @@ class InferFeatureAttributesBase(ABC):
                 )
             if config is None:
                 continue
-            if not user_set_mdc:
-                assumed_target_features.append(feature)
             prvc[feature] = config
-        if assumed_target_features:
-            names = ", ".join(f"`{feature}`" for feature in assumed_target_features)
-            self.warnings_collector.triage(
-                IFAWarningEmitterType.SIMPLE,
-                f"`max_distilled_cases` was not provided, so the multipliers of the other values of {names} "
-                f"assume a distillation target of {DEFAULT_MAX_DISTILLED_CASES:,} cases. Provide "
-                "`max_distilled_cases` if you will distill your data to a different size."
-            )
         return prvc

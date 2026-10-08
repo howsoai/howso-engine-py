@@ -720,7 +720,7 @@ def _percentile_df(n: int = 10_000) -> pd.DataFrame:
     ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
-def test_preserve_rare_values(adc, make_adc, capsys):
+def test_preserve_rare_values(adc, capsys):
     """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
     df = _percentile_df()
     convert_data(df, adc)
@@ -735,15 +735,12 @@ def test_preserve_rare_values(adc, make_adc, capsys):
     # The rare value keeps the threshold exactly: 30 * 10,000 / (1,250 * 100); the common value funds it
     assert multipliers == {"2": pytest.approx(2.4), "1": pytest.approx(0.99, abs=0.005)}
 
-    # Multipliers should be deferred if `max_distilled_cases` not provided.
-    # This needs a second connector of the same type as `adc`: writing the
-    # larger frame into `adc` itself would append to the data already there
-    # rather than replace it.
-    df_large = pd.concat([df] * 3)
-    adc_large = make_adc(df_large)
-    features = infer_feature_attributes(adc_large, preserve_rare_values={"a": ["2"]})
-    assert "preserve_rare_values" in features["a"]
-    assert features["a"]["preserve_rare_values"]["protected_values"][0] == '2'
+    # Without `max_distilled_cases` the values are weighted for the default target, and the user is told so;
+    # at that target, which exceeds the data size, the value keeps the threshold on its own and needs nothing
+    with pytest.warns(UserWarning, match="rare values of `a` were weighted for an assumed distillation target"):
+        features = infer_feature_attributes(adc, preserve_rare_values={"a": ["2"]})
+    assert "value_weight_multipliers" not in features["a"]
+    assert "preserve_rare_values" not in features["a"]
 
     # Test auto-apply with selected values
     features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values={"b": ["y", "z"]})
