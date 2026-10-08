@@ -2021,6 +2021,23 @@ def test_preserve_rare_values_multiplier_of_one_is_omitted():
                                             enable_suggestions=False)
     assert set(_multipliers(features["a"])) == {"rare", "common"}
     assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+    # A value pinned at 1 is a target, not a donor: `fixed` has enough cases to fund `rare` but is left alone
+    pinned = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 60 + ["fixed"] * 300})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(pinned, max_distilled_cases=400, significance_threshold=30,
+                                            preserve_rare_values={"a": [{"value": "rare", "multiplier": 2},
+                                                                        {"value": "fixed", "multiplier": 1}]},
+                                            enable_suggestions=False)
+    multipliers = _multipliers(features["a"])
+    assert set(multipliers) == {"rare", "common"}
+    assert multipliers["rare"] == 2.0
+    assert multipliers["common"] == pytest.approx((900 - 60) / 900)
+    assert _total_weight(pinned, features["a"]) == pytest.approx(len(pinned))
+    # A pinned value is validated like any other
+    with pytest.raises(ValueError, match="not found in column"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": [{"value": "typo", "multiplier": 1}]})
     # Asking for no change at all writes nothing and says nothing, with or without a target, even when
     # the feature has no value that could donate
     no_donor = pd.DataFrame({"a": ["x"] * 50 + ["y"] * 50})

@@ -236,9 +236,9 @@ def _dedupe_pairs(feature: str, entries: Sequence[Mapping[str, Any]]) -> list[Pr
     Returns
     -------
     list of ProtectedValueMultiplier
-        One entry per distinct value whose multiplier is above 1, in order of first appearance, with
-        every null form as None. A value paired with a multiplier of exactly 1 asks for no change,
-        which is what an unlisted value gets, so it is left out.
+        One entry per distinct value, in order of first appearance, with every null form as None.
+        A value paired with a multiplier of exactly 1 is kept: it asks to hold its weight, which
+        also keeps it out of the values that fund the others.
 
     Raises
     ------
@@ -260,7 +260,7 @@ def _dedupe_pairs(feature: str, entries: Sequence[Mapping[str, Any]]) -> list[Pr
             raise ValueError(f"The `preserve_rare_values` entry for feature `{feature}` gives value `{value}` two "
                              f"different multipliers, {multipliers[index]:g} and {multiplier:g}.")
         multipliers[index] = multiplier
-    return [{"value": value, "multiplier": multipliers[i]} for i, value in enumerate(distinct) if multipliers[i] != 1]
+    return [{"value": value, "multiplier": multipliers[i]} for i, value in enumerate(distinct)]
 
 
 def _normalize_rare_value_caps(caps: PreserveRareValuesCaps | None) -> dict[str, float]:
@@ -2828,8 +2828,10 @@ class InferFeatureAttributesBase(ABC):
                                            partial_rare_value_preservation_message(limit))
         if not user_set_mdc:
             # Whether a value needs preservation, and by how much, depends on the target, so every feature
-            # weighted against the assumed one is named, including those that needed nothing at it
-            assumed = [feature for feature, spec in (*values_map.items(), *given.items())
+            # weighted against the assumed one is named, including those that needed nothing at it. A feature
+            # whose pairs all hold their weight at 1 was not weighted at all
+            lifted = {feature: [pair for pair in pairs if pair["multiplier"] > 1] for feature, pairs in given.items()}
+            assumed = [feature for feature, spec in (*values_map.items(), *lifted.items())
                        if spec and feature in self.attributes]
             if assumed:
                 names = ", ".join(f"`{feature}`" for feature in assumed)
@@ -2890,8 +2892,9 @@ class InferFeatureAttributesBase(ABC):
                                      f"`{feature}`. Please verify the value and type.")
                 targets.append({"value": _as_feature_value(value_cfg["value"]),
                                 "multiplier": float(value_cfg["multiplier"])})
-            if not targets:
-                # Every pair asked for a multiplier of 1, which is what an unlisted value gets
+            if all(target["multiplier"] == 1 for target in targets):
+                # Every pair asked to hold its weight, so there is nothing to fund and no value to reweight;
+                # an unlisted value holds its weight already
                 continue
             threshold, threshold_at = self._significance_threshold(feature, max_distilled_cases,
                                                                    significance_threshold)
