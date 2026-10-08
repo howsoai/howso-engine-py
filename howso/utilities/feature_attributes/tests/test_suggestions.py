@@ -201,12 +201,12 @@ class TestSuggestionSummary:
     def test_prv_summary_counts_values_and_features(self):
         suggestion = make_prv(_prv_config(a=3, b=1))
         assert suggestion.summary == (
-            "Found 4 rare values across 2 columns whose signal may be lost during data distillation workflows"
+            "Found 4 rare values across 2 columns that can be preserved during data distillation"
         )
 
     def test_prv_summary_singular(self):
         assert make_prv(_prv_config(a=1)).summary == (
-            "Found 1 rare value across 1 column whose signal may be lost during data distillation workflows"
+            "Found 1 rare value across 1 column that can be preserved during data distillation"
         )
 
 
@@ -248,7 +248,7 @@ class TestCollectorSummary:
         collector.print_summary(console=Console(width=20, force_jupyter=False))
         lines = capsys.readouterr().out.splitlines()
         assert len(lines) == 3
-        assert lines[1].endswith("signal may be lost during data distillation workflows")
+        assert lines[1].endswith("that can be preserved during data distillation")
 
     def test_print_summary_is_not_a_warning(self, recwarn):
         IFASuggestionCollector([make_fanout({"key_a": ["c1"]})]).print_summary(console=Console(file=None))
@@ -320,7 +320,8 @@ class TestSuggestionToDict:
         assert result["can_apply"] is True
         assert result["caveats"] == []
         assert result["details"] == {
-            "num_values": 3, "num_preserved": 3, "num_features": 2, "limits": [], "top_values": ranking,
+            "num_values": 3, "num_preserved": 3, "num_candidate_features": 2, "num_features": 2, "limits": [],
+            "top_values": ranking,
             "value_weight_multipliers": {feature: cfg["value_weight_multipliers"] for feature, cfg in config.items()},
         }
         assert result["parameters"] == {"preserve_rare_values": {"a": [0, 1], "b": [0]}}

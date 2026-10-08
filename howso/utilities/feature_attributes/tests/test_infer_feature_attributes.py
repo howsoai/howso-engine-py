@@ -1620,6 +1620,13 @@ def test_preserve_rare_values_suggestion_reports_limit(capsys: pytest.CaptureFix
     assert 100 < limit["min_max_distilled_cases"] < len(df)
     assert [c["code"] for c in suggestion.caveats] == ["partial_rare_value_preservation"]
     assert "Preserved 2 of the 5 rare values" in suggestion.caveats[0]["message"]
+    # The headline counts what applying writes, and the rest separately
+    assert suggestion.summary == ("Found 2 rare values across 1 column that can be preserved during data "
+                                  "distillation, and 3 more across 1 column that cannot be at this "
+                                  "`max_distilled_cases`")
+    description = " ".join(repr(suggestion).split())
+    assert "we identified 5 values across 1 column" in description
+    assert "of which 2 values across 1 column can be preserved" in description
     assert suggestion.get_values_map() == {"a": ["rare0", "rare1"]}
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
@@ -1965,7 +1972,10 @@ def test_preserve_rare_values_suggestion_with_nothing_funded(capsys: pytest.Capt
     assert suggestion.can_apply is False
     assert suggestion.details["num_preserved"] == 0
     assert suggestion.details["num_values"] == suggestion.details["limits"][0]["candidates"] == 11
-    assert suggestion.details["num_features"] == 1
+    assert suggestion.details["num_candidate_features"] == 1
+    assert suggestion.details["num_features"] == 0
+    assert suggestion.summary == ("Found 11 rare values across 1 column whose signal may be lost during data "
+                                  "distillation, none of which can be preserved at this `max_distilled_cases`")
     assert suggestion.details["value_weight_multipliers"] == {}
     (caveat,) = suggestion.caveats
     assert caveat["code"] == "partial_rare_value_preservation"
@@ -1998,6 +2008,36 @@ def test_preserve_rare_values_duplicate_values():
         infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
                                  preserve_rare_values={"a": [{"value": "rare", "multiplier": 3.0},
                                                              {"value": "rare", "multiplier": 4.0}]})
+
+
+def test_preserve_rare_values_multiplier_of_one_is_omitted():
+    """Test that a value paired with a multiplier of 1 is left out of the output, like any unchanged value."""
+    df = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 60 + ["small"] * 10})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                            preserve_rare_values={"a": [{"value": "rare", "multiplier": 2},
+                                                                        {"value": "small", "multiplier": 1}]},
+                                            enable_suggestions=False)
+    assert set(_multipliers(features["a"])) == {"rare", "common"}
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+    # Asking for no change at all writes nothing and says nothing, with or without a target, even when
+    # the feature has no value that could donate
+    no_donor = pd.DataFrame({"a": ["x"] * 50 + ["y"] * 50})
+    for frame in (df, no_donor):
+        for kwargs in ({"max_distilled_cases": 200}, {}):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", UserWarning)
+                features = infer_feature_attributes(frame, significance_threshold=30, enable_suggestions=False,
+                                                    preserve_rare_values={"a": [{"value": "x" if frame is no_donor
+                                                                                 else "rare", "multiplier": 1}]},
+                                                    **kwargs)
+            assert "value_weight_multipliers" not in features["a"]
+    # A multiplier of 1 still counts as a conflicting duplicate of another multiplier for the same value
+    with pytest.raises(ValueError, match="two different multipliers, 1 and 2"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": [{"value": "rare", "multiplier": 1},
+                                                             {"value": "rare", "multiplier": 2}]})
 
 
 @pytest.mark.parametrize("max_workers", [0, 2])

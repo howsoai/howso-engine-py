@@ -510,9 +510,12 @@ class PRVSuggestion(IFASuggestion):
         candidates_explanation = ""
         for candidate in details["top_values"]:
             candidates_explanation += f"\n    - Column name: {candidate['feature']}, value: {candidate['value']}"
-        if self.can_apply:
-            candidates_explanation += (f"\n\nIn total, we identified {details['num_values']} values that may be "
-                                       "lost during data distillation.")
+        candidates_explanation += (
+            f"\n\nIn total, we identified {_count(details['num_values'], 'value')} across "
+            f"{_count(details['num_candidate_features'], 'column')} that may be lost during data distillation, "
+            f"of which {_count(details['num_preserved'], 'value')} across "
+            f"{_count(details['num_features'], 'column')} can be preserved at this `max_distilled_cases`."
+        )
         header = "Rare Value Preservation"
         body = (
             "Here are some values in your data that may be good candidates for Rare Value Preservation:\n"
@@ -602,11 +605,26 @@ class PRVSuggestion(IFASuggestion):
 
     @property
     def summary(self) -> str:
-        """A one-line statement of the rare values found."""
+        """
+        A one-line statement of the rare values found.
+
+        Leads with the values the suggested multipliers preserve, which is what applying the
+        suggestion writes; candidates that cannot be funded at this ``max_distilled_cases`` are
+        counted separately, so that the headline matches the result of applying.
+        """
         details = self.details
-        return (f"Found {_count(details['num_values'], 'rare value')} across "
-                f"{_count(details['num_features'], 'column')} "
-                "whose signal may be lost during data distillation workflows")
+        unfunded = details["num_values"] - details["num_preserved"]
+        unfunded_features = sum(1 for limit in self._limits if limit["preserved"] < limit["candidates"])
+        if details["num_preserved"] == 0:
+            return (f"Found {_count(details['num_values'], 'rare value')} across "
+                    f"{_count(details['num_candidate_features'], 'column')} whose signal may be lost during data "
+                    "distillation, none of which can be preserved at this `max_distilled_cases`")
+        statement = (f"Found {_count(details['num_preserved'], 'rare value')} across "
+                     f"{_count(details['num_features'], 'column')} that can be preserved during data distillation")
+        if unfunded:
+            statement += (f", and {unfunded:,} more across {_count(unfunded_features, 'column')} that cannot be "
+                          "at this `max_distilled_cases`")
+        return statement
 
     @property
     def can_apply(self) -> bool:
@@ -640,19 +658,21 @@ class PRVSuggestion(IFASuggestion):
         The rare values found.
 
         Contains ``num_values``, the rare values found; ``num_preserved``, those the suggested
-        multipliers preserve; ``num_features``; ``limits``, one entry per feature whose rare
-        values could not all be preserved; ``top_values``, the most frequent candidates as dicts
-        of ``feature``, ``value`` and ``count``, most frequent first; and
-        ``value_weight_multipliers``, the suggested multipliers of each feature, as ``apply``
-        writes them to the feature attributes.
+        multipliers preserve; ``num_candidate_features``, the features with rare values;
+        ``num_features``, those whose rare values are preserved, which ``apply`` writes to;
+        ``limits``, one entry per feature whose rare values could not all be preserved;
+        ``top_values``, the most frequent candidates as dicts of ``feature``, ``value`` and
+        ``count``, most frequent first; and ``value_weight_multipliers``, the suggested
+        multipliers of each feature, as ``apply`` writes them to the feature attributes.
         """
         num_preserved = sum(len(values) for values in self._protected_values.values())
         not_preserved = sum(limit["candidates"] - limit["preserved"] for limit in self._limits)
-        features = set(self._prvc) | {limit["feature"] for limit in self._limits}
+        candidate_features = set(self._prvc) | {limit["feature"] for limit in self._limits}
         return {
             "num_values": num_preserved + not_preserved,
             "num_preserved": num_preserved,
-            "num_features": len(features),
+            "num_candidate_features": len(candidate_features),
+            "num_features": len(self._prvc),
             "limits": [dict(limit) for limit in self._limits],
             "top_values": [dict(candidate) for candidate in self._ranking],
             "value_weight_multipliers": {
