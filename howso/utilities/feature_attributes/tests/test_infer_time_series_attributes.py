@@ -14,7 +14,7 @@ import pytest
 from howso import client
 from howso.engine import Trainee
 from howso.utilities.feature_attributes import infer_feature_attributes
-from howso.utilities.feature_attributes.base import SingleTableFeatureAttributes
+from howso.utilities.feature_attributes.base import InferFeatureAttributesBase, SingleTableFeatureAttributes
 from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
 
 root_path = (
@@ -410,6 +410,111 @@ def test_time_series_features_pandas_native_date():
                 assert valid[feature]["time_series"]["delta_max"] == attrs["time_series"]["delta_max"]
             else:
                 raise ValueError(f"Invalid time-series type: {valid[feature]['time_series']['type']} for {feature=}.")
+
+
+@pytest.mark.parametrize("id_feature_name", [None, "ID", ["ID", "ID2"]])
+@pytest.mark.parametrize("datetime_time", [False, True])
+def test_time_series_bounds_ignore_unique_time_row_order(id_feature_name, datetime_time):
+    """Unique-time permutations preserve bounds without mutating data or relying on index labels."""
+    df = pd.DataFrame({"time": [0., 1., 3., 6.], "value": [2., 7., 3., 15.]})
+    if id_feature_name is not None:
+        df = pd.concat([df.assign(ID="a", ID2="x"), (df * 2).assign(ID="b", ID2="x")])
+        if isinstance(id_feature_name, list):
+            df = pd.concat([df, df.iloc[:4].assign(ID2="y", value=[10., 4., 8., 20.])])
+    # Deliberately nonunique labels, unrelated to time or series order.
+    df.index = [1, 0] * (len(df) // 2)
+    kwargs = dict(
+        time_feature_name="time",
+        id_feature_name=id_feature_name,
+        types={"value": "continuous"},
+        enable_suggestions=False,
+    )
+    for ts_type in ("rate", "delta"):
+        expected = infer_feature_attributes(df, time_series_type_default=ts_type, **kwargs)
+        data = df.copy(deep=True)
+        if datetime_time:
+            # This format's lexical order differs from chronological order across the month boundary.
+            data["time"] = (pd.Timestamp("2024-01-31 23:59:59") + pd.to_timedelta(data["time"], unit="s"))
+            data["time"] = data["time"].dt.strftime("%d/%m/%Y %H:%M:%S")
+        for shuffled in (data.iloc[::-1], data.sample(frac=1, random_state=42)):
+            original = shuffled.copy(deep=True)
+            actual = infer_feature_attributes(
+                shuffled,
+                time_series_type_default=ts_type,
+                datetime_feature_formats={"time": "%d/%m/%Y %H:%M:%S"} if datetime_time else None,
+                default_time_zone="UTC",
+                **kwargs,
+            )
+            for feature, bound_type in (("time", "delta"), ("value", ts_type)):
+                for bound in ("min", "max"):
+                    key = f"{bound_type}_{bound}"
+                    assert actual[feature]["time_series"][key] == expected[feature]["time_series"][key]
+            pd.testing.assert_frame_equal(shuffled, original)
+
+
+@pytest.mark.parametrize("id_feature_name", ["ID", ["ID", "ID2"]])
+@pytest.mark.parametrize("other_id", ["b", pd.Timestamp("2024-01-01")])
+@pytest.mark.parametrize("datetime_time", [False, True])
+def test_time_series_bounds_with_mixed_type_ids(id_feature_name, other_id, datetime_time, monkeypatch):
+    """Public inference groups heterogeneous IDs without requiring them to be sortable."""
+    # Keep random datetime detection of heterogeneous IDs out of this bounds regression.
+    monkeypatch.setattr(InferFeatureAttributesBase, "_is_iso8601_datetime_column", lambda self, feature: False)
+    df = pd.DataFrame(
+        {"ID": [1, "a", other_id] * 3, "ID2": ["x"] * 9,
+         "time": [3., 6., 3., 0., 0., 0., 1., 2., 1.],
+         "value": [9., 19., 29., 0., 10., 20., 2., 15., 24.]},
+    )
+    if datetime_time:
+        # Cross a month boundary so lexical and chronological order differ.
+        df["time"] = pd.Timestamp("2024-01-31 23:59:59") + pd.to_timedelta(df["time"], unit="s")
+        df["time"] = df["time"].dt.strftime("%d/%m/%Y %H:%M:%S")
+    original = df.copy(deep=True)
+    for ts_type in ("rate", "delta"):
+        kwargs = dict(
+            time_feature_name="time",
+            id_feature_name=id_feature_name,
+            types={"ID": "nominal", "value": "continuous"},
+            time_invariant_features=["ID2"],
+            time_series_type_default=ts_type,
+            datetime_feature_formats={"time": "%d/%m/%Y %H:%M:%S"} if datetime_time else None,
+            default_time_zone="UTC",
+            enable_suggestions=False,
+        )
+        expected = infer_feature_attributes(df.assign(ID=["c", "a", "b"] * 3), **kwargs)
+        actual = infer_feature_attributes(df, **kwargs)
+        for feature in ("time", "value"):
+            assert actual[feature]["time_series"] == expected[feature]["time_series"]
+        pd.testing.assert_frame_equal(df, original)
+
+
+@pytest.mark.parametrize("id_feature_name", [None, "ID", ["ID", "ID2"]])
+@pytest.mark.parametrize("tie_values", [[2., 3., 4., 5., 6., 7.], [7., 6., 5., 4., 3., 2.]])
+def test_time_series_bounds_preserve_equal_time_input_order(id_feature_name, tie_values):
+    """Equal-time events retain their input order and use the 0.001 rate denominator."""
+    df = pd.DataFrame(
+        {"time": [2., *([1.] * len(tie_values)), 0.], "value": [9., *tie_values, 0.]},
+        index=[1, 0] * 4,
+    )
+    if id_feature_name is not None:
+        df = df.assign(ID="a", ID2="x")
+    for ts_type in ("rate", "delta"):
+        features = infer_feature_attributes(
+            df,
+            time_feature_name="time",
+            id_feature_name=id_feature_name,
+            types={"value": "continuous"},
+            time_series_type_default=ts_type,
+            enable_suggestions=False,
+        )
+        # Bounds reflect the input order of tied events.
+        differences = np.diff([0., *tie_values, 9.])
+        if ts_type == "rate":
+            differences[1:-1] /= 0.001
+        expected_min, expected_max = InferFeatureAttributesBase.infer_loose_feature_bounds(
+            min(differences), max(differences)
+        )
+        assert features["value"]["time_series"][f"{ts_type}_min"] == pytest.approx([expected_min])
+        assert features["value"]["time_series"][f"{ts_type}_max"] == pytest.approx([expected_max])
 
 
 def test_missing_time():
