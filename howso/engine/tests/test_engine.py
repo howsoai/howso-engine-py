@@ -493,11 +493,11 @@ def test_value_weight_multipliers_applied_at_train():
     finally:
         trainee.delete()
     assert len(cases) == n
-    # The Engine multiplies a case's weight by the listed multiplier of each of its values, and an
-    # unlisted value leaves the weight alone
-    expected = cases["a"].map(lambda v: multipliers["a"].get(v, 1.0)) * cases["b"].map(
-        lambda v: multipliers["b"].get(v, 1.0))
+    # A case's weight is the mean of its multipliers over the features that carry any, an unlisted
+    # value counting as 1, so the total weight is conserved across features as well as within each
+    expected = (cases["a"].map(lambda v: multipliers["a"].get(v, 1.0))
+                + cases["b"].map(lambda v: multipliers["b"].get(v, 1.0))) / 2
     assert cases[".case_weight"].to_numpy() == pytest.approx(expected.to_numpy())
-    # Within one feature the reweighting conserves total case weight
+    assert cases[".case_weight"].sum() == pytest.approx(n)
     weights_a = cases["a"].map(lambda v: multipliers["a"].get(v, 1.0))
     assert weights_a.sum() == pytest.approx(n)
