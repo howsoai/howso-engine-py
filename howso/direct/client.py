@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, MutableMapping
+from collections.abc import Generator, Iterable, Mapping, MutableMapping
 from concurrent.futures import Future, ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from functools import cached_property
 from http import HTTPStatus
 import importlib.metadata
@@ -15,7 +15,7 @@ import operator
 import os
 from pathlib import Path
 import platform
-import typing as t
+from typing import Any, cast, Literal
 import uuid
 import warnings
 
@@ -54,13 +54,13 @@ from howso.utilities.progress import auto_progress
 from howso.utilities.random import get_random_seed
 
 # Client version
-CLIENT_VERSION = importlib.metadata.version('howso-engine')
+CLIENT_VERSION = importlib.metadata.version("howso-engine")
 
 # Configure howso base logger
-logger = logging.getLogger('howso.direct')
+logger = logging.getLogger("howso.direct")
 
 _VERSION_CHECKED = False
-DT_FORMAT_KEY = 'date_time_format'
+DT_FORMAT_KEY = "date_time_format"
 DATA_PARAMETERS_KEY = "data_parameters_map"
 VERSION_CHECK_HOST = "https://version-check.howso.com"
 
@@ -75,8 +75,8 @@ _trainee_cache = TraineeCache()
 
 
 @contextmanager
-def squelch_logs(log_level: int):
-    """A context manager to temporarily disable logs."""
+def squelch_logs(log_level: int) -> Generator[None, None, None]:
+    """Temporarily disable logging at or below the given level."""
     _old_level = logging.root.manager.disable
     logging.disable(log_level)
     try:
@@ -138,43 +138,42 @@ class HowsoDirectClient(AbstractHowsoClient):
     """
 
     #: The characters which are disallowed from being a part of a Trainee name or ID.
-    BAD_TRAINEE_NAME_CHARS = {'..', '\\', '/', ':', '\0'}
+    BAD_TRAINEE_NAME_CHARS = frozenset(["..", "\\", "/", ":", "\0"])
 
     #: The supported values of precision for methods that accept it
-    SUPPORTED_PRECISION_VALUES = ["exact", "similar"]
+    SUPPORTED_PRECISION_VALUES = ("exact", "similar")
     INCORRECT_PRECISION_VALUE_WARNING = (
         "Supported values for 'precision' are \"exact\" and \"similar\". The "
         "operation will be completed as if the value of 'precision' is "
-        "\"exact\"."
+        '"exact".'
     )
 
     def __init__(
         self, *,
-        amalgam: t.Optional[Mapping[str, t.Any]] = None,
-        config_path: t.Optional[Path | str] = None,
+        amalgam: Mapping[str, Any] | None = None,
+        config_path: Path | str | None = None,
         debug: bool = False,
-        default_persist_path: t.Optional[Path | str] = None,
+        default_persist_path: Path | str | None = None,
         howso_path: Path | str = DEFAULT_ENGINE_PATH,
         howso_fname: str = "howso.caml",
         react_initial_batch_size: int = 10,
-        tokenizer: t.Optional[TokenizerProtocol] = None,
+        tokenizer: TokenizerProtocol | None = None,
         trace: bool = False,
         train_initial_batch_size: int = 100,
         verbose: bool = False,
         version_check: bool = True,
-        **kwargs
-    ):
-        global _VERSION_CHECKED
+        **kwargs: Mapping[Any, Any]
+    ) -> None:
+        global _VERSION_CHECKED  # noqa: PLW0603
 
         # Set the 'howso' logger level to debug
-        if debug:
-            # Don't alter if level already below debug
-            if logger.level > logging.DEBUG or logger.level == 0:
-                logger.setLevel(logging.DEBUG)
+        # Don't alter if level already below debug
+        if debug and (logger.level > logging.DEBUG or logger.level == 0):
+            logger.setLevel(logging.DEBUG)
 
         with ThreadPoolExecutor(max_workers=1) as executor:
             if version_check and not _VERSION_CHECKED:
-                _VERSION_CHECKED = True
+                _VERSION_CHECKED = True  # pyright: ignore[reportConstantRedefinition]
                 self.version_check_task = executor.submit(self.check_version)
                 self.version_check_task.add_done_callback(self.report_version)
 
@@ -204,7 +203,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Determine the default save directory
         if default_persist_path:
             self.default_persist_path = Path(default_persist_path).expanduser()
-            logger.debug(f'The Trainee default save directory has been overridden to: {self.default_persist_path}')
+            logger.debug(f"The Trainee default save directory has been overridden to: {self.default_persist_path}")  # noqa: G004
         else:
             # If no specific location provided, use current working directory.
             self.default_persist_path = Path.cwd()
@@ -216,14 +215,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Resolve path to engine caml
         self._howso_absolute_path = Path(self._howso_dir, self._howso_filename)
         if not self._howso_absolute_path.exists():
-            raise HowsoError(f'Howso Engine file does not exist at: {self._howso_absolute_path}')
-        logger.debug(f'Using Howso Engine file: {self._howso_absolute_path}')
+            raise HowsoError(f"Howso Engine file does not exist at: {self._howso_absolute_path}")
+        logger.debug(f"Using Howso Engine file: {self._howso_absolute_path}")  # noqa: G004
 
         self.__init_amalgam(amalgam)
 
         self.begin_session()
 
-    def __init_amalgam(self, options: t.Optional[Mapping[str, t.Any]] = None):
+    def __init_amalgam(self, options: Mapping[str, Any] | None = None) -> None:
         """Initialize the Amalgam instance."""
         gc_params = None
         if options and GARBAGE_COLLECTION_KEY in options:
@@ -231,19 +230,19 @@ class HowsoDirectClient(AbstractHowsoClient):
             gc_params = options.pop(GARBAGE_COLLECTION_KEY)
         # The parameters to pass to the Amalgam instance
         amlg_params = {
-            'library_path': None,
-            'gc_interval': 100,
-            'sbf_datastore_enabled': None,
-            'max_num_threads': None,
-            'trace': self._trace_enabled,
-            'execution_trace_file': self._trace_filename,
+            "library_path": None,
+            "gc_interval": 100,
+            "sbf_datastore_enabled": None,
+            "max_num_threads": None,
+            "trace": self._trace_enabled,
+            "execution_trace_file": self._trace_filename,
         }
         if options:
             # Merge Amalgam override parameters - favoring the configured params
             if amlg_params_intersection := amlg_params.keys() & options.keys():
                 # Warn that there are changes
                 logger.warning(
-                    "The following parameters from your configuration will "
+                    f"The following parameters from your configuration will "  # noqa: G004
                     f"override the default Amalgam parameters: {amlg_params_intersection}"
                 )
             amlg_params.update(options)
@@ -252,15 +251,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         if unknown_amlg_params := set(amlg_params) - set(allowed_amlg_params):
             warnings.warn(
                 f"Unknown Amalgam() parameters were specified and ignored: {unknown_amlg_params}",
-                UnsupportedArgumentWarning)
+                UnsupportedArgumentWarning, stacklevel=2)
         amlg_params = {k: v for k, v in amlg_params.items() if k in allowed_amlg_params}
-        self.amlg = Amalgam(**amlg_params)
+        self.amlg = Amalgam(**amlg_params)  # pyright: ignore[reportArgumentType]
         if gc_params:
             self.set_garbage_collection_params(gc_params)
 
     def check_version(self) -> str | None:
         """Check if there is a more recent version."""
-        http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED',
+        http = urllib3.PoolManager(cert_reqs="CERT_REQUIRED",
                                    ca_certs=certifi.where(),
                                    retries=Retry(total=1),
                                    timeout=Timeout(total=3),
@@ -269,27 +268,25 @@ class HowsoDirectClient(AbstractHowsoClient):
         with squelch_logs(logging.WARNING + 1):
             response = http.request(method="GET", url=url)
         if HTTPStatus.OK <= response.status < HTTPStatus.MULTIPLE_CHOICES:
-            payload = json.loads(response.data.decode('utf-8'))
-            return payload.get('version')
+            payload = json.loads(response.data.decode("utf-8"))
+            return payload.get("version")
         raise AssertionError("Not OK response.")
 
-    def report_version(self, task: Future):
+    def report_version(self, task: Future[str | None]) -> None:
         """Report to end-user that there is a newer version available."""
-        try:
+        latest_version = None
+        with suppress(Exception):
             latest_version = task.result()
-        except Exception:
-            pass
-        else:
-            if latest_version and latest_version != CLIENT_VERSION:
-                if parse_version(latest_version) > parse_version(CLIENT_VERSION):
-                    logger.warning(
-                        f"Version {latest_version} of Howso Engine™ is "
-                        f"available. You are using version {CLIENT_VERSION}.")
-                elif parse_version(latest_version) < parse_version(CLIENT_VERSION):
-                    logger.debug(
-                        f"Version {latest_version} of Howso Engine™ is "
-                        f"available. You are using version {CLIENT_VERSION}. "
-                        f"This is a pre-release version.")
+        if latest_version and latest_version != CLIENT_VERSION:
+            if parse_version(latest_version) > parse_version(CLIENT_VERSION):
+                logger.warning(
+                    f"Version {latest_version} of Howso Engine™ is "  # noqa: G004
+                    f"available. You are using version {CLIENT_VERSION}.")
+            elif parse_version(latest_version) < parse_version(CLIENT_VERSION):
+                logger.debug(
+                    f"Version {latest_version} of Howso Engine™ is "  # noqa: G004
+                    f"available. You are using version {CLIENT_VERSION}. "
+                    f"This is a pre-release version.")
 
     @property
     def react_initial_batch_size(self) -> int:
@@ -304,7 +301,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         return self._react_initial_batch_size
 
     @react_initial_batch_size.setter
-    def react_initial_batch_size(self, initial_batch_size: int):
+    def react_initial_batch_size(self, initial_batch_size: int) -> None:
         """
         Set the default number of cases in the first react batch.
 
@@ -314,10 +311,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             The number of cases to react to in the first batch of
             :meth:`HowsoDirectClient.react`.
         """
-        if isinstance(initial_batch_size, int):
-            self._react_initial_batch_size = initial_batch_size
-        else:
-            raise ValueError("The initial batch size must be an integer.")
+        if isinstance(initial_batch_size, bool) or not isinstance(initial_batch_size, int):
+            raise TypeError("The initial batch size must be an integer.")
+        self._react_initial_batch_size = initial_batch_size
 
     @property
     def train_initial_batch_size(self) -> int:
@@ -332,7 +328,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         return self._train_initial_batch_size
 
     @train_initial_batch_size.setter
-    def train_initial_batch_size(self, initial_batch_size: int):
+    def train_initial_batch_size(self, initial_batch_size: int) -> None:
         """
         Set the default number of cases in the first train batch.
 
@@ -342,10 +338,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             The number of cases to train in the first batch of
             :meth:`HowsoDirectClient.train`.
         """
-        if isinstance(initial_batch_size, int):
-            self._train_initial_batch_size = initial_batch_size
-        else:
-            raise ValueError("The initial batch size must be an integer.")
+        # bool is a subclass of int, but True/False are not valid batch sizes
+        if isinstance(initial_batch_size, bool) or not isinstance(initial_batch_size, int):
+            raise TypeError("The initial batch size must be an integer.")
+        self._train_initial_batch_size = initial_batch_size
 
     @property
     def active_session(self) -> Session:
@@ -371,7 +367,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return _trainee_cache
 
-    def _deserialize(self, label: str, payload: str | bytes | None) -> t.Any:
+    def _deserialize(self, label: str, payload: str | bytes | None) -> Any:
         """Deserialize engine response."""
         if payload is None or len(payload) == 0:
             return None
@@ -383,37 +379,36 @@ class HowsoDirectClient(AbstractHowsoClient):
                 if status != 1:
                     # If result is an error, raise it
                     # Error detail can be either a string or a list of strings
-                    detail = data.get('detail') or []
+                    detail = data.get("detail") or []
                     if detail:
                         if isinstance(detail, list):
                             # Use first error only
                             detail = detail[0]
-                        code = data.get('code')
-                        errors = data.get('errors')
-                        if errors or code == 'invalid':
+                        code = data.get("code")
+                        errors = data.get("errors")
+                        if errors or code == "invalid":
                             ex = HowsoValidationError(detail, code=code, errors=errors)
                             if self.verbose and errors:
                                 # Print all the validation errors in verbose mode
                                 errors = "\n  - ".join(ex.messages())
                                 print(f"The following validation errors occurred in {label}:\n  - {errors}")
-                            raise ex
-                        raise HowsoError(detail, code=code)
-                    else:
-                        # Unknown error occurred
-                        raise HowsoError(f'An unknown error occurred during {label}.')
+                            raise ex  # noqa: TRY301
+                        raise HowsoError(detail, code=code)  # noqa: TRY301
+                    # Unknown error occurred
+                    raise HowsoError(f"An unknown error occurred during {label}.")  # noqa: TRY301
 
-                warning_list = data.get('warnings') or []
+                warning_list = data.get("warnings") or []
                 for w in warning_list:
-                    warnings.warn(w, category=HowsoWarning)
+                    warnings.warn(w, category=HowsoWarning, stacklevel=2)
 
-                return data.get('payload')
-            return data
+                return data.get("payload")
+            return data  # noqa: TRY300
         except HowsoError:
             raise
-        except Exception:  # noqa: Deliberately broad
-            raise HowsoError('Failed to deserialize the Howso Engine response.')
+        except Exception as e:
+            raise HowsoError("Failed to deserialize the Howso Engine response.") from e
 
-    def _resolve_trainee(self, trainee_id: str, **kwargs) -> DirectTrainee:
+    def _resolve_trainee(self, trainee_id: str, **kwargs: Mapping[Any, Any]) -> DirectTrainee:
         """
         Resolve a Trainee and acquire its resources.
 
@@ -430,7 +425,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         if trainee_id not in self.trainee_cache:
             self.acquire_trainee_resources(trainee_id)
         trainee = self._cached_trainee(trainee_id)
-        assert trainee is not None  # acquire_trainee_resources always inserts one
+        if trainee is None:
+            # Unreachable: acquire_trainee_resources always inserts one
+            raise AssertionError(f'Trainee "{trainee_id}" is missing from the cache after acquiring its resources.')
         return trainee
 
     def _cached_trainee(self, trainee_id: str) -> DirectTrainee | None:
@@ -461,7 +458,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         self.trainee_cache.set(direct_trainee)
         return direct_trainee
 
-    def _auto_persist_trainee(self, trainee_id: str):
+    def _auto_persist_trainee(self, trainee_id: str) -> None:
         """
         Automatically persists the Trainee if it has persistence set to True.
 
@@ -473,7 +470,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee = self._cached_trainee(trainee_id)
         if trainee is None:
             return
-        if trainee.persistence != 'always':
+        if trainee.persistence != "always":
             return
         # always-persist trainees are opened in Amalgam transactional mode, so
         # the engine will append to the file on its own.  This causes the file
@@ -493,17 +490,21 @@ class HowsoDirectClient(AbstractHowsoClient):
             json_file_params='{"transactional":true,"flatten":true}'
         )
         if not is_persisted:
-            warnings.warn(f'Failed to auto persist Trainee "{trainee_id}" to file path: {resolved_path}', UserWarning)
+            warnings.warn(
+                f'Failed to auto persist Trainee "{trainee_id}" to file path: {resolved_path}',
+                UserWarning,
+                stacklevel=2
+            )
         trainee.file_size = self._trainee_size(trainee_id)
 
-    def _store_session(self, trainee_id: str, session: Session):
+    def _store_session(self, trainee_id: str, session: Session) -> None:
         """Store session details in a Trainee."""
         self.execute(trainee_id, "set_session_metadata", {
             "session": session.id,
             "metadata": session.to_dict(),
         })
 
-    def _initialize_trainee(self, trainee_id: str):
+    def _initialize_trainee(self, trainee_id: str) -> None:
         """Create a new Amalgam entity."""
         json_file_params = ""
         if self._howso_ext == ".amlg":
@@ -522,13 +523,13 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         self.execute(trainee_id, "initialize", {
             "trainee_id": trainee_id,
-            "filepath": str(self._howso_dir) + '/',
+            "filepath": str(self._howso_dir) + "/",
         })
         if self.is_tracing_enabled(trainee_id):
             # If tracing is enabled, log the trainee version
             self.execute(trainee_id, "get_trainee_version", {})
 
-    def _initialize_transactional_trainee(self, trainee_id: str):
+    def _initialize_transactional_trainee(self, trainee_id: str) -> None:
         # Create a temporary trainee and initialize it in the normal way, then clone it with transactional mode on.
         tmp_id = str(uuid.uuid4())
         self._initialize_trainee(tmp_id)
@@ -565,11 +566,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         if metadata is None:
             raise HowsoError(f"Trainee '{trainee_id}' not found.")
 
-        persistence = metadata.get('persistence', 'allow')
-        trainee_meta = metadata.get('metadata')
-        trainee_name = metadata.get('name')
+        persistence = metadata.get("persistence", "allow")
+        trainee_meta = metadata.get("metadata")
+        trainee_name = metadata.get("name")
         file_size: int | None = None
-        if persistence == 'always':
+        if persistence == "always":
             file_size = self._trainee_size(trainee_id)
 
         return DirectTrainee(
@@ -580,7 +581,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             file_size=file_size
         )
 
-    def _get_trainee_thread_count(self, trainee_id: str) -> int:
+    def _get_trainee_thread_count(self, trainee_id: str) -> int:  # noqa: ARG002
         """
         Get the number of available cpu threads a Trainee has access to.
 
@@ -596,7 +597,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return self.amlg.get_max_num_threads()
 
-    def _should_react_batch(self, params: dict, total_size: int) -> bool:
+    def _should_react_batch(self, params: Mapping[str, Any], total_size: int) -> bool:
         """
         Determine if given react should be batched.
 
@@ -612,19 +613,18 @@ class HowsoDirectClient(AbstractHowsoClient):
         bool
             Whether a react should be batched.
         """
-        if params.get('desired_conviction') is not None:
+        if params.get("desired_conviction") is not None:
             if total_size > self._react_generative_batch_threshold:
                 return True
-        else:
-            if total_size > self._react_discriminative_batch_threshold:
-                return True
+        elif total_size > self._react_discriminative_batch_threshold:
+            return True
         return False
 
     def resolve_trainee_filepath(
         self,
         filename: str,
         *,
-        filepath: t.Optional[str | Path] = None
+        filepath: str | Path | None = None
     ) -> str:
         """
         Resolve the path to a persisted Trainee file.
@@ -701,11 +701,11 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         label: str,
-        payload: t.Any,
+        payload: Any,
         *,
         path: Iterable[str] | None = None,
-        **kwargs,
-    ) -> t.Any:
+        **kwargs: Mapping[Any, Any],
+    ) -> Any:
         """
         Execute a label in Howso engine.
 
@@ -735,10 +735,12 @@ class HowsoDirectClient(AbstractHowsoClient):
                 json_payload = json.dumps({"payload": payload, "method": label, "path": list(path)})
                 result = self.amlg.execute_entity_json(trainee_id, "execute_on_subtrainee", json_payload)
         except ValueError as err:
-            raise HowsoError('Invalid payload - please check for infinity or NaN values') from err
+            raise HowsoError("Invalid payload - please check for infinity or NaN values") from err
         return self._deserialize(label, result)
 
-    def execute_sized(self, trainee_id: str, label: str, payload: t.Any, **kwargs) -> tuple[t.Any, int, int]:
+    def execute_sized(
+        self, trainee_id: str, label: str, payload: Any, **kwargs: Mapping[Any, Any]
+    ) -> tuple[Any, int, int]:
         """
         Execute a label in Howso engine and return the request and response sizes.
 
@@ -765,10 +767,10 @@ class HowsoDirectClient(AbstractHowsoClient):
             json_payload = json.dumps(payload)
             result = self.amlg.execute_entity_json(trainee_id, label, json_payload)
         except ValueError as err:
-            raise HowsoError('Invalid payload - please check for infinity or NaN values') from err
+            raise HowsoError("Invalid payload - please check for infinity or NaN values") from err
         return self._deserialize(label, result), len(json_payload), len(result)
 
-    def is_tracing_enabled(self, trainee_id: str) -> bool:
+    def is_tracing_enabled(self, trainee_id: str) -> bool:  # noqa: ARG002
         """
         Get if tracing is enabled for Trainee.
 
@@ -816,7 +818,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return frozenset(self.get_garbage_collection_params())
 
-    def get_garbage_collection_params(self) -> dict[str, t.Any]:
+    def get_garbage_collection_params(self) -> dict[str, Any]:
         """
         Get the native garbage-collection parameters of the Amalgam library.
 
@@ -831,7 +833,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         return json.loads(self.amlg.get_garbage_collection_params())
 
-    def set_garbage_collection_params(self, params: Mapping[str, t.Any]) -> None:
+    def set_garbage_collection_params(self, params: Mapping[str, Any]) -> None:
         """
         Update the native garbage-collection parameters of the Amalgam library.
 
@@ -856,7 +858,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if unknown_params := params.keys() - supported_params:
             warnings.warn(
                 f"Unknown garbage-collection parameters were specified and ignored: {unknown_params}",
-                UnsupportedArgumentWarning)
+                UnsupportedArgumentWarning, stacklevel=2)
         known_params = {k: v for k, v in params.items() if k in supported_params}
         if known_params:
             self.amlg.set_garbage_collection_params(json.dumps(known_params))
@@ -902,8 +904,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         try:
             # Check for invalid chars in the whole path.
-            if any((c for c in ["\0"] if c in str(file_path))):
-                return False, 'Bad symbols'
+            if any(c for c in ["\0"] if c in str(file_path)):
+                return False, "Bad symbols"
 
             # Ensure file_path is a Path.
             if not isinstance(file_path, Path):
@@ -911,7 +913,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             # Ensure that it resolves to an absolute path
             if not file_path.resolve(strict=False).is_absolute():
-                return False, 'Not an absolute path'
+                return False, "Not an absolute path"
 
             # Ensure that the parent directory exists and appears writable for
             # the /effective/ user on non-Windows.
@@ -922,28 +924,28 @@ class HowsoDirectClient(AbstractHowsoClient):
                     not os.access(path, os.W_OK, effective_ids=True,
                                   follow_symlinks=True)
                 ):
-                    return False, 'Cannot write to this path'
+                    return False, "Cannot write to this path"
 
-        except Exception as e:  # noqa: Deliberately broad
-            return False, f'Exception {e} while checking file'
+        except Exception as e:  # noqa: BLE001
+            return False, f"Exception {e} while checking file"
         else:
-            return True, 'OK'
+            return True, "OK"
 
-    def create_trainee(  # noqa: C901
+    def create_trainee(  # noqa: PLR0912, PLR0915
         self,
-        name: t.Optional[str] = None,
-        features: t.Optional[Mapping[str, Mapping]] = None,
+        name: str | None = None,
+        features: Mapping[str, Mapping[Any, Any]] | None = None,
         *,
-        id: t.Optional[str | uuid.UUID] = None,
-        library_type: t.Optional[LibraryType] = None,
-        max_wait_time: t.Optional[int | float] = None,
-        metadata: t.Optional[MutableMapping[str, t.Any]] = None,
+        id: str | uuid.UUID | None = None,  # noqa: A002
+        library_type: LibraryType | None = None,
+        max_wait_time: float | None = None,
+        metadata: MutableMapping[str, Any] | None = None,
         overwrite_trainee: bool = False,
         persistence: Persistence = "allow",
-        project: t.Optional[str | Project] = None,
+        project: str | Project | None = None,  # noqa: ARG002
         random_seed: str | float | None = None,
-        resources: t.Optional[Mapping[str, t.Any]] = None,
-        runtime: t.Optional[TraineeRuntimeOptions] = None,
+        resources: Mapping[str, Any] | None = None,
+        runtime: TraineeRuntimeOptions | None = None,
     ) -> Trainee:
         """
         Create a Trainee on the Howso service.
@@ -992,7 +994,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if not id:
             # Default id to trainee name, or new uuid if no name
-            id = name or uuid.uuid4()
+            id = name or uuid.uuid4()  # noqa: A001
 
         trainee_id = str(id)
 
@@ -1034,7 +1036,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                         reason = f'"{sequence}" is not permitted in trainee ids'
                     break
             else:
-                success, reason = True, 'OK'
+                success, reason = True, "OK"
 
             proposed_path: Path = self.default_persist_path.joinpath(trainee_id)
             if success:
@@ -1043,7 +1045,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     proposed_path, clobber=overwrite_trainee)
                 if not can_save:
                     warnings.warn(f'Trainee file name "{proposed_path}" cannot be saved to the '
-                                  f'filesystem (reason: {reason})')
+                                  f'filesystem (reason: {reason})', stacklevel=2)
             else:
                 raise HowsoError(
                     f'Trainee file name "{proposed_path}" is not valid (reason: {reason}).')
@@ -1055,7 +1057,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     self.configuration.verbose,
                     f'Deleting existing Trainee "{trainee_id}" before creating.')
                 self.amlg.destroy_entity(trainee_id)
-            except Exception:  # noqa: Deliberately broad
+            except Exception:  # noqa: BLE001
                 util.dprint(
                     self.configuration.verbose,
                     f'Unable to delete Trainee "{trainee_id}". Continuing.')
@@ -1064,9 +1066,9 @@ class HowsoDirectClient(AbstractHowsoClient):
                 f'A Trainee already exists using the name "{trainee_id}".')
 
         if self.configuration.verbose:
-            print('Creating new Trainee')
+            print("Creating new Trainee")
         # Initialize Amalgam entity
-        if persistence == 'always':
+        if persistence == "always":
             self._initialize_transactional_trainee(trainee_id)
         else:
             self._initialize_trainee(trainee_id)
@@ -1088,7 +1090,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         })
         features = internals.postprocess_feature_attributes(features)
 
-        file_size = self._trainee_size(trainee_id) if persistence == 'always' else None
+        file_size = self._trainee_size(trainee_id) if persistence == "always" else None
 
         # Cache and return the trainee
         new_trainee = DirectTrainee(
@@ -1103,10 +1105,10 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def create_trainee_from_memory(
         self,
-        id: str | uuid.UUID,
+        id: str | uuid.UUID,  # noqa: A002
         content: bytes,
         *,
-        file_type: t.Literal["amlg", "caml"] = "amlg",
+        file_type: Literal["amlg", "caml"] = "amlg",
         path: Iterable[str] | None = None,
         child_id: str | uuid.UUID | None = None,
     ) -> Trainee:
@@ -1137,7 +1139,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if path is not None:
             path = list(path)
             # Each entity child must be preceded by the container name
-            if len(path):
+            if path:
                 entity_path = [p for item in path for p in (SUBTRAINEE_CONTAINER, item)]
             else:
                 entity_path = [SUBTRAINEE_CONTAINER]
@@ -1166,7 +1168,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             )
             if len(path) == 0:
                 # An empty path list will have autocreated the child 1-level deep, capture its generated path
-                path = [t.cast(str, status.entity_path[-1])]
+                path = [cast(str, status.entity_path[-1])]
             self.execute(trainee_id, "set_trainee_id", {"trainee_id": sub_trainee_id}, path=path)
 
             # Build the trainee object from the sub-trainee metadata
@@ -1185,19 +1187,18 @@ class HowsoDirectClient(AbstractHowsoClient):
                 metadata=metadata.get("metadata"),
                 file_size=file_size,
             )
-        else:
-            self.execute(trainee_id, "set_trainee_id", {"trainee_id": trainee_id})
-            self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
-            new_trainee = self._get_trainee_from_engine(trainee_id)
-            self.trainee_cache.set(new_trainee)
-            self.resolve_feature_attributes(trainee_id)
-            return new_trainee
+        self.execute(trainee_id, "set_trainee_id", {"trainee_id": trainee_id})
+        self.amlg.set_entity_permissions(trainee_id, json_permissions='{"load":true,"store":true}')
+        new_trainee = self._get_trainee_from_engine(trainee_id)
+        self.trainee_cache.set(new_trainee)
+        self.resolve_feature_attributes(trainee_id)
+        return new_trainee
 
     def trainee_to_memory(
         self,
         trainee_id: str,
         *,
-        file_type: t.Literal["amlg", "caml"] = "amlg",
+        file_type: Literal["amlg", "caml"] = "amlg",
         trainee_path: Iterable[str] | None = None,
     ) -> bytes | None:
         """
@@ -1230,7 +1231,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             return None
         return content
 
-    def update_trainee(self, trainee: Mapping | Trainee) -> Trainee:
+    def update_trainee(self, trainee: Mapping[Any, Any] | Trainee) -> Trainee:
         """
         Update an existing Trainee in the Howso service.
 
@@ -1252,9 +1253,9 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         old_trainee = self._resolve_trainee(instance.id)
         if self.configuration.verbose:
-            print(f'Updating Trainee with id: {instance.id}')
+            print(f"Updating Trainee with id: {instance.id}")
 
-        if old_trainee.persistence == 'always' and instance.persistence != 'always':
+        if old_trainee.persistence == "always" and instance.persistence != "always":
             # Manually persist the trainee now, turning off transactional mode.
             resolved_path = self.resolve_trainee_filepath(instance.id)
             is_persisted = self.amlg.store_entity(handle=instance.id, file_path=resolved_path)
@@ -1264,7 +1265,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                     f"could not write Trainee to file path: {resolved_path}",
                     code="persist_failed",
                 )
-        elif instance.persistence == 'always' and old_trainee.persistence != 'always':
+        elif instance.persistence == "always" and old_trainee.persistence != "always":
             # Manually persist the trainee, turning on transactional mode.
             resolved_path = self.resolve_trainee_filepath(instance.id)
             is_persisted = self.amlg.store_entity(
@@ -1282,9 +1283,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             instance.file_size = self._trainee_size(instance.id)
 
         metadata = {
-            'name': instance.name,
-            'metadata': instance.metadata,
-            'persistence': instance.persistence,
+            "name": instance.name,
+            "metadata": instance.metadata,
+            "persistence": instance.persistence,
         }
         self.execute(instance.id, "set_metadata", {"metadata": metadata})
 
@@ -1296,9 +1297,9 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id: str,
         *,
         decode_cases: bool = False,
-        filepath: t.Optional[Path | str] = None,
-        path_to_trainee: t.Optional[Path | str] = None,
-    ):
+        filepath: Path | str | None = None,
+        path_to_trainee: Path | str | None = None,
+    ) -> None:
         """
         Export a saved Trainee's data to json files for migration.
 
@@ -1317,8 +1318,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         if path_to_trainee is not None:
             warnings.warn(
-                'The export trainee parameter `path_to_trainee` is deprecated and will be removed in '
-                'a future release. Please use `filepath` instead.', DeprecationWarning)
+                "The export trainee parameter `path_to_trainee` is deprecated and will be removed in "
+                "a future release. Please use `filepath` instead.", DeprecationWarning, stacklevel=2)
             if filepath is None:
                 filepath = path_to_trainee
 
@@ -1332,7 +1333,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise ValueError(f'The export filepath "{filepath}" must be a directory.')
 
         if self.configuration.verbose:
-            print(f'Exporting Trainee with id: {trainee_id}')
+            print(f"Exporting Trainee with id: {trainee_id}")
 
         self.execute(trainee_id, "export_trainee", {
             "trainee_filepath": f"{filepath}/",
@@ -1341,7 +1342,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             "decode_cases": decode_cases,
         })
 
-    def upgrade_trainee(self, filepath: str) -> Trainee:
+    def upgrade_trainee(self, filepath: Path | str) -> Trainee:
         """
         Upgrade a saved Trainee to current version.
 
@@ -1355,7 +1356,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         Trainee
             The Trainee that was upgraded.
         """
-        if filepath is None:
+        if not filepath:
             filepath = self.default_persist_path
         filepath = Path(filepath).expanduser()
 
@@ -1367,7 +1368,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise ValueError(f'The upgrade filepath "{filepath}" does not exist.')
 
         if self.configuration.verbose:
-            print(f'Upgrading Trainee with id: {trainee_id}')
+            print(f"Upgrading Trainee with id: {trainee_id}")
 
         self._initialize_trainee(trainee_id)
 
@@ -1389,7 +1390,7 @@ class HowsoDirectClient(AbstractHowsoClient):
 
     def get_trainee(self, trainee_id: str) -> Trainee:
         """
-        Gets a trainee loaded in the Howso service.
+        Get a trainee loaded in the Howso service.
 
         Parameters
         ----------
@@ -1403,7 +1404,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         """
         trainee_id = self._resolve_trainee(trainee_id).id
         if self.configuration.verbose:
-            print(f'Getting Trainee with id: {trainee_id}')
+            print(f"Getting Trainee with id: {trainee_id}")
         return self._get_trainee_from_engine(trainee_id)
 
     def get_trainee_runtime(self, trainee_id: str) -> TraineeRuntime:
@@ -1426,12 +1427,12 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainee_id = self._resolve_trainee(trainee_id).id
         trainee_version = self.execute(trainee_id, "get_trainee_version", {})
         amlg_version = self.amlg.get_version_string().decode()
-        library_type = 'mt'
+        library_type = "mt"
         if self.amlg.library_postfix:
             library_type = self.amlg.library_postfix[1:]
 
         return TraineeRuntime(
-            library_type=t.cast(LibraryType, library_type),
+            library_type=cast(LibraryType, library_type),
             tracing_enabled=self._trace_enabled,
             versions=TraineeVersion(trainee=trainee_version, amalgam=amlg_version)
         )
@@ -1453,15 +1454,16 @@ class HowsoDirectClient(AbstractHowsoClient):
         trainees = list()
         filter_terms = []
         if search_terms:
-            filter_terms = search_terms.replace(',', ' ').split(' ')
+            filter_terms = search_terms.replace(",", " ").split(" ")
 
-        def is_match(name):
+        def is_match(name: str | None) -> bool:
             # Check if name matches filter terms
             if filter_terms:
-                return any((
+                # An unnamed Trainee cannot match any search term
+                return name is not None and any(
                     str(term).lower() in name.lower()
                     for term in filter_terms
-                ))
+                )
             return True
 
         # Collect in memory trainees
@@ -1475,12 +1477,10 @@ class HowsoDirectClient(AbstractHowsoClient):
                 )
 
         # Collect persisted trainees
-        files = os.listdir(self.default_persist_path)
-        for f in files:
-            if not f.endswith(self._howso_ext):
+        for path in self.default_persist_path.iterdir():
+            if path.suffix != self._howso_ext:
                 continue
-            # remove the extension from the file name
-            trainee_name = f[:f.rindex('.')]
+            trainee_name = path.stem
             if (
                 trainee_name not in self.trainee_cache and
                 is_match(trainee_name)
@@ -1493,12 +1493,12 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         return trainees
 
-    def delete_trainee(
+    def delete_trainee(  # noqa: PLR0912
         self,
-        trainee_id: t.Optional[str] = None,
+        trainee_id: str | None = None,
         *,
-        file_path: t.Optional[Path | str] = None
-    ):
+        file_path: Path | str | None = None
+    ) -> None:
         """
         Delete a Trainee from the Howso service and filesystem.
 
@@ -1544,7 +1544,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise ValueError("One of `trainee_id` or `file_path` must be provided.")
 
         if self.configuration.verbose:
-            print(f'Deleting Trainee with id {trainee_id}')
+            print(f"Deleting Trainee with id {trainee_id}")
 
         # Unload the trainee from engine
         self.amlg.destroy_entity(trainee_id)
@@ -1564,7 +1564,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         else:
             save_path = self.default_persist_path
 
-        trainee_path = Path(save_path, f'{trainee_id}{self._howso_ext}')
+        trainee_path = Path(save_path, f"{trainee_id}{self._howso_ext}")
 
         # Delete Trainee
         if trainee_path.exists():
@@ -1573,15 +1573,15 @@ class HowsoDirectClient(AbstractHowsoClient):
     def copy_trainee(
         self,
         trainee_id: str,
-        new_trainee_name: t.Optional[str] = None,
-        new_trainee_id: t.Optional[str] = None,
+        new_trainee_name: str | None = None,
+        new_trainee_id: str | None = None,
         *,
-        library_type: t.Optional[LibraryType] = None,
-        resources: t.Optional[Mapping[str, t.Any]] = None,
-        runtime: t.Optional[TraineeRuntimeOptions] = None
+        library_type: LibraryType | None = None,
+        resources: Mapping[str, Any] | None = None,
+        runtime: TraineeRuntimeOptions | None = None
     ) -> Trainee:
         """
-        Copies a trainee to a new trainee id in the Howso service.
+        Copy a trainee to a new trainee id in the Howso service.
 
         Parameters
         ----------
@@ -1628,16 +1628,16 @@ class HowsoDirectClient(AbstractHowsoClient):
         new_trainee_id = new_trainee_id or new_trainee_name or str(uuid.uuid4())
 
         if self.configuration.verbose:
-            print(f'Copying Trainee {trainee_id} to {new_trainee_id}')
+            print(f"Copying Trainee {trainee_id} to {new_trainee_id}")
 
         if library_type is not None:
             warnings.warn(
-                'The copy trainee parameter `library_type` is deprecated and will be removed in '
-                'a future release. Please use `runtime` instead.', DeprecationWarning)
+                "The copy trainee parameter `library_type` is deprecated and will be removed in "
+                "a future release. Please use `runtime` instead.", DeprecationWarning, stacklevel=2)
         if resources is not None:
             warnings.warn(
-                'The copy trainee parameter `resources` is deprecated and will be removed in '
-                'a future release. Please use `runtime` instead.', DeprecationWarning)
+                "The copy trainee parameter `resources` is deprecated and will be removed in "
+                "a future release. Please use `runtime` instead.", DeprecationWarning, stacklevel=2)
 
         if runtime is not None:
             warnings.warn(
@@ -1647,7 +1647,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 stacklevel=2
             )
 
-        if original_trainee.persistence == 'always':
+        if original_trainee.persistence == "always":
             persist = True
             json_file_params = '{"transactional":true,"flatten":true}'
         else:
@@ -1669,17 +1669,17 @@ class HowsoDirectClient(AbstractHowsoClient):
         # Create the copy trainee
         new_trainee = deepcopy(original_trainee)
         new_trainee.name = new_trainee_name
-        new_trainee._id = new_trainee_id  # type: ignore
+        new_trainee._id = new_trainee_id
         metadata = {
-            'name': new_trainee.name,
-            'metadata': new_trainee.metadata,
-            'persistence': new_trainee.persistence,
+            "name": new_trainee.name,
+            "metadata": new_trainee.metadata,
+            "persistence": new_trainee.persistence,
         }
         self.execute(new_trainee_id, "set_metadata", {"metadata": metadata})
         # Add new trainee to cache
         feature_attributes = self.execute(new_trainee_id, "get_feature_attributes", {})
         feature_attributes = internals.postprocess_feature_attributes(feature_attributes)
-        if new_trainee.persistence == 'always':
+        if new_trainee.persistence == "always":
             new_trainee.file_size = self._trainee_size(new_trainee_id)
         self.trainee_cache.set(new_trainee, feature_attributes=feature_attributes)
 
@@ -1689,8 +1689,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         self,
         trainee_id: str,
         *,
-        max_wait_time: t.Optional[int | float] = None
-    ):
+        max_wait_time: float | None = None  # noqa: ARG002
+    ) -> None:
         """
         Acquire resources for a trainee in the Howso service.
 
@@ -1707,17 +1707,17 @@ class HowsoDirectClient(AbstractHowsoClient):
         HowsoError
             If no Trainee with the requested ID can be found or loaded.
         """
-        if trainee_id is None:
+        if not trainee_id:
             raise HowsoError("A Trainee id is required.")
         if self.configuration.verbose:
-            print(f'Acquiring resources for Trainee with id: {trainee_id}')
+            print(f"Acquiring resources for Trainee with id: {trainee_id}")
 
         if trainee_id in self.trainee_cache:
             # Trainee is already loaded
             return
 
         filepath = self.resolve_trainee_filepath(trainee_id)
-        if not os.path.exists(filepath):
+        if not Path(filepath).exists():
             raise HowsoError(
                 f'Trainee not found. No Trainee file exists at: "{filepath}"', code="not_found")
         status = self.amlg.load_entity(
@@ -1737,7 +1737,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         feature_attributes = internals.postprocess_feature_attributes(feature_attributes)
         self.trainee_cache.set(trainee, feature_attributes=feature_attributes)
 
-    def release_trainee_resources(self, trainee_id: str):
+    def release_trainee_resources(self, trainee_id: str) -> None:
         """
         Release a trainee's resources from the Howso service.
 
@@ -1752,11 +1752,11 @@ class HowsoDirectClient(AbstractHowsoClient):
             If the requested Trainee has a persistence of "never".
         """
         if self.configuration.verbose:
-            print(f'Releasing resources for Trainee with id: {trainee_id}')
+            print(f"Releasing resources for Trainee with id: {trainee_id}")
         try:
             trainee = self.trainee_cache.get(trainee_id)
 
-            if trainee.persistence in ['allow', 'always']:
+            if trainee.persistence in ["allow", "always"]:
                 # Persist on unload
                 resolved_path = self.resolve_trainee_filepath(trainee_id)
                 is_persisted = self.amlg.store_entity(
@@ -1780,9 +1780,9 @@ class HowsoDirectClient(AbstractHowsoClient):
             pass
         self.amlg.destroy_entity(trainee_id)
 
-    def persist_trainee(self, trainee_id: str):
+    def persist_trainee(self, trainee_id: str) -> None:
         """
-        Persists a Trainee in the Howso service storage.
+        Persist a Trainee in the Howso service storage.
 
         After persisting, the Trainee resources can be
         :func:`released <client.HowsoClient.release_trainee_resources>`.
@@ -1798,14 +1798,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             If the requested Trainee's persistence is set to "never".
         """
         if self.configuration.verbose:
-            print(f'Saving Trainee with id: {trainee_id}')
+            print(f"Saving Trainee with id: {trainee_id}")
 
         trainee = self._cached_trainee(trainee_id)
-        if trainee is not None and trainee.persistence == 'never':
+        if trainee is not None and trainee.persistence == "never":
             raise AssertionError(
                 "Trainee is set to never persist. Update the trainee "
                 "persistence option to enable persistence.")
-        transactional = (trainee is not None and trainee.persistence == 'always')
+        transactional = (trainee is not None and trainee.persistence == "always")
 
         resolved_path = self.resolve_trainee_filepath(trainee_id)
         is_persisted = self.amlg.store_entity(
@@ -1820,10 +1820,12 @@ class HowsoDirectClient(AbstractHowsoClient):
             )
 
         if transactional:
-            assert trainee is not None
+            if trainee is None:
+                # Unreachable: transactional is only True for a cached Trainee
+                raise AssertionError(f'Trainee "{trainee_id}" is missing from the cache after persisting it.')
             trainee.file_size = self._trainee_size(trainee_id)
 
-    def begin_session(self, name: str | None = "default", metadata: t.Optional[Mapping] = None) -> Session:
+    def begin_session(self, name: str | None = "default", metadata: Mapping[Any, Any] | None = None) -> Session:
         """
         Begin a new session.
 
@@ -1851,22 +1853,22 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise TypeError("`metadata` must be a Mapping")
 
         if self.configuration.verbose:
-            print('Starting new session')
+            print("Starting new session")
         self._active_session = Session(
             id=str(uuid.uuid4()),
             name=name,
             metadata=metadata or dict(),
-            created_date=datetime.now(timezone.utc),
-            modified_date=datetime.now(timezone.utc),
+            created_date=datetime.now(UTC),
+            modified_date=datetime.now(UTC),
         )
         return self._active_session
 
     def query_sessions(
         self,
-        search_terms: t.Optional[str] = None,
+        search_terms: str | None = None,
         *,
-        trainee: t.Optional[str | Trainee] = None,
-        **kwargs
+        trainee: str | Trainee | None = None,
+        **kwargs: Mapping[Any, Any]
     ) -> list[Session]:
         """
         Return a list of all accessible sessions.
@@ -1888,11 +1890,11 @@ class HowsoDirectClient(AbstractHowsoClient):
             The listing of session instances.
         """
         if self.configuration.verbose:
-            print('Querying accessible sessions')
+            print("Querying accessible sessions")
         filter_terms = []
         filtered_sessions = []
         if search_terms:
-            filter_terms = search_terms.replace(',', ' ').split(' ')
+            filter_terms = search_terms.replace(",", " ").split(" ")
 
         # Normalize trainee id filter
         if isinstance(trainee, Trainee):
@@ -1911,21 +1913,21 @@ class HowsoDirectClient(AbstractHowsoClient):
                 if filter_terms:
                     # Filter by search terms
                     for term in filter_terms:
-                        if term.lower() in session.get('name', '').lower():
+                        if term.lower() in session.get("name", "").lower():
                             instance = Session.from_dict(session)
                             metadata = dict(instance.metadata) if instance.metadata else dict()
-                            metadata['trainee_id'] = trainee_id
+                            metadata["trainee_id"] = trainee_id
                             instance.metadata = metadata
                             filtered_sessions.append(instance)
                             break
                 else:
                     instance = Session.from_dict(session)
                     metadata = dict(instance.metadata) if instance.metadata else dict()
-                    metadata['trainee_id'] = trainee_id
+                    metadata["trainee_id"] = trainee_id
                     instance.metadata = metadata
                     filtered_sessions.append(instance)
         return sorted(filtered_sessions,
-                      key=operator.attrgetter('created_date'),
+                      key=operator.attrgetter("created_date"),
                       reverse=True)
 
     def get_session(self, session_id: str) -> Session:
@@ -1949,7 +1951,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             The session instance.
         """
         if self.configuration.verbose:
-            print(f'Getting session with id: {session_id}')
+            print(f"Getting session with id: {session_id}")
 
         if session_id == self.active_session.id:
             return self.active_session
@@ -1970,14 +1972,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             session = Session.from_dict(session_data)
             # Include trainee_id in the metadata
             metadata = dict(session.metadata) if session.metadata else dict()
-            metadata['trainee_id'] = trainee_id
+            metadata["trainee_id"] = trainee_id
             session.metadata = metadata
             break
         if session is None:
             raise HowsoError("Session not found")
         return session
 
-    def update_session(self, session_id: str, *, metadata: t.Optional[Mapping] = None) -> Session:
+    def update_session(self, session_id: str, *, metadata: Mapping[Any, Any] | None = None) -> Session:
         """
         Update a session.
 
@@ -2007,15 +2009,15 @@ class HowsoDirectClient(AbstractHowsoClient):
         if metadata is not None and not isinstance(metadata, Mapping):
             raise TypeError("`metadata` must be a Mapping")
         if self.configuration.verbose:
-            print(f'Updating session for session with id: {session_id}')
+            print(f"Updating session for session with id: {session_id}")
 
         updated_session = None
-        modified_date = datetime.now(timezone.utc)
+        modified_date = datetime.now(UTC)
         # We remove the trainee_id since this may have been set by the
         # get_session(s) methods and is not needed to be stored in the model.
-        if metadata is not None and 'trainee_id' in metadata:
+        if metadata is not None and "trainee_id" in metadata:
             metadata = dict(metadata)
-            metadata.pop('trainee_id', None)
+            metadata.pop("trainee_id", None)
 
         # Update session across all loaded trainees
         for trainee_id in self.trainee_cache.ids():
@@ -2026,8 +2028,8 @@ class HowsoDirectClient(AbstractHowsoClient):
             except HowsoError:
                 # When session is not found, continue
                 continue
-            session_data['metadata'] = metadata
-            session_data['modified_date'] = modified_date
+            session_data["metadata"] = metadata
+            session_data["modified_date"] = modified_date
             self.execute(trainee_id, "set_session_metadata", {
                 "session": session_id,
                 "metadata": session_data,
@@ -2037,7 +2039,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         if self.active_session.id == session_id:
             # Update active session
             self._active_session.metadata = metadata
-            self._active_session._modified_date = modified_date  # type: ignore
+            self._active_session._modified_date = modified_date
             if updated_session is None:
                 updated_session = self.active_session
         elif updated_session is None:
@@ -2046,7 +2048,7 @@ class HowsoDirectClient(AbstractHowsoClient):
             raise HowsoError("Session not found")
         return updated_session
 
-    def get_hierarchy(self, trainee_id: str, *, trainee_path: Iterable[str] | None = None) -> dict:
+    def get_hierarchy(self, trainee_id: str, *, trainee_path: Iterable[str] | None = None) -> dict[str, Any]:
         """
         Get the hierarchy schema of a Trainee.
 
