@@ -1001,22 +1001,26 @@ class HowsoDirectClient(AbstractHowsoClient):
 
         if library_type is not None:
             warnings.warn(
-                'The create trainee parameter `library_type` is deprecated and will be removed in '
-                'a future release. Please use `runtime` instead.', DeprecationWarning)
+                "The create trainee parameter `library_type` is deprecated and will be removed in "
+                "a future release. Please use `runtime` instead.", DeprecationWarning, stacklevel=2)
         if resources is not None:
             warnings.warn(
-                'The create trainee parameter `resources` is deprecated and will be removed in '
-                'a future release. Please use `runtime` instead.', DeprecationWarning)
+                "The create trainee parameter `resources` is deprecated and will be removed in "
+                "a future release. Please use `runtime` instead.", DeprecationWarning, stacklevel=2)
 
         if max_wait_time is not None:
             warnings.warn(
-                '`max_wait_time` is not implemented for the `HowsoDirectClient`.', UnsupportedArgumentWarning)
+                "`max_wait_time` is not implemented for the `HowsoDirectClient`.",
+                UnsupportedArgumentWarning,
+                stacklevel=2
+            )
 
         if runtime is not None:
             warnings.warn(
                 '`runtime` is not implemented for the `HowsoDirectClient`. Modify the configuration '
                 '`howso > client_extra_params > amalgam > library_postfix` in "howso.yml" instead.',
-                UnsupportedArgumentWarning
+                UnsupportedArgumentWarning,
+                stacklevel=2
             )
 
         if trainee_id:
@@ -1634,6 +1638,14 @@ class HowsoDirectClient(AbstractHowsoClient):
             warnings.warn(
                 'The copy trainee parameter `resources` is deprecated and will be removed in '
                 'a future release. Please use `runtime` instead.', DeprecationWarning)
+
+        if runtime is not None:
+            warnings.warn(
+                '`runtime` is not implemented for the `HowsoDirectClient`. Modify the configuration '
+                '`howso > client_extra_params > amalgam > library_postfix` in "howso.yml" instead.',
+                UnsupportedArgumentWarning,
+                stacklevel=2
+            )
 
         if original_trainee.persistence == 'always':
             persist = True
